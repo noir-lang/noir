@@ -8,14 +8,14 @@ import {
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
-import { type ContractsDataSourcePublicDB } from '../simulator/public_executor.js';
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
+import { type ContractsDataSourcePublicDB } from './public_executor.js';
+import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 
 /**
  * The phase manager responsible for performing the fee preparation phase.
  */
-export class SetupPhaseManager extends AbstractPhaseManager {
+export class TeardownPhaseManager extends AbstractPhaseManager {
   constructor(
     protected db: MerkleTreeOperations,
     protected publicExecutor: PublicExecutor,
@@ -24,7 +24,7 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     protected historicalHeader: Header,
     protected publicContractsDB: ContractsDataSourcePublicDB,
     protected publicStateDB: PublicStateDB,
-    public phase: PublicKernelPhase = PublicKernelPhase.SETUP,
+    public phase: PublicKernelPhase = PublicKernelPhase.TEARDOWN,
   ) {
     super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }
@@ -46,10 +46,10 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
     await this.publicStateDB.checkpoint();
 
-    // Return a list of setup proving requests
+    // Return a list of teardown proving requests
     const kernelRequests = kernelInputs.map(input => {
       const request: PublicKernelRequest = {
-        type: PublicKernelType.SETUP,
+        type: PublicKernelType.TEARDOWN,
         inputs: input,
       };
       return request;

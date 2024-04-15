@@ -1,9 +1,8 @@
-import { mockTx, mockTxForRollup } from '@aztec/circuit-types';
+import { type AnyTx, mockTx, mockTxForRollup } from '@aztec/circuit-types';
 import { Fr, type GlobalVariables, MaxBlockNumber } from '@aztec/circuits.js';
 import { makeGlobalVariables } from '@aztec/circuits.js/testing';
 
 import { MetadataTxValidator } from './metadata_validator.js';
-import { type AnyTx } from './tx_validator.js';
 
 describe('MetadataTxValidator', () => {
   let globalVariables: GlobalVariables;

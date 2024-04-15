@@ -1,4 +1,11 @@
-import { type L1ToL2MessageSource, type L2Block, type L2BlockSource, type ProcessedTx, Tx } from '@aztec/circuit-types';
+import {
+  type L1ToL2MessageSource,
+  type L2Block,
+  type L2BlockSource,
+  type ProcessedTx,
+  Tx,
+  type TxValidator,
+} from '@aztec/circuit-types';
 import { type AllowedFunction, type BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
 import { AztecAddress, EthAddress } from '@aztec/circuits.js';
@@ -7,14 +14,13 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { Timer, elapsed } from '@aztec/foundation/timer';
 import { type P2P } from '@aztec/p2p';
+import { type PublicProcessorFactory } from '@aztec/simulator';
 import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { type L1Publisher } from '../publisher/l1-publisher.js';
-import { type TxValidator } from '../tx_validator/tx_validator.js';
 import { type TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 import { type SequencerConfig } from './config.js';
-import { type PublicProcessorFactory } from './public_processor.js';
 
 /**
  * Sequencer client

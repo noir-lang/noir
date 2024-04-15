@@ -1,7 +1,7 @@
 import { type L1ToL2MessageSource, type L2BlockSource } from '@aztec/circuit-types';
 import { type BlockProver } from '@aztec/circuit-types/interfaces';
 import { type P2P } from '@aztec/p2p';
-import { type SimulationProvider } from '@aztec/simulator';
+import { PublicProcessorFactory, type SimulationProvider } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
@@ -9,7 +9,6 @@ import { type SequencerClientConfig } from '../config.js';
 import { getGlobalVariableBuilder } from '../global_variable_builder/index.js';
 import { getL1Publisher } from '../publisher/index.js';
 import { Sequencer, type SequencerConfig } from '../sequencer/index.js';
-import { PublicProcessorFactory } from '../sequencer/public_processor.js';
 import { TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 
 /**

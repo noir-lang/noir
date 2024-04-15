@@ -66,8 +66,8 @@ import {
 } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { HintsBuilder } from './hints_builder.js';
+import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 import { lastSideEffectCounter } from './utils.js';
 
 export enum PublicKernelPhase {

@@ -16,7 +16,16 @@
       "path": "../foundation"
     },
     {
+      "path": "../noir-protocol-circuits-types"
+    },
+    {
+      "path": "../protocol-contracts"
+    },
+    {
       "path": "../types"
+    },
+    {
+      "path": "../world-state"
     },
     {
       "path": "../kv-store"

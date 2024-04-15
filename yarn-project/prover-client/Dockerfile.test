@@ -32,7 +32,7 @@ RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN ./bootstrap.sh
-RUN cd prover-client && LOG_LEVEL=verbose ACVM_WORKING_DIRECTORY='/tmp/acvm' BB_WORKING_DIRECTORY='/tmp/bb' yarn test
+RUN cd prover-client && ACVM_WORKING_DIRECTORY='/tmp/acvm' BB_WORKING_DIRECTORY='/tmp/bb' yarn test
 
 # Avoid pushing some huge container back to ecr.
 FROM scratch

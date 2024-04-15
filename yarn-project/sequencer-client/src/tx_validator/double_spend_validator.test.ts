@@ -1,9 +1,8 @@
-import { mockTx, mockTxForRollup } from '@aztec/circuit-types';
+import { type AnyTx, mockTx, mockTxForRollup } from '@aztec/circuit-types';
 
 import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
 import { DoubleSpendTxValidator, type NullifierSource } from './double_spend_validator.js';
-import { type AnyTx } from './tx_validator.js';
 
 describe('DoubleSpendTxValidator', () => {
   let txValidator: DoubleSpendTxValidator<AnyTx>;

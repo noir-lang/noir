@@ -1,11 +1,9 @@
-import { Tx } from '@aztec/circuit-types';
+import { Tx, type TxValidator } from '@aztec/circuit-types';
 import { type AztecAddress, Fr } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { GasTokenContract } from '@aztec/noir-contracts.js';
-
-import { AbstractPhaseManager, PublicKernelPhase } from '../sequencer/abstract_phase_manager.js';
-import { type TxValidator } from './tx_validator.js';
+import { AbstractPhaseManager, PublicKernelPhase } from '@aztec/simulator';
 
 /** Provides a view into public contract state */
 export interface PublicStateSource {

@@ -5,6 +5,7 @@ import {
   type PublicKernelRequest,
   type SimulationError,
   Tx,
+  type TxValidator,
   makeEmptyProcessedTx,
   makeProcessedTx,
   toTxEffect,
@@ -19,12 +20,11 @@ import { PublicExecutor, type PublicStateDB, type SimulationProvider } from '@az
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
-import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
-import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
-import { type TxValidator } from '../tx_validator/tx_validator.js';
 import { type AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
+import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from './public_executor.js';
+import { RealPublicKernelCircuitSimulator } from './public_kernel.js';
+import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 
 /**
  * Creates new instances of PublicProcessor given the provided merkle tree db and contract data source.

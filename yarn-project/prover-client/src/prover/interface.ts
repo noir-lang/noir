@@ -1,7 +1,9 @@
+import { type PublicKernelNonTailRequest, type PublicKernelTailRequest } from '@aztec/circuit-types';
 import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type ParityPublicInputs,
   type Proof,
@@ -45,6 +47,18 @@ export interface CircuitProver {
    * @param input - Input to the circuit.
    */
   getRootRollupProof(input: RootRollupInputs): Promise<[RootRollupPublicInputs, Proof]>;
+
+  /**
+   * Create a public kernel proof.
+   * @param kernelRequest - Object containing the details of the proof required
+   */
+  getPublicKernelProof(kernelRequest: PublicKernelNonTailRequest): Promise<[PublicKernelCircuitPublicInputs, Proof]>;
+
+  /**
+   * Create a public kernel tail proof.
+   * @param kernelRequest - Object containing the details of the proof required
+   */
+  getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<[KernelCircuitPublicInputs, Proof]>;
 }
 
 /**

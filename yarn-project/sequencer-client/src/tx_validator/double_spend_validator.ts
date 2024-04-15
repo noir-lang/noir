@@ -1,8 +1,6 @@
-import { Tx } from '@aztec/circuit-types';
+import { type AnyTx, Tx, type TxValidator } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-
-import { type AnyTx, type TxValidator } from './tx_validator.js';
 
 export interface NullifierSource {
   getNullifierIndex: (nullifier: Fr) => Promise<bigint | undefined>;

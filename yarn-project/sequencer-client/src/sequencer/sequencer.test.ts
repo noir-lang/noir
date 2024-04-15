@@ -23,15 +23,15 @@ import {
 } from '@aztec/circuits.js';
 import { makeProof } from '@aztec/circuits.js/testing';
 import { type P2P, P2PClientState } from '@aztec/p2p';
+import { type PublicProcessor, type PublicProcessorFactory } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations, WorldStateRunningState, type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
-import { type L1Publisher } from '../index.js';
+import { type L1Publisher } from '../publisher/l1-publisher.js';
 import { TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
-import { type PublicProcessor, type PublicProcessorFactory } from './public_processor.js';
 import { Sequencer } from './sequencer.js';
 
 describe('sequencer', () => {

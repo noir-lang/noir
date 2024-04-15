@@ -1,33 +1,23 @@
 import {
   type BlockProver,
   EncryptedTxL2Logs,
-  type FunctionCall,
   type ProcessedTx,
   PublicDataWrite,
   SiblingPath,
   SimulationError,
   Tx,
-  UnencryptedFunctionL2Logs,
+  type TxValidator,
   UnencryptedTxL2Logs,
   mockTx,
   toTxEffect,
 } from '@aztec/circuit-types';
 import {
-  ARGS_LENGTH,
-  type AztecAddress,
-  CallContext,
-  CallRequest,
   ContractStorageUpdateRequest,
-  EthAddress,
   Fr,
-  FunctionData,
-  GasSettings,
   GlobalVariables,
   Header,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
-  type PrivateKernelTailCircuitPublicInputs,
   type Proof,
   type PublicCallRequest,
   PublicDataUpdateRequest,
@@ -42,17 +32,17 @@ import {
   makeSelector,
 } from '@aztec/circuits.js/testing';
 import { makeTuple } from '@aztec/foundation/array';
-import { arrayNonEmptyLength, padArrayEnd, times } from '@aztec/foundation/collection';
-import { type PublicExecution, type PublicExecutionResult, type PublicExecutor, WASMSimulator } from '@aztec/simulator';
+import { arrayNonEmptyLength, times } from '@aztec/foundation/collection';
+import { type PublicExecutionResult, type PublicExecutor, WASMSimulator } from '@aztec/simulator';
 import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
 
 import { jest } from '@jest/globals';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
-import { type ContractsDataSourcePublicDB, type WorldStatePublicDB } from '../simulator/public_executor.js';
-import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
-import { type TxValidator } from '../tx_validator/tx_validator.js';
+import { PublicExecutionResultBuilder, addKernelPublicCallStack, makeFunctionCall } from '../mocks/fixtures.js';
+import { type ContractsDataSourcePublicDB, type WorldStatePublicDB } from './public_executor.js';
+import { RealPublicKernelCircuitSimulator } from './public_kernel.js';
+import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 import { PublicProcessor } from './public_processor.js';
 
 describe('public_processor', () => {
@@ -746,150 +736,3 @@ describe('public_processor', () => {
     });
   });
 });
-
-class PublicExecutionResultBuilder {
-  private _execution: PublicExecution;
-  private _nestedExecutions: PublicExecutionResult[] = [];
-  private _contractStorageUpdateRequests: ContractStorageUpdateRequest[] = [];
-  private _returnValues: Fr[] = [];
-  private _reverted = false;
-  private _revertReason: SimulationError | undefined = undefined;
-
-  constructor(execution: PublicExecution) {
-    this._execution = execution;
-  }
-
-  static fromPublicCallRequest({
-    request,
-    returnValues = [new Fr(1n)],
-    nestedExecutions = [],
-    contractStorageUpdateRequests = [],
-  }: {
-    request: PublicCallRequest;
-    returnValues?: Fr[];
-    nestedExecutions?: PublicExecutionResult[];
-    contractStorageUpdateRequests?: ContractStorageUpdateRequest[];
-  }): PublicExecutionResultBuilder {
-    const builder = new PublicExecutionResultBuilder(request);
-
-    builder.withNestedExecutions(...nestedExecutions);
-    builder.withContractStorageUpdateRequest(...contractStorageUpdateRequests);
-    builder.withReturnValues(...returnValues);
-
-    return builder;
-  }
-
-  static fromFunctionCall({
-    from,
-    tx,
-    returnValues = [new Fr(1n)],
-    nestedExecutions = [],
-    contractStorageUpdateRequests = [],
-    revertReason,
-  }: {
-    from: AztecAddress;
-    tx: FunctionCall;
-    returnValues?: Fr[];
-    nestedExecutions?: PublicExecutionResult[];
-    contractStorageUpdateRequests?: ContractStorageUpdateRequest[];
-    revertReason?: SimulationError;
-  }) {
-    const builder = new PublicExecutionResultBuilder({
-      callContext: new CallContext(
-        from,
-        tx.to,
-        EthAddress.ZERO,
-        tx.functionData.selector,
-        false,
-        false,
-        0,
-        GasSettings.empty(),
-        Fr.ZERO,
-      ),
-      contractAddress: tx.to,
-      functionData: tx.functionData,
-      args: tx.args,
-    });
-
-    builder.withNestedExecutions(...nestedExecutions);
-    builder.withContractStorageUpdateRequest(...contractStorageUpdateRequests);
-    builder.withReturnValues(...returnValues);
-    if (revertReason) {
-      builder.withReverted(revertReason);
-    }
-
-    return builder;
-  }
-
-  withNestedExecutions(...nested: PublicExecutionResult[]): PublicExecutionResultBuilder {
-    this._nestedExecutions.push(...nested);
-    return this;
-  }
-
-  withContractStorageUpdateRequest(...request: ContractStorageUpdateRequest[]): PublicExecutionResultBuilder {
-    this._contractStorageUpdateRequests.push(...request);
-    return this;
-  }
-
-  withReturnValues(...values: Fr[]): PublicExecutionResultBuilder {
-    this._returnValues.push(...values);
-    return this;
-  }
-
-  withReverted(reason: SimulationError): PublicExecutionResultBuilder {
-    this._reverted = true;
-    this._revertReason = reason;
-    return this;
-  }
-
-  build(): PublicExecutionResult {
-    return {
-      execution: this._execution,
-      nestedExecutions: this._nestedExecutions,
-      nullifierReadRequests: [],
-      nullifierNonExistentReadRequests: [],
-      contractStorageUpdateRequests: this._contractStorageUpdateRequests,
-      returnValues: padArrayEnd(this._returnValues, Fr.ZERO, 4), // TODO(#5450) Need to use the proper return values here
-      newNoteHashes: [],
-      newNullifiers: [],
-      newL2ToL1Messages: [],
-      contractStorageReads: [],
-      unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
-      startSideEffectCounter: Fr.ZERO,
-      endSideEffectCounter: Fr.ZERO,
-      reverted: this._reverted,
-      revertReason: this._revertReason,
-    };
-  }
-}
-
-const makeFunctionCall = (
-  to = makeAztecAddress(30),
-  selector = makeSelector(5),
-  args = new Array(ARGS_LENGTH).fill(Fr.ZERO),
-) => ({ to, functionData: new FunctionData(selector, false), args });
-
-function addKernelPublicCallStack(
-  kernelOutput: PrivateKernelTailCircuitPublicInputs,
-  calls: {
-    setupCalls: PublicCallRequest[];
-    appLogicCalls: PublicCallRequest[];
-    teardownCall: PublicCallRequest;
-  },
-) {
-  // the first two calls are non-revertible
-  // the first is for setup, the second is for teardown
-  kernelOutput.forPublic!.endNonRevertibleData.publicCallStack = padArrayEnd(
-    // this is a stack, so the first item is the last call
-    // and callRequests is in the order of the calls
-    [calls.teardownCall.toCallRequest(), ...calls.setupCalls.map(c => c.toCallRequest())],
-    CallRequest.empty(),
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  );
-
-  kernelOutput.forPublic!.end.publicCallStack = padArrayEnd(
-    calls.appLogicCalls.map(c => c.toCallRequest()),
-    CallRequest.empty(),
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  );
-}

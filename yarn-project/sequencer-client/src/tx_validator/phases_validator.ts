@@ -1,10 +1,8 @@
-import { type AllowedFunction, Tx } from '@aztec/circuit-types';
+import { type AllowedFunction, Tx, type TxValidator } from '@aztec/circuit-types';
 import { type PublicCallRequest } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { AbstractPhaseManager, PublicKernelPhase } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
-
-import { AbstractPhaseManager, PublicKernelPhase } from '../sequencer/abstract_phase_manager.js';
-import { type TxValidator } from './tx_validator.js';
 
 export class PhasesTxValidator implements TxValidator<Tx> {
   #log = createDebugLogger('aztec:sequencer:tx_validator:tx_phases');

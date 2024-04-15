@@ -7,8 +7,8 @@ import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
 import { it } from '@jest/globals';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
-import { type ContractsDataSourcePublicDB, type WorldStatePublicDB } from '../simulator/public_executor.js';
+import { type ContractsDataSourcePublicDB, type WorldStatePublicDB } from './public_executor.js';
+import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 import { SetupPhaseManager } from './setup_phase_manager.js';
 
 class TestSetupPhaseManager extends SetupPhaseManager {

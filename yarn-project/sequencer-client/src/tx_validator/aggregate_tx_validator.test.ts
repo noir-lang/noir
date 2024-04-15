@@ -1,7 +1,6 @@
-import { Tx, type TxHash, mockTx } from '@aztec/circuit-types';
+import { type AnyTx, Tx, type TxHash, type TxValidator, mockTx } from '@aztec/circuit-types';
 
 import { AggregateTxValidator } from './aggregate_tx_validator.js';
-import { type AnyTx, type TxValidator } from './tx_validator.js';
 
 describe('AggregateTxValidator', () => {
   it('allows txs that pass all validation', async () => {

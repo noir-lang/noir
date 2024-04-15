@@ -752,6 +752,7 @@ __metadata:
     "@aztec/simulator": "workspace:^"
     "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@noir-lang/types": "portal:../../noir/packages/types"
     "@types/jest": ^29.5.0
     "@types/memdown": ^3.0.0
     "@types/node": ^18.7.23
@@ -881,7 +882,10 @@ __metadata:
     "@aztec/kv-store": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
     "@aztec/noir-contracts.js": "workspace:^"
+    "@aztec/noir-protocol-circuits-types": "workspace:^"
+    "@aztec/protocol-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
+    "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.5.0
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js"
     "@noir-lang/types": "portal:../../noir/packages/types"

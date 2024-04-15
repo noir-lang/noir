@@ -1,6 +1,4 @@
-import { type ProcessedTx, type Tx } from '@aztec/circuit-types';
-
-import { type TxValidator } from './tx_validator.js';
+import { type ProcessedTx, type Tx, type TxValidator } from '@aztec/circuit-types';
 
 export class AggregateTxValidator<T extends Tx | ProcessedTx> implements TxValidator<T> {
   #validators: TxValidator<T>[];
