@@ -47,30 +47,36 @@ pub fn fixed_base_scalar_mul(
     }
 }
 
+fn create_point(
+    x: FieldElement,
+    y: FieldElement,
+) -> Result<grumpkin::SWAffine, String> {
+    let point = grumpkin::SWAffine::new_unchecked(x.into_repr(), y.into_repr());
+    if !point.is_on_curve() {
+        return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
+    };
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(format!("Point ({}, {}) is not in correct subgroup", x.to_hex(), y.to_hex()));
+    };
+    Ok(point)
+}
+
 pub fn embedded_curve_add(
     input1_x: FieldElement,
     input1_y: FieldElement,
     input2_x: FieldElement,
     input2_y: FieldElement,
 ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-    fn create_point(
-        x: FieldElement,
-        y: FieldElement,
-    ) -> Result<grumpkin::SWAffine, BlackBoxResolutionError> {
-        match std::panic::catch_unwind(|| grumpkin::SWAffine::new(x.into_repr(), y.into_repr())) {
-            Ok(point) => Ok(point),
-            Err(_) => Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::EmbeddedCurveAdd,
-                format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()),
-            )),
-        }
-    }
-
-    let mut point1 = create_point(input1_x, input1_y)?;
-    let point2 = create_point(input2_x, input2_y)?;
-    let res = point1 + point2;
-    point1 = res.into();
-    if let Some((res_x, res_y)) = point1.xy() {
+    let point1 = create_point(input1_x, input1_y).map_err(|e| BlackBoxResolutionError::Failed(
+        BlackBoxFunc::EmbeddedCurveAdd,
+        e,
+    ))?;
+    let point2 = create_point(input2_x, input2_y).map_err(|e| BlackBoxResolutionError::Failed(
+        BlackBoxFunc::EmbeddedCurveAdd,
+        e,
+    ))?;
+    let res = grumpkin::SWAffine::from(point1 + point2);
+    if let Some((res_x, res_y)) = res.xy() {
         Ok((FieldElement::from_repr(*res_x), FieldElement::from_repr(*res_y)))
     } else {
         Err(BlackBoxResolutionError::Failed(
