@@ -29,6 +29,11 @@ deps:
     RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 
 build:
+    # Prefetch targets to not wait for +deps.
+    BUILD ../barretenberg/cpp/+preset-release
+    BUILD ../noir/+nargo
+    BUILD ../noir-projects/+build
+    BUILD ../l1-contracts/+build
     FROM +deps
     RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
 
@@ -82,6 +87,9 @@ all:
 
 # for use with yarn-project/end-to-end and its e2e_mode=cache option
 export-end-to-end:
+    # Prefetch targets to build in parallel.
+    BUILD +end-to-end
+    BUILD +aztec
     ARG EARTHLY_GIT_HASH
     # pushes the foundry image to local docker images
     FROM ../foundry/+build

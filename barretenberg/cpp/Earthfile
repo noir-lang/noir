@@ -187,6 +187,7 @@ bench-binaries:
 
 # Runs on the bench image, sent from the builder runner
 bench-ultra-honk:
+    BUILD +wasmtime # prefetch
     FROM +source
     COPY --dir +bench-binaries/* .
     # install SRS needed for proving
@@ -198,6 +199,7 @@ bench-ultra-honk:
     RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
 
 bench-client-ivc:
+    BUILD +wasmtime # prefetch
     FROM +source
     COPY --dir +bench-binaries/* .
     # install SRS needed for proving
@@ -232,9 +234,10 @@ test-clang-format:
     RUN ./format.sh check
 
 test:
+    BUILD +test-clang-format
+    BUILD ./srs_db/+build # prefetch
     FROM +source
     COPY --dir +test-binaries/build build
-    BUILD +test-clang-format
     FROM +preset-release-assert-test
     COPY --dir ./srs_db/+build/. srs_db
     RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
