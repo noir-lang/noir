@@ -110,6 +110,10 @@ impl Builder {
                         self.simple_convert(lhs, rhs, P2Builder::mul)
                     }
 
+                    super::ir::instruction::BinaryOp::Div => {
+                        self.simple_convert(lhs, rhs, P2Builder::div)
+                    }
+
                     _ => {
                         let feature_name = format!("operator {}", operator);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
