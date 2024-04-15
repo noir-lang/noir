@@ -1,5 +1,5 @@
 /// All AVM opcodes
-/// Keep updated with TS and yellow paper!
+/// Keep updated with TS and docs protocol specs!
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum AvmOpcode {
     // Compute

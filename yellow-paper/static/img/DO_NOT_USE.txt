@@ -1,1 +1,0 @@
-Instead, pics will be auto-pasted into an `images` subdir of any doc that you paste an image into.

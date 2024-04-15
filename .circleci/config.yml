@@ -807,18 +807,6 @@ jobs:
             echo "Deploying docs"
             docs/deploy_netlify.sh $BRANCH $PULL_REQUEST
 
-  yellow-paper:
-    machine:
-      image: default
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build yellow paper"
-          command: build yellow-paper
-          aztec_manifest_key: yellow-paper
-
   e2e-join:
     docker:
       - image: cimg/base:2023.09
@@ -1073,8 +1061,6 @@ workflows:
 
       - mainnet-fork: *defaults
 
-      - yellow-paper: *defaults
-
       - noir-projects:
           requires:
             - avm-transpiler
@@ -1178,7 +1164,6 @@ workflows:
             - guides-up-quick-start
             - boxes-vanilla
             - boxes-react
-            - yellow-paper
             - noir-packages-tests
             - yarn-project-test
             - prover-client-test

@@ -7,6 +7,7 @@ const math = require("remark-math");
 const katex = require("rehype-katex");
 const path = require("path");
 const fs = require("fs");
+const macros = require("./src/katex-macros.js");
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -52,7 +53,16 @@ const config = {
           },
           routeBasePath: "/",
           remarkPlugins: [math],
-          rehypePlugins: [katex],
+          rehypePlugins: [
+            [
+              katex,
+              {
+                throwOnError: true,
+                globalGroup: true,
+                macros,
+              },
+            ],
+          ],
         },
         blog: false,
         theme: {
@@ -198,6 +208,12 @@ const config = {
             docId: "welcome",
             position: "left",
             label: "Aztec Protocol",
+          },
+          {
+            type: "docSidebar",
+            sidebarId: "protocolSpecSidebar",
+            position: "left",
+            label: "Protocol Specification",
           },
         ],
       },

@@ -125,10 +125,6 @@
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  // Now when a new file is pasted in /yellow-paper/docs/readme.md, the image file is created at /yellow-paper/docs/images/readme/image.png.
-  "markdown.copyFiles.destination": {
-    "/yellow-paper/**/*": "images/${documentBaseName}/"
-  },
   ///////////////////////////////////////
   // C++/Circuits settings
   ///////////////////////////////////////

@@ -82,7 +82,7 @@ export function createPrivateFunctionMembershipProof(
 
 /**
  * Verifies that a private function with a membership proof as emitted by the ClassRegisterer contract is valid,
- * as defined in the yellow paper at contract-deployment/classes:
+ * as defined in the protocol specs at contract-deployment/classes:
  *
  * ```
  * // Load contract class from local db

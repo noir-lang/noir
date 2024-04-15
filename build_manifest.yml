@@ -263,8 +263,3 @@ docs:
     - noir-packages
     - l1-contracts
     - noir-projects
-
-yellow-paper:
-  buildDir: yellow-paper
-  rebuildPatterns:
-    - ^yellow-paper/

@@ -51,7 +51,6 @@ const aztecNRSidebar = buildSidebarItemsFromStructure(
   "developers/contracts/references/aztec-nr"
 );
 
-console.log(aztecNRSidebar);
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
   docsSidebar: [
@@ -634,6 +633,232 @@ const sidebars = {
     },
 
     "misc/aztec_connect_sunset",
+  ],
+
+  protocolSpecSidebar: [
+    "protocol-specs/intro",
+    {
+      label: "Cryptography",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/cryptography/index" },
+      items: [
+        {
+          label: "Proving System",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "protocol-specs/cryptography/proving-system/performance-targets",
+          },
+          items: [
+            "protocol-specs/cryptography/proving-system/performance-targets",
+            "protocol-specs/cryptography/proving-system/overview",
+            "protocol-specs/cryptography/proving-system/data-bus",
+          ],
+        },
+        {
+          label: "Hashing",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "protocol-specs/cryptography/hashing/hashing",
+          },
+          items: [
+            "protocol-specs/cryptography/hashing/hashing",
+            "protocol-specs/cryptography/hashing/poseidon2",
+            "protocol-specs/cryptography/hashing/pedersen",
+          ],
+        },
+        "protocol-specs/cryptography/merkle-trees",
+      ],
+    },
+    {
+      label: "Addresses & Keys",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/addresses-and-keys/index" },
+      items: [
+        "protocol-specs/addresses-and-keys/address",
+        "protocol-specs/addresses-and-keys/keys-requirements",
+        "protocol-specs/addresses-and-keys/keys",
+        {
+          label: "Example Usage of Keys",
+          type: "category",
+          items: [
+            "protocol-specs/addresses-and-keys/example-usage/nullifier",
+            "protocol-specs/addresses-and-keys/example-usage/diversified-and-stealth-keys",
+            "protocol-specs/addresses-and-keys/example-usage/tag-sequence-derivation",
+            "protocol-specs/addresses-and-keys/example-usage/encrypt-and-tag",
+          ],
+        },
+        "protocol-specs/addresses-and-keys/precompiles",
+        "protocol-specs/addresses-and-keys/diversified-and-stealth",
+      ],
+    },
+    {
+      label: "State",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/state/index" },
+      items: [
+        "protocol-specs/state/tree-implementations",
+        "protocol-specs/state/archive",
+        "protocol-specs/state/note-hash-tree",
+        "protocol-specs/state/nullifier-tree",
+        "protocol-specs/state/public-data-tree",
+      ],
+    },
+    {
+      label: "Transactions",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/transactions/index" },
+      items: [
+        "protocol-specs/transactions/local-execution",
+        "protocol-specs/transactions/public-execution",
+        "protocol-specs/transactions/tx-object",
+        "protocol-specs/transactions/validity",
+      ],
+    },
+    {
+      label: "Bytecode",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/bytecode/index" },
+      items: [],
+    },
+    {
+      label: "Contract Deployment",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/contract-deployment/index" },
+      items: [
+        "protocol-specs/contract-deployment/classes",
+        "protocol-specs/contract-deployment/instances",
+      ],
+    },
+    {
+      label: "Calls",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/calls/index" },
+      items: [
+        "protocol-specs/calls/sync-calls",
+        "protocol-specs/calls/enqueued-calls",
+        "protocol-specs/calls/batched-calls",
+        "protocol-specs/calls/static-calls",
+        "protocol-specs/calls/delegate-calls",
+        "protocol-specs/calls/unconstrained-calls",
+        "protocol-specs/calls/public-private-messaging",
+      ],
+    },
+    {
+      label: "L1 smart contracts",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/l1-smart-contracts/index" },
+      items: ["protocol-specs/l1-smart-contracts/frontier"],
+    },
+    {
+      label: "Data availability",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "protocol-specs/data-publication-and-availability/index",
+      },
+      items: [
+        "protocol-specs/data-publication-and-availability/overview",
+        "protocol-specs/data-publication-and-availability/published-data",
+      ],
+    },
+    {
+      label: "Logs",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/logs/index" },
+      items: [],
+    },
+    {
+      label: "Pre-compiled Contracts",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/pre-compiled-contracts/index" },
+      items: ["protocol-specs/pre-compiled-contracts/registry"],
+    },
+    {
+      label: "Private Message Delivery",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "protocol-specs/private-message-delivery/index",
+      },
+      items: [
+        "protocol-specs/private-message-delivery/private-msg-delivery", // renamed to avoid routing problems
+        "protocol-specs/private-message-delivery/send-note-guidelines",
+      ],
+    },
+    {
+      label: "Gas & Fees",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/gas-and-fees/index" },
+      items: [
+        "protocol-specs/gas-and-fees/fee-payments-and-metering",
+        "protocol-specs/gas-and-fees/fee-schedule",
+      ],
+    },
+    {
+      label: "Decentralization",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/decentralization/governance" },
+      items: [
+        "protocol-specs/decentralization/actors",
+        "protocol-specs/decentralization/governance",
+        "protocol-specs/decentralization/block-production",
+        "protocol-specs/decentralization/p2p-network",
+      ],
+    },
+    {
+      label: "Circuits",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/circuits/high-level-topology" },
+      items: [
+        "protocol-specs/circuits/private-function",
+        "protocol-specs/circuits/private-kernel-initial",
+        "protocol-specs/circuits/private-kernel-inner",
+        "protocol-specs/circuits/private-kernel-reset",
+        "protocol-specs/circuits/private-kernel-tail",
+        "protocol-specs/circuits/public-kernel-initial",
+        "protocol-specs/circuits/public-kernel-inner",
+        "protocol-specs/circuits/public-kernel-tail",
+      ],
+    },
+    {
+      label: "Rollup Circuits",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/rollup-circuits/index" },
+      items: [
+        "protocol-specs/rollup-circuits/base-rollup",
+        "protocol-specs/rollup-circuits/merge-rollup",
+        "protocol-specs/rollup-circuits/tree-parity",
+        "protocol-specs/rollup-circuits/root-rollup",
+      ],
+    },
+    {
+      label: "Aztec (Public) VM",
+      type: "category",
+      link: { type: "doc", id: "protocol-specs/public-vm/index" },
+      items: [
+        "protocol-specs/public-vm/intro",
+        "protocol-specs/public-vm/state",
+        "protocol-specs/public-vm/memory-model",
+        "protocol-specs/public-vm/context",
+        "protocol-specs/public-vm/execution",
+        "protocol-specs/public-vm/nested-calls",
+        "protocol-specs/public-vm/instruction-set",
+        {
+          label: "AVM Circuit",
+          type: "category",
+          link: { type: "doc", id: "protocol-specs/public-vm/circuit-index" },
+          items: [
+            "protocol-specs/public-vm/avm-circuit",
+            "protocol-specs/public-vm/control-flow",
+            "protocol-specs/public-vm/alu",
+            "protocol-specs/public-vm/bytecode-validation-circuit",
+          ],
+        },
+        "protocol-specs/public-vm/type-structs",
+      ],
+    },
   ],
 };
 
