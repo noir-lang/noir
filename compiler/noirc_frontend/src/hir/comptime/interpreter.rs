@@ -83,6 +83,11 @@ enum InterpreterError {
     BreakNotInLoop,
     ContinueNotInLoop,
     NonIntegerUsedInLoop { value: Value, location: Location },
+    NonPointerDereferenced { value: Value, location: Location },
+    NonTupleOrStructInMemberAccess { value: Value, location: Location },
+    NonArrayIndexed { value: Value, location: Location },
+    NonIntegerUsedAsIndex { value: Value, location: Location },
+    IndexOutOfBounds { index: usize, length: usize, location: Location },
 
     // These cases are not errors but prevent us from running more code
     // until the loop can be resumed properly.
@@ -292,7 +297,7 @@ impl<'a> Interpreter<'a> {
             HirExpression::Block(block) => self.evaluate_block(block),
             HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix),
             HirExpression::Infix(infix) => self.evaluate_infix(infix),
-            HirExpression::Index(index) => self.evaluate_index(index),
+            HirExpression::Index(index) => self.evaluate_index(index, id),
             HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
             HirExpression::MemberAccess(access) => self.evaluate_access(access),
             HirExpression::Call(call) => self.evaluate_call(call, id),
@@ -635,14 +640,33 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_index(&mut self, index: HirIndexExpression) -> IResult<Value> {
-        let collection = match self.evaluate(index.collection)? {
+    fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
+        let array = self.evaluate(index.collection)?;
+        let index = self.evaluate(index.index)?;
+
+        let location = self.interner.expr_location(&id);
+        let (array, index) = self.bounds_check(array, index, location)?;
+
+        Ok(array[index].clone())
+    }
+
+    /// Bounds check the given array and index pair.
+    /// This will also ensure the given arguments are in fact an array and integer.
+    fn bounds_check(
+        &self,
+        array: Value,
+        index: Value,
+        location: Location,
+    ) -> IResult<(Vector<Value>, usize)> {
+        let collection = match array {
             Value::Array(array, _) => array,
             Value::Slice(array, _) => array,
-            other => panic!("Cannot index into {other:?}"),
+            value => {
+                return Err(InterpreterError::NonArrayIndexed { value, location });
+            }
         };
 
-        let index = match self.evaluate(index.index)? {
+        let index = match index {
             Value::Field(value) => {
                 value.try_to_u64().expect("index could not fit into u64") as usize
             }
@@ -652,10 +676,20 @@ impl<'a> Interpreter<'a> {
             Value::U8(value) => value as usize,
             Value::U32(value) => value as usize,
             Value::U64(value) => value as usize,
-            other => panic!("Cannot use {other:?} as an index"),
+            value => {
+                return Err(InterpreterError::NonIntegerUsedAsIndex { value, location });
+            }
         };
 
-        Ok(collection[index].clone())
+        if index >= collection.len() {
+            return Err(InterpreterError::IndexOutOfBounds {
+                index,
+                length: collection.len(),
+                location,
+            });
+        }
+
+        Ok((collection, index))
     }
 
     fn evaluate_constructor(
@@ -885,14 +919,79 @@ impl<'a> Interpreter<'a> {
 
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
-            HirLValue::Ident(ident, typ) => {
-                todo!()
+            HirLValue::Ident(ident, typ) => self.define(ident.id, &typ, rhs),
+            HirLValue::Dereference { lvalue, element_type: _, location } => {
+                match self.evaluate_lvalue(&lvalue)? {
+                    Value::Pointer(value) => {
+                        *value.borrow_mut() = rhs;
+                        Ok(())
+                    }
+                    value => Err(InterpreterError::NonPointerDereferenced { value, location }),
+                }
             }
-            HirLValue::MemberAccess { object, field_name, field_index, typ, location } => {
-                todo!()
+            HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
+                let index = field_index.expect("The field index should be set after type checking");
+                match self.evaluate_lvalue(&object)? {
+                    Value::Tuple(mut fields) => {
+                        fields[index] = rhs;
+                        self.store_lvalue(*object, Value::Tuple(fields))
+                    }
+                    Value::Struct(mut fields, typ) => {
+                        fields.insert(Rc::new(field_name.0.contents), rhs);
+                        self.store_lvalue(*object, Value::Struct(fields, typ))
+                    }
+                    value => {
+                        Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
+                    }
+                }
             }
-            HirLValue::Index { array, index, typ, location } => todo!(),
-            HirLValue::Dereference { lvalue, element_type, location } => todo!(),
+            HirLValue::Index { array, index, typ: _, location } => {
+                let array_value = self.evaluate_lvalue(&array)?;
+                let index = self.evaluate(index)?;
+
+                let constructor = match &array_value {
+                    Value::Array(..) => Value::Array,
+                    _ => Value::Slice,
+                };
+
+                let typ = array_value.get_type().into_owned();
+                let (elements, index) = self.bounds_check(array_value, index, location)?;
+
+                let new_array = constructor(elements.update(index, rhs), typ);
+                self.store_lvalue(*array, new_array)
+            }
+        }
+    }
+
+    fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
+        match lvalue {
+            HirLValue::Ident(ident, _) => self.lookup(ident.id),
+            HirLValue::Dereference { lvalue, element_type: _, location } => {
+                match self.evaluate_lvalue(lvalue)? {
+                    Value::Pointer(value) => Ok(value.borrow().clone()),
+                    value => {
+                        Err(InterpreterError::NonPointerDereferenced { value, location: *location })
+                    }
+                }
+            }
+            HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
+                let index = field_index.expect("The field index should be set after type checking");
+
+                match self.evaluate_lvalue(object)? {
+                    Value::Tuple(mut values) => Ok(values.swap_remove(index)),
+                    Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
+                    value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
+                        value,
+                        location: *location,
+                    }),
+                }
+            }
+            HirLValue::Index { array, index, typ: _, location } => {
+                let array = self.evaluate_lvalue(array)?;
+                let index = self.evaluate(*index)?;
+                let (elements, index) = self.bounds_check(array, index, *location)?;
+                Ok(elements[index].clone())
+            }
         }
     }
 
