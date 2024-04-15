@@ -2,7 +2,7 @@
 
 This document breaks down the VM into internal components and defines how these components interact with one another.
 
-This can be considered an intermediate abstraction layer between the high-level VM definition and the explicit cirucit architecture. The intention is for this abstraction to be analogous to how CPU chips are broken down into discrete components.
+This can be considered an intermediate abstraction layer between the high-level VM definition and the explicit circuit architecture. The intention is for this abstraction to be analogous to how CPU chips are broken down into discrete components.
 
 # Sub-operations
 
