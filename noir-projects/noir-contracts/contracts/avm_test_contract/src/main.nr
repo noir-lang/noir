@@ -207,11 +207,6 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn get_origin() -> pub AztecAddress {
-        context.origin()
-    }
-
-    #[aztec(public-vm)]
     fn get_portal() -> pub EthAddress {
         context.this_portal_address()
     }

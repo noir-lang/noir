@@ -714,13 +714,13 @@ TransientAccumulatedData --* PublicInputs: transient_accumulated_data
 
 Data that represents the caller's intent.
 
-| Field           | Type                                        | Description                                  |
-| --------------- | ------------------------------------------- | -------------------------------------------- |
-| `origin`        | `AztecAddress`                              | The Aztec address of the transaction sender. |
-| `function_data` | [`FunctionData`](#functiondata)             | Data of the function being called.           |
-| `args_hash`     | `field`                                     | Hash of the function arguments.              |
-| `tx_context`    | [`TransactionContext`](#transactioncontext) | Information about the transaction.           |
-| `gas_settings`  | [`GasSettings`](#gassettings)               | User-defined gas limits and max fees.        |
+| Field           | Type                                        | Description                           |
+| --------------- | ------------------------------------------- | ------------------------------------- |
+| `origin`        | `AztecAddress`                              | Address of the entrypoint contract.   |
+| `function_data` | [`FunctionData`](#functiondata)             | Data of the function being called.    |
+| `args_hash`     | `field`                                     | Hash of the function arguments.       |
+| `tx_context`    | [`TransactionContext`](#transactioncontext) | Information about the transaction.    |
+| `gas_settings`  | [`GasSettings`](#gassettings)               | User-defined gas limits and max fees. |
 
 ### `PrivateCall`
 

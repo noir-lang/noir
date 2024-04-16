@@ -530,24 +530,6 @@ const INSTRUCTION_SET_RAW = [
     "Tag updates": "`T[dstOffset] = u32`",
   },
   {
-    id: "origin",
-    Name: "`ORIGIN`",
-    Category: "Execution Environment",
-    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
-    Args: [
-      {
-        name: "dstOffset",
-        description:
-          "memory offset specifying where to store operation's result",
-      },
-    ],
-    Expression: "`M[dstOffset] = context.environment.origin`",
-    Summary: "Get the transaction's origination address",
-    Details: "",
-    "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = u32`",
-  },
-  {
     id: "sender",
     Name: "`SENDER`",
     Category: "Execution Environment",

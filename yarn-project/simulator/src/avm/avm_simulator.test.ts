@@ -201,11 +201,6 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       await testEnvGetter('sender', sender, 'get_sender');
     });
 
-    it('origin', async () => {
-      const origin = AztecAddress.fromField(new Fr(1));
-      await testEnvGetter('origin', origin, 'get_origin');
-    });
-
     it('portal', async () => {
       const portal = EthAddress.fromField(new Fr(1));
       await testEnvGetter('portal', portal, 'get_portal');

@@ -25,7 +25,6 @@ A context's **execution environment** remains constant throughout a contract cal
 | ---                   | ---                          | ---         |
 | address               | `AztecAddress`               |  |
 | storageAddress        | `AztecAddress`               |  |
-| origin                | `AztecAddress`               |  |
 | sender                | `AztecAddress`               |  |
 | portal                | `EthAddress`                 |  |
 | feePerL1Gas           | `field`                      |  |
@@ -73,7 +72,6 @@ Given a [`PublicCallRequest`](../transactions/tx-object#public-call-request) and
 INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
     address: PublicCallRequest.contractAddress,
     storageAddress: PublicCallRequest.CallContext.storageContractAddress,
-    origin: TxRequest.origin,
     sender: PublicCallRequest.CallContext.msgSender,
     portal: PublicCallRequest.CallContext.portalContractAddress,
     feePerL1Gas: TxRequest.feePerL1Gas,

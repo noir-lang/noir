@@ -744,7 +744,6 @@ fn handle_getter_instruction(
     let opcode = match function {
         "avmOpcodeAddress" => AvmOpcode::ADDRESS,
         "avmOpcodeStorageAddress" => AvmOpcode::STORAGEADDRESS,
-        "avmOpcodeOrigin" => AvmOpcode::ORIGIN,
         "avmOpcodeSender" => AvmOpcode::SENDER,
         "avmOpcodePortal" => AvmOpcode::PORTAL,
         "avmOpcodeFeePerL1Gas" => AvmOpcode::FEEPERL1GAS,

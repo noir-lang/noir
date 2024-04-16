@@ -23,7 +23,6 @@ export class AvmExecutionEnvironment {
   constructor(
     public readonly address: AztecAddress,
     public readonly storageAddress: AztecAddress,
-    public readonly origin: AztecAddress,
     public readonly sender: AztecAddress,
     public readonly portal: EthAddress,
     public readonly feePerL1Gas: Fr,
@@ -57,7 +56,6 @@ export class AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
       targetAddress,
       /*storageAddress=*/ targetAddress,
-      this.origin,
       this.address,
       this.portal,
       this.feePerL1Gas,
@@ -83,7 +81,6 @@ export class AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
       address,
       /*storageAddress=*/ address,
-      this.origin,
       this.sender,
       this.portal,
       this.feePerL1Gas,
@@ -109,7 +106,6 @@ export class AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
       address,
       this.storageAddress,
-      this.origin,
       this.sender,
       this.portal,
       this.feePerL1Gas,

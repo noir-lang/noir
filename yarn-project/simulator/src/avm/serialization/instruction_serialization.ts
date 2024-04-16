@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { BufferCursor } from './buffer_cursor.js';
 
 /**
- * All AVM opcodes. (Keep in sync with cpp counterpart code avm_opcode.hpp).
+ * All AVM opcodes. (Keep in sync with cpp counterpart code avm_opcode.hpp and rs in opcodes.rs).
  * Source: https://yp-aztec.netlify.app/docs/public-vm/instruction-set
  */
 export enum Opcode {
@@ -26,7 +26,6 @@ export enum Opcode {
   // Execution environment
   ADDRESS,
   STORAGEADDRESS,
-  ORIGIN,
   SENDER,
   PORTAL,
   FEEPERL1GAS,

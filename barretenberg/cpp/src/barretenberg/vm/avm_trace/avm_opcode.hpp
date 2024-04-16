@@ -40,7 +40,6 @@ enum class OpCode : uint8_t {
     // Execution Environment
     ADDRESS,
     STORAGEADDRESS,
-    ORIGIN,
     SENDER,
     PORTAL,
     FEEPERL1GAS,
