@@ -15,6 +15,8 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 
 use std::collections::BTreeSet;
 
+use self::brillig::BrilligBytecode;
+
 /// Specifies the maximum width of the expressions which will be constrained.
 ///
 /// Unbounded Expressions are useful if you are eventually going to pass the ACIR
@@ -37,6 +39,7 @@ pub enum ExpressionWidth {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Program {
     pub functions: Vec<Circuit>,
+    pub unconstrained_functions: Vec<BrilligBytecode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -84,16 +87,6 @@ impl Circuit {
             .find(|(loc, _)| *loc == opcode_location)
             .map(|(_, message)| message.as_str())
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-/// The opcode location for a call to a separate ACIR circuit
-/// This includes the function index of the caller within a [program][Program]
-/// and the index in the callers ACIR to the specific call opcode.
-/// This is only resolved and set during circuit execution.
-pub struct ResolvedOpcodeLocation {
-    pub acir_function_index: usize,
-    pub opcode_location: OpcodeLocation,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -394,7 +387,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         fn read_write(program: Program) -> (Program, Program) {
             let bytes = Program::serialize_program(&program);
@@ -427,7 +420,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let json = serde_json::to_string_pretty(&program).unwrap();
 
