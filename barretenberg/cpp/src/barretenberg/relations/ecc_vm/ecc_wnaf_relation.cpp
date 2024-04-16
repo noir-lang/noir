@@ -64,7 +64,7 @@ void ECCVMWnafRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulato
     };
 
     const auto range_constraint_slice_to_2_bits = [&scaling_factor](const View& s, auto& acc) {
-        acc += ((s - 1).sqr() - 1) * ((s - 2).sqr() - 1) * scaling_factor;
+        acc += s * (s - 1) * (s - 2) * (s - 3) * scaling_factor;
     };
 
     const auto convert_to_wnaf = [](const View& s0, const View& s1) {

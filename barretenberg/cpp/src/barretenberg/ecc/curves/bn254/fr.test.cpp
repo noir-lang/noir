@@ -56,12 +56,9 @@ TEST(fr, RandomElement)
 
 TEST(fr, Mul)
 {
-    auto a_uint = uint256_t{ 0x192f9ddc938ea63, 0x1db93d61007ec4fe, 0xc89284ec31fa49c0, 0x2478d0ff12b04f0f };
-    auto b_uint = uint256_t{ 0x7aade4892631231c, 0x8e7515681fe70144, 0x98edb76e689b6fd8, 0x5d0886b15fc835fa };
-
-    fr a = a_uint;
-    fr b = b_uint;
-    fr expected = (uint512_t(a_uint) * uint512_t(b_uint) % uint512_t(fr::modulus)).lo;
+    fr a{ 0x192f9ddc938ea63, 0x1db93d61007ec4fe, 0xc89284ec31fa49c0, 0x2478d0ff12b04f0f };
+    fr b{ 0x7aade4892631231c, 0x8e7515681fe70144, 0x98edb76e689b6fd8, 0x5d0886b15fc835fa };
+    fr expected{ 0xab961ef46b4756b6, 0xbc6b636fc29678c8, 0xd247391ed6b5bd16, 0x12e8538b3bde6784 };
     fr result;
     result = a * b;
     EXPECT_EQ((result == expected), true);
@@ -69,9 +66,8 @@ TEST(fr, Mul)
 
 TEST(fr, Sqr)
 {
-    auto a_uint = uint256_t{ 0x192f9ddc938ea63, 0x1db93d61007ec4fe, 0xc89284ec31fa49c0, 0x2478d0ff12b04f0f };
-    fr a = a_uint;
-    fr expected = (uint512_t(a_uint) * uint512_t(a_uint) % uint512_t(fr::modulus)).lo;
+    fr a{ 0x95f946723a1fc34f, 0x641ec0482fc40bb9, 0xb8d645bc49dd513d, 0x1c1bffd317599dbc };
+    fr expected{ 0xc787f7d9e2c72714, 0xcf21cf53d8f65f67, 0x8db109903dac0008, 0x26ab4dd65f46be5f };
     fr result;
     result = a.sqr();
     EXPECT_EQ((result == expected), true);

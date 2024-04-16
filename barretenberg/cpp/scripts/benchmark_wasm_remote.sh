@@ -16,7 +16,7 @@ cd $(dirname $0)/..
 
 # Configure and build.
 cmake --preset wasm-threads
-cmake --build --preset wasm-threads --parallel --target $BENCHMARK
+cmake --build --preset wasm-threads --target $BENCHMARK
 
 source scripts/_benchmark_remote_lock.sh
 

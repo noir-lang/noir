@@ -88,16 +88,13 @@ TEST(fq, RandomElement)
 TEST(fq, MulCheckAgainstConstants)
 {
     // test against some randomly generated test data
-    constexpr fq a = uint256_t{ 0xa9b879029c49e60eUL, 0x2517b72250caa7b3UL, 0x6b86c81105dae2d1UL, 0x3a81735d5aec0c3UL };
-    constexpr fq a_copy =
-        uint256_t{ 0xa9b879029c49e60eUL, 0x2517b72250caa7b3UL, 0x6b86c81105dae2d1UL, 0x3a81735d5aec0c3UL };
-    constexpr fq b = uint256_t{ 0x744fc10aec23e56aUL, 0x5dea4788a3b936a6UL, 0xa0a89f4a8af01df1UL, 0x72ae28836807df3UL };
-    constexpr fq b_copy =
-        uint256_t{ 0x744fc10aec23e56aUL, 0x5dea4788a3b936a6UL, 0xa0a89f4a8af01df1UL, 0x72ae28836807df3UL };
-
-    constexpr fq const_expected =
-        uint256_t{ 0x6c0a789c0028fd09UL, 0xca9520d84c684efaUL, 0xcbf3f7b023a852b4UL, 0x1b2e4dac41400621UL };
+    constexpr fq a{ 0x2523b6fa3956f038, 0x158aa08ecdd9ec1d, 0xf48216a4c74738d4, 0x2514cc93d6f0a1bf };
+    constexpr fq a_copy{ 0x2523b6fa3956f038, 0x158aa08ecdd9ec1d, 0xf48216a4c74738d4, 0x2514cc93d6f0a1bf };
+    constexpr fq b{ 0xb68aee5e4c8fc17c, 0xc5193de7f401d5e8, 0xb8777d4dde671db3, 0xe513e75c087b0bb };
+    constexpr fq b_copy = { 0xb68aee5e4c8fc17c, 0xc5193de7f401d5e8, 0xb8777d4dde671db3, 0xe513e75c087b0bb };
+    constexpr fq const_expected{ 0x7ed4174114b521c4, 0x58f5bd1d4279fdc2, 0x6a73ac09ee843d41, 0x687a76ae9b3425c };
     constexpr fq const_result = a * b;
+
     static_assert(const_result == const_expected);
     static_assert(a == a_copy);
     static_assert(b == b_copy);
@@ -114,10 +111,7 @@ TEST(fq, MulShortIntegers)
 {
     constexpr fq a{ 0xa, 0, 0, 0 };
     constexpr fq b{ 0xb, 0, 0, 0 };
-    constexpr uint256_t a_original(a);
-    constexpr uint256_t b_original(b);
-    constexpr uint256_t prod_expected = (uint512_t(a_original) * uint512_t(b_original) % uint512_t(fq::modulus)).lo;
-    constexpr fq const_expected = prod_expected;
+    constexpr fq const_expected = { 0x65991a6dc2f3a183, 0xe3ba1f83394a2d08, 0x8401df65a169db3f, 0x1727099643607bba };
     constexpr fq const_result = a * b;
     static_assert(const_result == const_expected);
 
@@ -147,10 +141,8 @@ TEST(fq, MulSqrConsistency)
 
 TEST(fq, SqrCheckAgainstConstants)
 {
-    constexpr fq a = uint256_t{ 0xa9b879029c49e60eUL, 0x2517b72250caa7b3UL, 0x6b86c81105dae2d1UL, 0x3a81735d5aec0c3UL };
-
-    constexpr fq expected =
-        uint256_t{ 0x41081a42fdaa7e23UL, 0x44d1140f756ed419UL, 0x53716b0a6f253e63UL, 0xb1a0b04044d75fUL };
+    constexpr fq a{ 0x329596aa978981e8, 0x8542e6e254c2a5d0, 0xc5b687d82eadb178, 0x2d242aaf48f56b8a };
+    constexpr fq expected{ 0xbf4fb34e120b8b12, 0xf64d70efbf848328, 0xefbb6a533f2e7d89, 0x1de50f941425e4aa };
     constexpr fq result = a.sqr();
     static_assert(result == expected);
 

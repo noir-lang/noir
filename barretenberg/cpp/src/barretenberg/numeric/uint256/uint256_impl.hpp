@@ -73,52 +73,7 @@ constexpr uint64_t uint256_t::mac_discard_hi(const uint64_t a,
 {
     return (b * c + a + carry_in);
 }
-#if defined(__wasm__) || !defined(__SIZEOF_INT128__)
 
-/**
- * @brief Multiply one limb by 9 limbs and add to resulting limbs
- *
- */
-constexpr void uint256_t::wasm_madd(const uint64_t& left_limb,
-                                    const uint64_t* right_limbs,
-                                    uint64_t& result_0,
-                                    uint64_t& result_1,
-                                    uint64_t& result_2,
-                                    uint64_t& result_3,
-                                    uint64_t& result_4,
-                                    uint64_t& result_5,
-                                    uint64_t& result_6,
-                                    uint64_t& result_7,
-                                    uint64_t& result_8)
-{
-    result_0 += left_limb * right_limbs[0];
-    result_1 += left_limb * right_limbs[1];
-    result_2 += left_limb * right_limbs[2];
-    result_3 += left_limb * right_limbs[3];
-    result_4 += left_limb * right_limbs[4];
-    result_5 += left_limb * right_limbs[5];
-    result_6 += left_limb * right_limbs[6];
-    result_7 += left_limb * right_limbs[7];
-    result_8 += left_limb * right_limbs[8];
-}
-
-/**
- * @brief Convert from 4 64-bit limbs to 9 29-bit limbs
- *
- */
-constexpr std::array<uint64_t, WASM_NUM_LIMBS> uint256_t::wasm_convert(const uint64_t* data)
-{
-    return { data[0] & 0x1fffffff,
-             (data[0] >> 29) & 0x1fffffff,
-             ((data[0] >> 58) & 0x3f) | ((data[1] & 0x7fffff) << 6),
-             (data[1] >> 23) & 0x1fffffff,
-             ((data[1] >> 52) & 0xfff) | ((data[2] & 0x1ffff) << 12),
-             (data[2] >> 17) & 0x1fffffff,
-             ((data[2] >> 46) & 0x3ffff) | ((data[3] & 0x7ff) << 18),
-             (data[3] >> 11) & 0x1fffffff,
-             (data[3] >> 40) & 0x1fffffff };
-}
-#endif
 constexpr std::pair<uint256_t, uint256_t> uint256_t::divmod(const uint256_t& b) const
 {
     if (*this == 0 || b == 0) {
@@ -167,13 +122,8 @@ constexpr std::pair<uint256_t, uint256_t> uint256_t::divmod(const uint256_t& b) 
     return { quotient, remainder };
 }
 
-/**
- * @brief Compute the result of multiplication modulu 2**512
- *
- */
 constexpr std::pair<uint256_t, uint256_t> uint256_t::mul_extended(const uint256_t& other) const
 {
-#if defined(__SIZEOF_INT128__) && !defined(__wasm__)
     const auto [r0, t0] = mul_wide(data[0], other.data[0]);
     const auto [q0, t1] = mac(t0, data[0], other.data[1], 0);
     const auto [q1, t2] = mac(t1, data[0], other.data[2], 0);
@@ -197,84 +147,6 @@ constexpr std::pair<uint256_t, uint256_t> uint256_t::mul_extended(const uint256_
     uint256_t lo(r0, r1, r2, r3);
     uint256_t hi(r4, r5, r6, r7);
     return { lo, hi };
-#else
-    // Convert 4 64-bit limbs to 9 29-bit limbs
-    const auto left = wasm_convert(data);
-    const auto right = wasm_convert(other.data);
-    constexpr uint64_t mask = 0x1fffffff;
-    uint64_t temp_0 = 0;
-    uint64_t temp_1 = 0;
-    uint64_t temp_2 = 0;
-    uint64_t temp_3 = 0;
-    uint64_t temp_4 = 0;
-    uint64_t temp_5 = 0;
-    uint64_t temp_6 = 0;
-    uint64_t temp_7 = 0;
-    uint64_t temp_8 = 0;
-    uint64_t temp_9 = 0;
-    uint64_t temp_10 = 0;
-    uint64_t temp_11 = 0;
-    uint64_t temp_12 = 0;
-    uint64_t temp_13 = 0;
-    uint64_t temp_14 = 0;
-    uint64_t temp_15 = 0;
-    uint64_t temp_16 = 0;
-
-    // Multiply and addd all limbs
-    wasm_madd(left[0], &right[0], temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    wasm_madd(left[1], &right[0], temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_madd(left[2], &right[0], temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_madd(left[3], &right[0], temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_madd(left[4], &right[0], temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_madd(left[5], &right[0], temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_madd(left[6], &right[0], temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_madd(left[7], &right[0], temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_madd(left[8], &right[0], temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
-
-    // Convert from relaxed form into strict 29-bit form (except for temp_16)
-    temp_1 += temp_0 >> WASM_LIMB_BITS;
-    temp_0 &= mask;
-    temp_2 += temp_1 >> WASM_LIMB_BITS;
-    temp_1 &= mask;
-    temp_3 += temp_2 >> WASM_LIMB_BITS;
-    temp_2 &= mask;
-    temp_4 += temp_3 >> WASM_LIMB_BITS;
-    temp_3 &= mask;
-    temp_5 += temp_4 >> WASM_LIMB_BITS;
-    temp_4 &= mask;
-    temp_6 += temp_5 >> WASM_LIMB_BITS;
-    temp_5 &= mask;
-    temp_7 += temp_6 >> WASM_LIMB_BITS;
-    temp_6 &= mask;
-    temp_8 += temp_7 >> WASM_LIMB_BITS;
-    temp_7 &= mask;
-    temp_9 += temp_8 >> WASM_LIMB_BITS;
-    temp_8 &= mask;
-    temp_10 += temp_9 >> WASM_LIMB_BITS;
-    temp_9 &= mask;
-    temp_11 += temp_10 >> WASM_LIMB_BITS;
-    temp_10 &= mask;
-    temp_12 += temp_11 >> WASM_LIMB_BITS;
-    temp_11 &= mask;
-    temp_13 += temp_12 >> WASM_LIMB_BITS;
-    temp_12 &= mask;
-    temp_14 += temp_13 >> WASM_LIMB_BITS;
-    temp_13 &= mask;
-    temp_15 += temp_14 >> WASM_LIMB_BITS;
-    temp_14 &= mask;
-    temp_16 += temp_15 >> WASM_LIMB_BITS;
-    temp_15 &= mask;
-
-    // Convert to 2 4-64-bit limb uint256_t objects
-    return { { (temp_0 << 0) | (temp_1 << 29) | (temp_2 << 58),
-               (temp_2 >> 6) | (temp_3 << 23) | (temp_4 << 52),
-               (temp_4 >> 12) | (temp_5 << 17) | (temp_6 << 46),
-               (temp_6 >> 18) | (temp_7 << 11) | (temp_8 << 40) },
-             { (temp_8 >> 24) | (temp_9 << 5) | (temp_10 << 34) | (temp_11 << 63),
-               (temp_11 >> 1) | (temp_12 << 28) | (temp_13 << 57),
-               (temp_13 >> 7) | (temp_14 << 22) | (temp_15 << 51),
-               (temp_15 >> 13) | (temp_16 << 16) } };
-#endif
 }
 
 /**
@@ -355,8 +227,6 @@ constexpr uint256_t uint256_t::operator-() const
 
 constexpr uint256_t uint256_t::operator*(const uint256_t& other) const
 {
-
-#if defined(__SIZEOF_INT128__) && !defined(__wasm__)
     const auto [r0, t0] = mac(0, data[0], other.data[0], 0ULL);
     const auto [q0, t1] = mac(0, data[0], other.data[1], t0);
     const auto [q1, t2] = mac(0, data[0], other.data[2], t1);
@@ -372,86 +242,6 @@ constexpr uint256_t uint256_t::operator*(const uint256_t& other) const
     const auto r3 = mac_discard_hi(q5, data[3], other.data[0], 0ULL);
 
     return { r0, r1, r2, r3 };
-#else
-    // Convert 4 64-bit limbs to 9 29-bit limbs
-    const auto left = wasm_convert(data);
-    const auto right = wasm_convert(other.data);
-    uint64_t temp_0 = 0;
-    uint64_t temp_1 = 0;
-    uint64_t temp_2 = 0;
-    uint64_t temp_3 = 0;
-    uint64_t temp_4 = 0;
-    uint64_t temp_5 = 0;
-    uint64_t temp_6 = 0;
-    uint64_t temp_7 = 0;
-    uint64_t temp_8 = 0;
-
-    // Multiply and add the product of left limb 0 by all right limbs
-    wasm_madd(left[0], &right[0], temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    // Multiply left limb 1 by limbs 0-7 ((1,8) doesn't need to be computed, because it overflows)
-    temp_1 += left[1] * right[0];
-    temp_2 += left[1] * right[1];
-    temp_3 += left[1] * right[2];
-    temp_4 += left[1] * right[3];
-    temp_5 += left[1] * right[4];
-    temp_6 += left[1] * right[5];
-    temp_7 += left[1] * right[6];
-    temp_8 += left[1] * right[7];
-    // Left limb 2 by right 0-6, etc
-    temp_2 += left[2] * right[0];
-    temp_3 += left[2] * right[1];
-    temp_4 += left[2] * right[2];
-    temp_5 += left[2] * right[3];
-    temp_6 += left[2] * right[4];
-    temp_7 += left[2] * right[5];
-    temp_8 += left[2] * right[6];
-    temp_3 += left[3] * right[0];
-    temp_4 += left[3] * right[1];
-    temp_5 += left[3] * right[2];
-    temp_6 += left[3] * right[3];
-    temp_7 += left[3] * right[4];
-    temp_8 += left[3] * right[5];
-    temp_4 += left[4] * right[0];
-    temp_5 += left[4] * right[1];
-    temp_6 += left[4] * right[2];
-    temp_7 += left[4] * right[3];
-    temp_8 += left[4] * right[4];
-    temp_5 += left[5] * right[0];
-    temp_6 += left[5] * right[1];
-    temp_7 += left[5] * right[2];
-    temp_8 += left[5] * right[3];
-    temp_6 += left[6] * right[0];
-    temp_7 += left[6] * right[1];
-    temp_8 += left[6] * right[2];
-    temp_7 += left[7] * right[0];
-    temp_8 += left[7] * right[1];
-    temp_8 += left[8] * right[0];
-
-    // Convert from relaxed form to strict 29-bit form
-    constexpr uint64_t mask = 0x1fffffff;
-    temp_1 += temp_0 >> WASM_LIMB_BITS;
-    temp_0 &= mask;
-    temp_2 += temp_1 >> WASM_LIMB_BITS;
-    temp_1 &= mask;
-    temp_3 += temp_2 >> WASM_LIMB_BITS;
-    temp_2 &= mask;
-    temp_4 += temp_3 >> WASM_LIMB_BITS;
-    temp_3 &= mask;
-    temp_5 += temp_4 >> WASM_LIMB_BITS;
-    temp_4 &= mask;
-    temp_6 += temp_5 >> WASM_LIMB_BITS;
-    temp_5 &= mask;
-    temp_7 += temp_6 >> WASM_LIMB_BITS;
-    temp_6 &= mask;
-    temp_8 += temp_7 >> WASM_LIMB_BITS;
-    temp_7 &= mask;
-
-    // Convert back to 4 64-bit limbs
-    return { (temp_0 << 0) | (temp_1 << 29) | (temp_2 << 58),
-             (temp_2 >> 6) | (temp_3 << 23) | (temp_4 << 52),
-             (temp_4 >> 12) | (temp_5 << 17) | (temp_6 << 46),
-             (temp_6 >> 18) | (temp_7 << 11) | (temp_8 << 40) };
-#endif
 }
 
 constexpr uint256_t uint256_t::operator/(const uint256_t& other) const

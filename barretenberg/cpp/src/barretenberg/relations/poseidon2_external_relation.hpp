@@ -66,17 +66,17 @@ template <typename FF_> class Poseidon2ExternalRelationImpl {
         auto s4 = w_4 + q_4;
 
         // apply s-box round
-        auto u1 = s1.sqr();
-        u1 = u1.sqr();
+        auto u1 = s1 * s1;
+        u1 *= u1;
         u1 *= s1;
-        auto u2 = s2.sqr();
-        u2 = u2.sqr();
+        auto u2 = s2 * s2;
+        u2 *= u2;
         u2 *= s2;
-        auto u3 = s3.sqr();
-        u3 = u3.sqr();
+        auto u3 = s3 * s3;
+        u3 *= u3;
         u3 *= s3;
-        auto u4 = s4.sqr();
-        u4 = u4.sqr();
+        auto u4 = s4 * s4;
+        u4 *= u4;
         u4 *= s4;
 
         // matrix mul v = M_E * u with 14 additions

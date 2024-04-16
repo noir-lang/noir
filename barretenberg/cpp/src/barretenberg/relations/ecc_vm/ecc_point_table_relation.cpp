@@ -122,9 +122,9 @@ void ECCVMPointTableRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     auto two_x = Tx + Tx;
     auto three_x = two_x + Tx;
     auto three_xx = Tx * three_x;
-    auto nine_xxxx = three_xx.sqr();
+    auto nine_xxxx = three_xx * three_xx;
     auto two_y = Ty + Ty;
-    auto four_yy = two_y.sqr();
+    auto four_yy = two_y * two_y;
     auto x_double_check = (Dx + two_x) * four_yy - nine_xxxx;
     auto y_double_check = (Ty + Dy) * two_y + three_xx * (Dx - Tx);
     std::get<0>(accumulator) += precompute_point_transition * x_double_check * scaling_factor;
@@ -164,7 +164,7 @@ void ECCVMPointTableRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     const auto& y3 = Ty;
     const auto lambda_numerator = y2 - y1;
     const auto lambda_denominator = x2 - x1;
-    auto x_add_check = (x3 + x2 + x1) * lambda_denominator.sqr() - lambda_numerator.sqr();
+    auto x_add_check = (x3 + x2 + x1) * lambda_denominator * lambda_denominator - lambda_numerator * lambda_numerator;
     auto y_add_check = (y3 + y1) * lambda_denominator + (x3 - x1) * lambda_numerator;
     std::get<4>(accumulator) +=
         (-lagrange_first + 1) * (-precompute_point_transition + 1) * x_add_check * scaling_factor;

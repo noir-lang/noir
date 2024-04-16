@@ -8,7 +8,7 @@ namespace bb::secp256r1 {
 struct FqParams {
     static constexpr uint64_t modulus_0 = 0xFFFFFFFFFFFFFFFFULL;
     static constexpr uint64_t modulus_1 = 0x00000000FFFFFFFFULL;
-    static constexpr uint64_t modulus_2 = 0x0000000000000000ULL;
+    static constexpr uint64_t modulus_2 = 0X0000000000000000ULL;
     static constexpr uint64_t modulus_3 = 0xFFFFFFFF00000001ULL;
 
     static constexpr uint64_t r_squared_0 = 3ULL;
@@ -42,48 +42,6 @@ struct FqParams {
     static constexpr uint64_t primitive_root_1 = 0UL;
     static constexpr uint64_t primitive_root_2 = 0UL;
     static constexpr uint64_t primitive_root_3 = 0UL;
-
-    static constexpr uint64_t modulus_wasm_0 = 0x1fffffff;
-    static constexpr uint64_t modulus_wasm_1 = 0x1fffffff;
-    static constexpr uint64_t modulus_wasm_2 = 0x1fffffff;
-    static constexpr uint64_t modulus_wasm_3 = 0x1ff;
-    static constexpr uint64_t modulus_wasm_4 = 0x0;
-    static constexpr uint64_t modulus_wasm_5 = 0x0;
-    static constexpr uint64_t modulus_wasm_6 = 0x40000;
-    static constexpr uint64_t modulus_wasm_7 = 0x1fe00000;
-    static constexpr uint64_t modulus_wasm_8 = 0xffffff;
-
-    static constexpr uint64_t r_squared_wasm_0 = 0x0000000000000c00UL;
-    static constexpr uint64_t r_squared_wasm_1 = 0xffffeffffffffc00UL;
-    static constexpr uint64_t r_squared_wasm_2 = 0xfffffffffffffbffUL;
-    static constexpr uint64_t r_squared_wasm_3 = 0x000013fffffff7ffUL;
-
-    static constexpr uint64_t cube_root_wasm_0 = 0x0000000000000000UL;
-    static constexpr uint64_t cube_root_wasm_1 = 0x0000000000000000UL;
-    static constexpr uint64_t cube_root_wasm_2 = 0x0000000000000000UL;
-    static constexpr uint64_t cube_root_wasm_3 = 0x0000000000000000UL;
-
-    static constexpr uint64_t primitive_root_wasm_0 = 0x0000000000000000UL;
-    static constexpr uint64_t primitive_root_wasm_1 = 0x0000000000000000UL;
-    static constexpr uint64_t primitive_root_wasm_2 = 0x0000000000000000UL;
-    static constexpr uint64_t primitive_root_wasm_3 = 0x0000000000000000UL;
-
-    static constexpr uint64_t coset_generators_wasm_0[8] = { 0x0000000000000060ULL, 0x0000000000000080ULL,
-                                                             0x00000000000000a0ULL, 0x00000000000000c0ULL,
-                                                             0x00000000000000e0ULL, 0x0000000000000100ULL,
-                                                             0x0000000000000120ULL, 0x0000000000000140ULL };
-    static constexpr uint64_t coset_generators_wasm_1[8] = { 0xffffffa000000000ULL, 0xffffff8000000000ULL,
-                                                             0xffffff6000000000ULL, 0xffffff4000000000ULL,
-                                                             0xffffff2000000000ULL, 0xffffff0000000000ULL,
-                                                             0xfffffee000000000ULL, 0xfffffec000000000ULL };
-    static constexpr uint64_t coset_generators_wasm_2[8] = { 0xffffffffffffffffULL, 0xffffffffffffffffULL,
-                                                             0xffffffffffffffffULL, 0xffffffffffffffffULL,
-                                                             0xffffffffffffffffULL, 0xffffffffffffffffULL,
-                                                             0xffffffffffffffffULL, 0xffffffffffffffffULL };
-    static constexpr uint64_t coset_generators_wasm_3[8] = { 0x0000005fffffff9fULL, 0x0000007fffffff7fULL,
-                                                             0x0000009fffffff5fULL, 0x000000bfffffff3fULL,
-                                                             0x000000dfffffff1fULL, 0x000000fffffffeffULL,
-                                                             0x0000011ffffffedfULL, 0x0000013ffffffebfULL };
 };
 using fq = field<FqParams>;
 
@@ -125,48 +83,6 @@ struct FrParams {
     static constexpr uint64_t primitive_root_1 = 0UL;
     static constexpr uint64_t primitive_root_2 = 0UL;
     static constexpr uint64_t primitive_root_3 = 0UL;
-
-    static constexpr uint64_t modulus_wasm_0 = 0x1c632551;
-    static constexpr uint64_t modulus_wasm_1 = 0x1dce5617;
-    static constexpr uint64_t modulus_wasm_2 = 0x5e7a13c;
-    static constexpr uint64_t modulus_wasm_3 = 0xdf55b4e;
-    static constexpr uint64_t modulus_wasm_4 = 0x1ffffbce;
-    static constexpr uint64_t modulus_wasm_5 = 0x1fffffff;
-    static constexpr uint64_t modulus_wasm_6 = 0x3ffff;
-    static constexpr uint64_t modulus_wasm_7 = 0x1fe00000;
-    static constexpr uint64_t modulus_wasm_8 = 0xffffff;
-
-    static constexpr uint64_t r_squared_wasm_0 = 0x45e9cfeeb48d9ef5UL;
-    static constexpr uint64_t r_squared_wasm_1 = 0x1f11fc5bb2d31a99UL;
-    static constexpr uint64_t r_squared_wasm_2 = 0x16c8e4adafb16586UL;
-    static constexpr uint64_t r_squared_wasm_3 = 0x84b6556a65587f06UL;
-
-    static constexpr uint64_t cube_root_wasm_0 = 0x0000000000000000UL;
-    static constexpr uint64_t cube_root_wasm_1 = 0x0000000000000000UL;
-    static constexpr uint64_t cube_root_wasm_2 = 0x0000000000000000UL;
-    static constexpr uint64_t cube_root_wasm_3 = 0x0000000000000000UL;
-
-    static constexpr uint64_t primitive_root_wasm_0 = 0x0000000000000000UL;
-    static constexpr uint64_t primitive_root_wasm_1 = 0x0000000000000000UL;
-    static constexpr uint64_t primitive_root_wasm_2 = 0x0000000000000000UL;
-    static constexpr uint64_t primitive_root_wasm_3 = 0x0000000000000000UL;
-
-    static constexpr uint64_t coset_generators_wasm_0[8] = { 0xbd6e9563293f5920ULL, 0x46353d039cdaaf00ULL,
-                                                             0xcefbe4a4107604e0ULL, 0x57c28c4484115ac0ULL,
-                                                             0xe08933e4f7acb0a0ULL, 0x694fdb856b480680ULL,
-                                                             0xf2168325dee35c60ULL, 0x7add2ac6527eb240ULL };
-    static constexpr uint64_t coset_generators_wasm_1[8] = { 0xb5e4a80dcb554baaULL, 0x19055258e8617b0cULL,
-                                                             0x7c25fca4056daa6dULL, 0xdf46a6ef2279d9cfULL,
-                                                             0x4267513a3f860930ULL, 0xa587fb855c923892ULL,
-                                                             0x08a8a5d0799e67f3ULL, 0x6bc9501b96aa9755ULL };
-    static constexpr uint64_t coset_generators_wasm_2[8] = { 0x000000000000003aULL, 0x0000000000000043ULL,
-                                                             0x000000000000004bULL, 0x0000000000000053ULL,
-                                                             0x000000000000005cULL, 0x0000000000000064ULL,
-                                                             0x000000000000006dULL, 0x0000000000000075ULL };
-    static constexpr uint64_t coset_generators_wasm_3[8] = { 0x000000dfffffff20ULL, 0x000000ffffffff00ULL,
-                                                             0x0000011ffffffee0ULL, 0x0000013ffffffec0ULL,
-                                                             0x0000015ffffffea0ULL, 0x0000017ffffffe80ULL,
-                                                             0x0000019ffffffe60ULL, 0x000001bffffffe40ULL };
 };
 using fr = field<FrParams>;
 

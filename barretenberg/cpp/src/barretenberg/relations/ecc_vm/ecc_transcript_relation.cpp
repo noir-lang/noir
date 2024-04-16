@@ -152,7 +152,7 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     auto y1 = transcript_accumulator_y;
     auto x2 = transcript_msm_x;
     auto y2 = transcript_msm_y;
-    auto tmpx = (x3 + x2 + x1) * (x2 - x1).sqr() - (y2 - y1).sqr();
+    auto tmpx = (x3 + x2 + x1) * (x2 - x1) * (x2 - x1) - (y2 - y1) * (y2 - y1);
     auto tmpy = (y3 + y1) * (x2 - x1) - (y2 - y1) * (x1 - x3);
     std::get<7>(accumulator) += tmpx * add_msm_into_accumulator * scaling_factor; // degree 5
     std::get<8>(accumulator) += tmpy * add_msm_into_accumulator * scaling_factor; // degree 4
@@ -177,7 +177,7 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     x2 = transcript_Px;
     y2 = transcript_Py;
     auto add_into_accumulator = q_add * (-is_accumulator_empty + 1);
-    tmpx = (x3 + x2 + x1) * (x2 - x1).sqr() - (y2 - y1).sqr();
+    tmpx = (x3 + x2 + x1) * (x2 - x1) * (x2 - x1) - (y2 - y1) * (y2 - y1);
     tmpy = (y3 + y1) * (x2 - x1) - (y2 - y1) * (x1 - x3);
     std::get<11>(accumulator) += tmpx * add_into_accumulator * scaling_factor; // degree 5
     std::get<12>(accumulator) += tmpy * add_into_accumulator * scaling_factor; // degree 4
@@ -214,14 +214,14 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
     std::get<22>(accumulator) += q_eq * is_accumulator_empty * scaling_factor;
 
     // validate selectors are boolean (put somewhere else? these are low degree)
-    std::get<23>(accumulator) += (q_eq.sqr() - q_eq) * scaling_factor;
-    std::get<24>(accumulator) += (q_add.sqr() - q_add) * scaling_factor;
-    std::get<25>(accumulator) += (q_mul.sqr() - q_mul) * scaling_factor;
-    std::get<26>(accumulator) += (q_reset_accumulator.sqr() - q_reset_accumulator) * scaling_factor;
-    std::get<27>(accumulator) += (msm_transition.sqr() - msm_transition) * scaling_factor;
-    std::get<28>(accumulator) += (is_accumulator_empty.sqr() - is_accumulator_empty) * scaling_factor;
-    std::get<29>(accumulator) += (z1_zero.sqr() - z1_zero) * scaling_factor;
-    std::get<30>(accumulator) += (z2_zero.sqr() - z2_zero) * scaling_factor;
+    std::get<23>(accumulator) += q_eq * (q_eq - 1) * scaling_factor;
+    std::get<24>(accumulator) += q_add * (q_add - 1) * scaling_factor;
+    std::get<25>(accumulator) += q_mul * (q_mul - 1) * scaling_factor;
+    std::get<26>(accumulator) += q_reset_accumulator * (q_reset_accumulator - 1) * scaling_factor;
+    std::get<27>(accumulator) += msm_transition * (msm_transition - 1) * scaling_factor;
+    std::get<28>(accumulator) += is_accumulator_empty * (is_accumulator_empty - 1) * scaling_factor;
+    std::get<29>(accumulator) += z1_zero * (z1_zero - 1) * scaling_factor;
+    std::get<30>(accumulator) += z2_zero * (z2_zero - 1) * scaling_factor;
 
     /**
      * @brief Initial condition check on 1st row.

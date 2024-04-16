@@ -276,13 +276,6 @@ template <class T> constexpr field<T> field<T>::subtract(const field& other) con
     return { r0, r1, r2, r3 };
 }
 
-/**
- * @brief
- *
- * @tparam T
- * @param other
- * @return constexpr field<T>
- */
 template <class T> constexpr field<T> field<T>::subtract_coarse(const field& other) const noexcept
 {
     if constexpr (modulus.data[3] >= 0x4000000000000000ULL) {
@@ -302,13 +295,6 @@ template <class T> constexpr field<T> field<T>::subtract_coarse(const field& oth
 
     return { r0, r1, r2, r3 };
 }
-
-/**
- * @brief Mongtomery multiplication for moduli > 2²⁵⁴
- *
- * @details Explanation of Montgomery form can be found in \ref field_docs_montgomery_explainer and the difference
- * between WASM and generic versions is explained in \ref field_docs_architecture_details
- */
 template <class T> constexpr field<T> field<T>::montgomery_mul_big(const field& other) const noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
@@ -350,187 +336,84 @@ template <class T> constexpr field<T> field<T>::montgomery_mul_big(const field& 
     r3 += (modulus.data[3] & borrow) + carry;
     return { r0, r1, r2, r3 };
 #else
+    uint64_t c = 0;
+    uint64_t t0 = 0;
+    uint64_t t1 = 0;
+    uint64_t t2 = 0;
+    uint64_t t3 = 0;
+    uint64_t t4 = 0;
+    uint64_t t5 = 0;
+    uint64_t t6 = 0;
+    uint64_t t7 = 0;
+    uint64_t t8 = 0;
+    uint64_t t9 = 0;
+    uint64_t k = 0;
 
-    // Convert 4 64-bit limbs to 9 29-bit limbs
-    auto left = wasm_convert(data);
-    auto right = wasm_convert(other.data);
-    constexpr uint64_t mask = 0x1fffffff;
-    uint64_t temp_0 = 0;
-    uint64_t temp_1 = 0;
-    uint64_t temp_2 = 0;
-    uint64_t temp_3 = 0;
-    uint64_t temp_4 = 0;
-    uint64_t temp_5 = 0;
-    uint64_t temp_6 = 0;
-    uint64_t temp_7 = 0;
-    uint64_t temp_8 = 0;
-    uint64_t temp_9 = 0;
-    uint64_t temp_10 = 0;
-    uint64_t temp_11 = 0;
-    uint64_t temp_12 = 0;
-    uint64_t temp_13 = 0;
-    uint64_t temp_14 = 0;
-    uint64_t temp_15 = 0;
-    uint64_t temp_16 = 0;
-    uint64_t temp_17 = 0;
+    constexpr uint64_t wasm_modulus[8]{
+        modulus.data[0] & 0xffffffffULL, modulus.data[0] >> 32ULL,        modulus.data[1] & 0xffffffffULL,
+        modulus.data[1] >> 32ULL,        modulus.data[2] & 0xffffffffULL, modulus.data[2] >> 32ULL,
+        modulus.data[3] & 0xffffffffULL, modulus.data[3] >> 32ULL,
+    };
+    constexpr uint64_t wasm_rinv = T::r_inv & 0xffffffffULL;
 
-    // Multiply-add 0th limb of the left argument by all 9 limbs of the right arguemnt
-    wasm_madd(left[0], right, temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    // Instantly reduce
-    wasm_reduce(temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    // Continue for other limbs
-    wasm_madd(left[1], right, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_reduce(temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_madd(left[2], right, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_reduce(temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_madd(left[3], right, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_reduce(temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_madd(left[4], right, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_reduce(temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_madd(left[5], right, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_reduce(temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_madd(left[6], right, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_reduce(temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_madd(left[7], right, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_reduce(temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_madd(left[8], right, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
-    wasm_reduce(temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
+    const uint64_t left[8]{
+        data[0] & 0xffffffffULL, data[0] >> 32, data[1] & 0xffffffffULL, data[1] >> 32,
+        data[2] & 0xffffffffULL, data[2] >> 32, data[3] & 0xffffffffULL, data[3] >> 32,
+    };
+    const uint64_t right[8]{
+        other.data[0] & 0xffffffffULL, other.data[0] >> 32, other.data[1] & 0xffffffffULL, other.data[1] >> 32,
+        other.data[2] & 0xffffffffULL, other.data[2] >> 32, other.data[3] & 0xffffffffULL, other.data[3] >> 32,
+    };
 
-    // After all multiplications and additions, convert relaxed form to strict (all limbs are 29 bits)
-    temp_10 += temp_9 >> WASM_LIMB_BITS;
-    temp_9 &= mask;
-    temp_11 += temp_10 >> WASM_LIMB_BITS;
-    temp_10 &= mask;
-    temp_12 += temp_11 >> WASM_LIMB_BITS;
-    temp_11 &= mask;
-    temp_13 += temp_12 >> WASM_LIMB_BITS;
-    temp_12 &= mask;
-    temp_14 += temp_13 >> WASM_LIMB_BITS;
-    temp_13 &= mask;
-    temp_15 += temp_14 >> WASM_LIMB_BITS;
-    temp_14 &= mask;
-    temp_16 += temp_15 >> WASM_LIMB_BITS;
-    temp_15 &= mask;
-    temp_17 += temp_16 >> WASM_LIMB_BITS;
-    temp_16 &= mask;
+    for (size_t i = 0; i < 8; ++i) {
+        c = 0;
+        mac(t0, left[i], right[0], c, t0, c);
+        mac(t1, left[i], right[1], c, t1, c);
+        mac(t2, left[i], right[2], c, t2, c);
+        mac(t3, left[i], right[3], c, t3, c);
+        mac(t4, left[i], right[4], c, t4, c);
+        mac(t5, left[i], right[5], c, t5, c);
+        mac(t6, left[i], right[6], c, t6, c);
+        mac(t7, left[i], right[7], c, t7, c);
+        uint64_t end_mul = t8 + c;
+        t8 = end_mul & 0xffffffffU;
+        t9 = end_mul >> 32;
 
-    uint64_t r_temp_0;
-    uint64_t r_temp_1;
-    uint64_t r_temp_2;
-    uint64_t r_temp_3;
-    uint64_t r_temp_4;
-    uint64_t r_temp_5;
-    uint64_t r_temp_6;
-    uint64_t r_temp_7;
-    uint64_t r_temp_8;
-    // Subtract modulus from result
-    r_temp_0 = temp_9 - wasm_modulus[0];
-    r_temp_1 = temp_10 - wasm_modulus[1] - ((r_temp_0) >> 63);
-    r_temp_2 = temp_11 - wasm_modulus[2] - ((r_temp_1) >> 63);
-    r_temp_3 = temp_12 - wasm_modulus[3] - ((r_temp_2) >> 63);
-    r_temp_4 = temp_13 - wasm_modulus[4] - ((r_temp_3) >> 63);
-    r_temp_5 = temp_14 - wasm_modulus[5] - ((r_temp_4) >> 63);
-    r_temp_6 = temp_15 - wasm_modulus[6] - ((r_temp_5) >> 63);
-    r_temp_7 = temp_16 - wasm_modulus[7] - ((r_temp_6) >> 63);
-    r_temp_8 = temp_17 - wasm_modulus[8] - ((r_temp_7) >> 63);
-
-    // Depending on whether the subtraction underflowed, choose original value or the result of subtraction
-    uint64_t new_mask = 0 - (r_temp_8 >> 63);
-    uint64_t inverse_mask = (~new_mask) & mask;
-    temp_9 = (temp_9 & new_mask) | (r_temp_0 & inverse_mask);
-    temp_10 = (temp_10 & new_mask) | (r_temp_1 & inverse_mask);
-    temp_11 = (temp_11 & new_mask) | (r_temp_2 & inverse_mask);
-    temp_12 = (temp_12 & new_mask) | (r_temp_3 & inverse_mask);
-    temp_13 = (temp_13 & new_mask) | (r_temp_4 & inverse_mask);
-    temp_14 = (temp_14 & new_mask) | (r_temp_5 & inverse_mask);
-    temp_15 = (temp_15 & new_mask) | (r_temp_6 & inverse_mask);
-    temp_16 = (temp_16 & new_mask) | (r_temp_7 & inverse_mask);
-    temp_17 = (temp_17 & new_mask) | (r_temp_8 & inverse_mask);
-
-    // Convert back to 4 64-bit limbs
-    return { (temp_9 << 0) | (temp_10 << 29) | (temp_11 << 58),
-             (temp_11 >> 6) | (temp_12 << 23) | (temp_13 << 52),
-             (temp_13 >> 12) | (temp_14 << 17) | (temp_15 << 46),
-             (temp_15 >> 18) | (temp_16 << 11) | (temp_17 << 40) };
-
+        c = 0;
+        k = (t0 * wasm_rinv) & 0xffffffffU;
+        c = mac_discard_lo(t0, k, wasm_modulus[0]);
+        mac(t1, k, wasm_modulus[1], c, t0, c);
+        mac(t2, k, wasm_modulus[2], c, t1, c);
+        mac(t3, k, wasm_modulus[3], c, t2, c);
+        mac(t4, k, wasm_modulus[4], c, t3, c);
+        mac(t5, k, wasm_modulus[5], c, t4, c);
+        mac(t6, k, wasm_modulus[6], c, t5, c);
+        mac(t7, k, wasm_modulus[7], c, t6, c);
+        uint64_t end_reduce = c + t8;
+        t7 = end_reduce & 0xffffffffU;
+        c = end_reduce >> 32;
+        t8 = t9 + c;
+    }
+    uint64_t v0 = t0 + (t1 << 32);
+    uint64_t v1 = t2 + (t3 << 32);
+    uint64_t v2 = t4 + (t5 << 32);
+    uint64_t v3 = t6 + (t7 << 32);
+    uint64_t v4 = t8;
+    uint64_t borrow = 0;
+    uint64_t r0 = sbb(v0, modulus.data[0], borrow, borrow);
+    uint64_t r1 = sbb(v1, modulus.data[1], borrow, borrow);
+    uint64_t r2 = sbb(v2, modulus.data[2], borrow, borrow);
+    uint64_t r3 = sbb(v3, modulus.data[3], borrow, borrow);
+    borrow = borrow ^ (0ULL - v4);
+    r0 += (modulus.data[0] & borrow);
+    uint64_t carry = r0 < (modulus.data[0] & borrow);
+    r1 = addc(r1, modulus.data[1] & borrow, carry, carry);
+    r2 = addc(r2, modulus.data[2] & borrow, carry, carry);
+    r3 += (modulus.data[3] & borrow) + carry;
+    return { r0, r1, r2, r3 };
 #endif
 }
 
-#if defined(__wasm__) || !defined(__SIZEOF_INT128__)
-
-/**
- * @brief Multiply left limb by a sequence of 9 limbs and put into result variables
- *
- */
-template <class T>
-constexpr void field<T>::wasm_madd(uint64_t& left_limb,
-                                   const std::array<uint64_t, WASM_NUM_LIMBS>& right_limbs,
-                                   uint64_t& result_0,
-                                   uint64_t& result_1,
-                                   uint64_t& result_2,
-                                   uint64_t& result_3,
-                                   uint64_t& result_4,
-                                   uint64_t& result_5,
-                                   uint64_t& result_6,
-                                   uint64_t& result_7,
-                                   uint64_t& result_8)
-{
-    result_0 += left_limb * right_limbs[0];
-    result_1 += left_limb * right_limbs[1];
-    result_2 += left_limb * right_limbs[2];
-    result_3 += left_limb * right_limbs[3];
-    result_4 += left_limb * right_limbs[4];
-    result_5 += left_limb * right_limbs[5];
-    result_6 += left_limb * right_limbs[6];
-    result_7 += left_limb * right_limbs[7];
-    result_8 += left_limb * right_limbs[8];
-}
-
-/**
- * @brief Perform 29-bit montgomery reduction on 1 limb (result_0 should be zero modulo 2**29 after this)
- *
- */
-template <class T>
-constexpr void field<T>::wasm_reduce(uint64_t& result_0,
-                                     uint64_t& result_1,
-                                     uint64_t& result_2,
-                                     uint64_t& result_3,
-                                     uint64_t& result_4,
-                                     uint64_t& result_5,
-                                     uint64_t& result_6,
-                                     uint64_t& result_7,
-                                     uint64_t& result_8)
-{
-    constexpr uint64_t mask = 0x1fffffff;
-    constexpr uint64_t r_inv = T::r_inv & mask;
-    uint64_t k = (result_0 * r_inv) & mask;
-    result_0 += k * wasm_modulus[0];
-    result_1 += k * wasm_modulus[1] + (result_0 >> WASM_LIMB_BITS);
-    result_2 += k * wasm_modulus[2];
-    result_3 += k * wasm_modulus[3];
-    result_4 += k * wasm_modulus[4];
-    result_5 += k * wasm_modulus[5];
-    result_6 += k * wasm_modulus[6];
-    result_7 += k * wasm_modulus[7];
-    result_8 += k * wasm_modulus[8];
-}
-/**
- * @brief Convert 4 64-bit limbs into 9 29-bit limbs
- *
- */
-template <class T> constexpr std::array<uint64_t, WASM_NUM_LIMBS> field<T>::wasm_convert(const uint64_t* data)
-{
-    return { data[0] & 0x1fffffff,
-             (data[0] >> WASM_LIMB_BITS) & 0x1fffffff,
-             ((data[0] >> 58) & 0x3f) | ((data[1] & 0x7fffff) << 6),
-             (data[1] >> 23) & 0x1fffffff,
-             ((data[1] >> 52) & 0xfff) | ((data[2] & 0x1ffff) << 12),
-             (data[2] >> 17) & 0x1fffffff,
-             ((data[2] >> 46) & 0x3ffff) | ((data[3] & 0x7ff) << 18),
-             (data[3] >> 11) & 0x1fffffff,
-             (data[3] >> 40) & 0x1fffffff };
-}
-#endif
 template <class T> constexpr field<T> field<T>::montgomery_mul(const field& other) const noexcept
 {
     if constexpr (modulus.data[3] >= 0x4000000000000000ULL) {
@@ -583,71 +466,178 @@ template <class T> constexpr field<T> field<T>::montgomery_mul(const field& othe
     t3 = c + a;
     return { t0, t1, t2, t3 };
 #else
+    constexpr uint64_t wasm_modulus[8]{
+        modulus.data[0] & 0xffffffffULL, modulus.data[0] >> 32ULL,        modulus.data[1] & 0xffffffffULL,
+        modulus.data[1] >> 32ULL,        modulus.data[2] & 0xffffffffULL, modulus.data[2] >> 32ULL,
+        modulus.data[3] & 0xffffffffULL, modulus.data[3] >> 32ULL,
+    };
+    constexpr uint64_t wasm_rinv = T::r_inv & 0xffffffffULL;
 
-    // Convert 4 64-bit limbs to 9 29-bit ones
-    auto left = wasm_convert(data);
-    auto right = wasm_convert(other.data);
-    constexpr uint64_t mask = 0x1fffffff;
-    uint64_t temp_0 = 0;
-    uint64_t temp_1 = 0;
-    uint64_t temp_2 = 0;
-    uint64_t temp_3 = 0;
-    uint64_t temp_4 = 0;
-    uint64_t temp_5 = 0;
-    uint64_t temp_6 = 0;
-    uint64_t temp_7 = 0;
-    uint64_t temp_8 = 0;
-    uint64_t temp_9 = 0;
-    uint64_t temp_10 = 0;
-    uint64_t temp_11 = 0;
-    uint64_t temp_12 = 0;
-    uint64_t temp_13 = 0;
-    uint64_t temp_14 = 0;
-    uint64_t temp_15 = 0;
-    uint64_t temp_16 = 0;
+    const uint64_t left[8]{
+        data[0] & 0xffffffffULL, data[0] >> 32, data[1] & 0xffffffffULL, data[1] >> 32,
+        data[2] & 0xffffffffULL, data[2] >> 32, data[3] & 0xffffffffULL, data[3] >> 32,
+    };
+    const uint64_t right[8]{
+        other.data[0] & 0xffffffffULL, other.data[0] >> 32, other.data[1] & 0xffffffffULL, other.data[1] >> 32,
+        other.data[2] & 0xffffffffULL, other.data[2] >> 32, other.data[3] & 0xffffffffULL, other.data[3] >> 32,
+    };
 
-    // Perform a series of multiplications and reductions (we multiply 1 limb of left argument by the whole right
-    // argument and then reduce)
-    wasm_madd(left[0], right, temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    wasm_madd(left[1], right, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_madd(left[2], right, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_madd(left[3], right, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_madd(left[4], right, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_madd(left[5], right, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_madd(left[6], right, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_madd(left[7], right, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_madd(left[8], right, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
-    wasm_reduce(temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    wasm_reduce(temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_reduce(temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_reduce(temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_reduce(temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_reduce(temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_reduce(temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_reduce(temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_reduce(temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
+    auto [t0, c] = mul_wide(left[0], right[0]);
+    uint64_t k = (t0 * wasm_rinv) & 0xffffffffULL;
+    uint64_t a = mac_discard_lo(t0, k, wasm_modulus[0]);
 
-    // Convert result to unrelaxed form (all limbs are 29 bits)
-    temp_10 += temp_9 >> WASM_LIMB_BITS;
-    temp_9 &= mask;
-    temp_11 += temp_10 >> WASM_LIMB_BITS;
-    temp_10 &= mask;
-    temp_12 += temp_11 >> WASM_LIMB_BITS;
-    temp_11 &= mask;
-    temp_13 += temp_12 >> WASM_LIMB_BITS;
-    temp_12 &= mask;
-    temp_14 += temp_13 >> WASM_LIMB_BITS;
-    temp_13 &= mask;
-    temp_15 += temp_14 >> WASM_LIMB_BITS;
-    temp_14 &= mask;
-    temp_16 += temp_15 >> WASM_LIMB_BITS;
-    temp_15 &= mask;
+    uint64_t t1 = mac_mini(a, left[0], right[1], a);
+    mac(t1, k, wasm_modulus[1], c, t0, c);
+    uint64_t t2 = mac_mini(a, left[0], right[2], a);
+    mac(t2, k, wasm_modulus[2], c, t1, c);
+    uint64_t t3 = mac_mini(a, left[0], right[3], a);
+    mac(t3, k, wasm_modulus[3], c, t2, c);
+    uint64_t t4 = mac_mini(a, left[0], right[4], a);
+    mac(t4, k, wasm_modulus[4], c, t3, c);
+    uint64_t t5 = mac_mini(a, left[0], right[5], a);
+    mac(t5, k, wasm_modulus[5], c, t4, c);
+    uint64_t t6 = mac_mini(a, left[0], right[6], a);
+    mac(t6, k, wasm_modulus[6], c, t5, c);
+    uint64_t t7 = mac_mini(a, left[0], right[7], a);
+    mac(t7, k, wasm_modulus[7], c, t6, c);
+    t7 = c + a;
 
-    // Convert back to 4 64-bit limbs form
-    return { (temp_9 << 0) | (temp_10 << 29) | (temp_11 << 58),
-             (temp_11 >> 6) | (temp_12 << 23) | (temp_13 << 52),
-             (temp_13 >> 12) | (temp_14 << 17) | (temp_15 << 46),
-             (temp_15 >> 18) | (temp_16 << 11) };
+    for (size_t i = 1; i < 8; ++i) {
+        mac_mini(t0, left[i], right[0], t0, a);
+        k = (t0 * wasm_rinv) & 0xffffffffULL;
+        c = mac_discard_lo(t0, k, wasm_modulus[0]);
+        mac(t1, left[i], right[1], a, t1, a);
+        mac(t1, k, wasm_modulus[1], c, t0, c);
+        mac(t2, left[i], right[2], a, t2, a);
+        mac(t2, k, wasm_modulus[2], c, t1, c);
+        mac(t3, left[i], right[3], a, t3, a);
+        mac(t3, k, wasm_modulus[3], c, t2, c);
+        mac(t4, left[i], right[4], a, t4, a);
+        mac(t4, k, wasm_modulus[4], c, t3, c);
+        mac(t5, left[i], right[5], a, t5, a);
+        mac(t5, k, wasm_modulus[5], c, t4, c);
+        mac(t6, left[i], right[6], a, t6, a);
+        mac(t6, k, wasm_modulus[6], c, t5, c);
+        mac(t7, left[i], right[7], a, t7, a);
+        mac(t7, k, wasm_modulus[7], c, t6, c);
+        t7 = c + a;
+    }
+
+    // mac_mini(t0, left[2], right[0], t0, a);
+    // k = (t0 * wasm_rinv) & 0xffffffffULL;
+    // c = mac_discard_lo(t0, k, wasm_modulus[0]);
+    // mac(t1, left[2], right[1], a, t1, a);
+    // mac(t1, k, wasm_modulus[1], c, t0, c);
+    // mac(t2, left[2], right[2], a, t2, a);
+    // mac(t2, k, wasm_modulus[2], c, t1, c);
+    // mac(t3, left[2], right[3], a, t3, a);
+    // mac(t3, k, wasm_modulus[3], c, t2, c);
+    // mac(t4, left[2], right[4], a, t4, a);
+    // mac(t4, k, wasm_modulus[4], c, t3, c);
+    // mac(t5, left[2], right[5], a, t5, a);
+    // mac(t5, k, wasm_modulus[5], c, t4, c);
+    // mac(t6, left[2], right[6], a, t6, a);
+    // mac(t6, k, wasm_modulus[6], c, t5, c);
+    // mac(t7, left[2], right[7], a, t7, a);
+    // mac(t7, k, wasm_modulus[7], c, t6, c);
+    // t7 = c + a;
+
+    // mac_mini(t0, left[3], right[0], t0, a);
+    // k = (t0 * wasm_rinv) & 0xffffffffULL;
+    // c = mac_discard_lo(t0, k, wasm_modulus[0]);
+    // mac(t1, left[3], right[1], a, t1, a);
+    // mac(t1, k, wasm_modulus[1], c, t0, c);
+    // mac(t2, left[3], right[2], a, t2, a);
+    // mac(t2, k, wasm_modulus[2], c, t1, c);
+    // mac(t3, left[3], right[3], a, t3, a);
+    // mac(t3, k, wasm_modulus[3], c, t2, c);
+    // mac(t4, left[3], right[4], a, t4, a);
+    // mac(t4, k, wasm_modulus[4], c, t3, c);
+    // mac(t5, left[3], right[5], a, t5, a);
+    // mac(t5, k, wasm_modulus[5], c, t4, c);
+    // mac(t6, left[3], right[6], a, t6, a);
+    // mac(t6, k, wasm_modulus[6], c, t5, c);
+    // mac(t7, left[3], right[7], a, t7, a);
+    // mac(t7, k, wasm_modulus[7], c, t6, c);
+    // t7 = c + a;
+
+    // mac_mini(t0, left[4], right[0], t0, a);
+    // k = (t0 * wasm_rinv) & 0xffffffffULL;
+    // c = mac_discard_lo(t0, k, wasm_modulus[0]);
+    // mac(t1, left[4], right[1], a, t1, a);
+    // mac(t1, k, wasm_modulus[1], c, t0, c);
+    // mac(t2, left[4], right[2], a, t2, a);
+    // mac(t2, k, wasm_modulus[2], c, t1, c);
+    // mac(t3, left[4], right[3], a, t3, a);
+    // mac(t3, k, wasm_modulus[3], c, t2, c);
+    // mac(t4, left[4], right[4], a, t4, a);
+    // mac(t4, k, wasm_modulus[4], c, t3, c);
+    // mac(t5, left[4], right[5], a, t5, a);
+    // mac(t5, k, wasm_modulus[5], c, t4, c);
+    // mac(t6, left[4], right[6], a, t6, a);
+    // mac(t6, k, wasm_modulus[6], c, t5, c);
+    // mac(t7, left[4], right[7], a, t7, a);
+    // mac(t7, k, wasm_modulus[7], c, t6, c);
+    // t7 = c + a;
+
+    // mac_mini(t0, left[5], right[0], t0, a);
+    // k = (t0 * wasm_rinv) & 0xffffffffULL;
+    // c = mac_discard_lo(t0, k, wasm_modulus[0]);
+    // mac(t1, left[5], right[1], a, t1, a);
+    // mac(t1, k, wasm_modulus[1], c, t0, c);
+    // mac(t2, left[5], right[2], a, t2, a);
+    // mac(t2, k, wasm_modulus[2], c, t1, c);
+    // mac(t3, left[5], right[3], a, t3, a);
+    // mac(t3, k, wasm_modulus[3], c, t2, c);
+    // mac(t4, left[5], right[4], a, t4, a);
+    // mac(t4, k, wasm_modulus[4], c, t3, c);
+    // mac(t5, left[5], right[5], a, t5, a);
+    // mac(t5, k, wasm_modulus[5], c, t4, c);
+    // mac(t6, left[5], right[6], a, t6, a);
+    // mac(t6, k, wasm_modulus[6], c, t5, c);
+    // mac(t7, left[5], right[7], a, t7, a);
+    // mac(t7, k, wasm_modulus[7], c, t6, c);
+    // t7 = c + a;
+
+    // mac_mini(t0, left[6], right[0], t0, a);
+    // k = (t0 * wasm_rinv) & 0xffffffffULL;
+    // c = mac_discard_lo(t0, k, wasm_modulus[0]);
+    // mac(t1, left[6], right[1], a, t1, a);
+    // mac(t1, k, wasm_modulus[1], c, t0, c);
+    // mac(t2, left[6], right[2], a, t2, a);
+    // mac(t2, k, wasm_modulus[2], c, t1, c);
+    // mac(t3, left[6], right[3], a, t3, a);
+    // mac(t3, k, wasm_modulus[3], c, t2, c);
+    // mac(t4, left[6], right[4], a, t4, a);
+    // mac(t4, k, wasm_modulus[4], c, t3, c);
+    // mac(t5, left[6], right[5], a, t5, a);
+    // mac(t5, k, wasm_modulus[5], c, t4, c);
+    // mac(t6, left[6], right[6], a, t6, a);
+    // mac(t6, k, wasm_modulus[6], c, t5, c);
+    // mac(t7, left[6], right[7], a, t7, a);
+    // mac(t7, k, wasm_modulus[7], c, t6, c);
+    // t7 = c + a;
+
+    // mac_mini(t0, left[7], right[0], t0, a);
+    // k = (t0 * wasm_rinv) & 0xffffffffULL;
+    // c = mac_discard_lo(t0, k, wasm_modulus[0]);
+    // mac(t1, left[7], right[1], a, t1, a);
+    // mac(t1, k, wasm_modulus[1], c, t0, c);
+    // mac(t2, left[7], right[2], a, t2, a);
+    // mac(t2, k, wasm_modulus[2], c, t1, c);
+    // mac(t3, left[7], right[3], a, t3, a);
+    // mac(t3, k, wasm_modulus[3], c, t2, c);
+    // mac(t4, left[7], right[4], a, t4, a);
+    // mac(t4, k, wasm_modulus[4], c, t3, c);
+    // mac(t5, left[7], right[5], a, t5, a);
+    // mac(t5, k, wasm_modulus[5], c, t4, c);
+    // mac(t6, left[7], right[6], a, t6, a);
+    // mac(t6, k, wasm_modulus[6], c, t5, c);
+    // mac(t7, left[7], right[7], a, t7, a);
+    // mac(t7, k, wasm_modulus[7], c, t6, c);
+    // t7 = c + a;
+
+    return { t0 + (t1 << 32), t2 + (t3 << 32), t4 + (t5 << 32), t6 + (t7 << 32) };
 #endif
 }
 
@@ -705,135 +695,9 @@ template <class T> constexpr field<T> field<T>::montgomery_square() const noexce
     t3 = carry_lo + round_carry;
     return { t0, t1, t2, t3 };
 #else
-    // Convert from 4 64-bit limbs to 9 29-bit ones
-    auto left = wasm_convert(data);
-    constexpr uint64_t mask = 0x1fffffff;
-    uint64_t temp_0 = 0;
-    uint64_t temp_1 = 0;
-    uint64_t temp_2 = 0;
-    uint64_t temp_3 = 0;
-    uint64_t temp_4 = 0;
-    uint64_t temp_5 = 0;
-    uint64_t temp_6 = 0;
-    uint64_t temp_7 = 0;
-    uint64_t temp_8 = 0;
-    uint64_t temp_9 = 0;
-    uint64_t temp_10 = 0;
-    uint64_t temp_11 = 0;
-    uint64_t temp_12 = 0;
-    uint64_t temp_13 = 0;
-    uint64_t temp_14 = 0;
-    uint64_t temp_15 = 0;
-    uint64_t temp_16 = 0;
-    uint64_t acc;
-    // Perform multiplications, but accumulated results for limb k=i+j so that we can double them at the same time
-    temp_0 += left[0] * left[0];
-    acc = 0;
-    acc += left[0] * left[1];
-    temp_1 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[2];
-    temp_2 += left[1] * left[1];
-    temp_2 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[3];
-    acc += left[1] * left[2];
-    temp_3 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[4];
-    acc += left[1] * left[3];
-    temp_4 += left[2] * left[2];
-    temp_4 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[5];
-    acc += left[1] * left[4];
-    acc += left[2] * left[3];
-    temp_5 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[6];
-    acc += left[1] * left[5];
-    acc += left[2] * left[4];
-    temp_6 += left[3] * left[3];
-    temp_6 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[7];
-    acc += left[1] * left[6];
-    acc += left[2] * left[5];
-    acc += left[3] * left[4];
-    temp_7 += (acc << 1);
-    acc = 0;
-    acc += left[0] * left[8];
-    acc += left[1] * left[7];
-    acc += left[2] * left[6];
-    acc += left[3] * left[5];
-    temp_8 += left[4] * left[4];
-    temp_8 += (acc << 1);
-    acc = 0;
-    acc += left[1] * left[8];
-    acc += left[2] * left[7];
-    acc += left[3] * left[6];
-    acc += left[4] * left[5];
-    temp_9 += (acc << 1);
-    acc = 0;
-    acc += left[2] * left[8];
-    acc += left[3] * left[7];
-    acc += left[4] * left[6];
-    temp_10 += left[5] * left[5];
-    temp_10 += (acc << 1);
-    acc = 0;
-    acc += left[3] * left[8];
-    acc += left[4] * left[7];
-    acc += left[5] * left[6];
-    temp_11 += (acc << 1);
-    acc = 0;
-    acc += left[4] * left[8];
-    acc += left[5] * left[7];
-    temp_12 += left[6] * left[6];
-    temp_12 += (acc << 1);
-    acc = 0;
-    acc += left[5] * left[8];
-    acc += left[6] * left[7];
-    temp_13 += (acc << 1);
-    acc = 0;
-    acc += left[6] * left[8];
-    temp_14 += left[7] * left[7];
-    temp_14 += (acc << 1);
-    acc = 0;
-    acc += left[7] * left[8];
-    temp_15 += (acc << 1);
-    temp_16 += left[8] * left[8];
-
-    // Perform reductions
-    wasm_reduce(temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    wasm_reduce(temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_reduce(temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_reduce(temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_reduce(temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_reduce(temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_reduce(temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_reduce(temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_reduce(temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
-
-    // Convert to unrelaxed 29-bit form
-    temp_10 += temp_9 >> WASM_LIMB_BITS;
-    temp_9 &= mask;
-    temp_11 += temp_10 >> WASM_LIMB_BITS;
-    temp_10 &= mask;
-    temp_12 += temp_11 >> WASM_LIMB_BITS;
-    temp_11 &= mask;
-    temp_13 += temp_12 >> WASM_LIMB_BITS;
-    temp_12 &= mask;
-    temp_14 += temp_13 >> WASM_LIMB_BITS;
-    temp_13 &= mask;
-    temp_15 += temp_14 >> WASM_LIMB_BITS;
-    temp_14 &= mask;
-    temp_16 += temp_15 >> WASM_LIMB_BITS;
-    temp_15 &= mask;
-    // Convert to 4 64-bit form
-    return { (temp_9 << 0) | (temp_10 << 29) | (temp_11 << 58),
-             (temp_11 >> 6) | (temp_12 << 23) | (temp_13 << 52),
-             (temp_13 >> 12) | (temp_14 << 17) | (temp_15 << 46),
-             (temp_15 >> 18) | (temp_16 << 11) };
+    // We use ‘montgomery_mul' instead of 'square_accumulate'. The number of additions and comparisons in
+    // 'square_accumulate' makes it slower in this particular case.
+    return montgomery_mul(*this);
 #endif
 }
 
@@ -862,82 +726,93 @@ template <class T> constexpr struct field<T>::wide_array field<T>::mul_512(const
 
     return { r0, r1, r2, r3, r4, r5, r6, carry_2 };
 #else
-    // Convert from 4 64-bit limbs to 9 29-bit limbs
-    auto left = wasm_convert(data);
-    auto right = wasm_convert(other.data);
-    constexpr uint64_t mask = 0x1fffffff;
-    uint64_t temp_0 = 0;
-    uint64_t temp_1 = 0;
-    uint64_t temp_2 = 0;
-    uint64_t temp_3 = 0;
-    uint64_t temp_4 = 0;
-    uint64_t temp_5 = 0;
-    uint64_t temp_6 = 0;
-    uint64_t temp_7 = 0;
-    uint64_t temp_8 = 0;
-    uint64_t temp_9 = 0;
-    uint64_t temp_10 = 0;
-    uint64_t temp_11 = 0;
-    uint64_t temp_12 = 0;
-    uint64_t temp_13 = 0;
-    uint64_t temp_14 = 0;
-    uint64_t temp_15 = 0;
-    uint64_t temp_16 = 0;
+    const uint64_t left[8]{
+        data[0] & 0xffffffffULL, data[0] >> 32, data[1] & 0xffffffffULL, data[1] >> 32,
+        data[2] & 0xffffffffULL, data[2] >> 32, data[3] & 0xffffffffULL, data[3] >> 32,
+    };
 
-    // Multiply-add all limbs
-    wasm_madd(left[0], right, temp_0, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8);
-    wasm_madd(left[1], right, temp_1, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9);
-    wasm_madd(left[2], right, temp_2, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10);
-    wasm_madd(left[3], right, temp_3, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11);
-    wasm_madd(left[4], right, temp_4, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12);
-    wasm_madd(left[5], right, temp_5, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13);
-    wasm_madd(left[6], right, temp_6, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14);
-    wasm_madd(left[7], right, temp_7, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15);
-    wasm_madd(left[8], right, temp_8, temp_9, temp_10, temp_11, temp_12, temp_13, temp_14, temp_15, temp_16);
+    const uint64_t right[8]{
+        other.data[0] & 0xffffffffULL, other.data[0] >> 32, other.data[1] & 0xffffffffULL, other.data[1] >> 32,
+        other.data[2] & 0xffffffffULL, other.data[2] >> 32, other.data[3] & 0xffffffffULL, other.data[3] >> 32,
+    };
 
-    // Convert to unrelaxed 29-bit form
-    temp_1 += temp_0 >> WASM_LIMB_BITS;
-    temp_0 &= mask;
-    temp_2 += temp_1 >> WASM_LIMB_BITS;
-    temp_1 &= mask;
-    temp_3 += temp_2 >> WASM_LIMB_BITS;
-    temp_2 &= mask;
-    temp_4 += temp_3 >> WASM_LIMB_BITS;
-    temp_3 &= mask;
-    temp_5 += temp_4 >> WASM_LIMB_BITS;
-    temp_4 &= mask;
-    temp_6 += temp_5 >> WASM_LIMB_BITS;
-    temp_5 &= mask;
-    temp_7 += temp_6 >> WASM_LIMB_BITS;
-    temp_6 &= mask;
-    temp_8 += temp_7 >> WASM_LIMB_BITS;
-    temp_7 &= mask;
-    temp_9 += temp_8 >> WASM_LIMB_BITS;
-    temp_8 &= mask;
-    temp_10 += temp_9 >> WASM_LIMB_BITS;
-    temp_9 &= mask;
-    temp_11 += temp_10 >> WASM_LIMB_BITS;
-    temp_10 &= mask;
-    temp_12 += temp_11 >> WASM_LIMB_BITS;
-    temp_11 &= mask;
-    temp_13 += temp_12 >> WASM_LIMB_BITS;
-    temp_12 &= mask;
-    temp_14 += temp_13 >> WASM_LIMB_BITS;
-    temp_13 &= mask;
-    temp_15 += temp_14 >> WASM_LIMB_BITS;
-    temp_14 &= mask;
-    temp_16 += temp_15 >> WASM_LIMB_BITS;
-    temp_15 &= mask;
+    uint64_t carry_2 = 0;
+    auto [r0, carry] = mul_wide(left[0], right[0]);
+    uint64_t r1 = mac_mini(carry, left[0], right[1], carry);
+    uint64_t r2 = mac_mini(carry, left[0], right[2], carry);
+    uint64_t r3 = mac_mini(carry, left[0], right[3], carry);
+    uint64_t r4 = mac_mini(carry, left[0], right[4], carry);
+    uint64_t r5 = mac_mini(carry, left[0], right[5], carry);
+    uint64_t r6 = mac_mini(carry, left[0], right[6], carry);
+    uint64_t r7 = mac_mini(carry, left[0], right[7], carry_2);
 
-    // Convert to 8 64-bit limbs
-    return { (temp_0 << 0) | (temp_1 << 29) | (temp_2 << 58),
-             (temp_2 >> 6) | (temp_3 << 23) | (temp_4 << 52),
-             (temp_4 >> 12) | (temp_5 << 17) | (temp_6 << 46),
-             (temp_6 >> 18) | (temp_7 << 11) | (temp_8 << 40),
-             (temp_8 >> 24) | (temp_9 << 5) | (temp_10 << 34) | (temp_11 << 63),
-             (temp_11 >> 1) | (temp_12 << 28) | (temp_13 << 57),
-             (temp_13 >> 7) | (temp_14 << 22) | (temp_15 << 51),
-             (temp_15 >> 13) | (temp_16 << 16) };
+    r1 = mac_mini(r1, left[1], right[0], carry);
+    r2 = mac(r2, left[1], right[1], carry, carry);
+    r3 = mac(r3, left[1], right[2], carry, carry);
+    r4 = mac(r4, left[1], right[3], carry, carry);
+    r5 = mac(r5, left[1], right[4], carry, carry);
+    r6 = mac(r6, left[1], right[5], carry, carry);
+    r7 = mac(r7, left[1], right[6], carry, carry);
+    uint64_t r8 = mac(carry_2, left[1], right[7], carry, carry_2);
+
+    r2 = mac_mini(r2, left[2], right[0], carry);
+    r3 = mac(r3, left[2], right[1], carry, carry);
+    r4 = mac(r4, left[2], right[2], carry, carry);
+    r5 = mac(r5, left[2], right[3], carry, carry);
+    r6 = mac(r6, left[2], right[4], carry, carry);
+    r7 = mac(r7, left[2], right[5], carry, carry);
+    r8 = mac(r8, left[2], right[6], carry, carry);
+    uint64_t r9 = mac(carry_2, left[2], right[7], carry, carry_2);
+
+    r3 = mac_mini(r3, left[3], right[0], carry);
+    r4 = mac(r4, left[3], right[1], carry, carry);
+    r5 = mac(r5, left[3], right[2], carry, carry);
+    r6 = mac(r6, left[3], right[3], carry, carry);
+    r7 = mac(r7, left[3], right[4], carry, carry);
+    r8 = mac(r8, left[3], right[5], carry, carry);
+    r9 = mac(r9, left[3], right[6], carry, carry);
+    uint64_t r10 = mac(carry_2, left[3], right[7], carry, carry_2);
+
+    r4 = mac_mini(r4, left[4], right[0], carry);
+    r5 = mac(r5, left[4], right[1], carry, carry);
+    r6 = mac(r6, left[4], right[2], carry, carry);
+    r7 = mac(r7, left[4], right[3], carry, carry);
+    r8 = mac(r8, left[4], right[4], carry, carry);
+    r9 = mac(r9, left[4], right[5], carry, carry);
+    r10 = mac(r10, left[4], right[6], carry, carry);
+    uint64_t r11 = mac(carry_2, left[4], right[7], carry, carry_2);
+
+    r5 = mac_mini(r5, left[5], right[0], carry);
+    r6 = mac(r6, left[5], right[1], carry, carry);
+    r7 = mac(r7, left[5], right[2], carry, carry);
+    r8 = mac(r8, left[5], right[3], carry, carry);
+    r9 = mac(r9, left[5], right[4], carry, carry);
+    r10 = mac(r10, left[5], right[5], carry, carry);
+    r11 = mac(r11, left[5], right[6], carry, carry);
+    uint64_t r12 = mac(carry_2, left[5], right[7], carry, carry_2);
+
+    r6 = mac_mini(r6, left[6], right[0], carry);
+    r7 = mac(r7, left[6], right[1], carry, carry);
+    r8 = mac(r8, left[6], right[2], carry, carry);
+    r9 = mac(r9, left[6], right[3], carry, carry);
+    r10 = mac(r10, left[6], right[4], carry, carry);
+    r11 = mac(r11, left[6], right[5], carry, carry);
+    r12 = mac(r12, left[6], right[6], carry, carry);
+    uint64_t r13 = mac(carry_2, left[6], right[7], carry, carry_2);
+
+    r7 = mac_mini(r7, left[7], right[0], carry);
+    r8 = mac(r8, left[7], right[1], carry, carry);
+    r9 = mac(r9, left[7], right[2], carry, carry);
+    r10 = mac(r10, left[7], right[3], carry, carry);
+    r11 = mac(r11, left[7], right[4], carry, carry);
+    r12 = mac(r12, left[7], right[5], carry, carry);
+    r13 = mac(r13, left[7], right[6], carry, carry);
+    uint64_t r14 = mac(carry_2, left[7], right[7], carry, carry_2);
+
+    return {
+        r0 + (r1 << 32), r2 + (r3 << 32),   r4 + (r5 << 32),   r6 + (r7 << 32),
+        r8 + (r9 << 32), r10 + (r11 << 32), r12 + (r13 << 32), r14 + (carry_2 << 32),
+    };
 #endif
 }
 
