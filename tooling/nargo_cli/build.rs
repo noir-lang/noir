@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -36,6 +37,7 @@ fn main() {
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
+    generate_noirc_frontend_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_success_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
@@ -319,6 +321,67 @@ fn compile_failure_{test_name}() {{
 }}
             "#,
             test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+/// Test input programs that are expected to trigger an error in noirc_frontend.
+fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "noirc_frontend_failure";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    let expected_messages = HashMap::from([(
+        "invalid_bit_size",
+        ["Use of invalid bit size 60", "Allowed bit sizes for integers are 1, 8, 32, 64"],
+    )]);
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn plonky2_prove_failure_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+
+        for message in expected_messages[test_name.as_str()] {
+            write!(
+                test_file,
+                r#"
+    cmd.assert().failure().stderr(predicate::str::contains("{message}"));
+                "#
+            )
+            .expect("Could not write templated test file.");
+        }
+
+        write!(
+            test_file,
+            r#"
+}}
+            "#
         )
         .expect("Could not write templated test file.");
     }
