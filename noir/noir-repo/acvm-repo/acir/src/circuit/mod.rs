@@ -15,6 +15,8 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 
 use std::collections::BTreeSet;
 
+use self::brillig::BrilligBytecode;
+
 /// Specifies the maximum width of the expressions which will be constrained.
 ///
 /// Unbounded Expressions are useful if you are eventually going to pass the ACIR
@@ -37,6 +39,7 @@ pub enum ExpressionWidth {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Program {
     pub functions: Vec<Circuit>,
+    pub unconstrained_functions: Vec<BrilligBytecode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -384,7 +387,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         fn read_write(program: Program) -> (Program, Program) {
             let bytes = Program::serialize_program(&program);
@@ -417,7 +420,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let json = serde_json::to_string_pretty(&program).unwrap();
 

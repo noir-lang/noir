@@ -324,6 +324,9 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
                 res => res.map(|_| ()),
             },
+            Opcode::BrilligCall { .. } => {
+                todo!("implement brillig pointer handling");
+            }
             Opcode::Call { .. } => match self.solve_call_opcode() {
                 Ok(Some(input_values)) => return self.wait_for_acir_call(input_values),
                 res => res.map(|_| ()),
