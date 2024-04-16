@@ -304,11 +304,9 @@ describe('External Calls', () => {
     });
 
     it('Should return data and revert from the revert opcode', async () => {
-      const returnData = [new Fr(1n), new Fr(2n), new Fr(3n)];
+      const returnData = [...'assert message'].flatMap(c => new Field(c.charCodeAt(0)));
 
-      context.machineState.memory.set(0, new Field(1n));
-      context.machineState.memory.set(1, new Field(2n));
-      context.machineState.memory.set(2, new Field(3n));
+      context.machineState.memory.setSlice(0, returnData);
 
       const instruction = new Revert(/*indirect=*/ 0, /*returnOffset=*/ 0, returnData.length);
       await instruction.execute(context);
@@ -316,7 +314,8 @@ describe('External Calls', () => {
       expect(context.machineState.halted).toBe(true);
       expect(context.machineState.getResults()).toEqual({
         reverted: true,
-        output: returnData,
+        revertReason: new Error('Reverted with output: assert message'),
+        output: returnData.map(f => f.toFr()),
       });
     });
   });

@@ -106,6 +106,18 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     expect(results.output).toEqual([new Fr(4), new Fr(6)]);
   });
 
+  it('Assertion message', async () => {
+    const calldata: Fr[] = [new Fr(20)];
+    const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+
+    const bytecode = getAvmTestContractBytecode('assert_nullifier_exists');
+    const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+    expect(results.reverted).toBe(true);
+    expect(results.revertReason?.message).toEqual("Reverted with output: Nullifier doesn't exist!");
+    expect(results.output).toEqual([..."Nullifier doesn't exist!"].flatMap(c => new Fr(c.charCodeAt(0))));
+  });
+
   describe.each([
     ['set_opcode_u8', 8n],
     ['set_opcode_u32', 1n << 30n],
@@ -454,6 +466,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(true);
+      expect(results.revertReason?.message).toMatch(/Attempted to emit duplicate nullifier/);
       // Only the first nullifier should be in the trace, second one failed to add
       expect(context.persistableState.flush().newNullifiers).toEqual([
         expect.objectContaining({
@@ -899,8 +912,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const results = await new AvmSimulator(context).executeBytecode(callBytecode);
 
       expect(results.reverted).toBe(true); // The outer call should revert.
-      // TODO(fcarreiro): revertReason lost in translation between results.
-      // expect(results.revertReason).toEqual(/StaticCallStorageAlterError/);
+      expect(results.revertReason?.message).toMatch(/Nested static call failed/);
     });
   });
 });

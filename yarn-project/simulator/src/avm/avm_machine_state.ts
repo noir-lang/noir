@@ -138,6 +138,17 @@ export class AvmMachineState {
     if (!this.halted) {
       throw new Error('Execution results are not ready! Execution is ongoing.');
     }
-    return new AvmContractCallResults(this.reverted, this.output);
+    let revertReason = undefined;
+    if (this.reverted && this.output.length > 0) {
+      try {
+        // Try to interpret the output as a text string.
+        revertReason = new Error(
+          'Reverted with output: ' + String.fromCharCode(...this.output.map(fr => fr.toNumber())),
+        );
+      } catch (e) {
+        revertReason = new Error('Reverted with non-string output');
+      }
+    }
+    return new AvmContractCallResults(this.reverted, this.output, revertReason);
   }
 }

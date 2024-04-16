@@ -185,7 +185,7 @@ contract AvmTest {
     #[aztec(public-vm)]
     fn test_get_contract_instance() {
         let ci = get_contract_instance_avm(context.this_address());
-        assert(ci.is_some());
+        assert(ci.is_some(), "Contract instance not found!");
     }
 
     /************************************************************************
@@ -258,7 +258,9 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn check_selector() {
-        assert(context.selector() == FunctionSelector::from_signature("check_selector()"));
+        assert(
+            context.selector() == FunctionSelector::from_signature("check_selector()"), "Unexpected selector!"
+        );
     }
 
     #[aztec(public-vm)]
@@ -299,7 +301,7 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn assert_nullifier_exists(nullifier: Field) {
-        assert(context.nullifier_exists(nullifier, context.this_address()));
+        assert(context.nullifier_exists(nullifier, context.this_address()), "Nullifier doesn't exist!");
     }
 
     // Use the standard context interface to emit a new nullifier
