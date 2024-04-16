@@ -38,10 +38,9 @@ const CALL_INSTRUCTION_ARGS = [
     description: "memory offset to args (will become the callee's calldata)",
   },
   {
-    name: "argsSize",
-    description: "number of words to pass via callee's calldata",
-    mode: "immediate",
-    type: "u32",
+    name: "argsSizeOffset",
+    description:
+      "memory offset for the number of words to pass via callee's calldata",
   },
   {
     name: "retOffset",

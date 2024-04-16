@@ -63,7 +63,7 @@ impl AvmContext {
         call(
             gas_for_call(gas),
             contract_address,
-            args,
+            args.as_slice(),
             temporary_function_selector
         )
     }
@@ -78,7 +78,7 @@ impl AvmContext {
         call_static(
             gas_for_call(gas),
             contract_address,
-            args,
+            args.as_slice(),
             temporary_function_selector
         )
     }
@@ -149,7 +149,7 @@ impl PublicContextInterface for AvmContext {
         let results = call(
             gas_for_call(gas_opts),
             contract_address,
-            args,
+            args.as_slice(),
             temporary_function_selector.to_field()
         );
         let data_to_return: [Field; RETURNS_COUNT] = results.0;
@@ -169,7 +169,7 @@ impl PublicContextInterface for AvmContext {
         let (data_to_return, success): ([Field; RETURNS_COUNT], u8) = call_static(
             gas_for_call(gas_opts),
             contract_address,
-            args,
+            args.as_slice(),
             temporary_function_selector.to_field()
         );
 
@@ -296,20 +296,20 @@ fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {}
 fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {}
 
 #[oracle(avmOpcodeCall)]
-fn call<ARGS_COUNT, RET_SIZE>(
+fn call<RET_SIZE>(
     gas: [Field; 3], // gas allocation: [l1_gas, l2_gas, da_gas]
     address: AztecAddress,
-    args: [Field; ARGS_COUNT],
+    args: [Field],
     // TODO(5110): consider passing in calldata directly
     temporary_function_selector: Field
 ) -> ([Field; RET_SIZE], u8) {}
 //    ^ return data      ^ success
 
 #[oracle(avmOpcodeStaticCall)]
-fn call_static<ARGS_COUNT, RET_SIZE>(
+fn call_static<RET_SIZE>(
     gas: [Field; 3], // gas allocation: [l1_gas, l2_gas, da_gas]
     address: AztecAddress,
-    args: [Field; ARGS_COUNT],
+    args: [Field],
     // TODO(5110): consider passing in calldata directly
     temporary_function_selector: Field
 ) -> ([Field; RET_SIZE], u8) {}

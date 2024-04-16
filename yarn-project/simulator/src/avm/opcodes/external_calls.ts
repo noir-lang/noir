@@ -36,7 +36,7 @@ abstract class ExternalCall extends Instruction {
     private gasOffset: number /* Unused due to no formal gas implementation at this moment */,
     private addrOffset: number,
     private argsOffset: number,
-    private argsSize: number,
+    private argsSizeOffset: number,
     private retOffset: number,
     private retSize: number,
     private successOffset: number,
@@ -50,20 +50,23 @@ abstract class ExternalCall extends Instruction {
 
   public async execute(context: AvmContext) {
     const memory = context.machineState.memory.track(this.type);
-    const [gasOffset, addrOffset, argsOffset, retOffset, successOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.gasOffset, this.addrOffset, this.argsOffset, this.retOffset, this.successOffset],
+    const [gasOffset, addrOffset, argsOffset, argsSizeOffset, retOffset, successOffset] = Addressing.fromWire(
+      this.indirect,
+    ).resolve(
+      [this.gasOffset, this.addrOffset, this.argsOffset, this.argsSizeOffset, this.retOffset, this.successOffset],
       memory,
     );
 
     const callAddress = memory.getAs<Field>(addrOffset);
-    const calldata = memory.getSlice(argsOffset, this.argsSize).map(f => f.toFr());
+    const calldataSize = memory.get(argsSizeOffset).toNumber();
+    const calldata = memory.getSlice(argsOffset, calldataSize).map(f => f.toFr());
     const l1Gas = memory.get(gasOffset).toNumber();
     const l2Gas = memory.getAs<Field>(gasOffset + 1).toNumber();
     const daGas = memory.getAs<Field>(gasOffset + 2).toNumber();
     const functionSelector = memory.getAs<Field>(this.temporaryFunctionSelectorOffset).toFr();
 
     const allocatedGas = { l1Gas, l2Gas, daGas };
-    const memoryOperations = { reads: this.argsSize + 5, writes: 1 + this.retSize, indirect: this.indirect };
+    const memoryOperations = { reads: calldataSize + 6, writes: 1 + this.retSize, indirect: this.indirect };
     const totalGas = sumGas(this.gasCost(memoryOperations), allocatedGas);
     context.machineState.consumeGas(totalGas);
 

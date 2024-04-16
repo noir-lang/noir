@@ -1700,7 +1700,7 @@ Call into another contract
 	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
 	- **argsOffset**: memory offset to args (will become the callee's calldata)
-	- **argsSize**: number of words to pass via callee's calldata
+	- **argsSizeOffset**: memory offset for the number of words to pass via callee's calldata
 	- **retOffset**: destination memory offset specifying where to store the data returned from the callee
 	- **retSize**: number of words to copy from data returned by callee
 	- **successOffset**: destination memory offset specifying where to store the call's success (0: failure, 1: success)
@@ -1748,7 +1748,7 @@ Call into another contract, disallowing World State and Accrued Substate modific
 	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
 	- **argsOffset**: memory offset to args (will become the callee's calldata)
-	- **argsSize**: number of words to pass via callee's calldata
+	- **argsSizeOffset**: memory offset for the number of words to pass via callee's calldata
 	- **retOffset**: destination memory offset specifying where to store the data returned from the callee
 	- **retSize**: number of words to copy from data returned by callee
 	- **successOffset**: destination memory offset specifying where to store the call's success (0: failure, 1: success)
@@ -1793,7 +1793,7 @@ Call into another contract, but keep the caller's `sender` and `storageAddress`
 	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
 	- **argsOffset**: memory offset to args (will become the callee's calldata)
-	- **argsSize**: number of words to pass via callee's calldata
+	- **argsSizeOffset**: memory offset for the number of words to pass via callee's calldata
 	- **retOffset**: destination memory offset specifying where to store the data returned from the callee
 	- **retSize**: number of words to copy from data returned by callee
 	- **successOffset**: destination memory offset specifying where to store the call's success (0: failure, 1: success)

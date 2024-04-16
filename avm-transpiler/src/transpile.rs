@@ -2,7 +2,7 @@ use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::brillig::Brillig;
 
 use acvm::brillig_vm::brillig::{
-    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, MemoryAddress, ValueOrArray,
+    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
 };
 use acvm::FieldElement;
 
@@ -380,16 +380,16 @@ fn handle_external_call(
     inputs: &Vec<ValueOrArray>,
     opcode: AvmOpcode,
 ) {
-    if destinations.len() != 2 || inputs.len() != 4 {
+    if destinations.len() != 2 || inputs.len() != 5 {
         panic!(
-            "Transpiler expects ForeignCall (Static)Call to have 2 destinations and 4 inputs, got {} and {}.
+            "Transpiler expects ForeignCall (Static)Call to have 2 destinations and 5 inputs, got {} and {}.
             Make sure your call instructions's input/return arrays have static length (`[Field; <size>]`)!",
             destinations.len(),
             inputs.len()
         );
     }
-    let gas_offset_maybe = inputs[0];
-    let gas_offset = match gas_offset_maybe {
+    let gas = inputs[0];
+    let gas_offset = match gas {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => {
             assert!(size == 3, "Call instruction's gas input should be a HeapArray of size 3 (`[l1Gas, l2Gas, daGas]`)");
             pointer.0 as u32
@@ -401,13 +401,16 @@ fn handle_external_call(
         ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
         _ => panic!("Call instruction's target address input should be a basic MemoryAddress",),
     };
-    let args_offset_maybe = inputs[2];
-    let (args_offset, args_size) = match args_offset_maybe {
-        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0 as u32, size as u32),
-        ValueOrArray::HeapVector(_) => panic!("Call instruction's args must be a HeapArray, not a HeapVector. Make sure you are explicitly defining its size (`[arg0, arg1, ... argN]`)!"),
-        _ => panic!("Call instruction's args input should be a HeapArray input"),
+    // The args are a slice, and this is represented as a (Field, HeapVector).
+    // The field is the length (memory address) and the HeapVector has the data and length again.
+    // This is an ACIR internal representation detail that leaks to the SSA.
+    // Observe that below, we use `inputs[3]` and therefore skip the length field.
+    let args = inputs[3];
+    let (args_offset, args_size_offset) = match args {
+        ValueOrArray::HeapVector(HeapVector { pointer, size }) => (pointer.0 as u32, size.0 as u32),
+        _ => panic!("Call instruction's args input should be a HeapVector input"),
     };
-    let temporary_function_selector_offset = match &inputs[3] {
+    let temporary_function_selector_offset = match &inputs[4] {
         ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
         _ => panic!(
             "Call instruction's temporary function selector input should be a basic MemoryAddress",
@@ -426,14 +429,23 @@ fn handle_external_call(
     };
     avm_instrs.push(AvmInstruction {
         opcode: opcode,
-        indirect: Some(0b01101), // (left to right) selector direct, ret offset INDIRECT, args offset INDIRECT, address offset direct, gas offset INDIRECT
+        // (left to right)
+        //   * selector direct
+        //   * ret offset INDIRECT
+        //   * arg size offset direct
+        //   * args offset INDIRECT
+        //   * address offset direct
+        //   * gas offset INDIRECT
+        indirect: Some(0b010101),
         operands: vec![
             AvmOperand::U32 { value: gas_offset },
             AvmOperand::U32 {
                 value: address_offset,
             },
             AvmOperand::U32 { value: args_offset },
-            AvmOperand::U32 { value: args_size },
+            AvmOperand::U32 {
+                value: args_size_offset,
+            },
             AvmOperand::U32 { value: ret_offset },
             AvmOperand::U32 { value: ret_size },
             AvmOperand::U32 {
