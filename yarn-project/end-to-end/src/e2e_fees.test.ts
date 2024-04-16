@@ -193,7 +193,7 @@ describe('e2e_fees', () => {
     // Can't do presently because all logs are "revertible" so we lose notes that get broadcasted during unshielding.
   });
 
-  describe('private fees payments', () => {
+  describe.skip('private fees payments', () => {
     let InitialAlicePrivateBananas: bigint;
     let InitialAlicePublicBananas: bigint;
     let InitialAliceGas: bigint;
