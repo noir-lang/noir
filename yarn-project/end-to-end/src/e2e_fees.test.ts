@@ -46,6 +46,7 @@ describe('e2e_fees', () => {
   let gasTokenContract: GasTokenContract;
   let bananaCoin: BananaCoin;
   let bananaFPC: FPCContract;
+  let logger: DebugLogger;
 
   let gasBridgeTestHarness: IGasBridgingTestHarness;
 
@@ -61,8 +62,9 @@ describe('e2e_fees', () => {
   });
 
   beforeAll(async () => {
-    const { wallets: _wallets, aztecNode, deployL1ContractsValues, logger, pxe } = await setup(3, {}, {}, true);
-    wallets = _wallets;
+    const ctx = await setup(3, {}, {}, true);
+    const { aztecNode, deployL1ContractsValues, pxe } = ctx;
+    ({ wallets, logger } = ctx);
 
     logFunctionSignatures(BananaCoin.artifact, logger);
     logFunctionSignatures(FPCContract.artifact, logger);
@@ -193,12 +195,14 @@ describe('e2e_fees', () => {
     // Can't do presently because all logs are "revertible" so we lose notes that get broadcasted during unshielding.
   });
 
-  describe.skip('private fees payments', () => {
+  describe('private fees payments', () => {
     let InitialAlicePrivateBananas: bigint;
     let InitialAlicePublicBananas: bigint;
     let InitialAliceGas: bigint;
 
     let InitialBobPrivateBananas: bigint;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let InitialBobPublicBananas: bigint;
 
     let InitialFPCPrivateBananas: bigint;
     let InitialFPCPublicBananas: bigint;
@@ -212,8 +216,9 @@ describe('e2e_fees', () => {
     let RefundSecret: Fr;
 
     beforeAll(async () => {
-      // fund Alice
-      await mintPrivate(100n, aliceAddress);
+      // Fund Alice private and publicly
+      await mintPrivate(1000n, aliceAddress);
+      await bananaCoin.methods.mint_public(aliceAddress, 1000n).send().wait();
     });
 
     beforeEach(async () => {
@@ -226,11 +231,11 @@ describe('e2e_fees', () => {
 
       [
         [InitialAlicePrivateBananas, InitialBobPrivateBananas, InitialFPCPrivateBananas],
-        [InitialAlicePublicBananas, InitialFPCPublicBananas],
+        [InitialAlicePublicBananas, InitialBobPublicBananas, InitialFPCPublicBananas],
         [InitialAliceGas, InitialFPCGas, InitialSequencerGas],
       ] = await Promise.all([
         bananaPrivateBalances(aliceAddress, bobAddress, bananaFPC.address),
-        bananaPublicBalances(aliceAddress, bananaFPC.address),
+        bananaPublicBalances(aliceAddress, bobAddress, bananaFPC.address),
         gasBalances(aliceAddress, bananaFPC.address, sequencerAddress),
       ]);
     });
