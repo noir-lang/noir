@@ -1,5 +1,4 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
-use acvm::acir::circuit::brillig::Brillig;
 
 use acvm::brillig_vm::brillig::{
     BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
@@ -14,17 +13,17 @@ use crate::opcodes::AvmOpcode;
 use crate::utils::{dbg_print_avm_program, dbg_print_brillig_program};
 
 /// Transpile a Brillig program to AVM bytecode
-pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
-    dbg_print_brillig_program(brillig);
+pub fn brillig_to_avm(brillig_bytecode: &[BrilligOpcode]) -> Vec<u8> {
+    dbg_print_brillig_program(brillig_bytecode);
 
     let mut avm_instrs: Vec<AvmInstruction> = Vec::new();
 
     // Map Brillig pcs to AVM pcs
     // (some Brillig instructions map to >1 AVM instruction)
-    let brillig_pcs_to_avm_pcs = map_brillig_pcs_to_avm_pcs(avm_instrs.len(), brillig);
+    let brillig_pcs_to_avm_pcs = map_brillig_pcs_to_avm_pcs(avm_instrs.len(), brillig_bytecode);
 
     // Transpile a Brillig instruction to one or more AVM instructions
-    for brillig_instr in &brillig.bytecode {
+    for brillig_instr in brillig_bytecode {
         match brillig_instr {
             BrilligOpcode::BinaryFieldOp {
                 destination,
@@ -1090,12 +1089,15 @@ fn handle_storage_read(
 ///     brillig: the Brillig program
 /// returns: an array where each index is a Brillig pc,
 ///     and each value is the corresponding AVM pc.
-fn map_brillig_pcs_to_avm_pcs(initial_offset: usize, brillig: &Brillig) -> Vec<usize> {
-    let mut pc_map = vec![0; brillig.bytecode.len()];
+fn map_brillig_pcs_to_avm_pcs(
+    initial_offset: usize,
+    brillig_bytecode: &[BrilligOpcode],
+) -> Vec<usize> {
+    let mut pc_map = vec![0; brillig_bytecode.len()];
 
     pc_map[0] = initial_offset;
-    for i in 0..brillig.bytecode.len() - 1 {
-        let num_avm_instrs_for_this_brillig_instr = match &brillig.bytecode[i] {
+    for i in 0..brillig_bytecode.len() - 1 {
+        let num_avm_instrs_for_this_brillig_instr = match &brillig_bytecode[i] {
             BrilligOpcode::Const { bit_size: 254, .. } => 2,
             _ => 1,
         };

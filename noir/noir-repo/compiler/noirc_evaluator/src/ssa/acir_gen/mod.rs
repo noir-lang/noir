@@ -360,14 +360,18 @@ impl<'a> Context<'a> {
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
-        let output_values = self.acir_context.brillig(
+        let output_values = self.acir_context.brillig_call(
             self.current_side_effects_enabled_var,
-            code,
+            &code,
             inputs,
             outputs,
             false,
             true,
+            // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
+            0,
         )?;
+        self.shared_context.insert_generated_brillig(main_func.id(), 0, code);
+
         let output_vars: Vec<_> = output_values
             .iter()
             .flat_map(|value| value.clone().flatten())
