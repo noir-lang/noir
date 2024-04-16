@@ -262,7 +262,7 @@ pub(crate) mod tests {
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap);
+        context.push_opcode(BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 });
 
         context.stop_instruction();
 

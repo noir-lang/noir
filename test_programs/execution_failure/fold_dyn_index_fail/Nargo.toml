@@ -1,7 +1,0 @@
-[package]
-name = "fold_dyn_index_fail"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.26.0"
-
-[dependencies]
