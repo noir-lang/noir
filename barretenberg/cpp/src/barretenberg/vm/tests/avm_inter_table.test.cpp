@@ -33,46 +33,6 @@ class AvmInterTableTests : public ::testing::Test {
  * relation being tested.
  ******************************************************************************/
 
-// Error tag propagation from memory trace back to the main trace.
-TEST_F(AvmInterTableTests, tagErrNotCopiedInMain)
-{
-    // Equality operation on U128 and second operand is of type U16.
-    trace_builder.op_set(0, 32, 18, AvmMemoryTag::U128);
-    trace_builder.op_set(0, 32, 76, AvmMemoryTag::U16);
-    trace_builder.op_eq(0, 18, 76, 65, AvmMemoryTag::U128);
-    trace_builder.halt();
-    auto trace = trace_builder.finalize();
-
-    // Find the row with equality operation and mutate the error tag.
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_eq == 1; });
-    ASSERT_EQ(row->avm_main_tag_err, FF(1)); // Sanity check that the error tag is set.
-    row->avm_main_tag_err = 0;
-    row->avm_main_alu_sel = 1; // We have to activate ALU trace if no error tag is present.
-    auto const clk = row->avm_main_clk;
-
-    // Create a valid ALU entry for this equality operation.
-    auto& alu_row = trace.at(1);
-    alu_row.avm_alu_clk = clk;
-    alu_row.avm_alu_alu_sel = 1;
-    alu_row.avm_alu_ia = 32;
-    alu_row.avm_alu_ib = 32;
-    alu_row.avm_alu_ic = 1;
-    alu_row.avm_alu_op_eq = 1;
-    alu_row.avm_alu_in_tag = static_cast<uint32_t>(AvmMemoryTag::U128);
-    alu_row.avm_alu_u128_tag = 1;
-
-    // Adjust the output of the computation as it would have been performed without tag check.
-    row->avm_main_ic = 1;
-    // Find the memory row pertaining to write operation from Ic.
-    auto mem_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_clk == clk && r.avm_mem_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_C;
-    });
-
-    // Adjust the output in the memory trace.
-    mem_row->avm_mem_val = 1;
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "INCL_MAIN_TAG_ERR");
-}
-
 /******************************************************************************
  *                         MAIN <-------> ALU
  ******************************************************************************/
@@ -173,7 +133,230 @@ TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
 }
 
 /******************************************************************************
- *                         MAIN <-------> ALU
+ *                   REGISTER RANGE CHECKS (MAIN <-------> ALU)
+ ******************************************************************************/
+class AvmRangeCheckNegativeTests : public AvmInterTableTests {
+  protected:
+    std::vector<Row> trace;
+    size_t main_idx;
+    size_t mem_idx;
+    size_t alu_idx;
+
+    void genTraceAdd(uint128_t const& a, uint128_t const& b, uint128_t const& c, AvmMemoryTag tag)
+    {
+        trace_builder.op_set(0, a, 0, tag);
+        trace_builder.op_set(0, b, 1, tag);
+        trace_builder.op_add(0, 0, 1, 2, tag); // 7 + 8 = 15
+        trace_builder.return_op(0, 0, 0);
+        trace = trace_builder.finalize();
+
+        // Find the row with addition operation and retrieve clk.
+        auto row =
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_add == FF(1); });
+
+        ASSERT_TRUE(row != trace.end());
+        ASSERT_EQ(row->avm_main_ia, FF(uint256_t::from_uint128(a)));
+        ASSERT_EQ(row->avm_main_ib, FF(uint256_t::from_uint128(b)));
+        ASSERT_EQ(row->avm_main_ic, FF(uint256_t::from_uint128(c)));
+        auto clk = row->avm_main_clk;
+
+        // Find the corresponding Alu trace row
+        auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_clk == clk; });
+        ASSERT_TRUE(alu_row != trace.end());
+
+        // Find memory trace entry related to storing output (intermediate register Ic) in memory.
+        auto mem_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
+            return r.avm_mem_clk == clk && r.avm_mem_op_c == FF(1) && r.avm_mem_rw == FF(1);
+        });
+        ASSERT_TRUE(mem_row != trace.end());
+
+        main_idx = static_cast<size_t>(row - trace.begin());
+        alu_idx = static_cast<size_t>(alu_row - trace.begin());
+        mem_idx = static_cast<size_t>(mem_row - trace.begin());
+    };
+};
+
+// Out-of-range value in register u8_r0
+TEST_F(AvmRangeCheckNegativeTests, additionU8Reg0)
+{
+    genTraceAdd(7, 8, 15, AvmMemoryTag::U8);
+
+    // We mutate the result 15 to 15 - 2^254 mod p
+    // The value 15 - 2^254 mod p is set in register u8_r0 and 2^246 in u8_r1
+    // Therefore, u8_r0 + 2^8 * u8_r1 mod p = 15
+    // All constraints except range checks on u8_r0, u8_r1 are satisfied.
+
+    FF const fake_c = FF(15).add(-FF(2).pow(254));
+    auto& row = trace.at(main_idx);
+    auto& mem_row = trace.at(mem_idx);
+    auto& alu_row = trace.at(alu_idx);
+
+    row.avm_main_ic = fake_c;
+    mem_row.avm_mem_val = fake_c;
+    alu_row.avm_alu_ic = fake_c;
+
+    ASSERT_EQ(alu_row.avm_alu_u8_r0, 15);
+    ASSERT_EQ(alu_row.avm_alu_u8_r1, 0);
+
+    alu_row.avm_alu_u8_r0 = fake_c;
+    alu_row.avm_alu_u8_r1 = FF(2).pow(246);
+
+    // We first try to validate without any range check counters adjustment.
+    auto trace_same_cnt = trace;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U8_0");
+
+    // Decrement the counter for former lookup values 15 resp. 0 for u8_r0 resp. u8_r1.
+    trace.at(15 + 1).lookup_u8_0_counts -= FF(1);
+    trace.at(1).lookup_u8_1_counts -= FF(1);
+
+    // One cannot add the new values in counters as they are out of range.
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U8_0");
+}
+
+// Out-of-range value in register u8_r1
+TEST_F(AvmRangeCheckNegativeTests, additionU8Reg1)
+{
+    genTraceAdd(19, 20, 39, AvmMemoryTag::U8);
+    auto& row = trace.at(main_idx);
+    auto& mem_row = trace.at(mem_idx);
+    auto& alu_row = trace.at(alu_idx);
+
+    // a + b = u8_r0 + 2^8 * u8_r1 (mod p)
+    // We recall that p-1 is a multiple of a large power of two.
+    // We select a maximal u8_r1 such that u8_r0 is still of type U8.
+    // Namely, we pick (p-1)/2^8 so that we can replace c (i.e., u8_r0) with 40 as
+    // 39 = 40 + p - 1 (mod p)
+    uint256_t const r1 = (uint256_t(FF::modulus) - 1) / 256;
+    FF const fake_c = FF(40);
+
+    row.avm_main_ic = fake_c;
+    mem_row.avm_mem_val = fake_c;
+    alu_row.avm_alu_ic = fake_c;
+
+    ASSERT_EQ(alu_row.avm_alu_u8_r0, 39);
+    ASSERT_EQ(alu_row.avm_alu_u8_r1, 0);
+
+    alu_row.avm_alu_u8_r0 = fake_c;
+    alu_row.avm_alu_u8_r1 = FF(r1);
+
+    // We adjust counter to pass range check lookup for u8_r0
+    trace.at(39 + 1).lookup_u8_0_counts -= FF(1);
+    trace.at(40 + 1).lookup_u8_0_counts += FF(1);
+
+    auto trace_same_cnt = trace;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U8_1");
+
+    // Second attempt by decreasing counter for u8_r1 range check lookup
+    trace.at(1).lookup_u8_1_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U8_1");
+}
+
+// Out-of-range value in register u16_r0
+TEST_F(AvmRangeCheckNegativeTests, additionU16Reg0)
+{
+    genTraceAdd(1200, 2000, 3200, AvmMemoryTag::U16);
+    auto& row = trace.at(main_idx);
+    auto& mem_row = trace.at(mem_idx);
+    auto& alu_row = trace.at(alu_idx);
+
+    // a + b = u8_r0 + 2^8 * u8_r1 + 2^16 * u16_r0 (mod p)
+    // We recall that p-1 is a multiple of a large power of two.
+    // We select a maximal u16_r0 such that u8_r0 is still of type U16.
+    // Namely, we pick (p-1)/2^16 so that we can replace c with 3201 as
+    // 3201 = 3200 + p - 1 (mod p)
+    uint256_t const u16_r0 = (uint256_t(FF::modulus) - 1) / 65536;
+    FF const fake_c = FF(3201);
+
+    row.avm_main_ic = fake_c;
+    mem_row.avm_mem_val = fake_c;
+    alu_row.avm_alu_ic = fake_c;
+
+    ASSERT_EQ(alu_row.avm_alu_u8_r0, FF(128)); // 3200 % 256 = 128
+    ASSERT_EQ(alu_row.avm_alu_u8_r1, FF(12));  // 3200/256 = 12
+    ASSERT_EQ(alu_row.avm_alu_u16_r0, 0);
+
+    alu_row.avm_alu_u8_r0 = FF(129); // 3201 % 256 = 129
+    // alu_row.avm_alu_u8_r1 = FF(r1); // Does not change 3201/256 = 12
+    alu_row.avm_alu_u16_r0 = FF(u16_r0);
+
+    // We adjust counter to pass range check lookup for u8_r0
+    trace.at(128 + 1).lookup_u8_0_counts -= FF(1);
+    trace.at(129 + 1).lookup_u8_0_counts += FF(1);
+
+    auto trace_same_cnt = trace;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U16_0");
+
+    // Second attempt by decreasing counter for u16_r0 range check lookup
+    trace.at(1).lookup_u16_0_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_0");
+}
+
+// Out-of-range value in registers u16_r7, .... u16_r14
+// These registers are not involved for the arithmetic
+// relations of the addition but the range checks are currently
+// enabled.
+TEST_F(AvmRangeCheckNegativeTests, additionU16RegHigh)
+{
+    genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
+    auto trace_original = trace;
+
+    auto& alu_row = trace.at(alu_idx);
+    alu_row.avm_alu_u16_r7 = FF(235655);
+
+    auto trace_same_cnt = trace;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_same_cnt)), "LOOKUP_U16_7");
+
+    // Second attempt by decreasing counter for u16_r0 range check lookup
+    trace.at(1).lookup_u16_7_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_7");
+
+    // Subsequent range checks are attempted only after counter decrease.
+
+    // U16_R8
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r8 = FF(235655);
+    trace.at(1).lookup_u16_8_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_8");
+
+    // U16_R9
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r9 = FF(235655);
+    trace.at(1).lookup_u16_9_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_9");
+
+    // U16_R10
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r10 = FF(235655);
+    trace.at(1).lookup_u16_10_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_10");
+
+    // U16_R11
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r11 = FF(235655);
+    trace.at(1).lookup_u16_11_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_11");
+
+    // U16_R12
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r12 = FF(235655);
+    trace.at(1).lookup_u16_12_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_12");
+
+    // U16_R13
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r13 = FF(235655);
+    trace.at(1).lookup_u16_13_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_13");
+
+    // U16_R14
+    trace = trace_original;
+    trace.at(alu_idx).avm_alu_u16_r14 = FF(235655);
+    trace.at(1).lookup_u16_14_counts -= FF(1);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_14");
+}
+
+/******************************************************************************
+ *                         MAIN <-------> MEM
  ******************************************************************************/
 class AvmPermMainMemNegativeTests : public AvmInterTableTests {
   protected:
@@ -231,6 +414,45 @@ class AvmPermMainMemNegativeTests : public AvmInterTableTests {
         mem_idx_c = static_cast<size_t>(mem_row_c - trace.begin());
     }
 };
+// Error tag propagation from memory trace back to the main trace.
+TEST_F(AvmPermMainMemNegativeTests, tagErrNotCopiedInMain)
+{
+    // Equality operation on U128 and second operand is of type U16.
+    trace_builder.op_set(0, 32, 18, AvmMemoryTag::U128);
+    trace_builder.op_set(0, 32, 76, AvmMemoryTag::U16);
+    trace_builder.op_eq(0, 18, 76, 65, AvmMemoryTag::U128);
+    trace_builder.halt();
+    auto trace = trace_builder.finalize();
+
+    // Find the row with equality operation and mutate the error tag.
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_eq == 1; });
+    ASSERT_EQ(row->avm_main_tag_err, FF(1)); // Sanity check that the error tag is set.
+    row->avm_main_tag_err = 0;
+    row->avm_main_alu_sel = 1; // We have to activate ALU trace if no error tag is present.
+    auto const clk = row->avm_main_clk;
+
+    // Create a valid ALU entry for this equality operation.
+    auto& alu_row = trace.at(1);
+    alu_row.avm_alu_clk = clk;
+    alu_row.avm_alu_alu_sel = 1;
+    alu_row.avm_alu_ia = 32;
+    alu_row.avm_alu_ib = 32;
+    alu_row.avm_alu_ic = 1;
+    alu_row.avm_alu_op_eq = 1;
+    alu_row.avm_alu_in_tag = static_cast<uint32_t>(AvmMemoryTag::U128);
+    alu_row.avm_alu_u128_tag = 1;
+
+    // Adjust the output of the computation as it would have been performed without tag check.
+    row->avm_main_ic = 1;
+    // Find the memory row pertaining to write operation from Ic.
+    auto mem_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
+        return r.avm_mem_clk == clk && r.avm_mem_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_C;
+    });
+
+    // Adjust the output in the memory trace.
+    mem_row->avm_mem_val = 1;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "INCL_MAIN_TAG_ERR");
+}
 
 TEST_F(AvmPermMainMemNegativeTests, wrongValueIaInMem)
 {
