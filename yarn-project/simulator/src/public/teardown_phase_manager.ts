@@ -17,14 +17,14 @@ import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simul
  */
 export class TeardownPhaseManager extends AbstractPhaseManager {
   constructor(
-    protected db: MerkleTreeOperations,
-    protected publicExecutor: PublicExecutor,
-    protected publicKernel: PublicKernelCircuitSimulator,
-    protected globalVariables: GlobalVariables,
-    protected historicalHeader: Header,
+    db: MerkleTreeOperations,
+    publicExecutor: PublicExecutor,
+    publicKernel: PublicKernelCircuitSimulator,
+    globalVariables: GlobalVariables,
+    historicalHeader: Header,
     protected publicContractsDB: ContractsDataSourcePublicDB,
     protected publicStateDB: PublicStateDB,
-    public phase: PublicKernelPhase = PublicKernelPhase.TEARDOWN,
+    phase: PublicKernelPhase = PublicKernelPhase.TEARDOWN,
   ) {
     super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }

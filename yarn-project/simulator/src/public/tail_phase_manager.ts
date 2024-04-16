@@ -23,14 +23,14 @@ import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simul
 
 export class TailPhaseManager extends AbstractPhaseManager {
   constructor(
-    protected db: MerkleTreeOperations,
-    protected publicExecutor: PublicExecutor,
-    protected publicKernel: PublicKernelCircuitSimulator,
-    protected globalVariables: GlobalVariables,
-    protected historicalHeader: Header,
+    db: MerkleTreeOperations,
+    publicExecutor: PublicExecutor,
+    publicKernel: PublicKernelCircuitSimulator,
+    globalVariables: GlobalVariables,
+    historicalHeader: Header,
     protected publicContractsDB: ContractsDataSourcePublicDB,
     protected publicStateDB: PublicStateDB,
-    public readonly phase: PublicKernelPhase = PublicKernelPhase.TAIL,
+    phase: PublicKernelPhase = PublicKernelPhase.TAIL,
   ) {
     super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }

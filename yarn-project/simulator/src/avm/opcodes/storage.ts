@@ -27,7 +27,7 @@ abstract class BaseStorageInstruction extends Instruction {
     super();
   }
 
-  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>): Gas {
+  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>): Gas {
     const baseGasCost = mulGas(getBaseGasCost(this.opcode), this.size);
     const memoryGasCost = getMemoryGasCost(memoryOps);
     return sumGas(baseGasCost, memoryGasCost);

@@ -12,7 +12,7 @@ import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simul
 import { SetupPhaseManager } from './setup_phase_manager.js';
 
 class TestSetupPhaseManager extends SetupPhaseManager {
-  extractEnqueuedPublicCalls(tx: any) {
+  override extractEnqueuedPublicCalls(tx: any) {
     return super.extractEnqueuedPublicCalls(tx);
   }
 }

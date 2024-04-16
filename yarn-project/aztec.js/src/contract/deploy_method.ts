@@ -189,7 +189,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * @param options - An object containing various deployment options such as portalContract, contractAddressSalt, and from.
    * @returns A SentTx object that returns the receipt and the deployed contract instance.
    */
-  public send(options: DeployOptions = {}): DeploySentTx<TContract> {
+  public override send(options: DeployOptions = {}): DeploySentTx<TContract> {
     const txHashPromise = super.send(options).getTxHash();
     const instance = this.getInstance(options);
     this.log.debug(
@@ -223,7 +223,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * @param options - Deployment options.
    * @returns The proven tx.
    */
-  public prove(options: DeployOptions): Promise<Tx> {
+  public override prove(options: DeployOptions): Promise<Tx> {
     return super.prove(options);
   }
 

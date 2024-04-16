@@ -38,7 +38,7 @@ export class ViewDataOracle extends TypedOracle {
    * Return the nullifier key pair of an account to use in a specific contract.
    * @param account - The account address of the nullifier key.
    */
-  public getNullifierKeyPair(account: AztecAddress) {
+  public override getNullifierKeyPair(account: AztecAddress) {
     return this.db.getNullifierKeyPair(account, this.contractAddress);
   }
 
@@ -49,7 +49,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param leafValue - The leaf value
    * @returns The index and sibling path concatenated [index, sibling_path]
    */
-  public async getMembershipWitness(blockNumber: number, treeId: MerkleTreeId, leafValue: Fr): Promise<Fr[]> {
+  public override async getMembershipWitness(blockNumber: number, treeId: MerkleTreeId, leafValue: Fr): Promise<Fr[]> {
     const index = await this.db.findLeafIndex(blockNumber, treeId, leafValue);
     if (!index) {
       throw new Error(`Leaf value: ${leafValue} not found in ${MerkleTreeId[treeId]}`);
@@ -65,7 +65,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param leafIndex - Index of the leaf to get sibling path for
    * @returns The sibling path.
    */
-  public getSiblingPath(blockNumber: number, treeId: MerkleTreeId, leafIndex: Fr): Promise<Fr[]> {
+  public override getSiblingPath(blockNumber: number, treeId: MerkleTreeId, leafIndex: Fr): Promise<Fr[]> {
     return this.db.getSiblingPath(blockNumber, treeId, leafIndex.toBigInt());
   }
 
@@ -75,7 +75,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param nullifier - Nullifier we try to find witness for.
    * @returns The nullifier membership witness (if found).
    */
-  public async getNullifierMembershipWitness(
+  public override async getNullifierMembershipWitness(
     blockNumber: number,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined> {
@@ -91,7 +91,7 @@ export class ViewDataOracle extends TypedOracle {
    * list structure" of leaves and proving that a lower nullifier is pointing to a bigger next value than the nullifier
    * we are trying to prove non-inclusion for.
    */
-  public async getLowNullifierMembershipWitness(
+  public override async getLowNullifierMembershipWitness(
     blockNumber: number,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined> {
@@ -104,7 +104,10 @@ export class ViewDataOracle extends TypedOracle {
    * @param leafSlot - The slot of the public data tree to get the witness for.
    * @returns - The witness
    */
-  public async getPublicDataTreeWitness(blockNumber: number, leafSlot: Fr): Promise<PublicDataWitness | undefined> {
+  public override async getPublicDataTreeWitness(
+    blockNumber: number,
+    leafSlot: Fr,
+  ): Promise<PublicDataWitness | undefined> {
     return await this.db.getPublicDataTreeWitness(blockNumber, leafSlot);
   }
 
@@ -113,7 +116,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param blockNumber - The number of a block of which to get the block header.
    * @returns Block extracted from a block with block number `blockNumber`.
    */
-  public async getHeader(blockNumber: number): Promise<Header | undefined> {
+  public override async getHeader(blockNumber: number): Promise<Header | undefined> {
     const block = await this.db.getBlock(blockNumber);
     if (!block) {
       return undefined;
@@ -126,7 +129,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param address - Address to fetch the complete address for.
    * @returns A complete address associated with the input address.
    */
-  public getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
+  public override getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
     return this.db.getCompleteAddress(address);
   }
 
@@ -135,7 +138,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param address - Address.
    * @returns A contract instance.
    */
-  public getContractInstance(address: AztecAddress): Promise<ContractInstance> {
+  public override getContractInstance(address: AztecAddress): Promise<ContractInstance> {
     return this.db.getContractInstance(address);
   }
 
@@ -145,7 +148,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param messageHash - Hash of the message to authenticate.
    * @returns Authentication witness for the requested message hash.
    */
-  public getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined> {
+  public override getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined> {
     return Promise.resolve(
       this.authWitnesses.find(w => w.requestHash.equals(messageHash))?.witness ?? this.db.getAuthWitness(messageHash),
     );
@@ -156,7 +159,7 @@ export class ViewDataOracle extends TypedOracle {
    * @returns The capsule values
    * @remarks A capsule is a "blob" of data that is passed to the contract through an oracle.
    */
-  public popCapsule(): Promise<Fr[]> {
+  public override popCapsule(): Promise<Fr[]> {
     return this.db.popCapsule();
   }
 
@@ -181,7 +184,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param status - The status of notes to fetch.
    * @returns Array of note data.
    */
-  public async getNotes(
+  public override async getNotes(
     storageSlot: Fr,
     numSelects: number,
     selectByIndexes: number[],
@@ -218,7 +221,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param innerNullifier - The inner nullifier.
    * @returns A boolean indicating whether the nullifier exists in the tree or not.
    */
-  public async checkNullifierExists(innerNullifier: Fr) {
+  public override async checkNullifierExists(innerNullifier: Fr) {
     const nullifier = siloNullifier(this.contractAddress, innerNullifier!);
     const index = await this.db.getNullifierIndex(nullifier);
     return index !== undefined;
@@ -232,7 +235,7 @@ export class ViewDataOracle extends TypedOracle {
    * @dev Contract address and secret are only used to compute the nullifier to get non-nullified messages
    * @returns The l1 to l2 membership witness (index of message in the tree and sibling path).
    */
-  public async getL1ToL2MembershipWitness(contractAddress: AztecAddress, messageHash: Fr, secret: Fr) {
+  public override async getL1ToL2MembershipWitness(contractAddress: AztecAddress, messageHash: Fr, secret: Fr) {
     return await this.db.getL1ToL2MembershipWitness(contractAddress, messageHash, secret);
   }
 
@@ -242,7 +245,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param contractAddress - The address of the contract whose portal address is to be fetched.
    * @returns The portal contract address.
    */
-  public getPortalContractAddress(contractAddress: AztecAddress) {
+  public override getPortalContractAddress(contractAddress: AztecAddress) {
     return this.db.getPortalContractAddress(contractAddress);
   }
 
@@ -251,7 +254,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param startStorageSlot - The starting storage slot.
    * @param numberOfElements - Number of elements to read from the starting storage slot.
    */
-  public async storageRead(startStorageSlot: Fr, numberOfElements: number) {
+  public override async storageRead(startStorageSlot: Fr, numberOfElements: number) {
     const values = [];
     for (let i = 0n; i < numberOfElements; i++) {
       const storageSlot = new Fr(startStorageSlot.value + i);

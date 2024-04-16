@@ -34,7 +34,7 @@ export class DeployAccountSentTx extends SentTx {
    * @param opts - Options for configuring the waiting for the tx to be mined.
    * @returns The transaction receipt with the wallet for the deployed account contract.
    */
-  public async wait(opts: WaitOpts = DefaultWaitOpts): Promise<DeployAccountTxReceipt> {
+  public override async wait(opts: WaitOpts = DefaultWaitOpts): Promise<DeployAccountTxReceipt> {
     const receipt = await super.wait(opts);
     const wallet = await this.getWalletPromise;
     await waitForAccountSynch(this.pxe, wallet.getCompleteAddress(), opts);

@@ -158,15 +158,15 @@ describe('Synchronizer', () => {
 });
 
 class TestSynchronizer extends Synchronizer {
-  public work(limit = 1) {
+  public override work(limit = 1) {
     return super.work(limit);
   }
 
-  public initialSync(): Promise<void> {
+  public override initialSync(): Promise<void> {
     return super.initialSync();
   }
 
-  public workNoteProcessorCatchUp(limit = 1): Promise<boolean> {
+  public override workNoteProcessorCatchUp(limit = 1): Promise<boolean> {
     return super.workNoteProcessorCatchUp(limit);
   }
 }

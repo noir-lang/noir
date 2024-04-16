@@ -15,7 +15,8 @@
     "importHelpers": true,
     "resolveJsonModule": true,
     "composite": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noImplicitOverride": true,
   },
   "references": [
     { "path": "accounts/tsconfig.json" },

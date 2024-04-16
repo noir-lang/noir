@@ -46,7 +46,7 @@ export class DeployAccountMethod extends DeployMethod {
         : feePaymentNameOrArtifact;
   }
 
-  protected async getInitializeFunctionCalls(options: DeployOptions): Promise<ExecutionRequestInit> {
+  protected override async getInitializeFunctionCalls(options: DeployOptions): Promise<ExecutionRequestInit> {
     const exec = await super.getInitializeFunctionCalls(options);
 
     if (options.fee && this.#feePaymentArtifact) {

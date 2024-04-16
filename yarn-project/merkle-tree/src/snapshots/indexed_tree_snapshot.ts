@@ -23,7 +23,7 @@ export class IndexedTreeSnapshotBuilder
     return new IndexedTreeSnapshotImpl(this.nodes, this.leaves, root, numLeaves, this.tree, this.leafPreimageBuilder);
   }
 
-  protected handleLeaf(index: bigint, node: Buffer) {
+  protected override handleLeaf(index: bigint, node: Buffer) {
     const leafPreimage = this.tree.getLatestLeafPreimageCopy(index, false);
     if (leafPreimage) {
       void this.leaves.set(snapshotLeafValue(node, index), leafPreimage.toBuffer());
@@ -44,7 +44,7 @@ class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot<Buffer> implements In
     super(db, historicRoot, numLeaves, tree, { fromBuffer: buf => buf });
   }
 
-  getLeafValue(index: bigint): Buffer | undefined {
+  override getLeafValue(index: bigint): Buffer | undefined {
     const leafPreimage = this.getLatestLeafPreimageCopy(index);
     return leafPreimage?.toBuffer();
   }
@@ -99,7 +99,7 @@ class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot<Buffer> implements In
     return { index: BigInt(minIndex), alreadyPresent: false };
   }
 
-  findLeafIndex(value: Buffer): bigint | undefined {
+  override findLeafIndex(value: Buffer): bigint | undefined {
     const index = this.tree.findLeafIndex(value, false);
     if (index !== undefined && index < this.getNumLeaves()) {
       return index;

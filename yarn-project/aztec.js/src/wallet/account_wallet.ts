@@ -196,7 +196,7 @@ export class AccountWallet extends BaseWallet {
   }
 
   /** Returns the address of the account that implements this wallet. */
-  public getAddress() {
+  public override getAddress() {
     return this.getCompleteAddress().address;
   }
 

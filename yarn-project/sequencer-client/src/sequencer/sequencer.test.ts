@@ -270,11 +270,11 @@ describe('sequencer', () => {
 });
 
 class TestSubject extends Sequencer {
-  public work() {
+  public override work() {
     return super.work();
   }
 
-  public initialSync(): Promise<void> {
+  public override initialSync(): Promise<void> {
     return super.initialSync();
   }
 }

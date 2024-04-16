@@ -53,7 +53,7 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
    * @param opts - Options for configuring the waiting for the tx to be mined.
    * @returns The transaction receipt with the deployed contract instance.
    */
-  public async wait(opts?: DeployedWaitOpts): Promise<DeployTxReceipt<TContract>> {
+  public override async wait(opts?: DeployedWaitOpts): Promise<DeployTxReceipt<TContract>> {
     const receipt = await super.wait(opts);
     const contract = await this.getContractObject(opts?.wallet);
     return { ...receipt, contract };

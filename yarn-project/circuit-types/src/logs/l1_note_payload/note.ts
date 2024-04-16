@@ -39,7 +39,7 @@ export class Note extends Vector<Fr> {
    * Returns a hex representation of the note.
    * @returns A hex string with the vector length as first element.
    */
-  toString() {
+  override toString() {
     return '0x' + this.toBuffer().toString('hex');
   }
 

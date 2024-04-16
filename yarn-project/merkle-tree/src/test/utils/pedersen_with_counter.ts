@@ -19,7 +19,7 @@ export class PedersenWithCounter extends Pedersen {
    * @deprecated Don't call pedersen directly in production code. Instead, create suitably-named functions for specific
    * purposes.
    */
-  public hash(lhs: Uint8Array, rhs: Uint8Array): Buffer {
+  public override hash(lhs: Uint8Array, rhs: Uint8Array): Buffer {
     this.hashCounter++;
     return super.hash(lhs, rhs);
   }

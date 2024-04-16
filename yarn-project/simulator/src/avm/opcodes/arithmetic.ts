@@ -23,7 +23,7 @@ export abstract class ThreeOperandArithmeticInstruction extends ThreeOperandInst
     context.machineState.incrementPc();
   }
 
-  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
+  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
     const baseGasCost = getGasCostForTypeTag(this.inTag, getBaseGasCost(this.opcode));
     const memoryGasCost = getMemoryGasCost(memoryOps);
     return sumGas(baseGasCost, memoryGasCost);
@@ -102,7 +102,7 @@ export class FieldDiv extends Instruction {
     context.machineState.incrementPc();
   }
 
-  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
+  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
     const baseGasCost = getGasCostForTypeTag(TypeTag.FIELD, getBaseGasCost(this.opcode));
     const memoryGasCost = getMemoryGasCost(memoryOps);
     return sumGas(baseGasCost, memoryGasCost);

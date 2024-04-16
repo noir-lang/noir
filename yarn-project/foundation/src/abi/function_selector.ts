@@ -21,10 +21,10 @@ export class FunctionSelector extends Selector {
    * Checks if this function selector is equal to another.
    * @returns True if the function selectors are equal.
    */
-  equals(fn: { name: string; parameters: ABIParameter[] }): boolean;
-  equals(otherName: string, otherParams: ABIParameter[]): boolean;
-  equals(other: FunctionSelector): boolean;
-  equals(
+  override equals(fn: { name: string; parameters: ABIParameter[] }): boolean;
+  override equals(otherName: string, otherParams: ABIParameter[]): boolean;
+  override equals(other: FunctionSelector): boolean;
+  override equals(
     other: FunctionSelector | string | { name: string; parameters: ABIParameter[] },
     otherParams?: ABIParameter[],
   ): boolean {

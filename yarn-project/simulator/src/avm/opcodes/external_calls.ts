@@ -122,7 +122,7 @@ abstract class ExternalCall extends Instruction {
     context.machineState.incrementPc();
   }
 
-  public abstract get type(): 'CALL' | 'STATICCALL';
+  public abstract override get type(): 'CALL' | 'STATICCALL';
 }
 
 export class Call extends ExternalCall {

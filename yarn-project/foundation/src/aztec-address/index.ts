@@ -23,13 +23,13 @@ export class AztecAddress extends Fr {
     return `AztecAddress<${this.toString()}>`;
   }
 
-  static ZERO = new AztecAddress(Buffer.alloc(32));
+  static override ZERO = new AztecAddress(Buffer.alloc(32));
 
-  static zero(): AztecAddress {
+  static override zero(): AztecAddress {
     return AztecAddress.ZERO;
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader) {
+  static override fromBuffer(buffer: Buffer | BufferReader) {
     return fromBuffer(buffer, AztecAddress);
   }
 
@@ -46,16 +46,16 @@ export class AztecAddress extends Fr {
     return AztecAddress.fromField(new Fr(value));
   }
 
-  static fromString(buf: string) {
+  static override fromString(buf: string) {
     const buffer = Buffer.from(buf.replace(/^0x/i, ''), 'hex');
     return new AztecAddress(buffer);
   }
 
-  static random() {
+  static override random() {
     return new AztecAddress(super.random().toBuffer());
   }
 
-  toJSON() {
+  override toJSON() {
     return {
       type: 'AztecAddress',
       value: this.toString(),

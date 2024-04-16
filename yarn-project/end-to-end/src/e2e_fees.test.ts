@@ -676,7 +676,7 @@ describe('e2e_fees', () => {
 });
 
 class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
-  getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
+  override getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     const maxFee = gasSettings.getFeeLimit();
     const nonce = Fr.random();
     const messageHash = computeAuthWitMessageHash(
@@ -710,7 +710,7 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
 }
 
 class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
-  async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
+  override async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     // authorize the FPC to take the max fee from Alice
     const nonce = Fr.random();
     const maxFee = gasSettings.getFeeLimit();

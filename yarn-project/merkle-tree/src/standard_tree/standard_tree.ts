@@ -18,7 +18,7 @@ export class StandardTree<T extends Bufferable = Buffer> extends TreeBase<T> imp
    * @param leaves - The leaves to append.
    * @returns Empty promise.
    */
-  public appendLeaves(leaves: T[]): Promise<void> {
+  public override appendLeaves(leaves: T[]): Promise<void> {
     this.hasher.reset();
     const timer = new Timer();
     super.appendLeaves(leaves);

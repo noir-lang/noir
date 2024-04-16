@@ -12,7 +12,7 @@ export class StandardIndexedTreeWithAppend extends StandardIndexedTree {
    * @returns Empty promise.
    * @remarks This method is inefficient and is here mostly for testing. Use batchInsert instead.
    */
-  public appendLeaves(leaves: Buffer[]): Promise<void> {
+  public override appendLeaves(leaves: Buffer[]): Promise<void> {
     for (const leaf of leaves) {
       this.appendLeaf(leaf);
     }
