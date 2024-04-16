@@ -122,8 +122,8 @@ pub enum OpcodeResolutionError {
     IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
     BlackBoxFunctionFailed(BlackBoxFunc, String),
-    #[error("Failed to solve brillig function, reason: {message}")]
-    BrilligFunctionFailed { message: String, call_stack: Vec<OpcodeLocation> },
+    #[error("Failed to solve brillig function{}", .message.as_ref().map(|m| format!(", reason: {}", m)).unwrap_or_default())]
+    BrilligFunctionFailed { message: Option<String>, call_stack: Vec<OpcodeLocation> },
     #[error("Attempted to call `main` with a `Call` opcode")]
     AcirMainCallAttempted { opcode_location: ErrorLocation },
     #[error("{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen")]
@@ -324,6 +324,9 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
                 res => res.map(|_| ()),
             },
+            Opcode::BrilligCall { .. } => {
+                todo!("implement brillig pointer handling");
+            }
             Opcode::Call { .. } => match self.solve_call_opcode() {
                 Ok(Some(input_values)) => return self.wait_for_acir_call(input_values),
                 res => res.map(|_| ()),

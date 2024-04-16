@@ -549,7 +549,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     let jmp_if_opcode =
         BrilligOpcode::JumpIf { condition: MemoryAddress::from(2), location: location_of_stop };
 
-    let trap_opcode = BrilligOpcode::Trap;
+    let trap_opcode = BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 };
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_opcode = Opcode::Brillig(Brillig {
@@ -597,7 +597,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
-            message: "explicit trap hit in brillig".to_string(),
+            message: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"

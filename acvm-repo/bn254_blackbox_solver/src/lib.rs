@@ -52,7 +52,7 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         &self,
         public_key_x: &FieldElement,
         public_key_y: &FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError> {
         let pub_key_bytes: Vec<u8> =

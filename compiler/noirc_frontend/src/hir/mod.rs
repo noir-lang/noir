@@ -1,4 +1,3 @@
-pub mod comptime;
 pub mod def_collector;
 pub mod def_map;
 pub mod resolution;
