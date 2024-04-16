@@ -1,4 +1,10 @@
-import { type AztecAddress, type Fr, type PartialAddress, type PublicKey } from '@aztec/circuits.js';
+import {
+  type AztecAddress,
+  type Fr,
+  type GrumpkinPrivateKey,
+  type PartialAddress,
+  type PublicKey,
+} from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.
@@ -17,6 +23,12 @@ export interface NewKeyStore {
    * @returns The account's address.
    */
   addAccount(sk: Fr, partialAddress: PartialAddress): Promise<AztecAddress>;
+
+  /**
+   * Retrieves addresses of accounts stored in the key store.
+   * @returns A Promise that resolves to an array of account addresses.
+   */
+  getAccounts(): Promise<AztecAddress[]>;
 
   /**
    * Gets the master nullifier public key for a given account.
@@ -76,4 +88,14 @@ export interface NewKeyStore {
    * @returns A Promise that resolves to the application outgoing viewing secret key.
    */
   getAppOutgoingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
+
+  /**
+   * Retrieves the master nullifier secret key (nsk_m) corresponding to the specified master nullifier public key
+   * (Npk_m).
+   * @throws If the provided public key is not associated with any of the registered accounts.
+   * @param masterNullifierPublicKey - The master nullifier public key to get secret key for.
+   * @returns A Promise that resolves to the master nullifier secret key.
+   * @dev Used when feeding the master nullifier secret key to the kernel circuit for nullifier keys verification.
+   */
+  getMasterNullifierSecretKeyForPublicKey(masterNullifierPublicKey: PublicKey): Promise<GrumpkinPrivateKey>;
 }
