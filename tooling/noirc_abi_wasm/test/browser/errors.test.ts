@@ -9,7 +9,7 @@ it('errors when an integer input overflows', async () => {
   const { abi, inputs } = await import('../shared/uint_overflow');
 
   expect(() => abiEncode(abi, inputs)).to.throw(
-    'The value passed for parameter `foo` does not match the specified type:\nValue Field(2³⁸) does not fall within range of allowable values for a Integer { sign: Unsigned, width: 32 }',
+    'The parameter foo is expected to be a Integer { sign: Unsigned, width: 32 } but found incompatible value Field(2³⁸)',
   );
 });
 

@@ -1,13 +1,14 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 mod acir_ir;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
-use super::ir::instruction::ConstrainError;
+use super::ir::function::FunctionId;
+use super::ir::instruction::{ConstrainError, UserDefinedConstrainError};
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -28,6 +29,7 @@ use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 use crate::ssa::ir::function::InlineType;
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
@@ -39,9 +41,47 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
+#[derive(Default)]
+struct SharedContext {
+    /// Final list of Brillig functions which will be part of the final program
+    /// This is shared across `Context` structs as we want one list of Brillig
+    /// functions across all ACIR artifacts
+    generated_brillig: Vec<GeneratedBrillig>,
+
+    /// Maps SSA function index -> Final generated Brillig artifact index.
+    /// There can be Brillig functions specified in SSA which do not act as
+    /// entry points in ACIR (e.g. only called by other Brillig functions)
+    /// This mapping is necessary to use the correct function pointer for a Brillig call.
+    brillig_generated_func_pointers: BTreeMap<FunctionId, u32>,
+}
+
+impl SharedContext {
+    fn generated_brillig_pointer(&self, func_id: &FunctionId) -> Option<&u32> {
+        self.brillig_generated_func_pointers.get(func_id)
+    }
+
+    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig {
+        &self.generated_brillig[func_pointer]
+    }
+
+    fn insert_generated_brillig(
+        &mut self,
+        func_id: FunctionId,
+        generated_pointer: u32,
+        code: GeneratedBrillig,
+    ) {
+        self.brillig_generated_func_pointers.insert(func_id, generated_pointer);
+        self.generated_brillig.push(code);
+    }
+
+    fn new_generated_pointer(&self) -> u32 {
+        self.generated_brillig.len() as u32
+    }
+}
+
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
-struct Context {
+struct Context<'a> {
     /// Maps SSA values to `AcirVar`.
     ///
     /// This is needed so that we only create a single
@@ -91,6 +131,9 @@ struct Context {
     max_block_id: u32,
 
     data_bus: DataBus,
+
+    /// Contains state that is generated and also used across ACIR functions
+    shared_context: &'a mut SharedContext,
 }
 
 #[derive(Clone)]
@@ -181,11 +224,12 @@ impl Ssa {
         self,
         brillig: &Brillig,
         abi_distinctness: Distinctness,
-    ) -> Result<Vec<GeneratedAcir>, RuntimeError> {
+    ) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelise this?
+        let mut shared_context = SharedContext::default();
         for function in self.functions.values() {
-            let context = Context::new();
+            let context = Context::new(&mut shared_context);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
@@ -193,6 +237,10 @@ impl Ssa {
                 acirs.push(generated_acir);
             }
         }
+
+        let brillig = vecmap(shared_context.generated_brillig, |brillig| BrilligBytecode {
+            bytecode: brillig.byte_code,
+        });
 
         // TODO: check whether doing this for a single circuit's return witnesses is correct.
         // We probably need it for all foldable circuits, as any circuit being folded is essentially an entry point. However, I do not know how that
@@ -215,15 +263,15 @@ impl Ssa {
                     .collect();
 
                 main_func_acir.return_witnesses = distinct_return_witness;
-                Ok(acirs)
             }
-            Distinctness::DuplicationAllowed => Ok(acirs),
+            Distinctness::DuplicationAllowed => {}
         }
+        Ok((acirs, brillig))
     }
 }
 
-impl Context {
-    fn new() -> Context {
+impl<'a> Context<'a> {
+    fn new(shared_context: &'a mut SharedContext) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -237,6 +285,7 @@ impl Context {
             internal_mem_block_lengths: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
+            shared_context,
         }
     }
 
@@ -472,8 +521,13 @@ impl Context {
 
                 let assert_message = if let Some(error) = assert_message {
                     match error.as_ref() {
-                        ConstrainError::Static(string) => Some(string.clone()),
-                        ConstrainError::Dynamic(call_instruction) => {
+                        ConstrainError::Intrinsic(string)
+                        | ConstrainError::UserDefined(UserDefinedConstrainError::Static(string)) => {
+                            Some(string.clone())
+                        }
+                        ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                            call_instruction,
+                        )) => {
                             self.convert_ssa_call(call_instruction, dfg, ssa, brillig, &[])?;
                             None
                         }
@@ -571,12 +625,12 @@ impl Context {
                                         sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
                                     });
 
-                                let acir_program_id = ssa
-                                    .id_to_index
+                                let acir_function_id = ssa
+                                    .entry_point_to_generated_index
                                     .get(id)
                                     .expect("ICE: should have an associated final index");
                                 let output_vars = self.acir_context.call_acir_function(
-                                    *acir_program_id,
+                                    *acir_function_id,
                                     inputs,
                                     output_count,
                                     self.current_side_effects_enabled_var,
@@ -598,24 +652,50 @@ impl Context {
                                         );
                                     }
                                 }
-
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-                                let arguments = self.gen_brillig_parameters(arguments, dfg);
-
-                                let code = self.gen_brillig_for(func, arguments, brillig)?;
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| {
                                     dfg.type_of_value(*result_id).into()
                                 });
 
-                                let output_values = self.acir_context.brillig(
-                                    self.current_side_effects_enabled_var,
-                                    code,
-                                    inputs,
-                                    outputs,
-                                    true,
-                                    false,
-                                )?;
+                                // Check whether we have already generated Brillig for this function
+                                // If we have, re-use the generated code to set-up the Brillig call.
+                                let output_values = if let Some(generated_pointer) =
+                                    self.shared_context.generated_brillig_pointer(id)
+                                {
+                                    let code = self
+                                        .shared_context
+                                        .generated_brillig(*generated_pointer as usize);
+                                    self.acir_context.brillig_call(
+                                        self.current_side_effects_enabled_var,
+                                        code,
+                                        inputs,
+                                        outputs,
+                                        true,
+                                        false,
+                                        *generated_pointer,
+                                    )?
+                                } else {
+                                    let arguments = self.gen_brillig_parameters(arguments, dfg);
+                                    let code = self.gen_brillig_for(func, arguments, brillig)?;
+                                    let generated_pointer =
+                                        self.shared_context.new_generated_pointer();
+                                    let output_values = self.acir_context.brillig_call(
+                                        self.current_side_effects_enabled_var,
+                                        &code,
+                                        inputs,
+                                        outputs,
+                                        true,
+                                        false,
+                                        generated_pointer,
+                                    )?;
+                                    self.shared_context.insert_generated_brillig(
+                                        *id,
+                                        generated_pointer,
+                                        code,
+                                    );
+                                    output_values
+                                };
 
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
@@ -2442,19 +2522,27 @@ mod test {
         },
     };
 
-    fn build_basic_foo_with_return(builder: &mut FunctionBuilder, foo_id: FunctionId) {
-        // acir(fold) fn foo f1 {
+    fn build_basic_foo_with_return(
+        builder: &mut FunctionBuilder,
+        foo_id: FunctionId,
+        is_brillig_func: bool,
+    ) {
+        // fn foo f1 {
         // b0(v0: Field, v1: Field):
         //     v2 = eq v0, v1
         //     constrain v2 == u1 0
         //     return v0
         // }
-        builder.new_function("foo".into(), foo_id, InlineType::Fold);
+        if is_brillig_func {
+            builder.new_brillig_function("foo".into(), foo_id);
+        } else {
+            builder.new_function("foo".into(), foo_id, InlineType::Fold);
+        }
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());
 
         let foo_equality_check = builder.insert_binary(foo_v0, BinaryOp::Eq, foo_v1);
-        let zero = builder.field_constant(0u128);
+        let zero = builder.numeric_constant(0u128, Type::unsigned(1));
         builder.insert_constrain(foo_equality_check, zero, None);
         builder.terminate_with_return(vec![foo_v0]);
     }
@@ -2488,11 +2576,11 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id);
+        build_basic_foo_with_return(&mut builder, foo_id, false);
 
         let ssa = builder.finish();
 
-        let acir_functions = ssa
+        let (acir_functions, _) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
@@ -2584,11 +2672,11 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id);
+        build_basic_foo_with_return(&mut builder, foo_id, false);
 
         let ssa = builder.finish();
 
-        let acir_functions = ssa
+        let (acir_functions, _) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the abvoe test expect that the input witnesses of the `Call`
@@ -2675,11 +2763,11 @@ mod test {
             .to_vec();
         builder.terminate_with_return(vec![foo_call[0]]);
 
-        build_basic_foo_with_return(&mut builder, foo_id);
+        build_basic_foo_with_return(&mut builder, foo_id, false);
 
         let ssa = builder.finish();
 
-        let acir_functions = ssa
+        let (acir_functions, _) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
@@ -2737,6 +2825,84 @@ mod test {
                 }
             }
             _ => panic!("Expected only Call opcode"),
+        }
+    }
+
+    // Test that given multiple calls to the same brillig function we generate only one bytecode
+    // and the appropriate Brillig call opcodes are generated
+    #[test]
+    fn multiple_brillig_calls_one_bytecode() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: Field, v1: Field):
+        //       v3 = call f1(v0, v1)
+        //       v4 = call f1(v0, v1)
+        //       v5 = call f1(v0, v1)
+        //       v6 = call f1(v0, v1)
+        //       return
+        // }
+        // brillig fn foo f1 {
+        // b0(v0: Field, v1: Field):
+        //     v2 = eq v0, v1
+        //     constrain v2 == u1 0
+        //     return v0
+        // }
+        // brillig fn foo f2 {
+        //     b0(v0: Field, v1: Field):
+        //       v2 = eq v0, v1
+        //       constrain v2 == u1 0
+        //       return v0
+        // }
+        let foo_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), foo_id);
+        let main_v0 = builder.add_parameter(Type::field());
+        let main_v1 = builder.add_parameter(Type::field());
+
+        let foo_id = Id::test_new(1);
+        let foo = builder.import_function(foo_id);
+        let bar_id = Id::test_new(2);
+        let bar = builder.import_function(bar_id);
+
+        // Insert multiple calls to the same Brillig function
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        // Interleave a call to a separate Brillig function to make sure that we can call multiple separate Brillig functions
+        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.terminate_with_return(vec![]);
+
+        build_basic_foo_with_return(&mut builder, foo_id, true);
+        build_basic_foo_with_return(&mut builder, bar_id, true);
+
+        let ssa = builder.finish();
+        let brillig = ssa.to_brillig(false);
+        println!("{}", ssa);
+
+        let (acir_functions, brillig_functions) = ssa
+            .into_acir(&brillig, noirc_frontend::Distinctness::Distinct)
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
+        assert_eq!(
+            brillig_functions.len(),
+            2,
+            "Should only have generated a single Brillig function"
+        );
+
+        let main_acir = &acir_functions[0];
+        let main_opcodes = main_acir.opcodes();
+        assert_eq!(main_opcodes.len(), 6, "Should have four calls to f1 and two calls to f2");
+
+        // We should only have `BrilligCall` opcodes in `main`
+        for (i, opcode) in main_opcodes.iter().enumerate() {
+            match opcode {
+                Opcode::BrilligCall { id, .. } => {
+                    let expected_id = if i == 3 || i == 5 { 1 } else { 0 };
+                    assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
+                }
+                _ => panic!("Expected only Brillig call opcode"),
+            }
         }
     }
 }
