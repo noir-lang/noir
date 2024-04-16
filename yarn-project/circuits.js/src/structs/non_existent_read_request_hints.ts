@@ -84,7 +84,12 @@ export class NonExistentReadRequestHints<
   }
 
   toBuffer() {
-    return serializeToBuffer(this.nonMembershipHints, this.nextPendingValueIndices);
+    return serializeToBuffer(
+      this.nonMembershipHints,
+      this.nextPendingValueIndices,
+      this.sortedPendingValues,
+      this.sortedPendingValueHints,
+    );
   }
 }
 

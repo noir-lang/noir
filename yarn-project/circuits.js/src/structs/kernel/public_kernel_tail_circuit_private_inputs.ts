@@ -1,8 +1,11 @@
-import { serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { type NullifierNonExistentReadRequestHints } from '../non_existent_read_request_hints.js';
-import { type NullifierReadRequestHints } from '../read_request_hints.js';
-import { type PublicKernelData } from './public_kernel_data.js';
+import {
+  type NullifierNonExistentReadRequestHints,
+  nullifierNonExistentReadRequestHintsFromBuffer,
+} from '../non_existent_read_request_hints.js';
+import { type NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints.js';
+import { PublicKernelData } from './public_kernel_data.js';
 
 /**
  * Inputs to the public kernel circuit.
@@ -29,5 +32,18 @@ export class PublicKernelTailCircuitPrivateInputs {
       this.nullifierReadRequestHints,
       this.nullifierNonExistentReadRequestHints,
     );
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new PublicKernelTailCircuitPrivateInputs(
+      reader.readObject(PublicKernelData),
+      nullifierReadRequestHintsFromBuffer(reader),
+      nullifierNonExistentReadRequestHintsFromBuffer(reader),
+    );
+  }
+
+  clone() {
+    return PublicKernelTailCircuitPrivateInputs.fromBuffer(this.toBuffer());
   }
 }

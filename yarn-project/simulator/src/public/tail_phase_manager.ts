@@ -101,12 +101,14 @@ export class TailPhaseManager extends AbstractPhaseManager {
       endNonRevertibleData.newNullifiers,
       end.newNullifiers,
     );
+
+    // We take a deep copy (clone) of these to pass to the prover
     const inputs = new PublicKernelTailCircuitPrivateInputs(
       previousKernel,
       nullifierReadRequestHints,
       nullifierNonExistentReadRequestHints,
     );
-    return [inputs, await this.publicKernel.publicKernelCircuitTail(inputs)];
+    return [inputs.clone(), await this.publicKernel.publicKernelCircuitTail(inputs)];
   }
 
   private sortNoteHashes<N extends number>(noteHashes: Tuple<SideEffect, N>): Tuple<Fr, N> {
