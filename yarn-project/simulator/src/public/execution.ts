@@ -14,6 +14,8 @@ import {
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot, computePublicDataTreeValue } from '@aztec/circuits.js/hash';
 
+import { type Gas } from '../avm/avm_gas.js';
+
 /**
  * The public function execution result.
  */
@@ -55,6 +57,8 @@ export interface PublicExecutionResult {
    * The revert reason if the execution reverted.
    */
   revertReason: SimulationError | undefined;
+  /** How much gas was left after this public execution. */
+  gasLeft: Gas;
 }
 
 /**

@@ -90,7 +90,7 @@ export class SimpleTestGlobalVariableBuilder implements GlobalVariableBuilder {
       `Built global variables for block ${blockNumber}: (${chainId}, ${version}, ${blockNumber}, ${lastTimestamp}, ${coinbase}, ${feeRecipient})`,
     );
 
-    const gasFees = GasFees.empty(); // TODO(palla/gas-in-circuits)
+    const gasFees = GasFees.default();
     return new GlobalVariables(chainId, version, blockNumber, lastTimestamp, coinbase, feeRecipient, gasFees);
   }
 }

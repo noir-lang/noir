@@ -3,7 +3,6 @@ import {
   CallContext,
   FunctionData,
   type FunctionSelector,
-  GasSettings,
   type GlobalVariables,
   type Header,
 } from '@aztec/circuits.js';
@@ -206,16 +205,18 @@ export class PublicExecutionContext extends TypedOracle {
 
     const portalAddress = (await this.contractsDb.getPortalContractAddress(targetContractAddress)) ?? EthAddress.ZERO;
     const functionData = new FunctionData(functionSelector, /*isPrivate=*/ false);
+    const { transactionFee, gasSettings, gasLeft } = this.execution.callContext;
     const callContext = CallContext.from({
       msgSender: isDelegateCall ? this.execution.callContext.msgSender : this.execution.contractAddress,
       storageContractAddress: isDelegateCall ? this.execution.contractAddress : targetContractAddress,
       portalContractAddress: portalAddress,
       functionSelector,
+      gasLeft, // Propagate the same gas left as when we started since ACVM public functions don't have any metering
       isDelegateCall,
       isStaticCall,
       sideEffectCounter,
-      transactionFee: Fr.ZERO, // TODO(palla/gas-in-circuits)
-      gasSettings: GasSettings.empty(), // TODO(palla/gas-in-circuits)
+      gasSettings,
+      transactionFee,
     });
 
     const nestedExecution: PublicExecution = {

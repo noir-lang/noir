@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, FunctionData, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
+import { AztecAddress, Fr, FunctionData, GasSettings, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
@@ -38,10 +38,13 @@ export class TxExecutionRequest {
      * These witnesses are not expected to be stored in the local witnesses database of the PXE.
      */
     public authWitnesses: AuthWitness[],
+
+    /** Gas choices for this transaction. */
+    public gasSettings: GasSettings,
   ) {}
 
   toTxRequest(): TxRequest {
-    return new TxRequest(this.origin, this.functionData, this.argsHash, this.txContext);
+    return new TxRequest(this.origin, this.functionData, this.argsHash, this.txContext, this.gasSettings);
   }
 
   static getFields(fields: FieldsOf<TxExecutionRequest>) {
@@ -52,6 +55,7 @@ export class TxExecutionRequest {
       fields.txContext,
       fields.packedArguments,
       fields.authWitnesses,
+      fields.gasSettings,
     ] as const;
   }
 
@@ -71,6 +75,7 @@ export class TxExecutionRequest {
       this.txContext,
       new Vector(this.packedArguments),
       new Vector(this.authWitnesses),
+      this.gasSettings,
     );
   }
 
@@ -96,6 +101,7 @@ export class TxExecutionRequest {
       reader.readObject(TxContext),
       reader.readVector(PackedValues),
       reader.readVector(AuthWitness),
+      reader.readObject(GasSettings),
     );
   }
 

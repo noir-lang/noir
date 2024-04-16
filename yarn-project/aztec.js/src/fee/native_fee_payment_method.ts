@@ -1,7 +1,6 @@
 import { type FunctionCall } from '@aztec/circuit-types';
-import { type AztecAddress, FunctionData } from '@aztec/circuits.js';
+import { type AztecAddress, FunctionData, type GasSettings } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
-import { type Fr } from '@aztec/foundation/fields';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { type Wallet } from '../account/wallet.js';
@@ -47,16 +46,16 @@ export class NativeFeePaymentMethod implements FeePaymentMethod {
   }
 
   /**
-   * Creates a function call to pay the fee in gas token..
-   * @param feeLimit - The maximum fee to be paid in gas token.
+   * Creates a function call to pay the fee in gas token.
+   * @param gasSettings - The gas settings.
    * @returns A function call
    */
-  getFunctionCalls(feeLimit: Fr): Promise<FunctionCall[]> {
+  getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     return Promise.resolve([
       {
         to: this.#gasTokenAddress,
         functionData: new FunctionData(FunctionSelector.fromSignature('pay_fee(Field)'), false),
-        args: [feeLimit],
+        args: [gasSettings.getFeeLimit()],
       },
     ]);
   }

@@ -7,6 +7,7 @@ import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/fou
 import { TX_REQUEST_LENGTH } from '../constants.gen.js';
 import { makeTxRequest } from '../tests/factories.js';
 import { FunctionData } from './function_data.js';
+import { GasSettings } from './gas_settings.js';
 import { TxContext } from './tx_context.js';
 import { TxRequest } from './tx_request.js';
 
@@ -36,6 +37,12 @@ describe('TxRequest', () => {
       functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), true),
       argsHash: new Fr(3),
       txContext: new TxContext(false, false, Fr.ZERO, Fr.ZERO),
+      gasSettings: GasSettings.new({
+        da: { gasLimit: 2, teardownGasLimit: 1, maxFeePerGas: new Fr(3) },
+        l1: { gasLimit: 2, teardownGasLimit: 1, maxFeePerGas: new Fr(3) },
+        l2: { gasLimit: 2, teardownGasLimit: 1, maxFeePerGas: new Fr(3) },
+        inclusionFee: new Fr(10),
+      }),
     });
 
     const hash = txRequest.hash().toString();

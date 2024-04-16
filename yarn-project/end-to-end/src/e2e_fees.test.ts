@@ -16,7 +16,7 @@ import {
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { FunctionData } from '@aztec/circuits.js';
+import { FunctionData, GasSettings } from '@aztec/circuits.js';
 import { type ContractArtifact, decodeFunctionSignature } from '@aztec/foundation/abi';
 import {
   TokenContract as BananaCoin,
@@ -52,6 +52,13 @@ describe('e2e_fees', () => {
   let gasBalances: BalancesFn;
   let bananaPublicBalances: BalancesFn;
   let bananaPrivateBalances: BalancesFn;
+
+  const gasSettings = GasSettings.new({
+    da: { gasLimit: 5, teardownGasLimit: 3, maxFeePerGas: Fr.ONE },
+    l1: { gasLimit: 5, teardownGasLimit: 3, maxFeePerGas: Fr.ONE },
+    l2: { gasLimit: 5, teardownGasLimit: 3, maxFeePerGas: Fr.ONE },
+    inclusionFee: new Fr(6),
+  });
 
   beforeAll(async () => {
     const { wallets: _wallets, aztecNode, deployL1ContractsValues, logger, pxe } = await setup(3, {}, {}, true);
@@ -106,8 +113,6 @@ describe('e2e_fees', () => {
     const OutrageousPublicAmountAliceDoesNotHave = 10000n;
     const PublicMintedAlicePublicBananas = 1000n;
     const FeeAmount = 1n;
-    const RefundAmount = 2n;
-    const MaxFee = FeeAmount + RefundAmount;
 
     const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await bananaPrivateBalances(
       aliceAddress,
@@ -130,7 +135,7 @@ describe('e2e_fees', () => {
         .transfer_public(aliceAddress, sequencerAddress, OutrageousPublicAmountAliceDoesNotHave, 0)
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new PublicFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
           },
         })
@@ -160,7 +165,7 @@ describe('e2e_fees', () => {
       .send({
         skipPublicSimulation: true,
         fee: {
-          maxFee: MaxFee,
+          gasSettings,
           paymentMethod: new PublicFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
         },
       })
@@ -213,9 +218,11 @@ describe('e2e_fees', () => {
 
     beforeEach(async () => {
       FeeAmount = 1n;
-      RefundAmount = 2n;
-      MaxFee = FeeAmount + RefundAmount;
+      MaxFee = 30n;
+      RefundAmount = MaxFee - FeeAmount;
       RefundSecret = Fr.random();
+
+      expect(gasSettings.getFeeLimit().toBigInt()).toEqual(MaxFee);
 
       [
         [InitialAlicePrivateBananas, InitialBobPrivateBananas, InitialFPCPrivateBananas],
@@ -261,7 +268,7 @@ describe('e2e_fees', () => {
         .transfer(aliceAddress, bobAddress, transferAmount, 0n)
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new PrivateFeePaymentMethod(
               bananaCoin.address,
               bananaFPC.address,
@@ -324,7 +331,7 @@ describe('e2e_fees', () => {
         .privately_mint_private_note(newlyMintedBananas)
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new PrivateFeePaymentMethod(
               bananaCoin.address,
               bananaFPC.address,
@@ -390,7 +397,7 @@ describe('e2e_fees', () => {
         .shield(aliceAddress, shieldedBananas, shieldSecretHash, 0n)
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new PrivateFeePaymentMethod(
               bananaCoin.address,
               bananaFPC.address,
@@ -462,7 +469,7 @@ describe('e2e_fees', () => {
       ])
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new PrivateFeePaymentMethod(
               bananaCoin.address,
               bananaFPC.address,
@@ -516,7 +523,7 @@ describe('e2e_fees', () => {
             // we need to skip public simulation otherwise the PXE refuses to accept the TX
             skipPublicSimulation: true,
             fee: {
-              maxFee: MaxFee,
+              gasSettings,
               paymentMethod: new PrivateFeePaymentMethod(
                 bananaCoin.address,
                 bankruptFPC.address,
@@ -532,10 +539,6 @@ describe('e2e_fees', () => {
 
   it('fails transaction that error in setup', async () => {
     const OutrageousPublicAmountAliceDoesNotHave = 10000n;
-    // const PublicMintedAlicePublicBananas = 1000n;
-    const FeeAmount = 1n;
-    const RefundAmount = 2n;
-    const MaxFee = FeeAmount + RefundAmount;
 
     // simulation throws an error when setup fails
     await expect(
@@ -543,7 +546,7 @@ describe('e2e_fees', () => {
         .transfer_public(aliceAddress, sequencerAddress, OutrageousPublicAmountAliceDoesNotHave, 0)
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new BuggedSetupFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
           },
         })
@@ -557,7 +560,7 @@ describe('e2e_fees', () => {
         .send({
           skipPublicSimulation: true,
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new BuggedSetupFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
           },
         })
@@ -570,11 +573,7 @@ describe('e2e_fees', () => {
      * We trigger an error in teardown by having the FPC authorize a transfer of its entire balance to Alice
      * as part of app logic. This will cause the FPC to not have enough funds to pay the refund back to Alice.
      */
-
     const PublicMintedAlicePublicBananas = 1000n;
-    const FeeAmount = 1n;
-    const RefundAmount = 2n;
-    const MaxFee = FeeAmount + RefundAmount;
 
     const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await bananaPrivateBalances(
       aliceAddress,
@@ -597,7 +596,7 @@ describe('e2e_fees', () => {
         .mint_public(aliceAddress, 1n) // random operation
         .send({
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new BuggedTeardownFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
           },
         })
@@ -611,7 +610,7 @@ describe('e2e_fees', () => {
         .send({
           skipPublicSimulation: true,
           fee: {
-            maxFee: MaxFee,
+            gasSettings,
             paymentMethod: new BuggedTeardownFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
           },
         })
@@ -672,7 +671,8 @@ describe('e2e_fees', () => {
 });
 
 class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
-  getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
+  getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
+    const maxFee = gasSettings.getFeeLimit();
     const nonce = Fr.random();
     const messageHash = computeAuthWitMessageHash(
       this.paymentContract,
@@ -705,9 +705,10 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
 }
 
 class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
-  async getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
+  async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     // authorize the FPC to take the max fee from Alice
     const nonce = Fr.random();
+    const maxFee = gasSettings.getFeeLimit();
     const messageHash1 = computeAuthWitMessageHash(
       this.paymentContract,
       this.wallet.getChainId(),

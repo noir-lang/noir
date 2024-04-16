@@ -1,3 +1,4 @@
+import { foreignCallHandler } from '@aztec/noir-protocol-circuits-types';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import {
@@ -26,9 +27,12 @@ export class WASMSimulator implements SimulationProvider {
     const decodedBytecode = Buffer.from(compiledCircuit.bytecode, 'base64');
     //
     // Execute the circuit
-    const _witnessMap = await executeCircuitWithBlackBoxSolver(await getSolver(), decodedBytecode, input, () => {
-      throw Error('unexpected oracle during execution');
-    });
+    const _witnessMap = await executeCircuitWithBlackBoxSolver(
+      await getSolver(),
+      decodedBytecode,
+      input,
+      foreignCallHandler, // handle calls to debug_log
+    );
 
     return _witnessMap;
   }

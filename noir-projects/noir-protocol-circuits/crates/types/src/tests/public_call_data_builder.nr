@@ -1,8 +1,9 @@
 use crate::{
     abis::{
-    gas_settings::GasSettings, call_context::CallContext, call_request::{CallerContext, CallRequest},
-    function_data::FunctionData, public_call_data::PublicCallData,
-    public_call_stack_item::PublicCallStackItem, public_circuit_public_inputs::PublicCircuitPublicInputs
+    gas_settings::GasSettings, gas::Gas, call_context::CallContext,
+    call_request::{CallerContext, CallRequest}, function_data::FunctionData,
+    public_call_data::PublicCallData, public_call_stack_item::PublicCallStackItem,
+    public_circuit_public_inputs::PublicCircuitPublicInputs
 },
     address::{AztecAddress, EthAddress},
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, mocked::Proof,
@@ -45,6 +46,7 @@ impl PublicCallDataBuilder {
             side_effect_counter: 0,  // needed?
             gas_settings: GasSettings::empty(),
             transaction_fee: 0,
+            gas_left: Gas::empty(),
         };
 
         PublicCallDataBuilder {

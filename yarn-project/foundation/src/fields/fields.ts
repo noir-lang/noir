@@ -188,6 +188,7 @@ export interface Fr {
  */
 export class Fr extends BaseField {
   static ZERO = new Fr(0n);
+  static ONE = new Fr(1n);
   static MODULUS = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n;
 
   constructor(value: number | bigint | boolean | Fr | Buffer) {

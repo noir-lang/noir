@@ -351,9 +351,11 @@ class TransactionRequest {
     function_data: FunctionData
     args_hash: field
     tx_context: TransactionContext
+    gas_settings: GasSettings
 }
 TransactionRequest *-- FunctionData: function_data
 TransactionRequest *-- TransactionContext: tx_context
+TransactionRequest *-- GasSettings: gas_settings
 
 TransactionRequest ..> ConstantData: tx_context
 
@@ -428,6 +430,19 @@ class FunctionData {
     function_type: private|public
 }
 
+class GasSettings {
+    da.gas_limit: u32
+    da.teardown_gas_limit: u32
+    da.max_fee_per_gas: Fr
+    l1.gas_limit: u32
+    l1.teardown_gas_limit: u32
+    l1.max_fee_per_gas: Fr
+    l2.gas_limit: u32
+    l2.teardown_gas_limit: u32
+    l2.max_fee_per_gas: Fr
+    inclusion_fee: Fr
+}
+
 class PrivateFunctionPublicInputs {
     call_context: CallContext
     args_hash: field
@@ -478,6 +493,9 @@ class CallContext {
     portal_contract_address: AztecAddress
     is_delegate_call: bool
     is_static_call: bool
+    gas_left: Gas
+    gas_settings: GasSettings
+    transaction_fee: field
 }
 CallContext ..> CallerContext : call_context
 
@@ -702,6 +720,7 @@ Data that represents the caller's intent.
 | `function_data` | [`FunctionData`](#functiondata)             | Data of the function being called.           |
 | `args_hash`     | `field`                                     | Hash of the function arguments.              |
 | `tx_context`    | [`TransactionContext`](#transactioncontext) | Information about the transaction.           |
+| `gas_settings`  | [`GasSettings`](#gassettings)               | User-defined gas limits and max fees.        |
 
 ### `PrivateCall`
 

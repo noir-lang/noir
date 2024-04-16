@@ -1,7 +1,7 @@
 import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { type EntrypointInterface, EntrypointPayload, type ExecutionRequestInit } from '@aztec/aztec.js/entrypoint';
 import { PackedValues, TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
+import { type AztecAddress, FunctionData, GasSettings, TxContext } from '@aztec/circuits.js';
 import { type FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from './constants.js';
@@ -36,6 +36,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
       txContext: TxContext.empty(this.chainId, this.version),
       packedArguments: [...appPayload.packedArguments, ...feePayload.packedArguments, entrypointPackedArgs],
       authWitnesses: [appAuthWitness, feeAuthWitness],
+      gasSettings: exec.fee?.gasSettings ?? GasSettings.default(),
     });
 
     return txRequest;

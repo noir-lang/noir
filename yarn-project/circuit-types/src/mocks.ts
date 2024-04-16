@@ -1,6 +1,7 @@
 import {
   AztecAddress,
   CallRequest,
+  GasSettings,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
@@ -50,6 +51,7 @@ export const mockTx = (
   const isForPublic = totalPublicCallRequests > 0;
   const data = PrivateKernelTailCircuitPublicInputs.empty();
   const firstNullifier = new SideEffectLinkedToNoteHash(new Fr(seed + 1), new Fr(seed + 2), Fr.ZERO);
+  data.constants.gasSettings = GasSettings.default();
 
   if (isForPublic) {
     data.forRollup = undefined;

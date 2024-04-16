@@ -1,6 +1,6 @@
 use crate::{
     abis::{
-    call_context::CallContext, public_circuit_public_inputs::PublicCircuitPublicInputs,
+    gas::Gas, call_context::CallContext, public_circuit_public_inputs::PublicCircuitPublicInputs,
     read_request::ReadRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::AztecAddress,
@@ -14,7 +14,7 @@ use crate::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
 },
-traits::Empty,
+    traits::Empty
 };
 
 struct PublicCircuitPublicInputsBuilder {
@@ -36,6 +36,7 @@ struct PublicCircuitPublicInputsBuilder {
     historical_header: Header,
     prover_address: AztecAddress,
     revert_code: u8,
+    gas_left: Gas,
 }
 
 impl PublicCircuitPublicInputsBuilder {
@@ -65,7 +66,8 @@ impl PublicCircuitPublicInputsBuilder {
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
             prover_address: self.prover_address,
-            revert_code: self.revert_code
+            revert_code: self.revert_code,
+            gas_left: self.gas_left
         }
     }
 }
@@ -91,6 +93,7 @@ impl Empty for PublicCircuitPublicInputsBuilder {
             historical_header: Header::empty(),
             prover_address: AztecAddress::zero(),
             revert_code: 0 as u8,
+            gas_left: Gas::empty(),
         }
     }
 }

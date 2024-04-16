@@ -10,8 +10,9 @@ use crate::{
 };
 use dep::protocol_types::{
     abis::{
-    call_context::CallContext, function_data::FunctionData, function_selector::FunctionSelector,
-    max_block_number::MaxBlockNumber, nullifier_key_validation_request::NullifierKeyValidationRequest,
+    gas::Gas, call_context::CallContext, function_data::FunctionData,
+    function_selector::FunctionSelector, max_block_number::MaxBlockNumber,
+    nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_call_stack_item::PrivateCallStackItem,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem,
@@ -494,7 +495,8 @@ impl PrivateContext {
                 unencrypted_log_preimages_length: 0,
                 historical_header: Header::empty(),
                 prover_address: AztecAddress::zero(),
-                revert_code: 0
+                revert_code: 0,
+                gas_left: Gas::empty()
             },
             is_execution_request: true
         };

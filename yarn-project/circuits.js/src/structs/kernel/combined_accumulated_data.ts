@@ -9,7 +9,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
-import { GasUsed } from '../gas_used.js';
+import { Gas } from '../gas.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
 
 /**
@@ -53,7 +53,7 @@ export class CombinedAccumulatedData {
     public publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
 
     /** Gas used during this transaction */
-    public gasUsed: GasUsed,
+    public gasUsed: Gas,
   ) {}
 
   toBuffer() {
@@ -90,7 +90,7 @@ export class CombinedAccumulatedData {
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
-      reader.readObject(GasUsed),
+      reader.readObject(Gas),
     );
   }
 
@@ -113,7 +113,7 @@ export class CombinedAccumulatedData {
       Fr.zero(),
       Fr.zero(),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
-      GasUsed.empty(),
+      Gas.empty(),
     );
   }
 }

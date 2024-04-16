@@ -1,4 +1,4 @@
-import { FunctionSelector, type GlobalVariables, type Header } from '@aztec/circuits.js';
+import { FunctionSelector, type GasSettings, type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type EthAddress } from '@aztec/foundation/eth-address';
@@ -35,6 +35,8 @@ export class AvmExecutionEnvironment {
     public readonly isStaticCall: boolean,
     public readonly isDelegateCall: boolean,
     public readonly calldata: Fr[],
+    public readonly gasSettings: GasSettings,
+    public readonly transactionFee: Fr,
 
     // Function selector is temporary since eventually public contract bytecode will be one blob
     // containing all functions, and function selector will become an application-level mechanism
@@ -67,6 +69,8 @@ export class AvmExecutionEnvironment {
       this.isStaticCall,
       this.isDelegateCall,
       calldata,
+      this.gasSettings,
+      this.transactionFee,
       temporaryFunctionSelector,
     );
   }
@@ -91,6 +95,8 @@ export class AvmExecutionEnvironment {
       /*isStaticCall=*/ true,
       this.isDelegateCall,
       calldata,
+      this.gasSettings,
+      this.transactionFee,
       temporaryFunctionSelector,
     );
   }
@@ -115,6 +121,8 @@ export class AvmExecutionEnvironment {
       this.isStaticCall,
       /*isDelegateCall=*/ true,
       calldata,
+      this.gasSettings,
+      this.transactionFee,
       temporaryFunctionSelector,
     );
   }

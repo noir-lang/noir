@@ -116,6 +116,7 @@ describe('Private Execution test suite', () => {
       txContext: TxContext.from({ ...txContextFields, ...txContext }),
       packedArguments: [packedArguments],
       authWitnesses: [],
+      gasSettings: GasSettings.default(),
     });
 
     return acirSimulator.run(txRequest, artifact, contractAddress, portalContractAddress, msgSender);
@@ -796,7 +797,8 @@ describe('Private Execution test suite', () => {
       const functionData = FunctionData.fromAbi(childContractArtifact);
 
       const transactionFee = new Fr(0);
-      const gasSettings = GasSettings.empty();
+      const gasSettings = GasSettings.default();
+      const gasLeft = gasSettings.getInitialAvailable();
 
       const publicCallRequest = PublicCallRequest.from({
         contractAddress: childAddress,
@@ -807,6 +809,7 @@ describe('Private Execution test suite', () => {
           storageContractAddress: childAddress,
           portalContractAddress: childPortalContractAddress,
           functionSelector: childSelector,
+          gasLeft,
           isDelegateCall: false,
           isStaticCall: false,
           sideEffectCounter: 1,
@@ -818,6 +821,7 @@ describe('Private Execution test suite', () => {
           storageContractAddress: parentAddress,
           portalContractAddress: EthAddress.ZERO,
           functionSelector: FunctionSelector.fromNameAndParameters(parentArtifact.name, parentArtifact.parameters),
+          gasLeft,
           isDelegateCall: false,
           isStaticCall: false,
           sideEffectCounter: 1,
@@ -995,7 +999,7 @@ describe('Private Execution test suite', () => {
       const artifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'test_bad_get_then_insert_flat');
 
       const args = [amountToTransfer, owner];
-      await expect(
+      await expect(() =>
         runSimulator({
           args: args,
           artifact: artifact,
@@ -1029,7 +1033,9 @@ describe('Private Execution test suite', () => {
       const args = [2n, true];
       oracle.getNotes.mockResolvedValue([]);
 
-      await expect(runSimulator({ artifact, args })).rejects.toThrow(`Assertion failed: Cannot return zero notes`);
+      await expect(() => runSimulator({ artifact, args })).rejects.toThrow(
+        `Assertion failed: Cannot return zero notes`,
+      );
     });
   });
 
@@ -1081,7 +1087,7 @@ describe('Private Execution test suite', () => {
     let args: any[];
     let artifact: FunctionArtifact;
 
-    beforeAll(() => {
+    beforeEach(() => {
       chainId = Fr.random();
       version = Fr.random();
       args = [chainId, version];
@@ -1090,15 +1096,15 @@ describe('Private Execution test suite', () => {
       oracle.getFunctionArtifact.mockImplementation(() => Promise.resolve(artifact));
     });
 
-    it('Private global vars are correctly set', () => {
+    it('Private global vars are correctly set', async () => {
       // Chain id and version set in tx context is the same as the ones we pass via args so this should not throw
-      expect(() => runSimulator({ artifact, msgSender: owner, args, txContext: { chainId, version } })).not.toThrow();
+      await runSimulator({ artifact, msgSender: owner, args, txContext: { chainId, version } });
     });
 
     it('Throws when chainId is incorrectly set', async () => {
       // We set the chainId in the tx context to a different value than the one we pass via args so the simulator should throw
       const unexpectedChainId = Fr.random();
-      await expect(
+      await expect(() =>
         runSimulator({ artifact, msgSender: owner, args, txContext: { chainId: unexpectedChainId, version } }),
       ).rejects.toThrow('Invalid chain id');
     });
@@ -1106,7 +1112,7 @@ describe('Private Execution test suite', () => {
     it('Throws when version is incorrectly set', async () => {
       // We set the version in the tx context to a different value than the one we pass via args so the simulator should throw
       const unexpectedVersion = Fr.random();
-      await expect(
+      await expect(() =>
         runSimulator({ artifact, msgSender: owner, args, txContext: { chainId, version: unexpectedVersion } }),
       ).rejects.toThrow('Invalid version');
     });
@@ -1115,7 +1121,7 @@ describe('Private Execution test suite', () => {
   describe('Historical header in private context', () => {
     let artifact: FunctionArtifact;
 
-    beforeAll(() => {
+    beforeEach(() => {
       artifact = getFunctionArtifact(TestContractArtifact, 'assert_header_private');
       oracle.getFunctionArtifact.mockImplementation(() => Promise.resolve(artifact));
 
@@ -1125,17 +1131,17 @@ describe('Private Execution test suite', () => {
       oracle.getHeader.mockResolvedValue(header);
     });
 
-    it('Header is correctly set', () => {
+    it('Header is correctly set', async () => {
       const args = [header.hash()];
 
-      expect(() => runSimulator({ artifact, msgSender: owner, args })).not.toThrow();
+      await runSimulator({ artifact, msgSender: owner, args });
     });
 
     it('Throws when header is not as expected', async () => {
       const unexpectedHeaderHash = Fr.random();
       const args = [unexpectedHeaderHash];
 
-      await expect(runSimulator({ artifact, msgSender: owner, args })).rejects.toThrow('Invalid header hash');
+      await expect(() => runSimulator({ artifact, msgSender: owner, args })).rejects.toThrow('Invalid header hash');
     });
   });
 });

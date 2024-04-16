@@ -24,7 +24,7 @@ export class CombinedConstantData {
     public txContext: TxContext,
 
     /** Gas limits and max prices for this transaction as set by the sender. */
-    public readonly gasSettings: GasSettings,
+    public gasSettings: GasSettings,
   ) {}
 
   toBuffer() {

@@ -1,7 +1,7 @@
 use crate::{
     abis::{
     call_context::CallContext, read_request::ReadRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, gas::Gas
 },
     address::AztecAddress,
     constants::{
@@ -49,6 +49,9 @@ struct PublicCircuitPublicInputs{
     prover_address: AztecAddress,
 
     revert_code: u8,
+    
+    // gas left after execution is completed
+    gas_left: Gas,
 }
 
 impl Eq for PublicCircuitPublicInputs {
@@ -95,6 +98,7 @@ impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInput
         fields.extend_from_array(self.historical_header.serialize());
         fields.push(self.prover_address.to_field());
         fields.push(self.revert_code as Field);
+        fields.extend_from_array(self.gas_left.serialize());
         fields.storage
     }
 }
@@ -122,6 +126,7 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             historical_header: reader.read_struct(Header::deserialize),
             prover_address: reader.read_struct(AztecAddress::deserialize),
             revert_code: reader.read() as u8,
+            gas_left: reader.read_struct(Gas::deserialize),
         };
 
         reader.finish();
@@ -156,6 +161,7 @@ impl Empty for PublicCircuitPublicInputs {
             historical_header: Header::empty(),
             prover_address: AztecAddress::zero(),
             revert_code: 0 as u8,
+            gas_left: Gas::empty(),
         }
     }
 }
@@ -174,6 +180,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x2745ec62624afeb19b86af3d440db1f8c3432e1d17a074c75cb8f44999fd3fae;
+    let test_data_empty_hash = 0x00147d3d2cde08ee1046bf73cb6664c2bdf11b43c5dca0e72f4137f354bdad25;
     assert_eq(hash, test_data_empty_hash);
 }

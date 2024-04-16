@@ -15,7 +15,7 @@ import {
   computeMessageSecretHash,
   generatePublicKey,
 } from '@aztec/aztec.js';
-import { type AztecAddress, CompleteAddress, Fq } from '@aztec/circuits.js';
+import { type AztecAddress, CompleteAddress, DimensionGasSettings, Fq, GasSettings } from '@aztec/circuits.js';
 import {
   TokenContract as BananaCoin,
   FPCContract,
@@ -70,6 +70,7 @@ describe('e2e_fees_account_init', () => {
   let fpcsInitialGas: bigint;
   let fpcsInitialPublicBananas: bigint;
 
+  let gasSettings: GasSettings;
   let maxFee: bigint;
   let actualFee: bigint;
 
@@ -123,7 +124,9 @@ describe('e2e_fees_account_init', () => {
   afterAll(() => ctx.teardown());
 
   beforeEach(() => {
-    maxFee = 3n;
+    const individualGasSettings = new DimensionGasSettings(2, 1, Fr.ONE);
+    gasSettings = new GasSettings(individualGasSettings, individualGasSettings, individualGasSettings, new Fr(5));
+    maxFee = 3n * 3n + 5n;
     actualFee = 1n;
     bobsPrivateEncryptionKey = Fq.random();
     bobsPrivateSigningKey = Fq.random();
@@ -143,7 +146,7 @@ describe('e2e_fees_account_init', () => {
         await bobsAccountManager
           .deploy({
             fee: {
-              maxFee,
+              gasSettings,
               paymentMethod: await NativeFeePaymentMethod.create(await bobsAccountManager.getWallet()),
             },
           })
@@ -188,7 +191,7 @@ describe('e2e_fees_account_init', () => {
         const tx = await bobsAccountManager
           .deploy({
             fee: {
-              maxFee,
+              gasSettings,
               paymentMethod: new PrivateFeePaymentMethod(
                 bananaCoin.address,
                 bananaFPC.address,
@@ -246,7 +249,7 @@ describe('e2e_fees_account_init', () => {
           .deploy({
             skipPublicDeployment: false,
             fee: {
-              maxFee,
+              gasSettings,
               paymentMethod: new PublicFeePaymentMethod(
                 bananaCoin.address,
                 bananaFPC.address,
@@ -301,7 +304,7 @@ describe('e2e_fees_account_init', () => {
             skipInitialization: false,
             universalDeploy: true,
             fee: {
-              maxFee,
+              gasSettings,
               paymentMethod: await NativeFeePaymentMethod.create(alice),
             },
           })

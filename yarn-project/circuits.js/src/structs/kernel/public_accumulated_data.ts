@@ -13,7 +13,7 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
-import { GasUsed } from '../gas_used.js';
+import { Gas } from '../gas.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
 
@@ -59,7 +59,7 @@ export class PublicAccumulatedData {
     public publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
     /** Gas used so far by the transaction. */
-    public gasUsed: GasUsed,
+    public gasUsed: Gas,
   ) {}
 
   toBuffer() {
@@ -129,7 +129,7 @@ export class PublicAccumulatedData {
       Fr.fromBuffer(reader),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
-      reader.readObject(GasUsed),
+      reader.readObject(Gas),
     );
   }
 
@@ -153,7 +153,7 @@ export class PublicAccumulatedData {
       Fr.zero(),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
-      GasUsed.empty(),
+      Gas.empty(),
     );
   }
 }

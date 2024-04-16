@@ -1,5 +1,5 @@
 import { SiblingPath } from '@aztec/circuit-types';
-import { GasFees, GlobalVariables, Header, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
+import { GasFees, GasSettings, GlobalVariables, Header, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -73,6 +73,8 @@ export function initExecutionEnvironment(overrides?: Partial<AvmExecutionEnviron
     overrides?.isStaticCall ?? false,
     overrides?.isDelegateCall ?? false,
     overrides?.calldata ?? [],
+    overrides?.gasSettings ?? GasSettings.empty(),
+    overrides?.transactionFee ?? Fr.ZERO,
     overrides?.temporaryFunctionSelector ?? FunctionSelector.empty(),
   );
 }

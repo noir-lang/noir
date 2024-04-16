@@ -6,6 +6,7 @@ import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from 
 import { type FieldsOf } from '@aztec/foundation/types';
 
 import { CALL_CONTEXT_LENGTH } from '../constants.gen.js';
+import { Gas } from './gas.js';
 import { GasSettings } from './gas_settings.js';
 
 /**
@@ -31,6 +32,8 @@ export class CallContext {
      * Function selector of the function being called.
      */
     public functionSelector: FunctionSelector,
+    /** How much gas is available for execution of this function. */
+    public gasLeft: Gas,
     /**
      * Determines whether the call is a delegate call (see Ethereum's delegate call opcode for more information).
      */
@@ -61,6 +64,7 @@ export class CallContext {
       AztecAddress.ZERO,
       EthAddress.ZERO,
       FunctionSelector.empty(),
+      Gas.empty(),
       false,
       false,
       0,
@@ -75,6 +79,7 @@ export class CallContext {
       this.storageContractAddress.isZero() &&
       this.portalContractAddress.isZero() &&
       this.functionSelector.isEmpty() &&
+      this.gasLeft.isEmpty() &&
       Fr.ZERO &&
       this.gasSettings.isEmpty() &&
       this.transactionFee.isZero()
@@ -91,6 +96,7 @@ export class CallContext {
       fields.storageContractAddress,
       fields.portalContractAddress,
       fields.functionSelector,
+      fields.gasLeft,
       fields.isDelegateCall,
       fields.isStaticCall,
       fields.sideEffectCounter,
@@ -129,6 +135,7 @@ export class CallContext {
       reader.readObject(AztecAddress),
       reader.readObject(EthAddress),
       reader.readObject(FunctionSelector),
+      reader.readObject(Gas),
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readNumber(),
@@ -144,6 +151,7 @@ export class CallContext {
       reader.readObject(AztecAddress),
       reader.readObject(EthAddress),
       reader.readObject(FunctionSelector),
+      reader.readObject(Gas),
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readU32(),
@@ -158,6 +166,7 @@ export class CallContext {
       callContext.storageContractAddress.equals(this.storageContractAddress) &&
       callContext.portalContractAddress.equals(this.portalContractAddress) &&
       callContext.functionSelector.equals(this.functionSelector) &&
+      callContext.gasLeft.equals(this.gasLeft) &&
       callContext.isDelegateCall === this.isDelegateCall &&
       callContext.isStaticCall === this.isStaticCall &&
       callContext.sideEffectCounter === this.sideEffectCounter &&

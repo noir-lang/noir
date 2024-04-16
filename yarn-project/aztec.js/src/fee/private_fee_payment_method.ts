@@ -1,5 +1,5 @@
 import { type FunctionCall } from '@aztec/circuit-types';
-import { FunctionData } from '@aztec/circuits.js';
+import { FunctionData, type GasSettings } from '@aztec/circuits.js';
 import { computeMessageSecretHash } from '@aztec/circuits.js/hash';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
@@ -53,11 +53,12 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
 
   /**
    * Creates a function call to pay the fee in the given asset.
-   * @param maxFee - The maximum fee to be paid in the given asset.
+   * @param gasSettings - The gas settings.
    * @returns The function call to pay the fee.
    */
-  async getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
+  async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     const nonce = Fr.random();
+    const maxFee = gasSettings.getFeeLimit();
     const messageHash = computeAuthWitMessageHash(
       this.paymentContract,
       this.wallet.getChainId(),

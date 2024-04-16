@@ -1,6 +1,6 @@
 import { type FunctionCall } from '@aztec/circuit-types';
+import { type GasSettings } from '@aztec/circuits.js';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
-import { type Fr } from '@aztec/foundation/fields';
 
 /**
  * Holds information about how the fee for a transaction is to be paid.
@@ -17,9 +17,8 @@ export interface FeePaymentMethod {
 
   /**
    * Creates a function call to pay the fee in the given asset.
-   * TODO(fees) replace maxFee with gas limits
-   * @param maxFee - The maximum fee to be paid in the given asset.
+   * @param gasSettings - The gas limits and max fees.
    * @returns The function call to pay the fee.
    */
-  getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]>;
+  getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]>;
 }

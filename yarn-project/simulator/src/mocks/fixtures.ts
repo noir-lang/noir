@@ -8,6 +8,7 @@ import {
   EthAddress,
   Fr,
   FunctionData,
+  Gas,
   GasSettings,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   type PrivateKernelTailCircuitPublicInputs,
@@ -71,10 +72,11 @@ export class PublicExecutionResultBuilder {
         tx.to,
         EthAddress.ZERO,
         tx.functionData.selector,
+        Gas.test(),
         false,
         false,
         0,
-        GasSettings.empty(),
+        GasSettings.default(),
         Fr.ZERO,
       ),
       contractAddress: tx.to,
@@ -130,6 +132,7 @@ export class PublicExecutionResultBuilder {
       endSideEffectCounter: Fr.ZERO,
       reverted: this._reverted,
       revertReason: this._revertReason,
+      gasLeft: this._execution.callContext.gasLeft.mul(0.9),
     };
   }
 }

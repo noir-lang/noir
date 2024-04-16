@@ -1,5 +1,5 @@
 import { type FunctionCall, PackedValues, emptyFunctionCall } from '@aztec/circuit-types';
-import { Fr, GeneratorIndex } from '@aztec/circuits.js';
+import { Fr, type GasSettings, GeneratorIndex } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { type Tuple } from '@aztec/foundation/serialize';
@@ -12,8 +12,8 @@ import { type FeePaymentMethod } from '../fee/fee_payment_method.js';
 export type FeeOptions = {
   /** The fee payment method to use */
   paymentMethod: FeePaymentMethod;
-  /** The fee limit to pay */
-  maxFee: bigint | number | Fr;
+  /** The gas settings */
+  gasSettings: GasSettings;
 };
 
 // These must match the values defined in:
@@ -137,7 +137,7 @@ export class EntrypointPayload {
    * @returns The execution payload
    */
   static async fromFeeOptions(feeOpts?: FeeOptions) {
-    const calls = feeOpts ? await feeOpts.paymentMethod.getFunctionCalls(new Fr(feeOpts.maxFee)) : [];
+    const calls = feeOpts ? await feeOpts.paymentMethod.getFunctionCalls(feeOpts?.gasSettings) : [];
     const paddedCalls = padArrayEnd(calls, emptyFunctionCall(), FEE_MAX_CALLS);
     return new EntrypointPayload(paddedCalls, GeneratorIndex.FEE_PAYLOAD);
   }

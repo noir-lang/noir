@@ -1,5 +1,5 @@
 import { type FunctionCall, PackedValues, TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
+import { type AztecAddress, FunctionData, GasSettings, TxContext } from '@aztec/circuits.js';
 import { type FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 
 import { type Wallet } from '../account/wallet.js';
@@ -13,10 +13,10 @@ export { SendMethodOptions };
  * Disregarded for simulation of public functions
  */
 export type SimulateMethodOptions = {
-  /**
-   * The sender's Aztec address.
-   */
+  /** The sender's Aztec address. */
   from?: AztecAddress;
+  /** Gas settings for the simulation. */
+  gasSettings?: GasSettings;
 };
 
 /**
@@ -101,6 +101,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
         txContext: TxContext.empty(nodeInfo.chainId, nodeInfo.protocolVersion),
         packedArguments: [packedArgs],
         authWitnesses: [],
+        gasSettings: options.gasSettings ?? GasSettings.simulation(),
       });
       const simulatedTx = await this.pxe.simulateTx(txRequest, false, options.from ?? this.wallet.getAddress());
       return simulatedTx.privateReturnValues?.[0];

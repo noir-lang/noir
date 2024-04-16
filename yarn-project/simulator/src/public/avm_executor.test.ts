@@ -4,6 +4,7 @@ import {
   EthAddress,
   FunctionData,
   FunctionSelector,
+  Gas,
   GasSettings,
   type Header,
 } from '@aztec/circuits.js';
@@ -30,6 +31,7 @@ describe('AVM WitGen and Proof Generation', () => {
     storageContractAddress: AztecAddress.random(),
     portalContractAddress: EthAddress.random(),
     functionSelector: FunctionSelector.empty(),
+    gasLeft: Gas.test(),
     isDelegateCall: false,
     isStaticCall: false,
     sideEffectCounter: 0,

@@ -5,7 +5,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   FunctionData,
-  GasSettings,
+  Gas,
   type GlobalVariables,
   type Header,
   L2ToL1Message,
@@ -17,6 +17,7 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { type AvmContext } from '../avm/avm_context.js';
 import { AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
+import { type AvmMachineState } from '../avm/avm_machine_state.js';
 import { AvmContractCallResults } from '../avm/avm_message_call_result.js';
 import { type JournalData } from '../avm/journal/journal.js';
 import { Mov } from '../avm/opcodes/memory.js';
@@ -43,15 +44,17 @@ export function createAvmExecutionEnvironment(
     current.callContext.msgSender, // TODO: origin is not available
     current.callContext.msgSender,
     current.callContext.portalContractAddress,
-    /*feePerL1Gas=*/ Fr.zero(),
-    /*feePerL2Gas=*/ Fr.zero(),
-    /*feePerDaGas=*/ Fr.zero(),
+    globalVariables.gasFees.feePerL1Gas,
+    globalVariables.gasFees.feePerL2Gas,
+    globalVariables.gasFees.feePerDaGas,
     /*contractCallDepth=*/ Fr.zero(),
     header,
     globalVariables,
     current.callContext.isStaticCall,
     current.callContext.isDelegateCall,
     current.args,
+    current.callContext.gasSettings,
+    current.callContext.transactionFee,
     current.functionData.selector,
   );
 }
@@ -63,11 +66,12 @@ export function createPublicExecutionContext(avmContext: AvmContext, calldata: F
     storageContractAddress: avmContext.environment.storageAddress,
     portalContractAddress: avmContext.environment.portal,
     functionSelector: avmContext.environment.temporaryFunctionSelector,
+    gasLeft: Gas.from(avmContext.machineState.gasLeft),
     isDelegateCall: avmContext.environment.isDelegateCall,
     isStaticCall: avmContext.environment.isStaticCall,
     sideEffectCounter: sideEffectCounter,
-    gasSettings: GasSettings.empty(), // TODO(palla/gas-in-circuits)
-    transactionFee: Fr.ZERO, // TODO(palla/gas-in-circuits)
+    gasSettings: avmContext.environment.gasSettings,
+    transactionFee: avmContext.environment.transactionFee,
   });
   const functionData = new FunctionData(avmContext.environment.temporaryFunctionSelector, /*isPrivate=*/ false);
   const execution: PublicExecution = {
@@ -104,6 +108,7 @@ export async function convertAvmResults(
   executionContext: PublicExecutionContext,
   newWorldState: JournalData,
   result: AvmContractCallResults,
+  endMachineState: AvmMachineState,
 ): Promise<PublicExecutionResult> {
   const execution = executionContext.execution;
 
@@ -165,6 +170,7 @@ export async function convertAvmResults(
     unencryptedLogs,
     reverted: result.reverted,
     revertReason: result.revertReason ? createSimulationError(result.revertReason) : undefined,
+    gasLeft: endMachineState.gasLeft,
   };
 }
 

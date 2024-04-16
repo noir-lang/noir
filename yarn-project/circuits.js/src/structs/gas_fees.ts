@@ -20,6 +20,11 @@ export class GasFees {
     return new GasFees(Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
 
+  /** Fixed gas fee values used until we define how gas fees in the protocol are computed. */
+  static default() {
+    return new GasFees(Fr.ONE, Fr.ONE, Fr.ONE);
+  }
+
   isEmpty() {
     return this.feePerDaGas.isZero() && this.feePerL1Gas.isZero() && this.feePerL2Gas.isZero();
   }

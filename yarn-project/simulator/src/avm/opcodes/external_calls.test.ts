@@ -137,7 +137,7 @@ describe('External Calls', () => {
 
     it('Should refuse to execute a call if not enough gas', async () => {
       const gasOffset = 0;
-      const l1Gas = 1e12; // We request more gas than what we have
+      const l1Gas = 1e9; // We request more gas than what we have
       const l2Gas = 2e6;
       const daGas = 3e6;
       const addrOffset = 3;

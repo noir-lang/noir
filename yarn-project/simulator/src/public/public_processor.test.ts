@@ -181,9 +181,9 @@ describe('public_processor', () => {
 
       const [processed, failed] = await processor.process([tx], 1, prover);
 
+      expect(failed.map(f => f.error)).toEqual([]);
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([expectedTxByHash(tx)]);
-      expect(failed).toHaveLength(0);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(2);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);

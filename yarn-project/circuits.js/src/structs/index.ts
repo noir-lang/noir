@@ -9,7 +9,7 @@ export * from './contract_storage_update_request.js';
 export * from './function_data.js';
 export * from './gas_fees.js';
 export * from './gas_settings.js';
-export * from './gas_used.js';
+export * from './gas.js';
 export * from './global_variables.js';
 export * from './header.js';
 export * from './kernel/combined_accumulated_data.js';

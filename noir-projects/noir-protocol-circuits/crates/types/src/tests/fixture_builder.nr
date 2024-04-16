@@ -1,6 +1,6 @@
 use crate::{
     abis::{
-    gas_used::GasUsed, gas_settings::GasSettings, call_context::CallContext,
+    gas::Gas, gas_settings::GasSettings, call_context::CallContext,
     call_request::{CallerContext, CallRequest},
     accumulated_data::{
     CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder,
@@ -47,7 +47,7 @@ struct FixtureBuilder {
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
-    gas_used: GasUsed,
+    gas_used: Gas,
 
     // Validation requests.
     max_block_number: MaxBlockNumber,
@@ -101,7 +101,7 @@ impl FixtureBuilder {
             revert_code: 0,
             min_revertible_side_effect_counter: 0,
             counter: 0,
-            gas_used: GasUsed::empty(),
+            gas_used: Gas::empty(),
             gas_settings: GasSettings::empty()
         }
     }
@@ -420,7 +420,7 @@ impl Empty for FixtureBuilder {
             min_revertible_side_effect_counter: 0,
             counter: 0,
             gas_settings: GasSettings::empty(),
-            gas_used: GasUsed::empty(),
+            gas_used: Gas::empty(),
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     abis::{
-    call_context::CallContext, gas_settings::{GasSettings, DimensionGasSettings},
+    call_context::CallContext, gas_settings::{GasSettings, DimensionGasSettings}, gas::Gas,
     max_block_number::MaxBlockNumber, nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
@@ -14,7 +14,7 @@ use crate::{
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL
-    },
+},
     traits::Empty
 };
 
@@ -73,12 +73,8 @@ impl PrivateCircuitPublicInputsBuilder {
             is_delegate_call: false,
             is_static_call: false,
             side_effect_counter: 0,
-            gas_settings: GasSettings {
-                da: DimensionGasSettings::new(0, 0, 0),
-                l1: DimensionGasSettings::new(0, 0, 0),
-                l2: DimensionGasSettings::new(0, 0, 0),
-                inclusion_fee: 0
-            },
+            gas_left: Gas::empty(),
+            gas_settings: GasSettings::empty(),
             transaction_fee: 0
         };
         public_inputs.call_context = call_context;

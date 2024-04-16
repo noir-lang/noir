@@ -1,5 +1,5 @@
 use crate::{
-    abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
+    abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress}, abis::gas::Gas,
     constants::{GAS_SETTINGS_LENGTH, DIMENSION_GAS_SETTINGS_LENGTH}, hash::pedersen_hash,
     traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered, utils::reader::Reader
 };
@@ -19,6 +19,16 @@ impl GasSettings {
         inclusion_fee: Field
     ) -> Self {
         Self { da, l1, l2, inclusion_fee }
+    }
+
+    fn get_gas_limits(self) -> Gas {
+        Gas { da_gas: self.da.gas_limit, l1_gas: self.l1.gas_limit, l2_gas: self.l2.gas_limit }
+    }
+}
+
+impl Eq for GasSettings {
+    fn eq(self, other: Self) -> bool {
+        (self.da == other.da) & (self.l1 == other.l1) & (self.l2 == other.l2) & (self.inclusion_fee == other.inclusion_fee)
     }
 }
 
@@ -65,9 +75,16 @@ struct DimensionGasSettings {
 }
 
 impl DimensionGasSettings {
-    fn new(gas_limit: u32, teardown_gas_limit: u32, max_fee_per_gas: Field) -> Self {
+    pub fn new(gas_limit: u32, teardown_gas_limit: u32, max_fee_per_gas: Field) -> Self {
         Self { gas_limit, teardown_gas_limit, max_fee_per_gas }
     }
+}
+
+impl Eq for DimensionGasSettings {
+    fn eq(self, other: Self) -> bool {
+        (self.gas_limit == other.gas_limit) & (self.teardown_gas_limit == other.teardown_gas_limit) & (self.max_fee_per_gas == other.max_fee_per_gas)
+    }
+
 }
 
 impl Serialize<DIMENSION_GAS_SETTINGS_LENGTH> for DimensionGasSettings {

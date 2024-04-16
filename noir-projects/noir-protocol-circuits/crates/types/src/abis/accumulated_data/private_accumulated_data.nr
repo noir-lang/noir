@@ -1,4 +1,4 @@
-use crate::{abis::{call_request::CallRequest, gas_used::GasUsed, side_effect::{SideEffect, SideEffectLinkedToNoteHash}}};
+use crate::{abis::{call_request::CallRequest, gas::Gas, side_effect::{SideEffect, SideEffectLinkedToNoteHash}}};
 use crate::constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX
@@ -20,5 +20,5 @@ struct PrivateAccumulatedData {
     private_call_stack: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX],
     public_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
 
-    gas_used: GasUsed,
+    gas_used: Gas,
 }

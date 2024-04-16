@@ -2,7 +2,7 @@ use crate::{
     abis::{
     accumulated_data::public_accumulated_data::PublicAccumulatedData,
     public_data_update_request::PublicDataUpdateRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, gas_used::GasUsed
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, gas::Gas
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -26,7 +26,7 @@ struct CombinedAccumulatedData {
 
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
 
-    gas_used: GasUsed,
+    gas_used: Gas,
 }
 
 impl CombinedAccumulatedData {
@@ -59,7 +59,7 @@ impl Empty for CombinedAccumulatedData {
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-            gas_used: GasUsed::empty()
+            gas_used: Gas::empty()
         }
     }
 }

@@ -1,5 +1,5 @@
 import { UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
-import { Fr, type GlobalVariables, type Header, PublicCircuitPublicInputs } from '@aztec/circuits.js';
+import { Fr, Gas, type GlobalVariables, type Header, PublicCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { spawn } from 'child_process';
@@ -66,9 +66,7 @@ async function executePublicFunctionAvm(executionContext: PublicExecutionContext
     executionContext.globalVariables,
   );
 
-  // TODO(@spalladino) Load initial gas from the public execution request
-  const machineState = new AvmMachineState(1e7, 1e7, 1e7);
-
+  const machineState = new AvmMachineState(executionContext.execution.callContext.gasLeft);
   const context = new AvmContext(worldStateJournal, executionEnv, machineState);
   const simulator = new AvmSimulator(context);
 
@@ -79,8 +77,7 @@ async function executePublicFunctionAvm(executionContext: PublicExecutionContext
     `[AVM] ${address.toString()}:${selector} returned, reverted: ${result.reverted}, reason: ${result.revertReason}.`,
   );
 
-  // TODO(@spalladino) Read gas left from machineState and return it
-  return await convertAvmResults(executionContext, newWorldState, result);
+  return await convertAvmResults(executionContext, newWorldState, result, machineState);
 }
 
 async function executePublicFunctionAcvm(
@@ -154,6 +151,7 @@ async function executePublicFunctionAcvm(
       unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
       reverted,
       revertReason,
+      gasLeft: Gas.empty(),
     };
   }
 
@@ -195,6 +193,7 @@ async function executePublicFunctionAcvm(
 
   const nestedExecutions = context.getNestedExecutions();
   const unencryptedLogs = context.getUnencryptedLogs();
+  const gasLeft = context.execution.callContext.gasLeft; // No gas metering for ACVM
 
   return {
     execution,
@@ -212,6 +211,7 @@ async function executePublicFunctionAcvm(
     unencryptedLogs,
     reverted: false,
     revertReason: undefined,
+    gasLeft,
   };
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     abis::{
-    gas_used::GasUsed, accumulated_data::public_accumulated_data::PublicAccumulatedData,
+    gas::Gas, accumulated_data::public_accumulated_data::PublicAccumulatedData,
     call_request::CallRequest, public_data_update_request::PublicDataUpdateRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
@@ -28,7 +28,7 @@ struct PublicAccumulatedDataBuilder {
 
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
-    gas_used: GasUsed,
+    gas_used: Gas,
 }
 
 impl PublicAccumulatedDataBuilder {
@@ -60,7 +60,7 @@ impl Empty for PublicAccumulatedDataBuilder {
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
-            gas_used: GasUsed::empty(),
+            gas_used: Gas::empty(),
         }
     }
 }

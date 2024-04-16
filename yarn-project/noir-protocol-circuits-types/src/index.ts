@@ -629,7 +629,7 @@ async function executePrivateKernelTailToPublicWithACVM(
   return decodedInputs.return_value as PublicPublicPreviousReturnType;
 }
 
-const foreignCallHandler = (name: string, args: ForeignCallInput[]) => {
+export const foreignCallHandler = (name: string, args: ForeignCallInput[]) => {
   const log = createDebugLogger('aztec:noir-protocol-circuits:oracle');
 
   if (name === 'debugLog') {

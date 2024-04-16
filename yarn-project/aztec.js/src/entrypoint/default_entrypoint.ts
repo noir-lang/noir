@@ -1,5 +1,5 @@
 import { PackedValues, TxExecutionRequest } from '@aztec/circuit-types';
-import { TxContext } from '@aztec/circuits.js';
+import { GasSettings, TxContext } from '@aztec/circuits.js';
 
 import { type EntrypointInterface, type ExecutionRequestInit } from './entrypoint.js';
 
@@ -27,6 +27,7 @@ export class DefaultEntrypoint implements EntrypointInterface {
         txContext,
         [...packedArguments, entrypointPackedValues],
         authWitnesses,
+        exec.fee?.gasSettings ?? GasSettings.default(),
       ),
     );
   }

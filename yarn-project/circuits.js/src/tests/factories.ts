@@ -1,8 +1,7 @@
-import { makeHalfFullTuple, makeTuple, range } from '@aztec/foundation/array';
+import { type FieldsOf, makeHalfFullTuple, makeTuple, range } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { numToUInt32BE } from '@aztec/foundation/serialize';
 import {
   type ContractClassPublic,
   type ExecutablePrivateFunctionWithMembershipProof,
@@ -128,9 +127,9 @@ import {
   packBytecode,
 } from '../index.js';
 import { ContentCommitment, NUM_BYTES_PER_SHA256 } from '../structs/content_commitment.js';
+import { Gas } from '../structs/gas.js';
 import { GasFees } from '../structs/gas_fees.js';
-import { DimensionGasSettings, GasSettings } from '../structs/gas_settings.js';
-import { GasUsed } from '../structs/gas_used.js';
+import { GasSettings } from '../structs/gas_settings.js';
 import { GlobalVariables } from '../structs/global_variables.js';
 import { Header } from '../structs/header.js';
 import { KernelCircuitPublicInputs } from '../structs/kernel/kernel_circuit_public_inputs.js';
@@ -174,20 +173,14 @@ export function makeTxContext(seed: number): TxContext {
  * @returns A constant data object.
  */
 export function makeConstantData(seed = 1): CombinedConstantData {
-  return new CombinedConstantData(makeHeader(seed, undefined), makeTxContext(seed + 4), makeGasSettings(seed + 5));
+  return new CombinedConstantData(makeHeader(seed, undefined), makeTxContext(seed + 4), makeGasSettings());
 }
 
-export function makeGasSettings(seed = 1) {
-  return new GasSettings(
-    makeDimensionGasSettings(seed),
-    makeDimensionGasSettings(seed + 1),
-    makeDimensionGasSettings(seed + 2),
-    fr(seed + 3),
-  );
-}
-
-export function makeDimensionGasSettings(seed = 1) {
-  return new DimensionGasSettings(seed, seed + 1, fr(seed + 2));
+/**
+ * Creates a default instance of gas settings. No seed value is used to ensure we allocate a sensible amount of gas for testing.
+ */
+export function makeGasSettings() {
+  return GasSettings.default();
 }
 
 /**
@@ -318,12 +311,12 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
       seed + 0xd00,
       PublicDataUpdateRequest.empty,
     ),
-    makeGasUsed(seed + 0xe00),
+    makeGas(seed + 0xe00),
   );
 }
 
-export function makeGasUsed(seed = 1) {
-  return new GasUsed(seed, seed + 1, seed + 2);
+export function makeGas(seed = 1) {
+  return new Gas(seed, seed + 1, seed + 2);
 }
 
 /**
@@ -354,7 +347,7 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
       PublicDataUpdateRequest.empty,
     ),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500, CallRequest.empty),
-    makeGasUsed(seed + 0x600),
+    makeGas(seed + 0x600),
   );
 }
 
@@ -381,7 +374,7 @@ export function makePrivateAccumulatedData(seed = 1, full = false) {
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400, CallRequest.empty),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500, CallRequest.empty),
-    makeGasUsed(seed + 0x600),
+    makeGas(seed + 0x600),
   );
 }
 
@@ -405,18 +398,21 @@ export function makeAggregationObject(seed = 1): AggregationObject {
  * @param storageContractAddress - The storage contract address set on the call context.
  * @returns A call context.
  */
-export function makeCallContext(seed = 0, storageContractAddress = makeAztecAddress(seed + 1)): CallContext {
-  return new CallContext(
-    makeAztecAddress(seed),
-    storageContractAddress,
-    makeEthAddress(seed + 2),
-    makeSelector(seed + 3),
-    false,
-    false,
-    0,
-    makeGasSettings(seed + 4),
-    fr(seed + 5),
-  );
+export function makeCallContext(seed = 0, overrides: Partial<FieldsOf<CallContext>> = {}): CallContext {
+  const gasSettings = makeGasSettings();
+  return CallContext.from({
+    msgSender: makeAztecAddress(seed),
+    storageContractAddress: makeAztecAddress(seed + 1),
+    portalContractAddress: makeEthAddress(seed + 2),
+    functionSelector: makeSelector(seed + 3),
+    gasLeft: gasSettings.getLimits(),
+    isStaticCall: false,
+    isDelegateCall: false,
+    sideEffectCounter: 0,
+    gasSettings,
+    transactionFee: fr(seed + 6),
+    ...overrides,
+  });
 }
 
 /**
@@ -433,7 +429,7 @@ export function makePublicCircuitPublicInputs(
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new PublicCircuitPublicInputs(
-    makeCallContext(seed, storageContractAddress),
+    makeCallContext(seed, { storageContractAddress: storageContractAddress ?? makeAztecAddress(seed) }),
     fr(seed + 0x100),
     fr(seed + 0x200),
     tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x400, ReadRequest.empty),
@@ -461,6 +457,7 @@ export function makePublicCircuitPublicInputs(
     makeHeader(seed + 0xa00, undefined),
     makeAztecAddress(seed + 0xb01),
     RevertCode.OK,
+    makeGas(seed + 0xc00),
   );
 }
 
@@ -550,18 +547,9 @@ export function makeKernelCircuitPublicInputs(seed = 1, fullAccumulatedData = tr
  * @returns Public call request.
  */
 export function makePublicCallRequest(seed = 1): PublicCallRequest {
-  const childCallContext = makeCallContext(seed + 0x2, makeAztecAddress(seed));
-  const parentCallContext = CallContext.from({
-    msgSender: makeAztecAddress(seed + 0x3),
-    storageContractAddress: childCallContext.msgSender,
-    portalContractAddress: makeEthAddress(seed + 2),
-    functionSelector: makeSelector(seed + 3),
-    isStaticCall: false,
-    isDelegateCall: false,
-    sideEffectCounter: 0,
-    gasSettings: makeGasSettings(seed + 4),
-    transactionFee: fr(seed + 5),
-  });
+  const childCallContext = makeCallContext(seed + 0x2, { storageContractAddress: makeAztecAddress(seed) });
+  const parentCallContext = makeCallContext(seed + 0x3, { storageContractAddress: childCallContext.msgSender });
+
   return new PublicCallRequest(
     makeAztecAddress(seed),
     new FunctionData(makeSelector(seed + 0x1), false),
@@ -846,6 +834,7 @@ export function makeTxRequest(seed = 1): TxRequest {
     functionData: new FunctionData(makeSelector(seed + 0x100), true),
     argsHash: fr(seed + 0x200),
     txContext: makeTxContext(seed + 0x400),
+    gasSettings: makeGasSettings(),
   });
 }
 
@@ -897,17 +886,7 @@ export function makePrivateCallStackItem(seed = 1): PrivateCallStackItem {
 export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicInputs {
   return PrivateCircuitPublicInputs.from({
     maxBlockNumber: new MaxBlockNumber(true, new Fr(seed + 0x31415)),
-    callContext: new CallContext(
-      makeAztecAddress(seed + 1),
-      makeAztecAddress(seed + 2),
-      new EthAddress(numToUInt32BE(seed + 3, /* eth address is 20 bytes */ 20)),
-      makeSelector(seed + 4),
-      true,
-      true,
-      0,
-      makeGasSettings(seed + 4),
-      fr(seed + 5),
-    ),
+    callContext: makeCallContext(seed, { isDelegateCall: true, isStaticCall: true }),
     argsHash: fr(seed + 0x100),
     returnsHash: fr(seed + 0x200),
     minRevertibleSideEffectCounter: fr(0),

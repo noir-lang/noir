@@ -1,7 +1,8 @@
 use crate::{
     abis::{
-    call_request::{CallerContext, CallRequest}, private_call_stack_item::PrivateCallStackItem,
-    function_data::FunctionData, max_block_number::MaxBlockNumber,
+    gas_settings::GasSettings, call_request::{CallerContext, CallRequest},
+    private_call_stack_item::PrivateCallStackItem, function_data::FunctionData,
+    max_block_number::MaxBlockNumber,
     membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData
@@ -38,6 +39,7 @@ struct PrivateCallDataBuilder {
     note_hash_read_request_membership_witnesses: BoundedVec<NoteHashReadRequestMembershipWitness, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     portal_contract_address: EthAddress,
     acir_hash: Field,
+    gas_settings: GasSettings,
 }
 
 impl PrivateCallDataBuilder {
@@ -64,7 +66,8 @@ impl PrivateCallDataBuilder {
             contract_class_public_bytecode_commitment: contract_data.public_bytecode_commitment,
             note_hash_read_request_membership_witnesses: BoundedVec::new(),
             portal_contract_address: public_inputs.call_context.portal_contract_address,
-            acir_hash: contract_function.acir_hash
+            acir_hash: contract_function.acir_hash,
+            gas_settings: public_inputs.call_context.gas_settings
         }
     }
 
@@ -87,7 +90,8 @@ impl PrivateCallDataBuilder {
             origin: self.contract_address,
             args_hash: self.public_inputs.args_hash,
             tx_context,
-            function_data: self.function_data
+            function_data: self.function_data,
+            gas_settings: self.gas_settings
         }
     }
 

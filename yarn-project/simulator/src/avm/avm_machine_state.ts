@@ -44,10 +44,20 @@ export class AvmMachineState {
   /** Output data must NOT be modified once it is set */
   private output: Fr[] = [];
 
-  constructor(l1GasLeft: number, l2GasLeft: number, daGasLeft: number) {
-    this.l1GasLeft = l1GasLeft;
-    this.l2GasLeft = l2GasLeft;
-    this.daGasLeft = daGasLeft;
+  constructor(gasLeft: Gas);
+  constructor(l1GasLeft: number, l2GasLeft: number, daGasLeft: number);
+  constructor(gasLeftOrL1GasLeft: Gas | number, l2GasLeft?: number, daGasLeft?: number) {
+    if (typeof gasLeftOrL1GasLeft === 'object') {
+      ({ l1Gas: this.l1GasLeft, l2Gas: this.l2GasLeft, daGas: this.daGasLeft } = gasLeftOrL1GasLeft);
+    } else {
+      this.l1GasLeft = gasLeftOrL1GasLeft;
+      this.l2GasLeft = l2GasLeft!;
+      this.daGasLeft = daGasLeft!;
+    }
+  }
+
+  public get gasLeft(): Gas {
+    return { l1Gas: this.l1GasLeft, l2Gas: this.l2GasLeft, daGas: this.daGasLeft };
   }
 
   public static fromState(state: InitialAvmMachineState): AvmMachineState {

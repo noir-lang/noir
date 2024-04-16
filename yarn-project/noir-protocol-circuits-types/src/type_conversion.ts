@@ -21,9 +21,9 @@ import {
   Fr,
   FunctionData,
   FunctionSelector,
+  Gas,
   GasFees,
   GasSettings,
-  GasUsed,
   GlobalVariables,
   type GrumpkinPrivateKey,
   GrumpkinScalar,
@@ -117,8 +117,8 @@ import {
   type FunctionLeafMembershipWitness as FunctionLeafMembershipWitnessNoir,
   type FunctionSelector as FunctionSelectorNoir,
   type GasFees as GasFeesNoir,
+  type Gas as GasNoir,
   type GasSettings as GasSettingsNoir,
-  type GasUsed as GasUsedNoir,
   type GrumpkinPrivateKey as GrumpkinPrivateKeyNoir,
   type L2ToL1Message as L2ToL1MessageNoir,
   type MaxBlockNumber as MaxBlockNumberNoir,
@@ -410,6 +410,7 @@ export function mapTxRequestToNoir(txRequest: TxRequest): TxRequestNoir {
     args_hash: mapFieldToNoir(txRequest.argsHash),
     tx_context: mapTxContextToNoir(txRequest.txContext),
     function_data: mapFunctionDataToNoir(txRequest.functionData),
+    gas_settings: mapGasSettingsToNoir(txRequest.gasSettings),
   };
 }
 
@@ -424,6 +425,7 @@ export function mapCallContextFromNoir(callContext: CallContextNoir): CallContex
     mapAztecAddressFromNoir(callContext.storage_contract_address),
     mapEthAddressFromNoir(callContext.portal_contract_address),
     mapFunctionSelectorFromNoir(callContext.function_selector),
+    mapGasFromNoir(callContext.gas_left),
     callContext.is_delegate_call,
     callContext.is_static_call,
     mapNumberFromNoir(callContext.side_effect_counter),
@@ -443,6 +445,7 @@ export function mapCallContextToNoir(callContext: CallContext): CallContextNoir 
     storage_contract_address: mapAztecAddressToNoir(callContext.storageContractAddress),
     portal_contract_address: mapEthAddressToNoir(callContext.portalContractAddress),
     function_selector: mapFunctionSelectorToNoir(callContext.functionSelector),
+    gas_left: mapGasToNoir(callContext.gasLeft),
     is_delegate_call: callContext.isDelegateCall,
     is_static_call: callContext.isStaticCall,
     side_effect_counter: mapNumberToNoir(callContext.sideEffectCounter),
@@ -1022,7 +1025,7 @@ export function mapPrivateAccumulatedDataFromNoir(
       MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
       mapCallRequestFromNoir,
     ),
-    mapGasUsedFromNoir(privateAccumulatedData.gas_used),
+    mapGasFromNoir(privateAccumulatedData.gas_used),
   );
 }
 
@@ -1037,7 +1040,7 @@ export function mapPrivateAccumulatedDataToNoir(data: PrivateAccumulatedData): P
     unencrypted_log_preimages_length: mapFieldToNoir(data.unencryptedLogPreimagesLength),
     private_call_stack: mapTuple(data.privateCallStack, mapCallRequestToNoir),
     public_call_stack: mapTuple(data.publicCallStack, mapCallRequestToNoir),
-    gas_used: mapGasUsedToNoir(data.gasUsed),
+    gas_used: mapGasToNoir(data.gasUsed),
   };
 }
 
@@ -1062,7 +1065,7 @@ export function mapPublicAccumulatedDataFromNoir(
       MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
       mapCallRequestFromNoir,
     ),
-    mapGasUsedFromNoir(publicAccumulatedData.gas_used),
+    mapGasFromNoir(publicAccumulatedData.gas_used),
   );
 }
 
@@ -1082,19 +1085,19 @@ export function mapPublicAccumulatedDataToNoir(
       mapPublicDataUpdateRequestToNoir,
     ),
     public_call_stack: mapTuple(publicAccumulatedData.publicCallStack, mapCallRequestToNoir),
-    gas_used: mapGasUsedToNoir(publicAccumulatedData.gasUsed),
+    gas_used: mapGasToNoir(publicAccumulatedData.gasUsed),
   };
 }
 
-export function mapGasUsedFromNoir(gasUsed: GasUsedNoir): GasUsed {
-  return GasUsed.from({
+export function mapGasFromNoir(gasUsed: GasNoir): Gas {
+  return Gas.from({
     daGas: mapNumberFromNoir(gasUsed.da_gas),
     l1Gas: mapNumberFromNoir(gasUsed.l1_gas),
     l2Gas: mapNumberFromNoir(gasUsed.l2_gas),
   });
 }
 
-export function mapGasUsedToNoir(gasUsed: GasUsed): GasUsedNoir {
+export function mapGasToNoir(gasUsed: Gas): GasNoir {
   return {
     da_gas: mapNumberToNoir(gasUsed.daGas),
     l1_gas: mapNumberToNoir(gasUsed.l1Gas),
@@ -1150,7 +1153,7 @@ export function mapCombinedAccumulatedDataFromNoir(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       mapPublicDataUpdateRequestFromNoir,
     ),
-    mapGasUsedFromNoir(combinedAccumulatedData.gas_used),
+    mapGasFromNoir(combinedAccumulatedData.gas_used),
   );
 }
 
@@ -1169,7 +1172,7 @@ export function mapCombinedAccumulatedDataToNoir(
       combinedAccumulatedData.publicDataUpdateRequests,
       mapPublicDataUpdateRequestToNoir,
     ),
-    gas_used: mapGasUsedToNoir(combinedAccumulatedData.gasUsed),
+    gas_used: mapGasToNoir(combinedAccumulatedData.gasUsed),
   };
 }
 
@@ -1530,9 +1533,9 @@ export function mapPublicCircuitPublicInputsToNoir(
     unencrypted_logs_hash: mapFieldToNoir(publicInputs.unencryptedLogsHash),
     unencrypted_log_preimages_length: mapFieldToNoir(publicInputs.unencryptedLogPreimagesLength),
     historical_header: mapHeaderToNoir(publicInputs.historicalHeader),
-
     prover_address: mapAztecAddressToNoir(publicInputs.proverAddress),
     revert_code: mapRevertCodeToNoir(publicInputs.revertCode),
+    gas_left: mapGasToNoir(publicInputs.gasLeft),
   };
 }
 /**

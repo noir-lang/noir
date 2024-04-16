@@ -154,7 +154,8 @@ impl PublicContext {
             unencrypted_log_preimages_length,
             historical_header: self.inputs.historical_header,
             prover_address: self.prover_address,
-            revert_code: 0
+            revert_code: 0,
+            gas_left: self.inputs.call_context.gas_left
         };
         pub_circuit_pub_inputs
     }

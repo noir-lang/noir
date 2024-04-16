@@ -2,7 +2,7 @@ use crate::{
     abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
     constants::{CALL_CONTEXT_LENGTH, GENERATOR_INDEX__CALL_CONTEXT}, hash::pedersen_hash,
     traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered,
-    abis::gas_settings::GasSettings, utils::reader::Reader
+    abis::{gas_settings::GasSettings, gas::Gas}, utils::reader::Reader
 };
 
 // docs:start:call-context
@@ -10,8 +10,8 @@ struct CallContext {
     msg_sender : AztecAddress,
     storage_contract_address : AztecAddress,
     portal_contract_address : EthAddress,
-
     function_selector : FunctionSelector,
+    gas_left: Gas,
 
     is_delegate_call : bool,
     is_static_call : bool,
@@ -53,6 +53,7 @@ impl Serialize<CALL_CONTEXT_LENGTH> for CallContext {
         serialized.push(self.storage_contract_address.to_field());
         serialized.push(self.portal_contract_address.to_field());
         serialized.push(self.function_selector.to_field());
+        serialized.extend_from_array(self.gas_left.serialize());
         serialized.push(self.is_delegate_call as Field);
         serialized.push(self.is_static_call as Field);
         serialized.push(self.side_effect_counter as Field);
@@ -71,6 +72,7 @@ impl Deserialize<CALL_CONTEXT_LENGTH> for CallContext {
             storage_contract_address: AztecAddress::from_field(reader.read()),
             portal_contract_address: EthAddress::from_field(reader.read()),
             function_selector: FunctionSelector::from_field(reader.read()),
+            gas_left: reader.read_struct(Gas::deserialize),
             is_delegate_call: reader.read() as bool,
             is_static_call: reader.read() as bool,
             side_effect_counter: reader.read() as u32,
@@ -87,6 +89,7 @@ impl Empty for CallContext {
             storage_contract_address: AztecAddress::empty(),
             portal_contract_address: EthAddress::empty(),
             function_selector: FunctionSelector::empty(),
+            gas_left: Gas::empty(),
             is_delegate_call: false,
             is_static_call: false,
             side_effect_counter: 0,

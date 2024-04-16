@@ -1,6 +1,6 @@
 use crate::{
     abis::{
-    call_request::CallRequest, public_data_update_request::PublicDataUpdateRequest, gas_used::GasUsed,
+    call_request::CallRequest, public_data_update_request::PublicDataUpdateRequest, gas::Gas,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     constants::{
@@ -27,7 +27,7 @@ struct PublicAccumulatedData {
 
     public_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
 
-    gas_used: GasUsed,
+    gas_used: Gas,
 }
 
 impl Empty for PublicAccumulatedData {
@@ -42,7 +42,7 @@ impl Empty for PublicAccumulatedData {
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
             public_call_stack: [CallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
-            gas_used: GasUsed::empty(),
+            gas_used: Gas::empty(),
         }
     }
 }
