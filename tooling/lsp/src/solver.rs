@@ -10,7 +10,7 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         &self,
         public_key_x: &acvm::FieldElement,
         public_key_y: &acvm::FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, acvm::BlackBoxResolutionError> {
         self.0.schnorr_verify(public_key_x, public_key_y, signature, message)

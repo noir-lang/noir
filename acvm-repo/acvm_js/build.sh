@@ -25,7 +25,6 @@ function run_if_available {
 require_command jq
 require_command cargo
 require_command wasm-bindgen
-require_command wasm-opt
 
 self_path=$(dirname "$(readlink -f "$0")")
 pname=$(cargo read-manifest | jq -r '.name')
@@ -49,5 +48,5 @@ BROWSER_WASM=${BROWSER_DIR}/${pname}_bg.wasm
 run_or_fail cargo build --lib --release --target $TARGET --package ${pname}
 run_or_fail wasm-bindgen $WASM_BINARY --out-dir $NODE_DIR --typescript --target nodejs
 run_or_fail wasm-bindgen $WASM_BINARY --out-dir $BROWSER_DIR --typescript --target web
-run_or_fail wasm-opt $NODE_WASM -o $NODE_WASM -O
-run_or_fail wasm-opt $BROWSER_WASM -o $BROWSER_WASM -O
+run_if_available wasm-opt $NODE_WASM -o $NODE_WASM -O
+run_if_available wasm-opt $BROWSER_WASM -o $BROWSER_WASM -O

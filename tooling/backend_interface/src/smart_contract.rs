@@ -51,7 +51,7 @@ mod tests {
 
         let circuit = Circuit {
             current_witness_index: 4,
-            expression_width: ExpressionWidth::Bounded { width: 3 },
+            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes: vec![constraint],
             private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
             public_parameters: PublicInputs::default(),
@@ -59,7 +59,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let contract = get_mock_backend()?.eth_contract(&program)?;
 
