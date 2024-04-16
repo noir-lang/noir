@@ -59,7 +59,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let contract = get_mock_backend()?.eth_contract(&program)?;
 

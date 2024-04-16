@@ -84,11 +84,9 @@ fn on_profile_run_request_inner(
                 let compiled_program =
                     nargo::ops::transform_program(compiled_program, expression_width);
 
-                for function_debug in compiled_program.debug.iter() {
-                    let span_opcodes = function_debug.count_span_opcodes();
-                    opcodes_counts.extend(span_opcodes);
-                }
-                let debug_artifact: DebugArtifact = compiled_program.into();
+                let span_opcodes = compiled_program.debug.count_span_opcodes();
+                let debug_artifact: DebugArtifact = compiled_program.clone().into();
+                opcodes_counts.extend(span_opcodes);
                 file_map.extend(debug_artifact.file_map);
             }
 
@@ -96,17 +94,14 @@ fn on_profile_run_request_inner(
                 let compiled_contract =
                     nargo::ops::transform_contract(compiled_contract, expression_width);
 
-                let function_debug_info = compiled_contract
-                    .functions
-                    .iter()
-                    .flat_map(|func| &func.debug)
-                    .collect::<Vec<_>>();
+                let function_debug_info: Vec<_> =
+                    compiled_contract.functions.iter().map(|func| &func.debug).cloned().collect();
+                let debug_artifact: DebugArtifact = compiled_contract.into();
+                file_map.extend(debug_artifact.file_map);
                 for contract_function_debug in function_debug_info {
                     let span_opcodes = contract_function_debug.count_span_opcodes();
                     opcodes_counts.extend(span_opcodes);
                 }
-                let debug_artifact: DebugArtifact = compiled_contract.into();
-                file_map.extend(debug_artifact.file_map);
             }
 
             let result = NargoProfileRunResult { file_map, opcodes_counts };
