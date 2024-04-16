@@ -122,14 +122,6 @@ impl PublicContextInterface for AvmContext {
         nullifier_exists(unsiloed_nullifier, address.to_field()) == 1
     }
 
-    fn push_nullifier_read_request(&mut self, nullifier: Field) {
-        assert(false, "'push_nullifier_read_request' not implemented!");
-    }
-
-    fn push_nullifier_non_existent_read_request(&mut self, nullifier: Field) {
-        assert(false, "'push_nullifier_non_existent_read_request' not implemented!");
-    }
-
     fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
         assert(false, "'accumulate_encrypted_logs' not implemented!");
     }
@@ -221,10 +213,6 @@ impl ContextInterface for AvmContext {
     }
     fn selector(self) -> FunctionSelector {
         FunctionSelector::from_field(self.inputs.selector)
-    }
-    fn get_header(self) -> Header {
-        assert(false, "'get_header' not implemented!");
-        Header::empty()
     }
     fn get_args_hash(self) -> Field {
         self.inputs.args_hash

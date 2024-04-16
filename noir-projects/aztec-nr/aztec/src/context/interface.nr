@@ -13,7 +13,6 @@ trait ContextInterface {
     fn version(self) -> Field;
     fn selector(self) -> FunctionSelector;
     fn get_args_hash(self) -> Field;
-    fn get_header(self) -> Header;
 }
 
 // TEMPORARY: This trait is to promote sharing of the current public context
@@ -27,8 +26,6 @@ trait PublicContextInterface {
     fn fee_per_da_gas(self) -> Field;
     fn fee_per_l1_gas(self) -> Field;
     fn fee_per_l2_gas(self) -> Field;
-    fn push_nullifier_read_request(&mut self, nullifier: Field);
-    fn push_nullifier_non_existent_read_request(&mut self, nullifier: Field);
     fn message_portal(&mut self, recipient: EthAddress, content: Field);
     fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress);
     fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]);
