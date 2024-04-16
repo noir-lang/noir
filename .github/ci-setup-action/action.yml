@@ -64,5 +64,5 @@ runs:
           echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "/run/${{ inputs.concurrency_key }}.lock"
           echo "/run/${{ inputs.concurrency_key }}.lock acquired."
         post: |
-          rm "/run/${{ inputs.concurrency_key }}.lock"
+          rm "/run/${{ inputs.concurrency_key }}.lock" || true
           echo "/run/${{ inputs.concurrency_key }}.lock removed."
