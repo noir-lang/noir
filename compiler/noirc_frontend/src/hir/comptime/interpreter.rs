@@ -240,7 +240,7 @@ impl<'a> Interpreter<'a> {
                     {
                         self.define_pattern(pattern, typ, argument, location)?;
                     }
-                    return Ok(());
+                    Ok(())
                 }
                 (value, _) => {
                     Err(InterpreterError::TypeMismatch { expected: typ.clone(), value, location })
@@ -269,7 +269,7 @@ impl<'a> Interpreter<'a> {
                                 location,
                             )?;
                         }
-                        return Ok(());
+                        Ok(())
                     }
                     value => Err(InterpreterError::TypeMismatch {
                         expected: typ.clone(),
@@ -442,25 +442,27 @@ impl<'a> Interpreter<'a> {
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
                     let value: u8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(
-                            || InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                         )?;
                     let value = if is_negative { 0u8.wrapping_sub(value) } else { value };
                     Ok(Value::U8(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     let value: u32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(
-                            || InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                         )?;
                     let value = if is_negative { 0u32.wrapping_sub(value) } else { value };
                     Ok(Value::U32(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                     let value: u64 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(
-                            || InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                        value.try_to_u64().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                            value,
+                            typ,
+                            location,
+                        })?;
                     let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
                     Ok(Value::U64(value))
                 }
@@ -469,24 +471,24 @@ impl<'a> Interpreter<'a> {
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
                     let value: i8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(
-                            || InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I8(value))
                 }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
                     let value: i32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(
-                            || InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I32(value))
                 }
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
                     let value: i64 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(
-                            || InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I64(value))
@@ -561,11 +563,11 @@ impl<'a> Interpreter<'a> {
                 Value::U64(value) => Ok(Value::U64(0 - value)),
                 value => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InterpreterError::InvalidValueForUnary {
+                    Err(InterpreterError::InvalidValueForUnary {
                         value,
                         location,
                         operator: "minus",
-                    });
+                    })
                 }
             },
             crate::UnaryOp::Not => match rhs {
@@ -578,11 +580,7 @@ impl<'a> Interpreter<'a> {
                 Value::U64(value) => Ok(Value::U64(!value)),
                 value => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InterpreterError::InvalidValueForUnary {
-                        value,
-                        location,
-                        operator: "not",
-                    });
+                    Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
             crate::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
@@ -590,7 +588,7 @@ impl<'a> Interpreter<'a> {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InterpreterError::NonPointerDereferenced { value, location });
+                    Err(InterpreterError::NonPointerDereferenced { value, location })
                 }
             },
         }
@@ -618,7 +616,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs + rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "+" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "+" })
                 }
             },
             BinaryOpKind::Subtract => match (lhs, rhs) {
@@ -631,7 +629,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs - rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "-" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "-" })
                 }
             },
             BinaryOpKind::Multiply => match (lhs, rhs) {
@@ -644,7 +642,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs * rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "*" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "*" })
                 }
             },
             BinaryOpKind::Divide => match (lhs, rhs) {
@@ -657,7 +655,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs / rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "/" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "/" })
                 }
             },
             BinaryOpKind::Equal => match (lhs, rhs) {
@@ -670,7 +668,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "==" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "==" })
                 }
             },
             BinaryOpKind::NotEqual => match (lhs, rhs) {
@@ -683,7 +681,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "!=" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "!=" })
                 }
             },
             BinaryOpKind::Less => match (lhs, rhs) {
@@ -696,7 +694,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<" })
                 }
             },
             BinaryOpKind::LessEqual => match (lhs, rhs) {
@@ -709,7 +707,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<=" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<=" })
                 }
             },
             BinaryOpKind::Greater => match (lhs, rhs) {
@@ -722,7 +720,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">" })
                 }
             },
             BinaryOpKind::GreaterEqual => match (lhs, rhs) {
@@ -735,7 +733,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">=" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">=" })
                 }
             },
             BinaryOpKind::And => match (lhs, rhs) {
@@ -748,7 +746,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "&" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "&" })
                 }
             },
             BinaryOpKind::Or => match (lhs, rhs) {
@@ -761,7 +759,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "|" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "|" })
                 }
             },
             BinaryOpKind::Xor => match (lhs, rhs) {
@@ -774,7 +772,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "^" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "^" })
                 }
             },
             BinaryOpKind::ShiftRight => match (lhs, rhs) {
@@ -786,7 +784,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs >> rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">>" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">>" })
                 }
             },
             BinaryOpKind::ShiftLeft => match (lhs, rhs) {
@@ -798,7 +796,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs << rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<<" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<<" })
                 }
             },
             BinaryOpKind::Modulo => match (lhs, rhs) {
@@ -810,7 +808,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs % rhs)),
                 (lhs, rhs) => {
                     let location = self.interner.expr_location(&id);
-                    return Err(InvalidValuesForBinary { lhs, rhs, location, operator: "%" });
+                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "%" })
                 }
             },
         }
@@ -1197,7 +1195,7 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
         // i128 can store all values from i8 - u64
-        let get_index = |this: &mut Self, expr| -> IResult<(i128, fn(i128) -> Value)> {
+        let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
             match this.evaluate(expr)? {
                 Value::I8(value) => Ok((value as i128, |i| Value::I8(i as i8))),
                 Value::I32(value) => Ok((value as i128, |i| Value::I32(i as i32))),
