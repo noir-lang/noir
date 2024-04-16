@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.35.0...aztec-packages-v0.35.1) (2024-04-16)
+
+
+### Bug Fixes
+
+* Disable bench-tx-size until fixed ([#5789](https://github.com/AztecProtocol/aztec-packages/issues/5789)) ([9a85c20](https://github.com/AztecProtocol/aztec-packages/commit/9a85c205f3a539494dc57fc7abb7c7700ad3a3df))
+
 ## [0.35.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.34.0...aztec-packages-v0.35.0) (2024-04-16)
 
 
