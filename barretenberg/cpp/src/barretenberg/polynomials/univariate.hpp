@@ -119,6 +119,13 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
         }
         return *this;
     }
+    Univariate& self_sqr()
+    {
+        for (size_t i = 0; i < LENGTH; ++i) {
+            evaluations[i].self_sqr();
+        }
+        return *this;
+    }
     Univariate operator+(const Univariate& other) const
     {
         Univariate res(*this);
@@ -145,6 +152,13 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
     {
         Univariate res(*this);
         res *= other;
+        return res;
+    }
+
+    Univariate sqr() const
+    {
+        Univariate res(*this);
+        res.self_sqr();
         return res;
     }
 
@@ -483,6 +497,12 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
     {
         Univariate<Fr, domain_end, domain_start> res(*this);
         res *= other;
+        return res;
+    }
+    Univariate<Fr, domain_end, domain_start> sqr() const
+    {
+        Univariate<Fr, domain_end, domain_start> res(*this);
+        res = res.sqr();
         return res;
     }
 

@@ -63,6 +63,49 @@ class Bn254FrParams {
         0x463456c802275bedULL, 0x543ece899c2f3b1cULL, 0x180a96573d3d9f8ULL,  0xf8b21270ddbb927ULL,
         0x1d9598e8a7e39857ULL, 0x2ba010aa41eb7786ULL, 0x39aa886bdbf356b5ULL, 0x47b5002d75fb35e5ULL,
     };
+
+    static constexpr uint64_t modulus_wasm_0 = 0x10000001;
+    static constexpr uint64_t modulus_wasm_1 = 0x1f0fac9f;
+    static constexpr uint64_t modulus_wasm_2 = 0xe5c2450;
+    static constexpr uint64_t modulus_wasm_3 = 0x7d090f3;
+    static constexpr uint64_t modulus_wasm_4 = 0x1585d283;
+    static constexpr uint64_t modulus_wasm_5 = 0x2db40c0;
+    static constexpr uint64_t modulus_wasm_6 = 0xa6e141;
+    static constexpr uint64_t modulus_wasm_7 = 0xe5c2634;
+    static constexpr uint64_t modulus_wasm_8 = 0x30644e;
+
+    static constexpr uint64_t r_squared_wasm_0 = 0x38c2e14b45b69bd4UL;
+    static constexpr uint64_t r_squared_wasm_1 = 0x0ffedb1885883377UL;
+    static constexpr uint64_t r_squared_wasm_2 = 0x7840f9f0abc6e54dUL;
+    static constexpr uint64_t r_squared_wasm_3 = 0x0a054a3e848b0f05UL;
+
+    static constexpr uint64_t cube_root_wasm_0 = 0x7334a1ce7065364dUL;
+    static constexpr uint64_t cube_root_wasm_1 = 0xae21578e4a14d22aUL;
+    static constexpr uint64_t cube_root_wasm_2 = 0xcea2148a96b51265UL;
+    static constexpr uint64_t cube_root_wasm_3 = 0x0038f7edf614a198UL;
+
+    static constexpr uint64_t primitive_root_wasm_0 = 0x2faf11711a27b370UL;
+    static constexpr uint64_t primitive_root_wasm_1 = 0xc23fe9fced28f1b8UL;
+    static constexpr uint64_t primitive_root_wasm_2 = 0x43a0fc9bbe2af541UL;
+    static constexpr uint64_t primitive_root_wasm_3 = 0x05d90b5719653a4fUL;
+
+    static constexpr uint64_t coset_generators_wasm_0[8] = { 0xab46711cdffffcb2ULL, 0xdb1b52736ffffc09ULL,
+                                                             0x0af033c9fffffb60ULL, 0xf6e31f8c9ffffab6ULL,
+                                                             0x26b800e32ffffa0dULL, 0x568ce239bffff964ULL,
+                                                             0x427fcdfc5ffff8baULL, 0x7254af52effff811ULL };
+    static constexpr uint64_t coset_generators_wasm_1[8] = { 0x2476607dbd2dfff1ULL, 0x9a3208a561c2b00bULL,
+                                                             0x0fedb0cd06576026ULL, 0x5d7570ac31329faeULL,
+                                                             0xd33118d3d5c74fc9ULL, 0x48ecc0fb7a5bffe3ULL,
+                                                             0x967480daa5373f6cULL, 0x0c30290249cbef86ULL };
+    static constexpr uint64_t coset_generators_wasm_2[8] = { 0xe6b99ee0068dfc25ULL, 0x39bb9964882aa6a5ULL,
+                                                             0x8cbd93e909c75126ULL, 0x276f48b709e2a349ULL,
+                                                             0x7a71433b8b7f4dc9ULL, 0xcd733dc00d1bf84aULL,
+                                                             0x6824f28e0d374a6dULL, 0xbb26ed128ed3f4eeULL };
+    static constexpr uint64_t coset_generators_wasm_3[8] = { 0x1484c05bce00b620ULL, 0x224cf685243dfa96ULL,
+                                                             0x30152cae7a7b3f0bULL, 0x0d791464ef86e357ULL,
+                                                             0x1b414a8e45c427ccULL, 0x290980b79c016c41ULL,
+                                                             0x066d686e110d108dULL, 0x14359e97674a5502ULL };
+
     // used in msgpack schema serialization
     static constexpr char schema_name[] = "fr";
     static constexpr bool has_high_2adicity = true;

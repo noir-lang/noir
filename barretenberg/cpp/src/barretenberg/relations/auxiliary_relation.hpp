@@ -245,7 +245,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
         auto index_delta = w_1_shift - w_1;
         auto record_delta = w_4_shift - w_4;
 
-        auto index_is_monotonically_increasing = index_delta * index_delta - index_delta; // deg 2
+        auto index_is_monotonically_increasing = index_delta.sqr() - index_delta; // deg 2
 
         auto adjacent_values_match_if_adjacent_indices_match = (-index_delta + FF(1)) * record_delta; // deg 2
 
@@ -296,7 +296,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
         // do  with an arithmetic gate because of the  `eta` factors. We need to check that the *next* gate's access
         // type is  correct, to cover this edge case
         // deg 2 or 4
-        auto next_gate_access_type_is_boolean = next_gate_access_type * next_gate_access_type - next_gate_access_type;
+        auto next_gate_access_type_is_boolean = next_gate_access_type.sqr() - next_gate_access_type;
 
         auto q_arith_by_aux_and_scaling = q_arith * q_aux_by_scaling;
         // Putting it all together...

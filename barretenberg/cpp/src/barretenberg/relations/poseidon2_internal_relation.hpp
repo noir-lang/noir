@@ -57,8 +57,8 @@ template <typename FF_> class Poseidon2InternalRelationImpl {
         auto s1 = w_l + q_l;
 
         // apply s-box round
-        auto u1 = s1 * s1;
-        u1 *= u1;
+        auto u1 = s1.sqr();
+        u1 = u1.sqr();
         u1 *= s1;
         auto u2 = w_r;
         auto u3 = w_o;

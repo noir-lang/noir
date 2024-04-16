@@ -63,8 +63,8 @@ template <typename FF_> class EllipticRelationImpl {
         // Contribution (1) point addition, x-coordinate check
         // q_elliptic * (x3 + x2 + x1)(x2 - x1)(x2 - x1) - y2^2 - y1^2 + 2(y2y1)*q_sign = 0
         auto x_diff = (x_2 - x_1);
-        auto y2_sqr = (y_2 * y_2);
-        auto y1_sqr = (y_1 * y_1);
+        auto y2_sqr = y_2.sqr();
+        auto y1_sqr = y_1.sqr();
         auto y1y2 = y_1 * y_2 * q_sign;
         auto x_add_identity = (x_3 + x_2 + x_1) * x_diff * x_diff - y2_sqr - y1_sqr + y1y2 + y1y2;
 

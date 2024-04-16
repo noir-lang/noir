@@ -92,6 +92,7 @@ TEST(fq6, AddCheckAgainstConstants)
                     { 0xf2431be14b4df482, 0xc9bb05cb691445b8, 0xf02ed57856eb46bb, 0x16dbf34bb8373fd5 } },
                   { { 0x8d683ec33bd2d09f, 0xbb76c48d1ad7befe, 0xfc20598f07f9868f, 0x2251f84b9cb740d7 },
                     { 0x91137730616d416f, 0x7892e5f10d06fc71, 0x7115b23cadf2176, 0x243b593fe662d53 } } };
+
     fq6 result = a + b;
     EXPECT_EQ(result, expected);
 }
@@ -122,6 +123,7 @@ TEST(fq6, SubCheckAgainstConstants)
 
 TEST(fq6, MulCheckAgainstConstants)
 {
+#if defined(__SIZEOF_INT128__) && !defined(__wasm__)
     fq6 a{ { { 0xa7e3494fc528b8c8, 0xc8c8906c9682e43f, 0xc6e76fc21152721c, 0x12a4c3ee3ff10dbd },
              { 0x887ce62a3ae2a578, 0x70caee28e1942bac, 0xc1a58242c34ff94f, 0x0b154d910b492542 } },
            { { 0x8c885006cc08667a, 0xee0b6c4a0dbb9592, 0xa755229d6272b51e, 0x2629b93f67eb8dd6 },
@@ -140,12 +142,35 @@ TEST(fq6, MulCheckAgainstConstants)
                     { 0x4b2fbc422420f06a, 0x3a8e5b388fdedd1f, 0x06006b4471134540, 0x0d4fee4f7966d63d } },
                   { { 0x4ffcbaa876979a1c, 0x32b7c1ef7d251306, 0x1b4e0712f969804e, 0x200592dfe71b710f },
                     { 0xe3eb378754bfb1ac, 0x6b517c1cae53d784, 0xd1b29c0eb1e4d46f, 0x08b42f13fdd14172 } } };
+#else
+    fq6 a{ { { 0x2ae298e67f3b39acUL, 0xff010ec1eb070956UL, 0x392ab3b4183e1f35UL, 0xfe4d0656fce35c4UL },
+             { 0x6ab8f0a770e9c20fUL, 0xf4d3db225768ebb4UL, 0x2a7e605adf75bf5eUL, 0xfeb8cfd40c94734UL } },
+           { { 0xb1dc529e5cd81351UL, 0xf5ca210e8455ea86UL, 0xeacd84d9a8b502b9UL, 0xb6b7eb4ff9916c1UL },
+             { 0xdb94de41ad3b48d0UL, 0x5953eb9473583fe8UL, 0xa603759c9ad36f81UL, 0x229e55e6aa957e6UL } },
+           { { 0x3c0c61a8882bdd6cUL, 0xd8fe0e66857b4d54UL, 0xb39ce4d438c3eb07UL, 0x2c6333d09ff65713UL },
+             { 0x79d7e64184f4cbb1UL, 0x46523cfdd9722bd8UL, 0xdb3fdb38faf61435UL, 0xe8198361076a5a5UL } } };
+    fq6 b{ { { 0x1ac3b1e7ec8a731cUL, 0xbb7de52d99e73d29UL, 0x4caac2356d446d23UL, 0x929876b197c1767UL },
+             { 0x46e1737df8be5c58UL, 0x3d2d14ad3aa1890cUL, 0x659c80230fad0fa0UL, 0xd47f2fbefb5fbabUL } },
+           { { 0x8b4d2a252c11fd02UL, 0x415b985e57d8c07aUL, 0x864441c79f72d7b5UL, 0x143306f7ce4da3aeUL },
+             { 0xd76ea5fe36f41c42UL, 0xc546a55497cb7e0aUL, 0x6027b6dc6f841d13UL, 0x2d7f5a564d5981b5UL } },
+           { { 0xf8fced7f8d6ce98UL, 0x46d85360675c5f7bUL, 0x663867cd6a61f912UL, 0x1c3fbd1c4728ce2fUL },
+             { 0xd7681e6bff8abe8bUL, 0x951b03f1bffa2c2fUL, 0x66fd7a89c9ec33b2UL, 0xc425d325d08a85fUL } } };
+    fq6 expected{ { { 0xccc2041ef7e674a1UL, 0xf2f0e47f82792d77UL, 0xb4b9f006110451c9UL, 0xdae59051f5a8c62UL },
+                    { 0x9482d60673539368UL, 0x42c40af4541687e4UL, 0x67c6919c35403c12UL, 0xb8254cf01cba09eUL } },
+                  { { 0x3b942b02bf094a1UL, 0xff838144f8716d23UL, 0x8530532ec620bef1UL, 0x25d5c85a56786593UL },
+                    { 0x84f3278dc0362308UL, 0x95c01286b84d4f7fUL, 0xfd8b3ada165de51aUL, 0x26db5658234dc652UL } },
+                  { { 0x10ebd72f10b27cadUL, 0xe95a8002134cc334UL, 0x4b2b2a668d93ca18UL, 0x877ec906a5bfe77UL },
+                    { 0x50c434785d85431dUL, 0x74a86ebec041fbdaUL, 0x9cc22545b513d419UL, 0x24905a4154300d89UL } } };
+#endif
+
     fq6 result = a * b;
     EXPECT_EQ(result, expected);
 }
 
 TEST(fq6, SqrCheckAgainstConstants)
 {
+
+#if defined(__SIZEOF_INT128__) && !defined(__wasm__)
     fq6 a{ { { 0xe337aaa063afce6, 0xff4b5477485eb20, 0xef6dcf13b3855ef8, 0x14554c38da988ece },
              { 0x6a70e65e71431416, 0xd21f95045c45f422, 0x2a17b6c6ff517884, 0x1b01ad6487a3ff16 } },
            { { 0xea39618e9f05e1f, 0x63e9b0f7803072a6, 0xebe5538a2c75c89, 0x5312aad2ac95dcf },
@@ -158,6 +183,21 @@ TEST(fq6, SqrCheckAgainstConstants)
                     { 0xd48ac80d8e6e52b5, 0x1791b8c4145bc2d3, 0x35c456444cdcf9be, 0x1eddd29d77366c08 } },
                   { { 0x56f1f8acbaed1118, 0xdd74b8bb2e47de74, 0x97525aa49c65f0fd, 0x15bbf236e098fa0f },
                     { 0xad97a94142524aeb, 0x42a508523527268b, 0x4c9c5f213de06ca8, 0x73fa6bc31efa2f2 } } };
+#else
+    fq6 a{ { { 0xb8c83817c906c025UL, 0x4d043f8c42f61ad5UL, 0x91a65831dd1a6241UL, 0x15918b45e38cb7bfUL },
+             { 0x4ff37e49c815b109UL, 0x345a8ce3993010ecUL, 0x5a237c150983263UL, 0x298c76f000344000UL } },
+           { { 0x20111ed8b494cc0bUL, 0xb6b1df3bccb8f51aUL, 0xaed9d5f0d4678813UL, 0x14f86a4cb596d964UL },
+             { 0x69bc7d9504b28c8fUL, 0xe0d8603ce6221c7bUL, 0x23ca4fa0d532663fUL, 0x1a80d9d5b362f1a2UL } },
+           { { 0x25eb400748a0cf37UL, 0x89d64fd9d5bf6d15UL, 0x5d26ffdaa12d840cUL, 0x2569403a2168757UL },
+             { 0xcdec65e163c03266UL, 0xd10e3957cf3b72b0UL, 0xec521e4d37493492UL, 0x129d95f2098a2ca4UL } } };
+    fq6 expected{ { { 0x3c4bcc8dcefcaceeUL, 0x34ab9174317f1e3aUL, 0x1ef0e16468a08463UL, 0x15d11e13ea53477bUL },
+                    { 0xa863e40cfbb3daa5UL, 0xce21a9ece91fa28dUL, 0x18f8b8d5131d5b16UL, 0x217cae35f576c1cUL } },
+                  { { 0xc9c6c70ba08b73c0UL, 0xcad2cccbf550a886UL, 0xfc81330087d97569UL, 0x887ec11880851c1UL },
+                    { 0xdece0fe8e4068d14UL, 0x1c1ac52662948771UL, 0x524556477d845073UL, 0x13e432b54eecfdc4UL } },
+                  { { 0x94776c5786cc491eUL, 0x6583437212c2bad1UL, 0xd5e7849877ab4a9dUL, 0x1201fc93c2687faaUL },
+                    { 0xc272f7cce8556844UL, 0xf69b6001031da740UL, 0xb24acd4db6083391UL, 0x26639dbab92ddda2UL } } };
+#endif
+
     fq6 result = a.sqr();
     EXPECT_EQ(result, expected);
 }

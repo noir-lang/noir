@@ -27,4 +27,4 @@ ssh $BB_SSH_KEY $BB_SSH_INSTANCE "mkdir -p $BB_SSH_CPP_PATH/build-wasm-threads"
 scp $BB_SSH_KEY ./bin/$BENCHMARK $BB_SSH_INSTANCE:$BB_SSH_CPP_PATH/build-wasm-threads
 # run wasm benchmarking
 ssh $BB_SSH_KEY $BB_SSH_INSTANCE \
-  "cd $BB_SSH_CPP_PATH/build-wasm-threads ; /home/ubuntu/.wasmtime/bin/wasmtime run --env HARDWARE_CONCURRENCY=$HARDWARE_CONCURRENCY -Wthreads=y -Sthreads=y --dir=.. $COMMAND"
+  "cd $BB_SSH_CPP_PATH/build-wasm-threads ; /home/ubuntu/.wasmer/bin/wasmer run --dir=$BB_SSH_CPP_PATH --enable-threads --env HARDWARE_CONCURRENCY=$HARDWARE_CONCURRENCY $COMMAND"

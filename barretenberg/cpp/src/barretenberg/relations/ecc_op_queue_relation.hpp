@@ -57,50 +57,43 @@ template <typename FF_> class EccOpQueueRelationImpl {
         auto lagrange_ecc_op = View(in.lagrange_ecc_op);
 
         // If lagrange_ecc_op is the indicator for ecc_op_gates, this is the indicator for the complement
-        auto complement_ecc_op = -lagrange_ecc_op + FF(1);
+        auto lagrange_by_scaling = lagrange_ecc_op * scaling_factor;
+        auto complement_ecc_op_by_scaling = -lagrange_by_scaling + scaling_factor;
 
         // Contribution (1)
         auto tmp = op_wire_1 - w_1;
-        tmp *= lagrange_ecc_op;
-        tmp *= scaling_factor;
+        tmp *= lagrange_by_scaling;
         std::get<0>(accumulators) += tmp;
 
         // Contribution (2)
         tmp = op_wire_2 - w_2;
-        tmp *= lagrange_ecc_op;
-        tmp *= scaling_factor;
+        tmp *= lagrange_by_scaling;
         std::get<1>(accumulators) += tmp;
 
         // Contribution (3)
         tmp = op_wire_3 - w_3;
-        tmp *= lagrange_ecc_op;
-        tmp *= scaling_factor;
+        tmp *= lagrange_by_scaling;
         std::get<2>(accumulators) += tmp;
 
         // Contribution (4)
         tmp = op_wire_4 - w_4;
-        tmp *= lagrange_ecc_op;
-        tmp *= scaling_factor;
+        tmp *= lagrange_by_scaling;
         std::get<3>(accumulators) += tmp;
 
         // Contribution (5)
-        tmp = op_wire_1 * complement_ecc_op;
-        tmp *= scaling_factor;
+        tmp = op_wire_1 * complement_ecc_op_by_scaling;
         std::get<4>(accumulators) += tmp;
 
         // Contribution (6)
-        tmp = op_wire_2 * complement_ecc_op;
-        tmp *= scaling_factor;
+        tmp = op_wire_2 * complement_ecc_op_by_scaling;
         std::get<5>(accumulators) += tmp;
 
         // Contribution (7)
-        tmp = op_wire_3 * complement_ecc_op;
-        tmp *= scaling_factor;
+        tmp = op_wire_3 * complement_ecc_op_by_scaling;
         std::get<6>(accumulators) += tmp;
 
         // Contribution (8)
-        tmp = op_wire_4 * complement_ecc_op;
-        tmp *= scaling_factor;
+        tmp = op_wire_4 * complement_ecc_op_by_scaling;
         std::get<7>(accumulators) += tmp;
     };
 };
