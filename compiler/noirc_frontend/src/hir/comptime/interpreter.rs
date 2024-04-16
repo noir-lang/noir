@@ -192,8 +192,8 @@ impl<'a> Interpreter<'a> {
     fn enter_function(&mut self) -> (bool, Vec<FxHashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let scope = self.scopes.drain(1..).collect();
-        let was_in_loop = std::mem::take(&mut self.in_loop);
-        (was_in_loop, scope)
+        self.push_scope();
+        (std::mem::take(&mut self.in_loop), scope)
     }
 
     fn exit_function(&mut self, mut state: (bool, Vec<FxHashMap<DefinitionId, Value>>)) {
@@ -386,7 +386,7 @@ impl<'a> Interpreter<'a> {
                 let typ = self.interner.id_type(id);
                 Ok(Value::Function(*function_id, typ))
             }
-            DefinitionKind::Local(_) => self.lookup(&ident),
+            DefinitionKind::Local(_) => dbg!(self.lookup(&ident)),
             DefinitionKind::Global(global_id) => {
                 let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
                 self.evaluate_let(let_)?;
@@ -1215,10 +1215,10 @@ impl<'a> Interpreter<'a> {
         let (start, make_value) = get_index(self, for_.start_range)?;
         let (end, _) = get_index(self, for_.end_range)?;
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
-        self.push_scope();
 
         for i in start..end {
-            self.mutate(for_.identifier.id, make_value(i), for_.identifier.location)?;
+            self.push_scope();
+            self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
             match self.evaluate(for_.block) {
                 Ok(_) => (),
@@ -1226,9 +1226,9 @@ impl<'a> Interpreter<'a> {
                 Err(InterpreterError::Continue) => continue,
                 Err(other) => return Err(other),
             }
+            self.pop_scope();
         }
 
-        self.pop_scope();
         self.in_loop = was_in_loop;
         Ok(Value::Unit)
     }
