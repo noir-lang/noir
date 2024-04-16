@@ -4,6 +4,7 @@ examples/**/target/
 examples/9
 node_modules
 pkg/
+.idea
 
 # Yarn
 .pnp.*
