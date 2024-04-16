@@ -430,7 +430,8 @@ fn compile_contract_inner(
     }
 
     if errors.is_empty() {
-        let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
+        let debug_infos: Vec<_> =
+            functions.iter().flat_map(|function| function.debug.clone()).collect();
         let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
 
         let out_structs = contract
@@ -547,13 +548,8 @@ pub fn compile_no_check(
 
     Ok(CompiledProgram {
         hash,
-        // TODO(https://github.com/noir-lang/noir/issues/4428)
         program,
-        // TODO(https://github.com/noir-lang/noir/issues/4428)
-        // Debug info is only relevant for errors at execution time which is not yet supported
-        // The CompileProgram `debug` field is used in multiple places and is better
-        // left to be updated once execution of multiple ACIR functions is enabled
-        debug: debug[0].clone(),
+        debug,
         abi,
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),

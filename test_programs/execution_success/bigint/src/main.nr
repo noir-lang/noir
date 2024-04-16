@@ -27,8 +27,11 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
         assert(a_bytes[i] == x[i]);
         assert(b_bytes[i] == y[i]);
     }
+    //Regression for issue #4578
+    let d = a * b;
+    assert(d / b == a);
 
-    let d = a * b - b;
+    let d = d - b;
     let mut result = [0; 32];
     let result_slice = (a_field * b_field - b_field).to_le_bytes(32);
     for i in 0..32 {
@@ -36,7 +39,7 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     }
     let d1 = bigint::Secpk1Fq::from_le_bytes_32(result);
     assert(d1 == d);
-    //big_int_example(x[0], x[1]);
+    big_int_example(x[0], x[1]);
 }
 
 fn test_unconstrained1(a: Secpk1Fq, b: Secpk1Fq) -> Secpk1Fq {
