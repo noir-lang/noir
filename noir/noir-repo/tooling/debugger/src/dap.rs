@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::str::FromStr;
 
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
 use acvm::BlackBoxFunctionSolver;
@@ -64,6 +65,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         circuit: &'a Circuit,
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
+        unconstrained_functions: &'a [BrilligBytecode],
     ) -> Self {
         let context = DebugContext::new(
             solver,
@@ -71,6 +73,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             debug_artifact,
             initial_witness,
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact)),
+            unconstrained_functions,
         );
         Self {
             server,
@@ -613,6 +616,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
         &program.program.functions[0],
         &debug_artifact,
         initial_witness,
+        &program.program.unconstrained_functions,
     );
 
     session.run_loop()

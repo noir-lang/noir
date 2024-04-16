@@ -266,6 +266,10 @@ impl std::fmt::Display for Program {
             writeln!(f, "func {}", func_index)?;
             writeln!(f, "{}", function)?;
         }
+        for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
+            writeln!(f, "unconstrained func {}", func_index)?;
+            writeln!(f, "{:?}", function.bytecode)?;
+        }
         Ok(())
     }
 }

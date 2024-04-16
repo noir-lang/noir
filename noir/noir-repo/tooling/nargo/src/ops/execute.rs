@@ -1,3 +1,4 @@
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::Program;
 use acvm::acir::native_types::WitnessStack;
 use acvm::brillig_vm::brillig::ForeignCallResult;
@@ -12,6 +13,9 @@ use super::foreign_calls::{ForeignCallExecutor, NargoForeignCallResult};
 
 struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
     functions: &'a [Circuit],
+
+    unconstrained_functions: &'a [BrilligBytecode],
+
     // This gets built as we run through the program looking at each function call
     witness_stack: WitnessStack,
 
@@ -23,11 +27,13 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
 impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, B, F> {
     fn new(
         functions: &'a [Circuit],
+        unconstrained_functions: &'a [BrilligBytecode],
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut F,
     ) -> Self {
         ProgramExecutor {
             functions,
+            unconstrained_functions,
             witness_stack: WitnessStack::default(),
             blackbox_solver,
             foreign_call_executor,
@@ -44,7 +50,12 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
         circuit: &Circuit,
         initial_witness: WitnessMap,
     ) -> Result<WitnessMap, NargoError> {
-        let mut acvm = ACVM::new(self.blackbox_solver, &circuit.opcodes, initial_witness);
+        let mut acvm = ACVM::new(
+            self.blackbox_solver,
+            &circuit.opcodes,
+            initial_witness,
+            self.unconstrained_functions,
+        );
 
         // This message should be resolved by a nargo foreign call only when we have an unsatisfied assertion.
         let mut assert_message: Option<String> = None;
@@ -151,8 +162,12 @@ pub fn execute_program<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
 ) -> Result<WitnessStack, NargoError> {
     let main = &program.functions[0];
 
-    let mut executor =
-        ProgramExecutor::new(&program.functions, blackbox_solver, foreign_call_executor);
+    let mut executor = ProgramExecutor::new(
+        &program.functions,
+        &program.unconstrained_functions,
+        blackbox_solver,
+        foreign_call_executor,
+    );
     let main_witness = executor.execute_circuit(main, initial_witness)?;
     executor.witness_stack.push(0, main_witness);
 

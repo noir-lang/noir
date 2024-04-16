@@ -242,6 +242,7 @@ pub(crate) fn debug_program(
         &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,
+        &compiled_program.program.unconstrained_functions,
     )
     .map_err(CliError::from)
 }

@@ -140,7 +140,7 @@ pub(crate) mod tests {
             &self,
             _public_key_x: &FieldElement,
             _public_key_y: &FieldElement,
-            _signature: &[u8],
+            _signature: &[u8; 64],
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)

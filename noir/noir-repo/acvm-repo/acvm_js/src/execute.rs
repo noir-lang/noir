@@ -1,5 +1,6 @@
 use std::{future::Future, pin::Pin};
 
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::BlackBoxFunctionSolver;
 use acvm::{
     acir::circuit::{Circuit, Program},
@@ -181,7 +182,12 @@ async fn execute_program_with_native_program_and_return(
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
 ) -> Result<WitnessStack, Error> {
-    let executor = ProgramExecutor::new(&program.functions, &solver.0, foreign_call_executor);
+    let executor = ProgramExecutor::new(
+        &program.functions,
+        &program.unconstrained_functions,
+        &solver.0,
+        foreign_call_executor,
+    );
     let witness_stack = executor.execute(initial_witness.into()).await?;
 
     Ok(witness_stack)
@@ -189,6 +195,8 @@ async fn execute_program_with_native_program_and_return(
 
 struct ProgramExecutor<'a, B: BlackBoxFunctionSolver> {
     functions: &'a [Circuit],
+
+    unconstrained_functions: &'a [BrilligBytecode],
 
     blackbox_solver: &'a B,
 
@@ -198,10 +206,16 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver> {
 impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
     fn new(
         functions: &'a [Circuit],
+        unconstrained_functions: &'a [BrilligBytecode],
         blackbox_solver: &'a B,
         foreign_call_handler: &'a ForeignCallHandler,
     ) -> Self {
-        ProgramExecutor { functions, blackbox_solver, foreign_call_handler }
+        ProgramExecutor {
+            functions,
+            unconstrained_functions,
+            blackbox_solver,
+            foreign_call_handler,
+        }
     }
 
     async fn execute(&self, initial_witness: WitnessMap) -> Result<WitnessStack, Error> {
@@ -220,7 +234,12 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
         witness_stack: &'a mut WitnessStack,
     ) -> Pin<Box<dyn Future<Output = Result<WitnessMap, Error>> + 'a>> {
         Box::pin(async {
-            let mut acvm = ACVM::new(self.blackbox_solver, &circuit.opcodes, initial_witness);
+            let mut acvm = ACVM::new(
+                self.blackbox_solver,
+                &circuit.opcodes,
+                initial_witness,
+                self.unconstrained_functions,
+            );
 
             loop {
                 let solver_status = acvm.solve();

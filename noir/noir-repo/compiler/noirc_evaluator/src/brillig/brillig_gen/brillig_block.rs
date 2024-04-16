@@ -1785,7 +1785,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
             assert_eq!(
                 lhs_type, rhs_type,
-                "lhs and rhs types in a binary operation are always the same"
+                "lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
             );
             Type::Numeric(*lhs_type)
         }
