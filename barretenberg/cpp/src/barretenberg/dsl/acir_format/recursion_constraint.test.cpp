@@ -104,7 +104,8 @@ Builder create_inner_circuit()
                                   .bigint_from_le_bytes_constraints = {},
                                   .bigint_to_le_bytes_constraints = {},
                                   .bigint_operations = {},
-                                  .constraints = { expr_a, expr_b, expr_c, expr_d },
+                                  .poly_triple_constraints = { expr_a, expr_b, expr_c, expr_d },
+                                  .quad_constraints = {},
                                   .block_constraints = {} };
 
     uint256_t inverse_of_five = fr(5).invert();
@@ -260,7 +261,8 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                   .bigint_from_le_bytes_constraints = {},
                                   .bigint_to_le_bytes_constraints = {},
                                   .bigint_operations = {},
-                                  .constraints = {},
+                                  .poly_triple_constraints = {},
+                                  .quad_constraints = {},
                                   .block_constraints = {} };
 
     auto outer_circuit = create_circuit(constraint_system, /*size_hint*/ 0, witness);

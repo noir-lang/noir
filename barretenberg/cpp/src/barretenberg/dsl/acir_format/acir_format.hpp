@@ -59,7 +59,9 @@ struct AcirFormat {
     // This could be a large vector so use slab allocator, we don't expect the blackbox implementations to be so large.
     std::vector<poly_triple_<curve::BN254::ScalarField>,
                 ContainerSlabAllocator<poly_triple_<curve::BN254::ScalarField>>>
-        constraints;
+        poly_triple_constraints;
+    std::vector<mul_quad_<curve::BN254::ScalarField>, ContainerSlabAllocator<mul_quad_<curve::BN254::ScalarField>>>
+        quad_constraints;
     std::vector<BlockConstraint> block_constraints;
 
     // For serialization, update with any new fields
@@ -82,7 +84,7 @@ struct AcirFormat {
                    fixed_base_scalar_mul_constraints,
                    ec_add_constraints,
                    recursion_constraints,
-                   constraints,
+                   poly_triple_constraints,
                    block_constraints,
                    bigint_from_le_bytes_constraints,
                    bigint_to_le_bytes_constraints,

@@ -190,7 +190,8 @@ TEST_F(BigIntTests, TestBigIntConstraintMultiple)
         .bigint_from_le_bytes_constraints = {},
         .bigint_to_le_bytes_constraints = {},
         .bigint_operations = {},
-        .constraints = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
         .block_constraints = {},
     };
     apply_constraints(constraint_system, contraints);
@@ -257,7 +258,8 @@ TEST_F(BigIntTests, TestBigIntConstraintSimple)
         .bigint_from_le_bytes_constraints = { from_le_bytes_constraint_bigint1 },
         .bigint_to_le_bytes_constraints = { result2_to_le_bytes },
         .bigint_operations = { add_constraint },
-        .constraints = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
         .block_constraints = {},
 
     };
@@ -309,7 +311,8 @@ TEST_F(BigIntTests, TestBigIntConstraintReuse)
         .bigint_from_le_bytes_constraints = {},
         .bigint_to_le_bytes_constraints = {},
         .bigint_operations = {},
-        .constraints = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
         .block_constraints = {},
     };
     apply_constraints(constraint_system, contraints);
@@ -365,7 +368,8 @@ TEST_F(BigIntTests, TestBigIntConstraintReuse2)
         .bigint_from_le_bytes_constraints = {},
         .bigint_to_le_bytes_constraints = {},
         .bigint_operations = {},
-        .constraints = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
         .block_constraints = {},
     };
     apply_constraints(constraint_system, contraints);
@@ -442,7 +446,8 @@ TEST_F(BigIntTests, TestBigIntDIV)
         .bigint_from_le_bytes_constraints = { from_le_bytes_constraint_bigint1, from_le_bytes_constraint_bigint2 },
         .bigint_to_le_bytes_constraints = { result3_to_le_bytes },
         .bigint_operations = { div_constraint },
-        .constraints = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
         .block_constraints = {},
 
     };

@@ -21,7 +21,7 @@
 #include <utility>
 
 namespace acir_format {
-
+using mul_quad = mul_quad_<bb::fr>;
 /**
  * @brief Construct a poly_tuple for a standard width-3 arithmetic gate from its acir representation
  *
@@ -90,7 +90,16 @@ poly_triple serialize_arithmetic_gate(Program::Expression const& arg)
             pt.q_o = selector_value;
             c_set = true;
         } else {
-            throw_or_abort("Cannot assign linear term to a constraint of width 3");
+            return poly_triple{
+                .a = 0,
+                .b = 0,
+                .c = 0,
+                .q_m = 0,
+                .q_l = 0,
+                .q_r = 0,
+                .q_o = 0,
+                .q_c = 0,
+            };
         }
     }
 
@@ -98,10 +107,93 @@ poly_triple serialize_arithmetic_gate(Program::Expression const& arg)
     pt.q_c = uint256_t(arg.q_c);
     return pt;
 }
+mul_quad serialize_mul_quad_gate(Program::Expression const& arg)
+{
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): The initialization of the witness indices a,b,c
+    // to 0 is implicitly assuming that (builder.zero_idx == 0) which is no longer the case. Now, witness idx 0 in
+    // general will correspond to some non-zero value and some witnesses which are not explicitly set below will be
+    // erroneously populated with this value. This does not cause failures however because the corresponding selector
+    // will indeed be 0 so the gate will be satisfied. Still, its a bad idea to have erroneous wire values
+    // even if they dont break the relation. They'll still add cost in commitments, for example.
+    mul_quad quad{ .a = 0,
+                   .b = 0,
+                   .c = 0,
+                   .d = 0,
+                   .mul_scaling = 0,
+                   .a_scaling = 0,
+                   .b_scaling = 0,
+                   .c_scaling = 0,
+                   .d_scaling = 0,
+                   .const_scaling = 0 };
+
+    // Flags indicating whether each witness index for the present mul_quad has been set
+    bool a_set = false;
+    bool b_set = false;
+    bool c_set = false;
+    bool d_set = false;
+    ASSERT(arg.mul_terms.size() <= 1); // We can only accommodate 1 quadratic term
+    // Note: mul_terms are tuples of the form {selector_value, witness_idx_1, witness_idx_2}
+    if (!arg.mul_terms.empty()) {
+        const auto& mul_term = arg.mul_terms[0];
+        quad.mul_scaling = uint256_t(std::get<0>(mul_term));
+        quad.a = std::get<1>(mul_term).value;
+        quad.b = std::get<2>(mul_term).value;
+        a_set = true;
+        b_set = true;
+    }
+    // If necessary, set values for linears terms q_l * w_l, q_r * w_r and q_o * w_o
+    ASSERT(arg.linear_combinations.size() <= 4); // We can only accommodate 4 linear terms
+    for (const auto& linear_term : arg.linear_combinations) {
+        bb::fr selector_value(uint256_t(std::get<0>(linear_term)));
+        uint32_t witness_idx = std::get<1>(linear_term).value;
+
+        // If the witness index has not yet been set or if the corresponding linear term is active, set the witness
+        // index and the corresponding selector value.
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): May need to adjust the quad.a == witness_idx
+        // check (and the others like it) since we initialize a,b,c with 0 but 0 is a valid witness index once the
+        // +1 offset is removed from noir.
+        if (!a_set || quad.a == witness_idx) {
+            quad.a = witness_idx;
+            quad.a_scaling = selector_value;
+            a_set = true;
+        } else if (!b_set || quad.b == witness_idx) {
+            quad.b = witness_idx;
+            quad.b_scaling = selector_value;
+            b_set = true;
+        } else if (!c_set || quad.c == witness_idx) {
+            quad.c = witness_idx;
+            quad.c_scaling = selector_value;
+            c_set = true;
+        } else if (!d_set || quad.d == witness_idx) {
+            quad.d = witness_idx;
+            quad.d_scaling = selector_value;
+            d_set = true;
+        } else {
+            throw_or_abort("Cannot assign linear term to a constraint of width 4");
+        }
+    }
+
+    // Set constant value q_c
+    quad.const_scaling = uint256_t(arg.q_c);
+    return quad;
+}
 
 void handle_arithmetic(Program::Opcode::AssertZero const& arg, AcirFormat& af)
 {
-    af.constraints.push_back(serialize_arithmetic_gate(arg.value));
+    if (arg.value.linear_combinations.size() <= 3) {
+        poly_triple pt = serialize_arithmetic_gate(arg.value);
+        // Even if the number of linear terms is less than 3, we might not be able to fit it into a width-3 arithmetic
+        // gate. This is the case if the linear terms are all disctinct witness from the multiplication term. In that
+        // case, the serialize_arithmetic_gate() function will return a poly_triple with all 0's, and we use a width-4
+        // gate instead. We could probably always use a width-4 gate in fact.
+        if (pt == poly_triple{ 0, 0, 0, 0, 0, 0, 0, 0 }) {
+            af.quad_constraints.push_back(serialize_mul_quad_gate(arg.value));
+        } else {
+            af.poly_triple_constraints.push_back(pt);
+        }
+    } else {
+        af.quad_constraints.push_back(serialize_mul_quad_gate(arg.value));
+    }
 }
 
 void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, AcirFormat& af)

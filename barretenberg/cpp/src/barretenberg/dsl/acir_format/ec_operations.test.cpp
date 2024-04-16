@@ -72,7 +72,8 @@ TEST_F(EcOperations, TestECOperations)
         .bigint_from_le_bytes_constraints = {},
         .bigint_to_le_bytes_constraints = {},
         .bigint_operations = {},
-        .constraints = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
         .block_constraints = {},
     };
 
