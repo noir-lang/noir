@@ -7,7 +7,7 @@ namespace acir_format {
 using namespace bb::stdlib;
 
 template <typename Builder>
-crypto::schnorr_signature convert_signature(Builder& builder, std::vector<uint32_t> signature)
+crypto::schnorr_signature convert_signature(Builder& builder, std::array<uint32_t, 64> signature)
 {
 
     crypto::schnorr_signature signature_cr;

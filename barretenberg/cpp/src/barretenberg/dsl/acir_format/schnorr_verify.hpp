@@ -20,7 +20,7 @@ struct SchnorrConstraint {
 
     // This is the computed signature
     //
-    std::vector<uint32_t> signature;
+    std::array<uint32_t, 64> signature;
 
     friend bool operator==(SchnorrConstraint const& lhs, SchnorrConstraint const& rhs) = default;
 };

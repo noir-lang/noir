@@ -17,7 +17,7 @@ struct Sha256Input {
 
 struct Sha256Constraint {
     std::vector<Sha256Input> inputs;
-    std::vector<uint32_t> result;
+    std::array<uint32_t, 32> result;
 
     friend bool operator==(Sha256Constraint const& lhs, Sha256Constraint const& rhs) = default;
     // for serialization, update with any new fields
@@ -25,9 +25,9 @@ struct Sha256Constraint {
 };
 
 struct Sha256Compression {
-    std::vector<Sha256Input> inputs;
-    std::vector<Sha256Input> hash_values;
-    std::vector<uint32_t> result;
+    std::array<Sha256Input, 16> inputs;
+    std::array<Sha256Input, 8> hash_values;
+    std::array<uint32_t, 8> result;
 
     friend bool operator==(Sha256Compression const& lhs, Sha256Compression const& rhs) = default;
     // for serialization, update with any new fields

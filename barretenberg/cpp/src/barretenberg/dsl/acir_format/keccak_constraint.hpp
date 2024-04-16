@@ -16,8 +16,8 @@ struct HashInput {
 };
 
 struct Keccakf1600 {
-    std::vector<uint32_t> state;
-    std::vector<uint32_t> result;
+    std::array<uint32_t, 25> state;
+    std::array<uint32_t, 25> result;
 
     // For serialization, update with any new fields
     MSGPACK_FIELDS(state, result);
@@ -26,7 +26,7 @@ struct Keccakf1600 {
 
 struct KeccakConstraint {
     std::vector<HashInput> inputs;
-    std::vector<uint32_t> result;
+    std::array<uint32_t, 32> result;
     uint32_t var_message_size;
 
     // For serialization, update with any new fields

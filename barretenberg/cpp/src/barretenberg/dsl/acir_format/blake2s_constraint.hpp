@@ -17,7 +17,7 @@ struct Blake2sInput {
 
 struct Blake2sConstraint {
     std::vector<Blake2sInput> inputs;
-    std::vector<uint32_t> result;
+    std::array<uint32_t, 32> result;
 
     // For serialization, update with any new fields
     MSGPACK_FIELDS(inputs, result);

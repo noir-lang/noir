@@ -6,44 +6,6 @@ namespace acir_format {
 using namespace bb::plonk;
 
 template <typename Builder>
-crypto::ecdsa_signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature)
-{
-
-    crypto::ecdsa_signature signature_cr;
-
-    // Get the witness assignment for each witness index
-    // Write the witness assignment to the byte_array
-
-    for (unsigned int i = 0; i < 32; i++) {
-        auto witness_index = signature[i];
-
-        std::vector<uint8_t> fr_bytes(sizeof(fr));
-
-        fr value = builder.get_variable(witness_index);
-
-        fr::serialize_to_buffer(value, &fr_bytes[0]);
-
-        signature_cr.r[i] = fr_bytes.back();
-    }
-
-    for (unsigned int i = 32; i < 64; i++) {
-        auto witness_index = signature[i];
-
-        std::vector<uint8_t> fr_bytes(sizeof(fr));
-
-        fr value = builder.get_variable(witness_index);
-
-        fr::serialize_to_buffer(value, &fr_bytes[0]);
-
-        signature_cr.s[i - 32] = fr_bytes.back();
-    }
-
-    signature_cr.v = 27;
-
-    return signature_cr;
-}
-
-template <typename Builder>
 secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affine_element& input)
 {
     uint256_t x_u256(input.x);
@@ -63,9 +25,9 @@ secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affi
 // vector of bytes here, assumes that the witness indices point to a field element which can be represented
 // with just a byte.
 // notice that this function truncates each field_element to a byte
-template <typename Builder>
-bb::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(Builder& builder,
-                                                                    std::vector<uint32_t> vector_of_bytes)
+template <std::size_t SIZE, typename Builder>
+bb::stdlib::byte_array<Builder> ecdsa_array_of_bytes_to_byte_array(Builder& builder,
+                                                                   std::array<uint32_t, SIZE> vector_of_bytes)
 {
     using byte_array_ct = bb::stdlib::byte_array<Builder>;
     using field_ct = bb::stdlib::field_t<Builder>;
@@ -106,9 +68,9 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
 
     auto new_sig = ecdsa_convert_signature(builder, input.signature);
 
-    byte_array_ct message = ecdsa_vector_of_bytes_to_byte_array(builder, input.hashed_message);
-    auto pub_key_x_byte_arr = ecdsa_vector_of_bytes_to_byte_array(builder, input.pub_x_indices);
-    auto pub_key_y_byte_arr = ecdsa_vector_of_bytes_to_byte_array(builder, input.pub_y_indices);
+    byte_array_ct message = ecdsa_array_of_bytes_to_byte_array(builder, input.hashed_message);
+    auto pub_key_x_byte_arr = ecdsa_array_of_bytes_to_byte_array(builder, input.pub_x_indices);
+    auto pub_key_y_byte_arr = ecdsa_array_of_bytes_to_byte_array(builder, input.pub_y_indices);
 
     auto pub_key_x_fq = typename secp256k1_ct::fq_ct(pub_key_x_byte_arr);
     auto pub_key_y_fq = typename secp256k1_ct::fq_ct(pub_key_y_byte_arr);
@@ -153,11 +115,10 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
 template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input)
 {
 
-    std::vector<uint32_t> pub_x_indices_;
-    std::vector<uint32_t> pub_y_indices_;
-    std::vector<uint32_t> signature_;
-    std::vector<uint32_t> message_indices_;
-    signature_.resize(64);
+    std::array<uint32_t, 32> pub_x_indices_;
+    std::array<uint32_t, 32> pub_y_indices_;
+    std::array<uint32_t, 64> signature_;
+    std::array<uint32_t, 32> message_indices_;
 
     // Create a valid signature with a valid public key
     crypto::ecdsa_key_pair<secp256k1_ct::fr, secp256k1_ct::g1> account;
@@ -179,9 +140,9 @@ template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaS
         uint32_t y_wit = builder.add_variable(pub_y_value.slice(248 - i * 8, 256 - i * 8));
         uint32_t r_wit = builder.add_variable(signature.r[i]);
         uint32_t s_wit = builder.add_variable(signature.s[i]);
-        message_indices_.emplace_back(m_wit);
-        pub_x_indices_.emplace_back(x_wit);
-        pub_y_indices_.emplace_back(y_wit);
+        message_indices_[i] = m_wit;
+        pub_x_indices_[i] = x_wit;
+        pub_y_indices_[i] = y_wit;
         signature_[i] = r_wit;
         signature_[i + 32] = s_wit;
     }

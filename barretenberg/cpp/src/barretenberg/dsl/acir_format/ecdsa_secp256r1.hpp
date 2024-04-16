@@ -6,22 +6,22 @@ namespace acir_format {
 
 struct EcdsaSecp256r1Constraint {
     // This is the byte representation of the hashed message.
-    std::vector<uint32_t> hashed_message;
+    std::array<uint32_t, 32> hashed_message;
 
     // This is the supposed public key which signed the
     // message, giving rise to the signature.
     // Since Fr does not have enough bits to represent
     // the prime field in secp256r1, a byte array is used.
     // Can also use low and hi where lo=128 bits
-    std::vector<uint32_t> pub_x_indices;
-    std::vector<uint32_t> pub_y_indices;
+    std::array<uint32_t, 32> pub_x_indices;
+    std::array<uint32_t, 32> pub_y_indices;
 
     // This is the result of verifying the signature
     uint32_t result;
 
     // This is the computed signature
     //
-    std::vector<uint32_t> signature;
+    std::array<uint32_t, 64> signature;
 
     friend bool operator==(EcdsaSecp256r1Constraint const& lhs, EcdsaSecp256r1Constraint const& rhs) = default;
 };
