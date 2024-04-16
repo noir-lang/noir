@@ -24,7 +24,7 @@ jobs:
       ebs_cache_size_gb: 256
       runner_concurrency: 50
       subaction: ${{ github.event.inputs.runner_action || 'start' }}
-      ec2_instance_type: m6a.48xlarge
+      ec2_instance_type: m6a.32xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 40 # refreshed by jobs
     secrets: inherit

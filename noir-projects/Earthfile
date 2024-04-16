@@ -1,5 +1,6 @@
 VERSION 0.8
 FROM ubuntu:lunar
+RUN apt-get update && apt-get install -y parallel
 
 # Install nargo
 COPY ../noir/+nargo/nargo /usr/bin/nargo
@@ -17,7 +18,6 @@ source:
 
 build:
   FROM +source
-  RUN apt-get update && apt-get install -y parallel
   RUN cd noir-contracts && NARGO=nargo TRANSPILER=avm-transpiler ./bootstrap.sh
   RUN cd noir-protocol-circuits && NARGO=nargo ./bootstrap.sh
   SAVE ARTIFACT aztec-nr
