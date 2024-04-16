@@ -922,6 +922,9 @@ namespace Program {
         };
 
         struct Trap {
+            uint64_t revert_data_offset;
+            uint64_t revert_data_size;
+
             friend bool operator==(const Trap&, const Trap&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Trap bincodeDeserialize(std::vector<uint8_t>);
@@ -5014,6 +5017,8 @@ Program::BrilligOpcode::BlackBox serde::Deserializable<Program::BrilligOpcode::B
 namespace Program {
 
     inline bool operator==(const BrilligOpcode::Trap &lhs, const BrilligOpcode::Trap &rhs) {
+        if (!(lhs.revert_data_offset == rhs.revert_data_offset)) { return false; }
+        if (!(lhs.revert_data_size == rhs.revert_data_size)) { return false; }
         return true;
     }
 
@@ -5037,12 +5042,16 @@ namespace Program {
 template <>
 template <typename Serializer>
 void serde::Serializable<Program::BrilligOpcode::Trap>::serialize(const Program::BrilligOpcode::Trap &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.revert_data_offset)>::serialize(obj.revert_data_offset, serializer);
+    serde::Serializable<decltype(obj.revert_data_size)>::serialize(obj.revert_data_size, serializer);
 }
 
 template <>
 template <typename Deserializer>
 Program::BrilligOpcode::Trap serde::Deserializable<Program::BrilligOpcode::Trap>::deserialize(Deserializer &deserializer) {
     Program::BrilligOpcode::Trap obj;
+    obj.revert_data_offset = serde::Deserializable<decltype(obj.revert_data_offset)>::deserialize(deserializer);
+    obj.revert_data_size = serde::Deserializable<decltype(obj.revert_data_size)>::deserialize(deserializer);
     return obj;
 }
 

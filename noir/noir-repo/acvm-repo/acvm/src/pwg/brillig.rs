@@ -11,7 +11,7 @@ use acir::{
     FieldElement,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{MemoryValue, VMStatus, VM};
+use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};
 
 use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 
@@ -159,7 +159,31 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         match vm_status {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
-            VMStatus::Failure { message, call_stack } => {
+            VMStatus::Failure { reason, call_stack } => {
+                let message = match reason {
+                    FailureReason::RuntimeError { message } => Some(message),
+                    FailureReason::Trap { revert_data_offset, revert_data_size } => {
+                        // Since noir can only revert with strings currently, we can parse return data as a string
+                        if revert_data_size == 0 {
+                            None
+                        } else {
+                            let memory = self.vm.get_memory();
+                            let bytes = memory
+                                [revert_data_offset..(revert_data_offset + revert_data_size)]
+                                .iter()
+                                .map(|memory_value| {
+                                    memory_value
+                                        .try_into()
+                                        .expect("Assert message character is not a byte")
+                                })
+                                .collect();
+                            Some(
+                                String::from_utf8(bytes)
+                                    .expect("Assert message is not valid UTF-8"),
+                            )
+                        }
+                    }
+                };
                 Err(OpcodeResolutionError::BrilligFunctionFailed {
                     message,
                     call_stack: call_stack

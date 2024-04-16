@@ -219,7 +219,7 @@ describe('e2e_dapp_subscription', () => {
     // subscribe again. This will overwrite the subscription
     await subscribe(new PrivateFeePaymentMethod(bananaCoin.address, bananaFPC.address, aliceWallet), MAX_FEE, 0);
     await expect(dappIncrement()).rejects.toThrow(
-      "Failed to solve brillig function, reason: explicit trap hit in brillig '(context.block_number()) as u64 < expiry_block_number as u64'",
+      "Failed to solve brillig function '(context.block_number()) as u64 < expiry_block_number as u64'",
     );
   });
 

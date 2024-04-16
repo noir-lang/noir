@@ -70,7 +70,11 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 lhs,
                 rhs,
             } => {
-                assert!(is_integral_bit_size(*bit_size), "BinaryIntOp bit size should be integral: {:?}", brillig_instr);
+                assert!(
+                    is_integral_bit_size(*bit_size),
+                    "BinaryIntOp bit size should be integral: {:?}",
+                    brillig_instr
+                );
                 let avm_opcode = match op {
                     BinaryIntOp::Add => AvmOpcode::ADD,
                     BinaryIntOp::Sub => AvmOpcode::SUB,
@@ -102,20 +106,27 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     ],
                 });
             }
-            BrilligOpcode::CalldataCopy { destination_address, size, offset } => {
+            BrilligOpcode::CalldataCopy {
+                destination_address,
+                size,
+                offset,
+            } => {
                 avm_instrs.push(AvmInstruction {
                     opcode: AvmOpcode::CALLDATACOPY,
                     indirect: Some(ALL_DIRECT),
                     operands: vec![
                         AvmOperand::U32 {
                             value: *offset as u32, // cdOffset (calldata offset)
-                        }, AvmOperand::U32 {
+                        },
+                        AvmOperand::U32 {
                             value: *size as u32,
-                        }, AvmOperand::U32 {
+                        },
+                        AvmOperand::U32 {
                             value: destination_address.to_usize() as u32, // dstOffset
-                        }],
-                        ..Default::default()
-                    });
+                        },
+                    ],
+                    ..Default::default()
+                });
             }
             BrilligOpcode::Jump { location } => {
                 let avm_loc = brillig_pcs_to_avm_pcs[*location];
@@ -146,14 +157,22 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     ..Default::default()
                 });
             }
-            BrilligOpcode::Const { destination, value, bit_size } => {
+            BrilligOpcode::Const {
+                destination,
+                value,
+                bit_size,
+            } => {
                 handle_const(&mut avm_instrs, destination, value, bit_size);
             }
             BrilligOpcode::Mov {
                 destination,
                 source,
             } => {
-                avm_instrs.push(generate_mov_instruction(Some(ALL_DIRECT), source.to_usize() as u32, destination.to_usize() as u32));
+                avm_instrs.push(generate_mov_instruction(
+                    Some(ALL_DIRECT),
+                    source.to_usize() as u32,
+                    destination.to_usize() as u32,
+                ));
             }
             BrilligOpcode::ConditionalMov {
                 source_a,
@@ -165,10 +184,18 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     opcode: AvmOpcode::CMOV,
                     indirect: Some(ALL_DIRECT),
                     operands: vec![
-                        AvmOperand::U32 { value: source_a.to_usize() as u32 },
-                        AvmOperand::U32 { value: source_b.to_usize() as u32 },
-                        AvmOperand::U32 { value: condition.to_usize() as u32 },
-                        AvmOperand::U32 { value: destination.to_usize() as u32 },
+                        AvmOperand::U32 {
+                            value: source_a.to_usize() as u32,
+                        },
+                        AvmOperand::U32 {
+                            value: source_b.to_usize() as u32,
+                        },
+                        AvmOperand::U32 {
+                            value: condition.to_usize() as u32,
+                        },
+                        AvmOperand::U32 {
+                            value: destination.to_usize() as u32,
+                        },
                     ],
                     ..Default::default()
                 });
@@ -177,13 +204,21 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 destination,
                 source_pointer,
             } => {
-                avm_instrs.push(generate_mov_instruction(Some(ZEROTH_OPERAND_INDIRECT), source_pointer.to_usize() as u32, destination.to_usize() as u32));
+                avm_instrs.push(generate_mov_instruction(
+                    Some(ZEROTH_OPERAND_INDIRECT),
+                    source_pointer.to_usize() as u32,
+                    destination.to_usize() as u32,
+                ));
             }
             BrilligOpcode::Store {
                 destination_pointer,
                 source,
             } => {
-                avm_instrs.push(generate_mov_instruction(Some(FIRST_OPERAND_INDIRECT), source.to_usize() as u32, destination_pointer.to_usize() as u32));
+                avm_instrs.push(generate_mov_instruction(
+                    Some(FIRST_OPERAND_INDIRECT),
+                    source.to_usize() as u32,
+                    destination_pointer.to_usize() as u32,
+                ));
             }
             BrilligOpcode::Call { location } => {
                 let avm_loc = brillig_pcs_to_avm_pcs[*location];
@@ -199,38 +234,65 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 opcode: AvmOpcode::INTERNALRETURN,
                 ..Default::default()
             }),
-            BrilligOpcode::Stop { return_data_offset, return_data_size } => {
+            BrilligOpcode::Stop {
+                return_data_offset,
+                return_data_size,
+            } => {
                 avm_instrs.push(AvmInstruction {
                     opcode: AvmOpcode::RETURN,
                     indirect: Some(ALL_DIRECT),
                     operands: vec![
-                        AvmOperand::U32 { value: *return_data_offset as u32 },
-                        AvmOperand::U32 { value: *return_data_size as u32 },
+                        AvmOperand::U32 {
+                            value: *return_data_offset as u32,
+                        },
+                        AvmOperand::U32 {
+                            value: *return_data_size as u32,
+                        },
                     ],
                     ..Default::default()
                 });
             }
-            BrilligOpcode::Trap { /*return_data_offset, return_data_size*/ } => {
-                // TODO(https://github.com/noir-lang/noir/issues/3113): Trap should support return data
+            BrilligOpcode::Trap {
+                revert_data_offset,
+                revert_data_size,
+            } => {
                 avm_instrs.push(AvmInstruction {
                     opcode: AvmOpcode::REVERT,
                     indirect: Some(ALL_DIRECT),
                     operands: vec![
-                        //AvmOperand::U32 { value: *return_data_offset as u32},
-                        //AvmOperand::U32 { value: *return_data_size as u32},
-                        AvmOperand::U32 { value: 0 },
-                        AvmOperand::U32 { value: 0 },
+                        AvmOperand::U32 {
+                            value: *revert_data_offset as u32,
+                        },
+                        AvmOperand::U32 {
+                            value: *revert_data_size as u32,
+                        },
                     ],
                     ..Default::default()
                 });
-            },
-            BrilligOpcode::Cast { destination, source, bit_size } => {
-                avm_instrs.push(generate_cast_instruction(source.to_usize() as u32, destination.to_usize() as u32, tag_from_bit_size(*bit_size)));
             }
-            BrilligOpcode::ForeignCall { function, destinations, inputs, destination_value_types:_, input_value_types:_ } => {
+            BrilligOpcode::Cast {
+                destination,
+                source,
+                bit_size,
+            } => {
+                avm_instrs.push(generate_cast_instruction(
+                    source.to_usize() as u32,
+                    destination.to_usize() as u32,
+                    tag_from_bit_size(*bit_size),
+                ));
+            }
+            BrilligOpcode::ForeignCall {
+                function,
+                destinations,
+                inputs,
+                destination_value_types: _,
+                input_value_types: _,
+            } => {
                 handle_foreign_call(&mut avm_instrs, function, destinations, inputs);
-            },
-            BrilligOpcode::BlackBox(operation) => handle_black_box_function(&mut avm_instrs, operation),
+            }
+            BrilligOpcode::BlackBox(operation) => {
+                handle_black_box_function(&mut avm_instrs, operation)
+            }
             _ => panic!(
                 "Transpiler doesn't know how to process {:?} brillig instruction",
                 brillig_instr
