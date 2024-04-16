@@ -1,5 +1,6 @@
 mod circuit;
 mod config;
+mod div_generator;
 
 use super::{
     ir::{
@@ -10,6 +11,7 @@ use super::{
 };
 use acvm::FieldElement;
 pub use circuit::Plonky2Circuit;
+use div_generator::VariableIntDivGenerator;
 use plonky2::{
     field::types::Field, iop::target::BoolTarget, iop::target::Target,
     plonk::circuit_data::CircuitConfig,
@@ -160,7 +162,28 @@ impl Builder {
                     }
 
                     super::ir::instruction::BinaryOp::Div => {
-                        self.convert_integer_op(lhs, rhs, P2Builder::div)
+                        let (bit_size_a, target_a) = self.get_integer(lhs)?;
+                        let (bit_size_b, target_b) = self.get_integer(rhs)?;
+                        assert!(bit_size_a == bit_size_b);
+
+                        let generator =
+                            VariableIntDivGenerator::new(&mut self.builder, target_a, target_b);
+                        self.builder.add_simple_generator(generator.clone());
+
+                        let c = self.builder.mul(generator.quotient, target_b);
+                        let d = self.builder.add(c, generator.remainder);
+                        let e = self.builder.is_equal(target_a, d);
+                        self.builder.assert_bool(e);
+
+                        let f = self.builder.zero();
+                        let g = self.builder.is_equal(target_b, f);
+                        let h = self.builder.not(g);
+                        self.builder.assert_bool(h);
+
+                        Ok(P2Value {
+                            target: P2Target::IntTarget(generator.quotient),
+                            typ: P2Type::Integer(bit_size_a),
+                        })
                     }
 
                     super::ir::instruction::BinaryOp::Add => {
