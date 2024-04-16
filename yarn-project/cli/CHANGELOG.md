@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.35.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.34.0...aztec-cli-v0.35.0) (2024-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* pay fee for account init ([#5601](https://github.com/AztecProtocol/aztec-packages/issues/5601))
+
+### Features
+
+* Pay fee for account init ([#5601](https://github.com/AztecProtocol/aztec-packages/issues/5601)) ([aca804f](https://github.com/AztecProtocol/aztec-packages/commit/aca804f96ca9e74b6b553449333e195c0639b151))
+
 ## [0.34.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.33.0...aztec-cli-v0.34.0) (2024-04-10)
 
 

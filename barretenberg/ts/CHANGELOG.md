@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.35.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.34.0...barretenberg.js-v0.35.0) (2024-04-16)
+
+
+### Features
+
+* Export poseidon2_permutation and add to foundation/crypto ([#5706](https://github.com/AztecProtocol/aztec-packages/issues/5706)) ([6b91e27](https://github.com/AztecProtocol/aztec-packages/commit/6b91e2776de8fd5b1f489b5cfeee83c7e0996c2e))
+
+
+### Miscellaneous
+
+* Don't strip bb wasm ([#5743](https://github.com/AztecProtocol/aztec-packages/issues/5743)) ([d4cb410](https://github.com/AztecProtocol/aztec-packages/commit/d4cb4108900f1fb6307de17be9ee3516d6023609))
+* TS hash wrappers cleanup ([#5691](https://github.com/AztecProtocol/aztec-packages/issues/5691)) ([7f8b09f](https://github.com/AztecProtocol/aztec-packages/commit/7f8b09fca6370b140870041a49692383a4db6551))
+
 ## [0.34.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.33.0...barretenberg.js-v0.34.0) (2024-04-10)
 
 
