@@ -40,9 +40,3 @@ bls12_381 = [
 rand = "0.8.5"
 proptest = "1.2.0"
 paste = "1.0.14"
-criterion.workspace = true
-pprof.workspace = true
-
-[[bench]]
-name = "criterion"
-harness = false
