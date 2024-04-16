@@ -67,7 +67,9 @@ impl NargoError {
                 | OpcodeResolutionError::UnsatisfiedConstrain { .. }
                 | OpcodeResolutionError::AcirMainCallAttempted { .. }
                 | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
-                OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),
+                OpcodeResolutionError::BrilligFunctionFailed { message, .. } => {
+                    message.as_ref().map(|s| s.as_str())
+                }
                 OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => Some(reason),
             },
         }
