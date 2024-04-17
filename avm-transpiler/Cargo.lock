@@ -51,6 +51,7 @@ dependencies = [
  "blake3",
  "k256",
  "keccak",
+ "num-bigint",
  "p256",
  "sha2",
  "sha3",

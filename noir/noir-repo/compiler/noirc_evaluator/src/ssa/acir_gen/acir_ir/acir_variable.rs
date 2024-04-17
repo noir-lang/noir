@@ -1261,7 +1261,8 @@ impl AcirContext {
                 let modulus = self.big_int_ctx.modulus(bigint.modulus_id());
                 let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
                 output_count = bytes_len as usize;
-                (field_inputs, vec![FieldElement::from(bytes_len as u128)])
+                assert!(bytes_len == 32);
+                (field_inputs, vec![])
             }
             BlackBoxFunc::BigIntFromLeBytes => {
                 let invalid_input = "ICE - bigint operation requires 2 inputs";
