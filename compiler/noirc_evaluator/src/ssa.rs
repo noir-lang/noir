@@ -247,6 +247,7 @@ fn convert_generated_acir_into_circuit(
     }
 }
 
+// Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
 fn split_public_and_private_inputs(
     func_sig: &FunctionSignature,
     input_witnesses: &[Witness],
