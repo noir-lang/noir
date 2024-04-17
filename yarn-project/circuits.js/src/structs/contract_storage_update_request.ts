@@ -1,3 +1,4 @@
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -24,6 +25,7 @@ export class ContractStorageUpdateRequest {
      * Optional side effect counter tracking position of this event in tx execution.
      */
     public readonly sideEffectCounter?: number,
+    public contractAddress?: AztecAddress, // TODO: Should not be optional. This is a temporary hack to silo the storage slot with the correct address for nested executions.
   ) {}
 
   toBuffer() {
@@ -50,7 +52,7 @@ export class ContractStorageUpdateRequest {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<ContractStorageUpdateRequest>) {
-    return [fields.storageSlot, fields.newValue, fields.sideEffectCounter] as const;
+    return [fields.storageSlot, fields.newValue, fields.sideEffectCounter, fields.contractAddress] as const;
   }
 
   static empty() {

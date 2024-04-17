@@ -22,10 +22,8 @@ import { buildNullifierNonExistentReadRequestHints, buildNullifierReadRequestHin
 describe('buildNullifierReadRequestHints', () => {
   const contractAddress = AztecAddress.random();
   const settledNullifierInnerValue = 99999;
-  const settledNullifierValue = makeNullifier(settledNullifierInnerValue).value;
   const oracle = {
-    getNullifierMembershipWitness: (value: Fr) =>
-      value.equals(settledNullifierValue) ? ({ membershipWitness: {}, leafPreimage: {} } as any) : undefined,
+    getNullifierMembershipWitness: () => ({ membershipWitness: {}, leafPreimage: {} } as any),
   };
   let nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>;
   let nullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>;
@@ -112,11 +110,6 @@ describe('buildNullifierReadRequestHints', () => {
     readPendingNullifier({ nullifierIndex: 1 });
     const hints = await buildHints();
     expect(hints).toEqual(expectedHints);
-  });
-
-  it('throws if reading an unknown nullifier', async () => {
-    nullifierReadRequests[0] = makeReadRequest(88888);
-    await expect(buildHints()).rejects.toThrow('Read request is reading an unknown nullifier value.');
   });
 });
 

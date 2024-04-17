@@ -49,7 +49,7 @@ export class MembershipWitness<N extends number> {
    * @param leafIndex - Index of the leaf in the Merkle tree.
    * @returns Membership witness with zero sibling path.
    */
-  public static empty<N extends number>(pathSize: N, leafIndex: bigint): MembershipWitness<N> {
+  public static empty<N extends number>(pathSize: N, leafIndex = 0n): MembershipWitness<N> {
     const arr = Array(pathSize)
       .fill(0)
       .map(() => Fr.ZERO) as Tuple<Fr, N>;

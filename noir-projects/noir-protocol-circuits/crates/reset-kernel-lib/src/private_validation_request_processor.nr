@@ -1,4 +1,4 @@
-use crate::{nullifier_read_request_reset::NullifierReadRequestHints, read_request_reset::reset_read_requests};
+use crate::{nullifier_read_request_reset::NullifierReadRequestHints, reset::read_request::reset_read_requests};
 use dep::types::{
     abis::{side_effect::{SideEffect, SideEffectLinkedToNoteHash}, validation_requests::ValidationRequests},
     constants::{

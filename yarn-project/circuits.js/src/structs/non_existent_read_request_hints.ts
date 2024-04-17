@@ -18,7 +18,7 @@ export class NonMembershipHint<TREE_HEIGHT extends number, LEAF_PREIMAGE extends
     treeHeight: TREE_HEIGHT,
     makeEmptyLeafPreimage: () => LEAF_PREIMAGE,
   ) {
-    return new NonMembershipHint(MembershipWitness.empty(treeHeight, 0n), makeEmptyLeafPreimage());
+    return new NonMembershipHint(MembershipWitness.empty(treeHeight), makeEmptyLeafPreimage());
   }
 
   static fromBuffer<TREE_HEIGHT extends number, LEAF_PREIMAGE extends IndexedTreeLeafPreimage>(

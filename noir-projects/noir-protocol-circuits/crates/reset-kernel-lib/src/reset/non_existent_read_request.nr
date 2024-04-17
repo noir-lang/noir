@@ -86,7 +86,7 @@ pub fn reset_non_existent_read_requests<T, N, M, NON_MEMBERSHIP_HINT, TREE_HEIGH
 }
 
 mod tests {
-    use crate::non_existent_read_request_reset::{NonMembershipHint, reset_non_existent_read_requests};
+    use crate::reset::non_existent_read_request::{NonMembershipHint, reset_non_existent_read_requests};
 
     use dep::types::{
         address::AztecAddress, abis::{read_request::ReadRequestContext, side_effect::SideEffect},
@@ -230,22 +230,6 @@ mod tests {
         reset_non_existent_read_requests(
             read_requests,
             non_membership_hints,
-            root,
-            sorted_pending_values,
-            next_pending_value_indices
-        );
-    }
-
-    #[test(should_fail_with="Cannot check non membership against empty leaf")]
-    fn test_reset_non_existent_read_requests_empty_leaf_failed() {
-        let read_requests = [ReadRequestContext { value: 10, counter: 50, contract_address: AztecAddress::zero() }];
-        let (non_membership_hints, root) = get_non_membership_hints([0]);
-        let mut hint = non_membership_hints[0];
-        hint.low_leaf_preimage = TestLeafPreimage { value: 0, next_value: 0 };
-        let next_pending_value_indices = [1];
-        reset_non_existent_read_requests(
-            read_requests,
-            [hint],
             root,
             sorted_pending_values,
             next_pending_value_indices

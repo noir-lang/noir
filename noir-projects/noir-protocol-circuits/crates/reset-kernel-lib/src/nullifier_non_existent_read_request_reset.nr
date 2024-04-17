@@ -1,7 +1,7 @@
-use crate::non_existent_read_request_reset::{NonMembershipHint};
+use crate::reset::non_existent_read_request::NonMembershipHint;
 use dep::types::{
     abis::{nullifier_leaf_preimage::NullifierLeafPreimage, side_effect::SideEffectLinkedToNoteHash},
-    merkle_tree::{MembershipWitness},
+    merkle_tree::MembershipWitness,
     constants::{MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT}
 };
 

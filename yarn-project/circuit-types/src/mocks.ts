@@ -6,6 +6,7 @@ import {
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
   Proof,
+  type PublicCallRequest,
   SideEffectLinkedToNoteHash,
   computeContractClassId,
   getContractClassFromArtifact,
@@ -39,14 +40,21 @@ export const mockTx = (
     hasLogs = false,
     numberOfNonRevertiblePublicCallRequests = MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX / 2,
     numberOfRevertiblePublicCallRequests = MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX / 2,
+    publicCallRequests = [],
   }: {
     hasLogs?: boolean;
     numberOfNonRevertiblePublicCallRequests?: number;
     numberOfRevertiblePublicCallRequests?: number;
+    publicCallRequests?: PublicCallRequest[];
   } = {},
 ) => {
-  const totalPublicCallRequests = numberOfNonRevertiblePublicCallRequests + numberOfRevertiblePublicCallRequests;
-  const publicCallRequests = times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x100 + i));
+  const totalPublicCallRequests =
+    numberOfNonRevertiblePublicCallRequests + numberOfRevertiblePublicCallRequests || publicCallRequests.length;
+  if (publicCallRequests.length && publicCallRequests.length !== totalPublicCallRequests) {
+    throw new Error(
+      `Provided publicCallRequests does not match the required number of call requests. Expected ${totalPublicCallRequests}. Got ${publicCallRequests.length}`,
+    );
+  }
 
   const isForPublic = totalPublicCallRequests > 0;
   const data = PrivateKernelTailCircuitPublicInputs.empty();
@@ -59,14 +67,18 @@ export const mockTx = (
 
     data.forPublic.endNonRevertibleData.newNullifiers[0] = firstNullifier;
 
-    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-      i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
-    );
+    publicCallRequests = publicCallRequests.length
+      ? publicCallRequests.slice().sort((a, b) => b.callContext.sideEffectCounter - a.callContext.sideEffectCounter)
+      : times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x100 + i));
 
     data.forPublic.endNonRevertibleData.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
       i < numberOfNonRevertiblePublicCallRequests
-        ? publicCallRequests[i + numberOfRevertiblePublicCallRequests].toCallRequest()
+        ? publicCallRequests[numberOfRevertiblePublicCallRequests + i].toCallRequest()
         : CallRequest.empty(),
+    );
+
+    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
+      i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
     );
   } else {
     data.forRollup!.end.newNullifiers[0] = firstNullifier.value;

@@ -5,6 +5,8 @@ import {
   type Header,
   type KernelCircuitPublicInputs,
   MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   type Proof,
   type PublicKernelCircuitPublicInputs,
   PublicKernelTailCircuitPrivateInputs,
@@ -88,27 +90,59 @@ export class TailPhaseManager extends AbstractPhaseManager {
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
   ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
+    const inputs = await this.buildPrivateInputs(previousOutput, previousProof);
+    // We take a deep copy (clone) of these to pass to the prover
+    return [inputs.clone(), await this.publicKernel.publicKernelCircuitTail(inputs)];
+  }
+
+  private async buildPrivateInputs(previousOutput: PublicKernelCircuitPublicInputs, previousProof: Proof) {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
 
     const { validationRequests, endNonRevertibleData, end } = previousOutput;
-    const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
-      validationRequests.nullifierReadRequests,
-      endNonRevertibleData.newNullifiers,
-      end.newNullifiers,
-    );
-    const nullifierNonExistentReadRequestHints = await this.hintsBuilder.getNullifierNonExistentReadRequestHints(
-      validationRequests.nullifierNonExistentReadRequests,
+
+    const pendingNullifiers = mergeAccumulatedData(
+      MAX_NEW_NULLIFIERS_PER_TX,
       endNonRevertibleData.newNullifiers,
       end.newNullifiers,
     );
 
-    // We take a deep copy (clone) of these to pass to the prover
-    const inputs = new PublicKernelTailCircuitPrivateInputs(
+    const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
+      validationRequests.nullifierReadRequests,
+      pendingNullifiers,
+    );
+
+    const nullifierNonExistentReadRequestHints = await this.hintsBuilder.getNullifierNonExistentReadRequestHints(
+      validationRequests.nullifierNonExistentReadRequests,
+      pendingNullifiers,
+    );
+
+    const pendingPublicDataWrites = mergeAccumulatedData(
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+      endNonRevertibleData.publicDataUpdateRequests,
+      end.publicDataUpdateRequests,
+    );
+
+    const publicDataHints = await this.hintsBuilder.getPublicDataHints(
+      validationRequests.publicDataReads,
+      pendingPublicDataWrites,
+    );
+
+    const publicDataReadRequestHints = this.hintsBuilder.getPublicDataReadRequestHints(
+      validationRequests.publicDataReads,
+      pendingPublicDataWrites,
+      publicDataHints,
+    );
+
+    const currentState = await this.db.getStateReference();
+
+    return new PublicKernelTailCircuitPrivateInputs(
       previousKernel,
       nullifierReadRequestHints,
       nullifierNonExistentReadRequestHints,
+      publicDataHints,
+      publicDataReadRequestHints,
+      currentState.partial,
     );
-    return [inputs.clone(), await this.publicKernel.publicKernelCircuitTail(inputs)];
   }
 
   private sortNoteHashes<N extends number>(noteHashes: Tuple<SideEffect, N>): Tuple<Fr, N> {

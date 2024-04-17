@@ -1,6 +1,7 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
+import { PartialStateReference } from '../partial_state_reference.js';
 import { RevertCode } from '../revert_code.js';
 import { RollupValidationRequests } from '../rollup_validation_requests.js';
 import { CombinedAccumulatedData } from './combined_accumulated_data.js';
@@ -28,6 +29,7 @@ export class KernelCircuitPublicInputs {
      * Data which is not modified by the circuits.
      */
     public constants: CombinedConstantData,
+    public startState: PartialStateReference,
     /**
      * Flag indicating whether the transaction reverted.
      */
@@ -44,6 +46,7 @@ export class KernelCircuitPublicInputs {
       this.rollupValidationRequests,
       this.end,
       this.constants,
+      this.startState,
       this.revertCode,
     );
   }
@@ -60,6 +63,7 @@ export class KernelCircuitPublicInputs {
       reader.readObject(RollupValidationRequests),
       reader.readObject(CombinedAccumulatedData),
       reader.readObject(CombinedConstantData),
+      reader.readObject(PartialStateReference),
       reader.readObject(RevertCode),
     );
   }
@@ -70,6 +74,7 @@ export class KernelCircuitPublicInputs {
       RollupValidationRequests.empty(),
       CombinedAccumulatedData.empty(),
       CombinedConstantData.empty(),
+      PartialStateReference.empty(),
       RevertCode.OK,
     );
   }

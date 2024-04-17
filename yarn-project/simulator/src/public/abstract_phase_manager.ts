@@ -501,29 +501,9 @@ function patchPublicStorageActionOrdering(
   // so the returned result will be a subset of the public kernel output.
 
   const simPublicDataReads = collectPublicDataReads(execResult);
-  // verify that each read is in the kernel output
-  for (const read of simPublicDataReads) {
-    if (!publicDataReads.find(item => item.equals(read))) {
-      throw new Error(
-        `Public data reads from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataReads
-          .map(p => p.toFriendlyJSON())
-          .join(', ')}\nFrom public kernel: ${publicDataReads.map(i => i.toFriendlyJSON()).join(', ')}`,
-      );
-    }
-  }
 
   const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(execResult);
-  for (const update of simPublicDataUpdateRequests) {
-    if (!publicDataUpdateRequests.find(item => item.equals(update))) {
-      throw new Error(
-        `Public data update requests from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataUpdateRequests
-          .map(p => p.toFriendlyJSON())
-          .join(', ')}\nFrom public kernel revertible: ${publicDataUpdateRequests
-          .map(i => i.toFriendlyJSON())
-          .join(', ')}`,
-      );
-    }
-  }
+
   // We only want to reorder the items from the public inputs of the
   // most recently processed top/enqueued call.
 

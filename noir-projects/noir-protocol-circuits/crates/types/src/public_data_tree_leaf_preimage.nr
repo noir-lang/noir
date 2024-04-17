@@ -1,4 +1,4 @@
-use crate::traits::{Empty, Hash};
+use crate::{merkle_tree::leaf_preimage::IndexedTreeLeafPreimage, traits::{Empty, Hash}};
 
 struct PublicDataTreeLeafPreimage {
     slot : Field,
@@ -25,6 +25,20 @@ impl Hash for PublicDataTreeLeafPreimage {
         } else {
             dep::std::hash::pedersen_hash([self.slot, self.value, (self.next_index as Field), self.next_slot])
         }
+    }
+}
+
+impl IndexedTreeLeafPreimage for PublicDataTreeLeafPreimage {
+    fn get_key(self) -> Field {
+        self.slot
+    }
+
+    fn get_next_key(self) -> Field {
+        self.next_slot
+    }
+
+    fn as_leaf(self) -> Field {
+        self.hash()
     }
 }
 

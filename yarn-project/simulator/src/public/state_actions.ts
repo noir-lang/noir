@@ -83,6 +83,7 @@ export class ContractStorageActionsCollector {
   public collect(): [ContractStorageRead[], ContractStorageUpdateRequest[]] {
     const reads = Array.from(this.contractStorageReads.entries()).map(([slot, valueAndCounter]) =>
       ContractStorageRead.from({
+        contractAddress: this.address,
         storageSlot: new Fr(slot),
         ...valueAndCounter,
       }),
@@ -90,6 +91,7 @@ export class ContractStorageActionsCollector {
 
     const updateRequests = Array.from(this.contractStorageUpdateRequests.entries()).map(([slot, valuesAndCounter]) =>
       ContractStorageUpdateRequest.from({
+        contractAddress: this.address,
         storageSlot: new Fr(slot),
         ...valuesAndCounter,
       }),

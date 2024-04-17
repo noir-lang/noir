@@ -8,8 +8,7 @@ use crate::{
 },
     validation_requests::validation_requests_builder::ValidationRequestsBuilder
 },
-mocked::AggregationObject,
-traits::Empty
+    mocked::AggregationObject, partial_state_reference::PartialStateReference, traits::Empty
 };
 
 struct PrivateKernelCircuitPublicInputsBuilder {
@@ -37,6 +36,7 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             rollup_validation_requests: self.validation_requests.to_rollup(),
             end: self.end.to_combined(),
             constants: self.constants,
+            start_state: PartialStateReference::empty(),
             revert_code: 0
         }
     }

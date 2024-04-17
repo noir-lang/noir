@@ -30,7 +30,7 @@ struct CombinedAccumulatedData {
 }
 
 impl CombinedAccumulatedData {
-    pub fn recombine(non_revertible: PublicAccumulatedData, revertible: PublicAccumulatedData) -> Self {
+    pub fn combine(non_revertible: PublicAccumulatedData, revertible: PublicAccumulatedData) -> Self {
         CombinedAccumulatedData {
             new_note_hashes: array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes).map(|n: SideEffect| n.value),
             new_nullifiers: array_merge(non_revertible.new_nullifiers, revertible.new_nullifiers).map(|n: SideEffectLinkedToNoteHash| n.value),

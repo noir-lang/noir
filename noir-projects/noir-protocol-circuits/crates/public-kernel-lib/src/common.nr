@@ -79,11 +79,8 @@ pub fn initialize_emitted_end_values(
     circuit_outputs.end_non_revertible.encrypted_logs_hash = start_non_revertible.encrypted_logs_hash;
     circuit_outputs.end_non_revertible.encrypted_log_preimages_length = start_non_revertible.encrypted_log_preimages_length;
 
-    // TODO - should be propagated only in initialize_end_values() and clear them in the tail circuit. The 
-    // max_block_number must be propagated to the rollup however as a RollupValidationRequest.
     let start = previous_kernel.public_inputs.validation_requests;
     circuit_outputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
-    circuit_outputs.validation_requests.public_data_reads = array_to_bounded_vec(start.public_data_reads);
 }
 
 // Initialises the circuit outputs with the end state of the previous iteration. 
@@ -110,6 +107,7 @@ pub fn initialize_end_values(
     circuit_outputs.validation_requests.max_block_number = previous_kernel.public_inputs.validation_requests.for_rollup.max_block_number;
     circuit_outputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
     circuit_outputs.validation_requests.nullifier_non_existent_read_requests = array_to_bounded_vec(start.nullifier_non_existent_read_requests);
+    circuit_outputs.validation_requests.public_data_reads = array_to_bounded_vec(start.public_data_reads);
 }
 
 fn perform_static_call_checks(public_call: PublicCallData) {
@@ -244,7 +242,7 @@ pub fn update_public_end_non_revertible_values(
 
     propagate_new_nullifiers_non_revertible(public_call, circuit_outputs);
     propagate_new_note_hashes_non_revertible(public_call, circuit_outputs);
-    propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
+    propagate_new_l2_to_l1_messages_non_revertible(public_call, circuit_outputs);
     propagate_valid_non_revertible_public_data_update_requests(public_call, circuit_outputs);
 }
 
@@ -455,6 +453,31 @@ fn propagate_new_nullifiers(
     }
 
     circuit_outputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
+}
+
+fn propagate_new_l2_to_l1_messages_non_revertible(
+    public_call: PublicCallData,
+    public_inputs: &mut PublicKernelCircuitPublicInputsBuilder
+) {
+    // new l2 to l1 messages
+    let public_call_public_inputs = public_call.call_stack_item.public_inputs;
+    let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
+
+    let new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
+    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
+        let msg = new_l2_to_l1_msgs[i];
+        if !is_empty(msg) {
+            let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
+                storage_contract_address,
+                public_inputs.constants.tx_context.version,
+                public_inputs.constants.tx_context.chain_id,
+                msg
+            );
+            new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
+        }
+    }
+    public_inputs.end_non_revertible.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
 }
 
 fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {

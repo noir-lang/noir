@@ -7,8 +7,8 @@ mod root;
 
 use leaf_preimage::{IndexedTreeLeafPreimage, LeafPreimage};
 use membership::{
-    assert_check_membership, assert_check_non_membership, check_membership, check_non_membership,
-    MembershipWitness
+    assert_check_membership, assert_check_non_membership, check_membership,
+    conditionally_assert_check_membership, MembershipWitness
 };
 use merkle_tree::MerkleTree;
 use root::{calculate_empty_tree_root, calculate_subtree_root, root_from_sibling_path};

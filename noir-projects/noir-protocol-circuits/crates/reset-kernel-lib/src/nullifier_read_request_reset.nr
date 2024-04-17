@@ -1,5 +1,5 @@
 // This will be moved to a separate Read Request Reset Circuit.
-use crate::read_request_reset::{PendingReadHint, ReadRequestStatus, ReadValueHint, SettledReadHint};
+use crate::reset::read_request::{PendingReadHint, ReadRequestStatus, ReadValueHint, SettledReadHint};
 use dep::types::{
     abis::{nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{MAX_NULLIFIER_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT},
@@ -44,7 +44,7 @@ struct NullifierReadRequestHints {
 
 mod tests {
     use crate::nullifier_read_request_reset::NullifierSettledReadHint;
-    use crate::read_request_reset::{PendingReadHint, ReadRequestState, ReadRequestStatus, reset_read_requests};
+    use crate::reset::read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus, reset_read_requests};
     use dep::types::{
         address::AztecAddress,
         abis::{

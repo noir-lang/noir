@@ -1,12 +1,15 @@
-use non_existent_read_request_reset::reset_non_existent_read_requests;
 use nullifier_non_existent_read_request_reset::NullifierNonExistentReadRequestHints;
 use nullifier_read_request_reset::NullifierReadRequestHints;
 use private_validation_request_processor::PrivateValidationRequestProcessor;
-use read_request_reset::reset_read_requests;
+use public_data_read_request_reset::PublicDataReadRequestHints;
+use public_validation_request_processor::PublicValidationRequestProcessor;
+use types::public_data_hint::PublicDataHint;
 
-mod non_existent_read_request_reset;
 mod nullifier_non_existent_read_request_reset;
 mod nullifier_read_request_reset;
 mod private_validation_request_processor;
-mod read_request_reset;
+mod public_data_read_request_reset;
+mod public_validation_request_processor;
+mod reset;
 mod tests;
+mod types;

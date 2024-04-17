@@ -112,10 +112,10 @@ export async function convertAvmResults(
   const execution = executionContext.execution;
 
   const contractStorageReads: ContractStorageRead[] = newWorldState.storageReads.map(
-    read => new ContractStorageRead(read.slot, read.value, read.counter.toNumber()),
+    read => new ContractStorageRead(read.slot, read.value, read.counter.toNumber(), read.storageAddress),
   );
   const contractStorageUpdateRequests: ContractStorageUpdateRequest[] = newWorldState.storageWrites.map(
-    write => new ContractStorageUpdateRequest(write.slot, write.value, write.counter.toNumber()),
+    write => new ContractStorageUpdateRequest(write.slot, write.value, write.counter.toNumber(), write.storageAddress),
   );
   // We need to write the storage updates to the DB, because that's what the ACVM expects.
   // Assumes the updates are in the right order.

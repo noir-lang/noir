@@ -19,6 +19,14 @@ export class ReadRequestStatus {
     return new ReadRequestStatus(ReadRequestState.NADA, 0);
   }
 
+  static pending(hintIndex: number) {
+    return new ReadRequestStatus(ReadRequestState.PENDING, hintIndex);
+  }
+
+  static settled(hintIndex: number) {
+    return new ReadRequestStatus(ReadRequestState.SETTLED, hintIndex);
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new ReadRequestStatus(reader.readNumber(), reader.readNumber());
@@ -58,7 +66,7 @@ export class SettledReadHint<TREE_HEIGHT extends number, LEAF_PREIMAGE extends T
     treeHeight: TREE_HEIGHT,
     emptyLeafPreimage: () => LEAF_PREIMAGE,
   ) {
-    return new SettledReadHint(readRequestLen, MembershipWitness.empty(treeHeight, 0n), emptyLeafPreimage());
+    return new SettledReadHint(readRequestLen, MembershipWitness.empty(treeHeight), emptyLeafPreimage());
   }
 
   static fromBuffer<TREE_HEIGHT extends number, LEAF_PREIMAGE extends TreeLeafPreimage>(

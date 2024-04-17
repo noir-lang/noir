@@ -1,6 +1,6 @@
 // This will be moved to a separate Read Request Reset Circuit.
 use dep::types::{
-    abis::{read_request::ReadRequestContext, side_effect::OrderedValue}, hash::{silo_nullifier},
+    abis::{read_request::ReadRequestContext, side_effect::OrderedValue}, hash::silo_nullifier,
     merkle_tree::{assert_check_membership, LeafPreimage, MembershipWitness}, traits::{Empty, is_empty}
 };
 
@@ -154,7 +154,7 @@ pub fn reset_read_requests<READ_REQUEST_LEN, P, PENDING_VALUE_LEN, NUM_PENDING_R
 }
 
 mod tests {
-    use crate::read_request_reset::{
+    use crate::reset::read_request::{
         PendingReadHint, ReadRequestState, ReadRequestStatus, ReadValueHint, SettledReadHint,
         propagate_unverified_read_requests, reset_read_requests, validate_pending_read_requests,
         validate_settled_read_requests

@@ -148,11 +148,13 @@ describe('ACIR public execution simulator', () => {
         // There should be 2 storage updates, one for the recipient's balance and one for the total supply
         expect(result.contractStorageUpdateRequests).toEqual([
           {
+            contractAddress,
             storageSlot: recipientBalanceStorageSlot,
             newValue: expectedBalance,
             sideEffectCounter: 3,
           },
           {
+            contractAddress,
             storageSlot: totalSupplyStorageSlot,
             newValue: expectedTotalSupply,
             sideEffectCounter: 4,
@@ -165,6 +167,7 @@ describe('ACIR public execution simulator', () => {
         // the updates
         expect(result.contractStorageReads).toEqual([
           {
+            contractAddress,
             storageSlot: isMinterStorageSlot,
             currentValue: isMinter,
             sideEffectCounter: 0,
@@ -223,11 +226,13 @@ describe('ACIR public execution simulator', () => {
 
         expect(result.contractStorageUpdateRequests).toEqual([
           {
+            contractAddress,
             storageSlot: senderStorageSlot,
             newValue: expectedSenderBalance,
             sideEffectCounter: 1, // 1 read (sender balance)
           },
           {
+            contractAddress,
             storageSlot: recipientStorageSlot,
             newValue: expectedRecipientBalance,
             sideEffectCounter: 3, // 1 read (sender balance), 1 write (new sender balance), 1 read (recipient balance)

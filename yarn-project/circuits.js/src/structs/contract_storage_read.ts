@@ -1,3 +1,4 @@
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -24,6 +25,7 @@ export class ContractStorageRead {
      * Note: Not serialized
      */
     public readonly sideEffectCounter?: number,
+    public contractAddress?: AztecAddress, // TODO: Should not be optional. This is a temporary hack to silo the storage slot with the correct address for nested executions.
   ) {}
 
   static from(args: {
@@ -39,8 +41,9 @@ export class ContractStorageRead {
      * Optional side effect counter tracking position of this event in tx execution.
      */
     sideEffectCounter?: number;
+    contractAddress?: AztecAddress;
   }) {
-    return new ContractStorageRead(args.storageSlot, args.currentValue, args.sideEffectCounter);
+    return new ContractStorageRead(args.storageSlot, args.currentValue, args.sideEffectCounter, args.contractAddress);
   }
 
   toBuffer() {

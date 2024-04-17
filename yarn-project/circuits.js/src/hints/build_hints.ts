@@ -17,14 +17,14 @@ import { NullifierReadRequestHintsBuilder } from '../structs/read_request_hints.
 import { SideEffectLinkedToNoteHash } from '../structs/side_effects.js';
 import { countAccumulatedItems } from '../utils/index.js';
 
-export interface NullifierMembershipWitnessWithPreimage {
+interface NullifierMembershipWitnessWithPreimage {
   membershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>;
   leafPreimage: IndexedTreeLeafPreimage;
 }
 
 export async function buildNullifierReadRequestHints(
   oracle: {
-    getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage | undefined>;
+    getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
   nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
   nullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
@@ -46,10 +46,6 @@ export async function buildNullifierReadRequestHints(
       builder.addPendingReadRequest(i, pendingValueIndex);
     } else {
       const membershipWitnessWithPreimage = await oracle.getNullifierMembershipWitness(value);
-      if (!membershipWitnessWithPreimage) {
-        throw new Error('Read request is reading an unknown nullifier value.');
-      }
-
       builder.addSettledReadRequest(
         i,
         membershipWitnessWithPreimage.membershipWitness,

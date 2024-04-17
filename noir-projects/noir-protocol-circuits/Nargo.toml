@@ -22,6 +22,7 @@ members = [
     "crates/public-kernel-teardown-simulated",
     "crates/public-kernel-tail",
     "crates/public-kernel-tail-simulated",
+    "crates/reset-kernel-lib",
     "crates/rollup-lib",
     "crates/rollup-merge",
     "crates/rollup-base",
