@@ -51,7 +51,6 @@
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
     "debug": "^4.3.4",
-    "lmdb": "^2.9.2",
     "lodash.groupby": "^4.6.0",
     "lodash.omit": "^4.5.0",
     "tsc-watch": "^6.0.0",

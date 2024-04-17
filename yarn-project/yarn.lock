@@ -103,7 +103,6 @@ __metadata:
     debug: ^4.3.4
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
-    lmdb: ^2.9.2
     lodash.groupby: ^4.6.0
     lodash.omit: ^4.5.0
     ts-node: ^10.9.1
@@ -556,7 +555,7 @@ __metadata:
     "@types/node": ^18.7.23
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
-    lmdb: ^2.9.2
+    lmdb: ^3.0.6
     ts-node: ^10.9.1
     typescript: ^5.0.4
   languageName: unknown
@@ -2565,44 +2564,44 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lmdb/lmdb-darwin-arm64@npm:2.9.2":
-  version: 2.9.2
-  resolution: "@lmdb/lmdb-darwin-arm64@npm:2.9.2"
+"@lmdb/lmdb-darwin-arm64@npm:3.0.6":
+  version: 3.0.6
+  resolution: "@lmdb/lmdb-darwin-arm64@npm:3.0.6"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@lmdb/lmdb-darwin-x64@npm:2.9.2":
-  version: 2.9.2
-  resolution: "@lmdb/lmdb-darwin-x64@npm:2.9.2"
+"@lmdb/lmdb-darwin-x64@npm:3.0.6":
+  version: 3.0.6
+  resolution: "@lmdb/lmdb-darwin-x64@npm:3.0.6"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@lmdb/lmdb-linux-arm64@npm:2.9.2":
-  version: 2.9.2
-  resolution: "@lmdb/lmdb-linux-arm64@npm:2.9.2"
+"@lmdb/lmdb-linux-arm64@npm:3.0.6":
+  version: 3.0.6
+  resolution: "@lmdb/lmdb-linux-arm64@npm:3.0.6"
   conditions: os=linux & cpu=arm64
   languageName: node
   linkType: hard
 
-"@lmdb/lmdb-linux-arm@npm:2.9.2":
-  version: 2.9.2
-  resolution: "@lmdb/lmdb-linux-arm@npm:2.9.2"
+"@lmdb/lmdb-linux-arm@npm:3.0.6":
+  version: 3.0.6
+  resolution: "@lmdb/lmdb-linux-arm@npm:3.0.6"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@lmdb/lmdb-linux-x64@npm:2.9.2":
-  version: 2.9.2
-  resolution: "@lmdb/lmdb-linux-x64@npm:2.9.2"
+"@lmdb/lmdb-linux-x64@npm:3.0.6":
+  version: 3.0.6
+  resolution: "@lmdb/lmdb-linux-x64@npm:3.0.6"
   conditions: os=linux & cpu=x64
   languageName: node
   linkType: hard
 
-"@lmdb/lmdb-win32-x64@npm:2.9.2":
-  version: 2.9.2
-  resolution: "@lmdb/lmdb-win32-x64@npm:2.9.2"
+"@lmdb/lmdb-win32-x64@npm:3.0.6":
+  version: 3.0.6
+  resolution: "@lmdb/lmdb-win32-x64@npm:3.0.6"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
@@ -9685,16 +9684,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lmdb@npm:^2.9.2":
-  version: 2.9.2
-  resolution: "lmdb@npm:2.9.2"
+"lmdb@npm:^3.0.6":
+  version: 3.0.6
+  resolution: "lmdb@npm:3.0.6"
   dependencies:
-    "@lmdb/lmdb-darwin-arm64": 2.9.2
-    "@lmdb/lmdb-darwin-x64": 2.9.2
-    "@lmdb/lmdb-linux-arm": 2.9.2
-    "@lmdb/lmdb-linux-arm64": 2.9.2
-    "@lmdb/lmdb-linux-x64": 2.9.2
-    "@lmdb/lmdb-win32-x64": 2.9.2
+    "@lmdb/lmdb-darwin-arm64": 3.0.6
+    "@lmdb/lmdb-darwin-x64": 3.0.6
+    "@lmdb/lmdb-linux-arm": 3.0.6
+    "@lmdb/lmdb-linux-arm64": 3.0.6
+    "@lmdb/lmdb-linux-x64": 3.0.6
+    "@lmdb/lmdb-win32-x64": 3.0.6
     msgpackr: ^1.9.9
     node-addon-api: ^6.1.0
     node-gyp: latest
@@ -9716,7 +9715,7 @@ __metadata:
       optional: true
   bin:
     download-lmdb-prebuilds: bin/download-prebuilds.js
-  checksum: b2471c4d2c36f15a27233ae1eece86fcbb40613574ec54245cf697b16b1b35c70c72e4092dc739407df145f14b7c1b6b56c4281a439c314e79a5338df8b2b63b
+  checksum: e8ab5bbef94e254ec1fa85deec251c4b34047786c87f54abd842cd12c3f29d55f62828512a4b69046075a624a25b2327e232072be702a68fcb3d8183e0175cca
   languageName: node
   linkType: hard
 
