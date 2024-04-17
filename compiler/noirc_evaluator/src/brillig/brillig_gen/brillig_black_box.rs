@@ -436,7 +436,7 @@ fn prepare_bigint_output(
         condition_adr,
         BrilligBinaryOp::Equals,
     );
-    brillig_context.constrain_instruction(
+    brillig_context.codegen_constrain(
         condition_adr,
         Some("moduli should be identical in BigInt operation".to_string()),
     );

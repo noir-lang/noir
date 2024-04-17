@@ -11,10 +11,12 @@ pub enum AztecMacroError {
     UnsupportedFunctionReturnType { span: Span, typ: UnresolvedTypeData },
     UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
+    CouldNotImplementComputeNoteHashAndNullifier { secondary_message: Option<String> },
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },
     MultipleStorageDefinitions { span: Option<Span> },
     CouldNotExportStorageLayout { span: Option<Span>, secondary_message: Option<String> },
     CouldNotExportFunctionAbi { span: Option<Span>, secondary_message: Option<String> },
+    CouldNotGenerateContractInterface { secondary_message: Option<String> },
     EventError { span: Span, message: String },
     UnsupportedAttributes { span: Span, secondary_message: Option<String> },
 }
@@ -52,6 +54,11 @@ impl From<AztecMacroError> for MacroError {
                 secondary_message,
                 span: None,
             },
+            AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier { secondary_message } => MacroError {
+                primary_message: "Could not implement compute_note_hash_and_nullifier automatically, please provide an implementation".to_string(),
+                secondary_message,
+                span: None,
+            },
             AztecMacroError::CouldNotImplementNoteInterface { span, secondary_message } => MacroError {
                 primary_message: "Could not implement automatic methods for note, please provide an implementation of the NoteInterface trait".to_string(),
                 secondary_message,
@@ -71,6 +78,11 @@ impl From<AztecMacroError> for MacroError {
                 primary_message: "Could not generate and export function abi".to_string(),
                 secondary_message,
                 span,
+            },
+            AztecMacroError::CouldNotGenerateContractInterface { secondary_message } => MacroError {
+                primary_message: "Could not generate contract interface".to_string(),
+                secondary_message,
+                span: None
             },
             AztecMacroError::EventError { span, message } => MacroError {
                 primary_message: message,

@@ -223,10 +223,10 @@ pub enum TraitImplKind {
 ///
 /// Additionally, types can define specialized impls with methods of the same name
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Methods {
-    direct: Vec<FuncId>,
-    trait_impl_methods: Vec<FuncId>,
+    pub direct: Vec<FuncId>,
+    pub trait_impl_methods: Vec<FuncId>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -923,6 +923,24 @@ impl NodeInterner {
 
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
+        self.struct_methods
+            .keys()
+            .filter_map(|(key_id, name)| {
+                if key_id == &id {
+                    Some(
+                        self.struct_methods
+                            .get(&(*key_id, name.clone()))
+                            .expect("get_struct_methods given invalid StructId")
+                            .clone(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
