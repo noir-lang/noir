@@ -731,7 +731,7 @@ impl Type {
     ///
     /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
     /// certain types which through compilation we know what their size should be.
-    /// This includes types such as generic arrays or slices.
+    /// This includes types such as numeric generics.
     pub(crate) fn is_valid_entry_point_input(&self) -> bool {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
