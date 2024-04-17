@@ -343,6 +343,13 @@ fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &P
         ("diff_bit_sizes_mul", vec!["Integers must have the same bit width"]),
         ("diff_bit_sizes_sub", vec!["Integers must have the same bit width"]),
         ("diff_bit_sizes_div", vec!["Integers must have the same bit width"]),
+        (
+            "field_plus_int",
+            vec![
+                "Types in a binary operation should match, but found Field and u64",
+                "Unused expression result of type Field", // stanm: misleading warning
+            ],
+        ),
     ]);
 
     for test_dir in test_case_dirs {
