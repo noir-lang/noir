@@ -1,0 +1,7 @@
+[package]
+name = "diff_bit_sizes"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.27.0"
+
+[dependencies]

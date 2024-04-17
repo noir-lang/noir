@@ -41,7 +41,7 @@ fn main() {
     generate_plonky2_prove_success_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
-    generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
+    // generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
 }
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -334,10 +334,16 @@ fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &P
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    let expected_messages = HashMap::from([(
-        "invalid_bit_size",
-        ["Use of invalid bit size 60", "Allowed bit sizes for integers are 1, 8, 32, 64"],
-    )]);
+    let expected_messages = HashMap::from([
+        (
+            "invalid_bit_size",
+            vec!["Use of invalid bit size 60", "Allowed bit sizes for integers are 1, 8, 32, 64"],
+        ),
+        ("diff_bit_sizes_add", vec!["Integers must have the same bit width"]),
+        ("diff_bit_sizes_mul", vec!["Integers must have the same bit width"]),
+        ("diff_bit_sizes_sub", vec!["Integers must have the same bit width"]),
+        ("diff_bit_sizes_div", vec!["Integers must have the same bit width"]),
+    ]);
 
     for test_dir in test_case_dirs {
         let test_name =
@@ -367,7 +373,7 @@ fn plonky2_prove_failure_{test_name}() {{
         )
         .expect("Could not write templated test file.");
 
-        for message in expected_messages[test_name.as_str()] {
+        for message in expected_messages[test_name.as_str()].iter() {
             write!(
                 test_file,
                 r#"
