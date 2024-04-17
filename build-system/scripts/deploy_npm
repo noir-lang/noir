@@ -71,3 +71,29 @@ else
     npm publish $TAG_ARG --access public
   fi
 fi
+
+# Verify deployment
+echo "Verifying deployment of version $VERSION with tag $TAG"
+END_TIME=$((SECONDS + 300)) # 5 minutes
+
+while [ $SECONDS -lt $END_TIME ]; do
+  # Check version and tag
+  if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
+    # Extract tag info and check
+    if npm dist-tag ls "$PACKAGE_NAME" | grep -q "$TAG: $VERSION"; then
+      echo "Version $VERSION with tag $TAG successfully deployed ."
+      break
+    else
+      echo "Version $VERSION is available, but tag $TAG is not correctly set."
+    fi
+  else
+    echo "Waiting for version $VERSION to be available..."
+  fi
+  sleep 5
+done
+
+# Final check to confirm both version and tag are correctly set
+if ! npm dist-tag ls "$PACKAGE_NAME" | grep -q "$TAG: $VERSION"; then
+  echo "Failed to verify the deployment of version $VERSION with tag $TAG within the timeout period."
+  exit 1
+fi
