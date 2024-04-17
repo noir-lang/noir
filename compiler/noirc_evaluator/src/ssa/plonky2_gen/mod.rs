@@ -11,7 +11,7 @@ use super::{
 };
 use acvm::FieldElement;
 pub use circuit::Plonky2Circuit;
-use div_generator::add_div;
+use div_generator::add_div_mod;
 use plonky2::{
     field::types::Field, iop::target::BoolTarget, iop::target::Target,
     plonk::circuit_data::CircuitConfig,
@@ -168,13 +168,13 @@ impl Builder {
 
                     super::ir::instruction::BinaryOp::Div => {
                         self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
-                            add_div(builder, t1, t2).0
+                            add_div_mod(builder, t1, t2).0
                         })
                     }
 
                     super::ir::instruction::BinaryOp::Mod => {
                         self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
-                            add_div(builder, t1, t2).1
+                            add_div_mod(builder, t1, t2).1
                         })
                     }
 
@@ -198,7 +198,7 @@ impl Builder {
                         let (bit_size_b, target_b) = self.get_integer(rhs)?;
                         assert!(bit_size_a == bit_size_b);
 
-                        let div = add_div(&mut self.builder, target_a, target_b).0;
+                        let div = add_div_mod(&mut self.builder, target_a, target_b).0;
                         let zero = self.builder.zero();
                         let target = self.builder.is_equal(div, zero);
                         Ok(P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean })

@@ -84,9 +84,13 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
     }
 }
 
-/// Add a whole number division operation to a circuit, returning the quotient and remainder.
+/// Add an integer division operation to a circuit, returning both the quotient and the remainder.
+///
+/// Can be used to implement both integer division and modulus. Also, can be used to implement
+/// less-than.
+///
 /// This uses a custom `SimpleGenerator` internally, which will have performance implications.
-pub(crate) fn add_div(
+pub(crate) fn add_div_mod(
     builder: &mut P2Builder,
     numerator: Target,
     denominator: Target,
