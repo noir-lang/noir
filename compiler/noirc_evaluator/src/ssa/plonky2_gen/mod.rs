@@ -193,6 +193,17 @@ impl Builder {
                         Ok(P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean })
                     }
 
+                    super::ir::instruction::BinaryOp::Lt => {
+                        let (bit_size_a, target_a) = self.get_integer(lhs)?;
+                        let (bit_size_b, target_b) = self.get_integer(rhs)?;
+                        assert!(bit_size_a == bit_size_b);
+
+                        let div = add_div(&mut self.builder, target_a, target_b).0;
+                        let zero = self.builder.zero();
+                        let target = self.builder.is_equal(div, zero);
+                        Ok(P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean })
+                    }
+
                     _ => {
                         let feature_name = format!("operator {}", operator);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
