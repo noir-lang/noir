@@ -33,7 +33,7 @@ pub(crate) struct Interpreter<'interner> {
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions.
-    scopes: Vec<FxHashMap<DefinitionId, Value>>,
+    scopes: Vec<HashMap<DefinitionId, Value>>,
 
     /// True if we've expanded any macros into any functions and will need
     /// to redo name resolution & type checking for that function.
