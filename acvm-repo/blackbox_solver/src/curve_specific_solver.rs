@@ -11,7 +11,7 @@ pub trait BlackBoxFunctionSolver {
         &self,
         public_key_x: &FieldElement,
         public_key_y: &FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError>;
     fn pedersen_commitment(
@@ -59,7 +59,7 @@ impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
         &self,
         _public_key_x: &FieldElement,
         _public_key_y: &FieldElement,
-        _signature: &[u8],
+        _signature: &[u8; 64],
         _message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::SchnorrVerify))

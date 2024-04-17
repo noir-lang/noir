@@ -13,6 +13,7 @@ dependencies = [
  "flate2",
  "fxhash",
  "serde",
+ "serde-big-array",
  "serde-generate",
  "serde-reflection",
  "serde_json",
@@ -615,11 +616,14 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "cfg-if 1.0.0",
+ "criterion",
  "getrandom 0.2.10",
+ "hex",
  "js-sys",
+ "lazy_static",
  "noir_grumpkin",
  "num-bigint",
- "num-traits",
+ "pprof",
  "thiserror",
  "wasm-bindgen-futures",
  "wasmer",
@@ -4379,6 +4383,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a5bf42b8d227d4abf38a1ddb08602e229108a517cd4e5bb28f9c7eaafdce5c0"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
