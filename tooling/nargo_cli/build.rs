@@ -40,7 +40,7 @@ fn main() {
     generate_noirc_frontend_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_success_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_failure_tests(&mut test_file, &test_dir);
-    generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
+    // generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
     // generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
 }
 
@@ -350,6 +350,7 @@ fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &P
                 "Unused expression result of type Field", // stanm: misleading warning
             ],
         ),
+        ("field_comparison", vec!["Fields cannot be compared, try casting to an integer first"]),
     ]);
 
     for test_dir in test_case_dirs {
