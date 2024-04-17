@@ -136,23 +136,11 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe.each([
-    [
-      'sha256_hash',
-      /*input=*/ randomMemoryBytes(10),
-      /*output=*/ (bytes: Uint8[]) => [...sha256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b)),
-    ],
-    [
-      'keccak_hash',
-      /*input=*/ randomMemoryBytes(10),
-      /*output=*/ (bytes: Uint8[]) => [...keccak256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b)),
-    ],
-    ['poseidon2_hash', /*input=*/ randomMemoryFields(10), /*output=*/ (fields: Fieldable[]) => [poseidon2Hash(fields)]],
-    ['pedersen_hash', /*input=*/ randomMemoryFields(10), /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields)]],
-    [
-      'pedersen_hash_with_index',
-      /*input=*/ randomMemoryFields(10),
-      /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields, /*index=*/ 20)],
-    ],
+    ['sha256_hash', /*input=*/ randomMemoryBytes(10), /*output=*/ sha256FromMemoryBytes],
+    ['keccak_hash', /*input=*/ randomMemoryBytes(10), /*output=*/ keccak256FromMemoryBytes],
+    ['poseidon2_hash', /*input=*/ randomMemoryFields(10), /*output=*/ poseidon2FromMemoryFields],
+    ['pedersen_hash', /*input=*/ randomMemoryFields(10), /*output=*/ pedersenFromMemoryFields],
+    ['pedersen_hash_with_index', /*input=*/ randomMemoryFields(10), /*output=*/ indexedPedersenFromMemoryFields],
   ])('Hashes in noir contracts', (name: string, input: MemoryValue[], output: (msg: any[]) => Fr[]) => {
     it(`Should execute contract function that performs ${name}`, async () => {
       const calldata = input.map(e => e.toFr());
@@ -928,4 +916,24 @@ function getAvmNestedCallsTestContractBytecode(functionName: string): Buffer {
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
   return artifact.bytecode;
+}
+
+function sha256FromMemoryBytes(bytes: Uint8[]): Fr[] {
+  return [...sha256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b));
+}
+
+function keccak256FromMemoryBytes(bytes: Uint8[]): Fr[] {
+  return [...keccak256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b));
+}
+
+function poseidon2FromMemoryFields(fields: Fieldable[]): Fr[] {
+  return [poseidon2Hash(fields)];
+}
+
+function pedersenFromMemoryFields(fields: Fieldable[]): Fr[] {
+  return [pedersenHash(fields)];
+}
+
+function indexedPedersenFromMemoryFields(fields: Fieldable[]): Fr[] {
+  return [pedersenHash(fields, /*index=*/ 20)];
 }
