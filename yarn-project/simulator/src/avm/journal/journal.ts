@@ -172,24 +172,11 @@ export class AvmPersistableStateManager {
    * @returns exists - whether the message exists in the L1 to L2 Messages tree
    */
   public async checkL1ToL2MessageExists(msgHash: Fr, msgLeafIndex: Fr): Promise<boolean> {
-    let exists = false;
-    try {
-      // The following 2 values are used to compute a message nullifier. Given that here we do not care about getting
-      // non-nullified messages we can just pass in random values and the nullifier check will effectively be ignored
-      // (no nullifier will be found).
-      const ignoredContractAddress = AztecAddress.random();
-      const ignoredSecret = Fr.random();
-      const gotMessage = await this.hostStorage.commitmentsDb.getL1ToL2MembershipWitness(
-        ignoredContractAddress,
-        msgHash,
-        ignoredSecret,
-      );
-      exists = gotMessage !== undefined && gotMessage.index == msgLeafIndex.toBigInt();
-    } catch {
-      // error getting message - doesn't exist!
-      exists = false;
-    }
-    this.log.debug(`l1ToL2Messages(${msgHash})@${msgLeafIndex} ?? exists: ${exists}.`);
+    const valueAtIndex = await this.hostStorage.commitmentsDb.getL1ToL2LeafValue(msgLeafIndex.toBigInt());
+    const exists = valueAtIndex?.equals(msgHash) ?? false;
+    this.log.debug(
+      `l1ToL2Messages(@${msgLeafIndex}) ?? exists: ${exists}, expected: ${msgHash}, found: ${valueAtIndex}.`,
+    );
     this.trace.traceL1ToL2MessageCheck(msgHash, msgLeafIndex, exists);
     return Promise.resolve(exists);
   }

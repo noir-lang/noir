@@ -20,7 +20,6 @@ import {
   initContext,
   initExecutionEnvironment,
   initGlobalVariables,
-  initL1ToL2MessageOracleInput,
   initMachineState,
   randomMemoryBytes,
   randomMemoryFields,
@@ -484,9 +483,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const calldata = [msgHash, leafIndex];
 
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-      jest
-        .spyOn(context.persistableState.hostStorage.commitmentsDb, 'getL1ToL2MembershipWitness')
-        .mockResolvedValue(initL1ToL2MessageOracleInput(leafIndex.toBigInt()));
+      jest.spyOn(context.persistableState.hostStorage.commitmentsDb, 'getL1ToL2LeafValue').mockResolvedValue(msgHash);
       const bytecode = getAvmTestContractBytecode('l1_to_l2_msg_exists');
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 

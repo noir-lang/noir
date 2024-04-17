@@ -93,6 +93,12 @@ export interface CommitmentsDB {
   ): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
 
   /**
+   * @param leafIndex the leaf to look up
+   * @returns The l1 to l2 leaf value or undefined if not found.
+   */
+  getL1ToL2LeafValue(leafIndex: bigint): Promise<Fr | undefined>;
+
+  /**
    * Gets the index of a commitment in the note hash tree.
    * @param commitment - The commitment.
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.

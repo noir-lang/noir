@@ -159,6 +159,11 @@ export class SimulatorOracle implements DBOracle {
     return new MessageLoadOracleInputs(messageIndex, siblingPath);
   }
 
+  // Only used in public.
+  public getL1ToL2LeafValue(_leafIndex: bigint): Promise<Fr | undefined> {
+    throw new Error('Unimplemented in private!');
+  }
+
   /**
    * Gets the index of a commitment in the note hash tree.
    * @param commitment - The commitment.

@@ -6,7 +6,6 @@ import { Fr } from '@aztec/foundation/fields';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
-import { initL1ToL2MessageOracleInput } from '../fixtures/index.js';
 import { HostStorage } from './host_storage.js';
 import { AvmPersistableStateManager, type JournalData } from './journal.js';
 
@@ -114,28 +113,28 @@ describe('journal', () => {
       ]);
     });
     it('checkL1ToL2MessageExists works for missing message', async () => {
-      const utxo = new Fr(2);
+      const msgHash = new Fr(2);
       const leafIndex = new Fr(42);
 
-      const exists = await journal.checkL1ToL2MessageExists(utxo, leafIndex);
+      const exists = await journal.checkL1ToL2MessageExists(msgHash, leafIndex);
       expect(exists).toEqual(false);
 
       const journalUpdates = journal.flush();
       expect(journalUpdates.l1ToL2MessageChecks).toEqual([
-        expect.objectContaining({ leafIndex: leafIndex, msgHash: utxo, exists: false }),
+        expect.objectContaining({ leafIndex: leafIndex, msgHash, exists: false }),
       ]);
     });
-    it('checkL1ToL2MessageExists works for existing nullifiers', async () => {
-      const utxo = new Fr(2);
+    it('checkL1ToL2MessageExists works for existing msgHash', async () => {
+      const msgHash = new Fr(2);
       const leafIndex = new Fr(42);
 
-      commitmentsDb.getL1ToL2MembershipWitness.mockResolvedValue(initL1ToL2MessageOracleInput(leafIndex.toBigInt()));
-      const exists = await journal.checkL1ToL2MessageExists(utxo, leafIndex);
+      commitmentsDb.getL1ToL2LeafValue.mockResolvedValue(msgHash);
+      const exists = await journal.checkL1ToL2MessageExists(msgHash, leafIndex);
       expect(exists).toEqual(true);
 
       const journalUpdates = journal.flush();
       expect(journalUpdates.l1ToL2MessageChecks).toEqual([
-        expect.objectContaining({ leafIndex: leafIndex, msgHash: utxo, exists: true }),
+        expect.objectContaining({ leafIndex: leafIndex, msgHash, exists: true }),
       ]);
     });
     it('Should maintain nullifiers', async () => {
@@ -150,11 +149,11 @@ describe('journal', () => {
     });
     it('Should maintain l1 messages', () => {
       const recipient = EthAddress.fromField(new Fr(1));
-      const utxo = new Fr(2);
-      journal.writeL1Message(recipient, utxo);
+      const msgHash = new Fr(2);
+      journal.writeL1Message(recipient, msgHash);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.newL1Messages).toEqual([{ recipient, content: utxo }]);
+      expect(journalUpdates.newL1Messages).toEqual([{ recipient, content: msgHash }]);
     });
   });
 

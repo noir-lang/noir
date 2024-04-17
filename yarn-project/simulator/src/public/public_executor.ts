@@ -257,6 +257,10 @@ export class WorldStateDB implements CommitmentsDB {
     return new MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>(messageIndex, siblingPath);
   }
 
+  public async getL1ToL2LeafValue(leafIndex: bigint): Promise<Fr | undefined> {
+    return await this.db.getLeafValue(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
+  }
+
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {
     return await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
   }
