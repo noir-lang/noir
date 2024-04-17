@@ -18,13 +18,13 @@ use plonky2::iop::target::Target;
 struct VariableIntDivGenerator {
     numerator: Target,
     denominator: Target,
-    pub quotient: Target,
-    pub remainder: Target,
+    quotient: Target,
+    remainder: Target,
     _phantom: PhantomData<P2Field>,
 }
 
 impl VariableIntDivGenerator {
-    pub fn new(builder: &mut P2Builder, numerator: Target, denominator: Target) -> Self {
+    fn new(builder: &mut P2Builder, numerator: Target, denominator: Target) -> Self {
         Self {
             numerator,
             denominator,
@@ -34,7 +34,7 @@ impl VariableIntDivGenerator {
         }
     }
 
-    pub fn id() -> String {
+    fn id() -> String {
         "VariableIntDivGenerator".to_string()
     }
 }
@@ -86,7 +86,7 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
 
 /// Add a whole number division operation to a circuit, returning the quotient and remainder.
 /// This uses a custom `SimpleGenerator` internally, which will have performance implications.
-pub fn add_div(
+pub(crate) fn add_div(
     builder: &mut P2Builder,
     numerator: Target,
     denominator: Target,

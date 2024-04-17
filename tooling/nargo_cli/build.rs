@@ -366,7 +366,7 @@ fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &P
             test_file,
             r#"
 #[test]
-fn plonky2_prove_failure_{test_name}() {{
+fn noirc_frontend_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
@@ -502,7 +502,7 @@ fn generate_plonky2_prove_unsupported_tests(test_file: &mut File, test_data_dir:
             test_file,
             r#"
 #[test]
-fn plonky2_prove_failure_{test_name}() {{
+fn plonky2_prove_unsupported_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
