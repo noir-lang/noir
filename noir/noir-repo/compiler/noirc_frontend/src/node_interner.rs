@@ -917,6 +917,10 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
+    pub fn statement_span(&self, stmt_id: &StmtId) -> Span {
+        self.id_location(stmt_id).span
+    }
+
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
     }

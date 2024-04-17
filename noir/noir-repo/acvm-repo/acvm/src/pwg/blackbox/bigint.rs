@@ -105,7 +105,7 @@ impl BigIntSolver {
             }
             BlackBoxFunc::BigIntMul => lhs * rhs,
             BlackBoxFunc::BigIntDiv => {
-                lhs * rhs.modpow(&(&modulus - BigUint::from(1_u32)), &modulus)
+                lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus)
             } //TODO ensure that modulus is prime
             _ => unreachable!("ICE - bigint_op must be called for an operation"),
         };

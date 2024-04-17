@@ -89,6 +89,16 @@ impl Circuit {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+/// The opcode location for a call to a separate ACIR circuit
+/// This includes the function index of the caller within a [program][Program]
+/// and the index in the callers ACIR to the specific call opcode.
+/// This is only resolved and set during circuit execution.
+pub struct ResolvedOpcodeLocation {
+    pub acir_function_index: usize,
+    pub opcode_location: OpcodeLocation,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 /// Opcodes are locatable so that callers can
 /// map opcodes to debug information related to their context.

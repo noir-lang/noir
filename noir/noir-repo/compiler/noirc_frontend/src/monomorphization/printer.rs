@@ -110,6 +110,9 @@ impl AstPrinter {
                 s.fmt(f)?;
                 write!(f, "\"")
             }
+            super::ast::Literal::Unit => {
+                write!(f, "()")
+            }
         }
     }
 

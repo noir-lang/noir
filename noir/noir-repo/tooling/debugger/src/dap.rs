@@ -606,7 +606,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
 ) -> Result<(), ServerError> {
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
+        debug_symbols: program.debug,
         file_map: program.file_map,
         warnings: program.warnings,
     };
