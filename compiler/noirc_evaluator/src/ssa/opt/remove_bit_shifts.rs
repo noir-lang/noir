@@ -109,7 +109,7 @@ impl Context<'_> {
                     return InsertInstructionResult::SimplifiedTo(zero).first();
                 }
             }
-            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
+            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ.clone());
 
             let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
 
@@ -123,15 +123,18 @@ impl Context<'_> {
             // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
             let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
             let pow = self.pow(base, rhs_unsigned);
-            let pow = self.insert_cast(pow, typ);
+            let pow = self.insert_cast(pow, typ.clone());
             (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
         };
 
         if max_bit <= bit_size {
             self.insert_binary(lhs, BinaryOp::Mul, pow)
         } else {
-            let result = self.insert_binary(lhs, BinaryOp::Mul, pow);
-            self.insert_truncate(result, bit_size, max_bit)
+            let lhs_field = self.insert_cast(lhs, Type::field());
+            let pow_field = self.insert_cast(pow, Type::field());
+            let result = self.insert_binary(lhs_field, BinaryOp::Mul, pow_field);
+            let result = self.insert_truncate(result, bit_size, max_bit);
+            self.insert_cast(result, typ)
         }
     }
 

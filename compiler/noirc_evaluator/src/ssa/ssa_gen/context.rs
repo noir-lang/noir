@@ -306,7 +306,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     ///
-    /// If the result is unsigned, we simply range check against the bit size
+    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for bit-shifts, because we will convert them to field multiplication
     ///
     /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
     /// an unsigned value representing the signed integer.
@@ -353,51 +353,12 @@ impl<'a> FunctionContext<'a> {
             }
             Type::Numeric(NumericType::Unsigned { bit_size }) => {
                 let dfg = &self.builder.current_function.dfg;
-
-                let max_lhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(lhs);
-                let max_rhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(rhs);
+                let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
 
                 match operator {
-                    BinaryOpKind::Add => {
-                        if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
-                            // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                            return result;
-                        }
-
-                        let message = "attempt to add with overflow".to_string();
-                        self.builder.set_location(location).insert_range_check(
-                            result,
-                            bit_size,
-                            Some(message),
-                        );
-                    }
-                    BinaryOpKind::Subtract => {
-                        if dfg.is_constant(lhs) && max_lhs_bits > max_rhs_bits {
-                            // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                            // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                            return result;
-                        }
-
-                        let message = "attempt to subtract with overflow".to_string();
-                        self.builder.set_location(location).insert_range_check(
-                            result,
-                            bit_size,
-                            Some(message),
-                        );
-                    }
-                    BinaryOpKind::Multiply => {
-                        if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
-                            // Either performing boolean multiplication (which cannot overflow),
-                            // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                            return result;
-                        }
-
-                        let message = "attempt to multiply with overflow".to_string();
-                        self.builder.set_location(location).insert_range_check(
-                            result,
-                            bit_size,
-                            Some(message),
-                        );
+                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
+                        // Overflow check is deferred to acir-gen
+                        return result;
                     }
                     BinaryOpKind::ShiftLeft => {
                         if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
