@@ -3,7 +3,7 @@
 # just for the CI job. These are specced per user and run the entire CI.
 # TODO These have a persistent EBS volume that forms a fast-online docker image cache (used by Earthly), meaning
 # TODO build steps that ran in previous invocations are quickly ran from cache.
-name: Reusable Spot Instance and Setup Workflow
+name: Setup Runner and CI
 on:
   workflow_call:
     inputs:
@@ -52,9 +52,12 @@ on:
 jobs:
   start-builder:
     runs-on: ubuntu-latest
+    # we want to avoid race conditions when making spot across multiple PRs as we only use one runner
+    concurrency:
+      group: start-builder-${{ inputs.runner_label }}
     steps:
       - name: Start EC2 runner
-        uses: AztecProtocol/ec2-action-builder@v0.10
+        uses: AztecProtocol/ec2-action-builder@v0.12
         with:
           github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
