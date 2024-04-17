@@ -4,7 +4,7 @@ use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     hir_def::{
@@ -37,7 +37,7 @@ pub(crate) struct Interpreter<'interner> {
 
     /// True if we've expanded any macros into any functions and will need
     /// to redo name resolution & type checking for that function.
-    changed_functions: FxHashSet<FuncId>,
+    changed_functions: HashSet<FuncId>,
 
     /// True if we've expanded any macros into global scope and will need
     /// to redo name resolution & type checking for everything.
@@ -62,7 +62,7 @@ pub(crate) enum Value {
     Function(FuncId, Type),
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
-    Struct(FxHashMap<Rc<String>, Value>, Type),
+    Struct(HashMap<Rc<String>, Value>, Type),
     Pointer(Shared<Value>),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
@@ -118,7 +118,7 @@ impl<'a> Interpreter<'a> {
         Self {
             interner,
             scopes: vec![HashMap::default()],
-            changed_functions: FxHashSet::default(),
+            changed_functions: HashSet::default(),
             changed_globally: false,
             in_loop: false,
         }
@@ -189,14 +189,14 @@ impl<'a> Interpreter<'a> {
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
     /// `exit_function` is called.
-    fn enter_function(&mut self) -> (bool, Vec<FxHashMap<DefinitionId, Value>>) {
+    fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let scope = self.scopes.drain(1..).collect();
         self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
     }
 
-    fn exit_function(&mut self, mut state: (bool, Vec<FxHashMap<DefinitionId, Value>>)) {
+    fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
         self.in_loop = state.0;
 
         // Keep only the global scope
@@ -205,14 +205,14 @@ impl<'a> Interpreter<'a> {
     }
 
     fn push_scope(&mut self) {
-        self.scopes.push(FxHashMap::default());
+        self.scopes.push(HashMap::default());
     }
 
     fn pop_scope(&mut self) {
         self.scopes.pop();
     }
 
-    fn current_scope_mut(&mut self) -> &mut FxHashMap<DefinitionId, Value> {
+    fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
         self.scopes.last_mut().unwrap()
     }
