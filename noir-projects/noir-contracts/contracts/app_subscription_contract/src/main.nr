@@ -17,6 +17,9 @@ contract AppSubscription {
 
     use crate::subscription_note::{SubscriptionNote, SUBSCRIPTION_NOTE_LEN};
 
+    use dep::gas_token::GasToken;
+    use dep::token::Token;
+
     #[aztec(storage)]
     struct Storage {
         // The following is only needed in private but we use ShareImmutable here instead of PrivateImmutable because
@@ -44,19 +47,11 @@ contract AppSubscription {
         note.remaining_txs -= 1;
         storage.subscriptions.at(user_address).replace(&mut note, true);
 
-        context.call_public_function(
-            storage.gas_token_address.read_private(),
-            FunctionSelector::from_signature("pay_fee(Field)"),
-            [42]
-        );
+        GasToken::at(storage.gas_token_address.read_private()).pay_fee(42).enqueue(&mut context);
 
         context.capture_min_revertible_side_effect_counter();
 
-        context.call_public_function(
-            context.this_address(),
-            FunctionSelector::from_signature("assert_not_expired(Field)"),
-            [note.expiry_block_number]
-        );
+        AppSubscription::at(context.this_address()).assert_not_expired(note.expiry_block_number).enqueue(&mut context);
 
         payload.execute_calls(&mut context, storage.target_address.read_private());
     }
@@ -102,20 +97,15 @@ contract AppSubscription {
     ) {
         assert(tx_count as u64 <= SUBSCRIPTION_TXS as u64);
 
-        let _ = context.call_private_function(
-            storage.subscription_token_address.read_private(),
-            FunctionSelector::from_signature("transfer((Field),(Field),Field,Field)"),
-            [
-            context.msg_sender().to_field(), storage.subscription_recipient_address.read_private().to_field(), storage.subscription_price.read_private(), nonce
-        ]
-        );
+        Token::at(storage.subscription_token_address.read_private()).transfer(
+            context.msg_sender(),
+            storage.subscription_recipient_address.read_private(),
+            storage.subscription_price.read_private(),
+            nonce
+        ).call(&mut context);
 
         // Assert that the given expiry_block_number < current_block_number + SUBSCRIPTION_DURATION_IN_BLOCKS.
-        context.call_public_function(
-            context.this_address(),
-            FunctionSelector::from_signature("assert_block_number(Field)"),
-            [expiry_block_number]
-        );
+        AppSubscription::at(context.this_address()).assert_block_number(expiry_block_number).enqueue(&mut context);
 
         let mut subscription_note = SubscriptionNote::new(subscriber_address, expiry_block_number, tx_count);
         if (!is_initialized(subscriber_address)) {

@@ -1,34 +1,25 @@
-import { type Wallet } from '@aztec/aztec.js';
-import { DelegatedOnContract, DelegatorContract } from '@aztec/noir-contracts.js';
-
-import { setup } from './fixtures/utils.js';
+import { DelegateCallsTest } from './delegate_calls_test.js';
 
 describe('e2e_delegate_calls', () => {
-  let wallet: Wallet;
-  let delegatorContract: DelegatorContract;
-  let delegatedOnContract: DelegatedOnContract;
-  let teardown: () => Promise<void>;
+  const t = new DelegateCallsTest('delegate_calls');
+  let { delegatorContract, delegatedOnContract, wallet } = t;
 
-  beforeEach(async () => {
-    ({ teardown, wallet } = await setup());
-  }, 100_000);
+  beforeAll(async () => {
+    await t.applyBaseSnapshots();
+    await t.setup();
+    // Have to destructure again to ensure we have latest refs.
+    ({ delegatorContract, delegatedOnContract, wallet } = t);
+  });
 
-  afterEach(() => teardown());
-
-  beforeEach(async () => {
-    delegatorContract = await DelegatorContract.deploy(wallet).send().deployed();
-    delegatedOnContract = await DelegatedOnContract.deploy(wallet).send().deployed();
-  }, 100_000);
+  afterAll(async () => {
+    await t.teardown();
+  });
 
   describe('delegates on another contract', () => {
     it("runs another contract's private function on delegator's storage", async () => {
       const sentValue = 42n;
       await delegatorContract.methods
-        .private_delegate_set_value(
-          delegatedOnContract.address,
-          delegatedOnContract.methods.private_set_value.selector,
-          [sentValue, wallet.getCompleteAddress().address],
-        )
+        .private_delegate_set_value(delegatedOnContract.address, sentValue, wallet.getCompleteAddress().address)
         .send()
         .wait();
 
@@ -46,14 +37,7 @@ describe('e2e_delegate_calls', () => {
 
     it("runs another contract's enqueued public function on delegator's storage", async () => {
       const sentValue = 42n;
-      await delegatorContract.methods
-        .enqueued_delegate_set_value(
-          delegatedOnContract.address,
-          delegatedOnContract.methods.public_set_value.selector,
-          [sentValue],
-        )
-        .send()
-        .wait();
+      await delegatorContract.methods.enqueued_delegate_set_value(delegatedOnContract.address, sentValue).send().wait();
 
       const delegatorValue = await delegatorContract.methods.view_public_value().simulate();
       const delegatedOnValue = await delegatedOnContract.methods.view_public_value().simulate();
@@ -64,12 +48,7 @@ describe('e2e_delegate_calls', () => {
 
     it("runs another contract's public function on delegator's storage", async () => {
       const sentValue = 42n;
-      await delegatorContract.methods
-        .public_delegate_set_value(delegatedOnContract.address, delegatedOnContract.methods.public_set_value.selector, [
-          sentValue,
-        ])
-        .send()
-        .wait();
+      await delegatorContract.methods.public_delegate_set_value(delegatedOnContract.address, sentValue).send().wait();
 
       const delegatorValue = await delegatorContract.methods.view_public_value().simulate();
       const delegatedOnValue = await delegatedOnContract.methods.view_public_value().simulate();

@@ -85,8 +85,8 @@ export abstract class TypedOracle {
     return Fr.random();
   }
 
-  packArguments(_args: Fr[]): Promise<Fr> {
-    throw new OracleMethodNotAvailableError('packArguments');
+  packArgumentsArray(_args: Fr[]): Promise<Fr> {
+    throw new OracleMethodNotAvailableError('packArgumentsArray');
   }
 
   packReturns(_returns: Fr[]): Promise<Fr> {

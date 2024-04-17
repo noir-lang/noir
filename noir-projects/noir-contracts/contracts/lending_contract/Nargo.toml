@@ -6,3 +6,5 @@ type = "contract"
 
 [dependencies]
 aztec = { path = "../../../aztec-nr/aztec" }
+token = { path = "../token_contract" }
+price_feed = { path = "../price_feed_contract" }

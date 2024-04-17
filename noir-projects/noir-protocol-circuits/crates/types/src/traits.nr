@@ -1,4 +1,5 @@
 use dep::std::cmp::Eq;
+use crate::utils::field::field_from_bytes;
 
 // Trait: is_empty
 //
@@ -55,6 +56,12 @@ impl ToField for U128 {
         self.to_integer()
     }
 }
+impl<N> ToField for str<N> {
+    fn to_field(self) -> Field {
+        assert(N < 32, "String doesn't fit in a field, consider using Serialize instead");
+        field_from_bytes(self.as_bytes(), true)
+    }
+}
 
 trait FromField {
     fn from_field(value: Field) -> Self;
@@ -82,6 +89,17 @@ trait Serialize<N> {
     fn serialize(self) -> [Field; N];
 }
 // docs:end:serialize
+
+impl<N> Serialize<N> for str<N> {
+    fn serialize(self) -> [Field; N] {
+        let mut result = [0; N];
+        let bytes: [u8; N] = self.as_bytes();
+        for i in 0..N {
+            result[i] = field_from_bytes([bytes[i];1], true);
+        }
+        result
+    }
+}
 
 // docs:start:deserialize
 trait Deserialize<N> {

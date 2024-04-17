@@ -50,6 +50,8 @@ Inside `uniswap/Nargo.toml` paste this in `[dependencies]`:
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
 authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/authwit"}
+token = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-contracts/token_contract" }
+token_bridge = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-contracts/token_bridge_contract" }
 ```
 
 ## L2 contracts
@@ -57,17 +59,8 @@ authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#includ
 The `main.nr` will utilize a few helper functions that are outside the scope of this tutorial. Inside `uniswap/src` create two new files:
 
 ```bash
-cd uniswap/src && touch util.nr && touch interfaces.nr
+cd uniswap/src && touch util.nr
 ```
-
-Inside `interfaces.nr` paste this:
-
-#include_code interfaces noir-projects/noir-contracts/contracts/uniswap_contract/src/interfaces.nr rust
-
-This creates interfaces for the `Token` contract and `TokenBridge` contract
-
-- `Token` is a reference implementation for a token on Aztec. Here we just need two methods - [`transfer_public`](../writing_token_contract.md#transfer_public) and [`unshield()`](../writing_token_contract.md#unshield).
-- The `TokenBridge` facilitates interactions with our [bridge contract](../token_portal/main.md). Here we just need its [`exit_to_l1_public`](../token_portal/withdrawing_to_l1.md)
 
 ## Run Aztec sandbox
 

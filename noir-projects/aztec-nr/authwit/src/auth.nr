@@ -37,7 +37,7 @@ pub fn assert_current_call_valid_authwit_public<TPublicContext>(
         context,
         on_behalf_of,
         function_selector,
-        [inner_hash],
+        [inner_hash].as_slice(),
         GasOpts::default()
     ).deserialize_into();
     assert(result == IS_VALID_SELECTOR, "Message not authorized by account");

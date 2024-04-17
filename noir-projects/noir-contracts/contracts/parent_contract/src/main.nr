@@ -1,8 +1,8 @@
+
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, Deserialize};
     use dep::aztec::context::gas::GasOpts;
-
     // Private function to call another private function in the target_contract using the provided selector
     #[aztec(private)]
     fn entry_point(target_contract: AztecAddress, target_selector: FunctionSelector) -> Field {
@@ -20,7 +20,7 @@ contract Parent {
         context.call_public_function(
             target_contract,
             target_selector,
-            [init_value],
+            [init_value].as_slice(),
             GasOpts::default()
         ).deserialize_into()
     }
@@ -35,13 +35,13 @@ contract Parent {
         let return_value: Field = context.call_public_function(
             target_contract,
             target_selector,
-            [init_value],
+            [init_value].as_slice(),
             GasOpts::default()
         ).deserialize_into();
         context.call_public_function(
             target_contract,
             target_selector,
-            [return_value],
+            [return_value].as_slice(),
             GasOpts::default()
         ).deserialize_into()
     }
@@ -189,7 +189,12 @@ contract Parent {
         target_selector: FunctionSelector,
         args: [Field; 1]
     ) -> Field {
-        context.static_call_public_function(target_contract, target_selector, args, GasOpts::default()).deserialize_into()
+        context.static_call_public_function(
+            target_contract,
+            target_selector,
+            args.as_slice(),
+            GasOpts::default()
+        ).deserialize_into()
     }
 
     // Public function to set a static context and verify correct propagation for nested public calls
@@ -205,7 +210,7 @@ contract Parent {
         context.static_call_public_function(
             this_address,
             pub_entry_point_selector,
-            [target_contract.to_field(), target_selector.to_field(), args[0]],
+            [target_contract.to_field(), target_selector.to_field(), args[0]].as_slice(),
             GasOpts::default()
         ).deserialize_into()
     }

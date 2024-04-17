@@ -6,3 +6,4 @@ type = "contract"
 
 [dependencies]
 aztec = { path = "../../../aztec-nr/aztec" }
+test = { path = "../test_contract"}

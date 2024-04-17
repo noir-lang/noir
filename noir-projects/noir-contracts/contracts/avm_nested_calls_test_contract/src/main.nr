@@ -42,7 +42,7 @@ contract AvmNestedCallsTest {
             GasOpts::default(),
             context.this_address(),
             selector,
-            [arg_a, arg_b]
+            [arg_a, arg_b].as_slice()
         );
         let data_to_return: [Field; 1] = results.0;
         // this explicit size is necessary to ensure that ret_size is compile-time
@@ -71,7 +71,7 @@ contract AvmNestedCallsTest {
             GasOpts::new(l1_gas, l2_gas, da_gas),
             context.this_address(),
             selector,
-            [arg_a, arg_b]
+            [arg_a, arg_b].as_slice()
         );
         let data_to_return: [Field; 1] = results.0;
         // this explicit size is necessary to ensure that ret_size is compile-time
@@ -85,15 +85,7 @@ contract AvmNestedCallsTest {
     // Use the `call_public_function` wrapper to initiate a nested call to the add function
     #[aztec(public-vm)]
     fn nested_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
-        let selector = FunctionSelector::from_signature("add_args_return(Field,Field)");
-
-        // Nested call using standard context interface function
-        context.call_public_function(
-            context.this_address(),
-            selector,
-            [arg_a, arg_b],
-            GasOpts::default()
-        ).deserialize_into()
+        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).call(&mut context, GasOpts::default())
     }
 
     // Directly call_static the external call opcode to initiate a nested call to the add function
@@ -105,7 +97,7 @@ contract AvmNestedCallsTest {
             GasOpts::default(),
             context.this_address(),
             selector,
-            [arg_a, arg_b]
+            [arg_a, arg_b].as_slice()
         );
 
         (result_data[0], success)
@@ -117,7 +109,12 @@ contract AvmNestedCallsTest {
         let selector = FunctionSelector::from_signature("set_storage_single(Field)").to_field();
         let calldata: [Field; 1] = [20];
 
-        let (_data_to_return, success): ([Field; 0], u8) = context.static_call_public_function_raw(GasOpts::default(), context.this_address(), selector, calldata);
+        let (_data_to_return, success): ([Field; 0], u8) = context.static_call_public_function_raw(
+            GasOpts::default(),
+            context.this_address(),
+            selector,
+            calldata.as_slice()
+        );
 
         success
     }
@@ -125,40 +122,24 @@ contract AvmNestedCallsTest {
     // Indirectly call_static the external call opcode to initiate a nested call to the add function
     #[aztec(public-vm)]
     fn nested_static_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
-        let selector = FunctionSelector::from_signature("add_args_return(Field,Field)");
-
-        context.static_call_public_function(
-            context.this_address(),
-            selector,
-            [arg_a, arg_b],
-            GasOpts::default()
-        ).deserialize_into()
+        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).static_call(&mut context, GasOpts::default())
     }
 
     // Indirectly call_static `set_storage_single`. Should revert since it's accessing storage.
     #[aztec(public-vm)]
     fn nested_static_call_to_set_storage() {
-        let selector = FunctionSelector::from_signature("set_storage_single(Field)");
-        let calldata: [Field; 1] = [20];
-
-        context.static_call_public_function(context.this_address(), selector, calldata, GasOpts::default()).assert_empty();
+        AvmNestedCallsTest::at(context.this_address()).set_storage_single(20).static_call(&mut context, GasOpts::default());
     }
 
     #[aztec(public-vm)]
     fn create_same_nullifier_in_nested_call(nestedAddress: AztecAddress, nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
-
-        let selector = FunctionSelector::from_signature("new_nullifier(Field)");
-        let calldata: [Field; 1] = [nullifier];
-        let _ : FunctionReturns<0> = context.call_public_function(nestedAddress, selector, calldata, GasOpts::default());
+        AvmNestedCallsTest::at(nestedAddress).new_nullifier(nullifier).call(&mut context, GasOpts::default());
     }
 
     #[aztec(public-vm)]
     fn create_different_nullifier_in_nested_call(nestedAddress: AztecAddress, nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
-
-        let selector = FunctionSelector::from_signature("new_nullifier(Field)");
-        let calldata: [Field; 1] = [nullifier + 1];
-        let _ : FunctionReturns<0> = context.call_public_function(nestedAddress, selector, calldata, GasOpts::default());
+        AvmNestedCallsTest::at(nestedAddress).new_nullifier(nullifier + 1).call(&mut context, GasOpts::default());
     }
 }

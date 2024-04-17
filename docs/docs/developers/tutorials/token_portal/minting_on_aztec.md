@@ -12,13 +12,6 @@ In our `token-bridge` Aztec project in `aztec-contracts`, under `src` there is a
 
 #include_code token_bridge_storage_and_constructor /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
-This imports Aztec-related dependencies and our helper file `token_interface.nr`.
-(The code above will give errors right now - this is because we haven't implemented util and token_interface yet.)
-
-In `token_interface.nr`, add this:
-
-#include_code token_bridge_token_interface /noir-projects/noir-contracts/contracts/token_bridge_contract/src/token_interface.nr rust
-
 ## Consume the L1 message
 
 In the previous step, we have moved our funds to the portal and created a L1->L2 message. Upon building the next rollup, the sequencer asks the inbox for any incoming messages and adds them to Aztec’s L1->L2 message tree, so an application on L2 can prove that the message exists and consumes it.

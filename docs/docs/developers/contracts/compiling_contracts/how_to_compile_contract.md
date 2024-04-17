@@ -24,10 +24,8 @@ This will output a JSON [artifact](./artifacts.md) for each contract in the proj
 
 You can use the code generator to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
 
-To generate them, include a `--ts` option in the `codegen` command with a path to the target folder for the typescript files:
-
 ```bash
-aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts --ts
+aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts
 ```
 
 Below is typescript code generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) contract:
@@ -119,94 +117,34 @@ Read more about interacting with contracts using `aztec.js` [here](../../getting
 
 An Aztec.nr contract can [call a function](../writing_contracts/functions/call_functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serializing the arguments, which is not type-safe.
 
-To make this easier, the compiler can generate contract interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one. For each contract, two interface structs are generated: one to be used from private functions with a `PrivateContext`, and one to be used from open functions with a `PublicContext`.
+To make this easier, the compiler automatically generates interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one. 
 
-To generate them, include a `--nr` option in the `codegen` command with a path to the target folder for the generated Aztec.nr interface files:
-
-```bash
-aztec-cli codegen ./aztec-nargo/output/target/path -o ./path/to/output/folder --nr
-```
-
-Below is an example interface, also generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) contract:
+Below is an example of interface usage generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) contract, used from the [FPC](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/fpc_contract/src/main.nr):
 
 ```rust
-impl TokenPrivateContextInterface {
-  pub fn at(address: Field) -> Self {
-      Self {
-          address,
-      }
-  }
+contract FPC {
 
-  pub fn burn(
-    self,
-    context: &mut PrivateContext,
-    from: FromBurnStruct,
-    amount: Field,
-    nonce: Field
-  ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialized_args = [0; 3];
-    serialized_args[0] = from.address;
-    serialized_args[1] = amount;
-    serialized_args[2] = nonce;
+    ...
 
-    context.call_private_function(self.address, 0xd4fcc96e, serialized_args)
-  }
+    use dep::token::Token;
+
+    ...
 
 
-  pub fn burn_public(
-    self,
-    context: &mut PrivateContext,
-    from: FromBurnPublicStruct,
-    amount: Field,
-    nonce: Field
-  ) {
-    let mut serialized_args = [0; 3];
-    serialized_args[0] = from.address;
-    serialized_args[1] = amount;
-    serialized_args[2] = nonce;
+   #[aztec(private)]
+    fn fee_entrypoint_private(amount: Field, asset: AztecAddress, secret_hash: Field, nonce: Field) {
+        assert(asset == storage.other_asset.read_private());
+        Token::at(asset).unshield(context.msg_sender(), context.this_address(), amount, nonce).call(&mut context);
+        FPC::at(context.this_address()).pay_fee_with_shielded_rebate(amount, asset, secret_hash).enqueue(&mut context);
+    }
 
-    context.call_public_function(self.address, 0xb0e964d5, serialized_args)
-  }
-  ...
+    #[aztec(private)]
+    fn fee_entrypoint_public(amount: Field, asset: AztecAddress, nonce: Field) {
+        FPC::at(context.this_address()).prepare_fee(context.msg_sender(), amount, asset, nonce).enqueue(&mut context);
+        FPC::at(context.this_address()).pay_fee(context.msg_sender(), amount, asset).enqueue(&mut context);
+    }
 
-}
-
-impl TokenPublicContextInterface {
-  pub fn at(address: Field) -> Self {
-      Self {
-          address,
-      }
-  }
-
-  pub fn burn_public(
-    self,
-    context: PublicContext,
-    from: FromBurnPublicStruct,
-    amount: Field,
-    nonce: Field
-  ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialized_args = [0; 3];
-    serialized_args[0] = from.address;
-    serialized_args[1] = amount;
-    serialized_args[2] = nonce;
-
-    context.call_public_function(self.address, 0xb0e964d5, serialized_args)
-  }
-
-
-  pub fn mint_private(
-    self,
-    context: PublicContext,
-    amount: Field,
-    secret_hash: Field
-  ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialized_args = [0; 2];
-    serialized_args[0] = amount;
-    serialized_args[1] = secret_hash;
-
-    context.call_public_function(self.address, 0x10763932, serialized_args)
-  }
-
+    ...
 
 }
 ```

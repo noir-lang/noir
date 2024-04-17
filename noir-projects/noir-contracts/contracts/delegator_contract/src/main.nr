@@ -5,6 +5,7 @@ contract Delegator {
         PublicMutable, PrivateSet, Deserialize
     };
     use dep::value_note::value_note::ValueNote;
+    use dep::delegated_on::DelegatedOn;
 
     #[aztec(storage)]
     struct Storage {
@@ -15,29 +16,21 @@ contract Delegator {
     #[aztec(private)]
     fn private_delegate_set_value(
         target_contract: AztecAddress,
-        target_selector: FunctionSelector,
-        args: [Field; 2]
+        value: Field,
+        owner: AztecAddress
     ) -> Field {
         // Call the target private function
-        context.delegate_call_private_function(target_contract, target_selector, args).unpack_into()
+        DelegatedOn::at(target_contract).private_set_value(value, owner).delegate_call(&mut context)
     }
 
     #[aztec(private)]
-    fn enqueued_delegate_set_value(
-        target_contract: AztecAddress,
-        target_selector: FunctionSelector,
-        args: [Field; 1]
-    ) {
-        context.delegate_call_public_function(target_contract, target_selector, args);
+    fn enqueued_delegate_set_value(target_contract: AztecAddress, value: Field) {
+        DelegatedOn::at(target_contract).public_set_value(value).delegate_enqueue(&mut context)
     }
 
     #[aztec(public)]
-    fn public_delegate_set_value(
-        target_contract: AztecAddress,
-        target_selector: FunctionSelector,
-        args: [Field; 1]
-    ) {
-        let _result: Field = context.delegate_call_public_function(target_contract, target_selector, args).deserialize_into();
+    fn public_delegate_set_value(target_contract: AztecAddress, value: Field) -> Field {
+        DelegatedOn::at(target_contract).public_set_value(value).delegate_call(&mut context)
     }
 
     unconstrained fn view_private_value(amount: Field, owner: AztecAddress) -> pub Field {

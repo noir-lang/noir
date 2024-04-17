@@ -169,7 +169,7 @@ describe('e2e_nested_contract', () => {
 
     it('calls a method with multiple arguments', async () => {
       logger.info(`Calling main on importer contract`);
-      await importerContract.methods.main(testContract.address).send().wait();
+      await importerContract.methods.main_contract(testContract.address).send().wait();
     }, 30_000);
 
     it('calls a method no arguments', async () => {

@@ -1,1 +1,0 @@
-../../test_contract/src/interface.nr

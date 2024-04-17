@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "compile": "cd src && ${AZTEC_NARGO:-aztec-nargo} compile",
-    "codegen": "${AZTEC_CLI:-aztec-cli} codegen target -o artifacts --ts",
+    "codegen": "${AZTEC_CLI:-aztec-cli} codegen target -o artifacts",
     "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./target",
     "prep": "yarn clean && yarn compile && yarn codegen && tsc -b",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",

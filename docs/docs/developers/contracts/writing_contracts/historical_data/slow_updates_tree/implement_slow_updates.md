@@ -8,25 +8,19 @@ On this page you will learn how to implement a slow updates tree into your contr
 
 # How to implement a slow updates tree
 
-1. Copy the _SlowTree.nr_ example and its dependencies, found [here](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/slow_tree_contract). Replace the constants with whatever you like and deploy it to your sandbox
-2. Copy the _SlowMap interface_ for easy interaction with your deployed SlowTree. Find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_blacklist_contract/src/interfaces.nr)
-3. Import this interface into your contract
-
-#include_code interface noir-projects/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
-
-5. Store the SlowTree address in private storage as a FieldNote
+1. Store the SlowTree address in private storage as a FieldNote
 
 #include_code constructor noir-projects/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
-6. Store the SlowTree address in public storage and initialize an instance of SlowMap using this address
+2. Store the SlowTree address in public storage and initialize an instance of SlowMap using this address
 
 #include_code write_slow_update_public noir-projects/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
-7. Now you can read and update from private functions:
+3. Now you can read and update from private functions:
 
 #include_code get_and_update_private noir-projects/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
-8. Or from public functions:
+4. Or from public functions:
 
 #include_code get_public noir-projects/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 

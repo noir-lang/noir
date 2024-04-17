@@ -16,10 +16,6 @@ There are generally 4 main components involved to make it easier to use a slow u
 
 This is the primary smart contract that will use the slow updates tree. In the example we use a [token with blacklisting features](./implement_slow_updates.md#exploring-an-example-integration-through-a-tokenblacklist-smart-contract).
 
-## Interface
-
-This interface of the slow updates tree contract allows your contract to interact with the Slow Updates Tree contract. It provides methods for reading and updating values in the tree in both public and private contexts. You can find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_blacklist_contract/src/interfaces.nr).
-
 ## SlowTree.nr contract
 
 This is a smart contract developed by Aztec that establishes and manages a slow updates tree structure. It allows developers to access and interact with the tree, such as reading and updating data.

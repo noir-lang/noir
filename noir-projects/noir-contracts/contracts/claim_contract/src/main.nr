@@ -1,13 +1,11 @@
 contract Claim {
-    mod interfaces;
-
     use dep::aztec::{
         history::note_inclusion::prove_note_inclusion,
         protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
         state_vars::SharedImmutable
     };
     use dep::value_note::value_note::ValueNote;
-    use interfaces::Token;
+    use dep::token::Token;
 
     #[aztec(storage)]
     struct Storage {
@@ -43,7 +41,6 @@ contract Claim {
         context.push_new_nullifier(proof_note.compute_nullifier(&mut context), 0);
 
         // 4) Finally we mint the reward token to the sender of the transaction
-        let reward_token = Token::at(storage.reward_token.read_private());
-        reward_token.mint_public(&mut context, recipient, proof_note.value);
+        Token::at(storage.reward_token.read_private()).mint_public(recipient, proof_note.value).enqueue(&mut context);
     }
 }

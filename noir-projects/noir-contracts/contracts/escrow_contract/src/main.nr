@@ -6,6 +6,8 @@ contract Escrow {
 
     use dep::address_note::address_note::AddressNote;
 
+    use dep::token::Token;
+
     #[aztec(storage)]
     struct Storage {
         owner: PrivateImmutable<AddressNote>,
@@ -28,11 +30,6 @@ contract Escrow {
         let note = storage.owner.get_note();
         assert(note.address == sender);
 
-        let selector = FunctionSelector::from_signature("transfer((Field),(Field),Field,Field)");
-        let _callStackItem = context.call_private_function(
-            token,
-            selector,
-            [this.to_field(), recipient.to_field(), amount, 0]
-        );
+        Token::at(token).transfer(this, recipient, amount, 0).call(&mut context);
     }
 }

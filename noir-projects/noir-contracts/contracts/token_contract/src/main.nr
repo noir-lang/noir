@@ -168,12 +168,7 @@ contract Token {
     #[aztec(private)]
     fn privately_mint_private_note(amount: Field) {
         storage.balances.add(context.msg_sender(), U128::from_integer(amount));
-        let selector = FunctionSelector::from_signature("assert_minter_and_mint((Field),Field)");
-        let _void = context.call_public_function(
-            context.this_address(),
-            selector,
-            [context.msg_sender().to_field(), amount]
-        );
+        Token::at(context.this_address()).assert_minter_and_mint(context.msg_sender(), amount).enqueue(&mut context);
     }
 
     #[aztec(public)]
@@ -277,8 +272,7 @@ contract Token {
 
         storage.balances.sub(from, U128::from_integer(amount));
 
-        let selector = FunctionSelector::from_signature("_increase_public_balance((Field),Field)");
-        let _void = context.call_public_function(context.this_address(), selector, [to.to_field(), amount]);
+        Token::at(context.this_address())._increase_public_balance(to, amount).enqueue(&mut context);
     }
     // docs:end:unshield
 
@@ -312,8 +306,7 @@ contract Token {
 
         storage.balances.sub(from, U128::from_integer(amount));
 
-        let selector = FunctionSelector::from_signature("_reduce_total_supply(Field)");
-        let _void = context.call_public_function(context.this_address(), selector, [amount]);
+        Token::at(context.this_address())._reduce_total_supply(amount).enqueue(&mut context);
     }
     // docs:end:burn
 

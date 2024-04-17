@@ -5,14 +5,13 @@ import crypto from 'crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 
-import { generateNoirContractInterface } from '../contract-interface-gen/noir.js';
 import { generateTypescriptContractInterface } from '../contract-interface-gen/typescript.js';
 
 const cacheFilePath = './codegenCache.json';
 let cache: Record<string, string> = {};
 
 /** Generate code options */
-type GenerateCodeOptions = { /** Typescript */ ts?: boolean; /** Noir */ nr?: boolean; force?: boolean };
+type GenerateCodeOptions = { force?: boolean };
 
 /**
  * Generates Noir interface or Typescript interface for a folder or single file from a Noir compilation artifact.
@@ -49,26 +48,18 @@ function generateFromNoirAbi(outputPath: string, noirAbiPath: string, opts: Gene
 
   const contract = JSON.parse(readFileSync(noirAbiPath, 'utf8'));
   const aztecAbi = loadContractArtifact(contract);
-  const { nr, ts } = opts;
 
   mkdirSync(outputPath, { recursive: true });
 
-  if (nr) {
-    const noirContract = generateNoirContractInterface(aztecAbi);
-    writeFileSync(`${outputPath}/${aztecAbi.name}.nr`, noirContract);
-    return;
+  let relativeArtifactPath = path.relative(outputPath, noirAbiPath);
+  if (relativeArtifactPath === path.basename(noirAbiPath)) {
+    // Prepend ./ for local import if the folder is the same
+    relativeArtifactPath = `./${relativeArtifactPath}`;
   }
 
-  if (ts) {
-    let relativeArtifactPath = path.relative(outputPath, noirAbiPath);
-    if (relativeArtifactPath === path.basename(noirAbiPath)) {
-      // Prepend ./ for local import if the folder is the same
-      relativeArtifactPath = `./${relativeArtifactPath}`;
-    }
+  const tsWrapper = generateTypescriptContractInterface(aztecAbi, relativeArtifactPath);
+  writeFileSync(`${outputPath}/${aztecAbi.name}.ts`, tsWrapper);
 
-    const tsWrapper = generateTypescriptContractInterface(aztecAbi, relativeArtifactPath);
-    writeFileSync(`${outputPath}/${aztecAbi.name}.ts`, tsWrapper);
-  }
   updateCache(contractName, currentHash);
 }
 

@@ -7,3 +7,4 @@ compiler_version = ">=0.25.0"
 [dependencies]
 aztec = { path = "../../../aztec-nr/aztec" }
 value_note = { path = "../../../aztec-nr/value-note" }
+delegated_on = { path = "../delegated_on_contract"}

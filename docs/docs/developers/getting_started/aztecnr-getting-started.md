@@ -147,7 +147,7 @@ This will compile the smart contract and create a `target` folder with a `.json`
 After compiling, you can generate a typescript class. In the same directory, run this:
 
 ```bash
-aztec-cli codegen target -o src/artifacts --ts
+aztec-cli codegen target -o src/artifacts
 ```
 
 ### Deploy

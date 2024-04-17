@@ -65,7 +65,7 @@ aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_
 token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-contracts/contracts/token_portal_content_hash_lib" }
 ```
 
-We will also be writing some helper functions that should exist elsewhere so we don't overcomplicated our contract. In `src` create two more files - one called `util.nr` and one called `token_interface` - so your dir structure should now look like this:
+We will also be writing some helper functions that should exist elsewhere so we don't overcomplicated our contract. In `src` create one more file called `util.nr` - so your dir structure should now look like this:
 
 ```tree
 aztec-contracts
@@ -73,7 +73,6 @@ aztec-contracts
     ├── Nargo.toml
     ├── src
       ├── main.nr
-      ├── token_interface.nr
       ├── util.nr
 ```
 
