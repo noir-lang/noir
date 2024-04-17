@@ -287,7 +287,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Follow the bindings of the function signature for entry points
         // which are not `main` such as foldable functions.
         for param in func_sig.0.iter_mut() {
-            (*param).1 = param.1.follow_bindings();
+            param.1 = param.1.follow_bindings();
         }
         func_sig.1 = func_sig.1.map(|return_type| return_type.follow_bindings());
 
