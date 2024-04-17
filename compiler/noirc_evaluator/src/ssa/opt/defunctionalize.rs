@@ -14,7 +14,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, Signature},
-        instruction::{BinaryOp, ConstrainError, Instruction},
+        instruction::{BinaryOp, ConstrainError, Instruction, UserDefinedConstrainError},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -93,10 +93,9 @@ impl DefunctionalizationContext {
                     // Constrain instruction potentially hold a call instruction themselves
                     // thus we need to account for them.
                     Instruction::Constrain(_, _, Some(constrain_error)) => {
-                        if let ConstrainError::Dynamic(Instruction::Call {
-                            func: target_func_id,
-                            arguments,
-                        }) = constrain_error.as_ref()
+                        if let ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                            Instruction::Call { func: target_func_id, arguments },
+                        )) = constrain_error.as_ref()
                         {
                             (*target_func_id, arguments)
                         } else {
@@ -138,9 +137,11 @@ impl DefunctionalizationContext {
                     if let Instruction::Constrain(lhs, rhs, constrain_error_call) = instruction {
                         let new_error_call = if let Some(error) = constrain_error_call {
                             match error.as_ref() {
-                                ConstrainError::Dynamic(_) => {
-                                    Some(Box::new(ConstrainError::Dynamic(new_instruction)))
-                                }
+                                ConstrainError::UserDefined(
+                                    UserDefinedConstrainError::Dynamic(_),
+                                ) => Some(Box::new(ConstrainError::UserDefined(
+                                    UserDefinedConstrainError::Dynamic(new_instruction),
+                                ))),
                                 _ => None,
                             }
                         } else {

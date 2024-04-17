@@ -127,7 +127,8 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             let public_key_x = memory.read(*public_key_x).try_into().unwrap();
             let public_key_y = memory.read(*public_key_y).try_into().unwrap();
             let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, message));
-            let signature: Vec<u8> = to_u8_vec(read_heap_vector(memory, signature));
+            let signature: [u8; 64] =
+                to_u8_vec(read_heap_vector(memory, signature)).try_into().unwrap();
             let verified =
                 solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)?;
             memory.write(*result, verified.into());

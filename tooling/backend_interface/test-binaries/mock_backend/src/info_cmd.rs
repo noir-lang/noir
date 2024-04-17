@@ -5,7 +5,7 @@ use std::path::PathBuf;
 const INFO_RESPONSE: &str = r#"{
     "language": {
         "name": "PLONK-CSAT",
-        "width": 3
+        "width": 4
     },
     "opcodes_supported": ["arithmetic", "directive", "brillig", "memory_init", "memory_op"],
     "black_box_functions_supported": [
