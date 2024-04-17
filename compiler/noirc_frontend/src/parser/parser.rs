@@ -1587,7 +1587,7 @@ mod test {
 
     #[test]
     fn parse_use() {
-        let mut valid_use_statements = vec![
+        let valid_use_statements = [
             "use std::hash",
             "use std",
             "use foo::bar as hello",
@@ -1600,7 +1600,7 @@ mod test {
             "use dep::{std::println, bar::baz}",
         ];
 
-        let mut invalid_use_statements = vec![
+        let invalid_use_statements = [
             "use std as ;",
             "use foobar as as;",
             "use hello:: as foo;",
@@ -1610,9 +1610,9 @@ mod test {
         ];
 
         let use_statements = valid_use_statements
-            .iter_mut()
+            .into_iter()
             .map(|valid_str| (valid_str, true))
-            .chain(invalid_use_statements.iter_mut().map(|invalid_str| (invalid_str, false)));
+            .chain(invalid_use_statements.into_iter().map(|invalid_str| (invalid_str, false)));
 
         for (use_statement_str, expect_valid) in use_statements {
             let mut use_statement_str = use_statement_str.to_string();

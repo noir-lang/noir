@@ -10,7 +10,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     pub fn get(mut self: Self, index: u64) -> T {
-        assert(index as u64 < self.len);
+        assert(index < self.len);
         self.storage[index]
     }
 
@@ -19,7 +19,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     pub fn push(&mut self, elem: T) {
-        assert(self.len < MaxLen as u64, "push out of bounds");
+        assert(self.len < MaxLen, "push out of bounds");
 
         self.storage[self.len] = elem;
         self.len += 1;
@@ -41,7 +41,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
     pub fn extend_from_array<Len>(&mut self, array: [T; Len]) {
         let new_len = self.len + array.len();
-        assert(new_len as u64 <= MaxLen as u64, "extend_from_array out of bounds");
+        assert(new_len <= MaxLen, "extend_from_array out of bounds");
         for i in 0..array.len() {
             self.storage[self.len + i] = array[i];
         }
@@ -50,7 +50,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
     pub fn extend_from_slice(&mut self, slice: [T]) {
         let new_len = self.len + slice.len();
-        assert(new_len as u64 <= MaxLen as u64, "extend_from_slice out of bounds");
+        assert(new_len <= MaxLen, "extend_from_slice out of bounds");
         for i in 0..slice.len() {
             self.storage[self.len + i] = slice[i];
         }
@@ -60,7 +60,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     pub fn extend_from_bounded_vec<Len>(&mut self, vec: BoundedVec<T, Len>) {
         let append_len = vec.len();
         let new_len = self.len + append_len;
-        assert(new_len as u64 <= MaxLen as u64, "extend_from_bounded_vec out of bounds");
+        assert(new_len <= MaxLen, "extend_from_bounded_vec out of bounds");
 
         let mut exceeded_len = false;
         for i in 0..Len {
@@ -73,7 +73,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     pub fn pop(&mut self) -> T {
-        assert(self.len as u64 > 0);
+        assert(self.len > 0);
         self.len -= 1;
 
         let elem = self.storage[self.len];
