@@ -15,7 +15,7 @@ use plonky2::{
 use plonky2::iop::target::Target;
 
 #[derive(Debug, Clone)]
-pub struct VariableIntDivGenerator {
+struct VariableIntDivGenerator {
     numerator: Target,
     denominator: Target,
     pub quotient: Target,
@@ -82,4 +82,27 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
         out_buffer.set_target(self.quotient, P2Field::from_canonical_u64(quotient));
         out_buffer.set_target(self.remainder, P2Field::from_canonical_u64(remainder));
     }
+}
+
+/// Add a whole number division operation to a circuit, returning the quotient and remainder.
+/// This uses a custom `SimpleGenerator` internally, which will have performance implications.
+pub fn add_div(
+    builder: &mut P2Builder,
+    numerator: Target,
+    denominator: Target,
+) -> (Target, Target) {
+    let generator = VariableIntDivGenerator::new(builder, numerator, denominator);
+    builder.add_simple_generator(generator.clone());
+
+    let q_times_d = builder.mul(generator.quotient, denominator);
+    let q_times_d_plus_r = builder.add(q_times_d, generator.remainder);
+    let sanity = builder.is_equal(numerator, q_times_d_plus_r);
+    builder.assert_bool(sanity);
+
+    let z = builder.zero();
+    let d_is_zero = builder.is_equal(denominator, z);
+    let d_is_not_zero = builder.not(d_is_zero);
+    builder.assert_bool(d_is_not_zero);
+
+    (generator.quotient, generator.remainder)
 }
