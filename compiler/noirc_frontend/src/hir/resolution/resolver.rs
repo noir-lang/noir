@@ -928,13 +928,14 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let should_fold = attributes.is_foldable();
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
-            if visibility == Visibility::Public && !self.pub_allowed(func) {
+            if visibility == Visibility::Public && !self.pub_allowed(func) && !should_fold {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
                     position: PubPosition::Parameter,
@@ -952,7 +953,7 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
+        if !self.pub_allowed(func) && !should_fold && func.def.return_visibility == Visibility::Public {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
@@ -1007,8 +1008,6 @@ impl<'a> Resolver<'a> {
             .filter_map(|generic| self.find_generic(&generic.0.contents))
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
-
-        let should_fold = attributes.is_foldable();
 
         FuncMeta {
             name: name_ident,

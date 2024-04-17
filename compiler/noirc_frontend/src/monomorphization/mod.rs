@@ -283,7 +283,13 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
-        let func_sig = meta.function_signature();
+        let mut func_sig = meta.function_signature();
+        // Follow the bindings of the function signature for entry points
+        // which are not `main` such as foldable functions.
+        for param in func_sig.0.iter_mut() {
+            (*param).1 = param.1.follow_bindings();
+        }
+        func_sig.1 = func_sig.1.map(|return_type| return_type.follow_bindings());
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -301,9 +307,9 @@ impl<'interner> Monomorphizer<'interner> {
         let should_fold = meta.should_fold;
 
         let parameters = self.parameters(&meta.parameters)?;
-        dbg!(name.clone());
-        dbg!(func_sig.clone());
-        dbg!(parameters.clone());
+        // dbg!(name.clone());
+        // dbg!(func_sig.clone());
+        // dbg!(parameters.clone());
         let body = self.expr(body_expr_id)?;
         let function = ast::Function {
             id,

@@ -231,7 +231,6 @@ fn convert_generated_acir_into_circuit(
     }
 }
 
-// Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
 fn split_public_and_private_inputs(
     func_sig: &FunctionSignature,
     input_witnesses: &[Witness],
@@ -245,7 +244,6 @@ fn split_public_and_private_inputs(
         .0
         .iter()
         .map(|(_, typ, visibility)| {
-            dbg!("got here");
             let num_field_elements_needed = typ.field_count() as usize;
             let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;

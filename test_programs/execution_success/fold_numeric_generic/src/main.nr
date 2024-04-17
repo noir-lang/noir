@@ -21,8 +21,8 @@ fn main(
         let enable = enable[i];
         let to_hash = to_hash[i];
         if enable {
-            // result[i] = pedersen_hash(to_hash, 0);
-            result[i] = poseidon_hash(to_hash);
+            result[i] = pedersen_hash(to_hash, 0);
+            // result[i] = poseidon_hash(to_hash);
         }
     }
     result
