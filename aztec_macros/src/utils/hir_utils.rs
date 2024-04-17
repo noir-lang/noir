@@ -7,43 +7,32 @@ use noirc_frontend::{
         resolution::{path_resolver::StandardPathResolver, resolver::Resolver},
         type_check::type_check_func,
     },
-    macros_api::{FileId, HirContext, ModuleDefId, StructId},
+    macros_api::{FileId, HirContext, MacroError, ModuleDefId, StructId},
     node_interner::{FuncId, TraitId},
     ItemVisibility, LetStatement, NoirFunction, Shared, Signedness, StructType, Type,
 };
 
 use super::ast_utils::is_custom_attribute;
 
-pub fn collect_crate_structs(crate_id: &CrateId, context: &HirContext) -> Vec<(String, StructId)> {
+pub fn collect_crate_structs(crate_id: &CrateId, context: &HirContext) -> Vec<StructId> {
     context
         .def_map(crate_id)
-        .expect("ICE: Missing crate in def_map")
-        .modules()
-        .iter()
-        .flat_map(|(_, module)| {
-            module.type_definitions().filter_map(move |typ| {
-                if let ModuleDefId::TypeId(struct_id) = typ {
-                    let module_id = struct_id.module_id();
-                    let path =
-                        context.fully_qualified_struct_path(context.root_crate_id(), struct_id);
-                    let path = if path.contains("::") {
-                        let prefix = if &module_id.krate == context.root_crate_id() {
-                            "crate"
+        .map(|def_map| {
+            def_map
+                .modules()
+                .iter()
+                .flat_map(|(_, module)| {
+                    module.type_definitions().filter_map(move |typ| {
+                        if let ModuleDefId::TypeId(struct_id) = typ {
+                            Some(struct_id)
                         } else {
-                            "dep"
-                        };
-                        format!("{}::{}", prefix, path)
-                    } else {
-                        path
-                    };
-
-                    Some((path, struct_id))
-                } else {
-                    None
-                }
-            })
+                            None
+                        }
+                    })
+                })
+                .collect()
         })
-        .collect()
+        .unwrap_or_default()
 }
 
 pub fn collect_crate_functions(crate_id: &CrateId, context: &HirContext) -> Vec<FuncId> {
@@ -96,22 +85,48 @@ pub fn signature_of_type(typ: &Type) -> String {
             let fields = vecmap(types, signature_of_type);
             format!("({})", fields.join(","))
         }
+        Type::String(len_typ) => {
+            if let Type::Constant(len) = **len_typ {
+                format!("str<{len}>")
+            } else {
+                unimplemented!(
+                    "Cannot generate signature for string with length type {:?}",
+                    len_typ
+                )
+            }
+        }
+        Type::MutableReference(typ) => signature_of_type(typ),
         _ => unimplemented!("Cannot generate signature for type {:?}", typ),
     }
 }
 
-// Fetches the name of all structs tagged as #[aztec(note)] in a given crate
+// Fetches the name of all structs tagged as #[aztec(note)] in a given crate, avoiding
+// contract dependencies that are just there for their interfaces.
 pub fn fetch_crate_notes(
     context: &HirContext,
     crate_id: &CrateId,
 ) -> Vec<(String, Shared<StructType>)> {
     collect_crate_structs(crate_id, context)
         .iter()
-        .filter_map(|(path, struct_id)| {
+        .filter_map(|struct_id| {
             let r#struct = context.def_interner.get_struct(*struct_id);
             let attributes = context.def_interner.struct_attributes(struct_id);
             if attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(note)")) {
-                Some((path.clone(), r#struct))
+                let module_id = struct_id.module_id();
+
+                fully_qualified_note_path(context, *struct_id).map(|path| {
+                    let path = if path.contains("::") {
+                        let prefix = if &module_id.krate == context.root_crate_id() {
+                            "crate"
+                        } else {
+                            "dep"
+                        };
+                        format!("{}::{}", prefix, path)
+                    } else {
+                        path
+                    };
+                    (path.clone(), r#struct)
+                })
             } else {
                 None
             }
@@ -127,23 +142,24 @@ pub fn fetch_notes(context: &HirContext) -> Vec<(String, Shared<StructType>)> {
 pub fn get_contract_module_data(
     context: &mut HirContext,
     crate_id: &CrateId,
-) -> Option<(LocalModuleId, FileId)> {
+) -> Option<(String, LocalModuleId, FileId)> {
+    let def_map = context.def_map(crate_id).expect("ICE: Missing crate in def_map");
     // We first fetch modules in this crate which correspond to contracts, along with their file id.
-    let contract_module_file_ids: Vec<(LocalModuleId, FileId)> = context
-        .def_map(crate_id)
-        .expect("ICE: Missing crate in def_map")
+    let contract_module_file_ids: Vec<(String, LocalModuleId, FileId)> = def_map
         .modules()
         .iter()
         .filter(|(_, module)| module.is_contract)
-        .map(|(idx, module)| (LocalModuleId(idx), module.location.file))
+        .map(|(idx, module)| {
+            (def_map.get_module_path(idx, module.parent), LocalModuleId(idx), module.location.file)
+        })
         .collect();
 
-    // If the current crate does not contain a contract module we simply skip it. More than 1 contract in a crate is forbidden by the compiler
+    // If the current crate does not contain a contract module we simply skip it.
     if contract_module_file_ids.is_empty() {
         return None;
     }
 
-    Some(contract_module_file_ids[0])
+    Some(contract_module_file_ids[0].clone())
 }
 
 pub fn inject_fn(
@@ -153,7 +169,7 @@ pub fn inject_fn(
     location: Location,
     module_id: LocalModuleId,
     file_id: FileId,
-) {
+) -> Result<(), MacroError> {
     let func_id = context.def_interner.push_empty_fn();
     context.def_interner.push_function(
         func_id,
@@ -164,12 +180,11 @@ pub fn inject_fn(
 
     context.def_map_mut(crate_id).unwrap().modules_mut()[module_id.0]
         .declare_function(func.name_ident().clone(), ItemVisibility::Public, func_id)
-        .unwrap_or_else(|_| {
-            panic!(
-                "Failed to declare autogenerated {} function, likely due to a duplicate definition",
-                func.name()
-            )
-        });
+        .map_err(|err| MacroError {
+            primary_message: format!("Failed to declare autogenerated {} function", func.name()),
+            secondary_message: Some(format!("Duplicate definition found {}", err.0)),
+            span: None,
+        })?;
 
     let def_maps = &mut context.def_maps;
 
@@ -183,7 +198,17 @@ pub fn inject_fn(
     context.def_interner.push_fn_meta(meta, func_id);
     context.def_interner.update_fn(func_id, hir_func);
 
-    type_check_func(&mut context.def_interner, func_id);
+    let errors = type_check_func(&mut context.def_interner, func_id);
+
+    if !errors.is_empty() {
+        return Err(MacroError {
+            primary_message: "Failed to type check autogenerated function".to_owned(),
+            secondary_message: Some(errors.iter().map(|err| err.to_string()).collect::<String>()),
+            span: None,
+        });
+    }
+
+    Ok(())
 }
 
 pub fn inject_global(
@@ -223,4 +248,64 @@ pub fn inject_global(
 
     let statement_id = context.def_interner.get_global(global_id).let_statement;
     context.def_interner.replace_statement(statement_id, hir_stmt);
+}
+
+pub fn fully_qualified_note_path(context: &HirContext, note_id: StructId) -> Option<String> {
+    let module_id = note_id.module_id();
+    let child_id = module_id.local_id.0;
+    let def_map =
+        context.def_map(&module_id.krate).expect("The local crate should be analyzed already");
+
+    let module = context.module(module_id);
+
+    let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
+
+    if &module_id.krate == context.root_crate_id() {
+        Some(module_path)
+    } else {
+        find_non_contract_dependencies_bfs(context, context.root_crate_id(), &module_id.krate)
+            .map(|crates| crates.join("::") + "::" + &module_path)
+    }
+}
+
+fn filter_contract_modules(context: &HirContext, crate_id: &CrateId) -> bool {
+    if let Some(def_map) = context.def_map(crate_id) {
+        !def_map.modules().iter().any(|(_, module)| module.is_contract)
+    } else {
+        true
+    }
+}
+
+fn find_non_contract_dependencies_bfs(
+    context: &HirContext,
+    crate_id: &CrateId,
+    target_crate_id: &CrateId,
+) -> Option<Vec<String>> {
+    context.crate_graph[crate_id]
+        .dependencies
+        .iter()
+        .filter(|dep| filter_contract_modules(context, &dep.crate_id))
+        .find_map(|dep| {
+            if &dep.crate_id == target_crate_id {
+                Some(vec![dep.name.to_string()])
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            context.crate_graph[crate_id]
+                .dependencies
+                .iter()
+                .filter(|dep| filter_contract_modules(context, &dep.crate_id))
+                .find_map(|dep| {
+                    if let Some(mut path) =
+                        find_non_contract_dependencies_bfs(context, &dep.crate_id, target_crate_id)
+                    {
+                        path.insert(0, dep.name.to_string());
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+        })
 }
