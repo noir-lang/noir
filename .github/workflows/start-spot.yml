@@ -1,5 +1,5 @@
 # Useful if the spot runners are in a bad state
-name: Stop Personal Spot
+name: Start Personal Spot
 on:
   workflow_dispatch: {}
 jobs:
