@@ -36,6 +36,7 @@ impl StmtId {
                     pattern,
                     r#type,
                     expression,
+                    comptime: false,
                     attributes: Vec::new(),
                 })
             }

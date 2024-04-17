@@ -1,8 +1,8 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, keyword, nothing, optional_distinctness, optional_visibility,
-    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
-    self_parameter, where_clause, NoirParser,
+    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_distinctness,
+    optional_visibility, parameter_name_recovery, parameter_recovery, parenthesized, parse_type,
+    pattern, self_parameter, where_clause, NoirParser,
 };
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::spanned;
@@ -36,8 +36,8 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 name,
                 attributes,
                 is_unconstrained: modifiers.0,
-                is_comptime: false, // TODO
                 visibility: modifiers.1,
+                is_comptime: modifiers.2,
                 generics,
                 parameters,
                 body,
@@ -68,11 +68,14 @@ fn visibility_modifier() -> impl NoirParser<ItemVisibility> {
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility)> {
+fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(visibility_modifier())
-        .map(|(unconstrained, visibility)| (unconstrained.is_some(), visibility))
+        .then(maybe_comp_time())
+        .map(|((unconstrained, visibility), comptime)| {
+            (unconstrained.is_some(), visibility, comptime)
+        })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
