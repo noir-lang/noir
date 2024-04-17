@@ -29,8 +29,14 @@ strum_macros = "0.24"
 serde-reflection = "0.3.6"
 serde-generate = "0.25.1"
 fxhash.workspace = true
+criterion.workspace = true
+pprof.workspace = true
 
 [features]
 default = ["bn254"]
 bn254 = ["acir_field/bn254", "brillig/bn254"]
 bls12_381 = ["acir_field/bls12_381", "brillig/bls12_381"]
+
+[[bench]]
+name = "serialization"
+harness = false
