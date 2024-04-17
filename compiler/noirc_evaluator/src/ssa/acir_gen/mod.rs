@@ -52,12 +52,18 @@ struct SharedContext {
     /// There can be Brillig functions specified in SSA which do not act as
     /// entry points in ACIR (e.g. only called by other Brillig functions)
     /// This mapping is necessary to use the correct function pointer for a Brillig call.
-    brillig_generated_func_pointers: BTreeMap<FunctionId, u32>,
+    /// This uses the brillig parameters in the map since using slices with different lengths
+    /// needs to create different brillig entrypoints
+    brillig_generated_func_pointers: BTreeMap<(FunctionId, Vec<BrilligParameter>), u32>,
 }
 
 impl SharedContext {
-    fn generated_brillig_pointer(&self, func_id: &FunctionId) -> Option<&u32> {
-        self.brillig_generated_func_pointers.get(func_id)
+    fn generated_brillig_pointer(
+        &self,
+        func_id: FunctionId,
+        arguments: Vec<BrilligParameter>,
+    ) -> Option<&u32> {
+        self.brillig_generated_func_pointers.get(&(func_id, arguments))
     }
 
     fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig {
@@ -67,10 +73,11 @@ impl SharedContext {
     fn insert_generated_brillig(
         &mut self,
         func_id: FunctionId,
+        arguments: Vec<BrilligParameter>,
         generated_pointer: u32,
         code: GeneratedBrillig,
     ) {
-        self.brillig_generated_func_pointers.insert(func_id, generated_pointer);
+        self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
         self.generated_brillig.push(code);
     }
 
@@ -356,7 +363,7 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = self.gen_brillig_for(main_func, arguments, brillig)?;
+        let code = self.gen_brillig_for(main_func, arguments.clone(), brillig)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -370,7 +377,7 @@ impl<'a> Context<'a> {
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             0,
         )?;
-        self.shared_context.insert_generated_brillig(main_func.id(), 0, code);
+        self.shared_context.insert_generated_brillig(main_func.id(), arguments, 0, code);
 
         let output_vars: Vec<_> = output_values
             .iter()
@@ -657,6 +664,7 @@ impl<'a> Context<'a> {
                                     }
                                 }
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                                let arguments = self.gen_brillig_parameters(arguments, dfg);
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| {
                                     dfg.type_of_value(*result_id).into()
@@ -664,8 +672,9 @@ impl<'a> Context<'a> {
 
                                 // Check whether we have already generated Brillig for this function
                                 // If we have, re-use the generated code to set-up the Brillig call.
-                                let output_values = if let Some(generated_pointer) =
-                                    self.shared_context.generated_brillig_pointer(id)
+                                let output_values = if let Some(generated_pointer) = self
+                                    .shared_context
+                                    .generated_brillig_pointer(*id, arguments.clone())
                                 {
                                     let code = self
                                         .shared_context
@@ -680,8 +689,8 @@ impl<'a> Context<'a> {
                                         *generated_pointer,
                                     )?
                                 } else {
-                                    let arguments = self.gen_brillig_parameters(arguments, dfg);
-                                    let code = self.gen_brillig_for(func, arguments, brillig)?;
+                                    let code =
+                                        self.gen_brillig_for(func, arguments.clone(), brillig)?;
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
                                     let output_values = self.acir_context.brillig_call(
@@ -695,6 +704,7 @@ impl<'a> Context<'a> {
                                     )?;
                                     self.shared_context.insert_generated_brillig(
                                         *id,
+                                        arguments,
                                         generated_pointer,
                                         code,
                                     );
