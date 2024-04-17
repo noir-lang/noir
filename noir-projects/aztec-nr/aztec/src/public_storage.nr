@@ -61,8 +61,12 @@ mod tests {
 
     #[test]
     fn test_write() {
-        // Here we'd want to test that what is written to storage is deserialized to the same struct, but the current
-        // oracle mocks lack these capabilities.
-        // TODO: implement this once https://github.com/noir-lang/noir/issues/4652 is closed
+        let slot = 7;
+        let to_write = TestStruct { a: 13, b: 42 };
+
+        let mock = OracleMock::mock("storageWrite").returns([0; 2]); // The return value is unused
+
+        public_storage::write(slot, to_write);
+        assert_eq(mock.get_last_params(), (slot, to_write.serialize()));
     }
 }

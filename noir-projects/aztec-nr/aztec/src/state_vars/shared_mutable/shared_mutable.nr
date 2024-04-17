@@ -155,7 +155,7 @@ mod test {
 
     #[test]
     fn test_get_current_value_in_public_after_change() {
-        let (state_var, block_number ) = setup(false);
+        let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
         let (pre, post) = (13, 17);
@@ -172,16 +172,54 @@ mod test {
         let slot = state_var.get_derived_storage_slot();
         let (pre, post) = (13, 17);
 
-        let slot = state_var.get_derived_storage_slot();
-
+        // Change in the future
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number + 1]);
 
+        let write_mock = OracleMock::mock("storageWrite").returns([0; 3]); // The oracle return value is actually unused
+
         let new_value = 42;
-        // Here we want to assert that the `storageWrite` oracle is called with a certain set of values, but the current
-        // oracle mocks don't have those capabilities.
-        // TODO: implement this once https://github.com/noir-lang/noir/issues/4652 is closed
-        // OracleMock::mock("storageWrite").expect_call((slot, [pre, new_value, block_number + DELAY]));
-        // state_var.schedule_value_change(new_value);
+        state_var.schedule_value_change(new_value);
+
+        // The new scheduled change replaces the old one
+        assert_eq(write_mock.get_last_params(), (slot, [pre, new_value, block_number + TEST_DELAY]));
+    }
+
+    #[test]
+    fn test_schedule_value_change_at_change() {
+        let (state_var, block_number) = setup(false);
+
+        let slot = state_var.get_derived_storage_slot();
+        let (pre, post) = (13, 17);
+
+        // Change in the current block
+        OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number]);
+
+        let write_mock = OracleMock::mock("storageWrite").returns([0; 3]); // The oracle return value is actually unused
+
+        let new_value = 42;
+        state_var.schedule_value_change(new_value);
+
+        // The previous 'post' value is the current one and becomes the 'pre' value
+        assert_eq(write_mock.get_last_params(), (slot, [post, new_value, block_number + TEST_DELAY]));
+    }
+
+    #[test]
+    fn test_schedule_value_change_after_change() {
+        let (state_var, block_number) = setup(false);
+
+        let slot = state_var.get_derived_storage_slot();
+        let (pre, post) = (13, 17);
+
+        // Change in the past
+        OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number - 1]);
+
+        let write_mock = OracleMock::mock("storageWrite").returns([0; 3]); // The oracle return value is actually unused
+
+        let new_value = 42;
+        state_var.schedule_value_change(new_value);
+
+        // The previous 'post' value is the current one and becomes the 'pre' value
+        assert_eq(write_mock.get_last_params(), (slot, [post, new_value, block_number + TEST_DELAY]));
     }
 
     #[test]
