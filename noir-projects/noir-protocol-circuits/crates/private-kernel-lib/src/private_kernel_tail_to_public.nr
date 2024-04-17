@@ -7,7 +7,7 @@ use dep::types::{
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length
 };
@@ -21,6 +21,10 @@ struct PrivateKernelTailToPublicCircuitPrivateInputs {
     sorted_new_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     nullifier_read_request_hints: NullifierReadRequestHints,
     nullifier_commitment_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
     master_nullifier_secret_keys: [GrumpkinPrivateKey; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 }
 
@@ -49,7 +53,11 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
             self.sorted_new_note_hashes_indexes,
             self.sorted_new_nullifiers,
             self.sorted_new_nullifiers_indexes,
-            self.nullifier_commitment_hints
+            self.nullifier_commitment_hints,
+            self.sorted_encrypted_log_hashes,
+            self.sorted_encrypted_log_hashes_indexes,
+            self.sorted_unencrypted_log_hashes,
+            self.sorted_unencrypted_log_hashes_indexes,
         );
         composer.compose_public().finish_to_public()
     }
@@ -161,6 +169,20 @@ mod tests {
                 sorted_nullifier_commitment_hints[i] = sorted_new_nullifiers_indexes[self.nullifier_commitment_hints[i]];
             }
 
+            let sorted = sort_get_sorted_hints(
+                self.previous_kernel.encrypted_logs_hashes.storage,
+                |a: SideEffect, b: SideEffect| a.counter < b.counter
+            );
+            let sorted_encrypted_log_hashes = sorted.sorted_array;
+            let sorted_encrypted_log_hashes_indexes = sorted.sorted_index_hints;
+
+            let sorted = sort_get_sorted_hints(
+                self.previous_kernel.unencrypted_logs_hashes.storage,
+                |a: SideEffect, b: SideEffect| a.counter < b.counter
+            );
+            let sorted_unencrypted_log_hashes = sorted.sorted_array;
+            let sorted_unencrypted_log_hashes_indexes = sorted.sorted_index_hints;
+
             let kernel = PrivateKernelTailToPublicCircuitPrivateInputs {
                 previous_kernel: self.previous_kernel.to_private_kernel_data(),
                 sorted_new_note_hashes,
@@ -170,6 +192,10 @@ mod tests {
                 sorted_new_nullifiers_indexes,
                 nullifier_read_request_hints: self.nullifier_read_request_hints_builder.to_hints(),
                 nullifier_commitment_hints: sorted_nullifier_commitment_hints,
+                sorted_encrypted_log_hashes,
+                sorted_encrypted_log_hashes_indexes,
+                sorted_unencrypted_log_hashes,
+                sorted_unencrypted_log_hashes_indexes,
                 master_nullifier_secret_keys: [GrumpkinPrivateKey::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
             };
             kernel.execute()

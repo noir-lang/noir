@@ -1,5 +1,6 @@
-import { sha256 } from '@aztec/foundation/crypto';
-import { BufferReader, prefixBufferWithLength, truncateAndPad } from '@aztec/foundation/serialize';
+import { MAX_ENCRYPTED_LOGS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL } from '@aztec/circuits.js';
+import { sha256Trunc } from '@aztec/foundation/crypto';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { EncryptedL2Log } from './encrypted_l2_log.js';
 import { UnencryptedL2Log } from './unencrypted_l2_log.js';
@@ -38,12 +39,13 @@ export abstract class FunctionL2Logs<TLog extends UnencryptedL2Log | EncryptedL2
 
   /**
    * Calculates hash of serialized logs.
-   * @returns 2 fields containing all 256 bits of information of sha256 hash.
+   * @returns Buffer containing 248 bits of information of sha256 hash.
    */
   public hash(): Buffer {
-    // Remove first 4 bytes that are occupied by length which is not part of the preimage in contracts and L2Blocks
-    const preimage = this.toBuffer().subarray(4);
-    return truncateAndPad(sha256(preimage));
+    // Truncated SHA hash of the concatenation of the hash of each inner log
+    // Changed in resolving #5017 to mimic logs hashing in kernels
+    const preimage = Buffer.concat(this.logs.map(l => l.hash()));
+    return sha256Trunc(preimage);
   }
 
   /**
@@ -85,10 +87,12 @@ export class EncryptedFunctionL2Logs extends FunctionL2Logs<EncryptedL2Log> {
   /**
    * Creates a new L2Logs object with `numLogs` logs.
    * @param numLogs - The number of logs to create.
-   * @param logType - The type of logs to generate.
    * @returns A new EncryptedFunctionL2Logs object.
    */
   public static random(numLogs: number): EncryptedFunctionL2Logs {
+    if (numLogs > MAX_ENCRYPTED_LOGS_PER_CALL) {
+      throw new Error(`Trying to create ${numLogs} logs for one call (max: ${MAX_ENCRYPTED_LOGS_PER_CALL})`);
+    }
     const logs: EncryptedL2Log[] = [];
     for (let i = 0; i < numLogs; i++) {
       logs.push(EncryptedL2Log.random());
@@ -135,10 +139,12 @@ export class UnencryptedFunctionL2Logs extends FunctionL2Logs<UnencryptedL2Log> 
   /**
    * Creates a new L2Logs object with `numLogs` logs.
    * @param numLogs - The number of logs to create.
-   * @param logType - The type of logs to generate.
    * @returns A new UnencryptedFunctionL2Logs object.
    */
   public static random(numLogs: number): UnencryptedFunctionL2Logs {
+    if (numLogs > MAX_UNENCRYPTED_LOGS_PER_CALL) {
+      throw new Error(`Trying to create ${numLogs} logs for one call (max: ${MAX_UNENCRYPTED_LOGS_PER_CALL})`);
+    }
     const logs: UnencryptedL2Log[] = [];
     for (let i = 0; i < numLogs; i++) {
       logs.push(UnencryptedL2Log.random());

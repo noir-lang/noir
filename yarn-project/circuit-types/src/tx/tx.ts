@@ -40,6 +40,8 @@ export class Tx {
     public readonly enqueuedPublicFunctionCalls: PublicCallRequest[],
   ) {
     if (this.unencryptedLogs.functionLogs.length < this.encryptedLogs.functionLogs.length) {
+      // TODO(Miranda): This error was not throwing in some cases, as logs are nested objects which would show len 1 even if no logs existed
+      // Many tests produce enc logs and no unenc logs, so this error should have been throwing even in good cases
       // This check is present because each private function invocation creates encrypted FunctionL2Logs object and
       // both public and private function invocations create unencrypted FunctionL2Logs object. Hence "num unencrypted"
       // >= "num encrypted".

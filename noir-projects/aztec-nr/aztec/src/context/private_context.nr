@@ -25,7 +25,8 @@ use dep::protocol_types::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
+    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
+    MAX_ENCRYPTED_LOGS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     grumpkin_private_key::GrumpkinPrivateKey, header::Header,
@@ -65,6 +66,8 @@ struct PrivateContext {
     historical_header: Header,
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
+    encrypted_logs_hashes: BoundedVec<SideEffect, MAX_ENCRYPTED_LOGS_PER_CALL>,
+    unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL>,
     // encrypted_logs_preimages: Vec<Field>,
     // unencrypted_logs_preimages: Vec<Field>,
 
@@ -137,6 +140,8 @@ impl PrivateContext {
             public_call_stack_hashes: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
+            encrypted_logs_hashes: BoundedVec::new(),
+            unencrypted_logs_hashes: BoundedVec::new(),
             // encrypted_logs_preimages: Vec::new(),
             // unencrypted_logs_preimages: Vec::new(),
             nullifier_key: Option::none()
@@ -162,8 +167,6 @@ impl PrivateContext {
 
     pub fn finish(self) -> PrivateCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
-        let encrypted_logs_hash = 0;
-        let unencrypted_logs_hash = 0;
         let encrypted_log_preimages_length = 0;
         let unencrypted_log_preimages_length = 0;
 
@@ -183,8 +186,8 @@ impl PrivateContext {
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             start_side_effect_counter: self.inputs.start_side_effect_counter,
             end_side_effect_counter: self.side_effect_counter,
-            encrypted_logs_hash,
-            unencrypted_logs_hash,
+            encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
+            unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
             encrypted_log_preimages_length,
             unencrypted_log_preimages_length,
             historical_header: self.historical_header,
@@ -263,15 +266,17 @@ impl PrivateContext {
     }
     // docs:end:consume_l1_to_l2_message
 
-    pub fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
-        let _void1 = self.inputs;
-        let _void2 = log;
+    pub fn push_encrypted_log(&mut self, log_hash: Field) {
+        let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
+        self.encrypted_logs_hashes.push(side_effect);
+        self.side_effect_counter = self.side_effect_counter + 1;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
-    pub fn accumulate_unencrypted_logs<T>(&mut self, log: T) {
-        let _void1 = self.inputs;
-        let _void2 = log;
+    pub fn push_unencrypted_log(&mut self, log_hash: Field) {
+        let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
+        self.unencrypted_logs_hashes.push(side_effect);
+        self.side_effect_counter = self.side_effect_counter + 1;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
@@ -491,7 +496,7 @@ impl PrivateContext {
                 new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
                 start_side_effect_counter: 0,
                 end_side_effect_counter: 0,
-                unencrypted_logs_hash: 0,
+                unencrypted_logs_hashes: [SideEffect::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
                 unencrypted_log_preimages_length: 0,
                 historical_header: Header::empty(),
                 prover_address: AztecAddress::zero(),
@@ -551,6 +556,8 @@ impl Empty for PrivateContext {
             public_call_stack_hashes : BoundedVec::new(),
             new_l2_to_l1_msgs : BoundedVec::new(),
             historical_header: Header::empty(),
+            encrypted_logs_hashes: BoundedVec::new(),
+            unencrypted_logs_hashes: BoundedVec::new(),
             nullifier_key: Option::none(),
         }
     }

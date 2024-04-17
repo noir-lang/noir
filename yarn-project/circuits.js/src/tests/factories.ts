@@ -38,6 +38,8 @@ import {
   GrumpkinScalar,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   L2ToL1Message,
+  MAX_ENCRYPTED_LOGS_PER_CALL,
+  MAX_ENCRYPTED_LOGS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_CALL,
@@ -61,6 +63,8 @@ import {
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_UNENCRYPTED_LOGS_PER_CALL,
+  MAX_UNENCRYPTED_LOGS_PER_TX,
   MaxBlockNumber,
   MembershipWitness,
   MergeRollupInputs,
@@ -339,8 +343,8 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
       SideEffectLinkedToNoteHash.empty,
     ),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
-    fr(seed + 0x700), // encrypted logs hash
-    fr(seed + 0x800), // unencrypted logs hash
+    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x700, SideEffect.empty), // encrypted logs hashes
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x800, SideEffect.empty), // unencrypted logs hashes
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(
@@ -371,8 +375,8 @@ export function makePrivateAccumulatedData(seed = 1, full = false) {
       SideEffectLinkedToNoteHash.empty,
     ),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
-    fr(seed + 0x700), // encrypted logs hash
-    fr(seed + 0x800), // unencrypted logs hash
+    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x700, SideEffect.empty), // encrypted logs hashes
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x800, SideEffect.empty), // unencrypted logs hashes
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400, CallRequest.empty),
@@ -455,7 +459,7 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900, L2ToL1Message.empty),
     fr(seed + 0xa00),
     fr(seed + 0xa01),
-    fr(seed + 0x901),
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0x901, SideEffect.empty),
     fr(seed + 0x902),
     makeHeader(seed + 0xa00, undefined),
     makeAztecAddress(seed + 0xb01),
@@ -911,8 +915,8 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
     startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),
-    encryptedLogsHash: fr(seed + 0x900),
-    unencryptedLogsHash: fr(seed + 0xa00),
+    encryptedLogsHashes: makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0x900),
+    unencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0xa00),
     encryptedLogPreimagesLength: fr(seed + 0xb00),
     unencryptedLogPreimagesLength: fr(seed + 0xc00),
     historicalHeader: makeHeader(seed + 0xd00, undefined),

@@ -13,6 +13,7 @@ import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
   GeneratorIndex,
+  MAX_ENCRYPTED_LOGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
@@ -21,6 +22,7 @@ import {
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+  MAX_UNENCRYPTED_LOGS_PER_CALL,
   PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
 } from '../constants.gen.js';
 import { Header } from '../structs/header.js';
@@ -104,12 +106,12 @@ export class PrivateCircuitPublicInputs {
      * Hash of the encrypted logs emitted in this function call.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public encryptedLogsHash: Fr,
+    public encryptedLogsHashes: Tuple<SideEffect, typeof MAX_ENCRYPTED_LOGS_PER_CALL>,
     /**
      * Hash of the unencrypted logs emitted in this function call.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHash: Fr,
+    public unencryptedLogsHashes: Tuple<SideEffect, typeof MAX_UNENCRYPTED_LOGS_PER_CALL>,
     /**
      * Length of the encrypted log preimages emitted in this function call.
      * Note: Here so that the gas cost of this request can be measured by circuits, without actually needing to feed
@@ -170,8 +172,8 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readObject(Fr),
       reader.readObject(Fr),
-      reader.readObject(Fr),
-      reader.readObject(Fr),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, SideEffect),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect),
       reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readObject(Header),
@@ -198,8 +200,8 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readField(),
       reader.readField(),
-      reader.readField(),
-      reader.readField(),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, SideEffect),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect),
       reader.readField(),
       reader.readField(),
       reader.readObject(Header),
@@ -229,8 +231,8 @@ export class PrivateCircuitPublicInputs {
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
       Fr.ZERO,
       Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
+      makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, SideEffect.empty),
+      makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect.empty),
       Fr.ZERO,
       Fr.ZERO,
       Header.empty(),
@@ -258,8 +260,8 @@ export class PrivateCircuitPublicInputs {
       isZeroArray(this.privateCallStackHashes) &&
       isZeroArray(this.publicCallStackHashes) &&
       isEmptyArray(this.newL2ToL1Msgs) &&
-      this.encryptedLogsHash.isZero() &&
-      this.unencryptedLogsHash.isZero() &&
+      isEmptyArray(this.encryptedLogsHashes) &&
+      isEmptyArray(this.unencryptedLogsHashes) &&
       this.encryptedLogPreimagesLength.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
@@ -290,8 +292,8 @@ export class PrivateCircuitPublicInputs {
       fields.newL2ToL1Msgs,
       fields.startSideEffectCounter,
       fields.endSideEffectCounter,
-      fields.encryptedLogsHash,
-      fields.unencryptedLogsHash,
+      fields.encryptedLogsHashes,
+      fields.unencryptedLogsHashes,
       fields.encryptedLogPreimagesLength,
       fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,

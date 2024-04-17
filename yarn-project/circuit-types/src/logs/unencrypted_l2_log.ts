@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
-import { randomBytes } from '@aztec/foundation/crypto';
+import { randomBytes, sha256Trunc } from '@aztec/foundation/crypto';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 /**
@@ -80,6 +80,15 @@ export class UnencryptedL2Log {
     const selector = EventSelector.fromBuffer(reader);
     const data = reader.readBuffer();
     return new UnencryptedL2Log(contractAddress, selector, data);
+  }
+
+  /**
+   * Calculates hash of serialized logs.
+   * @returns Buffer containing 248 bits of information of sha256 hash.
+   */
+  public hash(): Buffer {
+    const preimage = this.toBuffer();
+    return sha256Trunc(preimage);
   }
 
   /**

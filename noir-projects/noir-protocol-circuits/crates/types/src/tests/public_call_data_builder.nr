@@ -3,7 +3,7 @@ use crate::{
     gas_settings::GasSettings, gas::Gas, call_context::CallContext,
     call_request::{CallerContext, CallRequest}, function_data::FunctionData,
     public_call_data::PublicCallData, public_call_stack_item::PublicCallStackItem,
-    public_circuit_public_inputs::PublicCircuitPublicInputs
+    public_circuit_public_inputs::PublicCircuitPublicInputs, side_effect::SideEffect
 },
     address::{AztecAddress, EthAddress},
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, mocked::Proof,
@@ -152,8 +152,10 @@ impl PublicCallDataBuilder {
     }
 
     pub fn set_unencrypted_logs(&mut self, hash: Field, preimages_length: Field) {
-        self.public_inputs.unencrypted_logs_hash = hash;
-        self.public_inputs.unencrypted_log_preimages_length = preimages_length;
+        // Counter set as 0 for testing, like note read requests
+        let side_effect = SideEffect { value: hash, counter: 0 };
+        self.public_inputs.unencrypted_logs_hashes.push(side_effect);
+        self.public_inputs.unencrypted_log_preimages_length += preimages_length;
     }
 
     pub fn finish(self) -> PublicCallData {

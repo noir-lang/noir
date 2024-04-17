@@ -205,11 +205,11 @@ export abstract class TypedOracle {
     _noteTypeId: Fr,
     _publicKey: PublicKey,
     _log: Fr[],
-  ): void {
+  ): Fr {
     throw new OracleMethodNotAvailableError('emitEncryptedLog');
   }
 
-  emitUnencryptedLog(_log: UnencryptedL2Log): void {
+  emitUnencryptedLog(_log: UnencryptedL2Log): Fr {
     throw new OracleMethodNotAvailableError('emitUnencryptedLog');
   }
 

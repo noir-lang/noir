@@ -265,10 +265,10 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn emit_unencrypted_log() {
-        context.accumulate_unencrypted_logs(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
-        context.accumulate_unencrypted_logs(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
+        context.emit_unencrypted_log(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
+        context.emit_unencrypted_log(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
         let s: CompressedString<2,44> = CompressedString::from_string("A long time ago, in a galaxy far far away...");
-        context.accumulate_unencrypted_logs(/*event_selector=*/ 10, /*message=*/ s);
+        context.emit_unencrypted_log(/*event_selector=*/ 10, /*message=*/ s);
     }
 
     #[aztec(public-vm)]

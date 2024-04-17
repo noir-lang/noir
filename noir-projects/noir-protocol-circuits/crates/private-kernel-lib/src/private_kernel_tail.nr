@@ -7,7 +7,7 @@ use dep::types::{
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length
 };
@@ -21,6 +21,10 @@ struct PrivateKernelTailCircuitPrivateInputs {
     sorted_new_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     nullifier_read_request_hints: NullifierReadRequestHints,
     nullifier_commitment_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
     master_nullifier_secret_keys: [GrumpkinPrivateKey; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 }
 
@@ -49,7 +53,11 @@ impl PrivateKernelTailCircuitPrivateInputs {
             self.sorted_new_note_hashes_indexes,
             self.sorted_new_nullifiers,
             self.sorted_new_nullifiers_indexes,
-            self.nullifier_commitment_hints
+            self.nullifier_commitment_hints,
+            self.sorted_encrypted_log_hashes,
+            self.sorted_encrypted_log_hashes_indexes,
+            self.sorted_unencrypted_log_hashes,
+            self.sorted_unencrypted_log_hashes_indexes,
         );
         composer.compose().finish()
     }
@@ -71,7 +79,7 @@ mod tests {
         side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered}
     },
         grumpkin_private_key::GrumpkinPrivateKey,
-        hash::{compute_note_hash_nonce, compute_unique_siloed_note_hash},
+        hash::{compute_note_hash_nonce, compute_unique_siloed_note_hash, accumulate_sha256},
         tests::{fixture_builder::FixtureBuilder, sort::sort_get_sorted_hints},
         utils::{arrays::{array_eq, array_length}}, traits::{Empty, is_empty, is_empty_array}
     };
@@ -154,6 +162,20 @@ mod tests {
                 sorted_nullifier_commitment_hints[i] = sorted_new_nullifiers_indexes[self.nullifier_commitment_hints[i]];
             }
 
+            let sorted = sort_get_sorted_hints(
+                self.previous_kernel.encrypted_logs_hashes.storage,
+                |a: SideEffect, b: SideEffect| a.counter < b.counter
+            );
+            let sorted_encrypted_log_hashes = sorted.sorted_array;
+            let sorted_encrypted_log_hashes_indexes = sorted.sorted_index_hints;
+
+            let sorted = sort_get_sorted_hints(
+                self.previous_kernel.unencrypted_logs_hashes.storage,
+                |a: SideEffect, b: SideEffect| a.counter < b.counter
+            );
+            let sorted_unencrypted_log_hashes = sorted.sorted_array;
+            let sorted_unencrypted_log_hashes_indexes = sorted.sorted_index_hints;
+
             let kernel = PrivateKernelTailCircuitPrivateInputs {
                 previous_kernel: self.previous_kernel.to_private_kernel_data(),
                 sorted_new_note_hashes,
@@ -163,7 +185,11 @@ mod tests {
                 sorted_new_nullifiers_indexes,
                 nullifier_read_request_hints: self.nullifier_read_request_hints_builder.to_hints(),
                 nullifier_commitment_hints: sorted_nullifier_commitment_hints,
-                master_nullifier_secret_keys: [GrumpkinPrivateKey::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX]
+                sorted_encrypted_log_hashes,
+                sorted_encrypted_log_hashes_indexes,
+                sorted_unencrypted_log_hashes,
+                sorted_unencrypted_log_hashes_indexes,
+                master_nullifier_secret_keys: [GrumpkinPrivateKey::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
             };
             kernel.native_private_kernel_circuit_tail()
         }
@@ -217,6 +243,38 @@ mod tests {
         let public_inputs = builder.execute();
 
         assert_eq(public_inputs.rollup_validation_requests.max_block_number.unwrap(), 13);
+    }
+
+    #[test]
+    fn logs_are_handled_as_expected() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+        // Logs for the previous call stack.
+        let prev_encrypted_logs_hash = 80;
+        let prev_encrypted_log_preimages_length = 13;
+        let prev_unencrypted_logs_hash = 956;
+        let prev_unencrypted_log_preimages_length = 24;
+        builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+        builder.previous_kernel.set_unencrypted_logs(
+            prev_unencrypted_logs_hash,
+            prev_unencrypted_log_preimages_length
+        );
+        // Logs for the current call stack.
+        let unencrypted_logs_hash = 26;
+        let unencrypted_log_preimages_length = 50;
+        builder.previous_kernel.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
+
+        let public_inputs = builder.execute();
+
+        assert_eq(public_inputs.end.encrypted_log_preimages_length, prev_encrypted_log_preimages_length);
+        assert_eq(
+            public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
+        );
+
+        let expected_encrypted_logs_hash = accumulate_sha256([0, prev_encrypted_logs_hash]);
+        assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
+        let mut expected_unencrypted_logs_hash = accumulate_sha256([0, prev_unencrypted_logs_hash]);
+        expected_unencrypted_logs_hash = accumulate_sha256([expected_unencrypted_logs_hash, unencrypted_logs_hash]);
+        assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
     }
 
     #[test]

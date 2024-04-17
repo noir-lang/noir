@@ -14,6 +14,7 @@ export function lastSideEffectCounter(tx: Tx): number {
     ...data.endNonRevertibleData.publicCallStack,
     ...data.end.newNoteHashes,
     ...data.end.newNullifiers,
+    ...data.end.unencryptedLogsHashes,
     ...data.end.publicCallStack,
   ];
 

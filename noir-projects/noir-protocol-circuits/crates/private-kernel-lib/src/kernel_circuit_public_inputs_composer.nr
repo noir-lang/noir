@@ -10,7 +10,8 @@ use dep::types::{
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
+    MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey,
     hash::{compute_note_hash_nonce, compute_unique_siloed_note_hash},
@@ -29,6 +30,10 @@ struct KernelCircuitPublicInputsComposer {
     sorted_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     transient_note_hash_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
 }
 
 impl KernelCircuitPublicInputsComposer {
@@ -38,7 +43,11 @@ impl KernelCircuitPublicInputsComposer {
         sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
         sorted_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
         sorted_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
-        transient_note_hash_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX]
+        transient_note_hash_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+        sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
+        sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
+        sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
+        sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
     ) -> Self {
         let public_inputs = PrivateKernelCircuitPublicInputsBuilder::empty();
 
@@ -49,7 +58,11 @@ impl KernelCircuitPublicInputsComposer {
             sorted_note_hashes_indexes,
             sorted_nullifiers,
             sorted_nullifiers_indexes,
-            transient_note_hash_index_hints
+            transient_note_hash_index_hints,
+            sorted_encrypted_log_hashes,
+            sorted_encrypted_log_hashes_indexes,
+            sorted_unencrypted_log_hashes,
+            sorted_unencrypted_log_hashes_indexes,
         }
     }
 
@@ -136,10 +149,23 @@ impl KernelCircuitPublicInputsComposer {
         );
         self.public_inputs.end.new_nullifiers = array_to_bounded_vec(self.sorted_nullifiers);
 
+        assert_sorted_array(
+            accumulated_data.encrypted_logs_hashes,
+            self.sorted_encrypted_log_hashes,
+            self.sorted_encrypted_log_hashes_indexes,
+            asc_sort_by_counters
+        );
+        self.public_inputs.end.encrypted_logs_hashes = array_to_bounded_vec(self.sorted_encrypted_log_hashes);
+
+        assert_sorted_array(
+            accumulated_data.unencrypted_logs_hashes,
+            self.sorted_unencrypted_log_hashes,
+            self.sorted_unencrypted_log_hashes_indexes,
+            asc_sort_by_counters
+        );
+        self.public_inputs.end.unencrypted_logs_hashes = array_to_bounded_vec(self.sorted_unencrypted_log_hashes);
         // TODO: Sort all the side effects below.
         self.public_inputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(accumulated_data.new_l2_to_l1_msgs);
-        self.public_inputs.end.encrypted_logs_hash = accumulated_data.encrypted_logs_hash;
-        self.public_inputs.end.unencrypted_logs_hash = accumulated_data.unencrypted_logs_hash;
         self.public_inputs.end.encrypted_log_preimages_length = accumulated_data.encrypted_log_preimages_length;
         self.public_inputs.end.unencrypted_log_preimages_length = accumulated_data.unencrypted_log_preimages_length;
     }

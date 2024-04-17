@@ -47,12 +47,12 @@ export interface ExecutionResult {
   enqueuedPublicFunctionCalls: PublicCallRequest[];
   /**
    * Encrypted logs emitted during execution of this function call.
-   * Note: These are preimages to `encryptedLogsHash`.
+   * Note: These are preimages to `encryptedLogsHashes`.
    */
   encryptedLogs: EncryptedFunctionL2Logs;
   /**
    * Unencrypted logs emitted during execution of this function call.
-   * Note: These are preimages to `unencryptedLogsHash`.
+   * Note: These are preimages to `unencryptedLogsHashes`.
    */
   unencryptedLogs: UnencryptedFunctionL2Logs;
 }

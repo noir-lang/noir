@@ -109,16 +109,19 @@ describe('e2e_ordering', () => {
       //     Emitting logs twice (first in a nested call, then directly) leads
       //     to a misordering of them by the public kernel because it sees them
       //     in reverse order. More info in this thread: https://discourse.aztec.network/t/identifying-the-ordering-of-state-access-across-contract-calls/382/12#transition-counters-for-private-calls-2
-      // Once fixed, re-include the `set_value_twice_with_nested_first` test
-      //it.each(['set_value_twice_with_nested_first', 'set_value_twice_with_nested_last'] as const)(
-      it.each(['set_value_twice_with_nested_last'] as const)('orders unencrypted logs in %s', async method => {
-        const expectedOrder = expectedOrders[method];
+      // The below only works due to a hack which sorts the logs in ts
+      // See tail_phase_manager.ts
+      it.each(['set_value_twice_with_nested_first', 'set_value_twice_with_nested_last'] as const)(
+        'orders unencrypted logs in %s',
+        async method => {
+          const expectedOrder = expectedOrders[method];
 
-        await child.methods[method]().send().wait();
+          await child.methods[method]().send().wait();
 
-        // Logs are emitted in the expected order
-        await expectLogsFromLastBlockToBe(expectedOrder);
-      });
+          // Logs are emitted in the expected order
+          await expectLogsFromLastBlockToBe(expectedOrder);
+        },
+      );
     });
   });
 });

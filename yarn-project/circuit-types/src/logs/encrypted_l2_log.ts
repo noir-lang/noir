@@ -1,5 +1,5 @@
 import { Fr, Point } from '@aztec/circuits.js';
-import { randomBytes } from '@aztec/foundation/crypto';
+import { randomBytes, sha256Trunc } from '@aztec/foundation/crypto';
 
 /**
  * Represents an individual encrypted log entry.
@@ -41,6 +41,15 @@ export class EncryptedL2Log {
    */
   public static fromBuffer(data: Buffer): EncryptedL2Log {
     return new EncryptedL2Log(data);
+  }
+
+  /**
+   * Calculates hash of serialized logs.
+   * @returns Buffer containing 248 bits of information of sha256 hash.
+   */
+  public hash(): Buffer {
+    const preimage = this.toBuffer();
+    return sha256Trunc(preimage);
   }
 
   /**

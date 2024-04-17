@@ -16,6 +16,7 @@ import {
   type TracedNullifierCheck,
   type TracedPublicStorageRead,
   type TracedPublicStorageWrite,
+  type TracedUnencryptedL2Log,
 } from './trace_types.js';
 
 /**
@@ -33,7 +34,7 @@ export type JournalData = {
 
   newL1Messages: L2ToL1Message[];
   newLogs: UnencryptedL2Log[];
-
+  newLogsHashes: TracedUnencryptedL2Log[];
   /** contract address -\> key -\> value */
   currentStorageValue: Map<bigint, Map<bigint, Fr>>;
 };
@@ -206,13 +207,13 @@ export class AvmPersistableStateManager {
 
   public writeLog(contractAddress: Fr, event: Fr, log: Fr[]) {
     this.log.debug(`UnencryptedL2Log(${contractAddress}) += event ${event} with ${log.length} fields.`);
-    this.newLogs.push(
-      new UnencryptedL2Log(
-        AztecAddress.fromField(contractAddress),
-        EventSelector.fromField(event),
-        Buffer.concat(log.map(f => f.toBuffer())),
-      ),
+    const L2log = new UnencryptedL2Log(
+      AztecAddress.fromField(contractAddress),
+      EventSelector.fromField(event),
+      Buffer.concat(log.map(f => f.toBuffer())),
     );
+    this.newLogs.push(L2log);
+    this.trace.traceNewLog(Fr.fromBuffer(L2log.hash()));
   }
 
   /**
@@ -252,6 +253,7 @@ export class AvmPersistableStateManager {
       l1ToL2MessageChecks: this.trace.l1ToL2MessageChecks,
       newL1Messages: this.newL1Messages,
       newLogs: this.newLogs,
+      newLogsHashes: this.trace.newLogsHashes,
       currentStorageValue: this.publicStorage.getCache().cachePerContract,
       storageReads: this.trace.publicStorageReads,
       storageWrites: this.trace.publicStorageWrites,

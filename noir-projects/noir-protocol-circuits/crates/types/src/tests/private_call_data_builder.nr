@@ -4,8 +4,8 @@ use crate::{
     private_call_stack_item::PrivateCallStackItem, function_data::FunctionData,
     max_block_number::MaxBlockNumber,
     membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
-    private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    private_kernel::private_call_data::PrivateCallData
+    private_circuit_public_inputs::{PrivateCircuitPublicInputs},
+    private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect,
 },
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
     mocked::{Proof, VerificationKey},
@@ -160,13 +160,17 @@ impl PrivateCallDataBuilder {
     }
 
     pub fn set_encrypted_logs(&mut self, hash: Field, preimages_length: Field) {
-        self.public_inputs.encrypted_logs_hash = hash;
-        self.public_inputs.encrypted_log_preimages_length = preimages_length;
+        // Counter set as 0 for testing, like note read requests
+        let side_effect = SideEffect { value: hash, counter: 0 };
+        self.public_inputs.encrypted_logs_hashes.push(side_effect);
+        self.public_inputs.encrypted_log_preimages_length += preimages_length;
     }
 
     pub fn set_unencrypted_logs(&mut self, hash: Field, preimages_length: Field) {
-        self.public_inputs.unencrypted_logs_hash = hash;
-        self.public_inputs.unencrypted_log_preimages_length = preimages_length;
+        // Counter set as 0 for testing, like note read requests
+        let side_effect = SideEffect { value: hash, counter: 0 };
+        self.public_inputs.unencrypted_logs_hashes.push(side_effect);
+        self.public_inputs.unencrypted_log_preimages_length += preimages_length;
     }
 
     pub fn get_call_stack_item_hash(self) -> Field {

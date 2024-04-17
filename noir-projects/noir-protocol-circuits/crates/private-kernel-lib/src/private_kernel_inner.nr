@@ -68,7 +68,7 @@ mod tests {
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
         max_block_number::MaxBlockNumber, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
-        address::{AztecAddress, EthAddress}, hash::compute_logs_hash,
+        address::{AztecAddress, EthAddress},
         messaging::l2_to_l1_message::L2ToL1Message, utils::{arrays::array_length},
         tests::{private_call_data_builder::PrivateCallDataBuilder, fixture_builder::FixtureBuilder}
     };
@@ -447,6 +447,20 @@ mod tests {
         builder.failed();
     }
 
+    #[test(should_fail_with = "invalid array")]
+    fn input_validation_malformed_arrays_logs() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+
+        builder.private_call.public_inputs.encrypted_logs_hashes.extend_from_array(
+            [
+            SideEffect { value: 0, counter: 0 },
+            SideEffect { value: 9123, counter: 1 }
+        ]
+        );
+
+        builder.failed();
+    }
+
     #[test(should_fail_with = "extend_from_bounded_vec out of bounds")]
     fn private_kernel_should_fail_if_aggregating_too_many_commitments() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
@@ -642,7 +656,7 @@ mod tests {
     }
 
     #[test]
-    fn native_logs_are_hashed_as_expected() {
+    fn native_logs_are_set_as_expected() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // Logs for the current call stack.
@@ -673,11 +687,10 @@ mod tests {
             public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
         );
 
-        let expected_encrypted_logs_hash = compute_logs_hash(prev_encrypted_logs_hash, encrypted_logs_hash);
-        assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
-
-        let expected_unencrypted_logs_hash = compute_logs_hash(prev_unencrypted_logs_hash, unencrypted_logs_hash);
-        assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
+        assert_eq(public_inputs.end.encrypted_logs_hashes[0].value, prev_encrypted_logs_hash);
+        assert_eq(public_inputs.end.unencrypted_logs_hashes[0].value, prev_unencrypted_logs_hash);
+        assert_eq(public_inputs.end.encrypted_logs_hashes[1].value, encrypted_logs_hash);
+        assert_eq(public_inputs.end.unencrypted_logs_hashes[1].value, unencrypted_logs_hash);
     }
 
     #[test(should_fail_with="new_note_hashes must be empty for static calls")]

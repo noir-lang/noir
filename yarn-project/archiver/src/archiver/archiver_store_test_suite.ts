@@ -300,7 +300,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
     describe('getUnencryptedLogs', () => {
       const txsPerBlock = 4;
       const numPublicFunctionCalls = 3;
-      const numUnencryptedLogs = 4;
+      const numUnencryptedLogs = 2;
       const numBlocks = 10;
       let blocks: DataRetrieval<L2Block>;
 

@@ -5,7 +5,7 @@ function shouldBehaveLikeFunctionL2Logs(
 ) {
   describe(FunctionL2Logs.name, () => {
     it('can encode L2Logs to buffer and back', () => {
-      const l2Logs = FunctionL2Logs.random(42);
+      const l2Logs = FunctionL2Logs.random(3);
 
       const buffer = l2Logs.toBuffer();
       const recovered = FunctionL2Logs.fromBuffer(buffer);
@@ -14,7 +14,7 @@ function shouldBehaveLikeFunctionL2Logs(
     });
 
     it('can encode L2Logs to JSON and back', () => {
-      const l2Logs = FunctionL2Logs.random(42);
+      const l2Logs = FunctionL2Logs.random(3);
 
       const buffer = l2Logs.toJSON();
       const recovered = FunctionL2Logs.fromJSON(buffer);
@@ -23,7 +23,7 @@ function shouldBehaveLikeFunctionL2Logs(
     });
 
     it('getSerializedLength returns the correct length', () => {
-      const l2Logs = FunctionL2Logs.random(42);
+      const l2Logs = FunctionL2Logs.random(3);
 
       const buffer = l2Logs.toBuffer();
       const recovered = FunctionL2Logs.fromBuffer(buffer);

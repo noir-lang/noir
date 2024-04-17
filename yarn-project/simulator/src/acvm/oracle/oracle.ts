@@ -296,14 +296,14 @@ export class Oracle {
     log: ACVMField[],
   ): ACVMField {
     const publicKey = new Point(fromACVMField(publicKeyX), fromACVMField(publicKeyY));
-    this.typedOracle.emitEncryptedLog(
+    const logHash = this.typedOracle.emitEncryptedLog(
       AztecAddress.fromString(contractAddress),
       Fr.fromString(storageSlot),
       Fr.fromString(noteTypeId),
       publicKey,
       log.map(fromACVMField),
     );
-    return toACVMField(0);
+    return toACVMField(logHash);
   }
 
   emitUnencryptedLog([contractAddress]: ACVMField[], [eventSelector]: ACVMField[], message: ACVMField[]): ACVMField {
@@ -314,8 +314,8 @@ export class Oracle {
       logPayload,
     );
 
-    this.typedOracle.emitUnencryptedLog(log);
-    return toACVMField(0);
+    const logHash = this.typedOracle.emitUnencryptedLog(log);
+    return toACVMField(logHash);
   }
 
   debugLog(...args: ACVMField[][]): ACVMField {

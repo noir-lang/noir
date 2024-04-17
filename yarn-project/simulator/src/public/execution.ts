@@ -44,8 +44,13 @@ export interface PublicExecutionResult {
   /** The results of nested calls. */
   nestedExecutions: this[];
   /**
+   * The hashed logs with side effect counter.
+   * Note: required as we don't track the counter anywhere else.
+   */
+  unencryptedLogsHashes: SideEffect[];
+  /**
    * Unencrypted logs emitted during execution of this function call.
-   * Note: These are preimages to `unencryptedLogsHash`.
+   * Note: These are preimages to `unencryptedLogsHashes`.
    */
   unencryptedLogs: UnencryptedFunctionL2Logs;
   /**

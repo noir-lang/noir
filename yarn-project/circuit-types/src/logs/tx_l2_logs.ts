@@ -1,5 +1,6 @@
-import { sha256 } from '@aztec/foundation/crypto';
-import { BufferReader, prefixBufferWithLength, truncateAndPad } from '@aztec/foundation/serialize';
+import { MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX } from '@aztec/circuits.js';
+import { sha256Trunc } from '@aztec/foundation/crypto';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import isEqual from 'lodash.isequal';
 
@@ -86,12 +87,12 @@ export abstract class TxL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
     const logsHashes: [Buffer, Buffer] = [Buffer.alloc(32), Buffer.alloc(32)];
     let kernelPublicInputsLogsHash = Buffer.alloc(32);
 
-    for (const logsFromSingleFunctionCall of this.functionLogs) {
+    for (const logsFromSingleFunctionCall of this.unrollLogs()) {
       logsHashes[0] = kernelPublicInputsLogsHash;
       logsHashes[1] = logsFromSingleFunctionCall.hash(); // privateCircuitPublicInputsLogsHash
 
       // Hash logs hash from the public inputs of previous kernel iteration and logs hash from private circuit public inputs
-      kernelPublicInputsLogsHash = truncateAndPad(sha256(Buffer.concat(logsHashes)));
+      kernelPublicInputsLogsHash = sha256Trunc(Buffer.concat(logsHashes));
     }
 
     return kernelPublicInputsLogsHash;
@@ -129,6 +130,11 @@ export class UnencryptedTxL2Logs extends TxL2Logs<UnencryptedL2Log> {
    * @returns A new `TxL2Logs` object.
    */
   public static random(numCalls: number, numLogsPerCall: number): UnencryptedTxL2Logs {
+    if (numCalls * numLogsPerCall > MAX_UNENCRYPTED_LOGS_PER_TX) {
+      throw new Error(
+        `Trying to create ${numCalls * numLogsPerCall} logs for one tx (max: ${MAX_UNENCRYPTED_LOGS_PER_TX})`,
+      );
+    }
     const functionLogs: UnencryptedFunctionL2Logs[] = [];
     for (let i = 0; i < numCalls; i++) {
       functionLogs.push(UnencryptedFunctionL2Logs.random(numLogsPerCall));
@@ -178,6 +184,11 @@ export class EncryptedTxL2Logs extends TxL2Logs<EncryptedL2Log> {
    * @returns A new `TxL2Logs` object.
    */
   public static random(numCalls: number, numLogsPerCall: number): EncryptedTxL2Logs {
+    if (numCalls * numLogsPerCall > MAX_ENCRYPTED_LOGS_PER_TX) {
+      throw new Error(
+        `Trying to create ${numCalls * numLogsPerCall} logs for one tx (max: ${MAX_ENCRYPTED_LOGS_PER_TX})`,
+      );
+    }
     const functionLogs: EncryptedFunctionL2Logs[] = [];
     for (let i = 0; i < numCalls; i++) {
       functionLogs.push(EncryptedFunctionL2Logs.random(numLogsPerCall));

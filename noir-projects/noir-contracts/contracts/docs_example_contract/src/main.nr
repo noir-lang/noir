@@ -182,7 +182,7 @@ contract DocsExample {
     }
 
     #[aztec(private)]
-    fn insert_notes(amounts: [u8; 10]) {
+    fn insert_notes(amounts: [u8; 3]) {
         for i in 0..amounts.len() {
             let mut note = CardNote::new(amounts[i], 1, context.msg_sender());
             storage.set.insert(&mut note, true);

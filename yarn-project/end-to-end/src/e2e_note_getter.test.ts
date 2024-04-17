@@ -41,10 +41,11 @@ describe('e2e_note_getter', () => {
       // await Promise.all(numbers.map(number => contract.methods.insert_note(number).send().wait()));
       // It causes a race condition complaining about root mismatch
 
-      await contract.methods
-        .insert_notes([...Array(10).keys()])
-        .send()
-        .wait();
+      // Note: Separated the below into calls of 3 to avoid reaching logs per call limit
+      await contract.methods.insert_notes([0, 1, 2]).send().wait();
+      await contract.methods.insert_notes([3, 4, 5]).send().wait();
+      await contract.methods.insert_notes([6, 7, 8]).send().wait();
+      await contract.methods.insert_note(9, new Fr(1n)).send().wait();
       await contract.methods.insert_note(5, Fr.ZERO).send().wait();
 
       const [returnEq, returnNeq, returnLt, returnGt, returnLte, returnGte] = await Promise.all([

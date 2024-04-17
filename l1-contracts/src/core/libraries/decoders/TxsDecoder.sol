@@ -239,17 +239,21 @@ library TxsDecoder {
       uint256 privateCircuitPublicInputLogsLength = read4(_body, offset);
       offset += 0x4;
 
-      // Hash the logs of this iteration's function call
-      bytes32 privateCircuitPublicInputsLogsHash =
-        Hash.sha256ToField(slice(_body, offset, privateCircuitPublicInputLogsLength));
-      offset += privateCircuitPublicInputLogsLength;
-
       // Decrease remaining logs length by this privateCircuitPublicInputsLogs's length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
       remainingLogsLength -= (privateCircuitPublicInputLogsLength + 0x4);
 
-      kernelPublicInputsLogsHash = Hash.sha256ToField(
-        bytes.concat(kernelPublicInputsLogsHash, privateCircuitPublicInputsLogsHash)
-      );
+      while (privateCircuitPublicInputLogsLength > 0) {
+        uint256 singleCallLogsLength = read4(_body, offset);
+        offset += 0x4;
+
+        bytes32 singleLogHash = Hash.sha256ToField(slice(_body, offset, singleCallLogsLength));
+        offset += singleCallLogsLength;
+
+        kernelPublicInputsLogsHash =
+          Hash.sha256ToField(bytes.concat(kernelPublicInputsLogsHash, singleLogHash));
+
+        privateCircuitPublicInputLogsLength -= (singleCallLogsLength + 0x4);
+      }
     }
 
     return (kernelPublicInputsLogsHash, offset);

@@ -415,6 +415,28 @@ export class ProvingOrchestrator {
   // Executes the base rollup circuit and stored the output as intermediate state for the parent merge/root circuit
   // Executes the next level of merge if all inputs are available
   private async runBaseRollup(provingState: ProvingState | undefined, index: bigint, tx: TxProvingState) {
+    if (
+      !tx.baseRollupInputs.kernelData.publicInputs.end.encryptedLogsHash
+        .toBuffer()
+        .equals(tx.processedTx.encryptedLogs.hash())
+    ) {
+      throw new Error(
+        `Encrypted logs hash mismatch: ${
+          tx.baseRollupInputs.kernelData.publicInputs.end.encryptedLogsHash
+        } === ${Fr.fromBuffer(tx.processedTx.encryptedLogs.hash())}`,
+      );
+    }
+    if (
+      !tx.baseRollupInputs.kernelData.publicInputs.end.unencryptedLogsHash
+        .toBuffer()
+        .equals(tx.processedTx.unencryptedLogs.hash())
+    ) {
+      throw new Error(
+        `Unencrypted logs hash mismatch: ${
+          tx.baseRollupInputs.kernelData.publicInputs.end.unencryptedLogsHash
+        } === ${Fr.fromBuffer(tx.processedTx.unencryptedLogs.hash())}`,
+      );
+    }
     if (!provingState?.verifyState()) {
       logger.debug('Not running base rollup, state invalid');
       return;

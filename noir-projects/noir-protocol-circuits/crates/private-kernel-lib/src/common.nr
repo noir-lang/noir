@@ -16,8 +16,8 @@ use dep::types::{
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
 },
     hash::{
-    compute_l2_to_l1_hash, compute_logs_hash, private_functions_root_from_siblings, silo_note_hash,
-    silo_nullifier, stdlib_recursion_verification_key_compress_native_vk
+    compute_l2_to_l1_hash, pedersen_hash, private_functions_root_from_siblings,
+    silo_note_hash, silo_nullifier, stdlib_recursion_verification_key_compress_native_vk,
 },
     merkle_tree::check_membership,
     utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
@@ -37,7 +37,8 @@ pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
     validate_array(app_public_inputs.private_call_stack_hashes);
     validate_array(app_public_inputs.public_call_stack_hashes);
     validate_array(app_public_inputs.new_l2_to_l1_msgs);
-    // encrypted_logs_hash and unencrypted_logs_hash have their own integrity checks.
+    validate_array(app_public_inputs.encrypted_logs_hashes);
+    validate_array(app_public_inputs.unencrypted_logs_hashes);
 }
 
 // Validate all read requests against the historical note hash tree root.
@@ -106,8 +107,8 @@ pub fn initialize_end_values(
     public_inputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
     public_inputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
 
-    public_inputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
-    public_inputs.end.unencrypted_logs_hash = start.unencrypted_logs_hash;
+    public_inputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
+    public_inputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
 
     public_inputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
     public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
@@ -287,16 +288,13 @@ pub fn update_end_values(
         }
     }
     public_inputs.end.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
-
+    
     // logs hashes
     // See the following thread if not clear:
     // https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426
-    let previous_encrypted_logs_hash = public_inputs.end.encrypted_logs_hash;
-    let current_encrypted_logs_hash = private_call_public_inputs.encrypted_logs_hash;
-    public_inputs.end.encrypted_logs_hash = compute_logs_hash(previous_encrypted_logs_hash,current_encrypted_logs_hash);
-    let previous_unencrypted_logs_hash = public_inputs.end.unencrypted_logs_hash;
-    let current_unencrypted_logs_hash = private_call_public_inputs.unencrypted_logs_hash;
-    public_inputs.end.unencrypted_logs_hash = compute_logs_hash(previous_unencrypted_logs_hash,current_unencrypted_logs_hash);
+
+    public_inputs.end.encrypted_logs_hashes.extend_from_bounded_vec(array_to_bounded_vec(private_call_public_inputs.encrypted_logs_hashes));
+    public_inputs.end.unencrypted_logs_hashes.extend_from_bounded_vec(array_to_bounded_vec(private_call_public_inputs.unencrypted_logs_hashes));
 
     // Add log preimages lengths from current iteration to accumulated lengths
     public_inputs.end.encrypted_log_preimages_length = public_inputs.end.encrypted_log_preimages_length +

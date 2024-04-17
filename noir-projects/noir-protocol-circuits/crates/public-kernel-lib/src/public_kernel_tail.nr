@@ -123,7 +123,8 @@ mod tests {
         NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_HEIGHT,
         PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_TREE_HEIGHT
     },
-        hash::silo_nullifier, public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
+        hash::{silo_nullifier, accumulate_sha256},
+        public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree},
         partial_state_reference::PartialStateReference, utils::arrays::array_merge
     };
@@ -331,6 +332,38 @@ mod tests {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
         builder.succeeded();
         // TODO: Check the values in public inputs.
+    }
+
+    #[test]
+    fn logs_are_handled_as_expected() {
+        let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
+        // Logs for the previous call stack.
+        let prev_encrypted_logs_hash = 80;
+        let prev_encrypted_log_preimages_length = 13;
+        let prev_unencrypted_logs_hash = 956;
+        let prev_unencrypted_log_preimages_length = 24;
+        builder.previous_revertible.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+        builder.previous_revertible.set_unencrypted_logs(
+            prev_unencrypted_logs_hash,
+            prev_unencrypted_log_preimages_length
+        );
+        // Logs for the current call stack.
+        let unencrypted_logs_hash = 26;
+        let unencrypted_log_preimages_length = 50;
+        builder.previous_revertible.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
+
+        let public_inputs = builder.execute();
+
+        assert_eq(public_inputs.end.encrypted_log_preimages_length, prev_encrypted_log_preimages_length);
+        assert_eq(
+            public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
+        );
+
+        let expected_encrypted_logs_hash = accumulate_sha256([0, prev_encrypted_logs_hash]);
+        assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
+        let mut expected_unencrypted_logs_hash = accumulate_sha256([0, prev_unencrypted_logs_hash]);
+        expected_unencrypted_logs_hash = accumulate_sha256([expected_unencrypted_logs_hash, unencrypted_logs_hash]);
+        assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
     }
 
     #[test]

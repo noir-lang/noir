@@ -1,11 +1,13 @@
 import {
   CallRequest,
   Fr,
+  type MAX_ENCRYPTED_LOGS_PER_TX,
   type MAX_NEW_NOTE_HASHES_PER_TX,
   type MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+  type MAX_UNENCRYPTED_LOGS_PER_TX,
   NoteHashReadRequestMembershipWitness,
   PrivateCallData,
   PrivateKernelCircuitPublicInputs,
@@ -162,11 +164,20 @@ export class KernelProver {
       typeof MAX_NEW_NULLIFIERS_PER_TX
     >(output.publicInputs.end.newNullifiers);
 
+    const [sortedEncryptedLogHashes, sortedEncryptedLogHashesIndexes] = this.hintsBuilder.sortSideEffects<
+      SideEffect,
+      typeof MAX_ENCRYPTED_LOGS_PER_TX
+    >(output.publicInputs.end.encryptedLogsHashes);
+
+    const [sortedUnencryptedLogHashes, sortedUnencryptedLogHashesIndexes] = this.hintsBuilder.sortSideEffects<
+      SideEffect,
+      typeof MAX_UNENCRYPTED_LOGS_PER_TX
+    >(output.publicInputs.end.unencryptedLogsHashes);
+
     const nullifierNoteHashHints = this.hintsBuilder.getNullifierHints(
       mapTuple(sortedNullifiers, n => n.noteHash),
       sortedNoteHashes,
     );
-
     this.log.debug(
       `Calling private kernel tail with hwm ${previousKernelData.publicInputs.minRevertibleSideEffectCounter}`,
     );
@@ -180,6 +191,10 @@ export class KernelProver {
       sortedNullifiersIndexes,
       nullifierReadRequestHints,
       nullifierNoteHashHints,
+      sortedEncryptedLogHashes,
+      sortedEncryptedLogHashesIndexes,
+      sortedUnencryptedLogHashes,
+      sortedUnencryptedLogHashesIndexes,
       masterNullifierSecretKeys,
     );
     pushTestData('private-kernel-inputs-ordering', privateInputs);
