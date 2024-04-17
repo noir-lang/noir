@@ -172,7 +172,9 @@ fn check_if_type_is_valid_for_program_input(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let meta = type_checker.interner.function_meta(&func_id);
-    if (meta.is_entry_point && !param.1.is_valid_for_program_input()) || (meta.should_fold && !param.1.is_valid_entry_point_input()) {
+    if (meta.is_entry_point && !param.1.is_valid_for_program_input())
+        || (meta.should_fold && !param.1.is_valid_entry_point_input())
+    {
         let span = param.0.span();
         errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
     }

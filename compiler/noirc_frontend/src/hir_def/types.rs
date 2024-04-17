@@ -728,9 +728,9 @@ impl Type {
 
     /// True if this type can be used as a parameter to an ACIR function that is not `main` or a contract function.
     /// This encapsulates functions for which we may not want to inline during compilation.
-    /// 
+    ///
     /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
-    /// certain types which through compilation we know what their size should be. 
+    /// certain types which through compilation we know what their size should be.
     /// This includes types such as generic arrays or slices.
     pub(crate) fn is_valid_entry_point_input(&self) -> bool {
         match self {

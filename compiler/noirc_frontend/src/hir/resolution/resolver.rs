@@ -954,7 +954,10 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && !should_fold && func.def.return_visibility == Visibility::Public {
+        if !self.pub_allowed(func)
+            && !should_fold
+            && func.def.return_visibility == Visibility::Public
+        {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
