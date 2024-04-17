@@ -6,7 +6,7 @@ use acir::{
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
 use self::{
-    bigint::BigIntSolver, hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
+    bigint::AcvmBigIntSolver, hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
 };
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
@@ -56,7 +56,7 @@ pub(crate) fn solve(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     bb_func: &BlackBoxFuncCall,
-    bigint_solver: &mut BigIntSolver,
+    bigint_solver: &mut AcvmBigIntSolver,
 ) -> Result<(), OpcodeResolutionError> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
