@@ -1,5 +1,5 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::Program;
+use acvm::acir::circuit::{OpcodeLocation, Program, ResolvedOpcodeLocation};
 use acvm::acir::native_types::WitnessStack;
 use acvm::brillig_vm::brillig::ForeignCallResult;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
@@ -45,11 +45,8 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn execute_circuit(
-        &mut self,
-        circuit: &Circuit,
-        initial_witness: WitnessMap,
-    ) -> Result<WitnessMap, NargoError> {
+    fn execute_circuit(&mut self, initial_witness: WitnessMap) -> Result<WitnessMap, NargoError> {
+        let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
             &circuit.opcodes,
@@ -160,15 +157,13 @@ pub fn execute_program<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     blackbox_solver: &B,
     foreign_call_executor: &mut F,
 ) -> Result<WitnessStack, NargoError> {
-    let main = &program.functions[0];
-
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
         blackbox_solver,
         foreign_call_executor,
     );
-    let main_witness = executor.execute_circuit(main, initial_witness)?;
+    let main_witness = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);
 
     Ok(executor.finalize())

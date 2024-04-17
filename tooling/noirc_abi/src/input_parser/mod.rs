@@ -61,7 +61,20 @@ impl InputValue {
                     } else {
                         false
                     }
-                })
+                }
+
+                if map.len() > fields.len() {
+                    let expected_fields: HashSet<String> =
+                        fields.iter().map(|(field, _)| field.to_string()).collect();
+                    let extra_field = map.keys().find(|&key| !expected_fields.contains(key)).cloned().expect("`map` is larger than the expected type's `fields` so it must contain an unexpected field");
+                    return Err(InputTypecheckingError::UnexpectedField {
+                        path,
+                        typ: abi_param.clone(),
+                        extra_field: extra_field.to_string(),
+                    });
+                }
+
+                Ok(())
             }
 
             (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {

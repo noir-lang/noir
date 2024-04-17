@@ -1512,33 +1512,53 @@ mod test {
 
     #[test]
     fn parse_use() {
-        parse_all(
-            use_statement(),
-            vec![
-                "use std::hash",
-                "use std",
-                "use foo::bar as hello",
-                "use bar as bar",
-                "use foo::{}",
-                "use foo::{bar,}",
-                "use foo::{bar, hello}",
-                "use foo::{bar as bar2, hello}",
-                "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-                "use dep::{std::println, bar::baz}",
-            ],
-        );
+        let valid_use_statements = [
+            "use std::hash",
+            "use std",
+            "use foo::bar as hello",
+            "use bar as bar",
+            "use foo::{}",
+            "use foo::{bar,}",
+            "use foo::{bar, hello}",
+            "use foo::{bar as bar2, hello}",
+            "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+            "use dep::{std::println, bar::baz}",
+        ];
 
-        parse_all_failing(
-            use_statement(),
-            vec![
-                "use std as ;",
-                "use foobar as as;",
-                "use hello:: as foo;",
-                "use foo bar::baz",
-                "use foo bar::{baz}",
-                "use foo::{,}",
-            ],
-        );
+        let invalid_use_statements = [
+            "use std as ;",
+            "use foobar as as;",
+            "use hello:: as foo;",
+            "use foo bar::baz",
+            "use foo bar::{baz}",
+            "use foo::{,}",
+        ];
+
+        let use_statements = valid_use_statements
+            .into_iter()
+            .map(|valid_str| (valid_str, true))
+            .chain(invalid_use_statements.into_iter().map(|invalid_str| (invalid_str, false)));
+
+        for (use_statement_str, expect_valid) in use_statements {
+            let mut use_statement_str = use_statement_str.to_string();
+            let expected_use_statement = if expect_valid {
+                let (result_opt, _diagnostics) =
+                    parse_recover(&use_statement(), &use_statement_str);
+                use_statement_str.push(';');
+                match result_opt.unwrap() {
+                    TopLevelStatement::Import(expected_use_statement) => {
+                        Some(expected_use_statement)
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                let result = parse_with(&use_statement(), &use_statement_str);
+                assert!(result.is_err());
+                None
+            };
+
+            prototype_parse_use_tree(expected_use_statement.as_ref(), &use_statement_str);
+        }
     }
 
     #[test]
