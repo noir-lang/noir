@@ -6,4 +6,11 @@ describe('simulated_tx', () => {
     const simulatedTx = mockSimulatedTx();
     expect(SimulatedTx.fromJSON(simulatedTx.toJSON())).toEqual(simulatedTx);
   });
+
+  it('convert undefined effects to and from json', () => {
+    const simulatedTx = mockSimulatedTx();
+    simulatedTx.privateReturnValues = undefined;
+    simulatedTx.publicReturnValues = undefined;
+    expect(SimulatedTx.fromJSON(simulatedTx.toJSON())).toEqual(simulatedTx);
+  });
 });

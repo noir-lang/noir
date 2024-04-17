@@ -417,8 +417,7 @@ export class PXEService implements PXE {
       }
 
       if (simulatePublic) {
-        // Only one transaction, so we can take index 0.
-        simulatedTx.publicReturnValues = (await this.#simulatePublicCalls(simulatedTx.tx))[0];
+        simulatedTx.publicReturnValues = await this.#simulatePublicCalls(simulatedTx.tx);
       }
 
       if (!msgSender) {
@@ -646,7 +645,7 @@ export class PXEService implements PXE {
     await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
 
     const tx = new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions);
-    return new SimulatedTx(tx, [executionResult.returnValues]);
+    return new SimulatedTx(tx, executionResult.returnValues);
   }
 
   /**

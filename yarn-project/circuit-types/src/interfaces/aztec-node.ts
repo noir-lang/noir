@@ -7,7 +7,6 @@ import {
   type PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { type L1ContractAddresses } from '@aztec/ethereum';
-import { type ProcessReturnValues } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
 import { type ContractClassPublic, type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -22,7 +21,7 @@ import {
 } from '../logs/index.js';
 import { type MerkleTreeId } from '../merkle_tree_id.js';
 import { type SiblingPath } from '../sibling_path/index.js';
-import { type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
+import { type ProcessReturnValues, type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
 import { type TxEffect } from '../tx_effect.js';
 import { type SequencerConfig } from './configs.js';
 import { type L2BlockNumber } from './l2_block_number.js';
@@ -283,7 +282,7 @@ export interface AztecNode {
    * This currently just checks that the transaction execution succeeds.
    * @param tx - The transaction to simulate.
    **/
-  simulatePublicCalls(tx: Tx): Promise<ProcessReturnValues[]>;
+  simulatePublicCalls(tx: Tx): Promise<ProcessReturnValues>;
 
   /**
    * Updates the configuration of this node.

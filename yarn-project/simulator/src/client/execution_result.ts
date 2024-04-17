@@ -4,7 +4,6 @@ import {
   type PrivateCallStackItem,
   type PublicCallRequest,
 } from '@aztec/circuits.js';
-import { type DecodedReturn } from '@aztec/foundation/abi';
 import { type Fr } from '@aztec/foundation/fields';
 
 import { type ACVMField } from '../acvm/index.js';
@@ -40,8 +39,8 @@ export interface ExecutionResult {
   // Needed when we enable chained txs. The new notes can be cached and used in a later transaction.
   /** The notes created in the executed function. */
   newNotes: NoteAndSlot[];
-  /** The decoded return values of the executed function. */
-  returnValues: DecodedReturn;
+  /** The raw return values of the executed function. */
+  returnValues: Fr[];
   /** The nested executions. */
   nestedExecutions: this[];
   /** Enqueued public function execution requests to be picked up by the sequencer. */

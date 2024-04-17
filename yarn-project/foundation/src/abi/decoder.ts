@@ -1,20 +1,19 @@
 import { AztecAddress } from '../aztec-address/index.js';
 import { type Fr } from '../fields/index.js';
-import { type ABIParameter, type ABIVariable, type AbiType, type FunctionArtifact } from './abi.js';
+import { type ABIParameter, type ABIVariable, type AbiType, type FunctionAbi } from './abi.js';
 import { isAztecAddressStruct } from './utils.js';
 
 /**
  * The type of our decoded ABI.
  */
 export type DecodedReturn = bigint | boolean | AztecAddress | DecodedReturn[] | { [key: string]: DecodedReturn };
-export type ProcessReturnValues = (DecodedReturn | undefined)[] | undefined;
 
 /**
  * Decodes return values from a function call.
  * Missing support for integer and string.
  */
 class ReturnValuesDecoder {
-  constructor(private artifact: FunctionArtifact, private flattened: Fr[]) {}
+  constructor(private artifact: FunctionAbi, private flattened: Fr[]) {}
 
   /**
    * Decodes a single return value from field to the given type.
@@ -97,7 +96,7 @@ class ReturnValuesDecoder {
  * @param returnValues - The decoded return values.
  * @returns
  */
-export function decodeReturnValues(abi: FunctionArtifact, returnValues: Fr[]) {
+export function decodeReturnValues(abi: FunctionAbi, returnValues: Fr[]) {
   return new ReturnValuesDecoder(abi, returnValues.slice()).decode();
 }
 

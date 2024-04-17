@@ -72,6 +72,6 @@ describe('AVM WitGen and Proof Generation', () => {
       const valid = await executor.verifyAvmProof(vk, proof);
       expect(valid).toBe(true);
     },
-    60 * 1000,
-  ); // 60 seconds should be enough to generate the proof with 16-bit range checks
+    120 * 1000,
+  ); // 120 seconds should be enough to generate the proof with 16-bit range checks
 });

@@ -1,7 +1,8 @@
-import { AztecAddress } from '@aztec/circuits.js';
-import { type ProcessReturnValues } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/circuits.js';
 
 import { Tx } from './tx.js';
+
+export type ProcessReturnValues = Fr[] | undefined;
 
 export class SimulatedTx {
   constructor(
@@ -15,17 +16,11 @@ export class SimulatedTx {
    * @returns A plain object with SimulatedTx properties.
    */
   public toJSON() {
-    const returnToJson = (data: ProcessReturnValues): string => {
-      const replacer = (key: string, value: any): any => {
-        if (typeof value === 'bigint') {
-          return value.toString() + 'n'; // Indicate bigint with "n"
-        } else if (value instanceof AztecAddress) {
-          return value.toString();
-        } else {
-          return value;
-        }
-      };
-      return JSON.stringify(data, replacer);
+    const returnToJson = (data: ProcessReturnValues | undefined): string => {
+      if (data === undefined) {
+        return JSON.stringify(data);
+      }
+      return JSON.stringify(data.map(fr => fr.toString()));
     };
 
     return {
@@ -41,22 +36,11 @@ export class SimulatedTx {
    * @returns A Tx class object.
    */
   public static fromJSON(obj: any) {
-    const returnFromJson = (json: string): ProcessReturnValues => {
-      if (json == undefined) {
+    const returnFromJson = (json: string): ProcessReturnValues | undefined => {
+      if (json === undefined) {
         return json;
       }
-      const reviver = (key: string, value: any): any => {
-        if (typeof value === 'string') {
-          if (value.match(/\d+n$/)) {
-            // Detect bigint serialization
-            return BigInt(value.slice(0, -1));
-          } else if (value.match(/^0x[a-fA-F0-9]{64}$/)) {
-            return AztecAddress.fromString(value);
-          }
-        }
-        return value;
-      };
-      return JSON.parse(json, reviver);
+      return JSON.parse(json).map(Fr.fromString);
     };
 
     const tx = Tx.fromJSON(obj.tx);

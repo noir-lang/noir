@@ -38,6 +38,7 @@ describe('e2e_state_vars', () => {
       // checking the return values with:
       // 1. A constrained private function that reads it directly
       // 2. A constrained private function that calls another private function that reads.
+      //    The indirect, adds 1 to the point to ensure that we are returning the correct value.
 
       await contract.methods.initialize_shared_immutable(1).send().wait();
 
@@ -45,12 +46,8 @@ describe('e2e_state_vars', () => {
       const b = await contract.methods.get_shared_immutable_constrained_private_indirect().simulate();
       const c = await contract.methods.get_shared_immutable().simulate();
 
-      expect((a as any)[0]).toEqual((c as any)['account'].toBigInt());
-      expect((a as any)[1]).toEqual((c as any)['points']);
-      expect((b as any)[0]).toEqual((c as any)['account'].toBigInt());
-      expect((b as any)[1]).toEqual((c as any)['points']);
-
-      expect(a).toEqual(b);
+      expect(a).toEqual(c);
+      expect(b).toEqual({ account: c.account, points: c.points + 1n });
       await contract.methods.match_shared_immutable(c.account, c.points).send().wait();
     });
 
@@ -58,18 +55,26 @@ describe('e2e_state_vars', () => {
       // Reads the value using an unconstrained function checking the return values with:
       // 1. A constrained public function that reads it directly
       // 2. A constrained public function that calls another public function that reads.
+      //    The indirect, adds 1 to the point to ensure that we are returning the correct value.
 
       const a = await contract.methods.get_shared_immutable_constrained_public().simulate();
       const b = await contract.methods.get_shared_immutable_constrained_public_indirect().simulate();
       const c = await contract.methods.get_shared_immutable().simulate();
 
-      expect((a as any)[0]).toEqual((c as any)['account'].toBigInt());
-      expect((a as any)[1]).toEqual((c as any)['points']);
-      expect((b as any)[0]).toEqual((c as any)['account'].toBigInt());
-      expect((b as any)[1]).toEqual((c as any)['points']);
+      expect(a).toEqual(c);
+      expect(b).toEqual({ account: c.account, points: c.points + 1n });
 
-      expect(a).toEqual(b);
       await contract.methods.match_shared_immutable(c.account, c.points).send().wait();
+    });
+
+    it('public multiread of SharedImmutable', async () => {
+      // Reads the value using an unconstrained function checking the return values with:
+      // 1. A constrained public function that reads 5 times directly (going beyond the previous 4 Field return value)
+
+      const a = await contract.methods.get_shared_immutable_constrained_public_multiple().simulate();
+      const c = await contract.methods.get_shared_immutable().simulate();
+
+      expect(a).toEqual([c, c, c, c, c]);
     });
 
     it('initializing SharedImmutable the second time should fail', async () => {
