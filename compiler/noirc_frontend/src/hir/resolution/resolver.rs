@@ -1276,6 +1276,10 @@ impl<'a> Resolver<'a> {
                 HirStatement::Continue
             }
             StatementKind::Error => HirStatement::Error,
+            StatementKind::Comptime(statement) => {
+                let statement = self.resolve_stmt(*statement, span);
+                HirStatement::Comptime(self.interner.push_stmt(statement))
+            },
         }
     }
 
