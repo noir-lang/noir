@@ -246,6 +246,7 @@ impl<'a> Resolver<'a> {
             name: name.clone(),
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
             visibility: ItemVisibility::Public, // Trait functions are always public
             generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {

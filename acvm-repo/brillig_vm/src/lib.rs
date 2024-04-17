@@ -16,7 +16,7 @@ use acir::brillig::{
     HeapVector, MemoryAddress, Opcode, ValueOrArray,
 };
 use acir::FieldElement;
-use acvm_blackbox_solver::BlackBoxFunctionSolver;
+use acvm_blackbox_solver::{BigIntSolver, BlackBoxFunctionSolver};
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
 use black_box::evaluate_black_box;
 use num_bigint::BigUint;
@@ -33,6 +33,12 @@ mod memory;
 pub type ErrorCallStack = Vec<usize>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FailureReason {
+    Trap { revert_data_offset: usize, revert_data_size: usize },
+    RuntimeError { message: String },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VMStatus {
     Finished {
         return_data_offset: usize,
@@ -40,7 +46,7 @@ pub enum VMStatus {
     },
     InProgress,
     Failure {
-        message: String,
+        reason: FailureReason,
         call_stack: ErrorCallStack,
     },
     /// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
@@ -81,6 +87,8 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
     black_box_solver: &'a B,
+    // The solver for big integers
+    bigint_solver: BigIntSolver,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
@@ -101,6 +109,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
             memory: Memory::default(),
             call_stack: Vec::new(),
             black_box_solver,
+            bigint_solver: Default::default(),
         }
     }
 
@@ -138,13 +147,28 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status(VMStatus::InProgress);
     }
 
+    fn get_error_stack(&self) -> Vec<usize> {
+        let mut error_stack: Vec<_> = self.call_stack.clone();
+        error_stack.push(self.program_counter);
+        error_stack
+    }
+
     /// Sets the current status of the VM to `fail`.
     /// Indicating that the VM encountered a `Trap` Opcode
     /// or an invalid state.
+    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus {
+        self.status(VMStatus::Failure {
+            call_stack: self.get_error_stack(),
+            reason: FailureReason::Trap { revert_data_offset, revert_data_size },
+        });
+        self.status.clone()
+    }
+
     fn fail(&mut self, message: String) -> VMStatus {
-        let mut error_stack: Vec<_> = self.call_stack.clone();
-        error_stack.push(self.program_counter);
-        self.status(VMStatus::Failure { call_stack: error_stack, message });
+        self.status(VMStatus::Failure {
+            call_stack: self.get_error_stack(),
+            reason: FailureReason::RuntimeError { message },
+        });
         self.status.clone()
     }
 
@@ -281,7 +305,9 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 }
                 self.increment_program_counter()
             }
-            Opcode::Trap => self.fail("explicit trap hit in brillig".to_string()),
+            Opcode::Trap { revert_data_offset, revert_data_size } => {
+                self.trap(*revert_data_offset, *revert_data_size)
+            }
             Opcode::Stop { return_data_offset, return_data_size } => {
                 self.finish(*return_data_offset, *return_data_size)
             }
@@ -311,7 +337,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 self.increment_program_counter()
             }
             Opcode::BlackBox(black_box_op) => {
-                match evaluate_black_box(black_box_op, self.black_box_solver, &mut self.memory) {
+                match evaluate_black_box(
+                    black_box_op,
+                    self.black_box_solver,
+                    &mut self.memory,
+                    &mut self.bigint_solver,
+                ) {
                     Ok(()) => self.increment_program_counter(),
                     Err(e) => self.fail(e.to_string()),
                 }
@@ -684,7 +715,7 @@ mod tests {
 
         let jump_opcode = Opcode::Jump { location: 3 };
 
-        let trap_opcode = Opcode::Trap;
+        let trap_opcode = Opcode::Trap { revert_data_offset: 0, revert_data_size: 0 };
 
         let not_equal_cmp_opcode = Opcode::BinaryFieldOp {
             op: BinaryFieldOp::Equals,
@@ -731,7 +762,7 @@ mod tests {
         assert_eq!(
             status,
             VMStatus::Failure {
-                message: "explicit trap hit in brillig".to_string(),
+                reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
                 call_stack: vec![2]
             }
         );

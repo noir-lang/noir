@@ -260,7 +260,7 @@ impl HirBlockExpression {
 }
 
 /// A variable captured inside a closure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirCapturedVar {
     pub ident: HirIdent,
 
@@ -274,7 +274,7 @@ pub struct HirCapturedVar {
     pub transitive_capture_index: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirLambda {
     pub parameters: Vec<(HirPattern, Type)>,
     pub return_type: Type,

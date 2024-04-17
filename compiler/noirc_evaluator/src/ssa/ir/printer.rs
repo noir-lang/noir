@@ -9,7 +9,10 @@ use iter_extended::vecmap;
 use super::{
     basic_block::BasicBlockId,
     function::Function,
-    instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
+    instruction::{
+        ConstrainError, Instruction, InstructionId, TerminatorInstruction,
+        UserDefinedConstrainError,
+    },
     value::ValueId,
 };
 
@@ -201,10 +204,11 @@ fn display_constrain_error(
     f: &mut Formatter,
 ) -> Result {
     match error {
-        ConstrainError::Static(assert_message_string) => {
+        ConstrainError::Intrinsic(assert_message_string)
+        | ConstrainError::UserDefined(UserDefinedConstrainError::Static(assert_message_string)) => {
             writeln!(f, "{assert_message_string:?}")
         }
-        ConstrainError::Dynamic(assert_message_call) => {
+        ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(assert_message_call)) => {
             display_instruction_inner(function, assert_message_call, f)
         }
     }

@@ -14,7 +14,9 @@ use crate::{
     errors::{RuntimeError, SsaReport},
 };
 use acvm::acir::{
-    circuit::{Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs},
+    circuit::{
+        brillig::BrilligBytecode, Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs,
+    },
     native_types::Witness,
 };
 
@@ -35,14 +37,16 @@ pub mod ssa_gen;
 
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
-/// convert the final SSA into ACIR and return it.
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
 pub(crate) fn optimize_into_acir(
     program: Program,
     print_passes: bool,
     print_brillig_trace: bool,
     force_brillig_output: bool,
     print_timings: bool,
-) -> Result<Vec<GeneratedAcir>, RuntimeError> {
+) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
@@ -99,6 +103,18 @@ pub struct SsaProgramArtifact {
 }
 
 impl SsaProgramArtifact {
+    fn new(unconstrained_functions: Vec<BrilligBytecode>) -> Self {
+        let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
+        Self {
+            program,
+            debug: Vec::default(),
+            warnings: Vec::default(),
+            main_input_witnesses: Vec::default(),
+            main_return_witnesses: Vec::default(),
+            names: Vec::default(),
+        }
+    }
+
     fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
         self.program.functions.push(circuit_artifact.circuit);
         self.debug.push(circuit_artifact.debug_info);
@@ -130,7 +146,7 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let generated_acirs = optimize_into_acir(
+    let (generated_acirs, generated_brillig) = optimize_into_acir(
         program,
         enable_ssa_logging,
         enable_brillig_logging,
@@ -143,7 +159,7 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let mut program_artifact = SsaProgramArtifact::default();
+    let mut program_artifact = SsaProgramArtifact::new(generated_brillig);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
