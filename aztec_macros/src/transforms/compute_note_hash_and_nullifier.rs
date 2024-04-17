@@ -49,20 +49,20 @@ pub fn inject_compute_note_hash_and_nullifier(
     crate_id: &CrateId,
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
-    if let Some((module_id, file_id)) = get_contract_module_data(context, crate_id) {
+    if let Some((_, module_id, file_id)) = get_contract_module_data(context, crate_id) {
         // If compute_note_hash_and_nullifier is already defined by the user, we skip auto-generation in order to provide an
         // escape hatch for this mechanism.
         // TODO(#4647): improve this diagnosis and error messaging.
-        if check_for_compute_note_hash_and_nullifier_definition(crate_id, context) {
+        if context.crate_graph.root_crate_id() != crate_id
+            || check_for_compute_note_hash_and_nullifier_definition(crate_id, context)
+        {
             return Ok(());
         }
 
         // In order to implement compute_note_hash_and_nullifier, we need to know all of the different note types the
         // contract might use. These are the types that are marked as #[aztec(note)].
-        let note_types = fetch_notes(context)
-            .iter()
-            .map(|(_, note)| note.borrow().name.0.contents.clone())
-            .collect::<Vec<_>>();
+        let note_types =
+            fetch_notes(context).iter().map(|(path, _)| path.to_string()).collect::<Vec<_>>();
 
         // We can now generate a version of compute_note_hash_and_nullifier tailored for the contract in this crate.
         let func = generate_compute_note_hash_and_nullifier(&note_types);
@@ -73,7 +73,14 @@ pub fn inject_compute_note_hash_and_nullifier(
         // pass an empty span. This function should not produce errors anyway so this should not matter.
         let location = Location::new(Span::empty(0), file_id);
 
-        inject_fn(crate_id, context, func, location, module_id, file_id);
+        inject_fn(crate_id, context, func, location, module_id, file_id).map_err(|err| {
+            (
+                AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier {
+                    secondary_message: err.secondary_message,
+                },
+                file_id,
+            )
+        })?;
     }
     Ok(())
 }
@@ -100,7 +107,7 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &[String]) -> Str
         // so we include a dummy version.
         "
         unconstrained fn compute_note_hash_and_nullifier(
-            contract_address: AztecAddress,
+            contract_address: dep::aztec::protocol_types::address::AztecAddress,
             nonce: Field,
             storage_slot: Field,
             note_type_id: Field,
@@ -130,7 +137,7 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &[String]) -> Str
         format!(
             "
             unconstrained fn compute_note_hash_and_nullifier(
-                contract_address: AztecAddress,
+                contract_address: dep::aztec::protocol_types::address::AztecAddress,
                 nonce: Field,
                 storage_slot: Field,
                 note_type_id: Field,
