@@ -117,7 +117,7 @@ impl<'a> Interpreter<'a> {
     pub(crate) fn new(interner: &'a mut NodeInterner) -> Self {
         Self {
             interner,
-            scopes: vec![FxHashMap::default()],
+            scopes: vec![HashMap::default()],
             changed_functions: FxHashSet::default(),
             changed_globally: false,
             in_loop: false,
