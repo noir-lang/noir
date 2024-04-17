@@ -28,6 +28,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
+#[derive(Debug)]
 struct P2Value {
     target: P2Target,
     typ: P2Type,
@@ -47,12 +48,15 @@ impl P2Value {
     }
 }
 
+#[derive(Debug)]
 enum P2Type {
     Boolean,
     Integer(u32),
     Array,
+    Field,
 }
 
+#[derive(Debug)]
 enum P2Target {
     IntTarget(Target),
     BoolTarget(BoolTarget),
@@ -62,12 +66,17 @@ enum P2Target {
 pub(crate) struct Builder {
     builder: P2Builder,
     translation: HashMap<ValueId, P2Value>,
+    dfg: DataFlowGraph,
 }
 
 impl Builder {
     pub(crate) fn new() -> Builder {
         let config = CircuitConfig::standard_recursion_config();
-        Builder { builder: P2Builder::new(config), translation: HashMap::new() }
+        Builder {
+            builder: P2Builder::new(config),
+            translation: HashMap::new(),
+            dfg: DataFlowGraph::default(),
+        }
     }
 
     pub(crate) fn build(
@@ -78,14 +87,15 @@ impl Builder {
         let main_function =
             ssa.functions.into_values().find(|value| value.name() == "main").unwrap();
         let entry_block_id = main_function.entry_block();
-        let entry_block = main_function.dfg[entry_block_id].clone();
+        self.dfg = main_function.dfg;
+        let entry_block = self.dfg[entry_block_id].clone();
 
         let mut parameters = Vec::new();
         for value_id in entry_block.parameters().iter() {
-            parameters.push(self.add_parameter(&main_function.dfg, *value_id)?);
+            parameters.push(self.add_parameter(*value_id)?);
         }
         for instruction_id in entry_block.instructions() {
-            match self.add_instruction(&main_function.dfg, *instruction_id) {
+            match self.add_instruction(*instruction_id) {
                 Err(error) => return Err(error),
                 Ok(_) => (),
             }
@@ -94,23 +104,22 @@ impl Builder {
         Ok(Plonky2Circuit { data, parameters, parameter_names })
     }
 
-    fn add_parameter(
-        &mut self,
-        dfg: &DataFlowGraph,
-        value_id: ValueId,
-    ) -> Result<Target, Plonky2GenError> {
-        let value = dfg[value_id].clone();
+    fn add_parameter(&mut self, value_id: ValueId) -> Result<Target, Plonky2GenError> {
+        let value = self.dfg[value_id].clone();
         let p2value = match value {
             Value::Param { block: _, position: _, typ } => match typ {
                 Type::Numeric(numeric_type) => match numeric_type {
+                    NumericType::NativeField => P2Value {
+                        target: P2Target::IntTarget(self.builder.add_virtual_target()),
+                        typ: P2Type::Field,
+                    },
                     NumericType::Unsigned { bit_size } => P2Value {
                         target: P2Target::IntTarget(self.builder.add_virtual_target()),
                         typ: P2Type::Integer(bit_size),
                     },
                     _ => {
-                        return Err(Plonky2GenError::UnsupportedFeature {
-                            name: "parameters that are not unsigned integers".to_owned(),
-                        })
+                        let feature_name = format!("parameters of type {numeric_type}");
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 },
                 _ => {
@@ -147,12 +156,8 @@ impl Builder {
         Ok(P2Value { target: P2Target::IntTarget(target), typ: P2Type::Integer(bit_size_a) })
     }
 
-    fn add_instruction(
-        &mut self,
-        dfg: &DataFlowGraph,
-        instruction_id: InstructionId,
-    ) -> Result<(), Plonky2GenError> {
-        let instruction = dfg[instruction_id].clone();
+    fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
+        let instruction = self.dfg[instruction_id].clone();
 
         match instruction {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
@@ -164,6 +169,12 @@ impl Builder {
                     super::ir::instruction::BinaryOp::Div => {
                         self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
                             add_div(builder, t1, t2).0
+                        })
+                    }
+
+                    super::ir::instruction::BinaryOp::Mod => {
+                        self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
+                            add_div(builder, t1, t2).1
                         })
                     }
 
@@ -182,7 +193,7 @@ impl Builder {
                 };
 
                 let destinations: Vec<_> =
-                    dfg.instruction_results(instruction_id).iter().cloned().collect();
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
                 assert!(destinations.len() == 1);
                 self.set(destinations[0], p2value?);
             }
@@ -201,7 +212,7 @@ impl Builder {
             _ => {
                 let feature_name = format!(
                     "instruction {:?} <- {:?}",
-                    dfg.instruction_results(instruction_id),
+                    self.dfg.instruction_results(instruction_id),
                     instruction
                 );
                 return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
