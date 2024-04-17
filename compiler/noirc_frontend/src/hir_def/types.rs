@@ -732,7 +732,7 @@ impl Type {
     /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
     /// certain types which through compilation we know what their size should be. 
     /// This includes types such as generic arrays or slices.
-    fn is_valid_entry_point_input(&self) -> bool {
+    pub(crate) fn is_valid_entry_point_input(&self) -> bool {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
@@ -744,14 +744,18 @@ impl Type {
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _)
             | Type::Slice(_)
+            | Type::FmtString(_, _)
             | Type::Error => true,
 
-            Type::FmtString(_, _)
-            | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
+            // TODO: probably can allow code as it is all compile time
             | Type::Code
             | Type::TraitAsType(..) => false,
+
+            Type::Function(params, return_type, env) => {
+                params.iter().all(|elem| elem.is_valid_entry_point_input()) && return_type.is_valid_entry_point_input() && env.is_valid_entry_point_input()
+            }
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();

@@ -172,7 +172,7 @@ fn check_if_type_is_valid_for_program_input(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let meta = type_checker.interner.function_meta(&func_id);
-    if (meta.is_entry_point) && !param.1.is_valid_for_program_input() {
+    if (meta.is_entry_point && !param.1.is_valid_for_program_input()) || (meta.should_fold && !param.1.is_valid_entry_point_input()) {
         let span = param.0.span();
         errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
     }
@@ -636,6 +636,35 @@ pub mod test {
         "#;
 
         type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
+    }
+
+    #[test]
+    fn fold_numeric_generic() {
+        let src = r#"
+        #[fold]
+            fn fold<T>(x: T) -> T {
+                x
+            }
+        "#;
+
+        type_check_src_code(src, vec![String::from("fold")]);
+    }
+
+    #[test]
+    fn fold_basic_closure() {
+        let src = r#"
+            fn main(x : Field) -> pub Field {
+                let closure = || x;
+                fold(closure)
+            }
+
+            #[fold]
+            fn fold<Env>(closure : fn[Env]() -> Field) -> pub Field {
+                closure()
+            }
+        "#;
+
+        type_check_src_code(src, vec![String::from("main"), String::from("fold")]);
     }
 
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
