@@ -117,6 +117,7 @@ FPCContractArtifact
 GasTokenContractArtifact
 ImportTestContractArtifact
 InclusionProofsContractArtifact
+KeyRegistryContractArtifact
 LendingContractArtifact
 MultiCallEntrypointContractArtifact
 ParentContractArtifact

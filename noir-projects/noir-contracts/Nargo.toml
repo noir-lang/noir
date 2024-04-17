@@ -24,6 +24,7 @@ members = [
     "contracts/escrow_contract",
     "contracts/gas_token_contract",
     "contracts/import_test_contract",
+    "contracts/key_registry_contract",
     "contracts/inclusion_proofs_contract",
     "contracts/lending_contract",
     "contracts/parent_contract",

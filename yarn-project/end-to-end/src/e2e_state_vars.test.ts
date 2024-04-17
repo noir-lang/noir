@@ -1,5 +1,5 @@
-import { type Wallet } from '@aztec/aztec.js';
-import { DocsExampleContract } from '@aztec/noir-contracts.js';
+import { AztecAddress, Fr, type PXE, type Wallet } from '@aztec/aztec.js';
+import { AuthContract, DocsExampleContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 
@@ -8,6 +8,7 @@ import { setup } from './fixtures/utils.js';
 const TIMEOUT = 100_000;
 
 describe('e2e_state_vars', () => {
+  let pxe: PXE;
   jest.setTimeout(TIMEOUT);
 
   let wallet: Wallet;
@@ -19,7 +20,7 @@ describe('e2e_state_vars', () => {
   const RANDOMNESS = 2n;
 
   beforeAll(async () => {
-    ({ teardown, wallet } = await setup());
+    ({ teardown, wallet, pxe } = await setup(2));
     contract = await DocsExampleContract.deploy(wallet).send().deployed();
   }, 30_000);
 
@@ -220,6 +221,55 @@ describe('e2e_state_vars', () => {
       const { points, randomness } = await contract.methods.view_imm_card().simulate();
       expect(points).toEqual(POINTS);
       expect(randomness).toEqual(RANDOMNESS);
+    });
+  });
+
+  describe('SharedMutablePrivateGetter', () => {
+    let authContract: AuthContract;
+    let testContract: TestContract;
+
+    const delay = async (blocks: number) => {
+      for (let i = 0; i < blocks; i++) {
+        await authContract.methods.get_authorized().send().wait();
+      }
+    };
+
+    beforeAll(async () => {
+      testContract = await TestContract.deploy(wallet).send().deployed();
+      // We use the auth contract here because has a nice, clear, simple implementation of the Shared Mutable,
+      // and we will need to read from it to test our private getter.
+      authContract = await AuthContract.deploy(wallet, wallet.getAddress()).send().deployed();
+
+      // We set the authorized value here, knowing there will be some delay before the value change takes place
+      await authContract
+        .withWallet(wallet)
+        .methods.set_authorized(AztecAddress.fromField(new Fr(6969696969)))
+        .send()
+        .wait();
+    }, 30_000);
+
+    it("checks authorized in auth contract from test contract and finds the old value because the change hasn't been applied yet", async () => {
+      const { txHash } = await testContract.methods
+        .test_shared_mutable_private_getter(authContract.address, 2)
+        .send()
+        .wait();
+
+      // The function above emits an unencrypted log as a means of returning the data
+      const rawLogs = await pxe.getUnencryptedLogs({ txHash });
+      expect(Fr.fromBuffer(rawLogs.logs[0].log.data)).toEqual(new Fr(0));
+    });
+
+    it('checks authorized in auth contract from test contract and finds the correctly set value', async () => {
+      await delay(5);
+
+      const { txHash } = await testContract.methods
+        .test_shared_mutable_private_getter(authContract.address, 2)
+        .send()
+        .wait();
+
+      // The function above emits an unencrypted log as a means of returning the data
+      const rawLogs = await pxe.getUnencryptedLogs({ txHash });
+      expect(Fr.fromBuffer(rawLogs.logs[0].log.data)).toEqual(new Fr(6969696969));
     });
   });
 });
