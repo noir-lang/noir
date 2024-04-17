@@ -5,6 +5,8 @@ import {
   type DebugLogger,
   type DeployL1Contracts,
   EthAddress,
+  type EthAddressLike,
+  type FieldLike,
   Fr,
   L1Actor,
   L1ToL2Message,
@@ -92,8 +94,13 @@ describe('e2e_public_cross_chain_messaging', () => {
     // Wait for the message to be available for consumption
     await crossChainTestHarness.makeMessageConsumable(msgHash);
 
+    // Get message leaf index, needed for claiming in public
+    const maybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness('latest', msgHash, 0n);
+    expect(maybeIndexAndPath).toBeDefined();
+    const messageLeafIndex = maybeIndexAndPath![0];
+
     // 3. Consume L1 -> L2 message and mint public tokens on L2
-    await crossChainTestHarness.consumeMessageOnAztecAndMintPublicly(bridgeAmount, secret);
+    await crossChainTestHarness.consumeMessageOnAztecAndMintPublicly(bridgeAmount, secret, messageLeafIndex);
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, bridgeAmount);
     const afterBalance = bridgeAmount;
 
@@ -161,14 +168,26 @@ describe('e2e_public_cross_chain_messaging', () => {
       secretHash,
     );
 
+    // get message leaf index, needed for claiming in public
+    const maybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness('latest', msgHash, 0n);
+    expect(maybeIndexAndPath).toBeDefined();
+    const messageLeafIndex = maybeIndexAndPath![0];
+
     // user2 tries to consume this message and minting to itself -> should fail since the message is intended to be consumed only by owner.
     await expect(
-      l2Bridge.withWallet(user2Wallet).methods.claim_public(user2Wallet.getAddress(), bridgeAmount, secret).prove(),
+      l2Bridge
+        .withWallet(user2Wallet)
+        .methods.claim_public(user2Wallet.getAddress(), bridgeAmount, secret, messageLeafIndex)
+        .prove(),
     ).rejects.toThrow(`No non-nullified L1 to L2 message found for message hash ${wrongMessage.hash().toString()}`);
 
     // user2 consumes owner's L1-> L2 message on bridge contract and mints public tokens on L2
     logger.info("user2 consumes owner's message on L2 Publicly");
-    await l2Bridge.withWallet(user2Wallet).methods.claim_public(ownerAddress, bridgeAmount, secret).send().wait();
+    await l2Bridge
+      .withWallet(user2Wallet)
+      .methods.claim_public(ownerAddress, bridgeAmount, secret, messageLeafIndex)
+      .send()
+      .wait();
     // ensure funds are gone to owner and not user2.
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, bridgeAmount);
     await crossChainTestHarness.expectPublicBalanceOnL2(user2Wallet.getAddress(), 0n);
@@ -312,7 +331,8 @@ describe('e2e_public_cross_chain_messaging', () => {
       const testContract = await TestContract.deploy(user1Wallet).send().deployed();
 
       const consumeMethod = isPrivate
-        ? testContract.methods.consume_message_from_arbitrary_sender_private
+        ? (content: FieldLike, secret: FieldLike, sender: EthAddressLike, _leafIndex: FieldLike) =>
+            testContract.methods.consume_message_from_arbitrary_sender_private(content, secret, sender)
         : testContract.methods.consume_message_from_arbitrary_sender_public;
 
       const secret = Fr.random();
@@ -329,7 +349,7 @@ describe('e2e_public_cross_chain_messaging', () => {
       const [message1Index, _1] = (await aztecNode.getL1ToL2MessageMembershipWitness('latest', message.hash(), 0n))!;
 
       // Finally, we consume the L1 -> L2 message using the test contract either from private or public
-      await consumeMethod(message.content, secret, message.sender.sender).send().wait();
+      await consumeMethod(message.content, secret, message.sender.sender, message1Index).send().wait();
 
       // We send and consume the exact same message the second time to test that oracles correctly return the new
       // non-nullified message
@@ -348,7 +368,7 @@ describe('e2e_public_cross_chain_messaging', () => {
 
       // Now we consume the message again. Everything should pass because oracle should return the duplicate message
       // which is not nullified
-      await consumeMethod(message.content, secret, message.sender.sender).send().wait();
+      await consumeMethod(message.content, secret, message.sender.sender, message2Index).send().wait();
     },
     120_000,
   );

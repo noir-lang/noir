@@ -268,10 +268,20 @@ contract Test {
     }
 
     #[aztec(public)]
-    fn consume_mint_public_message(to: AztecAddress, amount: Field, secret: Field) {
+    fn consume_mint_public_message(
+        to: AztecAddress,
+        amount: Field,
+        secret: Field,
+        message_leaf_index: Field
+    ) {
         let content_hash = get_mint_public_content_hash(to, amount);
         // Consume message and emit nullifier
-        context.consume_l1_to_l2_message(content_hash, secret, context.this_portal_address());
+        context.consume_l1_to_l2_message(
+            content_hash,
+            secret,
+            context.this_portal_address(),
+            message_leaf_index
+        );
     }
 
     #[aztec(private)]
@@ -293,10 +303,11 @@ contract Test {
     fn consume_message_from_arbitrary_sender_public(
         content: Field,
         secret: Field,
-        sender: EthAddress
+        sender: EthAddress,
+        message_leaf_index: Field
     ) {
         // Consume message and emit nullifier
-        context.consume_l1_to_l2_message(content, secret, sender);
+        context.consume_l1_to_l2_message(content, secret, sender, message_leaf_index);
     }
 
     #[aztec(private)]

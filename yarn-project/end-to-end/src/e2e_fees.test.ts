@@ -81,6 +81,7 @@ describe('e2e_fees', () => {
     sequencerAddress = wallets[2].getAddress();
 
     gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+      aztecNode: aztecNode,
       pxeService: pxe,
       publicClient: deployL1ContractsValues.publicClient,
       walletClient: deployL1ContractsValues.walletClient,

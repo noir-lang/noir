@@ -14,6 +14,7 @@ import { InboxAbi, UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-art
 import { UniswapContract } from '@aztec/noir-contracts.js/Uniswap';
 
 import { jest } from '@jest/globals';
+import { strict as assert } from 'assert';
 import {
   type Account,
   type Chain,
@@ -409,9 +410,22 @@ export const uniswapL1L2TestSuite = (
       // Wait for the message to be available for consumption
       await wethCrossChainHarness.makeMessageConsumable(wethDepositMsgHash);
 
+      // Get message leaf index, needed for claiming in public
+      const wethDepositMaybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness(
+        'latest',
+        wethDepositMsgHash,
+        0n,
+      );
+      assert(wethDepositMaybeIndexAndPath !== undefined, 'Message not found in tree');
+      const wethDepositMessageLeafIndex = wethDepositMaybeIndexAndPath[0];
+
       // 2. Claim WETH on L2
       logger.info('Minting weth on L2');
-      await wethCrossChainHarness.consumeMessageOnAztecAndMintPublicly(wethAmountToBridge, secretForMintingWeth);
+      await wethCrossChainHarness.consumeMessageOnAztecAndMintPublicly(
+        wethAmountToBridge,
+        secretForMintingWeth,
+        wethDepositMessageLeafIndex,
+      );
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, wethAmountToBridge);
 
       // Store balances
@@ -585,9 +599,22 @@ export const uniswapL1L2TestSuite = (
       // Wait for the message to be available for consumption
       await daiCrossChainHarness.makeMessageConsumable(outTokenDepositMsgHash);
 
+      // Get message leaf index, needed for claiming in public
+      const outTokenDepositMaybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness(
+        'latest',
+        outTokenDepositMsgHash,
+        0n,
+      );
+      assert(outTokenDepositMaybeIndexAndPath !== undefined, 'Message not found in tree');
+      const outTokenDepositMessageLeafIndex = outTokenDepositMaybeIndexAndPath[0];
+
       // 6. claim dai on L2
       logger.info('Consuming messages to mint dai on L2');
-      await daiCrossChainHarness.consumeMessageOnAztecAndMintPublicly(daiAmountToBridge, secretForDepositingSwappedDai);
+      await daiCrossChainHarness.consumeMessageOnAztecAndMintPublicly(
+        daiAmountToBridge,
+        secretForDepositingSwappedDai,
+        outTokenDepositMessageLeafIndex,
+      );
       await daiCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, daiL2BalanceBeforeSwap + daiAmountToBridge);
 
       const wethL2BalanceAfterSwap = await wethCrossChainHarness.getL2PublicBalanceOf(ownerAddress);

@@ -319,10 +319,10 @@ export class CrossChainTestHarness {
     await this.addPendingShieldNoteToPXE(bridgeAmount, secretHashForRedeemingMintedNotes, consumptionReceipt.txHash);
   }
 
-  async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, secret: Fr) {
+  async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, secret: Fr, leafIndex: bigint) {
     this.logger.info('Consuming messages on L2 Publicly');
     // Call the mint tokens function on the Aztec.nr contract
-    await this.l2Bridge.methods.claim_public(this.ownerAddress, bridgeAmount, secret).send().wait();
+    await this.l2Bridge.methods.claim_public(this.ownerAddress, bridgeAmount, secret, leafIndex).send().wait();
   }
 
   async withdrawPrivateFromAztecToL1(withdrawAmount: bigint, nonce: Fr = Fr.ZERO): Promise<FieldsOf<TxReceipt>> {

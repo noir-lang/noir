@@ -1,3 +1,4 @@
+use crate::hash::{compute_secret_hash, compute_message_hash, compute_message_nullifier};
 use dep::protocol_types::{
     address::{AztecAddress, EthAddress},
     constants::{L1_TO_L2_MESSAGE_LENGTH, NESTED_CALL_L2_GAS_BUFFER}, header::Header
@@ -128,8 +129,23 @@ impl PublicContextInterface for AvmContext {
         assert(false, "'push_unencrypted_log' not required for avm - use emit_unencrypted_log!");
     }
 
-    fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress) {
-        assert(false, "'consume_l1_to_l2_message' not implemented!");
+    fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, leaf_index: Field) {
+        let secret_hash = compute_secret_hash(secret);
+        let message_hash = compute_message_hash(
+            sender,
+            self.chain_id(),
+            /*recipient=*/self.this_address(),
+            self.version(),
+            content,
+            secret_hash
+        );
+        let nullifier = compute_message_nullifier(message_hash, secret, leaf_index);
+
+        assert(!self.nullifier_exists(nullifier, self.this_address()), "L1-to-L2 message is already nullified");
+        assert(self.l1_to_l2_msg_exists(message_hash, leaf_index), "Tried to consume nonexistent L1-to-L2 message");
+        
+        // Push nullifier (and the "commitment" corresponding to this can be "empty")
+        self.push_new_nullifier(nullifier, 0);
     }
 
     fn message_portal(&mut self, recipient: EthAddress, content: Field) {

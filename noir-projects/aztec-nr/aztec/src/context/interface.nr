@@ -33,7 +33,7 @@ trait PublicContextInterface {
     fn fee_per_l1_gas(self) -> Field;
     fn fee_per_l2_gas(self) -> Field;
     fn message_portal(&mut self, recipient: EthAddress, content: Field);
-    fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress);
+    fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, leaf_index: Field);
     fn emit_unencrypted_log<T>(&mut self, log: T);
     // TODO(1165) Merge push_unencrypted_log into emit_unencrypted_log, since oracle call
     // in PublicContext will no longer be needed for extracting log hash

@@ -263,7 +263,8 @@ impl PublicContextInterface for PublicContext {
 
     // We can consume message with a secret in public context because the message cannot be modified and therefore
     // there is no front-running risk (e.g. somebody could front run you to claim your tokens to your address).
-    fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress) {
+    // Leaf index is not used in public context, but it is used in the AVMContext which will replace it.
+    fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, _leaf_index: Field) {
         let this = (*self).this_address();
         let nullifier = process_l1_to_l2_message(
             self.historical_header.state.l1_to_l2_message_tree.root,

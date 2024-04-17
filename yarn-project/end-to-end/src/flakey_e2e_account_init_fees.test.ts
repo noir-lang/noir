@@ -94,6 +94,7 @@ describe('e2e_fees_account_init', () => {
     });
 
     gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+      aztecNode: ctx.aztecNode,
       pxeService: ctx.pxe,
       publicClient: ctx.deployL1ContractsValues.publicClient,
       walletClient: ctx.deployL1ContractsValues.walletClient,

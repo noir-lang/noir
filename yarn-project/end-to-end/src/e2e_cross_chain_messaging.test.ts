@@ -245,11 +245,16 @@ describe('e2e_cross_chain_messaging', () => {
       secretHashForL2MessageConsumption,
     );
 
+    // get message leaf index, needed for claiming in public
+    const maybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness('latest', msgHash, 0n);
+    expect(maybeIndexAndPath).toBeDefined();
+    const messageLeafIndex = maybeIndexAndPath![0];
+
     // 3. Consume L1 -> L2 message and try to mint publicly on L2  - should fail
     await expect(
       l2Bridge
         .withWallet(user2Wallet)
-        .methods.claim_public(ownerAddress, bridgeAmount, secretForL2MessageConsumption)
+        .methods.claim_public(ownerAddress, bridgeAmount, secretForL2MessageConsumption, messageLeafIndex)
         .prove(),
     ).rejects.toThrow(`No non-nullified L1 to L2 message found for message hash ${wrongMessage.hash().toString()}`);
   }, 120_000);
