@@ -186,6 +186,13 @@ impl Builder {
                         self.convert_integer_op(lhs, rhs, P2Builder::sub)
                     }
 
+                    super::ir::instruction::BinaryOp::Eq => {
+                        let target_a = self.get_target(lhs)?;
+                        let target_b = self.get_target(rhs)?;
+                        let target = self.builder.is_equal(target_a, target_b);
+                        Ok(P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean })
+                    }
+
                     _ => {
                         let feature_name = format!("operator {}", operator);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
@@ -225,21 +232,30 @@ impl Builder {
         self.translation.insert(value_id, value);
     }
 
-    fn get(&mut self, value_id: ValueId) -> &P2Value {
-        self.translation.get(&value_id).unwrap()
+    fn get(&mut self, value_id: ValueId) -> Option<&P2Value> {
+        self.translation.get(&value_id)
     }
 
     fn get_integer(&mut self, value_id: ValueId) -> Result<(u32, Target), Plonky2GenError> {
-        let value = self.get(value_id);
-        let bit_size = match value.typ {
-            P2Type::Integer(bit_size) => bit_size,
-            _ => {
-                return Err(Plonky2GenError::ICE {
-                    message: "lhs argument to convert_integer_op is not integer".to_owned(),
-                })
+        let p2value: P2Value;
+        let p2value_ref = match self.get(value_id) {
+            Some(p2value) => p2value,
+            None => {
+                let value = self.dfg[value_id].clone();
+                p2value = self.create_p2value(value)?;
+                &p2value
             }
         };
-        let target = match value.target {
+
+        let bit_size = match p2value_ref.typ {
+            P2Type::Integer(bit_size) => bit_size,
+            _ => {
+                let message =
+                    format!("lhs argument to convert_integer_op is of type {:?}", p2value_ref.typ);
+                return Err(Plonky2GenError::ICE { message });
+            }
+        };
+        let target = match p2value_ref.target {
             P2Target::IntTarget(target) => target,
             _ => {
                 return Err(Plonky2GenError::ICE {
@@ -252,7 +268,46 @@ impl Builder {
 
     /// Get the PLONKY2 target of a value, regardless of whether its type is Integer or Boolean.
     fn get_target(&mut self, value_id: ValueId) -> Result<Target, Plonky2GenError> {
-        self.get(value_id).get_target()
+        match self.get(value_id) {
+            Some(p2value) => p2value.get_target(),
+            None => {
+                let value = self.dfg[value_id].clone();
+                self.create_p2value(value)?.get_target()
+            }
+        }
+    }
+
+    fn create_p2value(&mut self, value: Value) -> Result<P2Value, Plonky2GenError> {
+        let (target, typ) = match value {
+            Value::Param { block: _, position: _, typ } => (self.builder.add_virtual_target(), typ),
+            Value::NumericConstant { constant, typ } => {
+                (self.builder.constant(noir_to_plonky2_field(constant)), typ)
+            }
+            _ => {
+                return Err(Plonky2GenError::ICE {
+                    message: format!("create_p2value passed a value that is {:?}", value),
+                })
+            }
+        };
+
+        match typ {
+            Type::Numeric(numeric_type) => match numeric_type {
+                NumericType::NativeField => {
+                    Ok(P2Value { target: P2Target::IntTarget(target), typ: P2Type::Field })
+                }
+                NumericType::Unsigned { bit_size } => Ok(P2Value {
+                    target: P2Target::IntTarget(target),
+                    typ: P2Type::Integer(bit_size),
+                }),
+                _ => {
+                    let feature_name = format!("parameters of type {numeric_type}");
+                    Err(Plonky2GenError::UnsupportedFeature { name: feature_name })
+                }
+            },
+            _ => Err(Plonky2GenError::UnsupportedFeature {
+                name: "parameters that are not numeric".to_owned(),
+            }),
+        }
     }
 }
 
