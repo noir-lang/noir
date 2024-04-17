@@ -27,7 +27,7 @@ fn main(
     for i in 0..HASH_LENGTH * 2 {
         double_preimage[i] = to_hash[0][i % HASH_LENGTH];
     }
-    result[NUM_HASHES] = poseidon_hash(double_preimage); 
+    result[NUM_HASHES] = poseidon_hash(double_preimage);
 
     result
 }
