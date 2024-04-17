@@ -288,7 +288,7 @@ impl<'interner> Monomorphizer<'interner> {
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
 
-        let body_expr_id = *self.interner.function(&f).as_expr();
+        let body_expr_id = self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_type = match meta.return_type() {
             Type::TraitAsType(..) => &body_return_type,

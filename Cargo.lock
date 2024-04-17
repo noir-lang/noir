@@ -3163,6 +3163,7 @@ dependencies = [
  "base64 0.21.2",
  "chumsky",
  "fm",
+ "im",
  "iter-extended",
  "lalrpop",
  "lalrpop-util",

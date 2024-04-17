@@ -242,6 +242,8 @@ pub struct FunctionModifiers {
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
+
+    pub is_comptime: bool,
 }
 
 impl FunctionModifiers {
@@ -254,6 +256,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
         }
     }
 }
@@ -759,6 +762,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
     }
