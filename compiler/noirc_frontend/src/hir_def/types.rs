@@ -743,19 +743,19 @@ impl Type {
             | Type::Constant(_)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _)
-            | Type::Slice(_)
-            | Type::FmtString(_, _)
             | Type::Error => true,
 
+            Type::FmtString(_, _)
+            // TODO: We would need to determine the size of the closure outputs at compile-time
+            // This is fine as long as the output size is not dependent upon a witness condition.
+            | Type::Function(_, _, _)
+            // TODO: Would need to add support for transforming a slice to an array 
+            | Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
             | Type::Code
             | Type::TraitAsType(..) => false,
-
-            Type::Function(params, return_type, env) => {
-                params.iter().all(|elem| elem.is_valid_entry_point_input()) && return_type.is_valid_entry_point_input() && env.is_valid_entry_point_input()
-            }
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();

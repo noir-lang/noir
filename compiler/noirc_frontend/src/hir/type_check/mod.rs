@@ -632,7 +632,7 @@ pub mod test {
             #[fold]
             fn fold(x: &mut Field) -> Field {
                 *x
-            }
+        }
         "#;
 
         type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
@@ -649,24 +649,6 @@ pub mod test {
 
         type_check_src_code(src, vec![String::from("fold")]);
     }
-
-    #[test]
-    fn fold_basic_closure() {
-        let src = r#"
-            fn main(x : Field) -> pub Field {
-                let closure = || x;
-                fold(closure)
-            }
-
-            #[fold]
-            fn fold<Env>(closure : fn[Env]() -> Field) -> pub Field {
-                closure()
-            }
-        "#;
-
-        type_check_src_code(src, vec![String::from("main"), String::from("fold")]);
-    }
-
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 
