@@ -98,17 +98,15 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
 impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
-        let equal_lens = self.len == other.len;
-
-        let mut ret = true;
+        let mut ret = self.len == other.len;
         let mut exceeded_len = false;
         for i in 0..MaxLen {
             exceeded_len |= i == self.len;
             if !exceeded_len {
-                ret &= (self.storage[i] == other.storage[i]);
+                ret &= self.storage[i] == other.storage[i];
             }
         }
-        equal_lens & ret
+        ret
     }
 }
 
