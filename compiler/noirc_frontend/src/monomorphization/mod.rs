@@ -301,6 +301,9 @@ impl<'interner> Monomorphizer<'interner> {
         let should_fold = meta.should_fold;
 
         let parameters = self.parameters(&meta.parameters)?;
+        dbg!(name.clone());
+        dbg!(func_sig.clone());
+        dbg!(parameters.clone());
         let body = self.expr(body_expr_id)?;
         let function = ast::Function {
             id,

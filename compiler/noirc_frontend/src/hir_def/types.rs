@@ -726,6 +726,51 @@ impl Type {
         }
     }
 
+    /// True if this type can be used as a parameter to an ACIR function that is not `main` or a contract function.
+    /// This encapsulates functions for which we may not want to inline during compilation.
+    /// 
+    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
+    /// certain types which through compilation we know what their size should be. 
+    /// This includes types such as generic arrays or slices.
+    fn is_valid_entry_point_input(&self) -> bool {
+        match self {
+            // Type::Error is allowed as usual since it indicates an error was already issued and
+            // we don't need to issue further errors about this likely unresolved type
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Slice(_)
+            | Type::Error => true,
+
+            Type::FmtString(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Code
+            | Type::TraitAsType(..) => false,
+
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_entry_point_input()
+            }
+
+            Type::Array(length, element) => {
+                length.is_valid_entry_point_input() && element.is_valid_entry_point_input()
+            }
+            Type::String(length) => length.is_valid_entry_point_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_entry_point_input()),
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_entry_point_input()),
+        }
+    }
+
     /// Returns the number of `Forall`-quantified type variables on this type.
     /// Returns 0 if this is not a Type::Forall
     pub fn generic_count(&self) -> usize {

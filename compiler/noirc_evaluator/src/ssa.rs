@@ -245,6 +245,7 @@ fn split_public_and_private_inputs(
         .0
         .iter()
         .map(|(_, typ, visibility)| {
+            dbg!("got here");
             let num_field_elements_needed = typ.field_count() as usize;
             let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;
