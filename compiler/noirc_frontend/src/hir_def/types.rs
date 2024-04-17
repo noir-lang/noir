@@ -746,10 +746,9 @@ impl Type {
             | Type::Error => true,
 
             Type::FmtString(_, _)
-            // TODO: We would need to determine the size of the closure outputs at compile-time
-            // This is fine as long as the output size is not dependent upon a witness condition.
+            // To enable this we would need to determine the size of the closure outputs at compile-time.
+            // This is possible as long as the output size is not dependent upon a witness condition.
             | Type::Function(_, _, _)
-            // TODO: Would need to add support for transforming a slice to an array 
             | Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
