@@ -1,5 +1,6 @@
 use crate::context::{DebugCommandResult, DebugContext};
 
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
@@ -20,6 +21,7 @@ pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver> {
     debug_artifact: &'a DebugArtifact,
     initial_witness: WitnessMap,
     last_result: DebugCommandResult,
+    unconstrained_functions: &'a [BrilligBytecode],
 }
 
 impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
@@ -28,6 +30,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         circuit: &'a Circuit,
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
+        unconstrained_functions: &'a [BrilligBytecode],
     ) -> Self {
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
@@ -37,6 +40,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             debug_artifact,
             initial_witness.clone(),
             foreign_call_executor,
+            unconstrained_functions,
         );
         let last_result = if context.get_current_opcode_location().is_none() {
             // handle circuit with no opcodes
@@ -44,7 +48,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         } else {
             DebugCommandResult::Ok
         };
-        Self { context, blackbox_solver, circuit, debug_artifact, initial_witness, last_result }
+        Self {
+            context,
+            blackbox_solver,
+            circuit,
+            debug_artifact,
+            initial_witness,
+            last_result,
+            unconstrained_functions,
+        }
     }
 
     pub fn show_current_vm_status(&self) {
@@ -271,6 +283,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             self.debug_artifact,
             self.initial_witness.clone(),
             foreign_call_executor,
+            self.unconstrained_functions,
         );
         for opcode_location in breakpoints {
             self.context.add_breakpoint(opcode_location);
@@ -361,9 +374,15 @@ pub fn run<B: BlackBoxFunctionSolver>(
     circuit: &Circuit,
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap,
+    unconstrained_functions: &[BrilligBytecode],
 ) -> Result<Option<WitnessMap>, NargoError> {
-    let context =
-        RefCell::new(ReplDebugger::new(blackbox_solver, circuit, debug_artifact, initial_witness));
+    let context = RefCell::new(ReplDebugger::new(
+        blackbox_solver,
+        circuit,
+        debug_artifact,
+        initial_witness,
+        unconstrained_functions,
+    ));
     let ref_context = &context;
 
     ref_context.borrow().show_current_vm_status();
