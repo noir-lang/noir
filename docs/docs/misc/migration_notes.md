@@ -18,7 +18,6 @@ It is now possible to import contracts on another contracts and use their automa
 4. Arrays become arrays of Fields following rules 2 and 3
 5. Structs become arrays of Fields, with every item defined in the same order as they are in Noir code, following rules 2, 3, 4 and 5 (recursive)
 
-
 ```diff
 - context.call_public_function(
 -   storage.gas_token_address.read_private(),
@@ -36,13 +35,13 @@ It is now possible to import contracts on another contracts and use their automa
 -           storage.subscription_token_address.read_private(),
 -           FunctionSelector::from_signature("transfer((Field),(Field),Field,Field)"),
 -           [
--            context.msg_sender().to_field(), 
--            storage.subscription_recipient_address.read_private().to_field(), 
--            storage.subscription_price.read_private(), 
+-            context.msg_sender().to_field(),
+-            storage.subscription_recipient_address.read_private().to_field(),
+-            storage.subscription_price.read_private(),
 -            nonce
 -           ]
 -  );
-+ use dep::gas_token::GasToken; 
++ use dep::gas_token::GasToken;
 + use dep::token::Token;
 +
 + ...
@@ -64,6 +63,21 @@ The `request_max_block_number` function has been renamed to `set_tx_max_block_nu
 - context.request_max_block_number(value);
 + context.set_tx_max_block_number(value);
 ```
+
+### [Aztec.nr] Required gas limits for public-to-public calls
+
+When calling a public function from another public function using the `call_public_function` method, you must now specify how much gas you're allocating to the nested call. This will later allow you to limit the amount of gas consumed by the nested call, and handle any out of gas errors.
+
+Note that gas limits are not yet enforced. For now, it is suggested you use `dep::aztec::context::gas::GasOpts::default()` which will forward all available gas.
+
+```diff
++ use dep::aztec::context::gas::GasOpts;
+
+- context.call_public_function(target_contract, target_selector, args);
++ context.call_public_function(target_contract, target_selector, args, GasOpts::default());
+```
+
+Note that this is not required when enqueuing a public function from a private one, since top-level enqueued public functions will always consume all gas available for the transaction, as it is not possible to handle any out-of-gas errors.
 
 ## 0.33
 
