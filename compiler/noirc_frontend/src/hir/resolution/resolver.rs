@@ -936,7 +936,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
-            if visibility == Visibility::Public && !self.pub_allowed(func) && !should_fold {
+            if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
                     position: PubPosition::Parameter,
@@ -954,10 +954,7 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func)
-            && !should_fold
-            && func.def.return_visibility == Visibility::Public
-        {
+        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
@@ -1041,7 +1038,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        self.is_entry_point_function(func)
+        self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
