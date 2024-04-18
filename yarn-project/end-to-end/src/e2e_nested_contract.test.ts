@@ -1,8 +1,5 @@
 import { type AztecAddress, BatchCall, type DebugLogger, Fr, type PXE, type Wallet, toBigIntBE } from '@aztec/aztec.js';
-import { getTestData, isGenerateTestDataEnabled } from '@aztec/foundation/testing';
 import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts.js';
-
-import { writeFileSync } from 'fs';
 
 import { setup } from './fixtures/utils.js';
 
@@ -34,35 +31,6 @@ describe('e2e_nested_contract', () => {
         .entry_point(childContract.address, childContract.methods.value.selector)
         .send()
         .wait();
-
-      if (isGenerateTestDataEnabled()) {
-        {
-          const privateKernelInputsInit = getTestData('private-kernel-inputs-init');
-          const nestedCallPrivateKernelInput = privateKernelInputsInit[0];
-          writeFileSync(
-            '../noir-protocol-circuits-types/src/fixtures/nested-call-private-kernel-init.hex',
-            nestedCallPrivateKernelInput.toBuffer().toString('hex'),
-          );
-        }
-
-        {
-          const privateKernelInputsInner = getTestData('private-kernel-inputs-inner');
-          const nestedCallPrivateKernelInput = privateKernelInputsInner[privateKernelInputsInner.length - 1];
-          writeFileSync(
-            '../noir-protocol-circuits-types/src/fixtures/nested-call-private-kernel-inner.hex',
-            nestedCallPrivateKernelInput.toBuffer().toString('hex'),
-          );
-        }
-
-        {
-          const privateKernelInputsOrdering = getTestData('private-kernel-inputs-ordering');
-          const nestedCallPrivateKernelInput = privateKernelInputsOrdering[0];
-          writeFileSync(
-            '../noir-protocol-circuits-types/src/fixtures/nested-call-private-kernel-ordering.hex',
-            nestedCallPrivateKernelInput.toBuffer().toString('hex'),
-          );
-        }
-      }
     }, 100_000);
 
     it('fails simulation if calling a function not allowed to be called externally', async () => {
