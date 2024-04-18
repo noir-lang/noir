@@ -170,7 +170,7 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        single_bit_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
     ) -> Result<P2Value, Plonky2GenError> {
         let (bit_size_a, target_a) = self.get_integer(lhs)?;
         let (bit_size_b, target_b) = self.get_integer(rhs)?;
@@ -182,7 +182,7 @@ impl Builder {
 
         let mut result_bits = Vec::new();
         for (i, (a_bit, b_bit)) in a_bits.iter().zip(b_bits).enumerate() {
-            let result_bit = p2builder_op(&mut self.builder, *a_bit, b_bit);
+            let result_bit = single_bit_op(&mut self.builder, *a_bit, b_bit);
 
             let zero = self.builder.zero();
             let one = self.builder.one();
@@ -266,6 +266,10 @@ impl Builder {
 
                     super::ir::instruction::BinaryOp::And => {
                         self.convert_bitwise_logical_op(lhs, rhs, P2Builder::and)
+                    }
+
+                    super::ir::instruction::BinaryOp::Or => {
+                        self.convert_bitwise_logical_op(lhs, rhs, P2Builder::or)
                     }
 
                     _ => {
