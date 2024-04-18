@@ -46,6 +46,18 @@ impl P2Value {
             }
         })
     }
+
+    fn make_integer(bit_size: u32, target: Target) -> P2Value {
+        P2Value { target: P2Target::IntTarget(target), typ: P2Type::Integer(bit_size) }
+    }
+
+    fn make_boolean(target: BoolTarget) -> P2Value {
+        P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean }
+    }
+
+    fn make_field(target: Target) -> P2Value {
+        P2Value { target: P2Target::IntTarget(target), typ: P2Type::Field }
+    }
 }
 
 #[derive(Debug)]
@@ -109,14 +121,12 @@ impl Builder {
         let p2value = match value {
             Value::Param { block: _, position: _, typ } => match typ {
                 Type::Numeric(numeric_type) => match numeric_type {
-                    NumericType::NativeField => P2Value {
-                        target: P2Target::IntTarget(self.builder.add_virtual_target()),
-                        typ: P2Type::Field,
-                    },
-                    NumericType::Unsigned { bit_size } => P2Value {
-                        target: P2Target::IntTarget(self.builder.add_virtual_target()),
-                        typ: P2Type::Integer(bit_size),
-                    },
+                    NumericType::NativeField => {
+                        P2Value::make_field(self.builder.add_virtual_target())
+                    }
+                    NumericType::Unsigned { bit_size } => {
+                        P2Value::make_integer(bit_size, self.builder.add_virtual_target())
+                    }
                     _ => {
                         let feature_name = format!("parameters of type {numeric_type}");
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
@@ -153,7 +163,7 @@ impl Builder {
         assert!(bit_size_a == bit_size_b);
 
         let target = p2builder_op(&mut self.builder, target_a, target_b);
-        Ok(P2Value { target: P2Target::IntTarget(target), typ: P2Type::Integer(bit_size_a) })
+        Ok(P2Value::make_integer(bit_size_a, target))
     }
 
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
@@ -190,7 +200,7 @@ impl Builder {
                         let target_a = self.get_target(lhs)?;
                         let target_b = self.get_target(rhs)?;
                         let target = self.builder.is_equal(target_a, target_b);
-                        Ok(P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean })
+                        Ok(P2Value::make_boolean(target))
                     }
 
                     super::ir::instruction::BinaryOp::Lt => {
@@ -201,7 +211,36 @@ impl Builder {
                         let div = add_div_mod(&mut self.builder, target_a, target_b).0;
                         let zero = self.builder.zero();
                         let target = self.builder.is_equal(div, zero);
-                        Ok(P2Value { target: P2Target::BoolTarget(target), typ: P2Type::Boolean })
+                        Ok(P2Value::make_boolean(target))
+                    }
+
+                    super::ir::instruction::BinaryOp::Xor => {
+                        let (bit_size_a, target_a) = self.get_integer(lhs)?;
+                        let (bit_size_b, target_b) = self.get_integer(rhs)?;
+                        assert!(bit_size_a == bit_size_b);
+                        let bit_size = usize::try_from(bit_size_a).unwrap();
+
+                        let a_bits = self.builder.split_le(target_a, bit_size);
+                        let b_bits = self.builder.split_le(target_b, bit_size);
+
+                        let mut result_bits = Vec::new();
+                        for (i, (a_bit, b_bit)) in a_bits.iter().zip(b_bits).enumerate() {
+                            let not_a_bit = self.builder.not(*a_bit);
+                            let not_b_bit = self.builder.not(b_bit);
+                            let c = self.builder.and(*a_bit, not_b_bit);
+                            let d = self.builder.and(not_a_bit, b_bit);
+                            let e = self.builder.or(c, d);
+                            // stanm: might be the wrong endian
+                            let zero = self.builder.zero();
+                            let two = self.builder.two();
+                            let bit = self.builder._if(e, two, zero);
+                            let f = self.builder.exp_u64(bit, u64::try_from(i).unwrap());
+                            result_bits.push(f);
+                        }
+
+                        let target = self.builder.add_many(result_bits);
+
+                        Ok(P2Value::make_integer(bit_size_a, target))
                     }
 
                     _ => {
@@ -303,13 +342,8 @@ impl Builder {
 
         match typ {
             Type::Numeric(numeric_type) => match numeric_type {
-                NumericType::NativeField => {
-                    Ok(P2Value { target: P2Target::IntTarget(target), typ: P2Type::Field })
-                }
-                NumericType::Unsigned { bit_size } => Ok(P2Value {
-                    target: P2Target::IntTarget(target),
-                    typ: P2Type::Integer(bit_size),
-                }),
+                NumericType::NativeField => Ok(P2Value::make_field(target)),
+                NumericType::Unsigned { bit_size } => Ok(P2Value::make_integer(bit_size, target)),
                 _ => {
                     let feature_name = format!("parameters of type {numeric_type}");
                     Err(Plonky2GenError::UnsupportedFeature { name: feature_name })
