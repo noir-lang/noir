@@ -232,9 +232,14 @@ impl Builder {
                             let e = self.builder.or(c, d);
                             // stanm: might be the wrong endian
                             let zero = self.builder.zero();
+                            let one = self.builder.one();
                             let two = self.builder.two();
-                            let bit = self.builder._if(e, two, zero);
-                            let f = self.builder.exp_u64(bit, u64::try_from(i).unwrap());
+                            let f = if i > 0 {
+                                let bit = self.builder._if(e, two, zero);
+                                self.builder.exp_u64(bit, u64::try_from(i).unwrap())
+                            } else {
+                                self.builder._if(e, one, zero)
+                            };
                             result_bits.push(f);
                         }
 
