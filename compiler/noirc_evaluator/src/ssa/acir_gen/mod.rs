@@ -1745,7 +1745,7 @@ impl<'a> Context<'a> {
                     // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                     return Ok(());
                 }
-                "Attempt to add with overflow".to_string()
+                "attempt to add with overflow".to_string()
             }
             BinaryOp::Sub => {
                 if dfg.is_constant(lhs) && max_lhs_bits > max_rhs_bits {
@@ -1753,7 +1753,7 @@ impl<'a> Context<'a> {
                     // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
                     return Ok(());
                 }
-                "Attempt to subtract with overflow".to_string()
+                "attempt to subtract with overflow".to_string()
             }
             BinaryOp::Mul => {
                 if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
@@ -1761,7 +1761,7 @@ impl<'a> Context<'a> {
                     // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                     return Ok(());
                 }
-                "Attempt to multiply with overflow".to_string()
+                "attempt to multiply with overflow".to_string()
             }
             _ => return Ok(()),
         };
