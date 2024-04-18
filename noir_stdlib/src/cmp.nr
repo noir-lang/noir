@@ -314,3 +314,31 @@ impl<A, B, C, D, E> Ord for (A, B, C, D, E) where A: Ord, B: Ord, C: Ord, D: Ord
         result
     }
 }
+
+pub fn max<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v1 } else { v2 }
+}
+
+pub fn min<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v2 } else { v1 }
+}
+
+mod cmp_tests {
+    use crate::cmp::{min, max};
+
+    #[test]
+    fn sanity_check_min() {
+        assert_eq(min(0 as u64, 1 as u64), 0);
+        assert_eq(min(0 as u64, 0 as u64), 0);
+        assert_eq(min(1 as u64, 1 as u64), 1);
+        assert_eq(min(255 as u8, 0 as u8), 0);
+    }
+
+    #[test]
+    fn sanity_check_max() {
+        assert_eq(max(0 as u64, 1 as u64), 1);
+        assert_eq(max(0 as u64, 0 as u64), 0);
+        assert_eq(max(1 as u64, 1 as u64), 1);
+        assert_eq(max(255 as u8, 0 as u8), 255);
+    }
+}
