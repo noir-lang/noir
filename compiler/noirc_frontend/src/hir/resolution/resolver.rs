@@ -929,6 +929,7 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let should_fold = attributes.is_foldable();
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -1009,8 +1010,6 @@ impl<'a> Resolver<'a> {
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
-        let should_fold = attributes.is_foldable();
-
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -1039,7 +1038,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        self.is_entry_point_function(func)
+        self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
