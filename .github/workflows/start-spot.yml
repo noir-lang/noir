@@ -8,7 +8,7 @@ jobs:
     with:
       runner_label: ${{ github.actor }}-x86
       ebs_cache_size_gb: 256
-      runner_concurrency: 50
+      runner_concurrency: 20
       subaction: start
       ec2_instance_type: m6a.32xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f

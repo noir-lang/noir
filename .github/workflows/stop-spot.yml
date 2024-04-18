@@ -10,7 +10,7 @@ jobs:
       subaction: stop
       # not used:
       ebs_cache_size_gb: 128
-      runner_concurrency: 50
+      runner_concurrency: 20
       ec2_instance_type: m6a.32xlarge
       ec2_ami_id: ami-0d8a9b0419ddb331a
       ec2_instance_ttl: 40
