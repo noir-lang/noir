@@ -7,6 +7,11 @@ set -eu
 REPOSITORY=$1
 shift
 
+if ! check_working_copy_clean $REPOSITORY; then 
+  echo "The working copy for $REPOSITORY or one of its dependencies as listed in build manifest is not clean. Aborting extract_repo."
+  exit 1
+fi
+
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 if docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w "$IMAGE_COMMIT_URI$"; then
   echo -e "Image exists locally. No need to pull."
