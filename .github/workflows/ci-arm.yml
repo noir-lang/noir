@@ -58,3 +58,18 @@ jobs:
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 15
         run: earthly -P --no-output +uniswap-trade-on-l1-from-l2 --e2e_mode=cache
+
+  notify:
+    needs: [e2e]
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/master' && failure() }}
+    steps:
+      - name: Send notification to aztec3-ci channel if workflow failed on master
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY_WORKFLOW_TRIGGER_URL }}
