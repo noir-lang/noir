@@ -48,7 +48,7 @@ impl<T> [T] {
         assert(self.len() == N);
 
         let mut array = [crate::unsafe::zeroed(); N];
-        for i in 0 .. N {
+        for i in 0..N {
             array[i] = self[i];
         }
         array
