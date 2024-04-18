@@ -88,7 +88,7 @@ pub struct NodeInterner {
     // Each struct definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    structs: HashMap<StructId, Shared<StructType>>,
+    pub(crate) structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
 
@@ -1579,7 +1579,7 @@ impl NodeInterner {
         self.dependency_graph.update_edge(dependent_index, dependency_index, ());
     }
 
-    fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
+    pub(crate) fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
         if let Some(index) = self.dependency_graph_indices.get(&id) {
             return *index;
         }
