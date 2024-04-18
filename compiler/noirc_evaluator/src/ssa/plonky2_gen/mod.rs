@@ -166,6 +166,41 @@ impl Builder {
         Ok(P2Value::make_integer(bit_size_a, target))
     }
 
+    fn convert_bitwise_logical_op(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        p2builder_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+    ) -> Result<P2Value, Plonky2GenError> {
+        let (bit_size_a, target_a) = self.get_integer(lhs)?;
+        let (bit_size_b, target_b) = self.get_integer(rhs)?;
+        assert!(bit_size_a == bit_size_b);
+        let bit_size = usize::try_from(bit_size_a).unwrap();
+
+        let a_bits = self.builder.split_le(target_a, bit_size);
+        let b_bits = self.builder.split_le(target_b, bit_size);
+
+        let mut result_bits = Vec::new();
+        for (i, (a_bit, b_bit)) in a_bits.iter().zip(b_bits).enumerate() {
+            let result_bit = p2builder_op(&mut self.builder, *a_bit, b_bit);
+
+            let zero = self.builder.zero();
+            let one = self.builder.one();
+            let two = self.builder.two();
+            let result_power_of_two = if i > 0 {
+                let bit = self.builder._if(result_bit, two, zero);
+                self.builder.exp_u64(bit, u64::try_from(i).unwrap())
+            } else {
+                self.builder._if(result_bit, one, zero)
+            };
+            result_bits.push(result_power_of_two);
+        }
+
+        let target = self.builder.add_many(result_bits);
+
+        Ok(P2Value::make_integer(bit_size_a, target))
+    }
+
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
         let instruction = self.dfg[instruction_id].clone();
 
@@ -215,37 +250,22 @@ impl Builder {
                     }
 
                     super::ir::instruction::BinaryOp::Xor => {
-                        let (bit_size_a, target_a) = self.get_integer(lhs)?;
-                        let (bit_size_b, target_b) = self.get_integer(rhs)?;
-                        assert!(bit_size_a == bit_size_b);
-                        let bit_size = usize::try_from(bit_size_a).unwrap();
-
-                        let a_bits = self.builder.split_le(target_a, bit_size);
-                        let b_bits = self.builder.split_le(target_b, bit_size);
-
-                        let mut result_bits = Vec::new();
-                        for (i, (a_bit, b_bit)) in a_bits.iter().zip(b_bits).enumerate() {
-                            let not_a_bit = self.builder.not(*a_bit);
-                            let not_b_bit = self.builder.not(b_bit);
-                            let c = self.builder.and(*a_bit, not_b_bit);
-                            let d = self.builder.and(not_a_bit, b_bit);
-                            let e = self.builder.or(c, d);
-                            // stanm: might be the wrong endian
-                            let zero = self.builder.zero();
-                            let one = self.builder.one();
-                            let two = self.builder.two();
-                            let f = if i > 0 {
-                                let bit = self.builder._if(e, two, zero);
-                                self.builder.exp_u64(bit, u64::try_from(i).unwrap())
-                            } else {
-                                self.builder._if(e, one, zero)
-                            };
-                            result_bits.push(f);
+                        fn one_bit_xor(
+                            builder: &mut P2Builder,
+                            lhs: BoolTarget,
+                            rhs: BoolTarget,
+                        ) -> BoolTarget {
+                            let not_lhs = builder.not(lhs);
+                            let not_rhs = builder.not(rhs);
+                            let c = builder.and(lhs, not_rhs);
+                            let d = builder.and(not_lhs, rhs);
+                            builder.or(c, d)
                         }
+                        self.convert_bitwise_logical_op(lhs, rhs, one_bit_xor)
+                    }
 
-                        let target = self.builder.add_many(result_bits);
-
-                        Ok(P2Value::make_integer(bit_size_a, target))
+                    super::ir::instruction::BinaryOp::And => {
+                        self.convert_bitwise_logical_op(lhs, rhs, P2Builder::and)
                     }
 
                     _ => {
