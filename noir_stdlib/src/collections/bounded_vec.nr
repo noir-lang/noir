@@ -98,15 +98,18 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
 impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
-        let mut ret = self.len == other.len;
-        let mut exceeded_len = false;
-        for i in 0..MaxLen {
-            exceeded_len |= i == self.len;
-            if !exceeded_len {
-                ret &= self.storage[i] == other.storage[i];
-            }
-        }
-        ret
+        // TODO: https://github.com/noir-lang/noir/issues/4837
+        //
+        // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
+        // rather than directly manipulating the internal fields. This allows us to assume that the storage arrays
+        // are all zeroes from the element `len` onwards.
+        //
+        // This assumption breaks down if an invalid `BoundedVec` is constructed directly as below.
+        //
+        // ```
+        // let bad_vec = BoundedVec { storage: [1, 2, 0], len: 1 };
+        // ```
+        (self.len == other.len) & (self.storage == other.storage)
     }
 }
 
