@@ -381,21 +381,26 @@ fn noirc_frontend_failure_{test_name}() {{
         )
         .expect("Could not write templated test file.");
 
-        for message in expected_messages[test_name.as_str()].iter() {
-            write!(
-                test_file,
-                r#"
-    cmd.assert().failure().stderr(predicate::str::contains("{message}"));
-                "#
-            )
-            .expect("Could not write templated test file.");
+        // Not all tests have expected messages, so match.
+        match expected_messages.get(test_name.as_str()) {
+            Some(messages) => {
+                for message in messages.iter() {
+                    write!(
+                        test_file,
+                        r#"
+    cmd.assert().failure().stderr(predicate::str::contains("{message}"));"#
+                    )
+                    .expect("Could not write templated test file.");
+                }
+            }
+            None => {}
         }
 
         write!(
             test_file,
             r#"
 }}
-            "#
+"#
         )
         .expect("Could not write templated test file.");
     }
@@ -448,6 +453,8 @@ fn generate_plonky2_prove_failure_tests(test_file: &mut File, test_data_dir: &Pa
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
+    let expected_messages = HashMap::from([("simple_add", vec!["Cannot satisfy constraint"])]);
+
     for test_dir in test_case_dirs {
         let test_name =
             test_dir.file_name().into_string().expect("Directory can't be converted to string");
@@ -462,7 +469,7 @@ fn generate_plonky2_prove_failure_tests(test_file: &mut File, test_data_dir: &Pa
             test_file,
             r#"
 #[test]
-fn plonky2_prove_failure_{test_name}() {{
+fn noirc_frontend_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
@@ -470,11 +477,31 @@ fn plonky2_prove_failure_{test_name}() {{
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("prove").arg("--use-plonky2-backend-experimental");
 
-    cmd.assert().failure().stderr(predicate::str::contains("Failed constraint"));
-    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-}}
-            "#,
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
             test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+
+        // Not all tests have expected messages, so match.
+        match expected_messages.get(test_name.as_str()) {
+            Some(messages) => {
+                for message in messages.iter() {
+                    write!(
+                        test_file,
+                        r#"
+    cmd.assert().failure().stderr(predicate::str::contains("{message}"));"#
+                    )
+                    .expect("Could not write templated test file.");
+                }
+            }
+            None => {}
+        }
+
+        write!(
+            test_file,
+            r#"
+}}
+"#
         )
         .expect("Could not write templated test file.");
     }
@@ -482,7 +509,6 @@ fn plonky2_prove_failure_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to result in
 /// an ICE with a message referring to unsupported features.
-/// TODO(stanm): Eliminate dead code before merging into master.
 #[allow(dead_code)]
 fn generate_plonky2_prove_unsupported_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "plonky2_prove_unsupported";
