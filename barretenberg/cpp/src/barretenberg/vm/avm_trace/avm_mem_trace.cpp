@@ -182,7 +182,7 @@ void AvmMemTraceBuilder::store_in_mem_trace(
  * @brief Handle a read memory operation specific to MOV opcode. Load the corresponding
  *        value to the intermediate register ia. A memory trace entry for the load
  *        operation is added. It is permissive in the sense that we do not enforce tag
- *        matching with against any instruction tag. In addition, the specific selector
+ *        matching against any instruction tag. In addition, the specific selector
  *        for MOV opcode is enabled.
  *
  * @param clk Main clock
@@ -209,6 +209,21 @@ AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_mov_opcode(uint32
     return mem_entry;
 }
 
+/**
+ * @brief Handle a read memory operation specific to CMOV opcode. Load the corresponding
+ *        values to the intermediate register ia, ib, id. Three memory trace entries for
+ *        these load operations are added. They are permissive in the sense that we do not
+ *        enforce tag matching against any instruction tag. In addition, the specific selector
+ *        for CMOV opcode is enabled.
+ *
+ * @param clk Main clock
+ * @param a_addr Memory address of the first value candidate a.
+ * @param b_addr Memory address of the second value candidate b.
+ * @param cond_addr Memory address of the conditional value.
+ *
+ * @return Result of the read operation containing the value and the tag of the memory cell
+ *         at the supplied address.
+ */
 std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cmov_opcode(uint32_t clk,
                                                                                           uint32_t a_addr,
                                                                                           uint32_t b_addr,
@@ -258,6 +273,39 @@ std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cm
     });
 
     return { a_mem_entry, b_mem_entry, cond_mem_entry };
+}
+
+/**
+ * @brief Handle a read memory operation specific to CAST opcode. Load the corresponding
+ *        value to the intermediate register ia. A memory trace entry for the load
+ *        operation is added. It is permissive in the sense that we do not enforce tag
+ *        matching against any instruction tag. The write instruction tag w_in_tag
+ *        is passed and added in the memory trace entry.
+ *
+ * @param clk Main clock
+ * @param addr Memory address of the source offset
+ * @param w_in_tag Write instruction instruction tag (tag the value is casted to)
+ *
+ * @return Result of the read operation containing the value and the tag of the memory cell
+ *         at the supplied address.
+ */
+AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_cast_opcode(uint32_t clk,
+                                                                           uint32_t addr,
+                                                                           AvmMemoryTag w_in_tag)
+{
+    MemEntry mem_entry = memory.contains(addr) ? memory.at(addr) : MemEntry{};
+
+    mem_trace.emplace_back(MemoryTraceEntry{
+        .m_clk = clk,
+        .m_sub_clk = SUB_CLK_LOAD_A,
+        .m_addr = addr,
+        .m_val = mem_entry.val,
+        .m_tag = mem_entry.tag,
+        .r_in_tag = mem_entry.tag,
+        .w_in_tag = w_in_tag,
+    });
+
+    return mem_entry;
 }
 
 /**

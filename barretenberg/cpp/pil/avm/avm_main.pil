@@ -54,6 +54,8 @@ namespace avm_main(256);
     pol commit sel_op_or;
     // XOR
     pol commit sel_op_xor;
+    // CAST
+    pol commit sel_op_cast;
     // LT
     pol commit sel_op_lt;
     // LTE
@@ -68,6 +70,7 @@ namespace avm_main(256);
     // Instruction memory tags read/write (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field)
     pol commit r_in_tag;
     pol commit w_in_tag;
+    pol commit alu_in_tag; // Copy of r_in_tag or w_in_tag depending of the operation. It is sent to ALU trace.
 
     // Errors
     pol commit op_err; // Boolean flag pertaining to an operation error
@@ -121,7 +124,8 @@ namespace avm_main(256);
     pol commit last;
     
     // Relations on type constraints
-
+    // TODO: Very likely, we can remove these constraints as the selectors should be derived during
+    // opcode decomposition.
     sel_op_add * (1 - sel_op_add) = 0;
     sel_op_sub * (1 - sel_op_sub) = 0;
     sel_op_mul * (1 - sel_op_mul) = 0;
@@ -131,6 +135,7 @@ namespace avm_main(256);
     sel_op_and * (1 - sel_op_and) = 0;
     sel_op_or * (1 - sel_op_or) = 0;
     sel_op_xor * (1 - sel_op_xor) = 0;
+    sel_op_cast * (1 - sel_op_cast) = 0;
     sel_op_lt * (1 - sel_op_lt) = 0;
     sel_op_lte * (1 - sel_op_lte) = 0;
 
@@ -243,7 +248,8 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul + sel_op_not + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor);
+    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul + sel_op_not
+                          + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor + sel_op_cast);
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]
@@ -287,6 +293,20 @@ namespace avm_main(256);
     #[MOV_MAIN_SAME_TAG]
     (sel_mov + sel_cmov) * (r_in_tag - w_in_tag) = 0;
 
+    //===== ALU CONSTRAINTS =====================================================
+    // TODO: when division is moved to the alu, we will need to add the selector in the list below.
+    pol ALU_R_TAG_SEL = sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq + sel_op_lt + sel_op_lte;
+    pol ALU_W_TAG_SEL = sel_op_cast;
+    pol ALU_ALL_SEL = ALU_R_TAG_SEL + ALU_W_TAG_SEL;
+
+    // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
+    // the operation is not copied to the ALU table.
+    alu_sel = ALU_ALL_SEL * (1 - tag_err);
+
+    // Dispatch the correct in_tag for alu
+    ALU_R_TAG_SEL * (alu_in_tag - r_in_tag) = 0;
+    ALU_W_TAG_SEL * (alu_in_tag - w_in_tag) = 0;
+
     //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]
     avm_mem.tag_err {avm_mem.clk} in tag_err {clk};
@@ -294,17 +314,14 @@ namespace avm_main(256);
     #[INCL_MEM_TAG_ERR]
     tag_err {clk} in avm_mem.tag_err {avm_mem.clk};
 
-    // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
-    // the operation is not copied to the ALU table.
-    // TODO: when division is moved to the alu, we will need to add the selector in the list below:
-    alu_sel = (sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq + sel_op_lt + sel_op_lte) * (1 - tag_err);
-
     #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic, sel_op_add, sel_op_sub,
-             sel_op_mul, sel_op_eq, sel_op_not, sel_op_lt, sel_op_lte, r_in_tag}
+             sel_op_mul, sel_op_eq, sel_op_not, sel_op_cast,
+             sel_op_lt, sel_op_lte, alu_in_tag}
     is
     avm_alu.alu_sel {avm_alu.clk, avm_alu.ia, avm_alu.ib, avm_alu.ic, avm_alu.op_add, avm_alu.op_sub,
-                     avm_alu.op_mul, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_lt, avm_alu.op_lte, avm_alu.in_tag};
+                     avm_alu.op_mul, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_cast,
+                     avm_alu.op_lt, avm_alu.op_lte, avm_alu.in_tag};
 
     // Based on the boolean selectors, we derive the binary op id to lookup in the table;
     // TODO: Check if having 4 columns (op_id + 3 boolean selectors) is more optimal that just using the op_id

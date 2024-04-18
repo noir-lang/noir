@@ -17,11 +17,13 @@ namespace avm_alu(256);
     pol commit op_div;
     pol commit op_not;
     pol commit op_eq;
+    pol commit op_cast;
+    pol commit op_cast_prev; // Predicate on whether op_cast is enabled at previous row
     pol commit alu_sel; // Predicate to activate the copy of intermediate registers to ALU table.
     pol commit op_lt;
     pol commit op_lte;
     pol commit cmp_sel; // Predicate if LT or LTE is set
-    pol commit rng_chk_sel; // Predicate representing a range check row.
+    pol commit rng_chk_sel; // Predicate representing a range check row used in LT/LTE.
 
     // Instruction tag (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field) copied from Main table
     pol commit in_tag;
@@ -59,7 +61,7 @@ namespace avm_alu(256);
     pol commit cf;
 
     // Compute predicate telling whether there is a row entry in the ALU table.
-    alu_sel = op_add + op_sub + op_mul + op_not + op_eq + op_lt + op_lte;
+    alu_sel = op_add + op_sub + op_mul + op_not + op_eq + op_cast + op_lt + op_lte;
     cmp_sel = op_lt + op_lte;
 
     // ========= Type Constraints =============================================
@@ -282,7 +284,7 @@ namespace avm_alu(256);
     // (x - y - 1) * q + (y - x) (1 - q) = result
 
     // If LT, then swap ia and ib else keep the same
-    pol INPUT_IA  = op_lt * ib + op_lte * ia;
+    pol INPUT_IA  = op_lt * ib + (op_lte + op_cast) * ia;
     pol INPUT_IB  = op_lt * ia + op_lte * ib;
 
     pol commit borrow;
@@ -290,7 +292,7 @@ namespace avm_alu(256);
     pol commit a_hi;
     // Check INPUT_IA is well formed from its lo and hi limbs
     #[INPUT_DECOMP_1]
-    INPUT_IA = (a_lo + 2 ** 128 * a_hi) * cmp_sel;
+    INPUT_IA = (a_lo + 2 ** 128 * a_hi) * (cmp_sel + op_cast);
 
     pol commit b_lo;
     pol commit b_hi;
@@ -311,9 +313,9 @@ namespace avm_alu(256);
     // First condition is if borrow = 0, second condition is if borrow = 1
     // This underflow check is done by the 128-bit check that is performed on each of these lo and hi limbs.
     #[SUB_LO_1]
-    (p_sub_a_lo  - (53438638232309528389504892708671455232 - a_lo + p_a_borrow * 2 ** 128)) * cmp_sel = 0;
+    (p_sub_a_lo  - (53438638232309528389504892708671455232 - a_lo + p_a_borrow * 2 ** 128)) * (cmp_sel + op_cast) = 0;
     #[SUB_HI_1]
-    (p_sub_a_hi - (64323764613183177041862057485226039389 - a_hi - p_a_borrow)) * cmp_sel = 0;
+    (p_sub_a_hi - (64323764613183177041862057485226039389 - a_hi - p_a_borrow)) * (cmp_sel + op_cast) = 0;
 
     pol commit p_sub_b_lo;
     pol commit p_sub_b_hi;
@@ -432,11 +434,11 @@ namespace avm_alu(256);
     cmp_rng_ctr * ((1 - rng_chk_sel) * (1 -  op_eq_diff_inv) +  op_eq_diff_inv) - rng_chk_sel = 0;
 
     // We perform a range check if we have some range checks remaining or we are performing a comparison op
-    pol RNG_CHK_OP = rng_chk_sel + cmp_sel;
+    pol RNG_CHK_OP = rng_chk_sel + cmp_sel + op_cast + op_cast_prev;
 
     pol commit rng_chk_lookup_selector;
     #[RNG_CHK_LOOKUP_SELECTOR]
-    rng_chk_lookup_selector' = cmp_sel' + rng_chk_sel' + op_add' + op_sub' + op_mul' + op_mul * u128_tag;
+    rng_chk_lookup_selector' = cmp_sel' + rng_chk_sel' + op_add' + op_sub' + op_mul' + op_mul * u128_tag + op_cast' + op_cast_prev';
 
     // Perform 128-bit range check on lo part
     #[LOWER_CMP_RNG_CHK]
@@ -467,3 +469,44 @@ namespace avm_alu(256);
     (p_sub_b_lo' - res_lo) * rng_chk_sel'= 0;
     (p_sub_b_hi' - res_hi) * rng_chk_sel'= 0;
 
+
+    // ========= CAST Operation Constraints ===============================
+    // We handle the input ia independently of its tag, i.e., we suppose it can take
+    // any value between 0 and p-1.
+    // We decompose the input ia in 8-bit/16-bit limbs and prove that the decomposition
+    // sums up to ia over the integers (i.e., no modulo p wrapping). To prove this, we
+    // re-use techniques above from LT/LTE opcode. The following relations are toggled for CAST:
+    // - #[INPUT_DECOMP_1] shows a = a_lo + 2 ** 128 * a_hi
+    // - #[SUB_LO_1] and #[SUB_LO_1] shows that the above does not overflow modulo p.
+    // - We toggle RNG_CHK_OP with op_cast to show that a_lo, a_hi are correctly decomposed
+    //   over the 8/16-bit ALU registers in #[LOWER_CMP_RNG_CHK] and #[UPPER_CMP_RNG_CHK].
+    // - The 128-bit range checks for a_lo, a_hi are activated in #[RNG_CHK_LOOKUP_SELECTOR].
+    // - We copy p_sub_a_lo resp. p_sub_a_hi into next row in columns a_lo resp. a_hi so
+    //   that decomposition into the 8/16-bit ALU registers and range checks are performed.
+    //   Copy is done in #[OP_CAST_RNG_CHECK_P_SUB_A_LOW/HIGH] below.
+    //   Activation of decomposition and range check is achieved by adding op_cast_prev in
+    //   #[LOWER_CMP_RNG_CHK], #[UPPER_CMP_RNG_CHK] and #[RNG_CHK_LOOKUP_SELECTOR].
+    // - Finally, the truncated result SUM_TAG is copied in ic as part of #[ALU_OP_CAST] below.
+    // - Note that the tag of return value must be constrained to be in_tag and is enforced in
+    //   the main and memory traces.
+    //
+    // TODO: Potential optimization is to un-toggle all CAST relevant operations when ff_tag is
+    //       enabled. In this case, ic = ia trivially.
+    //       Another one is to activate range checks in a more granular way depending on the tag.
+
+    #[OP_CAST_PREV_LINE]
+    op_cast_prev' = op_cast;
+
+    #[ALU_OP_CAST]
+    op_cast * (SUM_TAG + ff_tag * ia - ic) = 0;
+
+    #[OP_CAST_RNG_CHECK_P_SUB_A_LOW]
+    op_cast * (a_lo' - p_sub_a_lo) = 0;
+
+    #[OP_CAST_RNG_CHECK_P_SUB_A_HIGH]
+    op_cast * (a_hi' - p_sub_a_hi) = 0;
+
+    // 128-bit multiplication and CAST need two rows in ALU trace. We need to ensure
+    // that another ALU operation does not start in the second row.
+    #[TWO_LINE_OP_NO_OVERLAP]
+    (op_mul * ff_tag + op_cast) * alu_sel' = 0;

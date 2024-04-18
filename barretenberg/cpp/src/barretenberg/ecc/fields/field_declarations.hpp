@@ -119,6 +119,18 @@ template <class Params_> struct alignas(32) field {
         return static_cast<bool>(out.data[0]);
     }
 
+    constexpr explicit operator uint8_t() const
+    {
+        field out = from_montgomery_form();
+        return static_cast<uint8_t>(out.data[0]);
+    }
+
+    constexpr explicit operator uint16_t() const
+    {
+        field out = from_montgomery_form();
+        return static_cast<uint16_t>(out.data[0]);
+    }
+
     constexpr explicit operator uint32_t() const
     {
         field out = from_montgomery_form();

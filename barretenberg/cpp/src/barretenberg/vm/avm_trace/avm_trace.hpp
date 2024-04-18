@@ -72,6 +72,10 @@ class AvmTraceBuilder {
     // is determined conditionally based on a conditional value determined by cond_offset.
     void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
 
+    // Cast an element pointed by the address a_offset into type specified by dst_tag and
+    // store the result in address given by dst_offset.
+    void op_cast(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag dst_tag);
+
     // Jump to a given program counter.
     void jump(uint32_t jmp_dest);
 

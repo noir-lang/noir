@@ -607,6 +607,47 @@ TEST_F(AvmExecutionTests, indMovOpcode)
     gen_proof_and_validate(bytecode, std::move(trace), {});
 }
 
+// Positive test for SET and CAST opcodes
+TEST_F(AvmExecutionTests, setAndCastOpcodes)
+{
+    std::string bytecode_hex = to_hex(OpCode::SET) +      // opcode SET
+                               "00"                       // Indirect flag
+                               "02"                       // U16
+                               "B813"                     // val 47123
+                               "00000011"                 // dst_offset 17
+                               + to_hex(OpCode::CAST) +   // opcode CAST
+                               "00"                       // Indirect flag
+                               "01"                       // U8
+                               "00000011"                 // addr a
+                               "00000012"                 // addr casted a
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00"                       // Indirect flag
+                               "00000000"                 // ret offset 0
+                               "00000000";                // ret size 0
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    ASSERT_THAT(instructions, SizeIs(3));
+
+    // SUB
+    EXPECT_THAT(instructions.at(1),
+                AllOf(Field(&Instruction::op_code, OpCode::CAST),
+                      Field(&Instruction::operands,
+                            ElementsAre(VariantWith<uint8_t>(0),
+                                        VariantWith<AvmMemoryTag>(AvmMemoryTag::U8),
+                                        VariantWith<uint32_t>(17),
+                                        VariantWith<uint32_t>(18)))));
+
+    auto trace = Execution::gen_trace(instructions);
+
+    // Find the first row enabling the cast selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_cast == 1; });
+    EXPECT_EQ(row->avm_main_ic, 19); // 0XB813 --> 0X13 = 19
+
+    gen_proof_and_validate(bytecode, std::move(trace), {});
+}
+
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmExecutionTests, invalidOpcode)
 {

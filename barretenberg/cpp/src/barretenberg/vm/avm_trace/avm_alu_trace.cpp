@@ -1,12 +1,4 @@
 #include "avm_alu_trace.hpp"
-#include "barretenberg/common/serialize.hpp"
-#include "barretenberg/numeric/uint128/uint128.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/relations/generated/avm/avm_alu.hpp"
-#include <cstdint>
-#include <sys/types.h>
-#include <tuple>
-#include <utility>
 
 namespace bb::avm_trace {
 
@@ -608,7 +600,7 @@ FF AvmAluTraceBuilder::op_lt(FF const& a, FF const& b, AvmMemoryTag in_tag, uint
     std::vector<AvmAluTraceBuilder::AluTraceEntry> rows = cmp_range_check_helper(row, hi_lo_limbs);
     // Append the rows to the alu_trace
     alu_trace.insert(alu_trace.end(), rows.begin(), rows.end());
-    return { static_cast<int>(c) };
+    return FF{ static_cast<int>(c) };
 }
 
 /**
@@ -662,6 +654,81 @@ FF AvmAluTraceBuilder::op_lte(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     // Update the row and add new rows with the correct hi_lo limbs
     std::vector<AvmAluTraceBuilder::AluTraceEntry> rows = cmp_range_check_helper(row, hi_lo_limbs);
     alu_trace.insert(alu_trace.end(), rows.begin(), rows.end());
-    return { static_cast<int>(c) };
+    return FF{ static_cast<int>(c) };
 }
+
+/**
+ * @brief Build ALU trace for the CAST opcode.
+ *
+ * @param a Input value to be casted. Tag of the input is not taken into account.
+ * @param in_tag Tag specifying the type for the input to be casted into.
+ * @param clk Clock referring to the operation in the main trace.
+ * @return The casted value as a finite field element.
+ */
+FF AvmAluTraceBuilder::op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk)
+{
+    FF c;
+
+    switch (in_tag) {
+    case AvmMemoryTag::U8:
+        c = FF(uint8_t(a));
+        break;
+    case AvmMemoryTag::U16:
+        c = FF(uint16_t(a));
+        break;
+    case AvmMemoryTag::U32:
+        c = FF(uint32_t(a));
+        break;
+    case AvmMemoryTag::U64:
+        c = FF(uint64_t(a));
+        break;
+    case AvmMemoryTag::U128:
+        c = FF(uint256_t::from_uint128(uint128_t(a)));
+        break;
+    case AvmMemoryTag::FF:
+        c = a;
+        break;
+    default:
+        c = 0;
+        break;
+    }
+
+    // Get the decomposition of a
+    auto [a_lo, a_hi] = decompose(uint256_t(a));
+    // Decomposition of p-a
+    auto [p_sub_a_lo, p_sub_a_hi, p_a_borrow] = gt_witness(FF::modulus, uint256_t(a));
+    auto [u8_r0, u8_r1, u16_reg] = to_alu_slice_registers(uint256_t(a));
+
+    alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
+        .alu_clk = clk,
+        .alu_op_cast = true,
+        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
+        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
+        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
+        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
+        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
+        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .alu_ia = a,
+        .alu_ic = c,
+        .alu_u8_r0 = u8_r0,
+        .alu_u8_r1 = u8_r1,
+        .alu_u16_reg = u16_reg,
+        .hi_lo_limbs = { a_lo, a_hi, p_sub_a_lo, p_sub_a_hi },
+        .p_a_borrow = p_a_borrow,
+    });
+
+    uint256_t sub = (p_sub_a_hi << 128) + p_sub_a_lo;
+    auto [sub_u8_r0, sub_u8_r1, sub_u16_reg] = to_alu_slice_registers(sub);
+
+    alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
+        .alu_op_cast_prev = true,
+        .alu_u8_r0 = sub_u8_r0,
+        .alu_u8_r1 = sub_u8_r1,
+        .alu_u16_reg = sub_u16_reg,
+        .hi_lo_limbs = { p_sub_a_lo, p_sub_a_hi },
+    });
+
+    return c;
+}
+
 } // namespace bb::avm_trace

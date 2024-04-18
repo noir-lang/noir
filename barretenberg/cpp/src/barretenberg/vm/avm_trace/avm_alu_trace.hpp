@@ -1,10 +1,6 @@
 #pragma once
 
 #include "avm_common.hpp"
-#include "barretenberg/numeric/uint128/uint128.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include <array>
-#include <unordered_map>
 
 namespace bb::avm_trace {
 
@@ -21,6 +17,8 @@ class AvmAluTraceBuilder {
         bool alu_op_eq = false;
         bool alu_op_lt = false;
         bool alu_op_lte = false;
+        bool alu_op_cast = false;
+        bool alu_op_cast_prev = false;
 
         bool alu_ff_tag = false;
         bool alu_u8_tag = false;
@@ -66,6 +64,7 @@ class AvmAluTraceBuilder {
     FF op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_lt(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_lte(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
+    FF op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
 
     bool is_range_check_required() const;
 
