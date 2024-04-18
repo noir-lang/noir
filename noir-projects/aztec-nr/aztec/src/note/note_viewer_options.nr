@@ -1,7 +1,8 @@
 use dep::std::option::Option;
 use crate::note::note_getter_options::{PropertySelector, Select, Sort, Comparator, NoteStatus};
-use dep::protocol_types::{constants::MAX_NOTES_PER_PAGE, traits::ToField};
+use dep::protocol_types::traits::ToField;
 use crate::note::note_interface::NoteInterface;
+use crate::note::constants::MAX_NOTES_PER_PAGE;
 
 // docs:start:NoteViewerOptions
 struct NoteViewerOptions<Note, N> {

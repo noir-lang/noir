@@ -122,7 +122,7 @@ function parseNoirFile(fileContent: string): ParsedContent {
       return;
     }
 
-    const [, name, _type, value] = line.match(/global\s+(\w+)(\s*:\s*\w+)?\s*=\s*(0x[a-fA-F0-9]+|[\d_]+);/) || [];
+    const [, name, _type, value] = line.match(/global\s+(\w+)(\s*:\s*\w+)?\s*=\s*(.+?);/) || [];
 
     if (!name || !value) {
       // eslint-disable-next-line no-console

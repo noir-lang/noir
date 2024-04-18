@@ -1,4 +1,6 @@
-use dep::protocol_types::{address::AztecAddress, constants::L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH};
+use dep::protocol_types::{address::AztecAddress};
+
+global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: u64 = 17;
 
 // Obtains membership witness (index and sibling path) for a message in the L1 to L2 message tree.
 #[oracle(getL1ToL2MembershipWitness)]

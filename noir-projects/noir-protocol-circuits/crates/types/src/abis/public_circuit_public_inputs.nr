@@ -17,7 +17,7 @@ use crate::{
     traits::{Hash, Serialize, Deserialize, Empty}, utils::reader::Reader
 };
 
-struct PublicCircuitPublicInputs{
+struct PublicCircuitPublicInputs {
     call_context: CallContext,
 
     args_hash: Field,

@@ -7,8 +7,10 @@ contract Test {
 
     use dep::aztec::protocol_types::{
         abis::private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTES_PER_PAGE}, traits::Serialize
+        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL}, traits::Serialize
     };
+
+    use dep::aztec::note::constants::MAX_NOTES_PER_PAGE;
 
     use dep::aztec::state_vars::shared_mutable::SharedMutablePrivateGetter;
 

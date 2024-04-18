@@ -4,7 +4,7 @@ use crate::{
 };
 use dep::std::cmp::Eq;
 
-struct StorageUpdateRequest{
+struct StorageUpdateRequest {
     storage_slot : Field,
     new_value : Field,
 }

@@ -93,32 +93,32 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
 
         fields.extend_from_array(self.max_block_number.serialize());
 
-        for i in 0..MAX_NOTE_HASH_READ_REQUESTS_PER_CALL{
+        for i in 0..self.note_hash_read_requests.len() {
             fields.extend_from_array(self.note_hash_read_requests[i].serialize());
         }
-        for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL{
+        for i in 0..self.nullifier_read_requests.len() {
             fields.extend_from_array(self.nullifier_read_requests[i].serialize());
         }
-        for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL{
+        for i in 0..self.nullifier_key_validation_requests.len() {
             fields.extend_from_array(self.nullifier_key_validation_requests[i].serialize());
         }
-        for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL{
+        for i in 0..self.new_note_hashes.len() {
             fields.extend_from_array(self.new_note_hashes[i].serialize());
         }
-        for i in 0..MAX_NEW_NULLIFIERS_PER_CALL{
+        for i in 0..self.new_nullifiers.len() {
             fields.extend_from_array(self.new_nullifiers[i].serialize());
         }
         fields.extend_from_array(self.private_call_stack_hashes);
         fields.extend_from_array(self.public_call_stack_hashes);
-        for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
+        for i in 0..self.new_l2_to_l1_msgs.len() {
             fields.extend_from_array(self.new_l2_to_l1_msgs[i].serialize());
         }
         fields.push(self.start_side_effect_counter as Field);
         fields.push(self.end_side_effect_counter as Field);
-        for i in 0..MAX_ENCRYPTED_LOGS_PER_CALL{
+        for i in 0..self.encrypted_logs_hashes.len() {
             fields.extend_from_array(self.encrypted_logs_hashes[i].serialize());
         }
-        for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL{
+        for i in 0..self.unencrypted_logs_hashes.len() {
             fields.extend_from_array(self.unencrypted_logs_hashes[i].serialize());
         }
         fields.push(self.encrypted_log_preimages_length);

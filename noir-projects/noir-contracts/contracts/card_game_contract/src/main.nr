@@ -2,12 +2,12 @@ mod cards;
 mod game;
 
 contract CardGame {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, constants::MAX_NOTES_PER_PAGE};
+    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
     use dep::aztec::{context::Context, hash::pedersen_hash, state_vars::{Map, PublicMutable}};
 
     use dep::value_note::{balance_utils, value_note::{ValueNote, VALUE_NOTE_LEN}};
 
-    use dep::aztec::note::note_header::NoteHeader;
+    use dep::aztec::note::{note_header::NoteHeader, constants::MAX_NOTES_PER_PAGE};
 
     use crate::cards::{PACK_CARDS, Deck, Card, get_pack_cards, compute_deck_strength};
     use crate::game::{NUMBER_OF_PLAYERS, NUMBER_OF_CARDS_DECK, PLAYABLE_CARDS, PlayerEntry, Game, GAME_SERIALIZED_LEN};

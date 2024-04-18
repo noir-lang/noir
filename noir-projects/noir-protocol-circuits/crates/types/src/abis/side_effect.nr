@@ -1,10 +1,9 @@
 use crate::{
     address::AztecAddress, constants::GENERATOR_INDEX__SIDE_EFFECT,
-    traits::{Empty, Hash, Serialize, Deserialize}
+    traits::{Empty, Hash, Serialize, Deserialize},
+    constants::{SIDE_EFFECT_LENGTH, SIDE_EFFECT_LINKED_TO_NOTE_HASH_LENGTH},
 };
 use dep::std::cmp::Eq;
-
-global SIDE_EFFECT_SERIALIZED_LEN = 2;
 
 trait Ordered {
     fn counter(self) -> u32;
@@ -64,14 +63,14 @@ impl Hash for SideEffect {
     }
 }
 
-impl Serialize<SIDE_EFFECT_SERIALIZED_LEN> for SideEffect {
-    fn serialize(self) -> [Field; SIDE_EFFECT_SERIALIZED_LEN] {
+impl Serialize<SIDE_EFFECT_LENGTH> for SideEffect {
+    fn serialize(self) -> [Field; SIDE_EFFECT_LENGTH] {
         [self.value, self.counter as Field]
     }
 }
 
-impl Deserialize<SIDE_EFFECT_SERIALIZED_LEN> for SideEffect {
-    fn deserialize(values: [Field; SIDE_EFFECT_SERIALIZED_LEN]) -> Self {
+impl Deserialize<SIDE_EFFECT_LENGTH> for SideEffect {
+    fn deserialize(values: [Field; SIDE_EFFECT_LENGTH]) -> Self {
         Self {
             value: values[0],
             counter: values[1] as u32,
@@ -79,7 +78,7 @@ impl Deserialize<SIDE_EFFECT_SERIALIZED_LEN> for SideEffect {
     }
 }
 
-struct SideEffectLinkedToNoteHash{
+struct SideEffectLinkedToNoteHash {
     value: Field,
     note_hash: Field,
     counter: u32,
@@ -126,14 +125,14 @@ impl Hash for SideEffectLinkedToNoteHash {
     }
 }
 
-impl Serialize<3> for SideEffectLinkedToNoteHash {
-    fn serialize(self) -> [Field; 3] {
+impl Serialize<SIDE_EFFECT_LINKED_TO_NOTE_HASH_LENGTH> for SideEffectLinkedToNoteHash {
+    fn serialize(self) -> [Field; SIDE_EFFECT_LINKED_TO_NOTE_HASH_LENGTH] {
         [self.value, self.note_hash, self.counter as Field]
     }
 }
 
-impl Deserialize<3> for SideEffectLinkedToNoteHash {
-    fn deserialize(values: [Field; 3]) -> Self {
+impl Deserialize<SIDE_EFFECT_LINKED_TO_NOTE_HASH_LENGTH> for SideEffectLinkedToNoteHash {
+    fn deserialize(values: [Field; SIDE_EFFECT_LINKED_TO_NOTE_HASH_LENGTH]) -> Self {
         Self {
             value: values[0],
             note_hash: values[1],
