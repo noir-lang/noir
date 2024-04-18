@@ -1,57 +1,42 @@
-import { PROVING_STATUS, type ProcessedTx } from '@aztec/circuit-types';
-import { Fr, type GlobalVariables } from '@aztec/circuits.js';
+import { PROVING_STATUS } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { openTmpStore } from '@aztec/kv-store/utils';
 import { WASMSimulator } from '@aztec/simulator';
-import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { jest } from '@jest/globals';
 import { type MemDown, default as memdown } from 'memdown';
 
-import { getConfig, getSimulationProvider, makeEmptyProcessedTx, makeGlobals } from '../mocks/fixtures.js';
+import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
+import { TestContext } from '../mocks/test_context.js';
 import { type CircuitProver } from '../prover/index.js';
 import { TestCircuitProver } from '../prover/test_circuit_prover.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
-const logger = createDebugLogger('aztec:orchestrator-test');
+const logger = createDebugLogger('aztec:orchestrator-failures');
 
-describe('prover/orchestrator', () => {
-  let builder: ProvingOrchestrator;
-  let builderDb: MerkleTreeOperations;
-
-  let prover: TestCircuitProver;
-
-  let blockNumber: number;
-
-  let globalVariables: GlobalVariables;
-
-  const makeEmptyProcessedTestTx = (): Promise<ProcessedTx> => {
-    return makeEmptyProcessedTx(builderDb, Fr.ZERO, Fr.ZERO);
-  };
+describe('prover/orchestrator/failures', () => {
+  let context: TestContext;
+  let orchestrator: ProvingOrchestrator;
 
   beforeEach(async () => {
-    blockNumber = 3;
-    globalVariables = makeGlobals(blockNumber);
-
-    const acvmConfig = await getConfig(logger);
-    const simulationProvider = await getSimulationProvider({
-      acvmWorkingDirectory: acvmConfig?.acvmWorkingDirectory,
-      acvmBinaryPath: acvmConfig?.expectedAcvmPath,
-    });
-    prover = new TestCircuitProver(simulationProvider);
-
-    builderDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
-    builder = new ProvingOrchestrator(builderDb, prover, 1);
+    context = await TestContext.new(logger);
   }, 20_000);
+
+  afterEach(async () => {
+    await context.cleanup();
+  });
 
   describe('error handling', () => {
     let mockProver: CircuitProver;
 
     beforeEach(async () => {
       mockProver = new TestCircuitProver(new WASMSimulator());
-      builder = await ProvingOrchestrator.new(builderDb, mockProver);
+      orchestrator = await ProvingOrchestrator.new(context.actualDb, mockProver);
+    });
+
+    afterEach(async () => {
+      await orchestrator.stop();
     });
 
     it.each([
@@ -90,29 +75,25 @@ describe('prover/orchestrator', () => {
       async (message: string, fn: () => void) => {
         fn();
         const txs = await Promise.all([
-          makeEmptyProcessedTestTx(),
-          makeEmptyProcessedTestTx(),
-          makeEmptyProcessedTestTx(),
-          makeEmptyProcessedTestTx(),
+          makeEmptyProcessedTestTx(context.actualDb),
+          makeEmptyProcessedTestTx(context.actualDb),
+          makeEmptyProcessedTestTx(context.actualDb),
+          makeEmptyProcessedTestTx(context.actualDb),
         ]);
 
-        const blockTicket = await builder.startNewBlock(
+        const blockTicket = await orchestrator.startNewBlock(
           txs.length,
-          globalVariables,
+          context.globalVariables,
           [],
-          await makeEmptyProcessedTestTx(),
+          await makeEmptyProcessedTestTx(context.actualDb),
         );
 
         for (const tx of txs) {
-          await builder.addNewTx(tx);
+          await orchestrator.addNewTx(tx);
         }
         await expect(blockTicket.provingPromise).resolves.toEqual({ status: PROVING_STATUS.FAILURE, reason: message });
       },
       60000,
     );
-
-    afterEach(async () => {
-      await builder.stop();
-    });
   });
 });

@@ -1,5 +1,5 @@
 /* eslint-disable require-await */
-import { type PublicKernelNonTailRequest, type PublicKernelTailRequest } from '@aztec/circuit-types';
+import { type PublicKernelNonTailRequest, type PublicKernelTailRequest, PublicKernelType } from '@aztec/circuit-types';
 import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
@@ -26,6 +26,8 @@ import {
   convertBaseRollupOutputsFromWitnessMap,
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
+  convertPublicTailInputsToWitnessMap,
+  convertPublicTailOutputFromWitnessMap,
   convertRootParityInputsToWitnessMap,
   convertRootParityOutputsFromWitnessMap,
   convertRootRollupInputsToWitnessMap,
@@ -37,7 +39,7 @@ import { type WitnessMap } from '@noir-lang/types';
 import * as fs from 'fs/promises';
 
 import { BB_RESULT, generateKeyForNoirCircuit, generateProof, verifyProof } from '../bb/execute.js';
-import { type CircuitProver } from './interface.js';
+import { type CircuitProver, KernelArtifactMapping } from './interface.js';
 
 const logger = createDebugLogger('aztec:bb-prover');
 
@@ -46,14 +48,18 @@ export type BBProverConfig = {
   bbWorkingDirectory: string;
   acvmBinaryPath: string;
   acvmWorkingDirectory: string;
+  // list of circuits supported by this prover. defaults to all circuits if empty
+  circuitFilter?: ServerProtocolArtifact[];
 };
 
 /**
  * Prover implementation that uses barretenberg native proving
  */
 export class BBNativeRollupProver implements CircuitProver {
-  private verificationKeyDirectories: Map<ServerProtocolArtifact, string> = new Map<ServerProtocolArtifact, string>();
-  constructor(private config: BBProverConfig) {}
+  constructor(
+    private config: BBProverConfig,
+    private verificationKeyDirectories: Map<ServerProtocolArtifact, string>,
+  ) {}
 
   static async new(config: BBProverConfig) {
     await fs.access(config.acvmBinaryPath, fs.constants.R_OK);
@@ -63,9 +69,43 @@ export class BBNativeRollupProver implements CircuitProver {
     logger.info(`Using native BB at ${config.bbBinaryPath} and working directory ${config.bbWorkingDirectory}`);
     logger.info(`Using native ACVM at ${config.acvmBinaryPath} and working directory ${config.acvmWorkingDirectory}`);
 
-    const prover = new BBNativeRollupProver(config);
-    await prover.init();
-    return prover;
+    const mappings = await BBNativeRollupProver.generateVerificationKeys(config);
+
+    return new BBNativeRollupProver(config, mappings);
+  }
+
+  public static async generateVerificationKeys(bbConfig: BBProverConfig) {
+    const promises = [];
+    const directories = new Map<ServerProtocolArtifact, string>();
+    for (const circuitName in ServerCircuitArtifacts) {
+      if (bbConfig.circuitFilter?.length && bbConfig.circuitFilter.findIndex((c: string) => c === circuitName) === -1) {
+        // circuit is not supported
+        continue;
+      }
+      const verificationKeyPromise = generateKeyForNoirCircuit(
+        bbConfig.bbBinaryPath,
+        bbConfig.bbWorkingDirectory,
+        circuitName,
+        ServerCircuitArtifacts[circuitName as ServerProtocolArtifact],
+        'vk',
+        logger.debug,
+      ).then(result => {
+        if (result.status == BB_RESULT.FAILURE) {
+          const message = `Failed to generate verification key for circuit ${circuitName}, message: ${result.reason}`;
+          logger.error(message);
+          throw new Error(message);
+        }
+        if (result.status == BB_RESULT.ALREADY_PRESENT) {
+          logger.info(`Verification key for circuit ${circuitName} was already present at ${result.path!}`);
+        } else {
+          logger.info(`Generated verification key for circuit ${circuitName} at ${result.path!}`);
+        }
+        directories.set(circuitName as ServerProtocolArtifact, result.path!);
+      });
+      promises.push(verificationKeyPromise);
+    }
+    await Promise.all(promises);
+    return directories;
   }
 
   /**
@@ -152,29 +192,6 @@ export class BBNativeRollupProver implements CircuitProver {
     return Promise.resolve([result, proof]);
   }
 
-  private async init() {
-    const promises = [];
-    for (const circuitName in ServerCircuitArtifacts) {
-      const verificationKeyPromise = generateKeyForNoirCircuit(
-        this.config.bbBinaryPath,
-        this.config.bbWorkingDirectory,
-        circuitName,
-        ServerCircuitArtifacts[circuitName as ServerProtocolArtifact],
-        'vk',
-        logger.debug,
-      ).then(result => {
-        if (result.status == BB_RESULT.FAILURE) {
-          logger.error(`Failed to generate verification key for circuit ${circuitName}`);
-          return;
-        }
-        logger.info(`Generated verification key for circuit ${circuitName} at ${result.path!}`);
-        this.verificationKeyDirectories.set(circuitName as ServerProtocolArtifact, result.path!);
-      });
-      promises.push(verificationKeyPromise);
-    }
-    await Promise.all(promises);
-  }
-
   public async createProof(witnessMap: WitnessMap, circuitType: ServerProtocolArtifact): Promise<[WitnessMap, Proof]> {
     // Create random directory to be used for temp files
     const bbWorkingDirectory = `${this.config.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
@@ -238,7 +255,11 @@ export class BBNativeRollupProver implements CircuitProver {
 
     await fs.writeFile(proofFileName, proof.buffer);
 
-    const result = await verifyProof(this.config.bbBinaryPath, proofFileName, verificationKeyPath!, logger.debug);
+    const logFunction = (message: string) => {
+      logger.debug(`${circuitType} BB out - ${message}`);
+    };
+
+    const result = await verifyProof(this.config.bbBinaryPath, proofFileName, verificationKeyPath!, logFunction);
 
     await fs.rm(bbWorkingDirectory, { recursive: true, force: true });
 
@@ -259,10 +280,27 @@ export class BBNativeRollupProver implements CircuitProver {
     await this.verifyProof(circuitType, proof);
   }
 
-  getPublicKernelProof(_: PublicKernelNonTailRequest): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
-    throw new Error('Method not implemented.');
+  public async getPublicKernelProof(
+    kernelRequest: PublicKernelNonTailRequest,
+  ): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
+    const kernelOps = KernelArtifactMapping[kernelRequest.type];
+    if (kernelOps === undefined) {
+      throw new Error(`Unable to prove kernel type ${PublicKernelType[kernelRequest.type]}`);
+    }
+    const witnessMap = kernelOps.convertInputs(kernelRequest.inputs);
+
+    const [outputWitness, proof] = await this.createProof(witnessMap, kernelOps.artifact);
+
+    const result = kernelOps.convertOutputs(outputWitness);
+    return Promise.resolve([result, proof]);
   }
-  getPublicTailProof(_: PublicKernelTailRequest): Promise<[KernelCircuitPublicInputs, Proof]> {
-    throw new Error('Method not implemented.');
+
+  public async getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<[KernelCircuitPublicInputs, Proof]> {
+    const witnessMap = convertPublicTailInputsToWitnessMap(kernelRequest.inputs);
+
+    const [outputWitness, proof] = await this.createProof(witnessMap, 'PublicKernelTailArtifact');
+
+    const result = convertPublicTailOutputFromWitnessMap(outputWitness);
+    return [result, proof];
   }
 }

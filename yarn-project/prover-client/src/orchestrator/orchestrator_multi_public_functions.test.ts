@@ -1,4 +1,5 @@
 import { PROVING_STATUS, mockTx } from '@aztec/circuit-types';
+import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { type MemDown, default as memdown } from 'memdown';
@@ -8,7 +9,7 @@ import { TestContext } from '../mocks/test_context.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
-const logger = createDebugLogger('aztec:orchestrator-public-functions');
+const logger = createDebugLogger('aztec:orchestrator-multi-public-functions');
 
 describe('prover/orchestrator/public-functions', () => {
   let context: TestContext;
@@ -23,38 +24,34 @@ describe('prover/orchestrator/public-functions', () => {
 
   describe('blocks with public functions', () => {
     let testCount = 1;
+    it.each([[4, 2, 3]] as const)(
+      'builds an L2 block with %i transactions each with %i revertible and %i non revertible',
+      async (
+        numTransactions: number,
+        numberOfNonRevertiblePublicCallRequests: number,
+        numberOfRevertiblePublicCallRequests: number,
+      ) => {
+        const txs = times(numTransactions, (i: number) =>
+          mockTx(100000 * testCount++ + 1000 * i, {
+            numberOfNonRevertiblePublicCallRequests,
+            numberOfRevertiblePublicCallRequests,
+          }),
+        );
+        for (const tx of txs) {
+          tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
+        }
 
-    it.each([
-      [0, 4],
-      [1, 0],
-      [2, 0],
-      [1, 5],
-      [2, 4],
-      [8, 1],
-    ] as const)(
-      'builds an L2 block with %i non-revertible and %i revertible calls',
-      async (numberOfNonRevertiblePublicCallRequests: number, numberOfRevertiblePublicCallRequests: number) => {
-        const tx = mockTx(1000 * testCount++, {
-          numberOfNonRevertiblePublicCallRequests,
-          numberOfRevertiblePublicCallRequests,
-        });
-        tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
-
-        const [processed, _] = await context.processPublicFunctions([tx], 1, undefined);
-
-        // This will need to be a 2 tx block
         const blockTicket = await context.orchestrator.startNewBlock(
-          2,
+          numTransactions,
           context.globalVariables,
           [],
           await makeEmptyProcessedTestTx(context.actualDb),
         );
 
-        for (const processedTx of processed) {
-          await context.orchestrator.addNewTx(processedTx);
-        }
+        const [processed, failed] = await context.processPublicFunctions(txs, numTransactions, context.orchestrator);
+        expect(processed.length).toBe(numTransactions);
+        expect(failed.length).toBe(0);
 
-        //  we need to complete the block as we have not added a full set of txs
         await context.orchestrator.setBlockCompleted();
 
         const result = await blockTicket.provingPromise;

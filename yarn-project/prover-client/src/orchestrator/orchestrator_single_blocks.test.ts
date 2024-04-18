@@ -1,5 +1,5 @@
 import { PROVING_STATUS } from '@aztec/circuit-types';
-import { type GlobalVariables, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { fr } from '@aztec/circuits.js/testing';
 import { range } from '@aztec/foundation/array';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -9,132 +9,105 @@ import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { type MemDown, default as memdown } from 'memdown';
 
-import {
-  getConfig,
-  getSimulationProvider,
-  makeBloatedProcessedTx,
-  makeEmptyProcessedTestTx,
-  makeGlobals,
-  updateExpectedTreesFromTxs,
-} from '../mocks/fixtures.js';
-import { TestCircuitProver } from '../prover/test_circuit_prover.js';
-import { ProvingOrchestrator } from './orchestrator.js';
+import { makeBloatedProcessedTx, makeEmptyProcessedTestTx, updateExpectedTreesFromTxs } from '../mocks/fixtures.js';
+import { TestContext } from '../mocks/test_context.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
-const logger = createDebugLogger('aztec:orchestrator-test');
+const logger = createDebugLogger('aztec:orchestrator-single-blocks');
 
-describe('prover/orchestrator', () => {
-  let builder: ProvingOrchestrator;
-  let builderDb: MerkleTreeOperations;
+describe('prover/orchestrator/blocks', () => {
+  let context: TestContext;
   let expectsDb: MerkleTreeOperations;
 
-  let prover: TestCircuitProver;
-
-  let blockNumber: number;
-
-  let globalVariables: GlobalVariables;
-
   beforeEach(async () => {
-    blockNumber = 3;
-    globalVariables = makeGlobals(blockNumber);
-
-    const acvmConfig = await getConfig(logger);
-    const simulationProvider = await getSimulationProvider({
-      acvmWorkingDirectory: acvmConfig?.acvmWorkingDirectory,
-      acvmBinaryPath: acvmConfig?.expectedAcvmPath,
-    });
-    prover = new TestCircuitProver(simulationProvider);
-
-    builderDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
+    context = await TestContext.new(logger);
     expectsDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
-    builder = new ProvingOrchestrator(builderDb, prover, 1);
   }, 20_000);
 
+  afterEach(async () => {
+    await context.cleanup();
+  });
+
   describe('blocks', () => {
-    beforeEach(async () => {
-      builder = await ProvingOrchestrator.new(builderDb, prover);
-    });
-
-    afterEach(async () => {
-      await builder.stop();
-    });
-
     it('builds an empty L2 block', async () => {
-      const txs = await Promise.all([makeEmptyProcessedTestTx(builderDb), makeEmptyProcessedTestTx(builderDb)]);
+      const txs = await Promise.all([
+        makeEmptyProcessedTestTx(context.actualDb),
+        makeEmptyProcessedTestTx(context.actualDb),
+      ]);
 
-      const blockTicket = await builder.startNewBlock(
+      const blockTicket = await context.orchestrator.startNewBlock(
         txs.length,
-        globalVariables,
+        context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(builderDb),
+        await makeEmptyProcessedTestTx(context.actualDb),
       );
 
       for (const tx of txs) {
-        await builder.addNewTx(tx);
+        await context.orchestrator.addNewTx(tx);
       }
 
       const result = await blockTicket.provingPromise;
       expect(result.status).toBe(PROVING_STATUS.SUCCESS);
-      const finalisedBlock = await builder.finaliseBlock();
+      const finalisedBlock = await context.orchestrator.finaliseBlock();
 
-      expect(finalisedBlock.block.number).toEqual(blockNumber);
+      expect(finalisedBlock.block.number).toEqual(context.blockNumber);
     }, 60_000);
 
     it('builds a block with 1 transaction', async () => {
-      const txs = await Promise.all([makeBloatedProcessedTx(builderDb, 1)]);
+      const txs = await Promise.all([makeBloatedProcessedTx(context.actualDb, 1)]);
 
       await updateExpectedTreesFromTxs(expectsDb, txs);
 
       // This will need to be a 2 tx block
-      const blockTicket = await builder.startNewBlock(
+      const blockTicket = await context.orchestrator.startNewBlock(
         2,
-        globalVariables,
+        context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(builderDb),
+        await makeEmptyProcessedTestTx(context.actualDb),
       );
 
       for (const tx of txs) {
-        await builder.addNewTx(tx);
+        await context.orchestrator.addNewTx(tx);
       }
 
       //  we need to complete the block as we have not added a full set of txs
-      await builder.setBlockCompleted();
+      await context.orchestrator.setBlockCompleted();
 
       const result = await blockTicket.provingPromise;
       expect(result.status).toBe(PROVING_STATUS.SUCCESS);
-      const finalisedBlock = await builder.finaliseBlock();
+      const finalisedBlock = await context.orchestrator.finaliseBlock();
 
-      expect(finalisedBlock.block.number).toEqual(blockNumber);
+      expect(finalisedBlock.block.number).toEqual(context.blockNumber);
     }, 60_000);
 
     it('builds a block concurrently with transaction simulation', async () => {
       const txs = await Promise.all([
-        makeBloatedProcessedTx(builderDb, 1),
-        makeBloatedProcessedTx(builderDb, 2),
-        makeBloatedProcessedTx(builderDb, 3),
-        makeBloatedProcessedTx(builderDb, 4),
+        makeBloatedProcessedTx(context.actualDb, 1),
+        makeBloatedProcessedTx(context.actualDb, 2),
+        makeBloatedProcessedTx(context.actualDb, 3),
+        makeBloatedProcessedTx(context.actualDb, 4),
       ]);
 
       const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 1 + 0x400).map(fr);
 
-      const blockTicket = await builder.startNewBlock(
+      const blockTicket = await context.orchestrator.startNewBlock(
         txs.length,
-        globalVariables,
+        context.globalVariables,
         l1ToL2Messages,
-        await makeEmptyProcessedTestTx(builderDb),
+        await makeEmptyProcessedTestTx(context.actualDb),
       );
 
       for (const tx of txs) {
-        await builder.addNewTx(tx);
+        await context.orchestrator.addNewTx(tx);
         await sleep(1000);
       }
 
       const result = await blockTicket.provingPromise;
       expect(result.status).toBe(PROVING_STATUS.SUCCESS);
-      const finalisedBlock = await builder.finaliseBlock();
+      const finalisedBlock = await context.orchestrator.finaliseBlock();
 
-      expect(finalisedBlock.block.number).toEqual(blockNumber);
+      expect(finalisedBlock.block.number).toEqual(context.blockNumber);
     }, 60_000);
   });
 });

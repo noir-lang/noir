@@ -32,7 +32,16 @@ RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN ./bootstrap.sh
-RUN cd prover-client && ACVM_WORKING_DIRECTORY='/tmp/acvm' BB_WORKING_DIRECTORY='/tmp/bb' yarn test
+
+# Generate the server protocol circuit verification keys and run the prover tests
+RUN cd prover-client && \
+    mkdir '/tmp/bb' && \
+    ACVM_WORKING_DIRECTORY='/tmp/acvm' \
+    BB_WORKING_DIRECTORY='/tmp/bb' \
+    BB_BINARY_PATH='/usr/src/barretenberg/cpp/build/bin/bb' \
+    ACVM_BINARY_PATH='/usr/src/noir/noir-repo/target/release/acvm' \
+    LOG_LEVEL=info \
+    yarn generate-and-test
 
 # Avoid pushing some huge container back to ecr.
 FROM scratch

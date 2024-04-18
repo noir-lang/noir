@@ -1,4 +1,4 @@
-import { type PublicKernelNonTailRequest, type PublicKernelTailRequest } from '@aztec/circuit-types';
+import { type PublicKernelNonTailRequest, type PublicKernelTailRequest, PublicKernelType } from '@aztec/circuit-types';
 import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
@@ -8,11 +8,51 @@ import {
   type ParityPublicInputs,
   type Proof,
   type PublicCircuitPublicInputs,
+  type PublicKernelCircuitPrivateInputs,
   type PublicKernelCircuitPublicInputs,
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
+import {
+  type ServerProtocolArtifact,
+  convertPublicInnerRollupInputsToWitnessMap,
+  convertPublicInnerRollupOutputFromWitnessMap,
+  convertPublicSetupRollupInputsToWitnessMap,
+  convertPublicSetupRollupOutputFromWitnessMap,
+  convertPublicTeardownRollupInputsToWitnessMap,
+  convertPublicTeardownRollupOutputFromWitnessMap,
+} from '@aztec/noir-protocol-circuits-types';
+
+import { type WitnessMap } from '@noir-lang/types';
+
+export type PublicKernelProvingOps = {
+  artifact: ServerProtocolArtifact;
+  convertInputs: (inputs: PublicKernelCircuitPrivateInputs) => WitnessMap;
+  convertOutputs: (outputs: WitnessMap) => PublicKernelCircuitPublicInputs;
+};
+
+export type KernelTypeToArtifact = Record<PublicKernelType, PublicKernelProvingOps | undefined>;
+
+export const KernelArtifactMapping: KernelTypeToArtifact = {
+  [PublicKernelType.NON_PUBLIC]: undefined,
+  [PublicKernelType.APP_LOGIC]: {
+    artifact: 'PublicKernelAppLogicArtifact',
+    convertInputs: convertPublicInnerRollupInputsToWitnessMap,
+    convertOutputs: convertPublicInnerRollupOutputFromWitnessMap,
+  },
+  [PublicKernelType.SETUP]: {
+    artifact: 'PublicKernelSetupArtifact',
+    convertInputs: convertPublicSetupRollupInputsToWitnessMap,
+    convertOutputs: convertPublicSetupRollupOutputFromWitnessMap,
+  },
+  [PublicKernelType.TEARDOWN]: {
+    artifact: 'PublicKernelTeardownArtifact',
+    convertInputs: convertPublicTeardownRollupInputsToWitnessMap,
+    convertOutputs: convertPublicTeardownRollupOutputFromWitnessMap,
+  },
+  [PublicKernelType.TAIL]: undefined,
+};
 
 /**
  * Generates proofs for parity and rollup circuits.
@@ -59,6 +99,11 @@ export interface CircuitProver {
    * @param kernelRequest - Object containing the details of the proof required
    */
   getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<[KernelCircuitPublicInputs, Proof]>;
+
+  /**
+   * Verifies a circuit proof
+   */
+  verifyProof(artifact: ServerProtocolArtifact, proof: Proof): Promise<void>;
 }
 
 /**

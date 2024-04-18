@@ -44,7 +44,7 @@ const {
 } = process.env;
 
 // Determines if we have access to the bb binary and a tmp folder for temp files
-export const getConfig = async (logger: DebugLogger) => {
+export const getEnvironmentConfig = async (logger: DebugLogger) => {
   try {
     const expectedBBPath = BB_BINARY_PATH
       ? BB_BINARY_PATH

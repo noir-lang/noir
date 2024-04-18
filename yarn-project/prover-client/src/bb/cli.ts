@@ -4,7 +4,7 @@ import { type ProtocolArtifact, ProtocolCircuitArtifacts } from '@aztec/noir-pro
 import { Command } from 'commander';
 import * as fs from 'fs/promises';
 
-import { generateKeyForNoirCircuit } from './execute.js';
+import { generateAllServerVks, generateKeyForNoirCircuit } from './execute.js';
 
 const { BB_WORKING_DIRECTORY, BB_BINARY_PATH } = process.env;
 
@@ -26,7 +26,7 @@ export function getProgram(log: LogFn): Command {
     });
 
   program
-    .command('write_pk')
+    .command('write-pk')
     .description('Generates the proving key for the specified circuit')
     .requiredOption(
       '-w, --working-directory <string>',
@@ -42,7 +42,7 @@ export function getProgram(log: LogFn): Command {
         return;
       }
       try {
-        await fs.access(options.workingDirectory);
+        await fs.access(options.workingDirectory, fs.constants.W_OK);
       } catch (error) {
         log(`Working directory does not exist`);
         return;
@@ -58,7 +58,7 @@ export function getProgram(log: LogFn): Command {
     });
 
   program
-    .command('write_vk')
+    .command('write-vk')
     .description('Generates the verification key for the specified circuit')
     .requiredOption(
       '-w, --working-directory <string>',
@@ -74,7 +74,7 @@ export function getProgram(log: LogFn): Command {
         return;
       }
       try {
-        await fs.access(options.workingDirectory);
+        await fs.access(options.workingDirectory, fs.constants.W_OK);
       } catch (error) {
         log(`Working directory does not exist`);
         return;
@@ -87,6 +87,25 @@ export function getProgram(log: LogFn): Command {
         'vk',
         log,
       );
+    });
+
+  program
+    .command('write-server-vks')
+    .description('Generates all verification keys require for server protocol circuits')
+    .requiredOption(
+      '-w, --working-directory <string>',
+      'The directory to use for writing the keys',
+      BB_WORKING_DIRECTORY,
+    )
+    .requiredOption('-b, --bb-path <string>', 'The path to the BB binary', BB_BINARY_PATH)
+    .action(async options => {
+      try {
+        await fs.access(options.workingDirectory, fs.constants.W_OK);
+      } catch (error) {
+        log(`Working directory does not exist`);
+        return;
+      }
+      await generateAllServerVks(options.bbPath, options.workingDirectory, log);
     });
   return program;
 }
