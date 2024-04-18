@@ -1,7 +1,6 @@
 mod poseidon;
 mod mimc;
 mod poseidon2;
-mod pedersen;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -89,7 +88,7 @@ trait Hash{
 trait Hasher{
     fn finish(self) -> Field;
     
-    fn write(&mut self, input: [Field]);
+    fn write(&mut self, input: Field);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
@@ -119,49 +118,49 @@ where
 
 impl Hash for Field {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self]);
+        H::write(state, self);
     }
 }
 
 impl Hash for u8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for u32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for u64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for i8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for i32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for i64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for bool {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
@@ -171,7 +170,8 @@ impl Hash for () {
 
 impl Hash for U128 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self.lo as Field, self.hi as Field]);
+        H::write(state, self.lo as Field);
+        H::write(state, self.hi as Field);
     }
 }
 
