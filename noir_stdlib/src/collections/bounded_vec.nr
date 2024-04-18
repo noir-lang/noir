@@ -101,14 +101,8 @@ impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
         // TODO: https://github.com/noir-lang/noir/issues/4837
         //
         // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
-        // rather than directly manipulating the internal fields. This allows us to assume that the storage arrays
-        // are all zeroes from the element `len` onwards.
-        //
-        // This assumption breaks down if an invalid `BoundedVec` is constructed directly as below.
-        //
-        // ```
-        // let bad_vec = BoundedVec { storage: [1, 2, 0], len: 1 };
-        // ```
+        // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
+        
         (self.len == other.len) & (self.storage == other.storage)
     }
 }
