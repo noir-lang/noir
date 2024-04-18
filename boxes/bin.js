@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, Option } from "commander";
 const program = new Command();
 import { chooseProject } from "./scripts/steps/chooseBox.js";
 import { sandboxRun } from "./scripts/steps/sandbox/run.js";
@@ -86,17 +86,37 @@ const init = async ({ debug, github_token, version }) => {
 program.option("-d, --debug", "output extra debugging");
 program.option("-gh, --github_token <github_token>", "a github token");
 program.option("-v, --version <version>", "a version number or master tag");
+program.option("-s, --skip-sandbox", "install and run sandbox after cloning");
+
+program.option(
+  "-t, --project-type <projectType>",
+  "the type of the project to clone ('app' or 'contract')",
+);
+program.option(
+  "-n, --project-name <projectName>",
+  "the name of the project to clone",
+);
+program.parse();
+
+// this is some bad code, but it's def fun
+// I'm matching all keys started with project and
+// then using using modulo to say "if one is defined, two must be defined"
+const optsKeys = Object.keys(program.opts()).filter((e) => /project*/g.test(e));
+if (optsKeys.length % 2) {
+  throw Error("You must define both the project type and the project name");
+}
+
 program.action(async (options) => {
+  const { projectType, projectName, skipSandbox } = options;
   // SETUP: Initialize global variables
   await init(options);
-
   // STEP 1: Choose the boilerplate
-  await chooseProject();
+  await chooseProject({ projectType, projectName });
 
+  if (skipSandbox) return;
   // STEP 2: Install the Sandbox
-  await sandboxInstallOrUpdate();
-
+  await sandboxInstallOrUpdate({ skipQuestion: skipSandbox });
   // STEP 3: Running the Sandbox
-  await sandboxRun();
+  await sandboxRun({ skipQuestion: skipSandbox });
 });
 program.parse();

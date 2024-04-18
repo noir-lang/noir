@@ -16,7 +16,7 @@ If you have [node](https://nodejs.org/en/download) installed, you can open a ter
 
 or
 
-`npm create aztec-app`
+`npx create-aztec-app`
 
 The script will install the sandbox, run it, and clone the boilerplate you chose. You can pass some options:
 

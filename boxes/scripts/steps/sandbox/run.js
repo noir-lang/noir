@@ -29,11 +29,12 @@ export async function sandboxRun() {
         "Sandbox can't be reached on localhost:8080. Do you want to start it?",
       default: true,
     });
-
     if (answer) {
       info("Starting the sandbox... This might take a few minutes.");
       info(`Go and explore the boilerplate code while you wait!`);
-      execSync(`$HOME/.aztec/bin/aztec sandbox`, { stdio: "inherit" });
+      execSync(`$HOME/.aztec/bin/aztec sandbox`, {
+        stdio: "inherit",
+      });
     }
   }
 }

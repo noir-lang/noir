@@ -1,0 +1,30 @@
+{
+  "name": "Token Contract Only",
+  "image": "node:lts-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "onCreateCommand": ".devcontainer/scripts/onCreateCommand.sh contract token_contract",
+  "postAttachCommand": ".devcontainer/scripts/postAttachCommand.sh contract token_contract",
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": ["noir-lang.vscode-noir"]
+    }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/token_contract,target=/root/workspace,type=bind",
+  "workspaceFolder": "/root/workspace",
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "mounts": [
+    {
+      "source": "${localWorkspaceFolder}/.devcontainer/scripts",
+      "target": "/root/workspace/.devcontainer/scripts",
+      "type": "bind"
+    }
+  ],
+  "forwardPorts": [8080]
+}

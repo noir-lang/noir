@@ -1,0 +1,23 @@
+{
+  "name": "React App",
+  "image": "node:lts-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "onCreateCommand": "cp -R /root/workspace /root/scripts && rm -rf /root/workspace/* && sh /root/scripts/onCreateCommand.sh app react",
+  "postAttachCommand": "sh /root/scripts/postAttachCommand.sh app react",
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": ["noir-lang.vscode-noir"]
+    }
+  },
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/scripts,target=/root/workspace,type=bind",
+  "workspaceFolder": "/root/workspace",
+  "forwardPorts": [8080]
+}
