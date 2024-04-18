@@ -1,9 +1,8 @@
 use dep::aztec::prelude::{AztecAddress, EthAddress};
-use dep::aztec::context::PublicContext;
+use dep::aztec::context::interface::PublicContextInterface;
 use dep::aztec::protocol_types::hash::sha256_to_field;
 
-pub fn calculate_fee(_context: PublicContext) -> U128 {
-    // TODO(palla/gas-in-circuits): Use the transaction_fee injected into the context
+pub fn calculate_fee<TPublicContext>(_context: TPublicContext) -> U128 where TPublicContext: PublicContextInterface {
     U128::from_integer(1)
 }
 
