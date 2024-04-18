@@ -109,14 +109,18 @@ impl Context {
         use Instruction::*;
         match instruction {
             Binary(binary) => {
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs == FieldElement::zero()
-                    } else {
-                        true
+                match binary.operator {
+                    BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
+                        dfg.type_of_value(binary.lhs).is_unsigned()
                     }
-                } else {
-                    false
+                    BinaryOp::Div | BinaryOp::Mod => {
+                        if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                            rhs == FieldElement::zero()
+                        } else {
+                            true
+                        }
+                    }
+                    _ => false,
                 }
             }
 
