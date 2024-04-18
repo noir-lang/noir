@@ -15,6 +15,7 @@ dependencies = [
  "fxhash",
  "pprof 0.13.0",
  "serde",
+ "serde-big-array",
  "serde-generate",
  "serde-reflection",
  "serde_json",
@@ -3162,6 +3163,7 @@ dependencies = [
  "base64 0.21.2",
  "chumsky",
  "fm",
+ "im",
  "iter-extended",
  "lalrpop",
  "lalrpop-util",
@@ -4407,6 +4409,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a5bf42b8d227d4abf38a1ddb08602e229108a517cd4e5bb28f9c7eaafdce5c0"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

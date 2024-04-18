@@ -15,6 +15,8 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 
 use std::collections::BTreeSet;
 
+use self::brillig::BrilligBytecode;
+
 /// Specifies the maximum width of the expressions which will be constrained.
 ///
 /// Unbounded Expressions are useful if you are eventually going to pass the ACIR
@@ -37,6 +39,7 @@ pub enum ExpressionWidth {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Program {
     pub functions: Vec<Circuit>,
+    pub unconstrained_functions: Vec<BrilligBytecode>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -273,6 +276,10 @@ impl std::fmt::Display for Program {
             writeln!(f, "func {}", func_index)?;
             writeln!(f, "{}", function)?;
         }
+        for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
+            writeln!(f, "unconstrained func {}", func_index)?;
+            writeln!(f, "{:?}", function.bytecode)?;
+        }
         Ok(())
     }
 }
@@ -324,61 +331,31 @@ mod tests {
         })
     }
     fn keccakf1600_opcode() -> Opcode {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 {
-            inputs: vec![
-                FunctionInput { witness: Witness(1), num_bits: 64 },
-                FunctionInput { witness: Witness(2), num_bits: 64 },
-                FunctionInput { witness: Witness(3), num_bits: 64 },
-                FunctionInput { witness: Witness(4), num_bits: 64 },
-                FunctionInput { witness: Witness(5), num_bits: 64 },
-                FunctionInput { witness: Witness(6), num_bits: 64 },
-                FunctionInput { witness: Witness(7), num_bits: 64 },
-                FunctionInput { witness: Witness(8), num_bits: 64 },
-                FunctionInput { witness: Witness(9), num_bits: 64 },
-                FunctionInput { witness: Witness(10), num_bits: 64 },
-                FunctionInput { witness: Witness(11), num_bits: 64 },
-                FunctionInput { witness: Witness(12), num_bits: 64 },
-                FunctionInput { witness: Witness(13), num_bits: 64 },
-                FunctionInput { witness: Witness(14), num_bits: 64 },
-                FunctionInput { witness: Witness(15), num_bits: 64 },
-                FunctionInput { witness: Witness(16), num_bits: 64 },
-                FunctionInput { witness: Witness(17), num_bits: 64 },
-                FunctionInput { witness: Witness(18), num_bits: 64 },
-                FunctionInput { witness: Witness(19), num_bits: 64 },
-                FunctionInput { witness: Witness(20), num_bits: 64 },
-                FunctionInput { witness: Witness(21), num_bits: 64 },
-                FunctionInput { witness: Witness(22), num_bits: 64 },
-                FunctionInput { witness: Witness(23), num_bits: 64 },
-                FunctionInput { witness: Witness(24), num_bits: 64 },
-                FunctionInput { witness: Witness(25), num_bits: 64 },
-            ],
-            outputs: vec![
-                Witness(26),
-                Witness(27),
-                Witness(28),
-                Witness(29),
-                Witness(30),
-                Witness(31),
-                Witness(32),
-                Witness(33),
-                Witness(34),
-                Witness(35),
-                Witness(36),
-                Witness(37),
-                Witness(38),
-                Witness(39),
-                Witness(40),
-                Witness(41),
-                Witness(42),
-                Witness(43),
-                Witness(44),
-                Witness(45),
-                Witness(46),
-                Witness(47),
-                Witness(48),
-                Witness(49),
-                Witness(50),
-            ],
+        let inputs: Box<[FunctionInput; 25]> = Box::new(std::array::from_fn(|i| FunctionInput {
+            witness: Witness(i as u32 + 1),
+            num_bits: 8,
+        }));
+        let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
+
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
+    }
+    fn schnorr_verify_opcode() -> Opcode {
+        let public_key_x =
+            FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() };
+        let public_key_y =
+            FunctionInput { witness: Witness(2), num_bits: FieldElement::max_num_bits() };
+        let signature: Box<[FunctionInput; 64]> = Box::new(std::array::from_fn(|i| {
+            FunctionInput { witness: Witness(i as u32 + 3), num_bits: 8 }
+        }));
+        let message: Vec<FunctionInput> = vec![FunctionInput { witness: Witness(67), num_bits: 8 }];
+        let output = Witness(68);
+
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::SchnorrVerify {
+            public_key_x,
+            public_key_y,
+            signature,
+            message,
+            output,
         })
     }
 
@@ -387,14 +364,14 @@ mod tests {
         let circuit = Circuit {
             current_witness_index: 5,
             expression_width: ExpressionWidth::Unbounded,
-            opcodes: vec![and_opcode(), range_opcode()],
+            opcodes: vec![and_opcode(), range_opcode(), schnorr_verify_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         fn read_write(program: Program) -> (Program, Program) {
             let bytes = Program::serialize_program(&program);
@@ -420,6 +397,7 @@ mod tests {
                 range_opcode(),
                 and_opcode(),
                 keccakf1600_opcode(),
+                schnorr_verify_opcode(),
             ],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
@@ -427,7 +405,7 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
-        let program = Program { functions: vec![circuit] };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let json = serde_json::to_string_pretty(&program).unwrap();
 
