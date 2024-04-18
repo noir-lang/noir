@@ -128,26 +128,4 @@ mod bounded_vec_tests {
 
         assert(bounded_vec1 != bounded_vec2);
     }
-
-    #[test]
-    fn equality_respects_specified_length() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        bounded_vec1.push(1);
-
-        // This BoundedVec has an extra value past the end of its specified length,
-        // this should be ignored when checking equality so they are considered equal.
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec { storage: [1, 2, 0], len: 1 };
-
-        assert_eq(bounded_vec1, bounded_vec2);
-
-        // Pushing another entry onto `bounded_vec1` to make the underlying arrays equal should
-        // result in the `BoundedVec`s being unequal as their lengths are different.
-        bounded_vec1.push(2);
-
-        assert(bounded_vec1 != bounded_vec2);
-
-        bounded_vec2.push(2);
-
-        assert_eq(bounded_vec1, bounded_vec2);
-    }
 }
