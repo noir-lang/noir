@@ -35,7 +35,7 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
 };
-use crate::lexer::Lexer;
+use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
 use crate::{
@@ -47,6 +47,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
+use lalrpop_util::lalrpop_mod;
 use noirc_errors::{Span, Spanned};
 
 mod assertion;
@@ -58,6 +59,9 @@ mod path;
 mod primitives;
 mod structs;
 mod traits;
+
+// synthesized by LALRPOP
+lalrpop_mod!(pub noir_parser);
 
 #[cfg(test)]
 mod test_helpers;
@@ -77,8 +81,79 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
+    let parsed_module = module.unwrap_or(ParsedModule { items: vec![] });
 
-    (module.unwrap_or(ParsedModule { items: vec![] }), parsing_errors)
+    if cfg!(feature = "experimental_parser") {
+        for parsed_item in &parsed_module.items {
+            if lalrpop_parser_supports_kind(&parsed_item.kind) {
+                match &parsed_item.kind {
+                    ItemKind::Import(parsed_use_tree) => {
+                        prototype_parse_use_tree(Some(parsed_use_tree), source_program);
+                    }
+                    // other kinds prevented by lalrpop_parser_supports_kind
+                    _ => unreachable!(),
+                }
+            }
+        }
+    }
+    (parsed_module, parsing_errors)
+}
+
+fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str) {
+    // TODO(https://github.com/noir-lang/noir/issues/4777): currently skipping
+    // recursive use trees, e.g. "use std::{foo, bar}"
+    if input.contains('{') {
+        return;
+    }
+
+    let mut lexer = Lexer::new(input);
+    lexer = lexer.skip_whitespaces(false);
+    let mut errors = Vec::new();
+
+    // NOTE: this is a hack to get the references working
+    // => this likely means that we'll want to propagate the <'input> lifetime further into Token
+    let lexer_result = lexer.collect::<Vec<_>>();
+    let referenced_lexer_result = lexer_result.iter().map(from_spanned_token_result);
+
+    let calculated = noir_parser::TopLevelStatementParser::new().parse(
+        input,
+        &mut errors,
+        referenced_lexer_result,
+    );
+
+    if let Some(expected_use_tree) = expected_use_tree_opt {
+        assert!(
+            calculated.is_ok(),
+            "calculated not Ok(_): {:?}\n\nlexer: {:?}\n\ninput: {:?}",
+            calculated,
+            lexer_result,
+            input
+        );
+
+        match calculated.unwrap() {
+            TopLevelStatement::Import(parsed_use_tree) => {
+                assert_eq!(expected_use_tree, &parsed_use_tree);
+            }
+            unexpected_calculated => {
+                panic!(
+                    "expected a TopLevelStatement::Import, but found: {:?}",
+                    unexpected_calculated
+                )
+            }
+        }
+    } else {
+        assert!(
+            calculated.is_err(),
+            "calculated not Err(_): {:?}\n\nlexer: {:?}\n\ninput: {:?}",
+            calculated,
+            lexer_result,
+            input
+        );
+    }
+}
+
+fn lalrpop_parser_supports_kind(kind: &ItemKind) -> bool {
+    matches!(kind, ItemKind::Import(_))
 }
 
 /// program: module EOF
@@ -158,14 +233,17 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
-    let p = ignore_then_commit(
-        keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
-        ident().map(Pattern::Identifier),
-    );
+    let p = attributes::attributes()
+        .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
+        .then(ident().map(Pattern::Identifier));
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
-    p.map(LetStatement::new_let).map(TopLevelStatement::Global)
+    p.validate(|(((attributes, pattern), r#type), expression), span, emit| {
+        let global_attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+        LetStatement { pattern, r#type, expression, attributes: global_attributes }
+    })
+    .map(TopLevelStatement::Global)
 }
 
 /// submodule: 'mod' ident '{' module '}'
@@ -526,8 +604,8 @@ fn assign_operator() -> impl NoirParser<Token> {
 }
 
 enum LValueRhs {
-    MemberAccess(Ident),
-    Index(Expression),
+    MemberAccess(Ident, Span),
+    Index(Expression, Span),
 }
 
 fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
@@ -539,23 +617,28 @@ where
 
         let dereferences = just(Token::Star)
             .ignore_then(lvalue.clone())
-            .map(|lvalue| LValue::Dereference(Box::new(lvalue)));
+            .map_with_span(|lvalue, span| LValue::Dereference(Box::new(lvalue), span));
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
         let term = choice((parenthesized, dereferences, l_ident));
 
-        let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+        let l_member_rhs =
+            just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);
 
         let l_index = expr_parser
             .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-            .map(LValueRhs::Index);
+            .map_with_span(LValueRhs::Index);
 
         term.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
-            LValueRhs::MemberAccess(field_name) => {
-                LValue::MemberAccess { object: Box::new(lvalue), field_name }
+            LValueRhs::MemberAccess(field_name, span) => {
+                let span = lvalue.span().merge(span);
+                LValue::MemberAccess { object: Box::new(lvalue), field_name, span }
             }
-            LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
+            LValueRhs::Index(index, span) => {
+                let span = lvalue.span().merge(span);
+                LValue::Index { array: Box::new(lvalue), index, span }
+            }
         })
     })
 }
@@ -1237,7 +1320,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::{ArrayLiteral, Literal};
+    use crate::ArrayLiteral;
 
     #[test]
     fn parse_infix() {
@@ -1504,33 +1587,53 @@ mod test {
 
     #[test]
     fn parse_use() {
-        parse_all(
-            use_statement(),
-            vec![
-                "use std::hash",
-                "use std",
-                "use foo::bar as hello",
-                "use bar as bar",
-                "use foo::{}",
-                "use foo::{bar,}",
-                "use foo::{bar, hello}",
-                "use foo::{bar as bar2, hello}",
-                "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-                "use dep::{std::println, bar::baz}",
-            ],
-        );
+        let valid_use_statements = [
+            "use std::hash",
+            "use std",
+            "use foo::bar as hello",
+            "use bar as bar",
+            "use foo::{}",
+            "use foo::{bar,}",
+            "use foo::{bar, hello}",
+            "use foo::{bar as bar2, hello}",
+            "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+            "use dep::{std::println, bar::baz}",
+        ];
 
-        parse_all_failing(
-            use_statement(),
-            vec![
-                "use std as ;",
-                "use foobar as as;",
-                "use hello:: as foo;",
-                "use foo bar::baz",
-                "use foo bar::{baz}",
-                "use foo::{,}",
-            ],
-        );
+        let invalid_use_statements = [
+            "use std as ;",
+            "use foobar as as;",
+            "use hello:: as foo;",
+            "use foo bar::baz",
+            "use foo bar::{baz}",
+            "use foo::{,}",
+        ];
+
+        let use_statements = valid_use_statements
+            .into_iter()
+            .map(|valid_str| (valid_str, true))
+            .chain(invalid_use_statements.into_iter().map(|invalid_str| (invalid_str, false)));
+
+        for (use_statement_str, expect_valid) in use_statements {
+            let mut use_statement_str = use_statement_str.to_string();
+            let expected_use_statement = if expect_valid {
+                let (result_opt, _diagnostics) =
+                    parse_recover(&use_statement(), &use_statement_str);
+                use_statement_str.push(';');
+                match result_opt.unwrap() {
+                    TopLevelStatement::Import(expected_use_statement) => {
+                        Some(expected_use_statement)
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                let result = parse_with(&use_statement(), &use_statement_str);
+                assert!(result.is_err());
+                None
+            };
+
+            prototype_parse_use_tree(expected_use_statement.as_ref(), &use_statement_str);
+        }
     }
 
     #[test]

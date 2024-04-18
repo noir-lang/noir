@@ -39,16 +39,16 @@ impl Backend {
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
-    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 3 }``
+    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 4 }``
     /// The function also prints a message saying we could not find a backend
     pub fn get_backend_info_or_default(&self) -> ExpressionWidth {
         if let Ok(expression_width) = self.get_backend_info() {
             expression_width
         } else {
             warn!(
-                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 3"
+                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 4"
             );
-            ExpressionWidth::Bounded { width: 3 }
+            ExpressionWidth::Bounded { width: 4 }
         }
     }
 
@@ -56,7 +56,7 @@ impl Backend {
     pub fn prove(
         &self,
         program: &Program,
-        witness_values: WitnessStack,
+        witness_stack: WitnessStack,
     ) -> Result<Vec<u8>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
@@ -66,7 +66,7 @@ impl Backend {
 
         // Create a temporary file for the witness
         let serialized_witnesses: Vec<u8> =
-            witness_values.try_into().expect("could not serialize witness map");
+            witness_stack.try_into().expect("could not serialize witness map");
         let witness_path = temp_directory.join("witness").with_extension("tr");
         write_to_file(&serialized_witnesses, &witness_path);
 

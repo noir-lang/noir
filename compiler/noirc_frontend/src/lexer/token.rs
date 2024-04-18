@@ -10,11 +10,104 @@ use crate::lexer::errors::LexerErrorKind;
 /// items differently depending on the Tokens present but will
 /// never parse the same ordering of identical tokens differently.
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum BorrowedToken<'input> {
+    Ident(&'input str),
+    Int(FieldElement),
+    Bool(bool),
+    Str(&'input str),
+    /// the u8 is the number of hashes, i.e. r###..
+    RawStr(&'input str, u8),
+    FmtStr(&'input str),
+    Keyword(Keyword),
+    IntType(IntType),
+    Attribute(Attribute),
+    LineComment(&'input str, Option<DocStyle>),
+    BlockComment(&'input str, Option<DocStyle>),
+    /// <
+    Less,
+    /// <=
+    LessEqual,
+    /// >
+    Greater,
+    /// >=
+    GreaterEqual,
+    /// ==
+    Equal,
+    /// !=
+    NotEqual,
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// *
+    Star,
+    /// /
+    Slash,
+    /// %
+    Percent,
+    /// &
+    Ampersand,
+    /// ^
+    Caret,
+    /// <<
+    ShiftLeft,
+    /// >>
+    ShiftRight,
+    /// .
+    Dot,
+    /// ..
+    DoubleDot,
+    /// (
+    LeftParen,
+    /// )
+    RightParen,
+    /// {
+    LeftBrace,
+    /// }
+    RightBrace,
+    /// [
+    LeftBracket,
+    /// ]
+    RightBracket,
+    /// ->
+    Arrow,
+    /// |
+    Pipe,
+    /// #
+    Pound,
+    /// ,
+    Comma,
+    /// :
+    Colon,
+    /// ::
+    DoubleColon,
+    /// ;
+    Semicolon,
+    /// !
+    Bang,
+    /// =
+    Assign,
+    #[allow(clippy::upper_case_acronyms)]
+    EOF,
+
+    Whitespace(&'input str),
+
+    /// An invalid character is one that is not in noir's language or grammar.
+    ///
+    /// We don't report invalid tokens in the source as errors until parsing to
+    /// avoid reporting the error twice (once while lexing, again when it is encountered
+    /// during parsing). Reporting during lexing then removing these from the token stream
+    /// would not be equivalent as it would change the resulting parse.
+    Invalid(char),
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
     FmtStr(String),
     Keyword(Keyword),
@@ -100,6 +193,57 @@ pub enum Token {
     Invalid(char),
 }
 
+pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
+    match token {
+        Token::Ident(ref s) => BorrowedToken::Ident(s),
+        Token::Int(n) => BorrowedToken::Int(*n),
+        Token::Bool(b) => BorrowedToken::Bool(*b),
+        Token::Str(ref b) => BorrowedToken::Str(b),
+        Token::FmtStr(ref b) => BorrowedToken::FmtStr(b),
+        Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
+        Token::Keyword(k) => BorrowedToken::Keyword(*k),
+        Token::Attribute(ref a) => BorrowedToken::Attribute(a.clone()),
+        Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
+        Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
+        Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
+        Token::Less => BorrowedToken::Less,
+        Token::LessEqual => BorrowedToken::LessEqual,
+        Token::Greater => BorrowedToken::Greater,
+        Token::GreaterEqual => BorrowedToken::GreaterEqual,
+        Token::Equal => BorrowedToken::Equal,
+        Token::NotEqual => BorrowedToken::NotEqual,
+        Token::Plus => BorrowedToken::Plus,
+        Token::Minus => BorrowedToken::Minus,
+        Token::Star => BorrowedToken::Star,
+        Token::Slash => BorrowedToken::Slash,
+        Token::Percent => BorrowedToken::Percent,
+        Token::Ampersand => BorrowedToken::Ampersand,
+        Token::Caret => BorrowedToken::Caret,
+        Token::ShiftLeft => BorrowedToken::ShiftLeft,
+        Token::ShiftRight => BorrowedToken::ShiftRight,
+        Token::Dot => BorrowedToken::Dot,
+        Token::DoubleDot => BorrowedToken::DoubleDot,
+        Token::LeftParen => BorrowedToken::LeftParen,
+        Token::RightParen => BorrowedToken::RightParen,
+        Token::LeftBrace => BorrowedToken::LeftBrace,
+        Token::RightBrace => BorrowedToken::RightBrace,
+        Token::LeftBracket => BorrowedToken::LeftBracket,
+        Token::RightBracket => BorrowedToken::RightBracket,
+        Token::Arrow => BorrowedToken::Arrow,
+        Token::Pipe => BorrowedToken::Pipe,
+        Token::Pound => BorrowedToken::Pound,
+        Token::Comma => BorrowedToken::Comma,
+        Token::Colon => BorrowedToken::Colon,
+        Token::DoubleColon => BorrowedToken::DoubleColon,
+        Token::Semicolon => BorrowedToken::Semicolon,
+        Token::Assign => BorrowedToken::Assign,
+        Token::Bang => BorrowedToken::Bang,
+        Token::EOF => BorrowedToken::EOF,
+        Token::Invalid(c) => BorrowedToken::Invalid(*c),
+        Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum DocStyle {
     Outer,
@@ -123,6 +267,12 @@ impl PartialEq<Token> for SpannedToken {
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
         spt.0.contents
+    }
+}
+
+impl<'a> From<&'a SpannedToken> for &'a Token {
+    fn from(spt: &'a SpannedToken) -> Self {
+        &spt.0.contents
     }
 }
 
@@ -427,6 +577,10 @@ impl Attributes {
         }
         None
     }
+
+    pub fn is_foldable(&self) -> bool {
+        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_foldable())
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -486,6 +640,7 @@ impl Attribute {
             }
             ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
             ["recursive"] => Attribute::Function(FunctionAttribute::Recursive),
+            ["fold"] => Attribute::Function(FunctionAttribute::Fold),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
@@ -505,6 +660,7 @@ impl Attribute {
                 Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
             }
             ["event"] => Attribute::Secondary(SecondaryAttribute::Event),
+            ["abi", tag] => Attribute::Secondary(SecondaryAttribute::Abi(tag.to_string())),
             ["export"] => Attribute::Secondary(SecondaryAttribute::Export),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
@@ -537,6 +693,7 @@ pub enum FunctionAttribute {
     Oracle(String),
     Test(TestScope),
     Recursive,
+    Fold,
 }
 
 impl FunctionAttribute {
@@ -565,6 +722,10 @@ impl FunctionAttribute {
     pub fn is_low_level(&self) -> bool {
         matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
     }
+
+    pub fn is_foldable(&self) -> bool {
+        matches!(self, FunctionAttribute::Fold)
+    }
 }
 
 impl fmt::Display for FunctionAttribute {
@@ -575,6 +736,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             FunctionAttribute::Recursive => write!(f, "#[recursive]"),
+            FunctionAttribute::Fold => write!(f, "#[fold]"),
         }
     }
 }
@@ -593,6 +755,7 @@ pub enum SecondaryAttribute {
     Export,
     Field(String),
     Custom(String),
+    Abi(String),
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -607,6 +770,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Event => write!(f, "#[event]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
+            SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
         }
     }
 }
@@ -619,6 +783,7 @@ impl AsRef<str> for FunctionAttribute {
             FunctionAttribute::Oracle(string) => string,
             FunctionAttribute::Test { .. } => "",
             FunctionAttribute::Recursive => "",
+            FunctionAttribute::Fold => "",
         }
     }
 }
@@ -628,7 +793,9 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
+            SecondaryAttribute::Custom(string)
+            | SecondaryAttribute::Field(string)
+            | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Event | SecondaryAttribute::Export => "",
         }

@@ -142,7 +142,31 @@ pub(super) fn transform_internal(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
-            Opcode::Call { .. } => todo!("Handle Call opcodes in the ACVM"),
+            Opcode::BrilligCall { ref outputs, .. } => {
+                for output in outputs {
+                    match output {
+                        BrilligOutputs::Simple(w) => transformer.mark_solvable(*w),
+                        BrilligOutputs::Array(v) => {
+                            for witness in v {
+                                transformer.mark_solvable(*witness);
+                            }
+                        }
+                    }
+                }
+
+                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+                transformed_opcodes.push(opcode);
+            }
+            Opcode::Call { ref outputs, .. } => {
+                for witness in outputs {
+                    transformer.mark_solvable(*witness);
+                }
+
+                // `Call` does not write values to the `WitnessMap`
+                // A separate ACIR function should have its own respective `WitnessMap`
+                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+                transformed_opcodes.push(opcode);
+            }
         }
     }
 

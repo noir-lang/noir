@@ -240,11 +240,16 @@ pub(super) fn simplify_call(
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
                 let max_bit_size = max_bit_size.to_u128() as u32;
-                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
-                    value,
-                    max_bit_size,
-                    assert_message: Some("call to assert_max_bit_size".to_owned()),
-                })
+                let max_potential_bits = dfg.get_value_max_num_bits(value);
+                if max_potential_bits < max_bit_size {
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                        value,
+                        max_bit_size,
+                        assert_message: Some("call to assert_max_bit_size".to_owned()),
+                    })
+                }
             } else {
                 SimplifyResult::None
             }
@@ -334,8 +339,13 @@ fn simplify_slice_push_back(
     let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
 
-    let set_last_slice_value_instr =
-        Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
+    let set_last_slice_value_instr = Instruction::ArraySet {
+        array: new_slice,
+        index: arguments[0],
+        value: arguments[2],
+        mutable: false,
+    };
+
     let set_last_slice_value = dfg
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();

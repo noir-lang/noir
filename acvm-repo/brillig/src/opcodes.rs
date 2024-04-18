@@ -177,8 +177,11 @@ pub enum BrilligOpcode {
         source: MemoryAddress,
     },
     BlackBox(BlackBoxOp),
-    /// Used to denote execution failure
-    Trap,
+    /// Used to denote execution failure, returning data after the offset
+    Trap {
+        revert_data_offset: usize,
+        revert_data_size: usize,
+    },
     /// Stop execution, returning data after the offset
     Stop {
         return_data_offset: usize,

@@ -1,31 +1,32 @@
-#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-// TODO: Absence of per package targets
-// https://doc.rust-lang.org/cargo/reference/unstable.html#per-package-target
-// otherwise could be reorganized to make this file more pretty.
+mod black_box_solvers;
+mod build_info;
+mod compression;
+mod execute;
+mod foreign_call;
+mod js_execution_error;
+mod js_witness_map;
+mod js_witness_stack;
+mod logging;
+mod public_witness;
 
-cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
-        mod build_info;
-        mod compression;
-        mod execute;
-        mod foreign_call;
-        mod js_witness_map;
-        mod logging;
-        mod public_witness;
-        mod js_execution_error;
-        mod black_box_solvers;
-
-        pub use black_box_solvers::{and, xor, sha256, blake2s256, keccak256, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
-        pub use build_info::build_info;
-        pub use compression::{compress_witness, decompress_witness};
-        pub use execute::{execute_circuit, execute_circuit_with_black_box_solver, create_black_box_solver};
-        pub use js_witness_map::JsWitnessMap;
-        pub use logging::init_log_level;
-        pub use public_witness::{get_public_parameters_witness, get_public_witness, get_return_witness};
-        pub use js_execution_error::JsExecutionError;
-    }
-}
+pub use black_box_solvers::{
+    and, blake2s256, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256, xor,
+};
+pub use build_info::build_info;
+pub use compression::{
+    compress_witness, compress_witness_stack, decompress_witness, decompress_witness_stack,
+};
+pub use execute::{
+    create_black_box_solver, execute_circuit, execute_circuit_with_black_box_solver,
+    execute_circuit_with_return_witness, execute_program, execute_program_with_black_box_solver,
+};
+pub use js_execution_error::JsExecutionError;
+pub use js_witness_map::JsSolvedAndReturnWitness;
+pub use js_witness_map::JsWitnessMap;
+pub use js_witness_stack::JsWitnessStack;
+pub use logging::init_log_level;
+pub use public_witness::{get_public_parameters_witness, get_public_witness, get_return_witness};

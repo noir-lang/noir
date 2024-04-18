@@ -14,7 +14,10 @@ use noirc_frontend::{
 
 use crate::{
     errors::{InternalError, RuntimeError},
-    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
+    ssa::{
+        function_builder::data_bus::DataBusBuilder,
+        ir::{function::InlineType, instruction::Intrinsic},
+    },
 };
 
 use self::{
@@ -26,7 +29,9 @@ use super::{
     function_builder::data_bus::DataBus,
     ir::{
         function::RuntimeType,
-        instruction::{BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
+        instruction::{
+            BinaryOp, ConstrainError, Instruction, TerminatorInstruction, UserDefinedConstrainError,
+        },
         types::Type,
         value::ValueId,
     },
@@ -52,14 +57,15 @@ pub(crate) fn generate_ssa(
 
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
-
     let mut function_context = FunctionContext::new(
         main.name.clone(),
         &main.parameters,
         if force_brillig_runtime || main.unconstrained {
             RuntimeType::Brillig
         } else {
-            RuntimeType::Acir
+            let main_inline_type =
+                if main.should_fold { InlineType::Fold } else { InlineType::Inline };
+            RuntimeType::Acir(main_inline_type)
         },
         &context,
     );
@@ -237,6 +243,7 @@ impl<'a> FunctionContext<'a> {
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
             }
+            ast::Literal::Unit => Ok(Self::unit_value()),
         }
     }
 
@@ -703,7 +710,9 @@ impl<'a> FunctionContext<'a> {
         if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
             assert_message_expr.as_ref()
         {
-            return Ok(Some(Box::new(ConstrainError::Static(assert_message.to_string()))));
+            return Ok(Some(Box::new(ConstrainError::UserDefined(
+                UserDefinedConstrainError::Static(assert_message.to_string()),
+            ))));
         }
 
         let ast::Expression::Call(call) = assert_message_expr.as_ref() else {
@@ -729,7 +738,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let instr = Instruction::Call { func, arguments };
-        Ok(Some(Box::new(ConstrainError::Dynamic(instr))))
+        Ok(Some(Box::new(ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(instr)))))
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

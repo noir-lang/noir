@@ -17,7 +17,7 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
-        function::RuntimeType,
+        function::{InlineType, RuntimeType},
         instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -42,13 +42,8 @@ impl FunctionBuilder {
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    pub(crate) fn new(
-        function_name: String,
-        function_id: FunctionId,
-        runtime: RuntimeType,
-    ) -> Self {
-        let mut new_function = Function::new(function_name, function_id);
-        new_function.set_runtime(runtime);
+    pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
+        let new_function = Function::new(function_name, function_id);
 
         Self {
             current_block: new_function.entry_block(),
@@ -56,6 +51,15 @@ impl FunctionBuilder {
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
         }
+    }
+
+    /// Set the runtime of the initial function that is created internally after constructing
+    /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
+    /// This should only be used immediately following construction of a FunctionBuilder
+    /// and will panic if there are any already finished functions.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        self.current_function.set_runtime(runtime);
     }
 
     /// Finish the current function and create a new function.
@@ -78,8 +82,13 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new ACIR function.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir);
+    pub(crate) fn new_function(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        inline_type: InlineType,
+    ) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
     /// Finish the current function and create a new unconstrained function.
@@ -301,7 +310,8 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
+            .first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect
@@ -314,6 +324,12 @@ impl FunctionBuilder {
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
+    }
+
+    /// Insert an enable_side_effects_if instruction. These are normally only automatically
+    /// inserted during the flattening pass when branching is removed.
+    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
+        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -491,7 +507,6 @@ mod tests {
     use acvm::FieldElement;
 
     use crate::ssa::ir::{
-        function::RuntimeType,
         instruction::{Endian, Intrinsic},
         map::Id,
         types::Type,
@@ -506,7 +521,7 @@ mod tests {
         // let x = 7;
         // let bits = x.to_le_bits(8);
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let one = builder.numeric_constant(FieldElement::one(), Type::bool());
         let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
 

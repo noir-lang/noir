@@ -1,4 +1,5 @@
 use crate::foreign_calls::DebugForeignCallExecutor;
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::brillig::ForeignCallResult;
@@ -42,10 +43,17 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
+        unconstrained_functions: &'a [BrilligBytecode],
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
         Self {
-            acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
+            // TODO: need to handle brillig pointer in the debugger
+            acvm: ACVM::new(
+                blackbox_solver,
+                &circuit.opcodes,
+                initial_witness,
+                unconstrained_functions,
+            ),
             brillig_solver: None,
             foreign_call_executor,
             debug_artifact,
@@ -128,9 +136,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         line: i64,
     ) -> Option<OpcodeLocation> {
         let line = line as usize;
-        let Some(line_to_opcodes) = self.source_to_opcodes.get(file_id) else {
-            return None;
-        };
+        let line_to_opcodes = self.source_to_opcodes.get(file_id)?;
         let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
             Ok(index) => {
                 // move backwards to find the first opcode which matches the line
@@ -333,7 +339,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(err),
+                // TODO: debugger does not not handle multiple acir calls
+                ExecutionError::SolvingError(err, None),
             )),
         }
     }
@@ -376,10 +383,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(error),
+                // TODO: debugger does not not handle multiple acir calls
+                ExecutionError::SolvingError(error, None),
             )),
             ACVMStatus::RequiresForeignCall(_) => {
                 unreachable!("Unexpected pending foreign call resolution");
+            }
+            ACVMStatus::RequiresAcirCall(_) => {
+                todo!("Multiple ACIR calls are not supported");
             }
         }
     }
@@ -512,7 +523,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
 
     pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
         if let Some(solver) = self.brillig_solver.as_mut() {
-            solver.write_memory_at(ptr, MemoryValue::new(value, bit_size));
+            solver.write_memory_at(
+                ptr,
+                MemoryValue::new_checked(value, bit_size)
+                    .expect("Invalid value for the given bit size"),
+            );
         }
     }
 
@@ -625,10 +640,10 @@ fn build_source_to_opcode_debug_mappings(
     result
 }
 
+// TODO: update all debugger tests to use unconstrained brillig pointers
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{DebugCommandResult, DebugContext};
 
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
@@ -644,8 +659,6 @@ mod tests {
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
     };
-    use nargo::artifacts::debug::DebugArtifact;
-    use std::collections::BTreeMap;
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
@@ -694,12 +707,14 @@ mod tests {
 
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
+        let brillig_funcs = &vec![];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
+            brillig_funcs,
         );
 
         assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
@@ -801,12 +816,14 @@ mod tests {
 
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
+        let brillig_funcs = &vec![];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
+            brillig_funcs,
         );
 
         // set breakpoint
@@ -858,12 +875,14 @@ mod tests {
         let circuit = Circuit { opcodes, ..Circuit::default() };
         let debug_artifact =
             DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
+        let brillig_funcs = &vec![];
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,
             &circuit,
             &debug_artifact,
             WitnessMap::new(),
             Box::new(DefaultDebugForeignCallExecutor::new(true)),
+            brillig_funcs,
         );
 
         assert_eq!(context.offset_opcode_location(&None, 0), (None, 0));

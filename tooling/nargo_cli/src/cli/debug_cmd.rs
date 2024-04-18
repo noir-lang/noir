@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -187,7 +187,11 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+                let witness_path = save_witness_to_dir(
+                    WitnessStack::from(solved_witness),
+                    witness_name,
+                    target_dir,
+                )?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
@@ -228,7 +232,7 @@ pub(crate) fn debug_program(
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![compiled_program.debug.clone()],
+        debug_symbols: compiled_program.debug.clone(),
         file_map: compiled_program.file_map.clone(),
         warnings: compiled_program.warnings.clone(),
     };
@@ -238,6 +242,7 @@ pub(crate) fn debug_program(
         &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,
+        &compiled_program.program.unconstrained_functions,
     )
     .map_err(CliError::from)
 }

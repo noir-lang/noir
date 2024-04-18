@@ -24,8 +24,8 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    pub const fn as_expr(&self) -> &ExprId {
-        &self.0
+    pub const fn as_expr(&self) -> ExprId {
+        self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
@@ -124,6 +124,10 @@ pub struct FuncMeta {
     /// True if this function is an entry point to the program.
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,
+
+    /// True if this function is marked with an attribute
+    /// that indicates it should not be inlined, such as for folding.
+    pub should_fold: bool,
 }
 
 impl FuncMeta {

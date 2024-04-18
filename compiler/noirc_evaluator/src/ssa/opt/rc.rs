@@ -206,7 +206,8 @@ mod test {
         //     return [v0]
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), main_id, RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("foo".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
 
         let inner_array_type = Type::Array(Rc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(inner_array_type.clone());
@@ -245,7 +246,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("mutator".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("mutator".into(), main_id);
 
         let array_type = Type::Array(Rc::new(vec![Type::field()]), 2);
         let v0 = builder.add_parameter(array_type.clone());
@@ -294,7 +295,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("mutator2".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("mutator2".into(), main_id);
 
         let array_type = Type::Array(Rc::new(vec![Type::field()]), 2);
         let reference_type = Type::Reference(Rc::new(array_type.clone()));

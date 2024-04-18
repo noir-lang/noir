@@ -36,9 +36,7 @@ impl DebugVars {
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
         self.variables.get(&var_id).and_then(|debug_var| {
-            let Some(ptype) = self.types.get(&debug_var.debug_type_id) else {
-                return None;
-            };
+            let ptype = self.types.get(&debug_var.debug_type_id)?;
             Some((debug_var.name.as_str(), ptype))
         })
     }

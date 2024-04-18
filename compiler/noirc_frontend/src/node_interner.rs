@@ -146,6 +146,7 @@ pub struct NodeInterner {
     // Maps GlobalId -> GlobalInfo
     // NOTE: currently only used for checking repeat globals and restricting their scope to a module
     globals: Vec<GlobalInfo>,
+    global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -222,10 +223,10 @@ pub enum TraitImplKind {
 ///
 /// Additionally, types can define specialized impls with methods of the same name
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Methods {
-    direct: Vec<FuncId>,
-    trait_impl_methods: Vec<FuncId>,
+    pub direct: Vec<FuncId>,
+    pub trait_impl_methods: Vec<FuncId>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -241,6 +242,8 @@ pub struct FunctionModifiers {
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
+
+    pub is_comptime: bool,
 }
 
 impl FunctionModifiers {
@@ -253,6 +256,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
         }
     }
 }
@@ -480,6 +484,7 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
+            global_attributes: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -647,11 +652,13 @@ impl NodeInterner {
         local_id: LocalModuleId,
         let_statement: StmtId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
         let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+
         self.globals.push(GlobalInfo {
             id,
             definition_id,
@@ -660,6 +667,7 @@ impl NodeInterner {
             let_statement,
             location,
         });
+        self.global_attributes.insert(id, attributes);
         id
     }
 
@@ -673,9 +681,10 @@ impl NodeInterner {
         name: Ident,
         local_id: LocalModuleId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        self.push_global(name, local_id, statement, file)
+        self.push_global(name, local_id, statement, file, attributes)
     }
 
     /// Intern an empty function.
@@ -753,6 +762,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
     }
@@ -838,6 +848,10 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
+    pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
+        &self.global_attributes[global_id]
+    }
+
     /// Returns the interned statement corresponding to `stmt_id`
     pub fn statement(&self, stmt_id: &StmtId) -> HirStatement {
         let def =
@@ -907,8 +921,30 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
+    pub fn statement_span(&self, stmt_id: &StmtId) -> Span {
+        self.id_location(stmt_id).span
+    }
+
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
+        self.struct_methods
+            .keys()
+            .filter_map(|(key_id, name)| {
+                if key_id == &id {
+                    Some(
+                        self.struct_methods
+                            .get(&(*key_id, name.clone()))
+                            .expect("get_struct_methods given invalid StructId")
+                            .clone(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1079,6 +1115,7 @@ impl NodeInterner {
     /// constraint, but when where clauses are involved, the failing constraint may be several
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
+    /// If this list of failing constraints is empty, this means type annotations are required.
     pub fn lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -1121,6 +1158,10 @@ impl NodeInterner {
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
+    /// On error returns either:
+    /// - 1+ failing trait constraints, including the original.
+    ///   Each constraint after the first represents a `where` clause that was followed.
+    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
     pub fn try_lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -1138,6 +1179,11 @@ impl NodeInterner {
         Ok((impl_kind, bindings))
     }
 
+    /// Returns the trait implementation if found.
+    /// On error returns either:
+    /// - 1+ failing trait constraints, including the original.
+    ///   Each constraint after the first represents a `where` clause that was followed.
+    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
     fn lookup_trait_implementation_helper(
         &self,
         object_type: &Type,
@@ -1156,15 +1202,22 @@ impl NodeInterner {
 
         let object_type = object_type.substitute(type_bindings);
 
+        // If the object type isn't known, just return an error saying type annotations are needed.
+        if object_type.is_bindable() {
+            return Err(Vec::new());
+        }
+
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
+        let mut matching_impls = Vec::new();
 
         for (existing_object_type2, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type2.instantiate(self);
 
-            let mut fresh_bindings = TypeBindings::new();
+            let mut fresh_bindings = type_bindings.clone();
 
             let mut check_trait_generics = |impl_generics: &[Type]| {
                 trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic2)| {
@@ -1189,16 +1242,13 @@ impl NodeInterner {
             }
 
             if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
-                // The unification was successful so we can append fresh_bindings to our bindings list
-                type_bindings.extend(fresh_bindings);
-
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
                     if let Err(mut errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
-                        type_bindings,
+                        &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
@@ -1207,11 +1257,20 @@ impl NodeInterner {
                     }
                 }
 
-                return Ok(impl_kind.clone());
+                matching_impls.push((impl_kind.clone(), fresh_bindings));
             }
         }
 
-        Err(vec![make_constraint()])
+        if matching_impls.len() == 1 {
+            let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
+            *type_bindings = fresh_bindings;
+            Ok(impl_)
+        } else if matching_impls.is_empty() {
+            Err(vec![make_constraint()])
+        } else {
+            // multiple matching impls, type annotations needed
+            Err(vec![])
+        }
     }
 
     /// Verifies that each constraint in the given where clause is valid.
@@ -1227,12 +1286,11 @@ impl NodeInterner {
             // Instantiation bindings are generally safe to force substitute into the same type.
             // This is needed here to undo any bindings done to trait methods by monomorphization.
             // Otherwise, an impl for (A, B) could get narrowed to only an impl for e.g. (u8, u16).
-            let constraint_type = constraint.typ.force_substitute(instantiation_bindings);
-            let constraint_type = constraint_type.substitute(type_bindings);
+            let constraint_type =
+                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
             let trait_generics = vecmap(&constraint.trait_generics, |generic| {
-                let generic = generic.force_substitute(instantiation_bindings);
-                generic.substitute(type_bindings)
+                generic.force_substitute(instantiation_bindings).substitute(type_bindings)
             });
 
             self.lookup_trait_implementation_helper(
@@ -1241,10 +1299,11 @@ impl NodeInterner {
                 &trait_generics,
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
-                &mut TypeBindings::new(),
+                type_bindings,
                 recursion_limit - 1,
             )?;
         }
+
         Ok(())
     }
 

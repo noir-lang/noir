@@ -1,4 +1,4 @@
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -91,7 +91,7 @@ pub(crate) fn run(
 
         let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
-        let (return_value, solved_witness) = execute_program_and_decode(
+        let (return_value, witness_stack) = execute_program_and_decode(
             compiled_program,
             package,
             &args.prover_name,
@@ -103,7 +103,7 @@ pub(crate) fn run(
             println!("[{}] Circuit output: {return_value:?}", package.name);
         }
         if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+            let witness_path = save_witness_to_dir(witness_stack, witness_name, target_dir)?;
 
             println!("[{}] Witness saved to {}", package.name, witness_path.display());
         }
@@ -116,38 +116,40 @@ fn execute_program_and_decode(
     package: &Package,
     prover_name: &str,
     foreign_call_resolver_url: Option<&str>,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
+) -> Result<(Option<InputValue>, WitnessStack), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
+    let witness_stack = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
     let public_abi = program.abi.public_abi();
-    let (_, return_value) = public_abi.decode(&solved_witness)?;
+    // Get the entry point witness for the ABI
+    let main_witness =
+        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
+    let (_, return_value) = public_abi.decode(main_witness)?;
 
-    Ok((return_value, solved_witness))
+    Ok((return_value, witness_stack))
 }
 
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
     foreign_call_resolver_url: Option<&str>,
-) -> Result<WitnessMap, CliError> {
+) -> Result<WitnessStack, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    // TODO(https://github.com/noir-lang/noir/issues/4428)
-    let solved_witness_err = nargo::ops::execute_circuit(
-        &compiled_program.program.functions[0],
+    let solved_witness_stack_err = nargo::ops::execute_program(
+        &compiled_program.program,
         initial_witness,
         &blackbox_solver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     );
-    match solved_witness_err {
-        Ok(solved_witness) => Ok(solved_witness),
+    match solved_witness_stack_err {
+        Ok(solved_witness_stack) => Ok(solved_witness_stack),
         Err(err) => {
             let debug_artifact = DebugArtifact {
-                debug_symbols: vec![compiled_program.debug.clone()],
+                debug_symbols: compiled_program.debug.clone(),
                 file_map: compiled_program.file_map.clone(),
                 warnings: compiled_program.warnings.clone(),
             };
