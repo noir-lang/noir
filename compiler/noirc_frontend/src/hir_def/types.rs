@@ -732,7 +732,7 @@ impl Type {
     /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
     /// certain types which through compilation we know what their size should be.
     /// This includes types such as numeric generics.
-    pub(crate) fn is_valid_entry_point_input(&self) -> bool {
+    pub(crate) fn is_valid_non_inlined_function_input(&self) -> bool {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
@@ -758,19 +758,19 @@ impl Type {
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
-                alias.get_type(generics).is_valid_entry_point_input()
+                alias.get_type(generics).is_valid_non_inlined_function_input()
             }
 
             Type::Array(length, element) => {
-                length.is_valid_entry_point_input() && element.is_valid_entry_point_input()
+                length.is_valid_non_inlined_function_input() && element.is_valid_non_inlined_function_input()
             }
-            Type::String(length) => length.is_valid_entry_point_input(),
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_entry_point_input()),
+            Type::String(length) => length.is_valid_non_inlined_function_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
             Type::Struct(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
                 .into_iter()
-                .all(|(_, field)| field.is_valid_entry_point_input()),
+                .all(|(_, field)| field.is_valid_non_inlined_function_input()),
         }
     }
 
