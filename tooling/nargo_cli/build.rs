@@ -482,6 +482,8 @@ fn plonky2_prove_failure_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to result in
 /// an ICE with a message referring to unsupported features.
+/// TODO(stanm): Eliminate dead code before merging into master.
+#[allow(dead_code)]
 fn generate_plonky2_prove_unsupported_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "plonky2_prove_unsupported";
     let test_data_dir = test_data_dir.join(test_sub_dir);
@@ -522,6 +524,8 @@ fn plonky2_prove_unsupported_{test_name}() {{
 }
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to crash.
+/// TODO(stanm): Eliminate dead code before merging into master.
+#[allow(dead_code)]
 fn generate_plonky2_prove_crash_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "plonky2_prove_crash";
     let test_data_dir = test_data_dir.join(test_sub_dir);
