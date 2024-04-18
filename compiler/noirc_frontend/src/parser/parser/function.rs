@@ -36,7 +36,6 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 name,
                 attributes,
                 is_unconstrained: modifiers.0,
-                is_comptime: false, // TODO
                 visibility: modifiers.1,
                 is_comptime: modifiers.2,
                 generics,
