@@ -1,3 +1,4 @@
+import { TimeoutError } from '../error/index.js';
 import { createDebugLogger } from '../log/index.js';
 
 /**
@@ -46,7 +47,7 @@ export class MemoryFifo<T> {
           const index = this.waiting.findIndex(r => r === resolve);
           if (index > -1) {
             this.waiting.splice(index, 1);
-            const err = new Error('Timeout getting item from queue.');
+            const err = new TimeoutError('Timeout getting item from queue.');
             reject(err);
           }
         }, timeout * 1000);

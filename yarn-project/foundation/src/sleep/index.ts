@@ -1,4 +1,4 @@
-import { InterruptError } from '../errors/index.js';
+import { InterruptError } from '../error/index.js';
 
 /**
  * InterruptibleSleep is a utility class that allows you to create an interruptible sleep function.

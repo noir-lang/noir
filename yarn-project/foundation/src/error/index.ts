@@ -4,3 +4,8 @@
  * can be used to handle cases where a process or task is terminated before completion.
  */
 export class InterruptError extends Error {}
+
+/**
+ * An error thrown when an action times out.
+ */
+export class TimeoutError extends Error {}

@@ -6,7 +6,7 @@ export * as bigintBuffer from './bigint-buffer/index.js';
 export * as collection from './collection/index.js';
 export * as committable from './committable/index.js';
 export * as crypto from './crypto/index.js';
-export * as errors from './errors/index.js';
+export * as errors from './error/index.js';
 export * as ethAddress from './eth-address/index.js';
 export * as fields from './fields/index.js';
 export * as fifo from './fifo/index.js';
