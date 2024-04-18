@@ -108,21 +108,19 @@ impl Context {
     fn responds_to_side_effects_var(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
         use Instruction::*;
         match instruction {
-            Binary(binary) => {
-                match binary.operator {
-                    BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
-                        dfg.type_of_value(binary.lhs).is_unsigned()
-                    }
-                    BinaryOp::Div | BinaryOp::Mod => {
-                        if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                            rhs == FieldElement::zero()
-                        } else {
-                            true
-                        }
-                    }
-                    _ => false,
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
+                    dfg.type_of_value(binary.lhs).is_unsigned()
                 }
-            }
+                BinaryOp::Div | BinaryOp::Mod => {
+                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                        rhs == FieldElement::zero()
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
 
             Cast(_, _)
             | Not(_)
