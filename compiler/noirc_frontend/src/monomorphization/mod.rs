@@ -620,7 +620,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Error => unreachable!(),
 
             // All `comptime` statements & expressions should be removed before runtime.
-            HirStatement::Comptime(_) => unreachable!("comptime statement in runtime code"),
+            HirStatement::CompTime(_) => unreachable!("comptime statement in runtime code"),
         }
     }
 

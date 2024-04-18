@@ -39,7 +39,7 @@ pub enum StatementKind {
     Break,
     Continue,
     /// This statement should be executed at compile-time
-    Comptime(Box<StatementKind>),
+    CompTime(Box<StatementKind>),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -86,10 +86,10 @@ impl StatementKind {
                 }
                 self
             }
-            StatementKind::Comptime(mut statement) => {
+            StatementKind::CompTime(mut statement) => {
                 *statement =
                     statement.add_semicolon(semi, span, last_statement_in_block, emit_error);
-                StatementKind::Comptime(statement)
+                StatementKind::CompTime(statement)
             }
             // A semicolon on a for loop is optional and does nothing
             StatementKind::For(_) => self,
@@ -684,7 +684,7 @@ impl Display for StatementKind {
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
-            StatementKind::Comptime(statement) => write!(f, "comptime {statement}"),
+            StatementKind::CompTime(statement) => write!(f, "comptime {statement}"),
             StatementKind::Semi(semi) => write!(f, "{semi};"),
             StatementKind::Error => write!(f, "Error"),
         }

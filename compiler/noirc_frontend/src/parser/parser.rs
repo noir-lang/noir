@@ -540,7 +540,7 @@ where
                 StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
             }),
         )))
-        .map(|statement| StatementKind::Comptime(Box::new(statement)))
+        .map(|statement| StatementKind::CompTime(Box::new(statement)))
 }
 
 /// Comptime in an expression position only accepts entire blocks
