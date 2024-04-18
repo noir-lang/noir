@@ -469,7 +469,7 @@ fn generate_plonky2_prove_failure_tests(test_file: &mut File, test_data_dir: &Pa
             test_file,
             r#"
 #[test]
-fn noirc_frontend_failure_{test_name}() {{
+fn plonky2_prove_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
