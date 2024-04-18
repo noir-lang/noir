@@ -44,6 +44,10 @@ pub(crate) struct Interpreter<'interner> {
     changed_globally: bool,
 
     in_loop: bool,
+
+    /// True if we're currently in a compile-time context.
+    /// If this is false code is skipped over instead of executed.
+    in_comptime_context: bool,
 }
 
 #[allow(unused)]
@@ -121,6 +125,7 @@ impl<'a> Interpreter<'a> {
             changed_functions: FxHashSet::default(),
             changed_globally: false,
             in_loop: false,
+            in_comptime_context: false,
         }
     }
 
@@ -1074,6 +1079,7 @@ impl<'a> Interpreter<'a> {
             HirStatement::Break => self.evaluate_break(),
             HirStatement::Continue => self.evaluate_continue(),
             HirStatement::Expression(expression) => self.evaluate(expression),
+            HirStatement::Comptime(statement) => self.evaluate_comptime(statement),
             HirStatement::Semi(expression) => {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
@@ -1245,6 +1251,13 @@ impl<'a> Interpreter<'a> {
         } else {
             Err(InterpreterError::ContinueNotInLoop)
         }
+    }
+
+    fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
+        let was_in_comptime = std::mem::replace(&mut self.in_comptime_context, true);
+        let result = self.evaluate_statement(statement);
+        self.in_comptime_context = was_in_comptime;
+        result
     }
 }
 
