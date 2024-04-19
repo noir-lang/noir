@@ -20,7 +20,7 @@ use crate::{
         stmt::HirForStatement,
     },
     macros_api::{HirExpression, HirLiteral, HirStatement},
-    node_interner::{ExprId, StmtId},
+    node_interner::{ExprId, StmtId, FuncId},
 };
 
 use super::{
@@ -30,6 +30,13 @@ use super::{
 
 #[allow(dead_code)]
 impl<'interner> Interpreter<'interner> {
+    /// Scan through a function, evaluating any CompTime nodes found.
+    /// These nodes will be modified in place, replaced with the
+    /// result of their evaluation.
+    pub fn scan_function(&mut self, function: FuncId) {
+
+    }
+
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
         match self.interner.expression(&expr) {
             HirExpression::Ident(_) => todo!(),
@@ -46,6 +53,10 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::If(if_) => self.scan_if(if_),
             HirExpression::Tuple(tuple) => self.scan_tuple(tuple),
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
+            HirExpression::CompTime(block) => {
+                let _value = self.evaluate_block(block)?;
+                todo!("Inline block into hir")
+            }
             HirExpression::Quote(_) => {
                 // This error could be detected much earlier in the compiler pipeline but
                 // it just makes sense for the comptime code to handle comptime things.

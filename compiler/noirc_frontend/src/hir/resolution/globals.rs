@@ -11,6 +11,7 @@ use crate::{
 use fm::FileId;
 use iter_extended::vecmap;
 
+#[derive(Default)]
 pub(crate) struct ResolvedGlobals {
     pub(crate) globals: Vec<(FileId, GlobalId)>,
     pub(crate) errors: Vec<(CompilationError, FileId)>,

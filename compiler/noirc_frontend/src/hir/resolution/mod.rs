@@ -18,7 +18,7 @@ mod traits;
 mod type_aliases;
 
 pub(crate) use functions::resolve_free_functions;
-pub(crate) use globals::resolve_globals;
+pub(crate) use globals::{resolve_globals, ResolvedGlobals};
 pub(crate) use impls::{collect_impls, resolve_impls};
 pub(crate) use structs::resolve_structs;
 pub(crate) use traits::{

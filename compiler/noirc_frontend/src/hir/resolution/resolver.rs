@@ -1535,7 +1535,9 @@ impl<'a> Resolver<'a> {
                 collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
-            ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
+            ExpressionKind::Block(block_expr) => {
+                HirExpression::Block(self.resolve_block(block_expr))
+            }
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
 
@@ -1602,6 +1604,7 @@ impl<'a> Resolver<'a> {
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
+            ExpressionKind::CompTime(block) => HirExpression::CompTime(self.resolve_block(block)),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -1934,14 +1937,14 @@ impl<'a> Resolver<'a> {
         Ok(path_resolution.module_def_id)
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
+    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
         let statements =
             self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
-        HirExpression::Block(HirBlockExpression { statements })
+        HirBlockExpression { statements }
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
-        let hir_block = self.resolve_block(block);
+        let hir_block = HirExpression::Block(self.resolve_block(block));
         self.interner.push_expr(hir_block)
     }
 

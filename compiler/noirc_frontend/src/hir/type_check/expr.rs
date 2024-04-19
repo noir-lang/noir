@@ -5,8 +5,8 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
-            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirExpression, HirIdent,
+            HirLiteral, HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -270,34 +270,7 @@ impl<'interner> TypeChecker<'interner> {
                 let span = self.interner.expr_span(expr_id);
                 self.check_cast(lhs_type, cast_expr.r#type, span)
             }
-            HirExpression::Block(block_expr) => {
-                let mut block_type = Type::Unit;
-
-                let statements = block_expr.statements();
-                for (i, stmt) in statements.iter().enumerate() {
-                    let expr_type = self.check_statement(stmt);
-
-                    if let crate::hir_def::stmt::HirStatement::Semi(expr) =
-                        self.interner.statement(stmt)
-                    {
-                        let inner_expr_type = self.interner.id_type(expr);
-                        let span = self.interner.expr_span(&expr);
-
-                        self.unify(&inner_expr_type, &Type::Unit, || {
-                            TypeCheckError::UnusedResultError {
-                                expr_type: inner_expr_type.clone(),
-                                expr_span: span,
-                            }
-                        });
-                    }
-
-                    if i + 1 == statements.len() {
-                        block_type = expr_type;
-                    }
-                }
-
-                block_type
-            }
+            HirExpression::Block(block_expr) => self.check_block(block_expr),
             HirExpression::Prefix(prefix_expr) => {
                 let rhs_type = self.check_expression(&prefix_expr.rhs);
                 let span = self.interner.expr_span(&prefix_expr.rhs);
@@ -335,10 +308,36 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
             HirExpression::Quote(_) => Type::Code,
+            HirExpression::CompTime(block) => self.check_block(block),
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());
         typ
+    }
+
+    fn check_block(&mut self, block: HirBlockExpression) -> Type {
+        let mut block_type = Type::Unit;
+
+        let statements = block.statements();
+        for (i, stmt) in statements.iter().enumerate() {
+            let expr_type = self.check_statement(stmt);
+
+            if let crate::hir_def::stmt::HirStatement::Semi(expr) = self.interner.statement(stmt) {
+                let inner_expr_type = self.interner.id_type(expr);
+                let span = self.interner.expr_span(&expr);
+
+                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
+                    expr_type: inner_expr_type.clone(),
+                    expr_span: span,
+                });
+            }
+
+            if i + 1 == statements.len() {
+                block_type = expr_type;
+            }
+        }
+
+        block_type
     }
 
     /// Returns the type of the given identifier

@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirExpression, HirIdent};
+use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::macros_api::HirLiteral;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
@@ -107,10 +107,7 @@ impl ExprId {
                 ExpressionKind::Literal(Literal::FmtStr(string))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
-            HirExpression::Block(expr) => {
-                let statements = vecmap(expr.statements, |statement| statement.to_ast(interner));
-                ExpressionKind::Block(BlockExpression { statements })
-            }
+            HirExpression::Block(expr) => ExpressionKind::Block(expr.into_ast(interner)),
             HirExpression::Prefix(prefix) => ExpressionKind::Prefix(Box::new(PrefixExpression {
                 operator: prefix.operator,
                 rhs: prefix.rhs.to_ast(interner),
@@ -173,6 +170,7 @@ impl ExprId {
             }
             HirExpression::Quote(block) => ExpressionKind::Quote(block),
             HirExpression::Error => ExpressionKind::Error,
+            HirExpression::CompTime(block) => ExpressionKind::CompTime(block.into_ast(interner)),
         };
 
         Expression::new(kind, span)
@@ -350,5 +348,12 @@ impl HirArrayLiteral {
                 ArrayLiteral::Repeated { repeated_element, length }
             }
         }
+    }
+}
+
+impl HirBlockExpression {
+    fn into_ast(self, interner: &NodeInterner) -> BlockExpression {
+        let statements = vecmap(self.statements, |statement| statement.to_ast(interner));
+        BlockExpression { statements }
     }
 }

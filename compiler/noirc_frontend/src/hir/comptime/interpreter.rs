@@ -29,7 +29,7 @@ use super::errors::{IResult, InterpreterError};
 use super::value::Value;
 
 #[allow(unused)]
-pub(crate) struct Interpreter<'interner> {
+pub struct Interpreter<'interner> {
     /// To expand macros the Interpreter may mutate hir nodes within the NodeInterner
     pub(super) interner: &'interner mut NodeInterner,
 
@@ -313,6 +313,7 @@ impl<'a> Interpreter<'a> {
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
+            HirExpression::CompTime(block) => self.evaluate_block(block),
             HirExpression::Error => {
                 let location = self.interner.expr_location(&id);
                 Err(InterpreterError::ErrorNodeEncountered { location })
@@ -441,7 +442,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub(super) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
