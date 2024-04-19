@@ -51,6 +51,7 @@ impl<'interner> TypeChecker<'interner> {
             HirStatement::Constrain(constrain_stmt) => self.check_constrain_stmt(constrain_stmt),
             HirStatement::Assign(assign_stmt) => self.check_assign_stmt(assign_stmt, stmt_id),
             HirStatement::For(for_loop) => self.check_for_loop(for_loop),
+            HirStatement::Comptime(statement) => return self.check_statement(&statement),
             HirStatement::Break | HirStatement::Continue | HirStatement::Error => (),
         }
         Type::Unit
