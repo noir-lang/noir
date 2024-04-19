@@ -293,11 +293,15 @@ impl Ssa {
                     }
                 }
                 // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
-                for ((_, opcode_location), brillig_function_pointer) in
+                for ((func_id, opcode_location), brillig_function_pointer) in
                     shared_context.brillig_stdlib_calls_to_resolve.iter()
                 {
-                    generated_acir
-                        .resolve_brillig_stdlib_call(*opcode_location, *brillig_function_pointer);
+                    if *func_id == function.id() {
+                        generated_acir.resolve_brillig_stdlib_call(
+                            *opcode_location,
+                            *brillig_function_pointer,
+                        );
+                    }
                 }
 
                 generated_acir.name = function.name().to_owned();
@@ -2581,6 +2585,8 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeMap;
+
     use acvm::{
         acir::{
             circuit::{Opcode, OpcodeLocation},
@@ -2848,7 +2854,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
+        let (acir_functions, brillig_functions) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3028,38 +3034,12 @@ mod test {
 
         let main_acir = &acir_functions[0];
         let main_opcodes = main_acir.opcodes();
-
-        let mut num_brillig_stdlib_calls = 0;
-        let brillig_stdlib_function_locations = &acir_functions[0].brillig_stdlib_func_locations;
-        for (i, (opcode_location, brillig_stdlib_func)) in
-            brillig_stdlib_function_locations.iter().enumerate()
-        {
-            // We can take just modulo 2 to determine the expected ID as we only code generated two Brillig stdlib function
-            let stdlib_func_index = (i % 2) as u32;
-            if stdlib_func_index == 0 {
-                assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Inverse));
-            } else {
-                assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Quotient(_)));
-            }
-
-            match opcode_location {
-                OpcodeLocation::Acir(acir_index) => match main_opcodes[*acir_index] {
-                    Opcode::BrilligCall { id, .. } => {
-                        assert_eq!(
-                            id, stdlib_func_index,
-                            "Expected {stdlib_func_index} but got {id}"
-                        );
-                        num_brillig_stdlib_calls += 1;
-                    }
-                    _ => panic!("Expected BrilligCall opcode"),
-                },
-                _ => panic!("Expected OpcodeLocation::Acir"),
-            }
-        }
-
-        assert_eq!(
-            num_brillig_stdlib_calls, 4,
-            "Should have four BrilligCall opcodes to stdlib functions"
+        check_brillig_calls(
+            &acir_functions[0].brillig_stdlib_func_locations,
+            main_opcodes,
+            0,
+            4,
+            0,
         );
     }
 
@@ -3127,9 +3107,111 @@ mod test {
 
         let main_acir = &acir_functions[0];
         let main_opcodes = main_acir.opcodes();
+        check_brillig_calls(
+            &acir_functions[0].brillig_stdlib_func_locations,
+            main_opcodes,
+            1,
+            4,
+            2,
+        );
+    }
 
+    // Test that given both normal Brillig calls, Brillig stdlib calls, and non-inlined ACIR calls, that we accurately generate ACIR.
+    #[test]
+    fn brillig_stdlib_calls_with_multiple_acir_calls() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: u32, v1: u32, v2: u32):
+        //       v4 = div v0, v1
+        //       constrain v4 == v2
+        //       v5 = call f1(v0, v1)
+        //       v6 = call f2(v0, v1)
+        //       v7 = div v0, v1
+        //       constrain v7 == u32 1
+        //       return
+        // }
+        // brillig fn foo f1 {
+        //   b0(v0: Field, v1: Field):
+        //     v2 = eq v0, v1
+        //     constrain v2 == u1 0
+        //     return v0
+        // }
+        // acir(fold) fn foo f2 {
+        //     b0(v0: Field, v1: Field):
+        //       v2 = eq v0, v1
+        //       constrain v2 == u1 0
+        //       return v0
+        //   }
+        // }
+        let foo_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), foo_id);
+        let main_v0 = builder.add_parameter(Type::unsigned(32));
+        let main_v1 = builder.add_parameter(Type::unsigned(32));
+        let main_v2 = builder.add_parameter(Type::unsigned(32));
+
+        let foo_id = Id::test_new(1);
+        let foo = builder.import_function(foo_id);
+        let bar_id = Id::test_new(2);
+        let bar = builder.import_function(bar_id);
+
+        // Call a primitive operation that uses Brillig
+        let v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
+        builder.insert_constrain(v0_div_v1, main_v2, None);
+
+        // Insert multiple calls to the same Brillig function
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+        builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
+
+        // Call the same primitive operation again
+        let v2_div_v2 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
+        let one = builder.numeric_constant(1u128, Type::unsigned(32));
+        builder.insert_constrain(v2_div_v2, one, None);
+
+        builder.terminate_with_return(vec![]);
+
+        build_basic_foo_with_return(&mut builder, foo_id, true);
+        build_basic_foo_with_return(&mut builder, bar_id, false);
+
+        let ssa = builder.finish();
+        // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
+        let brillig = ssa.to_brillig(false);
+        println!("{}", ssa);
+
+        let (acir_functions, brillig_functions) = ssa
+            .into_acir(&brillig, noirc_frontend::Distinctness::Distinct)
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
+        assert_eq!(
+            brillig_functions.len(),
+            3,
+            "Should only have generated three Brillig functions"
+        );
+
+        let main_acir = &acir_functions[0];
+        let main_opcodes = main_acir.opcodes();
+        check_brillig_calls(
+            &acir_functions[0].brillig_stdlib_func_locations,
+            main_opcodes,
+            1,
+            4,
+            2,
+        );
+
+        let foo_acir = &acir_functions[1];
+        let foo_opcodes = foo_acir.opcodes();
+        check_brillig_calls(&acir_functions[1].brillig_stdlib_func_locations, foo_opcodes, 1, 1, 0);
+    }
+
+    fn check_brillig_calls(
+        brillig_stdlib_function_locations: &BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
+        opcodes: &[Opcode],
+        num_normal_brillig_functions: u32,
+        expected_num_stdlib_calls: u32,
+        expected_num_normal_calls: u32,
+    ) {
+        // First we check calls to the Brillig stdlib
         let mut num_brillig_stdlib_calls = 0;
-        let brillig_stdlib_function_locations = &acir_functions[0].brillig_stdlib_func_locations;
         for (i, (opcode_location, brillig_stdlib_func)) in
             brillig_stdlib_function_locations.iter().enumerate()
         {
@@ -3143,12 +3225,12 @@ mod test {
 
             match opcode_location {
                 OpcodeLocation::Acir(acir_index) => {
-                    match main_opcodes[*acir_index] {
+                    match opcodes[*acir_index] {
                         Opcode::BrilligCall { id, .. } => {
                             // Brillig stdlib function calls are only resolved at the end of ACIR generation so their
                             // IDs are expected to always reference Brillig bytecode at the end of the Brillig functions list.
                             // We have one normal Brillig call so we add one here to the std lib function's index within the std lib.
-                            let expected_id = stdlib_func_index + 1;
+                            let expected_id = stdlib_func_index + num_normal_brillig_functions;
                             assert_eq!(id, expected_id, "Expected {expected_id} but got {id}");
                             num_brillig_stdlib_calls += 1;
                         }
@@ -3160,13 +3242,14 @@ mod test {
         }
 
         assert_eq!(
-            num_brillig_stdlib_calls, 4,
-            "Should have four BrilligCall opcodes to stdlib functions"
+            num_brillig_stdlib_calls, expected_num_stdlib_calls,
+            "Should have {expected_num_stdlib_calls} BrilligCall opcodes to stdlib functions but got {num_brillig_stdlib_calls}"
         );
 
-        // Check the normal Brillig call
+        // Check the normal Brillig calls
+        // This check right now expects to only call one Brillig function.
         let mut num_normal_brillig_calls = 0;
-        for (i, opcode) in main_opcodes.iter().enumerate() {
+        for (i, opcode) in opcodes.iter().enumerate() {
             match opcode {
                 Opcode::BrilligCall { id, .. } => {
                     if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
@@ -3183,8 +3266,8 @@ mod test {
         }
 
         assert_eq!(
-            num_normal_brillig_calls, 2,
-            "Should have two BrilligCall opcodes to normal Brillig functions"
+            num_normal_brillig_calls, expected_num_normal_calls,
+            "Should have {expected_num_normal_calls} BrilligCall opcodes to normal Brillig functions but got {num_normal_brillig_calls}"
         );
     }
 }
