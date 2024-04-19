@@ -334,7 +334,7 @@ impl AcirContext {
             true,
             false,
             0,
-            Some(BrilligStdlibFunc::Inverse)
+            Some(BrilligStdlibFunc::Inverse),
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -724,7 +724,7 @@ impl AcirContext {
                 true,
                 false,
                 0,
-                Some(BrilligStdlibFunc::Quotient(bit_size + 1))
+                Some(BrilligStdlibFunc::Quotient(bit_size + 1)),
             )?
             .try_into()
             .expect("quotient only returns two values");
