@@ -137,16 +137,6 @@ export class PublicExecutionContext extends TypedOracle {
   }
 
   /**
-   * Retrieves the portal contract address associated with the given contract address.
-   * Returns zero address if the input contract address is not found or invalid.
-   * @param contractAddress - The address of the contract whose portal address is to be fetched.
-   * @returns The portal contract address.
-   */
-  public override async getPortalContractAddress(contractAddress: AztecAddress) {
-    return (await this.contractsDb.getPortalContractAddress(contractAddress)) ?? EthAddress.ZERO;
-  }
-
-  /**
    * Read the public storage data.
    * @param startStorageSlot - The starting storage slot.
    * @param numberOfElements - Number of elements to read from the starting storage slot.

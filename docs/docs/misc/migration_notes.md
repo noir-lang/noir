@@ -6,7 +6,7 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
-## TBD
+## 0.36.0
 
 ### [Aztec.nr] Contract interfaces
 
@@ -63,6 +63,30 @@ The `request_max_block_number` function has been renamed to `set_tx_max_block_nu
 - context.request_max_block_number(value);
 + context.set_tx_max_block_number(value);
 ```
+
+### [Aztec.nr] Get portal address
+
+The `get_portal_address` oracle was removed. If you need to get the portal address of SomeContract, add the following methods to it
+
+```
+#[aztec(private)]
+fn get_portal_address() -> EthAddress {
+    context.this_portal_address()
+}
+
+#[aztec(public)]
+fn get_portal_address_public() -> EthAddress {
+    context.this_portal_address()
+}
+```
+
+and change the call to `get_portal_address`
+
+```diff
+- let portal_address = get_portal_address(contract_address);
++ let portal_address = SomeContract::at(contract_address).get_portal_address().call(&mut context);
+```
+
 
 ### [Aztec.nr] Required gas limits for public-to-public calls
 

@@ -271,12 +271,6 @@ export class Oracle {
     return message.toFields().map(toACVMField);
   }
 
-  async getPortalContractAddress([aztecAddress]: ACVMField[]): Promise<ACVMField> {
-    const contractAddress = AztecAddress.fromString(aztecAddress);
-    const portalContactAddress = await this.typedOracle.getPortalContractAddress(contractAddress);
-    return toACVMField(portalContactAddress);
-  }
-
   async storageRead([startStorageSlot]: ACVMField[], [numberOfElements]: ACVMField[]): Promise<ACVMField[]> {
     const values = await this.typedOracle.storageRead(fromACVMField(startStorageSlot), +numberOfElements);
     return values.map(toACVMField);

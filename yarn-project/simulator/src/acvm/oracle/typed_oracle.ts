@@ -18,7 +18,6 @@ import {
 } from '@aztec/circuits.js';
 import { type FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
-import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
@@ -185,10 +184,6 @@ export abstract class TypedOracle {
     _secret: Fr,
   ): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     throw new OracleMethodNotAvailableError('getL1ToL2MembershipWitness');
-  }
-
-  getPortalContractAddress(_contractAddress: AztecAddress): Promise<EthAddress> {
-    throw new OracleMethodNotAvailableError('getPortalContractAddress');
   }
 
   storageRead(_startStorageSlot: Fr, _numberOfElements: number): Promise<Fr[]> {

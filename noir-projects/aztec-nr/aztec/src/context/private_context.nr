@@ -4,7 +4,7 @@ use crate::{
     hash::{hash_args_array, ArgsHasher},
     oracle::{
     arguments, returns, call_private_function::call_private_function_internal,
-    enqueue_public_function_call::enqueue_public_function_call_internal, context::get_portal_address,
+    enqueue_public_function_call::enqueue_public_function_call_internal,
     header::get_header_at, nullifier_key::{get_nullifier_key_pair, NullifierKeyPair}
 }
 };

@@ -240,16 +240,6 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
-   * Retrieves the portal contract address associated with the given contract address.
-   * Throws an error if the input contract address is not found or invalid.
-   * @param contractAddress - The address of the contract whose portal address is to be fetched.
-   * @returns The portal contract address.
-   */
-  public override getPortalContractAddress(contractAddress: AztecAddress) {
-    return this.db.getPortalContractAddress(contractAddress);
-  }
-
-  /**
    * Read the public storage data.
    * @param startStorageSlot - The starting storage slot.
    * @param numberOfElements - Number of elements to read from the starting storage slot.

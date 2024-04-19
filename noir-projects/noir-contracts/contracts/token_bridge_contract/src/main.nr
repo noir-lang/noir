@@ -31,6 +31,16 @@ contract TokenBridge {
     }
     // docs:end:token_bridge_storage_and_constructor
 
+    #[aztec(private)]
+    fn get_portal_address() -> EthAddress {
+        context.this_portal_address()
+    }
+
+    #[aztec(public)]
+    fn get_portal_address_public() -> EthAddress {
+        context.this_portal_address()
+    }
+
     // docs:start:claim_public
     // Consumes a L1->L2 message and calls the token contract to mint the appropriate amount publicly
     #[aztec(public)]

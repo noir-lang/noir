@@ -6,7 +6,6 @@ mod util;
 // Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1
 contract Uniswap {
     use dep::aztec::prelude::{FunctionSelector, AztecAddress, EthAddress, Map, PublicMutable};
-    use dep::aztec::oracle::context::get_portal_address;
     use dep::aztec::context::gas::GasOpts;
 
     use dep::authwit::auth::{
@@ -65,8 +64,8 @@ contract Uniswap {
         Uniswap::at(context.this_address())._approve_bridge_and_exit_input_asset_to_L1(input_asset, input_asset_bridge, input_amount).call(&mut context);
         // Create swap message and send to Outbox for Uniswap Portal
         // this ensures the integrity of what the user originally intends to do on L1.
-        let input_asset_bridge_portal_address = get_portal_address(input_asset_bridge);
-        let output_asset_bridge_portal_address = get_portal_address(output_asset_bridge);
+        let input_asset_bridge_portal_address = TokenBridge::at(input_asset_bridge).get_portal_address_public().call(&mut context);
+        let output_asset_bridge_portal_address = TokenBridge::at(output_asset_bridge).get_portal_address_public().call(&mut context);
         // ensure portal exists - else funds might be lost
         assert(
             !input_asset_bridge_portal_address.is_zero(), "L1 portal address of input_asset's bridge is 0"
@@ -123,8 +122,8 @@ contract Uniswap {
 
         // Create swap message and send to Outbox for Uniswap Portal
         // this ensures the integrity of what the user originally intends to do on L1.
-        let input_asset_bridge_portal_address = get_portal_address(input_asset_bridge);
-        let output_asset_bridge_portal_address = get_portal_address(output_asset_bridge);
+        let input_asset_bridge_portal_address = TokenBridge::at(input_asset_bridge).get_portal_address().call(&mut context);
+        let output_asset_bridge_portal_address = TokenBridge::at(output_asset_bridge).get_portal_address().call(&mut context);
         // ensure portal exists - else funds might be lost
         assert(
             !input_asset_bridge_portal_address.is_zero(), "L1 portal address of input_asset's bridge is 0"

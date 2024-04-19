@@ -1041,16 +1041,13 @@ describe('Private Execution test suite', () => {
   describe('Context oracles', () => {
     it("Should be able to get and return the contract's portal contract address", async () => {
       const portalContractAddress = EthAddress.random();
-      const aztecAddressToQuery = AztecAddress.random();
 
       // Tweak the contract artifact so we can extract return values
       const artifact = getFunctionArtifact(TestContractArtifact, 'get_portal_contract_address');
 
-      const args = [aztecAddressToQuery.toField()];
+      const args: Fr[] = [];
 
-      // Overwrite the oracle return value
-      oracle.getPortalContractAddress.mockResolvedValue(portalContractAddress);
-      const result = await runSimulator({ artifact, args });
+      const result = await runSimulator({ artifact, args, portalContractAddress });
       expect(result.returnValues).toEqual([portalContractAddress.toField()]);
     });
 

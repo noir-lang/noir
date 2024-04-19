@@ -27,7 +27,7 @@ contract Test {
     },
         deploy::deploy_contract as aztec_deploy_contract,
         oracle::{
-        get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address,
+        get_public_key::get_public_key as get_public_key_oracle,
         unsafe_rand::unsafe_rand
     },
         log::emit_unencrypted_log_from_private
@@ -54,10 +54,9 @@ contract Test {
         [pub_key.x, pub_key.y]
     }
 
-    // Get the portal contract address through an oracle call
     #[aztec(private)]
-    fn get_portal_contract_address(aztec_address: AztecAddress) -> EthAddress {
-        get_portal_address(aztec_address)
+    fn get_portal_contract_address() -> EthAddress {
+        context.this_portal_address()
     }
 
     // Get the address of the l1 portal for this contract (taken from the input context)
