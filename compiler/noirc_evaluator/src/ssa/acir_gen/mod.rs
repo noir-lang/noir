@@ -107,13 +107,16 @@ impl SharedContext {
         code: GeneratedBrillig,
     ) {
         self.brillig_stdlib_func_index.insert(brillig_stdlib_func, generated_pointer);
-        if let Some(calls_to_resolve) = self.brillig_stdlib_calls_to_resolve.get_mut(&func_id) {
-            calls_to_resolve.push((opcode_location, generated_pointer));
-        } else {
-            self.brillig_stdlib_calls_to_resolve
-                .insert(func_id, vec![(opcode_location, generated_pointer)]);
-        }
+        self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         self.generated_brillig.push(code);
+    }
+
+    fn add_call_to_resolve(&mut self, func_id: FunctionId, call_to_resolve: (OpcodeLocation, u32)) {
+        if let Some(calls_to_resolve) = self.brillig_stdlib_calls_to_resolve.get_mut(&func_id) {
+            calls_to_resolve.push(call_to_resolve);
+        } else {
+            self.brillig_stdlib_calls_to_resolve.insert(func_id, vec![call_to_resolve]);
+        }
     }
 }
 
@@ -298,11 +301,7 @@ impl Ssa {
                         );
                     }
                     if let Some(new_call_to_resolve) = call_to_existing_bytecode {
-                        if let Some(calls_to_resolve) =
-                            shared_context.brillig_stdlib_calls_to_resolve.get_mut(&function.id())
-                        {
-                            calls_to_resolve.push(new_call_to_resolve);
-                        }
+                        shared_context.add_call_to_resolve(function.id(), new_call_to_resolve);
                     }
                 }
 
@@ -2870,7 +2869,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, brillig_functions) = ssa
+        let (acir_functions, _) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
