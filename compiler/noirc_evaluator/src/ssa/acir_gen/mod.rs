@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
+use self::acir_ir::generated_acir::BrilligStdlibFunc;
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
 use super::ir::function::FunctionId;
@@ -22,6 +23,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
@@ -235,11 +237,33 @@ impl Ssa {
         let mut acirs = Vec::new();
         // TODO: can we parallelise this?
         let mut shared_context = SharedContext::default();
+        let mut brillig_stdlib_func_index: HashMap<BrilligStdlibFunc, u32> = HashMap::default();
+        let mut opcodes_to_resolve = HashMap::default();
         for function in self.functions.values() {
             let context = Context::new(&mut shared_context);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
+                for (opcode_location, brillig_stdlib_func) in &generated_acir.brillig_stdlib_func_locations {
+                    if let Some(generated_brillig_pointer) = brillig_stdlib_func_index.get(brillig_stdlib_func) {
+                        opcodes_to_resolve.insert((function.id(), *opcode_location), *generated_brillig_pointer);
+                    } else {
+                        let code = match brillig_stdlib_func {
+                            BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
+                            BrilligStdlibFunc::Quotient(bit_size) => brillig_directive::directive_quotient(*bit_size),
+                        };
+                        let new_generated_pointer = shared_context.generated_brillig.len() as u32;
+                        shared_context.generated_brillig.push(code);
+                        brillig_stdlib_func_index.insert(*brillig_stdlib_func, new_generated_pointer);
+                        opcodes_to_resolve.insert((function.id(), *opcode_location), new_generated_pointer);
+                    }
+                }
+                // We have to do a separate loop as the generated acir cannot be borrwed as mutable after an immutable borrow.
+                for ((_, opcode_location), brillig_function_pointer) in opcodes_to_resolve.iter() {
+                    generated_acir.resolve_brillig_stdlib_call(*opcode_location, *brillig_function_pointer);
+                }
+
+                // TODO: do I resuse the shared context logic on this 
                 generated_acir.name = function.name().to_owned();
                 acirs.push(generated_acir);
             }
@@ -376,6 +400,7 @@ impl<'a> Context<'a> {
             true,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             0,
+            None,
         )?;
         self.shared_context.insert_generated_brillig(main_func.id(), arguments, 0, code);
 
@@ -687,6 +712,7 @@ impl<'a> Context<'a> {
                                         true,
                                         false,
                                         *generated_pointer,
+                                        None,
                                     )?
                                 } else {
                                     let code =
@@ -701,6 +727,7 @@ impl<'a> Context<'a> {
                                         true,
                                         false,
                                         generated_pointer,
+                                        None,
                                     )?;
                                     self.shared_context.insert_generated_brillig(
                                         *id,

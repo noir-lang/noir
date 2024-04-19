@@ -62,6 +62,18 @@ pub(crate) struct GeneratedAcir {
     /// Name for the corresponding entry point represented by this Acir-gen output.
     /// Only used for debugging and benchmarking purposes
     pub(crate) name: String,
+
+    /// Maps the opcode index to a Brillig std library function call.
+    /// As to avoid passing the ACIR gen shared context into each individual ACIR 
+    /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
+    pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub(crate) enum BrilligStdlibFunc {
+    Inverse,
+    // The Brillig quotient code is different depending upon the bit size.
+    Quotient(u32),
 }
 
 impl GeneratedAcir {
@@ -456,7 +468,7 @@ impl GeneratedAcir {
         let inverse_code = brillig_directive::directive_invert();
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
-        self.brillig(Some(Expression::one()), inverse_code, inputs, outputs);
+        self.brillig_call(Some(Expression::one()), &inverse_code, inputs, outputs, 0, Some(BrilligStdlibFunc::Inverse));
 
         inverted_witness
     }
@@ -625,10 +637,18 @@ impl GeneratedAcir {
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
         brillig_function_index: u32,
+        stdlib_func: Option<BrilligStdlibFunc>,
     ) {
         let opcode =
             AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };
         self.push_opcode(opcode);
+        if let Some(stdlib_func) = stdlib_func {
+            self.brillig_stdlib_func_locations.insert(self.last_acir_opcode_location(), stdlib_func);
+            // Brillig stdlib functions are handwritten and do not have location or debug information attached 
+            // to them as they are expected to be written correctly. 
+            // return
+        }
+
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
             self.locations.insert(
                 OpcodeLocation::Brillig {
@@ -646,6 +666,24 @@ impl GeneratedAcir {
                 },
                 message.clone(),
             );
+        }
+    }
+
+    // We can only resolve the Brillig stdlib after having processed the entire ACIR
+    pub(crate) fn resolve_brillig_stdlib_call(
+        &mut self,
+        opcode_location: OpcodeLocation,
+        brillig_function_index: u32,
+    ) {
+        let acir_index = match opcode_location {
+            OpcodeLocation::Acir(index) => index,
+            _ => panic!("should not have brillig index"),
+        };
+        match &mut self.opcodes[acir_index] {
+            AcirOpcode::BrilligCall { id, .. } => {
+                *id = brillig_function_index
+            }
+            _ => panic!("expected brillig call opcode"),
         }
     }
 

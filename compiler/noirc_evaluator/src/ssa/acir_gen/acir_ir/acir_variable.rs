@@ -1,5 +1,5 @@
 use super::big_int::BigIntContext;
-use super::generated_acir::GeneratedAcir;
+use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir};
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError, SsaReport};
@@ -326,13 +326,15 @@ impl AcirContext {
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
 
-        let results = self.brillig(
+        let results = self.brillig_call(
             predicate,
-            inverse_code,
+            &inverse_code,
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
             false,
+            0,
+            Some(BrilligStdlibFunc::Inverse)
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -711,9 +713,9 @@ impl AcirContext {
         }
 
         let [q_value, r_value]: [AcirValue; 2] = self
-            .brillig(
+            .brillig_call(
                 predicate,
-                brillig_directive::directive_quotient(bit_size + 1),
+                &brillig_directive::directive_quotient(bit_size + 1),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
@@ -721,6 +723,8 @@ impl AcirContext {
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
                 false,
+                0,
+                Some(BrilligStdlibFunc::Quotient(bit_size + 1))
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1565,6 +1569,7 @@ impl AcirContext {
         attempt_execution: bool,
         unsafe_return_values: bool,
         brillig_function_index: u32,
+        brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let brillig_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
             match i {
@@ -1618,6 +1623,7 @@ impl AcirContext {
             brillig_inputs,
             brillig_outputs,
             brillig_function_index,
+            brillig_stdlib_func,
         );
 
         fn range_constraint_value(
