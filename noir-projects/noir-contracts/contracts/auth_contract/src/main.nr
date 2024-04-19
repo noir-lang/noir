@@ -33,32 +33,21 @@ contract Auth {
     }
 
     #[aztec(public)]
-    fn get_authorized() {
-        // We emit logs because we cannot otherwise return these values
-        emit_unencrypted_log(
-            &mut context,
-            storage.authorized.get_current_value_in_public()
-        );
+    fn get_authorized() -> AztecAddress {
+        storage.authorized.get_current_value_in_public()
     }
 
     #[aztec(public)]
-    fn get_scheduled_authorized() {
-        // We emit logs because we cannot otherwise return these values
-        emit_unencrypted_log(
-            &mut context,
-            storage.authorized.get_scheduled_value_in_public().0
-        );
+    fn get_scheduled_authorized() -> AztecAddress {
+        storage.authorized.get_scheduled_value_in_public().0
     }
 
     #[aztec(private)]
-    fn do_private_authorized_thing(value: Field) {
+    fn do_private_authorized_thing() {
         // Reading a value from authorized in private automatically adds an extra validity condition: the base rollup
         // circuit will reject this tx if included in a block past the block horizon, which is as far as the circuit can
         // guarantee the value will not change from some historical value (due to CHANGE_AUTHORIZED_DELAY_BLOCKS).
         let authorized = storage.authorized.get_current_value_in_private();
         assert_eq(authorized, context.msg_sender(), "caller is not authorized");
-
-        // We emit logs because we cannot otherwise return these values
-        emit_unencrypted_log_from_private(&mut context, value);
     }
 }

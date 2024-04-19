@@ -95,7 +95,7 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn call_get_notes(storage_slot: Field, active_or_nullified: bool) {
+    fn call_get_notes(storage_slot: Field, active_or_nullified: bool) -> Field {
         assert(
             storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
         );
@@ -107,14 +107,11 @@ contract Test {
 
         let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
-        // We can't get the return value of a private function from the outside world in an end to end test, so we
-        // expose it via an unecrypted log instead.
-        let value = opt_notes[0].unwrap().value;
-        emit_unencrypted_log_from_private(&mut context, value);
+        opt_notes[0].unwrap().value
     }
 
     #[aztec(private)]
-    fn call_get_notes_many(storage_slot: Field, active_or_nullified: bool) {
+    fn call_get_notes_many(storage_slot: Field, active_or_nullified: bool) -> [Field; 2] {
         assert(
             storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
         );
@@ -126,10 +123,7 @@ contract Test {
 
         let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
-        // We can't get the return value of a private function from the outside world in an end to end test, so we
-        // expose it via an unecrypted log instead.
-        emit_unencrypted_log_from_private(&mut context, opt_notes[0].unwrap().value);
-        emit_unencrypted_log_from_private(&mut context, opt_notes[1].unwrap().value);
+        [opt_notes[0].unwrap().value, opt_notes[1].unwrap().value]
     }
 
     unconstrained fn call_view_notes(storage_slot: Field, active_or_nullified: bool) -> pub Field {

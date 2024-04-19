@@ -1,4 +1,4 @@
-import { type AztecAddress, Comparator, Fr, type Wallet, toBigInt } from '@aztec/aztec.js';
+import { type AztecAddress, Comparator, Fr, type Wallet } from '@aztec/aztec.js';
 import { DocsExampleContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
@@ -168,7 +168,7 @@ describe('e2e_note_getter', () => {
 
     async function assertNoteIsReturned(storageSlot: number, expectedValue: number, activeOrNullified: boolean) {
       const viewNotesResult = await contract.methods.call_view_notes(storageSlot, activeOrNullified).simulate();
-      const getNotesResult = await callGetNotes(storageSlot, activeOrNullified);
+      const getNotesResult = await contract.methods.call_get_notes(storageSlot, activeOrNullified).simulate();
 
       expect(viewNotesResult).toEqual(getNotesResult);
       expect(viewNotesResult).toEqual(BigInt(expectedValue));
@@ -181,28 +181,6 @@ describe('e2e_note_getter', () => {
       await expect(contract.methods.call_get_notes(storageSlot, activeOrNullified).send().wait()).rejects.toThrow(
         `Assertion failed: Cannot return zero notes`,
       );
-    }
-
-    async function callGetNotes(storageSlot: number, activeOrNullified: boolean): Promise<bigint> {
-      // call_get_notes exposes the return value via an event since we cannot use simulate() with it.
-      const tx = contract.methods.call_get_notes(storageSlot, activeOrNullified).send();
-      await tx.wait();
-
-      const logs = (await tx.getUnencryptedLogs()).logs;
-      expect(logs.length).toBe(1);
-
-      return toBigInt(logs[0].log.data);
-    }
-
-    async function callGetNotesMany(storageSlot: number, activeOrNullified: boolean): Promise<Array<bigint>> {
-      // call_get_notes_many exposes the return values via event since we cannot use simulate() with it.
-      const tx = contract.methods.call_get_notes_many(storageSlot, activeOrNullified).send();
-      await tx.wait();
-
-      const logs = (await tx.getUnencryptedLogs()).logs;
-      expect(logs.length).toBe(2);
-
-      return [toBigInt(logs[0].log.data), toBigInt(logs[1].log.data)];
     }
 
     describe('active note only', () => {
@@ -250,7 +228,9 @@ describe('e2e_note_getter', () => {
         const viewNotesManyResult = await contract.methods
           .call_view_notes_many(storageSlot, activeOrNullified)
           .simulate();
-        const getNotesManyResult = await callGetNotesMany(storageSlot, activeOrNullified);
+        const getNotesManyResult = await contract.methods
+          .call_get_notes_many(storageSlot, activeOrNullified)
+          .simulate();
 
         // We can't be sure in which order the notes will be returned, so we simply sort them to test equality. Note
         // however that both view_notes and get_notes get the exact same result.

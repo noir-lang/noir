@@ -1,4 +1,4 @@
-import { type AccountWallet, AztecAddress, type ContractFunctionInteraction, Fr, type PXE } from '@aztec/aztec.js';
+import { type AccountWallet, AztecAddress, Fr, type PXE } from '@aztec/aztec.js';
 import { AuthContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -19,7 +19,6 @@ describe('e2e_auth_contract', () => {
 
   let contract: AuthContract;
 
-  const VALUE = 3;
   const DELAY = 5;
 
   beforeAll(async () => {
@@ -48,40 +47,30 @@ describe('e2e_auth_contract', () => {
     }
   }
 
-  async function assertLoggedAddress(interaction: ContractFunctionInteraction, address: AztecAddress) {
-    const logs = await pxe.getUnencryptedLogs({ txHash: (await interaction.send().wait()).txHash });
-    expect(AztecAddress.fromBuffer(logs.logs[0].log.data)).toEqual(address);
-  }
-
-  async function assertLoggedNumber(interaction: ContractFunctionInteraction, value: number) {
-    const logs = await pxe.getUnencryptedLogs({ txHash: (await interaction.send().wait()).txHash });
-    expect(Fr.fromBuffer(logs.logs[0].log.data)).toEqual(new Fr(value));
-  }
-
   it('authorized is unset initially', async () => {
-    await assertLoggedAddress(contract.methods.get_authorized(), AztecAddress.ZERO);
+    expect(await contract.methods.get_authorized().simulate()).toEqual(AztecAddress.ZERO);
   });
 
   it('admin sets authorized', async () => {
     await contract.withWallet(admin).methods.set_authorized(authorized.getAddress()).send().wait();
 
-    await assertLoggedAddress(contract.methods.get_scheduled_authorized(), authorized.getAddress());
+    expect(await contract.methods.get_scheduled_authorized().simulate()).toEqual(authorized.getAddress());
   });
 
   it('authorized is not yet set, cannot use permission', async () => {
-    await assertLoggedAddress(contract.methods.get_authorized(), AztecAddress.ZERO);
+    expect(await contract.methods.get_authorized().simulate()).toEqual(AztecAddress.ZERO);
 
-    await expect(
-      contract.withWallet(authorized).methods.do_private_authorized_thing(VALUE).send().wait(),
-    ).rejects.toThrow('caller is not authorized');
+    await expect(contract.withWallet(authorized).methods.do_private_authorized_thing().send().wait()).rejects.toThrow(
+      'caller is not authorized',
+    );
   });
 
   it('after a while the scheduled change is effective and can be used with max block restriction', async () => {
     await mineBlocks(DELAY); // This gets us past the block of change
 
-    await assertLoggedAddress(contract.methods.get_authorized(), authorized.getAddress());
+    expect(await contract.methods.get_authorized().simulate()).toEqual(authorized.getAddress());
 
-    const interaction = contract.withWallet(authorized).methods.do_private_authorized_thing(VALUE);
+    const interaction = contract.withWallet(authorized).methods.do_private_authorized_thing();
 
     const tx = await interaction.prove();
 
@@ -94,32 +83,36 @@ describe('e2e_auth_contract', () => {
     expect(tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
     expect(tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(expectedMaxBlockNumber));
 
-    await assertLoggedNumber(interaction, VALUE);
+    expect((await interaction.send().wait()).status).toEqual('mined');
   });
 
   it('a new authorized address is set but not immediately effective, the previous one retains permissions', async () => {
     await contract.withWallet(admin).methods.set_authorized(other.getAddress()).send().wait();
 
-    await assertLoggedAddress(contract.methods.get_authorized(), authorized.getAddress());
+    expect(await contract.methods.get_authorized().simulate()).toEqual(authorized.getAddress());
 
-    await assertLoggedAddress(contract.methods.get_scheduled_authorized(), other.getAddress());
+    expect(await contract.methods.get_scheduled_authorized().simulate()).toEqual(other.getAddress());
 
-    await expect(contract.withWallet(other).methods.do_private_authorized_thing(VALUE).send().wait()).rejects.toThrow(
+    await expect(contract.withWallet(other).methods.do_private_authorized_thing().send().wait()).rejects.toThrow(
       'caller is not authorized',
     );
 
-    await assertLoggedNumber(contract.withWallet(authorized).methods.do_private_authorized_thing(VALUE), VALUE);
+    expect((await contract.withWallet(authorized).methods.do_private_authorized_thing().send().wait()).status).toEqual(
+      'mined',
+    );
   });
 
   it('after some time the scheduled change is made effective', async () => {
     await mineBlocks(DELAY); // This gets us past the block of change
 
-    await assertLoggedAddress(contract.methods.get_authorized(), other.getAddress());
+    expect(await contract.methods.get_authorized().simulate()).toEqual(other.getAddress());
 
-    await expect(
-      contract.withWallet(authorized).methods.do_private_authorized_thing(VALUE).send().wait(),
-    ).rejects.toThrow('caller is not authorized');
+    await expect(contract.withWallet(authorized).methods.do_private_authorized_thing().send().wait()).rejects.toThrow(
+      'caller is not authorized',
+    );
 
-    await assertLoggedNumber(contract.withWallet(other).methods.do_private_authorized_thing(VALUE), VALUE);
+    expect((await contract.withWallet(other).methods.do_private_authorized_thing().send().wait()).status).toEqual(
+      'mined',
+    );
   });
 });
