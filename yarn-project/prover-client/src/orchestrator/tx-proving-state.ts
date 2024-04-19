@@ -1,6 +1,8 @@
 import { type MerkleTreeId, type ProcessedTx, type PublicKernelRequest, PublicKernelType } from '@aztec/circuit-types';
 import { type AppendOnlyTreeSnapshot, type BaseRollupInputs, type Proof } from '@aztec/circuits.js';
 
+import { type ProvingRequest, ProvingRequestType } from '../prover-pool/proving-request.js';
+
 export enum TX_PROVING_CODE {
   NOT_READY,
   READY,
@@ -12,6 +14,7 @@ export type PublicFunction = {
   previousProofType: PublicKernelType;
   previousKernelProof: Proof | undefined;
   publicKernelRequest: PublicKernelRequest;
+  provingRequest: ProvingRequest;
 };
 
 // Type encapsulating the instruction to the orchestrator as to what
@@ -37,11 +40,24 @@ export class TxProvingState {
     let previousKernelProof: Proof | undefined = processedTx.proof;
     let previousProofType = PublicKernelType.NON_PUBLIC;
     for (const kernelRequest of processedTx.publicKernelRequests) {
+      const provingRequest: ProvingRequest =
+        kernelRequest.type === PublicKernelType.TAIL
+          ? {
+              type: ProvingRequestType.PUBLIC_KERNEL_TAIL,
+              kernelType: kernelRequest.type,
+              inputs: kernelRequest.inputs,
+            }
+          : {
+              type: ProvingRequestType.PUBLIC_KERNEL_NON_TAIL,
+              kernelType: kernelRequest.type,
+              inputs: kernelRequest.inputs,
+            };
       const publicFunction: PublicFunction = {
         vmProof: undefined,
         previousProofType,
         previousKernelProof,
         publicKernelRequest: kernelRequest,
+        provingRequest,
       };
       this.publicFunctions.push(publicFunction);
       previousKernelProof = undefined;

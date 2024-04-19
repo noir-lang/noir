@@ -20,6 +20,8 @@ import * as fs from 'fs/promises';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
+import { CircuitProverAgent } from '../prover-pool/circuit-prover-agent.js';
+import { ProverPool } from '../prover-pool/prover-pool.js';
 import { type BBProverConfig } from '../prover/bb_prover.js';
 import { type CircuitProver } from '../prover/interface.js';
 import { TestCircuitProver } from '../prover/test_circuit_prover.js';
@@ -35,6 +37,7 @@ export class TestContext {
     public globalVariables: GlobalVariables,
     public actualDb: MerkleTreeOperations,
     public prover: CircuitProver,
+    public proverPool: ProverPool,
     public orchestrator: ProvingOrchestrator,
     public blockNumber: number,
     public directoriesToCleanup: string[],
@@ -43,6 +46,7 @@ export class TestContext {
 
   static async new(
     logger: DebugLogger,
+    proverCount = 4,
     createProver: (bbConfig: BBProverConfig) => Promise<CircuitProver> = _ =>
       Promise.resolve(new TestCircuitProver(new WASMSimulator())),
     blockNumber = 3,
@@ -82,7 +86,10 @@ export class TestContext {
       localProver = await createProver(bbConfig);
     }
 
-    const orchestrator = await ProvingOrchestrator.new(actualDb, localProver);
+    const proverPool = new ProverPool(proverCount, i => new CircuitProverAgent(localProver, 10, `${i}`));
+    const orchestrator = new ProvingOrchestrator(actualDb, proverPool.queue);
+
+    await proverPool.start();
 
     return new this(
       publicExecutor,
@@ -93,6 +100,7 @@ export class TestContext {
       globalVariables,
       actualDb,
       localProver,
+      proverPool,
       orchestrator,
       blockNumber,
       [config?.directoryToCleanup ?? ''],
@@ -101,7 +109,7 @@ export class TestContext {
   }
 
   async cleanup() {
-    await this.orchestrator.stop();
+    await this.proverPool.stop();
     for (const dir of this.directoriesToCleanup.filter(x => x !== '')) {
       await fs.rm(dir, { recursive: true, force: true });
     }

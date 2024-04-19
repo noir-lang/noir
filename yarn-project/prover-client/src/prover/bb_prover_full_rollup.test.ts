@@ -3,12 +3,8 @@ import { Fr, Header } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { type MemDown, default as memdown } from 'memdown';
-
 import { TestContext } from '../mocks/test_context.js';
 import { BBNativeRollupProver } from './bb_prover.js';
-
-export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 const logger = createDebugLogger('aztec:bb-prover-full-rollup');
 
@@ -16,7 +12,7 @@ describe('prover/bb_prover/full-rollup', () => {
   let context: TestContext;
 
   beforeAll(async () => {
-    context = await TestContext.new(logger, BBNativeRollupProver.new);
+    context = await TestContext.new(logger, 1, BBNativeRollupProver.new);
   }, 60_000);
 
   afterAll(async () => {
@@ -56,7 +52,5 @@ describe('prover/bb_prover/full-rollup', () => {
     const blockResult = await context.orchestrator.finaliseBlock();
 
     await expect(context.prover.verifyProof('RootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
-
-    await context.orchestrator.stop();
   }, 600_000);
 });

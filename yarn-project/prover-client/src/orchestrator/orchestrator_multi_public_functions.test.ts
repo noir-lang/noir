@@ -2,12 +2,8 @@ import { PROVING_STATUS, mockTx } from '@aztec/circuit-types';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { type MemDown, default as memdown } from 'memdown';
-
 import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
-
-export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 const logger = createDebugLogger('aztec:orchestrator-multi-public-functions');
 

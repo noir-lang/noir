@@ -1,13 +1,9 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { type MemDown, default as memdown } from 'memdown';
-
 import { makeBloatedProcessedTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 import { buildBaseRollupInput } from '../orchestrator/block-building-helpers.js';
 import { BBNativeRollupProver, type BBProverConfig } from './bb_prover.js';
-
-export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 const logger = createDebugLogger('aztec:bb-prover-base-rollup');
 
@@ -19,7 +15,7 @@ describe('prover/bb_prover/base-rollup', () => {
       bbConfig.circuitFilter = ['BaseRollupArtifact'];
       return BBNativeRollupProver.new(bbConfig);
     };
-    context = await TestContext.new(logger, buildProver);
+    context = await TestContext.new(logger, 1, buildProver);
   }, 60_000);
 
   afterAll(async () => {
