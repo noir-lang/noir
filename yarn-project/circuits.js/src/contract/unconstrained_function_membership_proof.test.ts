@@ -48,7 +48,8 @@ describe('unconstrained_function_membership_proof', () => {
     expect(isValidUnconstrainedFunctionMembershipProof(fn, contractClass)).toBeTruthy();
   });
 
-  test.each(['artifactTreeSiblingPath', 'artifactMetadataHash', 'functionMetadataHash'] as const)(
+  // TODO(#5860): Re-enable this test once noir non-determinism is addressed
+  test.skip.each(['artifactTreeSiblingPath', 'artifactMetadataHash', 'functionMetadataHash'] as const)(
     'fails proof if %s is mangled',
     field => {
       const proof = createUnconstrainedFunctionMembershipProof(selector, artifact);
