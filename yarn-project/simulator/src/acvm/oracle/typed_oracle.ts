@@ -10,7 +10,6 @@ import {
   type UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import {
-  type GrumpkinPrivateKey,
   type Header,
   type L1_TO_L2_MSG_TREE_HEIGHT,
   type PrivateCallStackItem,
@@ -21,18 +20,12 @@ import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
-/**
- * A pair of public key and secret key.
- */
-export interface KeyPair {
-  /**
-   * Public key.
-   */
-  publicKey: PublicKey;
-  /**
-   * Secret Key.
-   */
-  secretKey: GrumpkinPrivateKey;
+/** Nullifier keys which both correspond to the same master nullifier secret key. */
+export interface NullifierKeys {
+  /** Master nullifier public key. */
+  masterNullifierPublicKey: PublicKey;
+  /** App nullifier secret key. */
+  appNullifierSecretKey: Fr;
 }
 
 /**
@@ -96,8 +89,8 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('unpackReturns');
   }
 
-  getNullifierKeyPair(_accountAddress: AztecAddress): Promise<KeyPair> {
-    throw new OracleMethodNotAvailableError('getNullifierKeyPair');
+  getNullifierKeys(_accountAddress: AztecAddress): Promise<NullifierKeys> {
+    throw new OracleMethodNotAvailableError('getNullifierKeys');
   }
 
   getPublicKeyAndPartialAddress(_address: AztecAddress): Promise<Fr[] | undefined> {

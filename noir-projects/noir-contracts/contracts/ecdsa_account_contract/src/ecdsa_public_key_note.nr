@@ -5,7 +5,7 @@ use dep::aztec::prelude::{
 
 use dep::aztec::{
     note::utils::compute_note_hash_for_consumption,
-    oracle::{nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key},
+    oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
     hash::pedersen_hash
 };
 
@@ -68,23 +68,21 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
 
    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let unique_siloed_note_hash = compute_note_hash_for_consumption(self);
-        let secret = context.request_nullifier_secret_key(self.owner);
+        let secret = context.request_app_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
             unique_siloed_note_hash,
-            secret.low,
-            secret.high,
+            secret,
         ],0)
     }
 
     fn compute_nullifier_without_context(self) -> Field {
         let unique_siloed_note_hash = compute_note_hash_for_consumption(self);
-        let secret = get_nullifier_secret_key(self.owner);
+        let secret = get_app_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
             unique_siloed_note_hash,
-            secret.low,
-            secret.high,
+            secret,
         ],0)
     }
 

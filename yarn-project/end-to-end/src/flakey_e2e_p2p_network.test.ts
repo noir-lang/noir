@@ -5,13 +5,12 @@ import {
   CompleteAddress,
   type DebugLogger,
   Fr,
-  Grumpkin,
   GrumpkinScalar,
   type SentTx,
   TxStatus,
 } from '@aztec/aztec.js';
 import { BootstrapNode, type P2PConfig, createLibP2PPeerId } from '@aztec/p2p';
-import { ConstantKeyPair, type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
+import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 
 import { mnemonicToAccount } from 'viem/accounts';
 
@@ -121,7 +120,7 @@ describe('e2e_p2p_network', () => {
   const submitTxsTo = async (pxe: PXEService, account: AztecAddress, numTxs: number) => {
     const txs: SentTx[] = [];
     for (let i = 0; i < numTxs; i++) {
-      const tx = getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random(), Fr.random()).deploy();
+      const tx = getSchnorrAccount(pxe, Fr.random(), GrumpkinScalar.random(), Fr.random()).deploy();
       logger.info(`Tx sent with hash ${await tx.getTxHash()}`);
       const receipt = await tx.getReceipt();
       expect(receipt).toEqual(
@@ -144,9 +143,9 @@ describe('e2e_p2p_network', () => {
     const rpcConfig = getRpcConfig();
     const pxeService = await createPXEService(node, rpcConfig, true);
 
-    const keyPair = ConstantKeyPair.random(new Grumpkin());
-    const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
-    await pxeService.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
+    const secretKey = Fr.random();
+    const completeAddress = CompleteAddress.fromSecretKeyAndPartialAddress(secretKey, Fr.random());
+    await pxeService.registerAccount(secretKey, completeAddress.partialAddress);
 
     const txs = await submitTxsTo(pxeService, completeAddress.address, numTxs);
     return {

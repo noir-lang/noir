@@ -4,17 +4,22 @@ import {
   EncryptedL2BlockL2Logs,
   EncryptedL2Log,
   EncryptedTxL2Logs,
-  type KeyPair,
   type KeyStore,
   type L1NotePayload,
   L2Block,
   TaggedNote,
 } from '@aztec/circuit-types';
-import { Fr, INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
+import {
+  Fr,
+  type GrumpkinPrivateKey,
+  INITIAL_L2_BLOCK_NUM,
+  MAX_NEW_NOTE_HASHES_PER_TX,
+  type PublicKey,
+  deriveKeys,
+} from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
-import { ConstantKeyPair } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type AcirSimulator } from '@aztec/simulator';
 
@@ -29,18 +34,20 @@ import { NoteProcessor } from './note_processor.js';
 const TXS_PER_BLOCK = 4;
 
 describe('Note Processor', () => {
-  let grumpkin: Grumpkin;
+  const grumpkin = new Grumpkin();
   let database: PxeDatabase;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addNotesSpy: any;
   let noteProcessor: NoteProcessor;
-  let owner: KeyPair;
   let keyStore: MockProxy<KeyStore>;
   let simulator: MockProxy<AcirSimulator>;
   const firstBlockNum = 123;
   const numCommitmentsPerBlock = TXS_PER_BLOCK * MAX_NEW_NOTE_HASHES_PER_TX;
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
   const firstBlockDataEndIndex = firstBlockNum * numCommitmentsPerBlock;
+
+  let ownerMasterIncomingViewingSecretKey: GrumpkinPrivateKey;
+  let ownerMasterIncomingViewingPublicKey: PublicKey;
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: TaggedNote[]) => {
@@ -57,7 +64,7 @@ describe('Note Processor', () => {
       const logs: EncryptedFunctionL2Logs[] = [];
       for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
-        const publicKey = isOwner ? owner.getPublicKey() : Point.random();
+        const publicKey = isOwner ? ownerMasterIncomingViewingPublicKey : Point.random();
         const note = (isOwner && ownedNotes[usedOwnedNote]) || TaggedNote.random();
         usedOwnedNote += note === ownedNotes[usedOwnedNote] ? 1 : 0;
         newNotes.push(note);
@@ -114,8 +121,11 @@ describe('Note Processor', () => {
   };
 
   beforeAll(() => {
-    grumpkin = new Grumpkin();
-    owner = ConstantKeyPair.random(grumpkin);
+    const ownerSk = Fr.random();
+    const allOwnerKeys = deriveKeys(ownerSk);
+
+    ownerMasterIncomingViewingSecretKey = allOwnerKeys.masterIncomingViewingSecretKey;
+    ownerMasterIncomingViewingPublicKey = allOwnerKeys.masterIncomingViewingPublicKey;
   });
 
   beforeEach(() => {
@@ -125,9 +135,9 @@ describe('Note Processor', () => {
     aztecNode = mock<AztecNode>();
     keyStore = mock<KeyStore>();
     simulator = mock<AcirSimulator>();
-    keyStore.getAccountPrivateKey.mockResolvedValue(owner.getPrivateKey());
+    keyStore.getMasterIncomingViewingSecretKeyForPublicKey.mockResolvedValue(ownerMasterIncomingViewingSecretKey);
     noteProcessor = new NoteProcessor(
-      owner.getPublicKey(),
+      ownerMasterIncomingViewingPublicKey,
       keyStore,
       database,
       aztecNode,
@@ -237,7 +247,7 @@ describe('Note Processor', () => {
     await noteProcessor.process(blocks, encryptedLogsArr);
 
     const newNoteProcessor = new NoteProcessor(
-      owner.getPublicKey(),
+      ownerMasterIncomingViewingPublicKey,
       keyStore,
       database,
       aztecNode,

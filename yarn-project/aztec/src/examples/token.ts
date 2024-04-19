@@ -1,20 +1,13 @@
 import { getSingleKeyAccount } from '@aztec/accounts/single_key';
-import {
-  type AccountWallet,
-  Fr,
-  GrumpkinScalar,
-  Note,
-  computeMessageSecretHash,
-  createPXEClient,
-} from '@aztec/aztec.js';
+import { type AccountWallet, Fr, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
 import { ExtendedNote } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 
-export const alicePrivateKey = GrumpkinScalar.random();
-export const bobPrivateKey = GrumpkinScalar.random();
+export const alicePrivateKey = Fr.random();
+export const bobPrivateKey = Fr.random();
 
 const url = 'http://localhost:8080';
 

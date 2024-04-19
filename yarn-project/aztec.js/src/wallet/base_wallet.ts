@@ -15,13 +15,7 @@ import {
   type TxHash,
   type TxReceipt,
 } from '@aztec/circuit-types';
-import {
-  type AztecAddress,
-  type CompleteAddress,
-  type Fr,
-  type GrumpkinPrivateKey,
-  type PartialAddress,
-} from '@aztec/circuits.js';
+import { type AztecAddress, type CompleteAddress, type Fr, type PartialAddress } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { type NodeInfo } from '@aztec/types/interfaces';
@@ -37,6 +31,8 @@ export abstract class BaseWallet implements Wallet {
   constructor(protected readonly pxe: PXE) {}
 
   abstract getCompleteAddress(): CompleteAddress;
+
+  abstract getPublicKeysHash(): Fr;
 
   abstract getChainId(): Fr;
 
@@ -72,8 +68,8 @@ export abstract class BaseWallet implements Wallet {
   addCapsule(capsule: Fr[]): Promise<void> {
     return this.pxe.addCapsule(capsule);
   }
-  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress> {
-    return this.pxe.registerAccount(privKey, partialAddress);
+  registerAccount(secretKey: Fr, partialAddress: PartialAddress): Promise<CompleteAddress> {
+    return this.pxe.registerAccount(secretKey, partialAddress);
   }
   registerRecipient(account: CompleteAddress): Promise<void> {
     return this.pxe.registerRecipient(account);
@@ -83,6 +79,9 @@ export abstract class BaseWallet implements Wallet {
   }
   getRegisteredAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
     return this.pxe.getRegisteredAccount(address);
+  }
+  getRegisteredAccountPublicKeysHash(address: AztecAddress): Promise<Fr | undefined> {
+    return this.pxe.getRegisteredAccountPublicKeysHash(address);
   }
   getRecipients(): Promise<CompleteAddress[]> {
     return this.pxe.getRecipients();

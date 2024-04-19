@@ -1,9 +1,10 @@
 use crate::{
     crate::address::{eth_address::EthAddress, partial_address::PartialAddress, public_keys_hash::PublicKeysHash},
-    constants::{AZTEC_ADDRESS_LENGTH, GENERATOR_INDEX__CONTRACT_ADDRESS},
+    constants::{AZTEC_ADDRESS_LENGTH, GENERATOR_INDEX__CONTRACT_ADDRESS_V1},
     contract_class_id::ContractClassId, hash::pedersen_hash, grumpkin_point::GrumpkinPoint,
     traits::{Empty, FromField, ToField, Serialize, Deserialize}, utils
 };
+use dep::std::hash::poseidon2::Poseidon2::hash as poseidon2_hash;
 
 // Aztec address
 struct AztecAddress {
@@ -53,31 +54,10 @@ impl AztecAddress {
         Self { inner: 0 }
     }
 
-    pub fn compute_from_public_key(
-        pub_key: GrumpkinPoint,
-        contract_class_id: ContractClassId,
-        salt: Field,
-        initialization_hash: Field,
-        portal_contract_address: EthAddress,
-        deployer: AztecAddress
-    ) -> AztecAddress {
-        AztecAddress::compute(
-            PublicKeysHash::compute(pub_key),
-            PartialAddress::compute(
-                contract_class_id,
-                salt,
-                initialization_hash,
-                portal_contract_address,
-                deployer
-            )
-        )
-    }
-
     pub fn compute(pub_keys_hash: PublicKeysHash, partial_address: PartialAddress) -> AztecAddress {
         AztecAddress::from_field(
-            pedersen_hash(
-                [pub_keys_hash.to_field(), partial_address.to_field()],
-                GENERATOR_INDEX__CONTRACT_ADDRESS
+            poseidon2_hash(
+                [pub_keys_hash.to_field(), partial_address.to_field(), GENERATOR_INDEX__CONTRACT_ADDRESS_V1], 3
             )
         )
     }
@@ -97,34 +77,12 @@ impl AztecAddress {
 }
 
 #[test]
-fn compute_address() {
-    let point = GrumpkinPoint { x: 1, y: 2 };
-    let contract_address_salt = 3;
-    let contract_class_id = ContractClassId::from_field(4);
-    let initialization_hash = 5;
-    let portal_contract_address = EthAddress::from_field(6);
-    let deployer = AztecAddress::from_field(7);
-
-    let address = AztecAddress::compute_from_public_key(
-        point,
-        contract_class_id,
-        contract_address_salt,
-        initialization_hash,
-        portal_contract_address,
-        deployer
-    );
-
-    let expected_computed_address_from_preimage = 0x027ea2b41ced2ec9a98305984e96dd28518536a4628883ccdc06e38aa8997220;
-    assert(address.to_field() == expected_computed_address_from_preimage);
-}
-
-#[test]
 fn compute_address_from_partial_and_pubkey() {
-    let point = GrumpkinPoint { x: 1, y: 2 };
-    let partial_address = PartialAddress::from_field(3);
+    let pub_keys_hash = PublicKeysHash::from_field(1);
+    let partial_address = PartialAddress::from_field(2);
 
-    let address = AztecAddress::compute(PublicKeysHash::compute(point), partial_address);
-    let expected_computed_address_from_partial_and_pubkey = 0x0447f893197175723deb223696e2e96dbba1e707ee8507766373558877e74197;
+    let address = AztecAddress::compute(pub_keys_hash, partial_address);
+    let expected_computed_address_from_partial_and_pubkey = 0x1b6ead051e7b42665064ca6cf1ec77da0a36d86e00d1ff6e44077966c0c3a9fa;
     assert(address.to_field() == expected_computed_address_from_partial_and_pubkey);
 }
 

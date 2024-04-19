@@ -79,10 +79,10 @@ fn serialization_of_empty() {
 
 #[test]
 fn empty_hash() {
-    let inputs = TxContext::empty();
-    let hash = inputs.hash();
+    let context = TxContext::empty();
+    let hash = context.hash();
 
-    // Value from tx_context.test.ts "computes empty item hash" test
+    // Value from tx_context.test.ts "computes empty context hash" test
     let test_data_empty_hash = 0x200569267c0f73ac89aaa414239398db9445dd4ad3a8cf37015cd55b8d4c5e8d;
     assert_eq(hash, test_data_empty_hash);
 }

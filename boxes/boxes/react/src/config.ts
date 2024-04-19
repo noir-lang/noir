@@ -1,9 +1,9 @@
-import { GrumpkinPrivateKey, GrumpkinScalar, createPXEClient } from '@aztec/aztec.js';
+import { Fr, createPXEClient, deriveMasterIncomingViewingSecretKey } from '@aztec/aztec.js';
 import { BoxReactContractArtifact } from '../artifacts/BoxReact';
 import { AccountManager } from '@aztec/aztec.js/account';
 import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 
-const GRUMPKIN_KEY = GrumpkinScalar.random();
+const SECRET_KEY = Fr.random();
 
 export class PrivateEnv {
   pxe;
@@ -11,12 +11,13 @@ export class PrivateEnv {
   account: AccountManager;
 
   constructor(
-    private privateKey: GrumpkinPrivateKey,
+    private secretKey: Fr,
     private pxeURL: string,
   ) {
     this.pxe = createPXEClient(this.pxeURL);
-    this.accountContract = new SingleKeyAccountContract(privateKey);
-    this.account = new AccountManager(this.pxe, this.privateKey, this.accountContract);
+    const encryptionPrivateKey = deriveMasterIncomingViewingSecretKey(secretKey);
+    this.accountContract = new SingleKeyAccountContract(encryptionPrivateKey);
+    this.account = new AccountManager(this.pxe, this.secretKey, this.accountContract);
   }
 
   async getWallet() {
@@ -25,7 +26,7 @@ export class PrivateEnv {
   }
 }
 
-export const deployerEnv = new PrivateEnv(GRUMPKIN_KEY, process.env.PXE_URL || 'http://localhost:8080');
+export const deployerEnv = new PrivateEnv(SECRET_KEY, process.env.PXE_URL || 'http://localhost:8080');
 
 const IGNORE_FUNCTIONS = ['constructor', 'compute_note_hash_and_nullifier'];
 export const filteredInterface = BoxReactContractArtifact.functions.filter(f => !IGNORE_FUNCTIONS.includes(f.name));

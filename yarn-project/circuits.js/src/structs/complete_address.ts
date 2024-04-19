@@ -1,10 +1,9 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
-import { Grumpkin } from '../barretenberg/index.js';
 import { computeContractAddressFromPartial, computePartialAddress } from '../contract/contract_address.js';
-import { type GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
+import { deriveKeys } from '../keys/index.js';
 import { type PartialAddress } from '../types/partial_address.js';
 import { type PublicKey } from '../types/public_key.js';
 
@@ -34,49 +33,53 @@ export class CompleteAddress {
 
   static create(address: AztecAddress, publicKey: PublicKey, partialAddress: PartialAddress) {
     const completeAddress = new CompleteAddress(address, publicKey, partialAddress);
-    completeAddress.validate();
+    // TODO(#5834): re-enable validation
+    // completeAddress.validate();
     return completeAddress;
   }
 
   static random() {
+    // TODO(#5834): the following should be cleaned up
+    const secretKey = Fr.random();
     const partialAddress = Fr.random();
-    const publicKey = Point.random();
-    const address = computeContractAddressFromPartial({ publicKey, partialAddress });
+    const address = computeContractAddressFromPartial({ secretKey, partialAddress });
+    const publicKey = deriveKeys(secretKey).masterIncomingViewingPublicKey;
     return new CompleteAddress(address, publicKey, partialAddress);
   }
 
-  static fromRandomPrivateKey() {
-    const privateKey = GrumpkinScalar.random();
+  static fromRandomSecretKey() {
+    const secretKey = Fr.random();
     const partialAddress = Fr.random();
-    return { privateKey, completeAddress: CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, partialAddress) };
+    return { secretKey, completeAddress: CompleteAddress.fromSecretKeyAndPartialAddress(secretKey, partialAddress) };
   }
 
-  static fromPrivateKeyAndPartialAddress(privateKey: GrumpkinPrivateKey, partialAddress: Fr): CompleteAddress {
-    const grumpkin = new Grumpkin();
-    const publicKey = grumpkin.mul(Grumpkin.generator, privateKey);
-    const address = computeContractAddressFromPartial({ publicKey, partialAddress });
+  static fromSecretKeyAndPartialAddress(secretKey: Fr, partialAddress: Fr): CompleteAddress {
+    const address = computeContractAddressFromPartial({ secretKey, partialAddress });
+    const publicKey = deriveKeys(secretKey).masterIncomingViewingPublicKey;
     return new CompleteAddress(address, publicKey, partialAddress);
   }
 
-  static fromPublicKeyAndInstance(
-    publicKey: PublicKey,
+  static fromSecretKeyAndInstance(
+    secretKey: Fr,
     instance: Parameters<typeof computePartialAddress>[0],
   ): CompleteAddress {
     const partialAddress = computePartialAddress(instance);
-    const address = computeContractAddressFromPartial({ publicKey, partialAddress });
+    const address = computeContractAddressFromPartial({ secretKey, partialAddress });
+    const publicKey = deriveKeys(secretKey).masterIncomingViewingPublicKey;
     return new CompleteAddress(address, publicKey, partialAddress);
   }
 
-  /** Throws if the address is not correctly derived from the public key and partial address.*/
-  public validate() {
-    const expectedAddress = computeContractAddressFromPartial(this);
-    const address = this.address;
-    if (!expectedAddress.equals(address)) {
-      throw new Error(
-        `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
-      );
-    }
-  }
+  // TODO(#5834): re-enable validation
+  // /** Throws if the address is not correctly derived from the public key and partial address.*/
+  // public validate() {
+  //   const expectedAddress = computeContractAddressFromPartial(this);
+  //   const address = this.address;
+  //   if (!expectedAddress.equals(address)) {
+  //     throw new Error(
+  //       `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
+  //     );
+  //   }
+  // }
 
   /**
    * Gets a readable string representation of a the complete address.

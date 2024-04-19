@@ -1,12 +1,13 @@
-import { GrumpkinScalar, createPXEClient, AccountManager, Fr, Wallet } from '@aztec/aztec.js';
+import { createPXEClient, AccountManager, Fr, Wallet, deriveMasterIncomingViewingSecretKey } from '@aztec/aztec.js';
 
 import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 import { VanillaContract } from '../artifacts/Vanilla';
 
-const privateKey: GrumpkinScalar = GrumpkinScalar.random();
+const secretKey = Fr.random();
 const pxe = createPXEClient(process.env.PXE_URL || 'http://localhost:8080');
 
-const account = new AccountManager(pxe, privateKey, new SingleKeyAccountContract(privateKey));
+const encryptionPrivateKey = deriveMasterIncomingViewingSecretKey(secretKey);
+const account = new AccountManager(pxe, secretKey, new SingleKeyAccountContract(encryptionPrivateKey));
 let contract: any = null;
 let wallet: Wallet | null = null;
 

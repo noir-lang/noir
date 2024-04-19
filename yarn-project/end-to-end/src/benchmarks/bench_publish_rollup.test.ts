@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, Fr, GrumpkinScalar } from '@aztec/aztec.js';
+import { AztecAddress, Fr } from '@aztec/aztec.js';
 import { BENCHMARK_BLOCK_SIZES } from '@aztec/circuit-types/stats';
 import { type BenchmarkingContract } from '@aztec/noir-contracts.js/Benchmarking';
 import { type SequencerClient } from '@aztec/sequencer-client';
@@ -46,12 +46,12 @@ describe('benchmarks/publish_rollup', () => {
       // Register the owner account and wait until it's synced so we measure how much time it took
       context.logger.info(`Registering owner account on new pxe`);
       const partialAddress = context.wallet.getCompleteAddress().partialAddress;
-      const privateKey = context.wallet.getEncryptionPrivateKey();
-      await waitRegisteredAccountSynced(pxe, privateKey, partialAddress);
+      const secretKey = context.wallet.getSecretKey();
+      await waitRegisteredAccountSynced(pxe, secretKey, partialAddress);
 
       // Repeat for another account that didn't receive any notes for them, so we measure trial-decrypts
       context.logger.info(`Registering fresh account on new pxe`);
-      await waitRegisteredAccountSynced(pxe, GrumpkinScalar.random(), Fr.random());
+      await waitRegisteredAccountSynced(pxe, Fr.random(), Fr.random());
 
       // Stop the external node and pxe
       await pxe.stop();

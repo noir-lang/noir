@@ -89,7 +89,7 @@ library Constants {
   uint256 internal constant DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE =
     0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
   uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
-    0x161b653b72ac5aa2982ce485b242b5c1e09afcbf27b89696f5a4e3151be37245;
+    0x1f47133752dfcd9604f2d89c631797a84ed207c1c51d08533226dafcc8bd8548;
   uint256 internal constant AZTEC_ADDRESS_LENGTH = 1;
   uint256 internal constant DIMENSION_GAS_SETTINGS_LENGTH = 3;
   uint256 internal constant GAS_FEES_LENGTH = 3;
@@ -108,8 +108,8 @@ library Constants {
   uint256 internal constant L1_TO_L2_MESSAGE_LENGTH = 6;
   uint256 internal constant L2_TO_L1_MESSAGE_LENGTH = 2;
   uint256 internal constant MAX_BLOCK_NUMBER_LENGTH = 2;
-  uint256 internal constant NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
-  uint256 internal constant NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
+  uint256 internal constant NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 3;
+  uint256 internal constant NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 4;
   uint256 internal constant PARTIAL_STATE_REFERENCE_LENGTH = 6;
   uint256 internal constant READ_REQUEST_LENGTH = 2;
   uint256 internal constant SIDE_EFFECT_LENGTH = 2;

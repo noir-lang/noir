@@ -5,7 +5,6 @@ import {
   type DebugLogger,
   ExtendedNote,
   Fr,
-  GrumpkinScalar,
   Note,
   type PXE,
   type Wallet,
@@ -245,13 +244,13 @@ describe('e2e_2_pxes', () => {
   });
 
   it('permits migrating an account from one PXE to another', async () => {
-    const privateKey = GrumpkinScalar.random();
-    const account = getUnsafeSchnorrAccount(pxeA, privateKey, Fr.random());
+    const secretKey = Fr.random();
+    const account = getUnsafeSchnorrAccount(pxeA, secretKey, Fr.random());
     const completeAddress = account.getCompleteAddress();
     const wallet = await account.waitSetup();
 
     await expect(wallet.isAccountStateSynchronized(completeAddress.address)).resolves.toBe(true);
-    const accountOnB = getUnsafeSchnorrAccount(pxeB, privateKey, account.salt);
+    const accountOnB = getUnsafeSchnorrAccount(pxeB, secretKey, account.salt);
     const walletOnB = await accountOnB.getWallet();
 
     // need to register first otherwise the new PXE won't know about the account
@@ -302,13 +301,13 @@ describe('e2e_2_pxes', () => {
     const transferAmount2 = 323n;
 
     // setup an account that is shared across PXEs
-    const sharedPrivateKey = GrumpkinScalar.random();
-    const sharedAccountOnA = getUnsafeSchnorrAccount(pxeA, sharedPrivateKey, Fr.random());
+    const sharedSecretKey = Fr.random();
+    const sharedAccountOnA = getUnsafeSchnorrAccount(pxeA, sharedSecretKey, Fr.random());
     const sharedAccountAddress = sharedAccountOnA.getCompleteAddress();
     const sharedWalletOnA = await sharedAccountOnA.waitSetup();
     await expect(sharedWalletOnA.isAccountStateSynchronized(sharedAccountAddress.address)).resolves.toBe(true);
 
-    const sharedAccountOnB = getUnsafeSchnorrAccount(pxeB, sharedPrivateKey, sharedAccountOnA.salt);
+    const sharedAccountOnB = getUnsafeSchnorrAccount(pxeB, sharedSecretKey, sharedAccountOnA.salt);
     await sharedAccountOnB.register();
     const sharedWalletOnB = await sharedAccountOnB.getWallet();
 

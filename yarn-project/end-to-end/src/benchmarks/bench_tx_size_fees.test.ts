@@ -1,5 +1,5 @@
 import {
-  type AccountWalletWithPrivateKey,
+  type AccountWalletWithSecretKey,
   type AztecAddress,
   type EthAddress,
   type FeePaymentMethod,
@@ -19,7 +19,7 @@ import { publicDeployAccounts, setup } from '../fixtures/utils.js';
 jest.setTimeout(50_000);
 
 describe('benchmarks/tx_size_fees', () => {
-  let aliceWallet: AccountWalletWithPrivateKey;
+  let aliceWallet: AccountWalletWithSecretKey;
   let bobAddress: AztecAddress;
   let sequencerAddress: AztecAddress;
   let gas: GasTokenContract;

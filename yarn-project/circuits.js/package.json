@@ -9,6 +9,7 @@
   "exports": {
     ".": "./dest/index.js",
     "./hash": "./dest/hash/index.js",
+    "./keys": "./dest/keys/index.js",
     "./barretenberg": "./dest/barretenberg/index.js",
     "./testing": "./dest/tests/index.js",
     "./testing/fixtures": "./dest/tests/fixtures.js",

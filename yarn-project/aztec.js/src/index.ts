@@ -58,7 +58,7 @@ export { AuthWitnessProvider } from './account/index.js';
 export { AccountContract } from './account/index.js';
 export { AccountManager } from './account_manager/index.js';
 
-export { AccountWalletWithPrivateKey, AccountWallet, Wallet, SignerlessWallet } from './wallet/index.js';
+export { AccountWalletWithSecretKey, AccountWallet, Wallet, SignerlessWallet } from './wallet/index.js';
 
 // // TODO https://github.com/AztecProtocol/aztec-packages/issues/2632 --> FunctionSelector might not need to be exposed
 // // here once the issue is resolved.
@@ -76,6 +76,13 @@ export {
 } from '@aztec/circuits.js';
 
 export { computeMessageSecretHash } from '@aztec/circuits.js/hash';
+
+export {
+  computeAppNullifierSecretKey,
+  deriveKeys,
+  deriveMasterIncomingViewingSecretKey,
+  deriveMasterNullifierSecretKey,
+} from '@aztec/circuits.js/keys';
 
 export { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
 

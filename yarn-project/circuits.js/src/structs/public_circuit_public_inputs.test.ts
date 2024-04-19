@@ -32,9 +32,9 @@ describe('PublicCircuitPublicInputs', () => {
     expect(hash).toMatchSnapshot();
   });
 
-  it('computes empty item hash', () => {
-    const item = PublicCircuitPublicInputs.empty();
-    const hash = item.hash();
+  it('computes empty inputs hash', () => {
+    const inputs = PublicCircuitPublicInputs.empty();
+    const hash = inputs.hash();
     expect(hash).toMatchSnapshot();
 
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data

@@ -1,6 +1,6 @@
 // docs:start:create_account_imports
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { GrumpkinScalar, createPXEClient } from '@aztec/aztec.js';
+import { Fr, GrumpkinScalar, createPXEClient } from '@aztec/aztec.js';
 // docs:end:create_account_imports
 // docs:start:import_contract
 import { Contract } from '@aztec/aztec.js';
@@ -14,13 +14,13 @@ describe('docs_examples', () => {
   it('deploys and interacts with a token contract', async () => {
     // docs:start:define_account_vars
     const PXE_URL = process.env.PXE_URL || 'http://localhost:8080';
-    const encryptionPrivateKey = GrumpkinScalar.random();
+    const secretKey = Fr.random();
     const signingPrivateKey = GrumpkinScalar.random();
     const pxe = createPXEClient(PXE_URL);
     // docs:end:define_account_vars
 
     // docs:start:create_wallet
-    const wallet = await getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey).waitSetup();
+    const wallet = await getSchnorrAccount(pxe, secretKey, signingPrivateKey).waitSetup();
     // docs:end:create_wallet
 
     // docs:start:deploy_contract

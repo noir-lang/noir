@@ -198,7 +198,7 @@ export class Synchronizer {
         }
 
         this.log.debug(
-          `Catching up note processor ${noteProcessor.publicKey.toString()} by processing ${
+          `Catching up note processor ${noteProcessor.masterIncomingViewingPublicKey.toString()} by processing ${
             blocks.length - index
           } blocks`,
         );
@@ -206,16 +206,19 @@ export class Synchronizer {
 
         if (noteProcessor.status.syncedToBlock === toBlockNumber) {
           // Note processor caught up, move it to `noteProcessors` from `noteProcessorsToCatchUp`.
-          this.log.debug(`Note processor for ${noteProcessor.publicKey.toString()} has caught up`, {
-            eventName: 'note-processor-caught-up',
-            publicKey: noteProcessor.publicKey.toString(),
-            duration: noteProcessor.timer.ms(),
-            dbSize: this.db.estimateSize(),
-            ...noteProcessor.stats,
-          } satisfies NoteProcessorCaughtUpStats);
+          this.log.debug(
+            `Note processor for ${noteProcessor.masterIncomingViewingPublicKey.toString()} has caught up`,
+            {
+              eventName: 'note-processor-caught-up',
+              publicKey: noteProcessor.masterIncomingViewingPublicKey.toString(),
+              duration: noteProcessor.timer.ms(),
+              dbSize: this.db.estimateSize(),
+              ...noteProcessor.stats,
+            } satisfies NoteProcessorCaughtUpStats,
+          );
 
           this.noteProcessorsToCatchUp = this.noteProcessorsToCatchUp.filter(
-            np => !np.publicKey.equals(noteProcessor.publicKey),
+            np => !np.masterIncomingViewingPublicKey.equals(noteProcessor.masterIncomingViewingPublicKey),
           );
           this.noteProcessors.push(noteProcessor);
         }
@@ -260,7 +263,7 @@ export class Synchronizer {
    * @returns A promise that resolves once the account is added to the Synchronizer.
    */
   public addAccount(publicKey: PublicKey, keyStore: KeyStore, startingBlock: number) {
-    const predicate = (x: NoteProcessor) => x.publicKey.equals(publicKey);
+    const predicate = (x: NoteProcessor) => x.masterIncomingViewingPublicKey.equals(publicKey);
     const processor = this.noteProcessors.find(predicate) ?? this.noteProcessorsToCatchUp.find(predicate);
     if (processor) {
       return;
@@ -282,7 +285,7 @@ export class Synchronizer {
     if (!completeAddress) {
       throw new Error(`Checking if account is synched is not possible for ${account} because it is not registered.`);
     }
-    const findByPublicKey = (x: NoteProcessor) => x.publicKey.equals(completeAddress.publicKey);
+    const findByPublicKey = (x: NoteProcessor) => x.masterIncomingViewingPublicKey.equals(completeAddress.publicKey);
     const processor = this.noteProcessors.find(findByPublicKey) ?? this.noteProcessorsToCatchUp.find(findByPublicKey);
     if (!processor) {
       throw new Error(
@@ -315,7 +318,9 @@ export class Synchronizer {
     const lastBlockNumber = this.getSynchedBlockNumber();
     return {
       blocks: lastBlockNumber,
-      notes: Object.fromEntries(this.noteProcessors.map(n => [n.publicKey.toString(), n.status.syncedToBlock])),
+      notes: Object.fromEntries(
+        this.noteProcessors.map(n => [n.masterIncomingViewingPublicKey.toString(), n.status.syncedToBlock]),
+      ),
     };
   }
 
@@ -345,7 +350,7 @@ export class Synchronizer {
       // to be safe, try each note processor in case the deferred notes are for different accounts.
       for (const processor of this.noteProcessors) {
         const decodedNotes = await processor.decodeDeferredNotes(
-          deferredNotes.filter(n => n.publicKey.equals(processor.publicKey)),
+          deferredNotes.filter(n => n.publicKey.equals(processor.masterIncomingViewingPublicKey)),
         );
         newNotes.push(...decodedNotes);
       }

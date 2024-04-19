@@ -12,8 +12,9 @@ pub fn get_public_key(address: AztecAddress) -> GrumpkinPoint {
     let pub_key = GrumpkinPoint::new(result[0], result[1]);
     let partial_address = PartialAddress::from_field(result[2]);
 
-    let calculated_address = AztecAddress::compute(PublicKeysHash::compute(pub_key), partial_address);
-    assert(calculated_address.eq(address));
+    // TODO(#5830): disabling the following constraint until we update the oracle according to the new key scheme
+    // let calculated_address = AztecAddress::compute(PublicKeysHash::compute(pub_key), partial_address);
+    // assert(calculated_address.eq(address));
 
     pub_key
 }

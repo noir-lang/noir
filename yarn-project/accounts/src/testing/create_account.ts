@@ -1,6 +1,7 @@
-import { type AccountWalletWithPrivateKey } from '@aztec/aztec.js/wallet';
+import { type AccountWalletWithSecretKey } from '@aztec/aztec.js/wallet';
 import { type PXE } from '@aztec/circuit-types';
-import { GrumpkinScalar } from '@aztec/circuits.js';
+import { Fr, GeneratorIndex } from '@aztec/circuits.js';
+import { sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
 
 import { getSchnorrAccount } from '../schnorr/index.js';
 
@@ -9,8 +10,10 @@ import { getSchnorrAccount } from '../schnorr/index.js';
  * @param pxe - PXE.
  * @returns - A wallet for a fresh account.
  */
-export function createAccount(pxe: PXE): Promise<AccountWalletWithPrivateKey> {
-  return getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random()).waitSetup();
+export function createAccount(pxe: PXE): Promise<AccountWalletWithSecretKey> {
+  const secretKey = Fr.random();
+  const signingKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]);
+  return getSchnorrAccount(pxe, secretKey, signingKey).waitSetup();
 }
 
 /**
@@ -19,12 +22,14 @@ export function createAccount(pxe: PXE): Promise<AccountWalletWithPrivateKey> {
  * @param numberOfAccounts - How many accounts to create.
  * @returns The created account wallets.
  */
-export async function createAccounts(pxe: PXE, numberOfAccounts = 1): Promise<AccountWalletWithPrivateKey[]> {
+export async function createAccounts(pxe: PXE, numberOfAccounts = 1): Promise<AccountWalletWithSecretKey[]> {
   const accounts = [];
 
   // Prepare deployments
   for (let i = 0; i < numberOfAccounts; ++i) {
-    const account = getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random());
+    const secretKey = Fr.random();
+    const signingKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]);
+    const account = getSchnorrAccount(pxe, secretKey, signingKey);
     // Unfortunately the function below is not stateless and we call it here because it takes a long time to run and
     // the results get stored within the account object. By calling it here we increase the probability of all the
     // accounts being deployed in the same block because it makes the deploy() method basically instant.

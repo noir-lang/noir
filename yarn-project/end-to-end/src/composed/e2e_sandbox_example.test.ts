@@ -194,7 +194,7 @@ describe('e2e_sandbox_example', () => {
         .map(() =>
           getSchnorrAccount(
             pxe,
-            GrumpkinScalar.random(), // encryption private key
+            Fr.random(), // secret key
             GrumpkinScalar.random(), // signing private key
           ),
         );

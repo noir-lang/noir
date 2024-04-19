@@ -1,13 +1,11 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
-import { NewTestKeyStore } from './new_test_key_store.js';
+import { TestKeyStore } from './test_key_store.js';
 
-describe('NewTestKeyStore', () => {
+describe('TestKeyStore', () => {
   it('Adds account and returns keys', async () => {
-    const db = openTmpStore();
-    const keyStore = new NewTestKeyStore(new Grumpkin(), db);
+    const keyStore = new TestKeyStore(openTmpStore());
 
     // Arbitrary fixed values
     const sk = new Fr(8923n);
@@ -15,7 +13,7 @@ describe('NewTestKeyStore', () => {
 
     const accountAddress = await keyStore.addAccount(sk, partialAddress);
     expect(accountAddress.toString()).toMatchInlineSnapshot(
-      `"0x0ba7834252d19c4f09d29303c269f303f40ae3d2043f921ed0bf8c0709926d4e"`,
+      `"0x1a8a9a1d91cbb353d8df4f1bbfd0283f7fc63766f671edd9443a1270a7b2a954"`,
     );
 
     const masterNullifierPublicKey = await keyStore.getMasterNullifierPublicKey(accountAddress);
@@ -36,6 +34,11 @@ describe('NewTestKeyStore', () => {
     const masterTaggingPublicKey = await keyStore.getMasterTaggingPublicKey(accountAddress);
     expect(masterTaggingPublicKey.toString()).toMatchInlineSnapshot(
       `"0x076429010fdebfa522b053267f654a4c5daf18589915d96f7e5001d63ea2033f27f915f254560c84450aa38e93c3162be52492d05b316e75f542e3b302117360"`,
+    );
+
+    const publicKeysHash = await keyStore.getPublicKeysHash(accountAddress);
+    expect(publicKeysHash.toString()).toMatchInlineSnapshot(
+      `"0x1ba15945655812587b5c16a6a8125193c901c2c31a4ac4edaed202726c0d4c89"`,
     );
 
     // Arbitrary app contract address
@@ -59,7 +62,7 @@ describe('NewTestKeyStore', () => {
     // Returned accounts are as expected
     const accounts = await keyStore.getAccounts();
     expect(accounts.toString()).toMatchInlineSnapshot(
-      `"0x0ba7834252d19c4f09d29303c269f303f40ae3d2043f921ed0bf8c0709926d4e"`,
+      `"0x1a8a9a1d91cbb353d8df4f1bbfd0283f7fc63766f671edd9443a1270a7b2a954"`,
     );
 
     // Manages to find master nullifer secret key for pub key

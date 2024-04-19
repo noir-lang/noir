@@ -1,4 +1,4 @@
-import { type FunctionCall, type PublicKey, type Tx, type TxExecutionRequest } from '@aztec/circuit-types';
+import { type FunctionCall, type Tx, type TxExecutionRequest } from '@aztec/circuit-types';
 import {
   AztecAddress,
   computePartialAddress,
@@ -59,7 +59,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   private log = createDebugLogger('aztec:js:deploy_method');
 
   constructor(
-    private publicKey: PublicKey,
+    private publicKeysHash: Fr,
     protected wallet: Wallet,
     private artifact: ContractArtifact,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
@@ -210,7 +210,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
         constructorArgs: this.args,
         salt: options.contractAddressSalt,
         portalAddress: options.portalContract,
-        publicKey: this.publicKey,
+        publicKeysHash: this.publicKeysHash,
         constructorArtifact: this.constructorArtifact,
         deployer: options.universalDeploy ? AztecAddress.ZERO : this.wallet.getAddress(),
       });

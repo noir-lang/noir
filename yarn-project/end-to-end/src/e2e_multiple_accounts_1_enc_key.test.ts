@@ -11,7 +11,7 @@ import {
   type PXE,
   type Wallet,
   computeMessageSecretHash,
-  generatePublicKey,
+  deriveKeys,
 } from '@aztec/aztec.js';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
@@ -33,7 +33,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   beforeEach(async () => {
     ({ teardown, aztecNode, pxe, logger } = await setup(0));
 
-    const encryptionPrivateKey = GrumpkinScalar.random();
+    const encryptionPrivateKey = Fr.random();
 
     for (let i = 0; i < numAccounts; i++) {
       logger.info(`Deploying account contract ${i}/3...`);
@@ -47,7 +47,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     logger.info('Account contracts deployed');
 
     // Verify that all accounts use the same encryption key
-    const encryptionPublicKey = generatePublicKey(encryptionPrivateKey);
+    const encryptionPublicKey = deriveKeys(encryptionPrivateKey).masterIncomingViewingPublicKey;
 
     for (const account of accounts) {
       expect(account.publicKey).toEqual(encryptionPublicKey);

@@ -14,7 +14,6 @@ import {
   createDebugLogger,
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
-import { type Point } from '@aztec/circuits.js';
 import { type StatefulTestContract } from '@aztec/noir-contracts.js';
 
 import { SnapshotManager, addAccounts } from '../fixtures/snapshot_manager.js';
@@ -64,19 +63,19 @@ export class DeployTest {
     contractArtifact: ContractArtifactClass<T>,
     opts: {
       salt?: Fr;
-      publicKey?: Point;
+      publicKeysHash?: Fr;
       portalAddress?: EthAddress;
       initArgs?: any[];
       constructorName?: string;
       deployer?: AztecAddress;
     } = {},
   ): Promise<T> {
-    const { salt, publicKey, portalAddress, initArgs, constructorName, deployer } = opts;
+    const { salt, publicKeysHash, portalAddress, initArgs, constructorName, deployer } = opts;
     const instance = getContractInstanceFromDeployParams(contractArtifact.artifact, {
       constructorArgs: initArgs ?? [],
       constructorArtifact: constructorName,
       salt,
-      publicKey,
+      publicKeysHash,
       portalAddress,
       deployer,
     });
@@ -86,8 +85,8 @@ export class DeployTest {
 
   async registerRandomAccount(): Promise<AztecAddress> {
     const pxe = this.pxe;
-    const { completeAddress: owner, privateKey } = CompleteAddress.fromRandomPrivateKey();
-    await pxe.registerAccount(privateKey, owner.partialAddress);
+    const { completeAddress: owner, secretKey } = CompleteAddress.fromRandomSecretKey();
+    await pxe.registerAccount(secretKey, owner.partialAddress);
     return owner.address;
   }
 }

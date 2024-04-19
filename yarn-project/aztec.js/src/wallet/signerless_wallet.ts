@@ -31,6 +31,10 @@ export class SignerlessWallet extends BaseWallet {
     throw new Error('Method not implemented.');
   }
 
+  getPublicKeysHash(): Fr {
+    throw new Error('Method not implemented.');
+  }
+
   getCompleteAddress(): CompleteAddress {
     throw new Error('Method not implemented.');
   }

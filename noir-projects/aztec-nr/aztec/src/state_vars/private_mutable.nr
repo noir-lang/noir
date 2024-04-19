@@ -5,7 +5,7 @@ use crate::note::{
     lifecycle::{create_note, destroy_note}, note_getter::{get_note, view_notes},
     note_interface::NoteInterface, note_viewer_options::NoteViewerOptions
 };
-use crate::oracle::{nullifier_key::get_nullifier_secret_key, notes::check_nullifier_exists};
+use crate::oracle::notes::check_nullifier_exists;
 use crate::state_vars::storage::Storage;
 
 // docs:start:struct

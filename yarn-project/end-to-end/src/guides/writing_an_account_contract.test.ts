@@ -56,8 +56,8 @@ describe('guides/writing_an_account_contract', () => {
   it('works', async () => {
     const { pxe, logger } = context;
     // docs:start:account-contract-deploy
-    const encryptionPrivateKey = GrumpkinScalar.random();
-    const account = new AccountManager(pxe, encryptionPrivateKey, new SchnorrHardcodedKeyAccountContract());
+    const secretKey = Fr.random();
+    const account = new AccountManager(pxe, secretKey, new SchnorrHardcodedKeyAccountContract());
     const wallet = await account.waitSetup();
     const address = wallet.getCompleteAddress().address;
     // docs:end:account-contract-deploy
@@ -94,7 +94,7 @@ describe('guides/writing_an_account_contract', () => {
     // docs:start:account-contract-fails
     const wrongKey = GrumpkinScalar.random();
     const wrongAccountContract = new SchnorrHardcodedKeyAccountContract(wrongKey);
-    const wrongAccount = new AccountManager(pxe, encryptionPrivateKey, wrongAccountContract, account.salt);
+    const wrongAccount = new AccountManager(pxe, secretKey, wrongAccountContract, account.salt);
     const wrongWallet = await wrongAccount.getWallet();
     const tokenWithWrongWallet = token.withWallet(wrongWallet);
 

@@ -1,5 +1,6 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { ContractDeployer, type EthAddress, type Fq, Fr, type Point } from '@aztec/aztec.js';
+import { ContractDeployer, type EthAddress, Fr } from '@aztec/aztec.js';
+import { deriveKeys } from '@aztec/circuits.js';
 import { getInitializer } from '@aztec/foundation/abi';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
@@ -12,11 +13,10 @@ export async function deploy(
   artifactPath: string,
   json: boolean,
   rpcUrl: string,
-  publicKey: Point | undefined,
   rawArgs: any[],
   portalAddress: EthAddress,
   salt: Fr,
-  privateKey: Fq,
+  secretKey: Fr,
   initializer: string | undefined,
   wait: boolean,
   debugLogger: DebugLogger,
@@ -35,8 +35,9 @@ export async function deploy(
     );
   }
 
-  const wallet = await getSchnorrAccount(client, privateKey, privateKey, Fr.ZERO).getWallet();
-  const deployer = new ContractDeployer(contractArtifact, wallet, publicKey, initializer);
+  const keys = deriveKeys(secretKey);
+  const wallet = await getSchnorrAccount(client, secretKey, keys.masterIncomingViewingSecretKey, Fr.ZERO).getWallet();
+  const deployer = new ContractDeployer(contractArtifact, wallet, keys.publicKeysHash, initializer);
 
   let args = [];
   if (rawArgs.length > 0) {

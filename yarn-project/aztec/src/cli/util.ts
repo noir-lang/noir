@@ -1,11 +1,11 @@
 import { type ArchiverConfig } from '@aztec/archiver';
 import { type AztecNodeConfig } from '@aztec/aztec-node';
-import { type AccountManager } from '@aztec/aztec.js';
+import { type AccountManager, type Fr } from '@aztec/aztec.js';
 import { type L1ContractAddresses, l1ContractsNames } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { type LogFn, createConsoleLogger } from '@aztec/foundation/log';
 import { type P2PConfig } from '@aztec/p2p';
-import { type GrumpkinScalar, type PXEService, type PXEServiceConfig } from '@aztec/pxe';
+import { type PXEService, type PXEServiceConfig } from '@aztec/pxe';
 
 /**
  * Checks if the object has l1Contracts property
@@ -107,9 +107,9 @@ export async function createAccountLogs(
      */
     account: AccountManager;
     /**
-     * The private key of the account
+     * The secret key of the account
      */
-    privateKey: GrumpkinScalar;
+    secretKey: Fr;
   }[],
   pxe: PXEService,
 ) {
@@ -120,7 +120,7 @@ export async function createAccountLogs(
     if (registeredAccounts.find(a => a.equals(completeAddress))) {
       accountLogStrings.push(` Address: ${completeAddress.address.toString()}\n`);
       accountLogStrings.push(` Partial Address: ${completeAddress.partialAddress.toString()}\n`);
-      accountLogStrings.push(` Private Key: ${account.privateKey.toString()}\n`);
+      accountLogStrings.push(` Secret Key: ${account.secretKey.toString()}\n`);
       accountLogStrings.push(` Public Key: ${completeAddress.publicKey.toString()}\n\n`);
     }
   }

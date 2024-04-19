@@ -62,6 +62,6 @@ export class KernelOracle implements ProvingDataOracle {
   }
 
   public getMasterNullifierSecretKey(nullifierPublicKey: Point) {
-    return this.keyStore.getNullifierSecretKeyFromPublicKey(nullifierPublicKey);
+    return this.keyStore.getMasterNullifierSecretKeyForPublicKey(nullifierPublicKey);
   }
 }

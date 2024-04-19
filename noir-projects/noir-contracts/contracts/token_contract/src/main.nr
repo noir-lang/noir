@@ -14,10 +14,7 @@ contract Token {
 
     use dep::compressed_string::FieldCompressedString;
 
-    use dep::aztec::prelude::{
-        NoteGetterOptions, NoteHeader, Map, PublicMutable, SharedImmutable, PrivateSet,
-        FunctionSelector, AztecAddress
-    };
+    use dep::aztec::prelude::{NoteGetterOptions, Map, PublicMutable, SharedImmutable, PrivateSet, AztecAddress};
     use dep::aztec::hash::compute_secret_hash;
 
     // docs:start:import_authwit

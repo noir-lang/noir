@@ -215,7 +215,7 @@ fn serialization_of_empty() {
 fn empty_hash() {
     let inputs = PrivateCircuitPublicInputs::empty();
     let hash = inputs.hash();
-    // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x2c1ec6595f8d43f5fc983441bc75a84d2384008f5bd7a1d499da057130abe6cd;
+    // Value from private_circuit_public_inputs.test.ts "computes empty inputs hash" test
+    let test_data_empty_hash = 0x265dcde577695a65f00acc24d861e65e9486526ec2b9f9bab9493476f73e4bc9;
     assert_eq(hash, test_data_empty_hash);
 }

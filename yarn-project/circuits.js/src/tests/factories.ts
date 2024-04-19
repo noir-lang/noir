@@ -213,7 +213,7 @@ function makeReadRequestContext(n: number): ReadRequestContext {
  * @returns A NullifierKeyValidationRequest.
  */
 function makeNullifierKeyValidationRequest(seed: number): NullifierKeyValidationRequest {
-  return new NullifierKeyValidationRequest(makePoint(seed), makeGrumpkinPrivateKey(seed + 2));
+  return new NullifierKeyValidationRequest(makePoint(seed), fr(seed + 2));
 }
 
 /**
@@ -222,11 +222,7 @@ function makeNullifierKeyValidationRequest(seed: number): NullifierKeyValidation
  * @returns A NullifierKeyValidationRequestContext.
  */
 function makeNullifierKeyValidationRequestContext(seed: number): NullifierKeyValidationRequestContext {
-  return new NullifierKeyValidationRequestContext(
-    makePoint(seed),
-    makeGrumpkinPrivateKey(seed + 2),
-    makeAztecAddress(seed + 4),
-  );
+  return new NullifierKeyValidationRequestContext(makePoint(seed), fr(seed + 2), makeAztecAddress(seed + 4));
 }
 
 /**

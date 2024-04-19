@@ -2,7 +2,7 @@ import { SchnorrAccountContractArtifact } from '@aztec/accounts/schnorr';
 import { createAccounts, getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
 import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
-  type AccountWalletWithPrivateKey,
+  type AccountWalletWithSecretKey,
   type AztecAddress,
   type AztecNode,
   BatchCall,
@@ -190,7 +190,7 @@ export async function setupPXEService(
   /**
    * The wallets to be used.
    */
-  wallets: AccountWalletWithPrivateKey[];
+  wallets: AccountWalletWithSecretKey[];
   /**
    * Logger instance named as the current test.
    */
@@ -305,9 +305,9 @@ export type EndToEndContext = {
   /** The Aztec Node configuration. */
   config: AztecNodeConfig;
   /** The first wallet to be used. */
-  wallet: AccountWalletWithPrivateKey;
+  wallet: AccountWalletWithSecretKey;
   /** The wallets to be used. */
-  wallets: AccountWalletWithPrivateKey[];
+  wallets: AccountWalletWithSecretKey[];
   /** Logger instance named as the current test. */
   logger: DebugLogger;
   /** The cheat codes. */

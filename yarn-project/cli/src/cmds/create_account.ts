@@ -1,21 +1,22 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { GrumpkinScalar } from '@aztec/aztec.js';
-import { type Fq, Fr } from '@aztec/foundation/fields';
+import { deriveKeys } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 
 export async function createAccount(
   rpcUrl: string,
-  privateKey: Fq,
+  secretKey: Fr,
   wait: boolean,
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
   const client = await createCompatibleClient(rpcUrl, debugLogger);
-  const actualPrivateKey = privateKey ?? GrumpkinScalar.random();
+  const actualSecretKey = secretKey ?? Fr.random();
 
-  const account = getSchnorrAccount(client, actualPrivateKey, actualPrivateKey, Fr.ZERO);
+  const signingKey = deriveKeys(actualSecretKey).masterIncomingViewingSecretKey;
+  const account = getSchnorrAccount(client, actualSecretKey, signingKey, Fr.ZERO);
   const { address, publicKey, partialAddress } = account.getCompleteAddress();
   const tx = account.deploy();
   const txHash = await tx.getTxHash();
@@ -30,8 +31,8 @@ export async function createAccount(
   log(`\nNew account:\n`);
   log(`Address:         ${address.toString()}`);
   log(`Public key:      ${publicKey.toString()}`);
-  if (!privateKey) {
-    log(`Private key:     ${actualPrivateKey.toString()}`);
+  if (!secretKey) {
+    log(`Secret key:     ${actualSecretKey.toString()}`);
   }
   log(`Partial address: ${partialAddress.toString()}`);
 }

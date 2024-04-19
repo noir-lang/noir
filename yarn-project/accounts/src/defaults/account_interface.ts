@@ -17,6 +17,7 @@ export class DefaultAccountInterface implements AccountInterface {
   constructor(
     private authWitnessProvider: AuthWitnessProvider,
     private address: CompleteAddress,
+    private publicKeysHash: Fr,
     nodeInfo: Pick<NodeInfo, 'chainId' | 'protocolVersion'>,
   ) {
     this.entrypoint = new DefaultAccountEntrypoint(
@@ -35,6 +36,10 @@ export class DefaultAccountInterface implements AccountInterface {
 
   createAuthWit(messageHash: Fr): Promise<AuthWitness> {
     return this.authWitnessProvider.createAuthWit(messageHash);
+  }
+
+  getPublicKeysHash(): Fr {
+    return this.publicKeysHash;
   }
 
   getCompleteAddress(): CompleteAddress {

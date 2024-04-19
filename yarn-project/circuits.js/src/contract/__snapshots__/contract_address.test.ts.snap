@@ -1,10 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ContractAddress Address from partial matches Noir 1`] = `"0x0447f893197175723deb223696e2e96dbba1e707ee8507766373558877e74197"`;
+exports[`ContractAddress Address from partial matches Noir 1`] = `"0x1b6ead051e7b42665064ca6cf1ec77da0a36d86e00d1ff6e44077966c0c3a9fa"`;
 
-exports[`ContractAddress Public key hash matches Noir 1`] = `"0x1923a6246e305720b6aaf751fde0342613e93c82e455c3831e28375c16dd40d8"`;
+exports[`ContractAddress Public key hash matches Noir 1`] = `"0x22d83a089d7650514c2de24cd30185a414d943eaa19817c67bffe2c3183006a3"`;
 
-exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x027ea2b41ced2ec9a98305984e96dd28518536a4628883ccdc06e38aa8997220"`;
+exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x1b61d59f21fcb9653c56b86f5e45f2d0b69dcbb7efebfbcda6f53eb7abaaa4eb"`;
 
 exports[`ContractAddress computeInitializationHash 1`] = `Fr<0x109865e4b959adba34b722e72a69baaf9ee78e31bb1042318f0d91006ed86780>`;
 

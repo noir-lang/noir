@@ -25,7 +25,7 @@ describe('TxContext', () => {
     expect(fields.length).toBe(TX_CONTEXT_DATA_LENGTH);
   });
 
-  it('computes empty hash', () => {
+  it('computes empty context hash', () => {
     const tc = TxContext.empty();
     expect(tc.isEmpty()).toBe(true);
 

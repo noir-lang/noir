@@ -89,25 +89,25 @@ function generateDeploy(input: ContractArtifact) {
    * Creates a tx to deploy a new instance of this contract.
    */
   public static deploy(wallet: Wallet, ${args}) {
-    return new DeployMethod<${contractName}>(Point.ZERO, wallet, ${artifactName}, ${contractName}.at, Array.from(arguments).slice(1));
+    return new DeployMethod<${contractName}>(Fr.ZERO, wallet, ${artifactName}, ${contractName}.at, Array.from(arguments).slice(1));
   }
 
   /**
-   * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
+   * Creates a tx to deploy a new instance of this contract using the specified public keys hash to derive the address.
    */
-  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, ${args}) {
-    return new DeployMethod<${contractName}>(publicKey, wallet, ${artifactName}, ${contractName}.at, Array.from(arguments).slice(2));
+  public static deployWithPublicKeysHash(publicKeysHash: Fr, wallet: Wallet, ${args}) {
+    return new DeployMethod<${contractName}>(publicKeysHash, wallet, ${artifactName}, ${contractName}.at, Array.from(arguments).slice(2));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified constructor method.
    */
   public static deployWithOpts<M extends keyof ${contractName}['methods']>(
-    opts: { publicKey?: PublicKey; method?: M; wallet: Wallet },
+    opts: { publicKeysHash?: Fr; method?: M; wallet: Wallet },
     ...args: Parameters<${contractName}['methods'][M]>
   ) {
     return new DeployMethod<${contractName}>(
-      opts.publicKey ?? Point.ZERO,
+      opts.publicKeysHash ?? Fr.ZERO,
       opts.wallet,
       ${artifactName},
       ${contractName}.at,

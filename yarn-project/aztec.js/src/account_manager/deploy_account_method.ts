@@ -1,5 +1,4 @@
-import { type PublicKey } from '@aztec/circuit-types';
-import { FunctionData } from '@aztec/circuits.js';
+import { type Fr, FunctionData } from '@aztec/circuits.js';
 import {
   type ContractArtifact,
   type FunctionArtifact,
@@ -23,7 +22,7 @@ export class DeployAccountMethod extends DeployMethod {
 
   constructor(
     authWitnessProvider: AuthWitnessProvider,
-    publicKey: PublicKey,
+    publicKeysHash: Fr,
     wallet: Wallet,
     artifact: ContractArtifact,
     args: any[] = [],
@@ -31,7 +30,7 @@ export class DeployAccountMethod extends DeployMethod {
     feePaymentNameOrArtifact?: string | FunctionArtifact,
   ) {
     super(
-      publicKey,
+      publicKeysHash,
       wallet,
       artifact,
       (address, wallet) => Contract.at(address, artifact, wallet),

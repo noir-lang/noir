@@ -5,12 +5,11 @@ import {
   type DebugLogger,
   ExtendedNote,
   Fr,
-  GrumpkinScalar,
   Note,
   type PXE,
   type TxHash,
   computeMessageSecretHash,
-  generatePublicKey,
+  deriveKeys,
 } from '@aztec/aztec.js';
 import { computePartialAddress } from '@aztec/circuits.js';
 import { InclusionProofsContract } from '@aztec/noir-contracts.js';
@@ -49,8 +48,8 @@ describe('e2e_crowdfunding_and_claim', () => {
   let crowdfundingContract: CrowdfundingContract;
   let claimContract: ClaimContract;
 
-  let crowdfundingPrivateKey;
-  let crowdfundingPublicKey;
+  let crowdfundingSecretKey;
+  let crowdfundingPublicKeysHash;
   let pxe: PXE;
   let cheatCodes: CheatCodes;
   let deadline: number; // end of crowdfunding period
@@ -106,18 +105,18 @@ describe('e2e_crowdfunding_and_claim', () => {
       .deployed();
     logger.info(`Reward Token deployed to ${rewardToken.address}`);
 
-    crowdfundingPrivateKey = GrumpkinScalar.random();
-    crowdfundingPublicKey = generatePublicKey(crowdfundingPrivateKey);
+    crowdfundingSecretKey = Fr.random();
+    crowdfundingPublicKeysHash = deriveKeys(crowdfundingSecretKey).publicKeysHash;
 
-    const crowdfundingDeployment = CrowdfundingContract.deployWithPublicKey(
-      crowdfundingPublicKey,
+    const crowdfundingDeployment = CrowdfundingContract.deployWithPublicKeysHash(
+      crowdfundingPublicKeysHash,
       operatorWallet,
       donationToken.address,
       operatorWallet.getAddress(),
       deadline,
     );
     const crowdfundingInstance = crowdfundingDeployment.getInstance();
-    await pxe.registerAccount(crowdfundingPrivateKey, computePartialAddress(crowdfundingInstance));
+    await pxe.registerAccount(crowdfundingSecretKey, computePartialAddress(crowdfundingInstance));
     crowdfundingContract = await crowdfundingDeployment.send().deployed();
     logger.info(`Crowdfunding contract deployed at ${crowdfundingContract.address}`);
 

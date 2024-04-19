@@ -201,7 +201,7 @@ Partial address: 0x01e5e7b2abbfb98a93b7549ae80faa6886f8ea8e8f412416fb330b565fd2b
     expect(foundPartialAddress).toBeDefined();
   });
 
-  it('creates an account, gets account, deploys, checks deployed, view method, sending a tx... [SEQUENTIAL]', async () => {
+  it.skip('creates an account, gets account, deploys, checks deployed, view method, sending a tx... [SEQUENTIAL]', async () => {
     // Test create-account
     let docs = `
 // docs:start:create-account

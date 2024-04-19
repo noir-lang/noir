@@ -1,11 +1,10 @@
 use crate::{
     context::{inputs::PrivateContextInputs, interface::ContextInterface},
-    key::nullifier_key::validate_nullifier_key_against_address, messaging::process_l1_to_l2_message,
-    hash::{hash_args_array, ArgsHasher},
+    messaging::process_l1_to_l2_message, hash::{hash_args_array, ArgsHasher},
     oracle::{
     arguments, returns, call_private_function::call_private_function_internal,
     enqueue_public_function_call::enqueue_public_function_call_internal,
-    header::get_header_at, nullifier_key::{get_nullifier_key_pair, NullifierKeyPair}
+    header::get_header_at, nullifier_key::{get_nullifier_keys, NullifierKeys}
 }
 };
 use dep::protocol_types::{
@@ -71,7 +70,7 @@ struct PrivateContext {
     // encrypted_logs_preimages: Vec<Field>,
     // unencrypted_logs_preimages: Vec<Field>,
 
-    nullifier_key: Option<NullifierKeyPair>,
+    nullifier_key: Option<NullifierKeys>,
 }
 
 impl ContextInterface for PrivateContext {
@@ -220,24 +219,24 @@ impl PrivateContext {
         self.side_effect_counter = self.side_effect_counter + 1;
     }
 
-    pub fn request_nullifier_secret_key(&mut self, account: AztecAddress) -> GrumpkinPrivateKey {
-        let key_pair = if self.nullifier_key.is_none() {
-            let key_pair = get_nullifier_key_pair(account);
-            validate_nullifier_key_against_address(account, key_pair.public_key);
-            let request = NullifierKeyValidationRequest { public_key: key_pair.public_key, secret_key: key_pair.secret_key };
+    pub fn request_app_nullifier_secret_key(&mut self, account: AztecAddress) -> Field {
+        let keys = if self.nullifier_key.is_none() {
+            let keys = get_nullifier_keys(account);
+            let request = NullifierKeyValidationRequest {
+                master_nullifier_public_key: keys.master_nullifier_public_key,
+                app_nullifier_secret_key: keys.app_nullifier_secret_key
+            };
             self.nullifier_key_validation_requests.push(request);
-            self.nullifier_key = Option::some(key_pair);
-            key_pair
+            self.nullifier_key = Option::some(keys);
+            keys
         } else {
-            let key_pair = self.nullifier_key.unwrap_unchecked();
+            let keys = self.nullifier_key.unwrap_unchecked();
             // If MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL is larger than 1, need to update the way the key pair is cached.
             assert(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL == 1);
-            assert(
-                key_pair.account == account, "Cannot query nullifier key for more than one account per call"
-            );
-            key_pair
+            assert(keys.account == account, "Cannot query nullifier key for more than one account per call");
+            keys
         };
-        key_pair.secret_key
+        keys.app_nullifier_secret_key
     }
 
     // docs:start:context_message_portal

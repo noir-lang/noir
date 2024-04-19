@@ -19,7 +19,7 @@ import {
   deployInstance,
   registerContractClass,
 } from '@aztec/aztec.js/deployment';
-import { type ContractClassIdPreimage, Point } from '@aztec/circuits.js';
+import { type ContractClassIdPreimage } from '@aztec/circuits.js';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { writeTestData } from '@aztec/foundation/testing';
 import { StatefulTestContract } from '@aztec/noir-contracts.js';
@@ -97,11 +97,11 @@ describe('e2e_deploy_contract contract class registration', () => {
         const initArgs = [wallet.getAddress(), 42] as StatefulContractCtorArgs;
         const salt = Fr.random();
         const portalAddress = EthAddress.random();
-        const publicKey = Point.random();
+        const publicKeysHash = Fr.random();
         const instance = getContractInstanceFromDeployParams(artifact, {
           constructorArgs: initArgs,
           salt,
-          publicKey,
+          publicKeysHash,
           portalAddress,
           constructorArtifact: opts.constructorName,
           deployer: opts.deployer,
@@ -123,13 +123,13 @@ describe('e2e_deploy_contract contract class registration', () => {
           constructorName: opts.constructorName,
           salt: instance.salt,
           portalAddress: instance.portalContractAddress,
-          publicKey,
+          publicKeysHash,
           initArgs,
           deployer: opts.deployer,
         });
         expect(registered.address).toEqual(instance.address);
         const contract = await StatefulTestContract.at(instance.address, wallet);
-        return { contract, initArgs, instance, publicKey };
+        return { contract, initArgs, instance, publicKeysHash };
       };
 
       describe('using a private constructor', () => {

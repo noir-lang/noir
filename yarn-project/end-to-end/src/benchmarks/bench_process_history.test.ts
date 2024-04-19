@@ -1,5 +1,5 @@
 import { type AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, Fr, GrumpkinScalar, INITIAL_L2_BLOCK_NUM, elapsed, sleep } from '@aztec/aztec.js';
+import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, elapsed, sleep } from '@aztec/aztec.js';
 import {
   BENCHMARK_HISTORY_BLOCK_SIZE,
   BENCHMARK_HISTORY_CHAIN_LENGTHS,
@@ -79,12 +79,12 @@ describe('benchmarks/process_history', () => {
         // Register the owner account and wait until it's synced so we measure how much time it took
         context.logger.info(`Registering owner account on new pxe`);
         const partialAddress = context.wallet.getCompleteAddress().partialAddress;
-        const privateKey = context.wallet.getEncryptionPrivateKey();
-        await waitRegisteredAccountSynced(pxe, privateKey, partialAddress);
+        const secretKey = context.wallet.getSecretKey();
+        await waitRegisteredAccountSynced(pxe, secretKey, partialAddress);
 
         // Repeat for another account that didn't receive any notes for them, so we measure trial-decrypts
         context.logger.info(`Registering fresh account on new pxe`);
-        await waitRegisteredAccountSynced(pxe, GrumpkinScalar.random(), Fr.random());
+        await waitRegisteredAccountSynced(pxe, Fr.random(), Fr.random());
 
         // Stop the external node and pxe
         await pxe.stop();

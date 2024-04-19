@@ -9,7 +9,7 @@ import {
   waitForAccountSynch,
 } from '@aztec/aztec.js';
 import { type Salt } from '@aztec/aztec.js/account';
-import { type AztecAddress, type CompleteAddress, Fq, Fr } from '@aztec/circuits.js';
+import { type AztecAddress, type CompleteAddress, Fr, deriveSigningKey } from '@aztec/circuits.js';
 import { type DeployL1Contracts } from '@aztec/ethereum';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
@@ -39,7 +39,7 @@ describe('Aztec persistence', () => {
   // the test contract and account deploying it
   let contractInstance: ContractInstanceWithAddress;
   let contractAddress: AztecAddress;
-  let ownerPrivateKey: Fq;
+  let ownerSecretKey: Fr;
   let ownerAddress: CompleteAddress;
   let ownerSalt: Salt;
 
@@ -59,8 +59,8 @@ describe('Aztec persistence', () => {
     const initialContext = await setup(0, { dataDirectory }, { dataDirectory });
     deployL1ContractsValues = initialContext.deployL1ContractsValues;
 
-    ownerPrivateKey = Fq.random();
-    const ownerWallet = await getUnsafeSchnorrAccount(initialContext.pxe, ownerPrivateKey, Fr.ZERO).waitSetup();
+    ownerSecretKey = Fr.random();
+    const ownerWallet = await getUnsafeSchnorrAccount(initialContext.pxe, ownerSecretKey, Fr.ZERO).waitSetup();
     ownerAddress = ownerWallet.getCompleteAddress();
     ownerSalt = ownerWallet.salt;
 
@@ -106,7 +106,8 @@ describe('Aztec persistence', () => {
 
     beforeEach(async () => {
       context = await contextSetup();
-      ownerWallet = await getUnsafeSchnorrWallet(context.pxe, ownerAddress.address, ownerPrivateKey);
+      const signingKey = deriveSigningKey(ownerSecretKey);
+      ownerWallet = await getUnsafeSchnorrWallet(context.pxe, ownerAddress.address, signingKey);
       contract = await TokenContract.at(contractAddress, ownerWallet);
     }, timeout);
 
@@ -146,7 +147,7 @@ describe('Aztec persistence', () => {
     });
 
     it('allows spending of private notes', async () => {
-      const otherWallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
+      const otherWallet = await getUnsafeSchnorrAccount(context.pxe, Fr.random(), Fr.ZERO).waitSetup();
 
       const initialOwnerBalance = await contract.methods.balance_of_private(ownerWallet.getAddress()).simulate();
 
@@ -194,7 +195,7 @@ describe('Aztec persistence', () => {
     it('pxe does not know of the deployed contract', async () => {
       await context.pxe.registerRecipient(ownerAddress);
 
-      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
+      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fr.random(), Fr.ZERO).waitSetup();
       await expect(TokenContract.at(contractAddress, wallet)).rejects.toThrow(/has not been registered/);
     });
 
@@ -205,7 +206,7 @@ describe('Aztec persistence', () => {
       });
       await context.pxe.registerRecipient(ownerAddress);
 
-      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
+      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fr.random(), Fr.ZERO).waitSetup();
       const contract = await TokenContract.at(contractAddress, wallet);
       await expect(contract.methods.balance_of_private(ownerAddress.address).simulate()).resolves.toEqual(0n);
     });
@@ -216,7 +217,7 @@ describe('Aztec persistence', () => {
         instance: contractInstance,
       });
 
-      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
+      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fr.random(), Fr.ZERO).waitSetup();
       const contract = await TokenContract.at(contractAddress, wallet);
 
       await expect(contract.methods.total_supply().simulate()).resolves.toBeGreaterThan(0n);
@@ -228,7 +229,7 @@ describe('Aztec persistence', () => {
         instance: contractInstance,
       });
 
-      const ownerAccount = getUnsafeSchnorrAccount(context.pxe, ownerPrivateKey, ownerSalt);
+      const ownerAccount = getUnsafeSchnorrAccount(context.pxe, ownerSecretKey, ownerSalt);
       await ownerAccount.register();
       const ownerWallet = await ownerAccount.getWallet();
       const contract = await TokenContract.at(contractAddress, ownerWallet);
@@ -259,7 +260,7 @@ describe('Aztec persistence', () => {
         instance: contractInstance,
       });
 
-      const ownerAccount = getUnsafeSchnorrAccount(temporaryContext.pxe, ownerPrivateKey, ownerSalt);
+      const ownerAccount = getUnsafeSchnorrAccount(temporaryContext.pxe, ownerSecretKey, ownerSalt);
       await ownerAccount.register();
       const ownerWallet = await ownerAccount.getWallet();
 
@@ -287,7 +288,8 @@ describe('Aztec persistence', () => {
 
     beforeEach(async () => {
       context = await setup(0, { dataDirectory, deployL1ContractsValues }, { dataDirectory });
-      ownerWallet = await getUnsafeSchnorrWallet(context.pxe, ownerAddress.address, ownerPrivateKey);
+      const signingKey = deriveSigningKey(ownerSecretKey);
+      ownerWallet = await getUnsafeSchnorrWallet(context.pxe, ownerAddress.address, signingKey);
       contract = await TokenContract.at(contractAddress, ownerWallet);
 
       await waitForAccountSynch(context.pxe, ownerAddress, { interval: 0.1, timeout: 5 });

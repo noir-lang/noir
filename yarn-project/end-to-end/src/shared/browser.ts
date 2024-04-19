@@ -119,11 +119,11 @@ export const browserTestSuite = (
 
     it('Creates an account', async () => {
       const result = await page.evaluate(
-        async (rpcUrl, privateKeyString) => {
-          const { GrumpkinScalar, createPXEClient: createPXEClient, getUnsafeSchnorrAccount } = window.AztecJs;
+        async (rpcUrl, secretKeyString) => {
+          const { Fr, createPXEClient, getUnsafeSchnorrAccount } = window.AztecJs;
           const pxe = createPXEClient(rpcUrl!);
-          const privateKey = GrumpkinScalar.fromString(privateKeyString);
-          const account = getUnsafeSchnorrAccount(pxe, privateKey);
+          const secretKey = Fr.fromString(secretKeyString);
+          const account = getUnsafeSchnorrAccount(pxe, secretKey);
           await account.waitSetup();
           const completeAddress = account.getCompleteAddress();
           const addressString = completeAddress.address.toString();
@@ -190,7 +190,7 @@ export const browserTestSuite = (
             getUnsafeSchnorrAccount,
           } = window.AztecJs;
           const pxe = createPXEClient(rpcUrl!);
-          const newReceiverAccount = await getUnsafeSchnorrAccount(pxe, AztecJs.GrumpkinScalar.random()).waitSetup();
+          const newReceiverAccount = await getUnsafeSchnorrAccount(pxe, AztecJs.Fr.random()).waitSetup();
           const receiverAddress = newReceiverAccount.getCompleteAddress().address;
           const [wallet] = await getDeployedTestAccountsWallets(pxe);
           const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractArtifact, wallet);
@@ -217,12 +217,13 @@ export const browserTestSuite = (
             createPXEClient,
             getSchnorrAccount,
             Contract,
+            deriveKeys,
             Fr,
             ExtendedNote,
             Note,
             computeMessageSecretHash,
             getDeployedTestAccountsWallets,
-            INITIAL_TEST_ENCRYPTION_KEYS,
+            INITIAL_TEST_SECRET_KEYS,
             INITIAL_TEST_SIGNING_KEYS,
             INITIAL_TEST_ACCOUNT_SALTS,
             Buffer,
@@ -239,16 +240,18 @@ export const browserTestSuite = (
           if (!knownAccounts.length) {
             const newAccount = await getSchnorrAccount(
               pxe,
-              INITIAL_TEST_ENCRYPTION_KEYS[0],
+              INITIAL_TEST_SECRET_KEYS[0],
               INITIAL_TEST_SIGNING_KEYS[0],
               INITIAL_TEST_ACCOUNT_SALTS[0],
             ).waitSetup();
             knownAccounts.push(newAccount);
           }
           const owner = knownAccounts[0];
+          // TODO(#5726): this is messy, maybe we should expose publicKeysHash on account
+          const publicKeysHash = deriveKeys(INITIAL_TEST_SECRET_KEYS[0]).publicKeysHash;
           const ownerAddress = owner.getAddress();
           const tx = new DeployMethod(
-            owner.getCompleteAddress().publicKey,
+            publicKeysHash,
             owner,
             TokenContractArtifact,
             (a: AztecJs.AztecAddress) => Contract.at(a, TokenContractArtifact, owner),

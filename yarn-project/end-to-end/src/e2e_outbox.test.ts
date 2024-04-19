@@ -1,5 +1,5 @@
 import {
-  type AccountWalletWithPrivateKey,
+  type AccountWalletWithSecretKey,
   type AztecNode,
   BatchCall,
   type DeployL1Contracts,
@@ -24,7 +24,7 @@ describe('E2E Outbox Tests', () => {
   let aztecNode: AztecNode;
   const merkleSha256 = new SHA256();
   let contract: TestContract;
-  let wallets: AccountWalletWithPrivateKey[];
+  let wallets: AccountWalletWithSecretKey[];
   let deployL1ContractsValues: DeployL1Contracts;
 
   beforeEach(async () => {

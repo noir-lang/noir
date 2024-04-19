@@ -1,5 +1,5 @@
-import { CompleteAddress, type GrumpkinPrivateKey, type PXE } from '@aztec/circuit-types';
-import { type PublicKey, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
+import { CompleteAddress, type PXE } from '@aztec/circuit-types';
+import { deriveKeys, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
@@ -10,8 +10,7 @@ import { type DeployOptions } from '../contract/deploy_method.js';
 import { DefaultWaitOpts, type WaitOpts } from '../contract/sent_tx.js';
 import { DefaultMultiCallEntrypoint } from '../entrypoint/default_multi_call_entrypoint.js';
 import { waitForAccountSynch } from '../utils/account.js';
-import { generatePublicKey } from '../utils/index.js';
-import { AccountWalletWithPrivateKey, SignerlessWallet } from '../wallet/index.js';
+import { AccountWalletWithSecretKey, SignerlessWallet } from '../wallet/index.js';
 import { DeployAccountMethod } from './deploy_account_method.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
 
@@ -31,23 +30,18 @@ export class AccountManager {
   // TODO(@spalladino): Does it make sense to have both completeAddress and instance?
   private completeAddress?: CompleteAddress;
   private instance?: ContractInstanceWithAddress;
-  private encryptionPublicKey?: PublicKey;
+  private publicKeysHash?: Fr;
   private deployMethod?: DeployAccountMethod;
 
-  constructor(
-    private pxe: PXE,
-    private encryptionPrivateKey: GrumpkinPrivateKey,
-    private accountContract: AccountContract,
-    salt?: Salt,
-  ) {
+  constructor(private pxe: PXE, private secretKey: Fr, private accountContract: AccountContract, salt?: Salt) {
     this.salt = salt !== undefined ? new Fr(salt) : Fr.random();
   }
 
-  protected getEncryptionPublicKey() {
-    if (!this.encryptionPublicKey) {
-      this.encryptionPublicKey = generatePublicKey(this.encryptionPrivateKey);
+  protected getPublicKeysHash() {
+    if (!this.publicKeysHash) {
+      this.publicKeysHash = deriveKeys(this.secretKey).publicKeysHash;
     }
-    return this.encryptionPublicKey;
+    return this.publicKeysHash;
   }
 
   /**
@@ -57,7 +51,7 @@ export class AccountManager {
   public async getAccount(): Promise<AccountInterface> {
     const nodeInfo = await this.pxe.getNodeInfo();
     const completeAddress = this.getCompleteAddress();
-    return this.accountContract.getInterface(completeAddress, nodeInfo);
+    return this.accountContract.getInterface(completeAddress, this.getPublicKeysHash(), nodeInfo);
   }
 
   /**
@@ -67,9 +61,8 @@ export class AccountManager {
    */
   public getCompleteAddress(): CompleteAddress {
     if (!this.completeAddress) {
-      const encryptionPublicKey = generatePublicKey(this.encryptionPrivateKey);
       const instance = this.getInstance();
-      this.completeAddress = CompleteAddress.fromPublicKeyAndInstance(encryptionPublicKey, instance);
+      this.completeAddress = CompleteAddress.fromSecretKeyAndInstance(this.secretKey, instance);
     }
     return this.completeAddress;
   }
@@ -81,11 +74,10 @@ export class AccountManager {
    */
   public getInstance(): ContractInstanceWithAddress {
     if (!this.instance) {
-      const encryptionPublicKey = generatePublicKey(this.encryptionPrivateKey);
       this.instance = getContractInstanceFromDeployParams(this.accountContract.getContractArtifact(), {
         constructorArgs: this.accountContract.getDeploymentArgs(),
         salt: this.salt,
-        publicKey: encryptionPublicKey,
+        publicKeysHash: this.getPublicKeysHash(),
       });
     }
     return this.instance;
@@ -96,9 +88,9 @@ export class AccountManager {
    * instances to be interacted with from this account.
    * @returns A Wallet instance.
    */
-  public async getWallet(): Promise<AccountWalletWithPrivateKey> {
+  public async getWallet(): Promise<AccountWalletWithSecretKey> {
     const entrypoint = await this.getAccount();
-    return new AccountWalletWithPrivateKey(this.pxe, entrypoint, this.encryptionPrivateKey, this.salt);
+    return new AccountWalletWithSecretKey(this.pxe, entrypoint, this.secretKey, this.salt);
   }
 
   /**
@@ -108,7 +100,7 @@ export class AccountManager {
    * @param opts - Options to wait for the account to be synched.
    * @returns A Wallet instance.
    */
-  public async register(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithPrivateKey> {
+  public async register(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithSecretKey> {
     await this.#register();
     await this.pxe.registerContract({
       artifact: this.accountContract.getContractArtifact(),
@@ -133,7 +125,7 @@ export class AccountManager {
         );
       }
       await this.#register();
-      const encryptionPublicKey = this.getEncryptionPublicKey();
+      const encryptionPublicKey = this.getPublicKeysHash();
       const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
       const deployWallet = new SignerlessWallet(this.pxe, new DefaultMultiCallEntrypoint(chainId, protocolVersion));
 
@@ -185,7 +177,7 @@ export class AccountManager {
    * @param opts - Options to wait for the tx to be mined.
    * @returns A Wallet instance.
    */
-  public async waitSetup(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithPrivateKey> {
+  public async waitSetup(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithSecretKey> {
     await (this.isDeployable() ? this.deploy().wait(opts) : this.register());
     return this.getWallet();
   }
@@ -199,6 +191,6 @@ export class AccountManager {
 
   async #register(): Promise<void> {
     const completeAddress = this.getCompleteAddress();
-    await this.pxe.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
+    await this.pxe.registerAccount(this.secretKey, completeAddress.partialAddress);
   }
 }

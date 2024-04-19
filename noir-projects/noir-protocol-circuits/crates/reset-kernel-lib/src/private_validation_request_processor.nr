@@ -1,9 +1,10 @@
+use dep::std::hash::poseidon2::Poseidon2::hash as poseidon2_hash;
 use crate::{nullifier_read_request_reset::NullifierReadRequestHints, reset::read_request::reset_read_requests};
 use dep::types::{
     abis::{side_effect::{SideEffect, SideEffectLinkedToNoteHash}, validation_requests::ValidationRequests},
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GENERATOR_INDEX__NSK_M
 },
     grumpkin_private_key::GrumpkinPrivateKey, keys::compute_siloed_nullifier_secret_key,
     traits::is_empty
@@ -61,15 +62,20 @@ impl PrivateValidationRequestProcessor {
         for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX {
             let request = requests[i];
             if !is_empty(request) {
-                let master_secret_key = self.master_nullifier_secret_keys[i];
-                let computed_public_key = master_secret_key.derive_public_key();
+                let master_nullifier_secret_key = self.master_nullifier_secret_keys[i];
+                // First we check that derived public key matches master nullifier public key from request
+                let master_nullifier_public_key = master_nullifier_secret_key.derive_public_key();
                 assert(
-                    computed_public_key.eq(request.public_key), "Cannot derive nullifier public key from the master key."
+                    master_nullifier_public_key.eq(request.master_nullifier_public_key), "Failed to derive matching master nullifier public key from the secret key."
                 );
 
-                let computed_secret_key = compute_siloed_nullifier_secret_key(master_secret_key, request.contract_address);
+                // Then we check that siloing the master secret key with the contract address gives the app nullifier secret key
+                let app_nullifier_secret_key_preimage = [
+                    master_nullifier_secret_key.high, master_nullifier_secret_key.low, request.contract_address.to_field(), GENERATOR_INDEX__NSK_M
+                ];
+                let app_nullifier_secret_key = poseidon2_hash(app_nullifier_secret_key_preimage, app_nullifier_secret_key_preimage.len());
                 assert(
-                    computed_secret_key.eq(request.secret_key), "Cannot derive siloed secret key from the master key."
+                    app_nullifier_secret_key.eq(request.app_nullifier_secret_key), "Failed to derive matching app nullifier secret key from the secret key."
                 );
             }
         }

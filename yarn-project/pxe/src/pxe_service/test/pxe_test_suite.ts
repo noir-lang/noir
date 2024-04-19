@@ -16,8 +16,6 @@ import {
   TxContext,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { ConstantKeyPair } from '@aztec/key-store';
 
 export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => {
   describe(testName, () => {
@@ -28,10 +26,9 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     }, 120_000);
 
     it('registers an account and returns it as an account only and not as a recipient', async () => {
-      const keyPair = ConstantKeyPair.random(new Grumpkin());
-      const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
-
-      await pxe.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
+      const randomSecretKey = Fr.random();
+      const randomPartialAddress = Fr.random();
+      const completeAddress = await pxe.registerAccount(randomSecretKey, randomPartialAddress);
 
       // Check that the account is correctly registered using the getAccounts and getRecipients methods
       const accounts = await pxe.getRegisteredAccounts();
@@ -65,11 +62,11 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     });
 
     it('does not throw when registering the same account twice (just ignores the second attempt)', async () => {
-      const keyPair = ConstantKeyPair.random(new Grumpkin());
-      const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
+      const randomSecretKey = Fr.random();
+      const randomPartialAddress = Fr.random();
 
-      await pxe.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
-      await pxe.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
+      await pxe.registerAccount(randomSecretKey, randomPartialAddress);
+      await pxe.registerAccount(randomSecretKey, randomPartialAddress);
     });
 
     it('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {

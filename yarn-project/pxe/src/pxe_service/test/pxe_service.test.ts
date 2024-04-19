@@ -1,5 +1,4 @@
 import { type AztecNode, type PXE, TxEffect, mockTx } from '@aztec/circuit-types';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
 import { type L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -16,7 +15,7 @@ import { pxeTestSuite } from './pxe_test_suite.js';
 
 function createPXEService(): Promise<PXE> {
   const kvStore = openTmpStore();
-  const keyStore = new TestKeyStore(new Grumpkin(), kvStore);
+  const keyStore = new TestKeyStore(kvStore);
   const node = mock<AztecNode>();
   const db = new KVPxeDatabase(kvStore);
   const config: PXEServiceConfig = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };
@@ -49,7 +48,7 @@ describe('PXEService', () => {
 
   beforeEach(() => {
     const kvStore = openTmpStore();
-    keyStore = new TestKeyStore(new Grumpkin(), kvStore);
+    keyStore = new TestKeyStore(kvStore);
     node = mock<AztecNode>();
     db = new KVPxeDatabase(kvStore);
     config = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };

@@ -8,6 +8,20 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.36.0
 
+### [Aztec.nr] Oracles
+
+Oracle `get_nullifier_secret_key` was renamed to `get_app_nullifier_secret_key` and `request_nullifier_secret_key` function on PrivateContext was renamed as `request_app_nullifier_secret_key`.
+
+```diff
+- let secret = get_nullifier_secret_key(self.owner);
++ let secret = get_app_nullifier_secret_key(self.owner);
+```
+
+```diff
+- let secret = context.request_nullifier_secret_key(self.owner);
++ let secret = context.request_app_nullifier_secret_key(self.owner);
+```
+
 ### [Aztec.nr] Contract interfaces
 
 It is now possible to import contracts on another contracts and use their automatic interfaces to perform calls. The interfaces have the same name as the contract, and are automatically exported. Parameters are automatically serialized (using the `Serialize<N>` trait) and return values are automatically deserialized (using the `Deserialize<N>` trait). Serialize and Deserialize methods have to conform to the standard ACVM serialization schema for the interface to work!

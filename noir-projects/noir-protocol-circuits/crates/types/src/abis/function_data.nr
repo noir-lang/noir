@@ -65,7 +65,7 @@ fn empty_hash() {
     let data = FunctionData::empty();
     let hash = data.hash();
 
-    // Value from function_data.test.ts "computes empty item hash" test
+    // Value from function_data.test.ts "computes empty function data hash" test
     let test_data_empty_hash = 0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed;
     assert_eq(hash, test_data_empty_hash);
 }

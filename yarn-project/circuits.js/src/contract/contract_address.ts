@@ -1,12 +1,12 @@
 import { type FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { pedersenHash, poseidon2Hash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 import { GeneratorIndex } from '../constants.gen.js';
 import { computeVarArgsHash } from '../hash/hash.js';
-import { type PublicKey } from '../types/public_key.js';
+import { deriveKeys } from '../keys/index.js';
 
 // TODO(@spalladino): Review all generator indices in this file
 
@@ -15,7 +15,7 @@ import { type PublicKey } from '../types/public_key.js';
  * ```
  * salted_initialization_hash = pedersen([salt, initialization_hash, deployer, portal_contract_address as Field], GENERATOR__SALTED_INITIALIZATION_HASH)
  * partial_address = pedersen([contract_class_id, salted_initialization_hash], GENERATOR__CONTRACT_PARTIAL_ADDRESS_V1)
- * address = pedersen([public_keys_hash, partial_address], GENERATOR__CONTRACT_ADDRESS_V1)
+ * address = poseidon2Hash([public_keys_hash, partial_address, GENERATOR__CONTRACT_ADDRESS_V1])
  * ```
  * @param instance - A contract instance for which to calculate the deployment address.
  */
@@ -25,8 +25,8 @@ export function computeContractAddressFromInstance(
     | ({ contractClassId: Fr; saltedInitializationHash: Fr } & Pick<ContractInstance, 'publicKeysHash'>),
 ): AztecAddress {
   const partialAddress = computePartialAddress(instance);
-  const publicKeyHash = instance.publicKeysHash;
-  return computeContractAddressFromPartial({ partialAddress, publicKeyHash });
+  const publicKeysHash = instance.publicKeysHash;
+  return computeContractAddressFromPartial({ partialAddress, publicKeysHash });
 }
 
 /**
@@ -60,28 +60,16 @@ export function computeSaltedInitializationHash(
 }
 
 /**
- * Computes a contract address from its partial address and the pubkeys hash.
+ * Computes a contract address from its partial address and public keys hash.
  * @param args - The hash of the public keys or the plain public key to be hashed, along with the partial address.
- * @returns The partially constructed contract address.
+ * @returns The contract address.
  */
 export function computeContractAddressFromPartial(
-  args: ({ publicKeyHash: Fr } | { publicKey: PublicKey }) & { partialAddress: Fr },
+  args: ({ publicKeysHash: Fr } | { secretKey: Fr }) & { partialAddress: Fr },
 ): AztecAddress {
-  const publicKeyHash = 'publicKey' in args ? computePublicKeysHash(args.publicKey) : args.publicKeyHash;
-  const result = pedersenHash([publicKeyHash, args.partialAddress], GeneratorIndex.CONTRACT_ADDRESS);
+  const publicKeysHash = 'secretKey' in args ? deriveKeys(args.secretKey).publicKeysHash : args.publicKeysHash;
+  const result = poseidon2Hash([publicKeysHash, args.partialAddress, GeneratorIndex.CONTRACT_ADDRESS_V1]);
   return AztecAddress.fromField(result);
-}
-
-/**
- * Computes the hash of a set of public keys to be used for computing the deployment address of a contract.
- * @param publicKey - Single public key (for now!).
- * @returns The hash of the public keys.
- */
-export function computePublicKeysHash(publicKey: PublicKey | undefined): Fr {
-  if (!publicKey) {
-    return Fr.ZERO;
-  }
-  return pedersenHash([publicKey.x, publicKey.y], GeneratorIndex.PARTIAL_ADDRESS);
 }
 
 /**

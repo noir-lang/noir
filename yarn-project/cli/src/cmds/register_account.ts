@@ -1,18 +1,18 @@
-import { type Fq, type Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 
 export async function registerAccount(
   rpcUrl: string,
-  privateKey: Fq,
+  secretKey: Fr,
   partialAddress: Fr,
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
   const client = await createCompatibleClient(rpcUrl, debugLogger);
 
-  const { address, publicKey } = await client.registerAccount(privateKey, partialAddress);
+  const { address, publicKey } = await client.registerAccount(secretKey, partialAddress);
 
   log(`\nRegistered account:\n`);
   log(`Address:         ${address.toString()}`);

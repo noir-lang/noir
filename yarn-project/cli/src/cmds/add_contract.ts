@@ -2,11 +2,10 @@ import {
   AztecAddress,
   type ContractInstanceWithAddress,
   EthAddress,
-  type Fr,
-  type Point,
+  Fr,
   getContractClassFromArtifact,
 } from '@aztec/aztec.js';
-import { computeContractAddressFromInstance, computePublicKeysHash } from '@aztec/circuits.js/contract';
+import { computeContractAddressFromInstance } from '@aztec/circuits.js/contract';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
@@ -18,7 +17,7 @@ export async function addContract(
   address: AztecAddress,
   initializationHash: Fr,
   salt: Fr,
-  publicKey: Point | undefined,
+  publicKeysHash: Fr | undefined,
   portalContract: EthAddress | undefined,
   deployer: AztecAddress | undefined,
   debugLogger: DebugLogger,
@@ -31,7 +30,7 @@ export async function addContract(
     initializationHash,
     contractClassId: getContractClassFromArtifact(artifact).id,
     portalContractAddress: portalContract ?? EthAddress.ZERO,
-    publicKeysHash: computePublicKeysHash(publicKey),
+    publicKeysHash: publicKeysHash ?? Fr.ZERO, // TODO(https://github.com/AztecProtocol/aztec-packages/issues/5862)
     address,
     deployer: deployer ?? AztecAddress.ZERO,
   };

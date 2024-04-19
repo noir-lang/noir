@@ -1,74 +1,119 @@
-import { type AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import {
+  type AztecAddress,
+  type Fr,
+  type GrumpkinPrivateKey,
+  type PartialAddress,
+  type PublicKey,
+} from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.
- * Provides functionality to create and retrieve accounts, private and public keys,
- * TODO(#5627): 💣💣💣
  */
 export interface KeyStore {
   /**
-   * Adds a new account with a randomly generated key pair.
-   * The account will have its own private and public key pair, which can be used for signing transactions.
+   * Creates a new account from a randomly generated secret key.
    * @returns A promise that resolves to the newly created account's AztecAddress.
    */
-  createAccount(): Promise<PublicKey>;
+  createAccount(): Promise<AztecAddress>;
 
   /**
-   * Adds an account to the key store from the provided private key.
-   * @param curve - The curve to use for generating the public key.
-   * @param privKey - The private key of the account.
-   * @returns - The account's public key.
+   * Adds an account to the key store from the provided secret key.
+   * @param sk - The secret key of the account.
+   * @param partialAddress - The partial address of the account.
+   * @returns The account's address.
    */
-  addAccount(privKey: GrumpkinPrivateKey): Promise<PublicKey>;
+  addAccount(sk: Fr, partialAddress: PartialAddress): Promise<AztecAddress>;
 
   /**
-   * Retrieves the public keys of all accounts stored.
-   * The returned addresses are instances of `PublicKey` and can be used for subsequent operations
-   * such as signing transactions or fetching public/private keys.
-   * @returns A Promise that resolves to an array of public keys instances.
+   * Retrieves addresses of accounts stored in the key store.
+   * @returns A Promise that resolves to an array of account addresses.
    */
-  getAccounts(): Promise<PublicKey[]>;
+  getAccounts(): Promise<AztecAddress[]>;
 
   /**
-   * Retrieves the private key of the account associated with the specified AztecAddress.
-   * Throws an error if the provided address is not found in the list of registered accounts.
-   * @param pubKey - The AztecAddress instance representing the account for which the private key is requested.
-   * @returns A Promise that resolves to a Buffer containing the private key.
-   * @deprecated We should not require a keystore to expose private keys in plain.
+   * Gets the master nullifier public key for a given account.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account address for which to retrieve the master nullifier public key.
+   * @returns The master nullifier public key for the account.
    */
-  getAccountPrivateKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey>;
+  getMasterNullifierPublicKey(account: AztecAddress): Promise<PublicKey>;
 
   /**
-   * Retrieves the nullifier secret key of the account associated with the specified AztecAddress.
-   * Throws an error if the provided public key is not found in the list of registered accounts.
-   * @param pubKey - The public key of the account for which the secret key is requested.
-   * @returns A Promise that resolves to the nullifier secret key.
+   * Gets the master incoming viewing public key for a given account.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account address for which to retrieve the master incoming viewing public key.
+   * @returns The master incoming viewing public key for the account.
    */
-  getNullifierSecretKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey>;
+  getMasterIncomingViewingPublicKey(account: AztecAddress): Promise<PublicKey>;
 
   /**
-   * Retrieves the nullifier secret key of the specified nullifier public key.
-   * Throws an error if the provided public key is not associated with any of the registered accounts.
-   *
-   * @param nullifierPubKey - The nullifier public key.
-   * @returns A Promise that resolves to the nullifier secret key.
+   * Retrieves the master outgoing viewing key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the master outgoing viewing key for.
+   * @returns A Promise that resolves to the master outgoing viewing key.
    */
-  getNullifierSecretKeyFromPublicKey(nullifierPubKey: PublicKey): Promise<GrumpkinPrivateKey>;
+  getMasterOutgoingViewingPublicKey(account: AztecAddress): Promise<PublicKey>;
 
   /**
-   * Retrieves the nullifier public key of the account associated with the specified AztecAddress.
-   * Throws an error if the provided public key is not found in the list of registered accounts.
-   * @param pubKey - The public key of the account for which the nullifier public key is requested.
-   * @returns A Promise that resolves to the nullifier public key.
+   * Retrieves the master tagging key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the master tagging key for.
+   * @returns A Promise that resolves to the master tagging key.
    */
-  getNullifierPublicKey(pubKey: PublicKey): Promise<PublicKey>;
+  getMasterTaggingPublicKey(account: AztecAddress): Promise<PublicKey>;
 
   /**
-   * Retrieves the nullifier secret key for use in a specific contract.
-   * Throws an error if the provided public key is not found in the list of registered accounts.
-   * @param pubKey - The public key of the account for which the private key is requested.
-   * @param contractAddress - The address of the contract requesting the nullifier key.
-   * @returns A Promise that resolves to the nullifier secret key.
+   * Retrieves application nullifier secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application nullifier secret key for.
+   * @param app - The application address to retrieve the nullifier secret key for.
+   * @returns A Promise that resolves to the application nullifier secret key.
    */
-  getSiloedNullifierSecretKey(pubKey: PublicKey, contractAddress: AztecAddress): Promise<GrumpkinPrivateKey>;
+  getAppNullifierSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
+
+  /**
+   * Retrieves application incoming viewing secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application incoming viewing secret key for.
+   * @param app - The application address to retrieve the incoming viewing secret key for.
+   * @returns A Promise that resolves to the application incoming viewing secret key.
+   */
+  getAppIncomingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
+
+  /**
+   * Retrieves application outgoing viewing secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application outgoing viewing secret key for.
+   * @param app - The application address to retrieve the outgoing viewing secret key for.
+   * @returns A Promise that resolves to the application outgoing viewing secret key.
+   */
+  getAppOutgoingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
+
+  /**
+   * Retrieves the master nullifier secret key (nsk_m) corresponding to the specified master nullifier public key
+   * (Npk_m).
+   * @throws If the provided public key is not associated with any of the registered accounts.
+   * @param masterNullifierPublicKey - The master nullifier public key to get secret key for.
+   * @returns A Promise that resolves to the master nullifier secret key.
+   * @dev Used when feeding the master nullifier secret key to the kernel circuit for nullifier keys verification.
+   */
+  getMasterNullifierSecretKeyForPublicKey(masterNullifierPublicKey: PublicKey): Promise<GrumpkinPrivateKey>;
+
+  /**
+   * Retrieves the master incoming viewing secret key (ivsk_m) corresponding to the specified master incoming viewing
+   * public key (Ivpk_m).
+   * @throws If the provided public key is not associated with any of the registered accounts.
+   * @param masterIncomingViewingPublicKey - The master nullifier public key to get secret key for.
+   * @returns A Promise that resolves to the master nullifier secret key.
+   * @dev Used when feeding the master nullifier secret key to the kernel circuit for nullifier keys verification.
+   */
+  getMasterIncomingViewingSecretKeyForPublicKey(masterIncomingViewingPublicKey: PublicKey): Promise<GrumpkinPrivateKey>;
+
+  /**
+   * Retrieves public keys hash of the account
+   * @throws If the provided account address is not associated with any of the registered accounts.
+   * @param account - The account address to get public keys hash for.
+   * @returns A Promise that resolves to the public keys hash.
+   */
+  getPublicKeysHash(account: AztecAddress): Promise<Fr>;
 }

@@ -1,27 +1,28 @@
 use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey};
 
-struct NullifierKeyPair {
+// Nullifier keys pertaining to a specific account
+struct NullifierKeys {
     account: AztecAddress,
-    public_key: GrumpkinPoint,
-    secret_key: GrumpkinPrivateKey,
+    master_nullifier_public_key: GrumpkinPoint,
+    app_nullifier_secret_key: Field,
 }
 
-#[oracle(getNullifierKeyPair)]
-fn get_nullifier_key_pair_oracle(_account: AztecAddress) -> [Field; 4] {}
+#[oracle(getNullifierKeys)]
+fn get_nullifier_keys_oracle(_account: AztecAddress) -> [Field; 3] {}
 
-unconstrained fn get_nullifier_key_pair_internal(account: AztecAddress) -> NullifierKeyPair {
-    let result = get_nullifier_key_pair_oracle(account);
-    NullifierKeyPair {
+unconstrained fn get_nullifier_keys_internal(account: AztecAddress) -> NullifierKeys {
+    let result = get_nullifier_keys_oracle(account);
+    NullifierKeys {
         account,
-        public_key: GrumpkinPoint { x: result[0], y: result[1] },
-        secret_key: GrumpkinPrivateKey { high: result[2], low: result[3] }
+        master_nullifier_public_key: GrumpkinPoint { x: result[0], y: result[1] },
+        app_nullifier_secret_key: result[2],
     }
 }
 
-pub fn get_nullifier_key_pair(account: AztecAddress) -> NullifierKeyPair {
-    get_nullifier_key_pair_internal(account)
+pub fn get_nullifier_keys(account: AztecAddress) -> NullifierKeys {
+    get_nullifier_keys_internal(account)
 }
 
-pub fn get_nullifier_secret_key(account: AztecAddress) -> GrumpkinPrivateKey {
-    get_nullifier_key_pair_internal(account).secret_key
+pub fn get_app_nullifier_secret_key(account: AztecAddress) -> Field {
+    get_nullifier_keys_internal(account).app_nullifier_secret_key
 }

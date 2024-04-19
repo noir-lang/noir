@@ -32,8 +32,8 @@ Below is typescript code generated from the [Token](https://github.com/AztecProt
 
 ```ts showLineNumbers
 export class TokenContract extends ContractBase {
-  private constructor(completeAddress: CompleteAddress, wallet: Wallet, portalContract = EthAddress.ZERO) {
-    super(completeAddress, TokenContractArtifact, wallet, portalContract);
+  private constructor(instance: ContractInstanceWithAddress, wallet: Wallet) {
+    super(instance, TokenContractArtifact, wallet);
   }
 
   /**
@@ -49,15 +49,57 @@ export class TokenContract extends ContractBase {
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(pxe: PXE, admin: AztecAddressLike) {
-    return new DeployMethod<TokenContract>(Point.ZERO, pxe, TokenContractArtifact, Array.from(arguments).slice(1));
+  public static deploy(
+    wallet: Wallet,
+    admin: AztecAddressLike,
+    name: string,
+    symbol: string,
+    decimals: bigint | number,
+  ) {
+    return new DeployMethod<TokenContract>(
+      Fr.ZERO,
+      wallet,
+      TokenContractArtifact,
+      TokenContract.at,
+      Array.from(arguments).slice(1),
+    );
   }
 
   /**
-   * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
+   * Creates a tx to deploy a new instance of this contract using the specified public keys hash to derive the address.
    */
-  public static deployWithPublicKey(pxe: PXE, publicKey: PublicKey, admin: AztecAddressLike) {
-    return new DeployMethod<TokenContract>(publicKey, pxe, TokenContractArtifact, Array.from(arguments).slice(2));
+  public static deployWithPublicKeysHash(
+    publicKeysHash: Fr,
+    wallet: Wallet,
+    admin: AztecAddressLike,
+    name: string,
+    symbol: string,
+    decimals: bigint | number,
+  ) {
+    return new DeployMethod<TokenContract>(
+      publicKeysHash,
+      wallet,
+      TokenContractArtifact,
+      TokenContract.at,
+      Array.from(arguments).slice(2),
+    );
+  }
+
+  /**
+   * Creates a tx to deploy a new instance of this contract using the specified constructor method.
+   */
+  public static deployWithOpts<M extends keyof TokenContract['methods']>(
+    opts: { publicKeysHash?: Fr; method?: M; wallet: Wallet },
+    ...args: Parameters<TokenContract['methods'][M]>
+  ) {
+    return new DeployMethod<TokenContract>(
+      opts.publicKeysHash ?? Fr.ZERO,
+      opts.wallet,
+      TokenContractArtifact,
+      TokenContract.at,
+      Array.from(arguments).slice(1),
+      opts.method ?? 'constructor',
+    );
   }
 
   /**
@@ -67,36 +109,81 @@ export class TokenContract extends ContractBase {
     return TokenContractArtifact;
   }
 
+  public static get storage(): ContractStorageLayout<
+    | 'admin'
+    | 'minters'
+    | 'balances'
+    | 'total_supply'
+    | 'pending_shields'
+    | 'public_balances'
+    | 'symbol'
+    | 'name'
+    | 'decimals'
+  > {
+    return {
+      admin: {
+        slot: new Fr(1n),
+        typ: 'PublicMutable<AztecAddress>',
+      },
+      minters: {
+        slot: new Fr(2n),
+        typ: 'Map<AztecAddress, PublicMutable<bool>>',
+      },
+      balances: {
+        slot: new Fr(3n),
+        typ: 'BalancesMap<TokenNote>',
+      },
+      total_supply: {
+        slot: new Fr(4n),
+        typ: 'PublicMutable<U128>',
+      },
+      pending_shields: {
+        slot: new Fr(5n),
+        typ: 'PrivateSet<TransparentNote>',
+      },
+      public_balances: {
+        slot: new Fr(6n),
+        typ: 'Map<AztecAddress, PublicMutable<U128>>',
+      },
+      symbol: {
+        slot: new Fr(7n),
+        typ: 'SharedImmutable<FieldCompressedString>',
+      },
+      name: {
+        slot: new Fr(8n),
+        typ: 'SharedImmutable<FieldCompressedString>',
+      },
+      decimals: {
+        slot: new Fr(9n),
+        typ: 'SharedImmutable<u8>',
+      },
+    } as ContractStorageLayout<
+      | 'admin'
+      | 'minters'
+      | 'balances'
+      | 'total_supply'
+      | 'pending_shields'
+      | 'public_balances'
+      | 'symbol'
+      | 'name'
+      | 'decimals'
+    >;
+  }
+
+  public static get notes(): ContractNotes<'TransparentNote' | 'TokenNote'> {
+    const notes = this.artifact.outputs.globals.notes ? (this.artifact.outputs.globals.notes as any) : [];
+    return {
+      TransparentNote: {
+        id: new Fr(84114971101151129711410111011678111116101n),
+      },
+      TokenNote: {
+        id: new Fr(8411110710111078111116101n),
+      },
+    } as ContractNotes<'TransparentNote' | 'TokenNote'>;
+  }
+
   /** Type-safe wrappers for the public methods exposed by the contract. */
-  public methods!: {
-
-    /** balance_of_private(owner: struct) */
-    balance_of_private: ((owner: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
-
-    /** balance_of_public(owner: struct) */
-    balance_of_public: ((owner: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
-
-    /** shield(from: struct, amount: field, secret_hash: field, nonce: field) */
-    shield: ((
-      from: AztecAddressLike,
-      amount: FieldLike,
-      secret_hash: FieldLike,
-      nonce: FieldLike,
-    ) => ContractFunctionInteraction) &
-      Pick<ContractMethod, 'selector'>;
-
-    /** total_supply() */
-    total_supply: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
-
-    /** transfer(from: struct, to: struct, amount: field, nonce: field) */
-    transfer: ((
-      from: AztecAddressLike,
-      to: AztecAddressLike,
-      amount: FieldLike,
-      nonce: FieldLike,
-    ) => ContractFunctionInteraction) &
-      Pick<ContractMethod, 'selector'>;
-
+  public override methods!: {
     /** transfer_public(from: struct, to: struct, amount: field, nonce: field) */
     transfer_public: ((
       from: AztecAddressLike,
@@ -106,7 +193,17 @@ export class TokenContract extends ContractBase {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    ...
+    /** transfer(from: struct, to: struct, amount: field, nonce: field) */
+    transfer: ((
+      from: AztecAddressLike,
+      to: AztecAddressLike,
+      amount: FieldLike,
+      nonce: FieldLike,
+    ) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+  
+  ...
+
   };
 }
 ```

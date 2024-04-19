@@ -148,7 +148,7 @@ export class HintsBuilder {
       if (request.isEmpty()) {
         break;
       }
-      keys[i] = await this.oracle.getMasterNullifierSecretKey(request.publicKey);
+      keys[i] = await this.oracle.getMasterNullifierSecretKey(request.masterNullifierPublicKey);
     }
     return keys;
   }

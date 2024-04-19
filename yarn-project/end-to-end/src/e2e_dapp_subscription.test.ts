@@ -1,5 +1,5 @@
 import {
-  type AccountWalletWithPrivateKey,
+  type AccountWalletWithSecretKey,
   type AztecAddress,
   type AztecNode,
   type DebugLogger,
@@ -32,8 +32,8 @@ describe('e2e_dapp_subscription', () => {
   let pxe: PXE;
   let logger: DebugLogger;
 
-  let aliceWallet: AccountWalletWithPrivateKey;
-  let bobWallet: AccountWalletWithPrivateKey;
+  let aliceWallet: AccountWalletWithSecretKey;
+  let bobWallet: AccountWalletWithSecretKey;
   let aliceAddress: AztecAddress; // Dapp subscriber.
   let bobAddress: AztecAddress; // Dapp owner.
   let sequencerAddress: AztecAddress;
@@ -69,7 +69,7 @@ describe('e2e_dapp_subscription', () => {
 
     expect(GAS_SETTINGS.getFeeLimit().toBigInt()).toEqual(MAX_FEE);
 
-    let wallets: AccountWalletWithPrivateKey[];
+    let wallets: AccountWalletWithSecretKey[];
     let aztecNode: AztecNode;
     let deployL1ContractsValues: DeployL1Contracts;
     ({ wallets, aztecNode, deployL1ContractsValues, logger, pxe } = await setup(3, {}, {}, true));

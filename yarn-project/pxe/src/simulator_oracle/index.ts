@@ -20,7 +20,7 @@ import {
 import { computeL1ToL2MessageNullifier } from '@aztec/circuits.js/hash';
 import { type FunctionArtifactWithDebugMetadata, getFunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { type DBOracle, type KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
+import { type DBOracle, MessageLoadOracleInputs, type NullifierKeys } from '@aztec/simulator';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 import { type ContractDataOracle } from '../contract_data_oracle/index.js';
@@ -38,11 +38,10 @@ export class SimulatorOracle implements DBOracle {
     private log = createDebugLogger('aztec:pxe:simulator_oracle'),
   ) {}
 
-  async getNullifierKeyPair(accountAddress: AztecAddress, contractAddress: AztecAddress): Promise<KeyPair> {
-    const accountPublicKey = (await this.db.getCompleteAddress(accountAddress))!.publicKey;
-    const publicKey = await this.keyStore.getNullifierPublicKey(accountPublicKey);
-    const secretKey = await this.keyStore.getSiloedNullifierSecretKey(accountPublicKey, contractAddress);
-    return { publicKey, secretKey };
+  async getNullifierKeys(accountAddress: AztecAddress, contractAddress: AztecAddress): Promise<NullifierKeys> {
+    const masterNullifierPublicKey = await this.keyStore.getMasterNullifierPublicKey(accountAddress);
+    const appNullifierSecretKey = await this.keyStore.getAppNullifierSecretKey(accountAddress, contractAddress);
+    return { masterNullifierPublicKey, appNullifierSecretKey };
   }
 
   async getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {

@@ -1,5 +1,6 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { type AztecAddress, Contract, type Fq, Fr } from '@aztec/aztec.js';
+import { type AztecAddress, Contract, Fr } from '@aztec/aztec.js';
+import { deriveKeys } from '@aztec/circuits.js';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
@@ -10,7 +11,7 @@ export async function send(
   functionArgsIn: any[],
   contractArtifactPath: string,
   contractAddress: AztecAddress,
-  privateKey: Fq,
+  secretKey: Fr,
   rpcUrl: string,
   wait: boolean,
   debugLogger: DebugLogger,
@@ -19,7 +20,8 @@ export async function send(
   const { functionArgs, contractArtifact } = await prepTx(contractArtifactPath, functionName, functionArgsIn);
 
   const client = await createCompatibleClient(rpcUrl, debugLogger);
-  const wallet = await getSchnorrAccount(client, privateKey, privateKey, Fr.ZERO).getWallet();
+  const signingKey = deriveKeys(secretKey).masterIncomingViewingSecretKey;
+  const wallet = await getSchnorrAccount(client, secretKey, signingKey, Fr.ZERO).getWallet();
   const contract = await Contract.at(contractAddress, contractArtifact, wallet);
   const tx = contract.methods[functionName](...functionArgs).send();
   log(`\nTransaction hash: ${(await tx.getTxHash()).toString()}`);
