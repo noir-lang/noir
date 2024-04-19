@@ -59,10 +59,10 @@ struct SharedContext {
     brillig_generated_func_pointers: BTreeMap<(FunctionId, Vec<BrilligParameter>), u32>,
 
     /// Maps a Brillig std lib function (a handwritten primitive such as for inversion) -> Final generated Brillig artifact index.
-    /// A separate mapping from normal Brillig calls is necessary as these methods do not have an associated function id from SSA. 
+    /// A separate mapping from normal Brillig calls is necessary as these methods do not have an associated function id from SSA.
     brillig_stdlib_func_pointer: HashMap<BrilligStdlibFunc, u32>,
 
-    /// Keeps track of Brillig std lib calls per function that need to still be resolved 
+    /// Keeps track of Brillig std lib calls per function that need to still be resolved
     /// with the correct function pointer from the `brillig_stdlib_func_pointer` map.
     brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, u32)>>,
 }
