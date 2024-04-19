@@ -21,6 +21,12 @@ describe('PublicCallStackItem', () => {
     expect(hash).toMatchSnapshot();
   });
 
+  it('computes empty item hash', () => {
+    const item = PublicCallStackItem.empty();
+    const hash = item.hash();
+    expect(hash).toMatchSnapshot();
+  });
+
   it('Computes a callstack item request hash', () => {
     const callStack = PublicCallStackItem.empty();
 
