@@ -58,8 +58,12 @@ struct SharedContext {
     /// needs to create different brillig entrypoints
     brillig_generated_func_pointers: BTreeMap<(FunctionId, Vec<BrilligParameter>), u32>,
 
-    brillig_stdlib_func_index: HashMap<BrilligStdlibFunc, u32>,
+    /// Maps a Brillig std lib function (a handwritten primitive such as for inversion) -> Final generated Brillig artifact index.
+    /// A separate mapping from normal Brillig calls is necessary as these methods do not have an associated function id from SSA. 
+    brillig_stdlib_func_pointer: HashMap<BrilligStdlibFunc, u32>,
 
+    /// Keeps track of Brillig std lib calls per function that need to still be resolved 
+    /// with the correct function pointer from the `brillig_stdlib_func_pointer` map.
     brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, u32)>>,
 }
 
@@ -95,7 +99,7 @@ impl SharedContext {
         &self,
         brillig_stdlib_func: &BrilligStdlibFunc,
     ) -> Option<&u32> {
-        self.brillig_stdlib_func_index.get(brillig_stdlib_func)
+        self.brillig_stdlib_func_pointer.get(brillig_stdlib_func)
     }
 
     fn insert_generated_brillig_stdlib(
@@ -106,7 +110,7 @@ impl SharedContext {
         opcode_location: OpcodeLocation,
         code: GeneratedBrillig,
     ) {
-        self.brillig_stdlib_func_index.insert(brillig_stdlib_func, generated_pointer);
+        self.brillig_stdlib_func_pointer.insert(brillig_stdlib_func, generated_pointer);
         self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         self.generated_brillig.push(code);
     }
