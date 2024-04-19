@@ -47,21 +47,15 @@ describe('e2e_dapp_subscription', () => {
   let bananasPublicBalances: BalancesFn;
   let bananasPrivateBalances: BalancesFn;
 
-  const SUBSCRIPTION_AMOUNT = 100n;
-  const INITIAL_GAS_BALANCE = 1000n;
-  const PUBLICLY_MINTED_BANANAS = 500n;
-  const PRIVATELY_MINTED_BANANAS = 600n;
+  const SUBSCRIPTION_AMOUNT = BigInt(100e9);
+  const INITIAL_GAS_BALANCE = BigInt(1000e9);
+  const PUBLICLY_MINTED_BANANAS = BigInt(500e9);
+  const PRIVATELY_MINTED_BANANAS = BigInt(600e9);
 
   const FEE_AMOUNT = 1n;
-  const REFUND = 29n; // intentionally overpay the gas fee. This is the expected refund.
-  const MAX_FEE = FEE_AMOUNT + REFUND;
+  const MAX_FEE = BigInt(30e9);
 
-  const GAS_SETTINGS = GasSettings.from({
-    gasLimits: { daGas: 5, l1Gas: 5, l2Gas: 5 },
-    teardownGasLimits: { daGas: 3, l1Gas: 3, l2Gas: 3 },
-    maxFeesPerGas: { feePerDaGas: Fr.ONE, feePerL1Gas: Fr.ONE, feePerL2Gas: Fr.ONE },
-    inclusionFee: new Fr(6),
-  });
+  const GAS_SETTINGS = GasSettings.default();
 
   beforeAll(async () => {
     process.env.PXE_URL = '';

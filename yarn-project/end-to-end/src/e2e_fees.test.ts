@@ -54,12 +54,7 @@ describe('e2e_fees', () => {
   let bananaPublicBalances: BalancesFn;
   let bananaPrivateBalances: BalancesFn;
 
-  const gasSettings = GasSettings.from({
-    gasLimits: { daGas: 5, l1Gas: 5, l2Gas: 5 },
-    teardownGasLimits: { daGas: 3, l1Gas: 3, l2Gas: 3 },
-    maxFeesPerGas: { feePerDaGas: Fr.ONE, feePerL1Gas: Fr.ONE, feePerL2Gas: Fr.ONE },
-    inclusionFee: new Fr(6),
-  });
+  const gasSettings = GasSettings.default();
 
   beforeAll(async () => {
     const ctx = await setup(3, {}, {}, true);
@@ -113,8 +108,8 @@ describe('e2e_fees', () => {
   });
 
   it('reverts transactions but still pays fees using PublicFeePaymentMethod', async () => {
-    const OutrageousPublicAmountAliceDoesNotHave = 10000n;
-    const PublicMintedAlicePublicBananas = 1000n;
+    const OutrageousPublicAmountAliceDoesNotHave = BigInt(1e15);
+    const PublicMintedAlicePublicBananas = BigInt(1e12);
     const FeeAmount = 1n;
 
     const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await bananaPrivateBalances(
@@ -218,13 +213,13 @@ describe('e2e_fees', () => {
 
     beforeAll(async () => {
       // Fund Alice private and publicly
-      await mintPrivate(1000n, aliceAddress);
-      await bananaCoin.methods.mint_public(aliceAddress, 1000n).send().wait();
+      await mintPrivate(BigInt(1e12), aliceAddress);
+      await bananaCoin.methods.mint_public(aliceAddress, 1e12).send().wait();
     });
 
     beforeEach(async () => {
       FeeAmount = 1n;
-      MaxFee = 30n;
+      MaxFee = BigInt(30e9);
       RefundAmount = MaxFee - FeeAmount;
       RefundSecret = Fr.random();
 
@@ -241,7 +236,7 @@ describe('e2e_fees', () => {
       ]);
     });
 
-    it("pays fees for tx that don't run public app logic", async () => {
+    it('pays fees for tx that dont run public app logic', async () => {
       /**
        * PRIVATE SETUP
        * check authwit
@@ -514,7 +509,7 @@ describe('e2e_fees', () => {
       ).resolves.toBeUndefined();
     });
 
-    it("rejects txs that don't have enough balance to cover gas costs", async () => {
+    it('rejects txs that dont have enough balance to cover gas costs', async () => {
       // deploy a copy of bananaFPC but don't fund it!
       const bankruptFPC = await FPCContract.deploy(aliceWallet, bananaCoin.address, gasTokenContract.address)
         .send()
@@ -544,7 +539,7 @@ describe('e2e_fees', () => {
   });
 
   it('fails transaction that error in setup', async () => {
-    const OutrageousPublicAmountAliceDoesNotHave = 10000n;
+    const OutrageousPublicAmountAliceDoesNotHave = BigInt(100e12);
 
     // simulation throws an error when setup fails
     await expect(
@@ -579,7 +574,7 @@ describe('e2e_fees', () => {
      * We trigger an error in teardown by having the FPC authorize a transfer of its entire balance to Alice
      * as part of app logic. This will cause the FPC to not have enough funds to pay the refund back to Alice.
      */
-    const PublicMintedAlicePublicBananas = 1000n;
+    const PublicMintedAlicePublicBananas = 100_000_000_000n;
 
     const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await bananaPrivateBalances(
       aliceAddress,

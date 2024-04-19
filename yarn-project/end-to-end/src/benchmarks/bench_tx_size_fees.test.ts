@@ -8,7 +8,7 @@ import {
   PublicFeePaymentMethod,
   TxStatus,
 } from '@aztec/aztec.js';
-import { Fr, GasSettings } from '@aztec/circuits.js';
+import { GasSettings } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TokenContract } from '@aztec/noir-contracts.js';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
@@ -54,11 +54,11 @@ describe('benchmarks/tx_size_fees', () => {
   // mint tokens
   beforeAll(async () => {
     await Promise.all([
-      gas.methods.mint_public(aliceWallet.getAddress(), 1000n).send().wait(),
-      gas.methods.mint_public(fpc.address, 1000n).send().wait(),
+      gas.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait(),
+      gas.methods.mint_public(fpc.address, 100e9).send().wait(),
     ]);
-    await token.methods.privately_mint_private_note(1000n).send().wait();
-    await token.methods.mint_public(aliceWallet.getAddress(), 1000n).send().wait();
+    await token.methods.privately_mint_private_note(100e9).send().wait();
+    await token.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait();
   });
 
   it.each<() => Promise<FeePaymentMethod | undefined>>([
@@ -68,12 +68,7 @@ describe('benchmarks/tx_size_fees', () => {
     () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet)),
   ])('sends a tx with a fee', async createPaymentMethod => {
     const paymentMethod = await createPaymentMethod();
-    const gasSettings = GasSettings.from({
-      gasLimits: { daGas: 5, l1Gas: 5, l2Gas: 5 },
-      teardownGasLimits: { daGas: 3, l1Gas: 3, l2Gas: 3 },
-      maxFeesPerGas: { feePerDaGas: Fr.ONE, feePerL1Gas: Fr.ONE, feePerL2Gas: Fr.ONE },
-      inclusionFee: new Fr(6),
-    });
+    const gasSettings = GasSettings.default();
     const tx = await token.methods
       .transfer(aliceWallet.getAddress(), bobAddress, 1n, 0)
       .send({ fee: paymentMethod ? { gasSettings, paymentMethod } : undefined })
