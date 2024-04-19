@@ -60,7 +60,7 @@ struct SharedContext {
 
     brillig_stdlib_func_index: HashMap<BrilligStdlibFunc, u32>,
 
-    brillig_stdlib_calls_to_resolve: HashMap<(FunctionId, OpcodeLocation), u32>,
+    brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, u32)>>,
 }
 
 impl SharedContext {
@@ -107,7 +107,12 @@ impl SharedContext {
         code: GeneratedBrillig,
     ) {
         self.brillig_stdlib_func_index.insert(brillig_stdlib_func, generated_pointer);
-        self.brillig_stdlib_calls_to_resolve.insert((func_id, opcode_location), generated_pointer);
+        if let Some(calls_to_resolve) = self.brillig_stdlib_calls_to_resolve.get_mut(&func_id) {
+            calls_to_resolve.push((opcode_location, generated_pointer));
+        } else {
+            self.brillig_stdlib_calls_to_resolve
+                .insert(func_id, vec![(opcode_location, generated_pointer)]);
+        }
         self.generated_brillig.push(code);
     }
 }
@@ -274,12 +279,13 @@ impl Ssa {
                 for (opcode_location, brillig_stdlib_func) in
                     &generated_acir.brillig_stdlib_func_locations
                 {
+                    let mut call_to_existing_bytecode = None;
                     if let Some(generated_pointer) =
                         shared_context.generated_brillig_stdlib_pointer(brillig_stdlib_func)
                     {
-                        shared_context
-                            .brillig_stdlib_calls_to_resolve
-                            .insert((function.id(), *opcode_location), *generated_pointer);
+                        // We cannot insert in the Brillig calls to resolve map here as we are doing an immutable borrow
+                        // to the shared context to fetch the pre-existing generated pointer.
+                        call_to_existing_bytecode = Some((*opcode_location, *generated_pointer));
                     } else {
                         let code = brillig_stdlib_func.get_generated_brillig();
                         let generated_pointer = shared_context.new_generated_pointer();
@@ -291,12 +297,22 @@ impl Ssa {
                             code,
                         );
                     }
+                    if let Some(new_call_to_resolve) = call_to_existing_bytecode {
+                        if let Some(calls_to_resolve) =
+                            shared_context.brillig_stdlib_calls_to_resolve.get_mut(&function.id())
+                        {
+                            calls_to_resolve.push(new_call_to_resolve);
+                        }
+                    }
                 }
-                // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
-                for ((func_id, opcode_location), brillig_function_pointer) in
-                    shared_context.brillig_stdlib_calls_to_resolve.iter()
+
+                // Fetch the Brillig stdlib calls to resolve for this function
+                if let Some(calls_to_resolve) =
+                    shared_context.brillig_stdlib_calls_to_resolve.get(&function.id())
                 {
-                    if *func_id == function.id() {
+                    // Resolve the Brillig stdlib calls
+                    // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
+                    for (opcode_location, brillig_function_pointer) in calls_to_resolve {
                         generated_acir.resolve_brillig_stdlib_call(
                             *opcode_location,
                             *brillig_function_pointer,
