@@ -76,6 +76,15 @@ pub(crate) enum BrilligStdlibFunc {
     Quotient(u32),
 }
 
+impl BrilligStdlibFunc {
+    pub(crate) fn get_generated_brillig(&self) -> GeneratedBrillig {
+        match self {
+            BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
+            BrilligStdlibFunc::Quotient(bit_size) => brillig_directive::directive_quotient(*bit_size),
+        }
+    }
+}
+
 impl GeneratedAcir {
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
