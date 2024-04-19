@@ -140,6 +140,8 @@ impl<A, B, C, D, E> Eq for (A, B, C, D, E)
 Implementing this trait on a type allows `<`, `<=`, `>`, and `>=` to be
 used on values of the type.
 
+`std::cmp` also provides `max` and `min` functions for any type which implements the `Ord` trait.
+
 Implementations:
 
 ```rust

@@ -19,6 +19,7 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
+use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -245,6 +246,7 @@ impl<'a> Resolver<'a> {
             name: name.clone(),
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
             visibility: ItemVisibility::Public, // Trait functions are always public
             generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {
@@ -501,6 +503,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields, new_variables);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
+            Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -617,7 +620,17 @@ impl<'a> Resolver<'a> {
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
                 let expected_generic_count = struct_type.borrow().generics.len();
-
+                if !self.in_contract
+                    && self
+                        .interner
+                        .struct_attributes(&struct_type.borrow().id)
+                        .iter()
+                        .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+                {
+                    self.push_err(ResolverError::AbiAttributeOusideContract {
+                        span: struct_type.borrow().name.span(),
+                    });
+                }
                 self.verify_generics_count(expected_generic_count, &mut args, span, || {
                     struct_type.borrow().to_string()
                 });
@@ -916,6 +929,7 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let should_fold = attributes.is_foldable();
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -996,8 +1010,6 @@ impl<'a> Resolver<'a> {
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
-        let should_fold = attributes.is_foldable();
-
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -1026,7 +1038,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        self.is_entry_point_function(func)
+        self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
@@ -1167,10 +1179,19 @@ impl<'a> Resolver<'a> {
         let global_id = self.interner.next_global_id();
         let definition = DefinitionKind::Global(global_id);
 
+        if !self.in_contract
+            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+        {
+            self.push_err(ResolverError::AbiAttributeOusideContract {
+                span: let_stmt.pattern.span(),
+            });
+        }
+
         HirStatement::Let(HirLetStatement {
             pattern: self.resolve_pattern(let_stmt.pattern, definition),
             r#type: self.resolve_type(let_stmt.r#type),
             expression,
+            attributes: let_stmt.attributes,
         })
     }
 
@@ -1183,6 +1204,7 @@ impl<'a> Resolver<'a> {
                     pattern: self.resolve_pattern(let_stmt.pattern, definition),
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
+                    attributes: let_stmt.attributes,
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {

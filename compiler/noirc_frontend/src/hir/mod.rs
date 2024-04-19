@@ -1,3 +1,4 @@
+pub mod comptime;
 pub mod def_collector;
 pub mod def_map;
 pub mod resolution;
@@ -26,7 +27,7 @@ pub type ParsedFiles = HashMap<fm::FileId, (ParsedModule, Vec<ParserError>)>;
 pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
-    pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
+    pub def_maps: BTreeMap<CrateId, CrateDefMap>,
     // In the WASM context, we take ownership of the file manager,
     // which is why this needs to be a Cow. In all use-cases, the file manager
     // is read-only however, once it has been passed to the Context.
@@ -157,7 +158,8 @@ impl Context<'_, '_> {
         }
     }
 
-    /// Recursively walks down the crate dependency graph from crate_id until we reach requested crate
+    /// Tries to find the requested crate in the current one's dependencies,
+    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
     /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
     /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
     /// re-exported by lib1 and used by the main crate.
@@ -167,16 +169,26 @@ impl Context<'_, '_> {
         crate_id: &CrateId,
         target_crate_id: &CrateId,
     ) -> Option<Vec<String>> {
-        for dep in &self.crate_graph[crate_id].dependencies {
-            if &dep.crate_id == target_crate_id {
-                return Some(vec![dep.name.to_string()]);
-            }
-            if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
-                path.insert(0, dep.name.to_string());
-                return Some(path);
-            }
-        }
-        None
+        self.crate_graph[crate_id]
+            .dependencies
+            .iter()
+            .find_map(|dep| {
+                if &dep.crate_id == target_crate_id {
+                    Some(vec![dep.name.to_string()])
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                self.crate_graph[crate_id].dependencies.iter().find_map(|dep| {
+                    if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+                        path.insert(0, dep.name.to_string());
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+            })
     }
 
     pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
@@ -241,7 +253,7 @@ impl Context<'_, '_> {
             .get_all_contracts(&self.def_interner)
     }
 
-    fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
+    pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
     }
 }

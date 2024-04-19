@@ -23,6 +23,7 @@ impl BrilligContext {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(false),
+            bigint_new_id: 0,
         };
 
         context.codegen_entry_point(&arguments, &return_parameters);
@@ -527,7 +528,7 @@ mod tests {
         let (vm, return_data_offset, return_data_size) =
             create_and_run_vm(calldata.clone(), &bytecode);
         assert_eq!(return_data_size, 1, "Return data size is incorrect");
-        assert_eq!(vm.get_memory()[return_data_offset].value, FieldElement::from(1_usize));
+        assert_eq!(vm.get_memory()[return_data_offset].to_field(), FieldElement::from(1_usize));
     }
 
     #[test]
@@ -569,7 +570,7 @@ mod tests {
         assert_eq!(
             memory[return_data_pointer..(return_data_pointer + flattened_array.len())]
                 .iter()
-                .map(|mem_val| mem_val.value)
+                .map(|mem_val| mem_val.to_field())
                 .collect::<Vec<_>>(),
             flattened_array
         );

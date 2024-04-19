@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.27.0](https://github.com/noir-lang/noir/compare/v0.26.0...v0.27.0) (2024-04-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* Brillig typed memory (https://github.com/AztecProtocol/aztec-packages/pull/5395)
+
+### Features
+
+* **acir_gen:** Fold attribute at compile-time and initial non inlined ACIR (https://github.com/AztecProtocol/aztec-packages/pull/5341) ([a0f7474](https://github.com/noir-lang/noir/commit/a0f7474ae6bd74132efdb945d2eb2383f3913cce))
+* **acvm_js:** Execute program  ([#4694](https://github.com/noir-lang/noir/issues/4694)) ([386f6d0](https://github.com/noir-lang/noir/commit/386f6d0a5822912db878285cb001032a7c0ff622))
+* **acvm:** Execute multiple circuits  (https://github.com/AztecProtocol/aztec-packages/pull/5380) ([a0f7474](https://github.com/noir-lang/noir/commit/a0f7474ae6bd74132efdb945d2eb2383f3913cce))
+* Add `remove_enable_side_effects` SSA pass ([#4224](https://github.com/noir-lang/noir/issues/4224)) ([94952db](https://github.com/noir-lang/noir/commit/94952db604b70a1ec18115b291de3c52565a641e))
+* Allow slices to brillig entry points ([#4713](https://github.com/noir-lang/noir/issues/4713)) ([62423d5](https://github.com/noir-lang/noir/commit/62423d552beca749b6f86b1330555aab18db58d0))
+* Brillig typed memory (https://github.com/AztecProtocol/aztec-packages/pull/5395) ([0bc18c4](https://github.com/noir-lang/noir/commit/0bc18c4f78171590dd58bded959f68f53a44cc8c))
+* **docs:** Documenting noir codegen ([#4454](https://github.com/noir-lang/noir/issues/4454)) ([24f6d85](https://github.com/noir-lang/noir/commit/24f6d85f2467a109399d21729f8bb0f97c5ba6db))
+* Improve nargo check cli with --override flag and feedback for existing files ([#4575](https://github.com/noir-lang/noir/issues/4575)) ([5e7fbd4](https://github.com/noir-lang/noir/commit/5e7fbd4e706b1691ba2dd960469cfa3b31dfb753))
+* Improve optimisations on range constraints ([#4690](https://github.com/noir-lang/noir/issues/4690)) ([96b8110](https://github.com/noir-lang/noir/commit/96b811079b0e7c0345210cfc705c00345b0b3334))
+* Improve SSA type-awareness in EQ and MUL instructions ([#4691](https://github.com/noir-lang/noir/issues/4691)) ([669f1a0](https://github.com/noir-lang/noir/commit/669f1a0fa47ad9093888a8ce8e525cb02bcf19b5))
+* **nargo:** Multiple circuits info for binary programs ([#4719](https://github.com/noir-lang/noir/issues/4719)) ([50d2735](https://github.com/noir-lang/noir/commit/50d2735825454a8638a308156d4ea23b3c4420d8))
+
+
+### Bug Fixes
+
+* "Types in a binary operation should match, but found T and T" ([#4648](https://github.com/noir-lang/noir/issues/4648)) ([30c9f31](https://github.com/noir-lang/noir/commit/30c9f3151d447de8c7467ccbee82e32b8c46a396))
+* **acvm:** Mark outputs of Opcode::Call solvable ([#4708](https://github.com/noir-lang/noir/issues/4708)) ([8fea405](https://github.com/noir-lang/noir/commit/8fea40576f262bd5bb588923c0660d8967404e56))
+* Correct ICE panic messages in brillig `convert_black_box_call` ([#4761](https://github.com/noir-lang/noir/issues/4761)) ([f3eee6c](https://github.com/noir-lang/noir/commit/f3eee6c00a9b1ea939c5757d91faac693e909301))
+* Error when a type variable is unbound during monomorphization instead of defaulting to Field ([#4674](https://github.com/noir-lang/noir/issues/4674)) ([03cdba4](https://github.com/noir-lang/noir/commit/03cdba45ac073fd6fdd91549736f36f1abaef15a))
+* Field comparisons ([#4704](https://github.com/noir-lang/noir/issues/4704)) ([079cb2a](https://github.com/noir-lang/noir/commit/079cb2a99d2d50b50688bfb56fa014acde3e3d71))
+* Impl search no longer selects an impl if multiple are applicable ([#4662](https://github.com/noir-lang/noir/issues/4662)) ([0150600](https://github.com/noir-lang/noir/commit/0150600922ee8b3e67c9b592338e8832f446685b))
+* Last use analysis & make it an SSA pass ([#4686](https://github.com/noir-lang/noir/issues/4686)) ([0d3d5fd](https://github.com/noir-lang/noir/commit/0d3d5fda9659a563ba9c2014b7c1af9e1d332ab0))
+* Slice coercions ([#4640](https://github.com/noir-lang/noir/issues/4640)) ([c0bae17](https://github.com/noir-lang/noir/commit/c0bae17e70f55ebf4b1639e0dfb075d8c5c97892))
+* **ssa:** Accurate constant type for slice dummy data in flattening ([#4661](https://github.com/noir-lang/noir/issues/4661)) ([b87654e](https://github.com/noir-lang/noir/commit/b87654e2b4761dfacc916dac70d43c1b572ec636))
+* **ssa:** Do not use get_value_max_num_bits when we want pure type information ([#4700](https://github.com/noir-lang/noir/issues/4700)) ([b55a580](https://github.com/noir-lang/noir/commit/b55a580388abc95bab6c6ef8c50eae3c5497eb3f))
+* **ssa:** Fix slice intrinsic handling in the capacity tracker  ([#4643](https://github.com/noir-lang/noir/issues/4643)) ([1b50ce1](https://github.com/noir-lang/noir/commit/1b50ce155cf95193937729c2a23f34b0ade42ea0))
+* Unknown slice lengths coming from as_slice ([#4725](https://github.com/noir-lang/noir/issues/4725)) ([f21129e](https://github.com/noir-lang/noir/commit/f21129ef05efb76c5df6ee15a134f1ea535d8e90))
+* Update commit for noir-gates-diff ([#4773](https://github.com/noir-lang/noir/issues/4773)) ([a9766c5](https://github.com/noir-lang/noir/commit/a9766c5e9650160bcafc693f2617e441ed47721a))
+
 ## [0.26.0](https://github.com/noir-lang/noir/compare/v0.25.0...v0.26.0) (2024-03-25)
 
 
