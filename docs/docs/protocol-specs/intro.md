@@ -1,8 +1,8 @@
 # Editorial guidelines
 
-This "yellow paper" is a first attempt to describe the Aztec protocol in its entirety.
+This protocol specification is a first attempt to describe the Aztec protocol in its entirety.
 
-It'll be more 'beige' than a yellow paper, initially. For example, we haven't settled on exact hashes, or encryption schemes, or gas metering schedules yet, so it won't contain such exact details as the Ethereum yellow paper.
+It is still a work in progress. For example, we haven't settled on exact hashes, or encryption schemes, or gas metering schedules yet, so it won't contain such exact details as the Ethereum yellow paper.
 
 ## Target audience
 
