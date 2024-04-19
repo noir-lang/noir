@@ -50,36 +50,6 @@ impl AvmContext {
     pub fn l1_to_l2_msg_exists(self, msg_hash: Field, msg_leaf_index: Field) -> bool {
         l1_to_l2_msg_exists(msg_hash, msg_leaf_index) == 1
     }
-
-    fn call_public_function_raw<RET_COUNT>(
-        self: &mut Self,
-        gas: GasOpts,
-        contract_address: AztecAddress,
-        temporary_function_selector: Field,
-        args: [Field]
-    ) -> ([Field; RET_COUNT], u8) {
-        call(
-            gas_for_call(gas),
-            contract_address,
-            args,
-            temporary_function_selector
-        )
-    }
-
-    fn static_call_public_function_raw<RET_COUNT>(
-        self: &mut Self,
-        gas: GasOpts,
-        contract_address: AztecAddress,
-        temporary_function_selector: Field,
-        args: [Field]
-    ) -> ([Field; RET_COUNT], u8) {
-        call_static(
-            gas_for_call(gas),
-            contract_address,
-            args,
-            temporary_function_selector
-        )
-    }
 }
 
 impl PublicContextInterface for AvmContext {
