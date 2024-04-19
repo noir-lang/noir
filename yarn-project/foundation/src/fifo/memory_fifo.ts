@@ -24,13 +24,17 @@ export class MemoryFifo<T> {
   }
 
   /**
-   * Returns next item within the queue, or blocks until and item has been put into the queue.
-   * If given a timeout, the promise will reject if no item is received after `timeout` seconds.
+   * Returns next item within the queue, or blocks until an item has been put into the queue.
+   *
+   * If given a timeout, the promise will reject if no item is received after `timeoutSec` seconds.
+   * If the timeout is undefined (default), this call will block until an item is available or the queue is closed.
+   * If the timeout is 0 and there are no items available then the queue will immediately reject with a TimeoutError.
+   *
    * If the queue is flushing, `null` is returned.
-   * @param timeout - The timeout in seconds.
+   * @param timeoutSec - The timeout in seconds.
    * @returns A result promise.
    */
-  public get(timeout?: number): Promise<T | null> {
+  public get(timeoutSec?: number): Promise<T | null> {
     if (this.items.length) {
       return Promise.resolve(this.items.shift()!);
     }
@@ -39,10 +43,16 @@ export class MemoryFifo<T> {
       return Promise.resolve(null);
     }
 
+    // if the caller doesn't want to wait for an item to be available
+    // immediately reject with a Timeout error
+    if (timeoutSec === 0) {
+      return Promise.reject(new TimeoutError('Timeout getting item from queue.'));
+    }
+
     return new Promise<T | null>((resolve, reject) => {
       this.waiting.push(resolve);
 
-      if (timeout) {
+      if (timeoutSec) {
         setTimeout(() => {
           const index = this.waiting.findIndex(r => r === resolve);
           if (index > -1) {
@@ -50,7 +60,7 @@ export class MemoryFifo<T> {
             const err = new TimeoutError('Timeout getting item from queue.');
             reject(err);
           }
-        }, timeout * 1000);
+        }, timeoutSec * 1000);
       }
     });
   }
