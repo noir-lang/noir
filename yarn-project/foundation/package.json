@@ -39,7 +39,8 @@
     "./noir": "./dest/noir/index.js",
     "./testing": "./dest/testing/index.js",
     "./array": "./dest/array/index.js",
-    "./validation": "./dest/validation/index.js"
+    "./validation": "./dest/validation/index.js",
+    "./promise": "./dest/promise/index.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",
