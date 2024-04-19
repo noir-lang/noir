@@ -146,7 +146,13 @@ pub(crate) fn prove_package(
     let proof = if !use_plonky2_backend_experimental {
         backend.prove(&compiled_program.program, witness_stack)?
     } else {
-        compiled_program.plonky2_circuit.unwrap().prove(&inputs_map).unwrap()
+        match compiled_program.plonky2_circuit.unwrap().prove(&inputs_map) {
+            Ok(proof) => proof,
+            Err(error) => {
+                let error_message = format!("{:?}", error);
+                return Err(CliError::BackendError(BackendError::UnfitBackend(error_message)));
+            }
+        }
     };
 
     if check_proof {

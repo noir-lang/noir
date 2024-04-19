@@ -58,13 +58,26 @@ impl P2Value {
     fn make_field(target: Target) -> P2Value {
         P2Value { target: P2Target::IntTarget(target), typ: P2Type::Field }
     }
+
+    fn make_array(bit_size: u32, targets: Vec<Target>) -> P2Value {
+        P2Value { target: P2Target::ArrayTarget(targets), typ: P2Type::Array(bit_size) }
+    }
+
+    /// Extends the given list with the Noir targets wrapped by this value: if this value is an
+    /// array, there would be multiple targets wrapped.
+    fn extend_parameter_list(&self, parameters: &mut Vec<Target>) -> Result<(), Plonky2GenError> {
+        Ok(match self.target {
+            P2Target::ArrayTarget(ref targets) => parameters.extend(targets.iter()),
+            _ => parameters.push(self.get_target()?),
+        })
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum P2Type {
     Boolean,
     Integer(u32),
-    Array,
+    Array(u32),
     Field,
 }
 
@@ -72,7 +85,7 @@ enum P2Type {
 enum P2Target {
     IntTarget(Target),
     BoolTarget(BoolTarget),
-    ArrayTarget(u32),
+    ArrayTarget(Vec<Target>),
 }
 
 pub(crate) struct Builder {
@@ -104,7 +117,9 @@ impl Builder {
 
         let mut parameters = Vec::new();
         for value_id in entry_block.parameters().iter() {
-            parameters.push(self.add_parameter(*value_id)?);
+            self.add_parameter(*value_id)?;
+            let p2value = self.get(*value_id).unwrap();
+            let _ = p2value.extend_parameter_list(&mut parameters)?;
         }
         for instruction_id in entry_block.instructions() {
             match self.add_instruction(*instruction_id) {
@@ -116,7 +131,7 @@ impl Builder {
         Ok(Plonky2Circuit { data, parameters, parameter_names })
     }
 
-    fn add_parameter(&mut self, value_id: ValueId) -> Result<Target, Plonky2GenError> {
+    fn add_parameter(&mut self, value_id: ValueId) -> Result<(), Plonky2GenError> {
         let value = self.dfg[value_id].clone();
         let p2value = match value {
             Value::Param { block: _, position: _, typ } => match typ {
@@ -132,10 +147,18 @@ impl Builder {
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 },
+                Type::Array(composite_type, array_size) => {
+                    if composite_type.len() != 1 {
+                        let feature_name = format!("composite array type {:?}", composite_type);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                    let bit_size = composite_type[0].bit_size();
+                    let targets = self.builder.add_virtual_targets(array_size);
+                    P2Value::make_array(bit_size, targets)
+                }
                 _ => {
-                    return Err(Plonky2GenError::UnsupportedFeature {
-                        name: "parameters that are not numeric".to_owned(),
-                    })
+                    let feature_name = format!("parameters of type {typ}");
+                    return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                 }
             },
             _ => {
@@ -145,13 +168,12 @@ impl Builder {
             }
         };
 
-        let result = p2value.get_target();
         self.set(value_id, p2value);
-        result
+        Ok(())
     }
 
     /// Converts from ssa::ir::instruction::BinaryOp to the equivalent P2Builder instruction, when
-    /// such conversion is straightforward.
+    /// such conversion is straightforward and the arguments are integers.
     fn convert_integer_op(
         &mut self,
         lhs: ValueId,
@@ -164,6 +186,21 @@ impl Builder {
 
         let target = p2builder_op(&mut self.builder, target_a, target_b);
         Ok(P2Value::make_integer(bit_size_a, target))
+    }
+
+    /// Converts from ssa::ir::instruction::BinaryOp to the equivalent P2Builder instruction, when
+    /// such conversion is straightforward and the arguments are booleans.
+    fn convert_boolean_op(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        p2builder_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+    ) -> Result<P2Value, Plonky2GenError> {
+        let target_a = self.get_boolean(lhs)?;
+        let target_b = self.get_boolean(rhs)?;
+
+        let target = p2builder_op(&mut self.builder, target_a, target_b);
+        Ok(P2Value::make_boolean(target))
     }
 
     fn convert_bitwise_logical_op(
@@ -208,7 +245,17 @@ impl Builder {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let p2value = match operator {
                     super::ir::instruction::BinaryOp::Mul => {
-                        self.convert_integer_op(lhs, rhs, P2Builder::mul)
+                        let typ = self.get_type(lhs)?;
+                        match typ {
+                            P2Type::Boolean => self.convert_boolean_op(lhs, rhs, P2Builder::and),
+                            P2Type::Integer(_) => self.convert_integer_op(lhs, rhs, P2Builder::mul),
+                            _ => {
+                                let feature_name = format!("Mul instruction on {:?}", typ);
+                                return Err(Plonky2GenError::UnsupportedFeature {
+                                    name: feature_name,
+                                });
+                            }
+                        }
                     }
 
                     super::ir::instruction::BinaryOp::Div => {
@@ -295,6 +342,23 @@ impl Builder {
                 self.builder.range_check(x, usize::try_from(max_bit_size).unwrap());
             }
 
+            Instruction::ArrayGet { array, index } => {
+                let index = self.dfg[index].clone();
+                let num_index = match index {
+                    Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
+                    _ => {
+                        let feature_name = format!("indexing array with an {:?}", index);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                };
+                let (bit_size, target) = self.get_array_element(array, num_index)?;
+
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+                self.set(destinations[0], P2Value::make_integer(bit_size, target));
+            }
+
             _ => {
                 let feature_name = format!(
                     "instruction {:?} <- {:?}",
@@ -315,6 +379,20 @@ impl Builder {
         self.translation.get(&value_id)
     }
 
+    fn get_type(&mut self, value_id: ValueId) -> Result<P2Type, Plonky2GenError> {
+        let p2value: P2Value;
+        let p2value_ref = match self.get(value_id) {
+            Some(p2value) => p2value,
+            None => {
+                let value = self.dfg[value_id].clone();
+                p2value = self.create_p2value(value)?;
+                &p2value
+            }
+        };
+
+        Ok(p2value_ref.typ)
+    }
+
     fn get_integer(&mut self, value_id: ValueId) -> Result<(u32, Target), Plonky2GenError> {
         let p2value: P2Value;
         let p2value_ref = match self.get(value_id) {
@@ -329,8 +407,7 @@ impl Builder {
         let bit_size = match p2value_ref.typ {
             P2Type::Integer(bit_size) => bit_size,
             _ => {
-                let message =
-                    format!("lhs argument to convert_integer_op is of type {:?}", p2value_ref.typ);
+                let message = format!("argument to get_integer is of type {:?}", p2value_ref.typ);
                 return Err(Plonky2GenError::ICE { message });
             }
         };
@@ -338,7 +415,53 @@ impl Builder {
             P2Target::IntTarget(target) => target,
             _ => {
                 return Err(Plonky2GenError::ICE {
-                    message: "lhs argument to convert_integer_op has non-integer target".to_owned(),
+                    message: "argument to get_integer has non-integer target".to_owned(),
+                })
+            }
+        };
+        Ok((bit_size, target))
+    }
+
+    fn get_boolean(&mut self, value_id: ValueId) -> Result<BoolTarget, Plonky2GenError> {
+        let p2value: P2Value;
+        let p2value_ref = match self.get(value_id) {
+            Some(p2value) => p2value,
+            None => {
+                let value = self.dfg[value_id].clone();
+                p2value = self.create_p2value(value)?;
+                &p2value
+            }
+        };
+
+        let target = match p2value_ref.target {
+            P2Target::BoolTarget(bool_target) => bool_target,
+            _ => {
+                return Err(Plonky2GenError::ICE {
+                    message: "argument to get_boolean has non-boolean target".to_owned(),
+                })
+            }
+        };
+        Ok(target)
+    }
+
+    fn get_array_element(
+        &mut self,
+        value_id: ValueId,
+        index: usize,
+    ) -> Result<(u32, Target), Plonky2GenError> {
+        let p2value = self.get(value_id).unwrap();
+        let bit_size = match p2value.typ {
+            P2Type::Array(bit_size) => bit_size,
+            _ => {
+                let message = format!("argument to get_array_element is of type {:?}", p2value.typ);
+                return Err(Plonky2GenError::ICE { message });
+            }
+        };
+        let target = match p2value.target {
+            P2Target::ArrayTarget(ref targets) => targets[index].clone(),
+            _ => {
+                return Err(Plonky2GenError::ICE {
+                    message: "argument to get_array_element is not an array".to_owned(),
                 })
             }
         };
