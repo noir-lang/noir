@@ -147,8 +147,17 @@ jobs:
   merge-check:
     runs-on: ${{ github.actor }}-x86
     needs: [e2e, bb-native-tests, bb-bench]
+    if: always()  # Ensures this job runs regardless of the success or failure of dependencies.
     steps:
-      - run: echo Pull request merging now allowed.
+      - run: |
+          echo "E2E Test Status: ${{ needs.e2e.result }}"
+          echo "Native Tests Status: ${{ needs.bb-native-tests.result }}"
+          echo "Bench Tests Status: ${{ needs.bb-bench.result }}"
+          if [[ "${{ needs.e2e.result }}" != 'success' || "${{ needs.bb-native-tests.result }}" != 'success' || "${{ needs.bb-bench.result }}" != 'success' ]]; then
+            echo "Pull request merging not allowed due to failures."
+            exit 1
+          fi
+          echo "Pull request merging now allowed."
 
   notify:
     needs: [e2e, bb-native-tests, bb-bench]
