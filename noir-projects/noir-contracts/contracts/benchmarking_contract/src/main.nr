@@ -4,10 +4,7 @@
 // subject being tested as unmodified as possible so we can detect metric changes that
 
 contract Benchmarking {
-    use dep::aztec::prelude::{
-        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, emit_unencrypted_log, Map,
-        PublicMutable, PrivateSet
-    };
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, Map, PublicMutable, PrivateSet};
     use dep::value_note::{utils::{increment, decrement}, value_note::ValueNote};
 
     use dep::aztec::{context::{Context, gas::GasOpts}};
@@ -50,6 +47,6 @@ contract Benchmarking {
     // Emits a public log.
     #[aztec(public)]
     fn broadcast(owner: AztecAddress) {
-        emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
+        context.emit_unencrypted_log(storage.balances.at(owner).read());
     }
 }

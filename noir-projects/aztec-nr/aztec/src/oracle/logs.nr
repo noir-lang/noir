@@ -25,19 +25,3 @@ unconstrained pub fn emit_encrypted_log<N>(
         preimage
     )
 }
-
-#[oracle(emitUnencryptedLog)]
-fn emit_unencrypted_log_oracle<T>(
-    _contract_address: AztecAddress,
-    _event_selector: Field,
-    _message: T
-) -> Field {}
-
-unconstrained pub fn emit_unencrypted_log<T>(
-    contract_address: AztecAddress,
-    event_selector: Field,
-    message: T
-) -> Field {
-    // https://github.com/AztecProtocol/aztec-packages/issues/885
-    emit_unencrypted_log_oracle(contract_address, event_selector, message)
-}

@@ -2,10 +2,7 @@
 // publicly store the address of an authorized account that can call private functions.
 contract Auth {
     use dep::aztec::protocol_types::address::AztecAddress;
-    use dep::aztec::{
-        log::{emit_unencrypted_log, emit_unencrypted_log_from_private},
-        state_vars::{PublicImmutable, SharedMutable}
-    };
+    use dep::aztec::state_vars::{PublicImmutable, SharedMutable};
 
     // Authorizing a new address has a certain block delay before it goes into effect.
     global CHANGE_AUTHORIZED_DELAY_BLOCKS = 5;

@@ -3,8 +3,8 @@ use crate::{
     messaging::process_l1_to_l2_message, hash::{hash_args_array, ArgsHasher},
     oracle::{
     arguments, returns, call_private_function::call_private_function_internal,
-    enqueue_public_function_call::enqueue_public_function_call_internal,
-    header::get_header_at, nullifier_key::{get_nullifier_keys, NullifierKeys}
+    enqueue_public_function_call::enqueue_public_function_call_internal, header::get_header_at,
+    nullifier_key::{get_nullifier_keys, NullifierKeys}
 }
 };
 use dep::protocol_types::{
@@ -271,7 +271,14 @@ impl PrivateContext {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
-    pub fn push_unencrypted_log(&mut self, log_hash: Field) {
+    // TODO: We might want to remove this since emitting unencrypted logs from private functions is violating privacy.
+    // --> might be a better approach to force devs to make a public function call that emits the log if needed then
+    // it would be less easy to accidentally leak information.
+    // If we decide to keep this function around would make sense to wait for traits and then merge it with emit_unencrypted_log.
+    pub fn emit_unencrypted_log<T>(&mut self, log: T) {
+        let event_selector = 5; // TODO: compute actual event selector.
+        let log_hash = emit_unencrypted_log_private_internal(self.this_address(), event_selector, log);
+
         let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
         self.unencrypted_logs_hashes.push(side_effect);
         self.side_effect_counter = self.side_effect_counter + 1;
@@ -590,4 +597,20 @@ impl PackedReturns {
         let unpacked: [Field; N] = self.unpack();
         Deserialize::deserialize(unpacked)
     }
+}
+
+#[oracle(emitUnencryptedLog)]
+fn emit_unencrypted_log_oracle_private<T>(
+    _contract_address: AztecAddress,
+    _event_selector: Field,
+    _message: T
+) -> Field {}
+
+unconstrained pub fn emit_unencrypted_log_private_internal<T>(
+    contract_address: AztecAddress,
+    event_selector: Field,
+    message: T
+) -> Field {
+    // https://github.com/AztecProtocol/aztec-packages/issues/885
+    emit_unencrypted_log_oracle_private(contract_address, event_selector, message)
 }

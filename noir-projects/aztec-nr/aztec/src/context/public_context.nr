@@ -283,14 +283,11 @@ impl PublicContextInterface for PublicContext {
     }
 
     fn emit_unencrypted_log<T>(&mut self, log: T) {
-        let _void1 = self;
-        let _void2 = log;
+        let event_selector = 5;
+        let log_hash = emit_unencrypted_log_oracle(self.this_address(), event_selector, log);
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
         // Once we hash inside circuits, this replaces push_unencrypted_log
         // For now we need an oracle to get the hash
-    }
-
-    fn push_unencrypted_log(&mut self, log_hash: Field) {
         let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
         self.unencrypted_logs_hashes.push(side_effect);
         self.side_effect_counter = self.side_effect_counter + 1;
@@ -358,6 +355,13 @@ impl Empty for PublicContext {
 
 #[oracle(checkNullifierExists)]
 fn nullifier_exists_oracle(nullifier: Field) -> Field {}
+
+#[oracle(emitUnencryptedLog)]
+fn emit_unencrypted_log_oracle<T>(
+    _contract_address: AztecAddress,
+    _event_selector: Field,
+    _message: T
+) -> Field {}
 
 struct FunctionReturns<N> {
     values: [Field; N]

@@ -96,15 +96,9 @@ They can be emitted by both public and private functions.
 - Unencrypted events are currently **NOT** linked to the contract emitting them, so it is practically a [`debug_log`](../oracles/main.md#a-few-useful-inbuilt-oracles).
   :::
 
-### Import library
-
-To emit unencrypted logs first import the `emit_unencrypted_log` utility function inside your contract:
-
-#include_code unencrypted_import /noir-projects/noir-contracts/contracts/test_contract/src/main.nr rust
-
 ### Call emit_unencrypted_log
 
-After importing, you can call the function:
+To emit unencrypted logs you don't need to import any library. You call the context method `emit_unencrypted_log`:
 
 #include_code emit_unencrypted /noir-projects/noir-contracts/contracts/test_contract/src/main.nr rust
 

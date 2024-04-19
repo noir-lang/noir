@@ -1,7 +1,6 @@
 contract Crowdfunding {
 
     use dep::aztec::{
-        log::emit_unencrypted_log_from_private,
         protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, traits::Serialize},
         state_vars::{PrivateSet, PublicImmutable, SharedImmutable}
     };
@@ -78,6 +77,6 @@ contract Crowdfunding {
 
         // 3) Emit an unencrypted event so that anyone can audit how much the operator has withdrawn
         let event = WithdrawalProcessed { amount, who: operator_address };
-        emit_unencrypted_log_from_private(&mut context, event.serialize());
+        context.emit_unencrypted_log(event.serialize());
     }
 }

@@ -117,6 +117,20 @@ Note that gas limits are not yet enforced. For now, it is suggested you use `dep
 
 Note that this is not required when enqueuing a public function from a private one, since top-level enqueued public functions will always consume all gas available for the transaction, as it is not possible to handle any out-of-gas errors.
 
+### [Aztec.nr] Emmiting unencrypted logs
+
+The `emit_unencrypted_logs` function is now a context method.
+
+```diff
+- use dep::aztec::log::emit_unencrypted_log;
+- use dep::aztec::log::emit_unencrypted_log_from_private;
+
+- emit_unencrypted_log(context, log1);
+- emit_unencrypted_log_from_private(context, log2);
++ context.emit_unencrypted_log(log1);
++ context.emit_unencrypted_log(log2);
+```
+
 ## 0.33
 
 ### [Aztec.nr] Storage struct annotation

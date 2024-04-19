@@ -2,7 +2,7 @@ mod events;
 mod capsule;
 
 contract ContractClassRegisterer {
-    use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector, emit_unencrypted_log};
+    use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector};
     use dep::aztec::protocol_types::{
         contract_class_id::ContractClassId,
         constants::{
@@ -11,8 +11,6 @@ contract ContractClassRegisterer {
     },
         traits::Serialize
     };
-
-    use dep::aztec::log::emit_unencrypted_log_from_private;
 
     use crate::events::{
         class_registered::ContractClassRegistered,
@@ -50,7 +48,7 @@ contract ContractClassRegisterer {
             public_bytecode_commitment
         ]
         );
-        emit_unencrypted_log_from_private(&mut context, event.serialize());
+        context.emit_unencrypted_log(event.serialize());
     }
 
     #[aztec(private)]
@@ -85,7 +83,7 @@ contract ContractClassRegisterer {
             function_data.metadata_hash
         ]
         );
-        emit_unencrypted_log_from_private(&mut context, event.serialize());
+        context.emit_unencrypted_log(event.serialize());
     }
 
     #[aztec(private)]
@@ -115,6 +113,6 @@ contract ContractClassRegisterer {
             function_data.metadata_hash
         ]
         );
-        emit_unencrypted_log_from_private(&mut context, event.serialize());
+        context.emit_unencrypted_log(event.serialize());
     }
 }

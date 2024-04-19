@@ -1,9 +1,6 @@
 // A contract used along with `Parent` contract to test nested calls.
 contract Child {
-    use dep::aztec::prelude::{
-        AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, emit_unencrypted_log,
-        Deserialize
-    };
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, Deserialize};
 
     use dep::aztec::{
         context::{PublicContext, Context, gas::GasOpts},
@@ -47,7 +44,7 @@ contract Child {
     #[aztec(public)]
     fn pub_set_value(new_value: Field) -> Field {
         storage.current_value.write(new_value);
-        emit_unencrypted_log(&mut context, new_value);
+        context.emit_unencrypted_log(new_value);
 
         new_value
     }
@@ -76,7 +73,7 @@ contract Child {
     fn pub_inc_value(new_value: Field) -> Field {
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
-        emit_unencrypted_log(&mut context, new_value);
+        context.emit_unencrypted_log(new_value);
 
         new_value
     }
@@ -87,7 +84,7 @@ contract Child {
     fn pub_inc_value_internal(new_value: Field) -> Field {
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
-        emit_unencrypted_log(&mut context, new_value);
+        context.emit_unencrypted_log(new_value);
 
         new_value
     }
@@ -96,13 +93,13 @@ contract Child {
     fn set_value_twice_with_nested_first() {
         let _result = Child::at(context.this_address()).pub_set_value(10).call(&mut context);
         storage.current_value.write(20);
-        emit_unencrypted_log(&mut context, 20);
+        context.emit_unencrypted_log(20);
     }
 
     #[aztec(public)]
     fn set_value_twice_with_nested_last() {
         storage.current_value.write(20);
-        emit_unencrypted_log(&mut context, 20);
+        context.emit_unencrypted_log(20);
         let _result = Child::at(context.this_address()).pub_set_value(10).call(&mut context);
     }
 }

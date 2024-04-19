@@ -7,8 +7,6 @@ contract ContractInstanceDeployer {
         traits::Serialize
     };
 
-    use dep::aztec::log::{emit_unencrypted_log, emit_unencrypted_log_from_private};
-
     use crate::events::{instance_deployed::ContractInstanceDeployed};
 
     #[aztec(private)]
@@ -54,6 +52,6 @@ contract ContractInstanceDeployer {
         };
         let event_payload = event.serialize();
         dep::aztec::oracle::debug_log::debug_log_array_with_prefix("ContractInstanceDeployed", event_payload);
-        emit_unencrypted_log_from_private(&mut context, event_payload);
+        context.emit_unencrypted_log(event_payload);
     }
 }

@@ -121,12 +121,8 @@ impl PublicContextInterface for AvmContext {
     }
 
     fn emit_unencrypted_log<T>(&mut self, log: T) {
-        let event_selector = 0;
+        let event_selector = 5;  // Matches current PublicContext.
         self.emit_unencrypted_log(event_selector, log);
-    }
-
-    fn push_unencrypted_log(&mut self, log_hash: Field) {
-        assert(false, "'push_unencrypted_log' not required for avm - use emit_unencrypted_log!");
     }
 
     fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, leaf_index: Field) {

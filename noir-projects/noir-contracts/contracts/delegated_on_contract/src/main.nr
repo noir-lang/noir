@@ -1,8 +1,8 @@
 // A contract used along with `Parent` contract to test nested calls.
 contract DelegatedOn {
     use dep::aztec::prelude::{
-        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions,
-        emit_unencrypted_log, PublicMutable, PrivateSet, PrivateContext
+        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions, PublicMutable,
+        PrivateSet, PrivateContext
     };
     use dep::value_note::value_note::ValueNote;
 
