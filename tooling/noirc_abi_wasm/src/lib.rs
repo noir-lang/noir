@@ -5,7 +5,7 @@
 // See Cargo.toml for explanation.
 use getrandom as _;
 
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use iter_extended::try_btree_map;
 use noirc_abi::{
     errors::InputParserError,
@@ -112,4 +112,13 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
     let return_struct = InputsAndReturn { inputs: inputs_map, return_value };
     <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&return_struct)
         .map_err(|err| err.to_string().into())
+}
+
+#[wasm_bindgen(js_name = serializeWitness)]
+pub fn serialise_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiError> {
+    console_error_panic_hook::set_once();
+    let converted_witness: WitnessMap = witness_map.into();
+    let witness_stack: WitnessStack = converted_witness.into();
+    let output = witness_stack.try_into();
+    output.map_err(|_| JsAbiError::new("Failed to convert to Vec<u8>".to_string()))
 }

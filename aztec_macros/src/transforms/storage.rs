@@ -265,13 +265,13 @@ pub fn assign_storage_slots(
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
     let traits: Vec<_> = collect_traits(context);
-    if let Some((_, file_id)) = get_contract_module_data(context, crate_id) {
+    if let Some((_, _, file_id)) = get_contract_module_data(context, crate_id) {
         let maybe_storage_struct =
-            collect_crate_structs(crate_id, context).iter().find_map(|&(_, struct_id)| {
-                let r#struct = context.def_interner.get_struct(struct_id);
-                let attributes = context.def_interner.struct_attributes(&struct_id);
+            collect_crate_structs(crate_id, context).iter().find_map(|struct_id| {
+                let r#struct = context.def_interner.get_struct(*struct_id);
+                let attributes = context.def_interner.struct_attributes(struct_id);
                 if attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
-                    && r#struct.borrow().id.krate().is_root()
+                    && r#struct.borrow().id.krate() == *crate_id
                 {
                     Some(r#struct)
                 } else {
@@ -290,7 +290,11 @@ pub fn assign_storage_slots(
                     let expr = context.def_interner.expression(&statement.unwrap().expression);
                     match expr {
                         HirExpression::Constructor(hir_constructor_expression) => {
-                            Some(hir_constructor_expression)
+                            if hir_constructor_expression.r#type.borrow().id.krate() == *crate_id {
+                                Some(hir_constructor_expression)
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }

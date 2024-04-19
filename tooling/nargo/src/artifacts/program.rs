@@ -5,7 +5,7 @@ use fm::FileId;
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;
 use noirc_driver::DebugFile;
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::debug_info::ProgramDebugInfo;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,10 +27,10 @@ pub struct ProgramArtifact {
     pub bytecode: Program,
 
     #[serde(
-        serialize_with = "DebugInfo::serialize_compressed_base64_json",
-        deserialize_with = "DebugInfo::deserialize_compressed_base64_json"
+        serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",
+        deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
-    pub debug_symbols: DebugInfo,
+    pub debug_symbols: ProgramDebugInfo,
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     pub file_map: BTreeMap<FileId, DebugFile>,
@@ -45,7 +45,7 @@ impl From<CompiledProgram> for ProgramArtifact {
             abi: compiled_program.abi,
             noir_version: compiled_program.noir_version,
             bytecode: compiled_program.program,
-            debug_symbols: compiled_program.debug,
+            debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
             file_map: compiled_program.file_map,
             names: compiled_program.names,
         }
@@ -59,7 +59,7 @@ impl From<ProgramArtifact> for CompiledProgram {
             abi: program.abi,
             noir_version: program.noir_version,
             program: program.bytecode,
-            debug: program.debug_symbols,
+            debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: vec![],
             names: program.names,

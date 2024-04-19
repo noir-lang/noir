@@ -5,6 +5,7 @@ import {
   ContractCompilationArtifacts,
   DebugFileMap,
   DebugInfo,
+  ProgramDebugInfo,
   NoirFunctionEntry,
   ProgramArtifact,
   ProgramCompilationArtifacts,
@@ -15,7 +16,7 @@ export function shouldCompileProgramIdentically(
   expect: typeof Expect,
   timeout = 5000,
 ) {
-  it('both nargo and noir_wasm should compile identically', async () => {
+  it('both nargo and noir_wasm should compile program identically', async () => {
     // Compile!
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
@@ -51,7 +52,7 @@ export function shouldCompileContractIdentically(
   expect: typeof Expect,
   timeout = 5000,
 ) {
-  it('both nargo and noir_wasm should compile identically', async () => {
+  it('both nargo and noir_wasm should compile contract identically', async () => {
     // Compile!
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
@@ -90,7 +91,7 @@ function extractDebugInfos(fns: NoirFunctionEntry[]) {
   return fns.map((fn) => {
     const debugSymbols = inflateDebugSymbols(fn.debug_symbols);
     delete (fn as Partial<NoirFunctionEntry>).debug_symbols;
-    clearFileIdentifiers(debugSymbols);
+    clearFileIdentifiersProgram(debugSymbols);
     return debugSymbols;
   });
 }
@@ -111,6 +112,12 @@ function deleteContractDebugMetadata(contract: ContractArtifact) {
   const fileMap = contract.file_map;
   delete (contract as Partial<ContractArtifact>).file_map;
   return [extractDebugInfos(contract.functions), fileMap];
+}
+
+function clearFileIdentifiersProgram(debugSymbols: ProgramDebugInfo) {
+  debugSymbols.debug_infos.map((debug_info) => {
+    clearFileIdentifiers(debug_info);
+  });
 }
 
 /** Clears file identifiers from a set of debug symbols. */
