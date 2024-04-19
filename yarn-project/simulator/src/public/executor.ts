@@ -66,7 +66,7 @@ async function executePublicFunctionAvm(executionContext: PublicExecutionContext
     executionContext.globalVariables,
   );
 
-  const machineState = new AvmMachineState(executionContext.execution.callContext.gasLeft);
+  const machineState = new AvmMachineState(Gas.test()); // TODO(palla/gas): Set proper values
   const context = new AvmContext(worldStateJournal, executionEnv, machineState);
   const simulator = new AvmSimulator(context);
 
@@ -196,7 +196,7 @@ async function executePublicFunctionAcvm(
 
   const nestedExecutions = context.getNestedExecutions();
   const unencryptedLogs = context.getUnencryptedLogs();
-  const gasLeft = context.execution.callContext.gasLeft; // No gas metering for ACVM
+  const gasLeft = Gas.test(); // TODO(palla/gas): Set proper value
 
   return {
     execution,

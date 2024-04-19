@@ -35,7 +35,6 @@ struct FixtureBuilder {
     // Constant data.
     historical_header: Header,
     tx_context: TxContext,
-    gas_settings: GasSettings,
     
     // Accumulated data.
     new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_TX>,
@@ -77,7 +76,7 @@ struct FixtureBuilder {
 
 impl FixtureBuilder {
     pub fn new() -> Self {
-        let tx_context = TxContext { is_fee_payment_tx: false, is_rebate_payment_tx: false, chain_id: 1, version: 0 };
+        let tx_context = TxContext { chain_id: 1, version: 0, gas_settings: GasSettings::empty() };
 
         FixtureBuilder {
             contract_address: fixtures::contracts::parent_contract.address,
@@ -110,17 +109,12 @@ impl FixtureBuilder {
             min_revertible_side_effect_counter: 0,
             counter: 0,
             start_state: PartialStateReference::empty(),
-            gas_used: Gas::empty(),
-            gas_settings: GasSettings::empty()
+            gas_used: Gas::empty()
         }
     }
 
     pub fn to_constant_data(self) -> CombinedConstantData {
-        CombinedConstantData {
-            historical_header: self.historical_header,
-            tx_context: self.tx_context,
-            gas_settings: self.gas_settings
-        }
+        CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context }
     }
 
     pub fn to_private_accumulated_data(self) -> PrivateAccumulatedData {
@@ -456,7 +450,6 @@ impl Empty for FixtureBuilder {
             min_revertible_side_effect_counter: 0,
             counter: 0,
             start_state: PartialStateReference::empty(),
-            gas_settings: GasSettings::empty(),
             gas_used: Gas::empty(),
         }
     }

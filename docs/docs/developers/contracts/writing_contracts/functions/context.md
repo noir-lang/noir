@@ -76,11 +76,11 @@ In the public context this header is set by sequencer (sequencer executes public
 
 #include_code header /noir-projects/noir-protocol-circuits/crates/types/src/header.nr rust
 
-### Private Global Variables
+### Transaction Context
 
-In the private execution context, we only have access to a subset of the total global variables, we are restricted to those which can be reliably proven by the kernel circuits.
+The private context provides access to the transaction context as well, which are user-defined values for the transaction in general that stay constant throughout its execution.
 
-#include_code private-global-variables /noir-projects/aztec-nr/aztec/src/context/globals/private_global_variables.nr rust
+#include_code tx-context /noir-projects/noir-protocol-circuits/crates/types/src/transaction/tx_context.nr rust
 
 ### Args Hash
 

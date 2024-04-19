@@ -6,9 +6,20 @@ import { inspect } from 'util';
 
 import { type UInt32 } from './shared.js';
 
+export const GasDimensions = ['da', 'l1', 'l2'] as const;
+export type GasDimensions = (typeof GasDimensions)[number];
+
 /** Gas amounts in each dimension. */
 export class Gas {
   constructor(public readonly daGas: UInt32, public readonly l1Gas: UInt32, public readonly l2Gas: UInt32) {}
+
+  clone(): Gas {
+    return new Gas(this.daGas, this.l1Gas, this.l2Gas);
+  }
+
+  get(dimension: GasDimensions) {
+    return this[`${dimension}Gas`];
+  }
 
   equals(other: Gas) {
     return this.daGas === other.daGas && this.l1Gas === other.l1Gas && this.l2Gas === other.l2Gas;

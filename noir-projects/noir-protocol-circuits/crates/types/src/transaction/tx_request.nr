@@ -10,7 +10,6 @@ struct TxRequest {
     args_hash: Field,
     tx_context: TxContext,
     function_data: FunctionData,
-    gas_settings: GasSettings,
 }
 
 impl Empty for TxRequest {
@@ -20,7 +19,6 @@ impl Empty for TxRequest {
             args_hash: 0,
             tx_context: TxContext::empty(),
             function_data: FunctionData::empty(),
-            gas_settings: GasSettings::empty(),
         }
     }
 }
@@ -30,8 +28,7 @@ impl Eq for TxRequest {
         (self.origin == other.origin) &
         (self.args_hash == other.args_hash) &
         (self.tx_context == other.tx_context) &
-        (self.function_data == other.function_data) &
-        (self.gas_settings == other.gas_settings)
+        (self.function_data == other.function_data)
     }
 }
 
@@ -50,7 +47,6 @@ impl Serialize<TX_REQUEST_LENGTH> for TxRequest {
         fields.extend_from_array(self.function_data.serialize());
         fields.push(self.args_hash);
         fields.extend_from_array(self.tx_context.serialize());
-        fields.extend_from_array(self.gas_settings.serialize());
 
         assert_eq(fields.len(), TX_REQUEST_LENGTH);
 
@@ -67,7 +63,6 @@ impl Deserialize<TX_REQUEST_LENGTH> for TxRequest {
             args_hash: reader.read(),
             tx_context: reader.read_struct(TxContext::deserialize),
             function_data: reader.read_struct(FunctionData::deserialize),
-            gas_settings: reader.read_struct(GasSettings::deserialize),
         };
 
         reader.finish();
@@ -78,8 +73,8 @@ impl Deserialize<TX_REQUEST_LENGTH> for TxRequest {
 mod tests {
     use crate::{
         abis::{
-        function_selector::FunctionSelector, function_data::FunctionData,
-        gas_settings::{GasSettings, DimensionGasSettings}
+        function_selector::FunctionSelector, function_data::FunctionData, gas_settings::GasSettings,
+        gas::Gas, gas_fees::GasFees
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         grumpkin_point::GrumpkinPoint, transaction::{tx_request::TxRequest, tx_context::TxContext}
@@ -95,20 +90,15 @@ mod tests {
 
     #[test]
     fn compute_hash() {
+        let gas_settings = GasSettings::new(Gas::new(2, 2, 2), Gas::new(1, 1, 1), GasFees::new(3, 3, 3), 10);
         let tx_request = TxRequest {
             origin: AztecAddress::from_field(1),
             args_hash: 3,
-            tx_context: TxContext { is_fee_payment_tx: false, is_rebate_payment_tx: false, chain_id: 0, version: 0 },
-            function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_private: true },
-            gas_settings: GasSettings {
-                da: DimensionGasSettings { gas_limit: 2, teardown_gas_limit: 1, max_fee_per_gas: 3 },
-                l1: DimensionGasSettings { gas_limit: 2, teardown_gas_limit: 1, max_fee_per_gas: 3 },
-                l2: DimensionGasSettings { gas_limit: 2, teardown_gas_limit: 1, max_fee_per_gas: 3 },
-                inclusion_fee: 10
-            }
+            tx_context: TxContext { chain_id: 0, version: 0, gas_settings },
+            function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_private: true }
         };
         // Value from tx_request.test.ts "compute hash" test
-        let test_data_tx_request_hash = 0x03b678e327818eb368f9eac21839ee67a98968318f0dcd76c89d3fcf66af7257;
+        let test_data_tx_request_hash = 0x00b8affaf5ca65d647756e359ce0b2c5fa5c2c03f219189e28db323f22975706;
         assert(tx_request.hash() == test_data_tx_request_hash);
     }
 }

@@ -16,8 +16,8 @@ use dep::types::{
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
 },
     hash::{
-    compute_l2_to_l1_hash, pedersen_hash, private_functions_root_from_siblings,
-    silo_note_hash, silo_nullifier, stdlib_recursion_verification_key_compress_native_vk,
+    compute_l2_to_l1_hash, pedersen_hash, private_functions_root_from_siblings, silo_note_hash,
+    silo_nullifier, stdlib_recursion_verification_key_compress_native_vk
 },
     merkle_tree::check_membership,
     utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
@@ -280,15 +280,15 @@ pub fn update_end_values(
         if !is_empty(msg) {
             let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
-                private_call_public_inputs.version,
-                private_call_public_inputs.chain_id,
+                private_call_public_inputs.tx_context.version,
+                private_call_public_inputs.tx_context.chain_id,
                 msg
             );
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }
     }
     public_inputs.end.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
-    
+
     // logs hashes
     // See the following thread if not clear:
     // https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426

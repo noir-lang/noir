@@ -9,8 +9,9 @@ struct PublicContextInputs {
     historical_header: Header,
 
     public_global_variables: PublicGlobalVariables,
-
     start_side_effect_counter: u32,
+    gas_left: Gas,
+    transaction_fee: Field,
 }
 // docs:end:public-context-inputs
 
@@ -21,6 +22,8 @@ impl Empty for PublicContextInputs {
             historical_header: Header::empty(),
             public_global_variables: PublicGlobalVariables::empty(),
             start_side_effect_counter: 0 as u32,
+            gas_left: Gas::empty(),
+            transaction_fee: 0,
         }
     }
 }

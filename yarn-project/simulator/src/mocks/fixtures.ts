@@ -9,7 +9,6 @@ import {
   Fr,
   FunctionData,
   Gas,
-  GasSettings,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   type PrivateKernelTailCircuitPublicInputs,
   type PublicCallRequest,
@@ -67,18 +66,7 @@ export class PublicExecutionResultBuilder {
     revertReason?: SimulationError;
   }) {
     const builder = new PublicExecutionResultBuilder({
-      callContext: new CallContext(
-        from,
-        tx.to,
-        EthAddress.ZERO,
-        tx.functionData.selector,
-        Gas.test(),
-        false,
-        false,
-        0,
-        GasSettings.default(),
-        Fr.ZERO,
-      ),
+      callContext: new CallContext(from, tx.to, EthAddress.ZERO, tx.functionData.selector, false, false, 0),
       contractAddress: tx.to,
       functionData: tx.functionData,
       args: tx.args,
@@ -133,7 +121,7 @@ export class PublicExecutionResultBuilder {
       endSideEffectCounter: Fr.ZERO,
       reverted: this._reverted,
       revertReason: this._revertReason,
-      gasLeft: this._execution.callContext.gasLeft.mul(0.9),
+      gasLeft: Gas.test(), // TODO(palla/gas): Set a proper value
     };
   }
 }

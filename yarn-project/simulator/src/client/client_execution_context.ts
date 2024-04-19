@@ -16,9 +16,10 @@ import {
   FunctionSelector,
   type Header,
   NoteHashReadRequestMembershipWitness,
+  PrivateContextInputs,
   PublicCallRequest,
   type SideEffect,
-  TxContext,
+  type TxContext,
 } from '@aztec/circuits.js';
 import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { computePublicDataTreeLeafSlot, computeUniqueCommitment, siloNoteHash } from '@aztec/circuits.js/hash';
@@ -99,18 +100,14 @@ export class ClientExecutionContext extends ViewDataOracle {
       throw new Error('Invalid arguments size');
     }
 
-    const fields = [
-      ...this.callContext.toFields(),
-      ...this.historicalHeader.toFields(),
+    const privateContextInputs = new PrivateContextInputs(
+      this.callContext,
+      this.historicalHeader,
+      this.txContext,
+      this.sideEffectCounter,
+    );
 
-      this.txContext.chainId,
-      this.txContext.version,
-
-      new Fr(this.sideEffectCounter),
-
-      ...args,
-    ];
-
+    const fields = [...privateContextInputs.toFields(), ...args];
     return toACVMWitness(0, fields);
   }
 
@@ -383,7 +380,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
     const targetFunctionData = FunctionData.fromAbi(targetArtifact);
 
-    const derivedTxContext = new TxContext(false, false, this.txContext.chainId, this.txContext.version);
+    const derivedTxContext = this.txContext.clone();
 
     const derivedCallContext = await this.deriveCallContext(
       targetContractAddress,
@@ -497,12 +494,9 @@ export class ClientExecutionContext extends ViewDataOracle {
       isDelegateCall ? this.contractAddress : targetContractAddress,
       portalContractAddress,
       FunctionSelector.fromNameAndParameters(targetArtifact.name, targetArtifact.parameters),
-      this.callContext.gasLeft, // TODO(palla/gas): We should deduct DA and L1 gas used for the derived context
       isDelegateCall,
       isStaticCall,
       startSideEffectCounter,
-      this.callContext.gasSettings,
-      this.callContext.transactionFee,
     );
   }
 

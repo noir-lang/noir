@@ -10,7 +10,6 @@ import {
   CompleteAddress,
   Fr,
   FunctionData,
-  GasSettings,
   INITIAL_L2_BLOCK_NUM,
   Point,
   TxContext,
@@ -131,7 +130,6 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
         txContext: TxContext.empty(),
         packedArguments: [],
         authWitnesses: [],
-        gasSettings: GasSettings.default(),
       });
 
       await expect(async () => await pxe.proveTx(txExecutionRequest, false)).rejects.toThrow(

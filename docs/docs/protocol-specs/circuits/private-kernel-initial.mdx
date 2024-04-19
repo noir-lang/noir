@@ -493,9 +493,6 @@ class CallContext {
     portal_contract_address: AztecAddress
     is_delegate_call: bool
     is_static_call: bool
-    gas_left: Gas
-    gas_settings: GasSettings
-    transaction_fee: field
 }
 CallContext ..> CallerContext : call_context
 

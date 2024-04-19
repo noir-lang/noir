@@ -89,18 +89,14 @@ export class AcirSimulator {
     // reserve the first side effect for the tx hash (inserted by the private kernel)
     const startSideEffectCounter = 1;
 
-    const transactionFee = Fr.ZERO;
     const callContext = new CallContext(
       msgSender,
       contractAddress,
       portalContractAddress,
       FunctionSelector.fromNameAndParameters(entryPointArtifact.name, entryPointArtifact.parameters),
-      request.gasSettings.getInitialAvailable(),
       false,
       false,
       startSideEffectCounter,
-      request.gasSettings,
-      transactionFee,
     );
     const context = new ClientExecutionContext(
       contractAddress,

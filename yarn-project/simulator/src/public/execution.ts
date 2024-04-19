@@ -62,7 +62,7 @@ export interface PublicExecutionResult {
    */
   revertReason: SimulationError | undefined;
   /** How much gas was left after this public execution. */
-  gasLeft: Gas;
+  gasLeft: Gas; // TODO(palla/gas): Check this field
 }
 
 /**

@@ -1,13 +1,4 @@
-import {
-  AztecAddress,
-  CallContext,
-  EthAddress,
-  FunctionData,
-  FunctionSelector,
-  Gas,
-  GasSettings,
-  type Header,
-} from '@aztec/circuits.js';
+import { AztecAddress, CallContext, EthAddress, FunctionData, FunctionSelector, type Header } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -31,12 +22,9 @@ describe('AVM WitGen and Proof Generation', () => {
     storageContractAddress: AztecAddress.random(),
     portalContractAddress: EthAddress.random(),
     functionSelector: FunctionSelector.empty(),
-    gasLeft: Gas.test(),
     isDelegateCall: false,
     isStaticCall: false,
     sideEffectCounter: 0,
-    gasSettings: GasSettings.empty(),
-    transactionFee: Fr.ZERO,
   });
   const contractAddress = AztecAddress.random();
 

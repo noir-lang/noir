@@ -34,7 +34,7 @@ struct PrivateAccumulatedDataBuilder {
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
-    gas_used: Gas
+    gas_used: Gas,
 }
 
 impl PrivateAccumulatedDataBuilder {
@@ -48,8 +48,7 @@ impl PrivateAccumulatedDataBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             private_call_stack: self.private_call_stack.storage,
-            public_call_stack: self.public_call_stack.storage,
-            gas_used: self.gas_used
+            public_call_stack: self.public_call_stack.storage
         }
     }
 
@@ -62,8 +61,8 @@ impl PrivateAccumulatedDataBuilder {
             new_note_hashes: self.new_note_hashes.storage.map(|n: SideEffect| n.value),
             new_nullifiers: self.new_nullifiers.storage.map(|n: SideEffectLinkedToNoteHash| n.value),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
-            encrypted_logs_hash: encrypted_logs_hash,
-            unencrypted_logs_hash: unencrypted_logs_hash,
+            encrypted_logs_hash,
+            unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],

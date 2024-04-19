@@ -44,9 +44,6 @@ impl PublicCallDataBuilder {
             is_delegate_call: false,
             is_static_call: false,
             side_effect_counter: 0,  // needed?
-            gas_settings: GasSettings::empty(),
-            transaction_fee: 0,
-            gas_left: Gas::empty(),
         };
 
         PublicCallDataBuilder {

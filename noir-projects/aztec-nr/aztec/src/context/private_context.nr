@@ -87,11 +87,11 @@ impl ContextInterface for PrivateContext {
     }
 
     fn chain_id(self) -> Field {
-        self.inputs.private_global_variables.chain_id
+        self.inputs.tx_context.chain_id
     }
 
     fn version(self) -> Field {
-        self.inputs.private_global_variables.version
+        self.inputs.tx_context.version
     }
 
     fn selector(self) -> FunctionSelector {
@@ -190,8 +190,7 @@ impl PrivateContext {
             encrypted_log_preimages_length,
             unencrypted_log_preimages_length,
             historical_header: self.historical_header,
-            chain_id: self.inputs.private_global_variables.chain_id,
-            version: self.inputs.private_global_variables.version
+            tx_context: self.inputs.tx_context
         };
 
         priv_circuit_pub_inputs
@@ -500,7 +499,9 @@ impl PrivateContext {
                 historical_header: Header::empty(),
                 prover_address: AztecAddress::zero(),
                 revert_code: 0,
-                gas_left: Gas::empty()
+                start_gas_left: Gas::empty(),
+                end_gas_left: Gas::empty(),
+                transaction_fee: 0
             },
             is_execution_request: true
         };

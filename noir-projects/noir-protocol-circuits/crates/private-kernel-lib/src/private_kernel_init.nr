@@ -22,7 +22,6 @@ impl PrivateKernelInitCircuitPrivateInputs {
         public_inputs.constants = CombinedConstantData {
             historical_header: self.private_call.call_stack_item.public_inputs.historical_header,
             tx_context: self.tx_request.tx_context,
-            gas_settings: self.tx_request.gas_settings,
         };
         public_inputs.min_revertible_side_effect_counter = self.private_call.call_stack_item.public_inputs.min_revertible_side_effect_counter;
     }
@@ -163,9 +162,15 @@ mod tests {
         let unencrypted_logs_hashes = [26, 46];
         let unencrypted_log_preimages_length = [50, 25];
         builder.private_call.set_encrypted_logs(encrypted_logs_hashes[0], encrypted_log_preimages_length[0]);
-        builder.private_call.set_unencrypted_logs(unencrypted_logs_hashes[0], unencrypted_log_preimages_length[0]);
+        builder.private_call.set_unencrypted_logs(
+            unencrypted_logs_hashes[0],
+            unencrypted_log_preimages_length[0]
+        );
         builder.private_call.set_encrypted_logs(encrypted_logs_hashes[1], encrypted_log_preimages_length[1]);
-        builder.private_call.set_unencrypted_logs(unencrypted_logs_hashes[1], unencrypted_log_preimages_length[1]);
+        builder.private_call.set_unencrypted_logs(
+            unencrypted_logs_hashes[1],
+            unencrypted_log_preimages_length[1]
+        );
 
         let public_inputs = builder.execute();
 
@@ -174,8 +179,12 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, tx_hash);
 
         // Log preimages length should increase by `(un)encrypted_log_preimages_length` from private input
-        assert_eq(public_inputs.end.encrypted_log_preimages_length, encrypted_log_preimages_length.reduce(|a, b| a + b));
-        assert_eq(public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length.reduce(|a, b| a + b));
+        assert_eq(
+            public_inputs.end.encrypted_log_preimages_length, encrypted_log_preimages_length.reduce(|a, b| a + b)
+        );
+        assert_eq(
+            public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length.reduce(|a, b| a + b)
+        );
         assert_eq(public_inputs.end.encrypted_logs_hashes[0].value, encrypted_logs_hashes[0]);
         assert_eq(public_inputs.end.unencrypted_logs_hashes[0].value, unencrypted_logs_hashes[0]);
         assert_eq(public_inputs.end.encrypted_logs_hashes[1].value, encrypted_logs_hashes[1]);

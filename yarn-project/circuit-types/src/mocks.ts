@@ -62,7 +62,7 @@ export const mockTx = (
   const firstNullifier = new SideEffectLinkedToNoteHash(new Fr(seed + 1), new Fr(seed + 2), Fr.ZERO);
   const encryptedLogs = hasLogs ? EncryptedTxL2Logs.random(2, 3) : EncryptedTxL2Logs.empty(); // 2 priv function invocations creating 3 encrypted logs each
   const unencryptedLogs = hasLogs ? UnencryptedTxL2Logs.random(2, 1) : UnencryptedTxL2Logs.empty(); // 2 priv function invocations creating 1 unencrypted log each
-  data.constants.gasSettings = GasSettings.default();
+  data.constants.txContext.gasSettings = GasSettings.default();
 
   if (isForPublic) {
     data.forRollup = undefined;

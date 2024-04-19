@@ -8,9 +8,8 @@ use crate::{
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-    GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
-    MAX_UNENCRYPTED_LOGS_PER_CALL
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
+    PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     hash::pedersen_hash, header::Header, messaging::l2_to_l1_message::L2ToL1Message,
@@ -51,8 +50,9 @@ struct PublicCircuitPublicInputs {
 
     revert_code: u8,
     
-    // gas left after execution is completed
-    gas_left: Gas,
+    start_gas_left: Gas,
+    end_gas_left: Gas,
+    transaction_fee: Field,
 }
 
 impl Eq for PublicCircuitPublicInputs {
@@ -101,7 +101,9 @@ impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInput
         fields.extend_from_array(self.historical_header.serialize());
         fields.push(self.prover_address.to_field());
         fields.push(self.revert_code as Field);
-        fields.extend_from_array(self.gas_left.serialize());
+        fields.extend_from_array(self.start_gas_left.serialize());
+        fields.extend_from_array(self.end_gas_left.serialize());
+        fields.push(self.transaction_fee);
         fields.storage
     }
 }
@@ -129,7 +131,9 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             historical_header: reader.read_struct(Header::deserialize),
             prover_address: reader.read_struct(AztecAddress::deserialize),
             revert_code: reader.read() as u8,
-            gas_left: reader.read_struct(Gas::deserialize),
+            start_gas_left: reader.read_struct(Gas::deserialize),
+            end_gas_left: reader.read_struct(Gas::deserialize),
+            transaction_fee: reader.read(),
         };
 
         reader.finish();
@@ -164,7 +168,9 @@ impl Empty for PublicCircuitPublicInputs {
             historical_header: Header::empty(),
             prover_address: AztecAddress::zero(),
             revert_code: 0 as u8,
-            gas_left: Gas::empty(),
+            start_gas_left: Gas::empty(),
+            end_gas_left: Gas::empty(),
+            transaction_fee: 0,
         }
     }
 }
@@ -182,7 +188,7 @@ fn empty_hash() {
     let inputs = PublicCircuitPublicInputs::empty();
     let hash = inputs.hash();
 
-    // Value from public_circuit_public_inputs.test.ts "computes empty inputs hash" test
-    let test_data_empty_hash = 0x048912d56248af479f8d7ecedbba7092d27741b10075a989e040f8e3242a7a3f;
+    // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
+    let test_data_empty_hash = 0x19eaa0a5aea3d131456d0daffc2d79fd27db9c201e91475ab620801b78504d79;
     assert_eq(hash, test_data_empty_hash);
 }

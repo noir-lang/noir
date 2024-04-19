@@ -275,19 +275,19 @@ CombinedAccumulatedData *-- "m" PublicDataRead: public_reads
 CombinedAccumulatedData *-- Logs : logs
 
 class TxContext {
-    fee_context: FeeContext
     chain_id: Fr
     version: Fr
+    gas_settings: GasSettings
 }
+
+TxContext *-- GasSettings : gas_settings
 
 class CombinedConstantData {
     historical_header: Header
     tx_context: TxContext
-    gas_settings: GasSettings
 }
 CombinedConstantData *-- Header : historical_header
 CombinedConstantData *-- TxContext : tx_context
-CombinedConstantData *-- GasSettings : gas_settings
 
 class GasSettings {
     da.gas_limit: u32

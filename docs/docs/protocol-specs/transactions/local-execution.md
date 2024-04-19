@@ -24,7 +24,7 @@ A transaction execution request has the following structure. Note that, since Az
 | `origin`        | `AztecAddress`    | Address of the contract where the transaction is initiated.  |
 | `functionSelector`  | u32 | Selector (identifier) of the function to be called as entrypoint in the origin contract.  |
 | `argsHash`      | `Field`    | Hash of the arguments to be used for calling the entrypoint function.  |
-| `txContext`     | `TxContext`    | Includes chain id, and protocol version.  |
+| `txContext`     | `TxContext`    | Includes chain id, protocol version, and gas settings.  |
 | `packedArguments` | `PackedValues[]`    | Preimages for argument hashes. When executing a function call with the hash of the arguments, the PXE will look for the preimage of that hash in this list, and expand the arguments to execute the call. |
 | `authWitnesses`   | `AuthWitness[]`    | Authorization witnesses. When authorizing an action identified by a hash, the PXE will look for the authorization witness identified by that hash and provide that value to the account contract. |
 

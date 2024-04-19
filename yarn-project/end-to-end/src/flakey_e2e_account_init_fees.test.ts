@@ -15,7 +15,7 @@ import {
   computeMessageSecretHash,
   deriveKeys,
 } from '@aztec/aztec.js';
-import { type AztecAddress, CompleteAddress, DimensionGasSettings, Fq, GasSettings } from '@aztec/circuits.js';
+import { type AztecAddress, CompleteAddress, Fq, GasSettings } from '@aztec/circuits.js';
 import {
   TokenContract as BananaCoin,
   FPCContract,
@@ -125,8 +125,12 @@ describe('e2e_fees_account_init', () => {
   afterAll(() => ctx.teardown());
 
   beforeEach(() => {
-    const individualGasSettings = new DimensionGasSettings(2, 1, Fr.ONE);
-    gasSettings = new GasSettings(individualGasSettings, individualGasSettings, individualGasSettings, new Fr(5));
+    gasSettings = GasSettings.from({
+      gasLimits: { daGas: 2, l1Gas: 2, l2Gas: 2 },
+      teardownGasLimits: { daGas: 1, l1Gas: 1, l2Gas: 1 },
+      maxFeesPerGas: { feePerDaGas: Fr.ONE, feePerL1Gas: Fr.ONE, feePerL2Gas: Fr.ONE },
+      inclusionFee: new Fr(5),
+    });
     maxFee = 3n * 3n + 5n;
     actualFee = 1n;
     bobsSecretKey = Fr.random();

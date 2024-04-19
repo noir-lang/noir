@@ -1,6 +1,5 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { GasSettings } from '../gas_settings.js';
 import { Header } from '../header.js';
 import { TxContext } from '../tx_context.js';
 
@@ -22,13 +21,10 @@ export class CombinedConstantData {
      * protocol to execute and prove the transaction.
      */
     public txContext: TxContext,
-
-    /** Gas limits and max prices for this transaction as set by the sender. */
-    public gasSettings: GasSettings,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.historicalHeader, this.txContext, this.gasSettings);
+    return serializeToBuffer(this.historicalHeader, this.txContext);
   }
 
   /**
@@ -38,14 +34,10 @@ export class CombinedConstantData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): CombinedConstantData {
     const reader = BufferReader.asReader(buffer);
-    return new CombinedConstantData(
-      reader.readObject(Header),
-      reader.readObject(TxContext),
-      reader.readObject(GasSettings),
-    );
+    return new CombinedConstantData(reader.readObject(Header), reader.readObject(TxContext));
   }
 
   static empty() {
-    return new CombinedConstantData(Header.empty(), TxContext.empty(), GasSettings.empty());
+    return new CombinedConstantData(Header.empty(), TxContext.empty());
   }
 }

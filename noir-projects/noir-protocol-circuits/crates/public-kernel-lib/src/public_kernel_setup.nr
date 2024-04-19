@@ -437,7 +437,7 @@ mod tests {
         // Logs for the previous call stack.
         let prev_encrypted_logs_hash = 80;
         let prev_encrypted_log_preimages_length = 13;
-        let prev_unencrypted_logs_hash = 956; 
+        let prev_unencrypted_logs_hash = 956;
         let prev_unencrypted_log_preimages_length = 24;
         builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
         builder.previous_kernel.set_unencrypted_logs(
@@ -446,14 +446,18 @@ mod tests {
         );
 
         let public_inputs = builder.execute();
-        
-        assert_eq(public_inputs.end_non_revertible.encrypted_log_preimages_length, prev_encrypted_log_preimages_length);
+
+        assert_eq(
+            public_inputs.end_non_revertible.encrypted_log_preimages_length, prev_encrypted_log_preimages_length
+        );
         assert_eq(
             public_inputs.end_non_revertible.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
         );
 
         assert_eq(public_inputs.end_non_revertible.encrypted_logs_hashes[0].value, prev_encrypted_logs_hash);
-        assert_eq(public_inputs.end_non_revertible.unencrypted_logs_hashes[0].value, prev_unencrypted_logs_hash);
+        assert_eq(
+            public_inputs.end_non_revertible.unencrypted_logs_hashes[0].value, prev_unencrypted_logs_hash
+        );
         assert_eq(public_inputs.end_non_revertible.unencrypted_logs_hashes[1].value, unencrypted_logs_hash);
     }
 
@@ -496,9 +500,7 @@ mod tests {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
 
         // Transaction gas limit is 1k
-        builder.previous_kernel.gas_settings.da.gas_limit = 1000;
-        builder.previous_kernel.gas_settings.l1.gas_limit = 1000;
-        builder.previous_kernel.gas_settings.l2.gas_limit = 1000;
+        builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1000, 1000, 1000);
 
         // Revertible has already used 100
         builder.previous_revertible.gas_used = Gas::new(100, 100, 100);
@@ -507,10 +509,10 @@ mod tests {
         builder.previous_kernel.gas_used = Gas::new(200, 200, 200);
 
         // So this call starts with 700 gas left
-        builder.public_call.public_inputs.call_context.gas_left = Gas::new(700, 700, 700);
+        builder.public_call.public_inputs.start_gas_left = Gas::new(700, 700, 700);
 
         // And uses 300, ending with 400 left
-        builder.public_call.public_inputs.gas_left = Gas::new(400, 400, 400);
+        builder.public_call.public_inputs.end_gas_left = Gas::new(400, 400, 400);
 
         // So the updated gas used by non-revertible must go up by 300, and revertible must stay the same
         let output = builder.execute();

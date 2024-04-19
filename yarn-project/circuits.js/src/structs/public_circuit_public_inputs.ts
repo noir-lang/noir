@@ -122,8 +122,14 @@ export class PublicCircuitPublicInputs {
      */
     public revertCode: RevertCode,
 
+    /** How much gas was available for execution. */
+    public startGasLeft: Gas,
+
     /** How much gas was left after execution. */
-    public gasLeft: Gas,
+    public endGasLeft: Gas,
+
+    /** Transaction fee in the fee-payment asset. Zero in all phases except teardown. */
+    public transactionFee: Fr,
   ) {}
 
   /**
@@ -160,6 +166,8 @@ export class PublicCircuitPublicInputs {
       AztecAddress.ZERO,
       RevertCode.OK,
       Gas.empty(),
+      Gas.empty(),
+      Fr.ZERO,
     );
   }
 
@@ -187,7 +195,9 @@ export class PublicCircuitPublicInputs {
       this.historicalHeader.isEmpty() &&
       this.proverAddress.isZero() &&
       this.revertCode.isOK() &&
-      this.gasLeft.isEmpty()
+      this.startGasLeft.isEmpty() &&
+      this.endGasLeft.isEmpty() &&
+      this.transactionFee.isZero()
     );
   }
 
@@ -216,7 +226,9 @@ export class PublicCircuitPublicInputs {
       fields.historicalHeader,
       fields.proverAddress,
       fields.revertCode,
-      fields.gasLeft,
+      fields.startGasLeft,
+      fields.endGasLeft,
+      fields.transactionFee,
     ] as const;
   }
 
@@ -265,6 +277,8 @@ export class PublicCircuitPublicInputs {
       reader.readObject(AztecAddress),
       reader.readObject(RevertCode),
       reader.readObject(Gas),
+      reader.readObject(Gas),
+      reader.readObject(Fr),
     );
   }
 
@@ -291,6 +305,8 @@ export class PublicCircuitPublicInputs {
       AztecAddress.fromFields(reader),
       RevertCode.fromFields(reader),
       Gas.fromFields(reader),
+      Gas.fromFields(reader),
+      reader.readField(),
     );
   }
 

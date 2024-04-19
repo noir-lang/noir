@@ -169,7 +169,9 @@ impl PublicContext {
             historical_header: self.inputs.historical_header,
             prover_address: self.prover_address,
             revert_code: 0,
-            gas_left: self.inputs.call_context.gas_left
+            start_gas_left: self.inputs.gas_left,
+            end_gas_left: self.inputs.gas_left, // AVM should decrease this value
+            transaction_fee: self.inputs.transaction_fee
         };
         pub_circuit_pub_inputs
     }

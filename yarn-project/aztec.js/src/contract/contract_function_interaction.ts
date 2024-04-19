@@ -88,15 +88,15 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
     if (this.functionDao.functionType == FunctionType.SECRET) {
       const nodeInfo = await this.wallet.getNodeInfo();
       const packedArgs = PackedValues.fromValues(encodeArguments(this.functionDao, this.args));
+      const gasSettings = options.gasSettings ?? GasSettings.simulation();
 
       const txRequest = TxExecutionRequest.from({
         argsHash: packedArgs.hash,
         origin: this.contractAddress,
         functionData: FunctionData.fromAbi(this.functionDao),
-        txContext: TxContext.empty(nodeInfo.chainId, nodeInfo.protocolVersion),
+        txContext: new TxContext(nodeInfo.chainId, nodeInfo.protocolVersion, gasSettings),
         packedArguments: [packedArgs],
         authWitnesses: [],
-        gasSettings: options.gasSettings ?? GasSettings.simulation(),
       });
       const simulatedTx = await this.pxe.simulateTx(txRequest, true, options.from ?? this.wallet.getAddress());
       const flattened = simulatedTx.privateReturnValues;

@@ -5,15 +5,12 @@ use crate::{
     max_block_number::MaxBlockNumber,
     membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
     private_circuit_public_inputs::{PrivateCircuitPublicInputs},
-    private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect,
+    private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect
 },
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
     mocked::{Proof, VerificationKey},
-    tests::{
-    fixtures, private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder,
-    testing_harness::build_tx_context
-},
-    transaction::{tx_request::TxRequest}
+    tests::{fixtures, private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder},
+    transaction::{tx_request::TxRequest, tx_context::TxContext}
 };
 use crate::constants::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -67,7 +64,7 @@ impl PrivateCallDataBuilder {
             note_hash_read_request_membership_witnesses: BoundedVec::new(),
             portal_contract_address: public_inputs.call_context.portal_contract_address,
             acir_hash: contract_function.acir_hash,
-            gas_settings: public_inputs.call_context.gas_settings
+            gas_settings: public_inputs.gas_settings
         }
     }
 
@@ -85,14 +82,17 @@ impl PrivateCallDataBuilder {
     }
 
     pub fn build_tx_request(self) -> TxRequest {
-        let tx_context = build_tx_context();
+        let tx_context = self.build_tx_context();
         TxRequest {
             origin: self.contract_address,
             args_hash: self.public_inputs.args_hash,
             tx_context,
-            function_data: self.function_data,
-            gas_settings: self.gas_settings
+            function_data: self.function_data
         }
+    }
+
+    pub fn build_tx_context(self) -> TxContext {
+        TxContext { chain_id: 1, version: 0, gas_settings: self.gas_settings }
     }
 
     pub fn append_private_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {

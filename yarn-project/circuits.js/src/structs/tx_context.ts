@@ -1,39 +1,33 @@
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { GeneratorIndex, TX_CONTEXT_DATA_LENGTH } from '../constants.gen.js';
+import { GeneratorIndex, TX_CONTEXT_LENGTH } from '../constants.gen.js';
+import { GasSettings } from './gas_settings.js';
 
 /**
  * Transaction context.
  */
 export class TxContext {
+  public chainId: Fr;
+  public version: Fr;
+
   constructor(
-    /**
-     * Whether this is a fee paying tx. If not other tx in a bundle will pay the fee.
-     * TODO(#3417): Remove fee and rebate payment fields.
-     */
-    public isFeePaymentTx: boolean,
-    /**
-     * Indicates whether this a gas rebate payment tx.
-     *
-     * NOTE: The following is a WIP and it is likely to change in the future.
-     * Explanation: Each tx is actually 3 txs in one: a fee-paying tx, the actual tx you want to execute, and a rebate
-     * tx. The fee-paying tx pays some `max_fee = gas_price * gas_limit`. Then the actual tx will cost an amount of gas
-     * to execute (actual_fee = gas_price * gas_used). Then the rebate tx returns `max_fee - actual_fee` back to
-     * the user.
-     */
-    public isRebatePaymentTx: boolean,
-    /**
-     * Chain ID of the transaction. Here for replay protection.
-     */
-    public chainId: Fr,
-    /**
-     * Version of the transaction. Here for replay protection.
-     */
-    public version: Fr,
-  ) {}
+    /** Chain ID of the transaction. Here for replay protection. */
+    chainId: Fr | number | bigint,
+    /** Version of the transaction. Here for replay protection. */
+    version: Fr | number | bigint,
+    /** Gas limits for this transaction. */
+    public gasSettings: GasSettings,
+  ) {
+    this.chainId = new Fr(chainId);
+    this.version = new Fr(version);
+  }
+
+  clone() {
+    return new TxContext(this.chainId, this.version, this.gasSettings.clone());
+  }
 
   /**
    * Serialize as a buffer.
@@ -43,12 +37,15 @@ export class TxContext {
     return serializeToBuffer(...TxContext.getFields(this));
   }
 
+  static fromFields(fields: Fr[] | FieldReader): TxContext {
+    const reader = FieldReader.asReader(fields);
+    return new TxContext(reader.readField(), reader.readField(), reader.readObject(GasSettings));
+  }
+
   toFields(): Fr[] {
     const fields = serializeToFields(...TxContext.getFields(this));
-    if (fields.length !== TX_CONTEXT_DATA_LENGTH) {
-      throw new Error(
-        `Invalid number of fields for TxContext. Expected ${TX_CONTEXT_DATA_LENGTH}, got ${fields.length}`,
-      );
+    if (fields.length !== TX_CONTEXT_LENGTH) {
+      throw new Error(`Invalid number of fields for TxContext. Expected ${TX_CONTEXT_LENGTH}, got ${fields.length}`);
     }
     return fields;
   }
@@ -60,15 +57,15 @@ export class TxContext {
    */
   static fromBuffer(buffer: Buffer | BufferReader): TxContext {
     const reader = BufferReader.asReader(buffer);
-    return new TxContext(reader.readBoolean(), reader.readBoolean(), Fr.fromBuffer(reader), Fr.fromBuffer(reader));
+    return new TxContext(Fr.fromBuffer(reader), Fr.fromBuffer(reader), reader.readObject(GasSettings));
   }
 
   static empty(chainId: Fr | number = 0, version: Fr | number = 0) {
-    return new TxContext(false, false, new Fr(chainId), new Fr(version));
+    return new TxContext(new Fr(chainId), new Fr(version), GasSettings.empty());
   }
 
   isEmpty(): boolean {
-    return !this.isFeePaymentTx && !this.isRebatePaymentTx && this.chainId.isZero() && this.version.isZero();
+    return this.chainId.isZero() && this.version.isZero() && this.gasSettings.isEmpty();
   }
 
   /**
@@ -86,7 +83,7 @@ export class TxContext {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<TxContext>) {
-    return [fields.isFeePaymentTx, fields.isRebatePaymentTx, fields.chainId, fields.version] as const;
+    return [fields.chainId, fields.version, fields.gasSettings] as const;
   }
 
   hash(): Fr {

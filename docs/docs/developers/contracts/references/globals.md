@@ -11,9 +11,9 @@ For developers coming from solidity, this concept will be similar to how the glo
 
 ## Private Global Variables
 
-#include_code private-global-variables /noir-projects/aztec-nr/aztec/src/context/globals/private_global_variables.nr rust
+#include_code tx-context /noir-projects/noir-protocol-circuits/crates/types/src/transaction/tx_context.nr rust
 
-The private global variables contain:
+The private global variables are equal to the transaction context and contain:
 
 ### Chain Id
 
@@ -30,6 +30,10 @@ The version number indicates which Aztec hardfork you are on. The Genesis block 
 ```rust
 context.version();
 ```
+
+### Gas Settings
+
+The gas limits set by the user for the transaction, the max fee per gas, and the inclusion fee.
 
 ## Public Global Variables
 

@@ -68,10 +68,10 @@ describe('benchmarks/tx_size_fees', () => {
     () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet)),
   ])('sends a tx with a fee', async createPaymentMethod => {
     const paymentMethod = await createPaymentMethod();
-    const gasSettings = GasSettings.new({
-      da: { gasLimit: 5, teardownGasLimit: 3, maxFeePerGas: Fr.ONE },
-      l1: { gasLimit: 5, teardownGasLimit: 3, maxFeePerGas: Fr.ONE },
-      l2: { gasLimit: 5, teardownGasLimit: 3, maxFeePerGas: Fr.ONE },
+    const gasSettings = GasSettings.from({
+      gasLimits: { daGas: 5, l1Gas: 5, l2Gas: 5 },
+      teardownGasLimits: { daGas: 3, l1Gas: 3, l2Gas: 3 },
+      maxFeesPerGas: { feePerDaGas: Fr.ONE, feePerL1Gas: Fr.ONE, feePerL2Gas: Fr.ONE },
       inclusionFee: new Fr(6),
     });
     const tx = await token.methods

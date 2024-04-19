@@ -36,7 +36,9 @@ struct PublicCircuitPublicInputsBuilder {
     historical_header: Header,
     prover_address: AztecAddress,
     revert_code: u8,
-    gas_left: Gas,
+    start_gas_left: Gas,
+    end_gas_left: Gas,
+    transaction_fee: Field,
 }
 
 impl PublicCircuitPublicInputsBuilder {
@@ -67,7 +69,9 @@ impl PublicCircuitPublicInputsBuilder {
             historical_header: self.historical_header,
             prover_address: self.prover_address,
             revert_code: self.revert_code,
-            gas_left: self.gas_left
+            start_gas_left: self.start_gas_left,
+            end_gas_left: self.end_gas_left,
+            transaction_fee: self.transaction_fee
         }
     }
 }
@@ -93,7 +97,9 @@ impl Empty for PublicCircuitPublicInputsBuilder {
             historical_header: Header::empty(),
             prover_address: AztecAddress::zero(),
             revert_code: 0 as u8,
-            gas_left: Gas::empty(),
+            start_gas_left: Gas::empty(),
+            end_gas_left: Gas::empty(),
+            transaction_fee: 0
         }
     }
 }

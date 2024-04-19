@@ -1,7 +1,7 @@
 import { randomInt } from '@aztec/foundation/crypto';
 import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
-import { TX_CONTEXT_DATA_LENGTH } from '../constants.gen.js';
+import { TX_CONTEXT_LENGTH } from '../constants.gen.js';
 import { makeTxContext } from '../tests/factories.js';
 import { TxContext } from './tx_context.js';
 
@@ -22,7 +22,7 @@ describe('TxContext', () => {
 
   it('number of fields matches constant', () => {
     const fields = context.toFields();
-    expect(fields.length).toBe(TX_CONTEXT_DATA_LENGTH);
+    expect(fields.length).toBe(TX_CONTEXT_LENGTH);
   });
 
   it('computes empty context hash', () => {

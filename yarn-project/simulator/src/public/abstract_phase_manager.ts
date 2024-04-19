@@ -401,7 +401,10 @@ export abstract class AbstractPhaseManager {
       historicalHeader: this.historicalHeader,
       // TODO(@just-mitch): need better mapping from simulator to revert code.
       revertCode: result.reverted ? RevertCode.REVERTED : RevertCode.OK,
-      gasLeft: Gas.from(result.gasLeft),
+      // TODO(palla/gas): Set proper values
+      startGasLeft: Gas.test(),
+      endGasLeft: Gas.test(),
+      transactionFee: Fr.ZERO,
     });
   }
 

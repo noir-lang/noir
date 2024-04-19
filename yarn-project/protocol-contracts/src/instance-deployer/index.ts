@@ -8,7 +8,7 @@ export function getCanonicalInstanceDeployer(): ProtocolContract {
   const contract = getCanonicalProtocolContract(ContractInstanceDeployerArtifact, 1);
   if (!contract.address.equals(InstanceDeployerAddress)) {
     throw new Error(
-      `Incorrect address for contract deployer (got ${contract.address.toString()} but expected (${InstanceDeployerAddress.toString()}). Check DEPLOYER_CONTRACT_ADDRESS is set to the correct value in the constants files and run the protocol-contracts package tests.`,
+      `Incorrect address for contract deployer (got ${contract.address.toString()} but expected ${InstanceDeployerAddress.toString()}). Check DEPLOYER_CONTRACT_ADDRESS is set to the correct value in the constants files and run the protocol-contracts package tests.`,
     );
   }
   return contract;

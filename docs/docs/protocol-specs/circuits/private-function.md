@@ -67,18 +67,13 @@ After generating a proof for a private function circuit, that proof (and associa
 
 ### `CallContext`
 
-| Field                      | Type                          | Description                                                                                                                                                                               |
-| -------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `msg_sender`               | `AztecAddress`                | Address of the caller contract.                                                                                                                                                           |
-| `storage_contract_address` | `AztecAddress`                | Address of the contract against which all state changes will be stored. (It is not called `contract_address`, because in the context of delegate calls, that would be an ambiguous name.) |
-| `portal_contract_address`  | `AztecAddress`                | Address of the portal contract to the storage contract.                                                                                                                                   |
-| `is_delegate_call`         | `bool`                        | A flag indicating whether the call is a [delegate call](../calls/delegate-calls.md).                                                                                                      |
-| `is_static_call`           | `bool`                        | A flag indicating whether the call is a [static call](../calls/static-calls.md).                                                                                                          |
-| `gas_settings`             | [`GasSettings`](#gassettings) | User-defined limits and max fees per each gas dimension for the transaction.                                                                                                              |
-| `gas_left.da_gas`          | `u32`                         | How much DA gas is available for this call.                                                                                                                                               |
-| `gas_left.l1_gas`          | `u32`                         | How much L1 gas is available for this call.                                                                                                                                               |
-| `gas_left.l2_gas`          | `u32`                         | How much L2 gas is available for this call.                                                                                                                                               |
-| `transaction_fee`          | `field`                       | Accumulated transaction fee, only set during teardown phase.                                                                                                                              |
+| Field                      | Type           | Description                                                                                                                                                                               |
+| -------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `msg_sender`               | `AztecAddress` | Address of the caller contract.                                                                                                                                                           |
+| `storage_contract_address` | `AztecAddress` | Address of the contract against which all state changes will be stored. (It is not called `contract_address`, because in the context of delegate calls, that would be an ambiguous name.) |
+| `portal_contract_address`  | `AztecAddress` | Address of the portal contract to the storage contract.                                                                                                                                   |
+| `is_delegate_call`         | `bool`         | A flag indicating whether the call is a [delegate call](../calls/delegate-calls.md).                                                                                                      |
+| `is_static_call`           | `bool`         | A flag indicating whether the call is a [static call](../calls/static-calls.md).                                                                                                          |
 
 ### `GasSettings`
 

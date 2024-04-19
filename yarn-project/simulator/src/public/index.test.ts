@@ -3,9 +3,7 @@ import {
   AppendOnlyTreeSnapshot,
   CallContext,
   FunctionData,
-  Gas,
   GasFees,
-  GasSettings,
   GlobalVariables,
   type Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
@@ -48,7 +46,6 @@ describe('ACIR public execution simulator', () => {
   let executor: PublicExecutor;
   let header: Header;
 
-  const gasLeft = new Gas(1e9, 1e9, 1e9);
   const globalVariables = GlobalVariables.empty();
 
   beforeEach(() => {
@@ -93,14 +90,11 @@ describe('ACIR public execution simulator', () => {
     CallContext.from({
       storageContractAddress,
       msgSender: AztecAddress.random(),
-      gasLeft,
       portalContractAddress: EthAddress.random(),
       functionSelector: FunctionSelector.empty(),
       isDelegateCall: false,
       isStaticCall: false,
       sideEffectCounter: 0,
-      gasSettings: GasSettings.empty(),
-      transactionFee: Fr.ZERO,
       ...overrides,
     });
 

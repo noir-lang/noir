@@ -30,7 +30,7 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
 
     const abi = this.getEntrypointAbi();
     const entrypointPackedArgs = PackedValues.fromValues(encodeArguments(abi, [payload, this.userAddress]));
-
+    const gasSettings = exec.fee?.gasSettings ?? GasSettings.default();
     const functionData = FunctionData.fromAbi(abi);
 
     const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionData.selector.toField(), entrypointPackedArgs.hash]);
@@ -47,10 +47,9 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
       argsHash: entrypointPackedArgs.hash,
       origin: this.dappEntrypointAddress,
       functionData,
-      txContext: TxContext.empty(this.chainId, this.version),
+      txContext: new TxContext(this.chainId, this.version, gasSettings),
       packedArguments: [...payload.packedArguments, entrypointPackedArgs],
       authWitnesses: [authWitness],
-      gasSettings: exec.fee?.gasSettings ?? GasSettings.default(),
     });
 
     return txRequest;
