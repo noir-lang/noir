@@ -87,9 +87,26 @@ ENTRYPOINT ["nargo"]
   }
 }
 ```
-#### 6. Commit and push your changes
+#### 6. Commit and push your changes in terminal (step by step)
 
+first,
+```
+git add .
+```
+
+then,
+```
+git commit -m"setting up devcontainer"
+```
+
+finally,
+```
+git push origin main
+```
+
+#### 7. use `>rebuild` to find `Codespace:Full Rebuild Container`
 This will pull the new image and build it, so it could take a minute or so
+
 
 #### 8. Done! 
 Just wait for the build to finish, and there's your easy Noir environment.
