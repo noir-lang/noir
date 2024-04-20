@@ -39,16 +39,16 @@ impl Backend {
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
-    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 3 }``
+    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 4 }``
     /// The function also prints a message saying we could not find a backend
     pub fn get_backend_info_or_default(&self) -> ExpressionWidth {
         if let Ok(expression_width) = self.get_backend_info() {
             expression_width
         } else {
             warn!(
-                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 3"
+                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 4"
             );
-            ExpressionWidth::Bounded { width: 3 }
+            ExpressionWidth::Bounded { width: 4 }
         }
     }
 

@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::lexer::token::SpannedToken;
+use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 use crate::{
@@ -37,6 +38,8 @@ pub enum StatementKind {
     For(ForLoopStatement),
     Break,
     Continue,
+    /// This statement should be executed at compile-time
+    Comptime(Box<StatementKind>),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -47,6 +50,19 @@ pub enum StatementKind {
 
 impl Statement {
     pub fn add_semicolon(
+        mut self,
+        semi: Option<Token>,
+        span: Span,
+        last_statement_in_block: bool,
+        emit_error: &mut dyn FnMut(ParserError),
+    ) -> Self {
+        self.kind = self.kind.add_semicolon(semi, span, last_statement_in_block, emit_error);
+        self
+    }
+}
+
+impl StatementKind {
+    pub fn add_semicolon(
         self,
         semi: Option<Token>,
         span: Span,
@@ -56,7 +72,7 @@ impl Statement {
         let missing_semicolon =
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
 
-        let kind = match self.kind {
+        match self {
             StatementKind::Let(_)
             | StatementKind::Constrain(_)
             | StatementKind::Assign(_)
@@ -68,10 +84,15 @@ impl Statement {
                 if semi.is_none() {
                     emit_error(missing_semicolon);
                 }
-                self.kind
+                self
+            }
+            StatementKind::Comptime(mut statement) => {
+                *statement =
+                    statement.add_semicolon(semi, span, last_statement_in_block, emit_error);
+                StatementKind::Comptime(statement)
             }
             // A semicolon on a for loop is optional and does nothing
-            StatementKind::For(_) => self.kind,
+            StatementKind::For(_) => self,
 
             StatementKind::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
@@ -91,9 +112,7 @@ impl Statement {
                     (_, None, true) => StatementKind::Expression(expr),
                 }
             }
-        };
-
-        Statement { kind, span: self.span }
+        }
     }
 }
 
@@ -107,7 +126,13 @@ impl StatementKind {
     pub fn new_let(
         ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
     ) -> StatementKind {
-        StatementKind::Let(LetStatement { pattern, r#type, expression })
+        StatementKind::Let(LetStatement {
+            pattern,
+            r#type,
+            expression,
+            comptime: false,
+            attributes: vec![],
+        })
     }
 
     /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
@@ -405,14 +430,10 @@ pub struct LetStatement {
     pub pattern: Pattern,
     pub r#type: UnresolvedType,
     pub expression: Expression,
-}
+    pub attributes: Vec<SecondaryAttribute>,
 
-impl LetStatement {
-    pub fn new_let(
-        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
-    ) -> LetStatement {
-        LetStatement { pattern, r#type, expression }
-    }
+    // True if this should only be run during compile-time
+    pub comptime: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -568,6 +589,8 @@ impl ForRange {
                         pattern: Pattern::Identifier(array_ident.clone()),
                         r#type: UnresolvedType::unspecified(),
                         expression: array,
+                        comptime: false,
+                        attributes: vec![],
                     }),
                     span: array_span,
                 };
@@ -610,6 +633,8 @@ impl ForRange {
                         pattern: Pattern::Identifier(identifier),
                         r#type: UnresolvedType::unspecified(),
                         expression: Expression::new(loop_element, array_span),
+                        comptime: false,
+                        attributes: vec![],
                     }),
                     span: array_span,
                 };
@@ -659,6 +684,7 @@ impl Display for StatementKind {
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
+            StatementKind::Comptime(statement) => write!(f, "comptime {statement}"),
             StatementKind::Semi(semi) => write!(f, "{semi};"),
             StatementKind::Error => write!(f, "Error"),
         }

@@ -146,6 +146,7 @@ pub struct NodeInterner {
     // Maps GlobalId -> GlobalInfo
     // NOTE: currently only used for checking repeat globals and restricting their scope to a module
     globals: Vec<GlobalInfo>,
+    global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -222,10 +223,10 @@ pub enum TraitImplKind {
 ///
 /// Additionally, types can define specialized impls with methods of the same name
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Methods {
-    direct: Vec<FuncId>,
-    trait_impl_methods: Vec<FuncId>,
+    pub direct: Vec<FuncId>,
+    pub trait_impl_methods: Vec<FuncId>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -241,6 +242,8 @@ pub struct FunctionModifiers {
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
+
+    pub is_comptime: bool,
 }
 
 impl FunctionModifiers {
@@ -253,6 +256,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
         }
     }
 }
@@ -480,6 +484,7 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
+            global_attributes: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -647,11 +652,13 @@ impl NodeInterner {
         local_id: LocalModuleId,
         let_statement: StmtId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
         let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+
         self.globals.push(GlobalInfo {
             id,
             definition_id,
@@ -660,6 +667,7 @@ impl NodeInterner {
             let_statement,
             location,
         });
+        self.global_attributes.insert(id, attributes);
         id
     }
 
@@ -673,9 +681,10 @@ impl NodeInterner {
         name: Ident,
         local_id: LocalModuleId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        self.push_global(name, local_id, statement, file)
+        self.push_global(name, local_id, statement, file, attributes)
     }
 
     /// Intern an empty function.
@@ -753,6 +762,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
     }
@@ -838,6 +848,10 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
+    pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
+        &self.global_attributes[global_id]
+    }
+
     /// Returns the interned statement corresponding to `stmt_id`
     pub fn statement(&self, stmt_id: &StmtId) -> HirStatement {
         let def =
@@ -907,8 +921,30 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
+    pub fn statement_span(&self, stmt_id: &StmtId) -> Span {
+        self.id_location(stmt_id).span
+    }
+
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
+        self.struct_methods
+            .keys()
+            .filter_map(|(key_id, name)| {
+                if key_id == &id {
+                    Some(
+                        self.struct_methods
+                            .get(&(*key_id, name.clone()))
+                            .expect("get_struct_methods given invalid StructId")
+                            .clone(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {

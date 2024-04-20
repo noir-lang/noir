@@ -32,7 +32,7 @@ impl BigInt {
     #[builtin(bigint_from_le_bytes)]
     fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}
     #[builtin(bigint_to_le_bytes)]
-    fn to_le_bytes(self) -> [u8] {}
+    fn to_le_bytes(self) -> [u8; 32] {}
 
     fn check_32_bytes(self: Self, other: BigInt) -> bool {
         let bytes = self.to_le_bytes();
@@ -47,305 +47,420 @@ impl BigInt {
 
 trait BigField {
     fn from_le_bytes(bytes: [u8]) -> Self;
+    fn from_le_bytes_32(bytes: [u8; 32]) -> Self;
     fn to_le_bytes(self) -> [u8];
 }
 
 struct Secpk1Fq {
-    inner: BigInt,
+   array: [u8;32],
 }
 
 impl BigField for Secpk1Fq {
     fn from_le_bytes(bytes: [u8]) -> Secpk1Fq {
+        assert(bytes.len() <= 32);
+        let mut array = [0;32];
+        for i in 0..bytes.len() {
+            array[i] = bytes[i];
+        }
         Secpk1Fq {
-            inner: BigInt::from_le_bytes(bytes, secpk1_fq)
+            array: array,
         }
     }
+
+    fn from_le_bytes_32(bytes: [u8;32]) -> Secpk1Fq {
+        Secpk1Fq {
+            array: bytes,
+        }
+    }
+
     fn to_le_bytes(self) -> [u8] {
-        self.inner.to_le_bytes()
+        self.array
     }
 }
 
 impl Add for Secpk1Fq { 
     fn add(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fq {
-            inner: self.inner.bigint_add(other.inner)
+           array: a.bigint_add(b).to_le_bytes()
         }
     }
 }
 impl Sub for Secpk1Fq { 
     fn sub(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fq {
-            inner: self.inner.bigint_sub(other.inner)
+           array: a.bigint_sub(b).to_le_bytes()
         }
     }
 }
 impl Mul for Secpk1Fq { 
     fn mul(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fq {
-            inner: self.inner.bigint_mul(other.inner)
+           array: a.bigint_mul(b).to_le_bytes()
         }
-
     }
 }
 impl Div for Secpk1Fq { 
     fn div(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fq {
-            inner: self.inner.bigint_div(other.inner)
+           array: a.bigint_div(b).to_le_bytes()
         }
     }
 }
 impl Eq for Secpk1Fq {
     fn eq(self: Self, other: Secpk1Fq) -> bool {
-        self.inner.check_32_bytes(other.inner)
+        self.array == other.array
     }
 }
 
 struct Secpk1Fr {
-    inner: BigInt,
+    array: [u8;32],
 }
 
 impl BigField for Secpk1Fr {
     fn from_le_bytes(bytes: [u8]) -> Secpk1Fr {
+        assert(bytes.len() <= 32);
+        let mut array = [0;32];
+        for i in 0..bytes.len() {
+            array[i] = bytes[i];
+        }
         Secpk1Fr {
-            inner: BigInt::from_le_bytes(bytes, secpk1_fr)
+            array: array,
         }
     }
+
+    fn from_le_bytes_32(bytes: [u8;32]) -> Secpk1Fr {
+        Secpk1Fr {
+            array: bytes,
+        }
+    }
+    
     fn to_le_bytes(self) -> [u8] {
-        self.inner.to_le_bytes()
+        self.array
     }
 }
 
 impl Add for Secpk1Fr { 
     fn add(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fr {
-            inner: self.inner.bigint_add(other.inner)
+           array: a.bigint_add(b).to_le_bytes()
         }
     }
 }
 impl Sub for Secpk1Fr { 
     fn sub(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fr {
-            inner: self.inner.bigint_sub(other.inner)
+           array: a.bigint_sub(b).to_le_bytes()
         }
     }
 }
 impl Mul for Secpk1Fr { 
     fn mul(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fr {
-            inner: self.inner.bigint_mul(other.inner)
+           array: a.bigint_mul(b).to_le_bytes()
         }
-
     }
 }
 impl Div for Secpk1Fr { 
     fn div(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpk1Fr {
-            inner: self.inner.bigint_div(other.inner)
+           array: a.bigint_div(b).to_le_bytes()
         }
     }
 }
 impl Eq for Secpk1Fr {
     fn eq(self: Self, other: Secpk1Fr) -> bool {
-        self.inner.check_32_bytes(other.inner)
+        self.array == other.array
     }
 }
 
 struct Bn254Fr {
-    inner: BigInt,
+    array: [u8;32],
 }
 
 impl BigField for Bn254Fr {
     fn from_le_bytes(bytes: [u8]) -> Bn254Fr {
+        assert(bytes.len() <= 32);
+        let mut array = [0;32];
+        for i in 0..bytes.len() {
+            array[i] = bytes[i];
+        }
         Bn254Fr {
-            inner: BigInt::from_le_bytes(bytes, bn254_fr)
+            array: array,
         }
     }
+
+    fn from_le_bytes_32(bytes: [u8;32]) -> Bn254Fr {
+        Bn254Fr {
+            array: bytes,
+        }
+    }
+
     fn to_le_bytes(self) -> [u8] {
-        self.inner.to_le_bytes()
+        self.array
     }
 }
 
 impl Add for Bn254Fr { 
     fn add(self: Self, other: Bn254Fr) -> Bn254Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fr {
-            inner: self.inner.bigint_add(other.inner)
+           array: a.bigint_add(b).to_le_bytes()
         }
     }
 }
 impl Sub for Bn254Fr { 
     fn sub(self: Self, other: Bn254Fr) -> Bn254Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fr {
-            inner: self.inner.bigint_sub(other.inner)
+           array: a.bigint_sub(b).to_le_bytes()
         }
     }
 }
 impl Mul for Bn254Fr { 
     fn mul(self: Self, other: Bn254Fr) -> Bn254Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fr {
-            inner: self.inner.bigint_mul(other.inner)
+           array: a.bigint_mul(b).to_le_bytes()
         }
-
     }
 }
 impl Div for Bn254Fr { 
     fn div(self: Self, other: Bn254Fr) -> Bn254Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fr {
-            inner: self.inner.bigint_div(other.inner)
+           array: a.bigint_div(b).to_le_bytes()
         }
     }
 }
 impl Eq for Bn254Fr {
     fn eq(self: Self, other: Bn254Fr) -> bool {
-        self.inner.check_32_bytes(other.inner)
+        self.array == other.array
     }
 }
 
 struct Bn254Fq {
-    inner: BigInt,
+    array: [u8;32],
 }
 
 impl BigField for Bn254Fq {
     fn from_le_bytes(bytes: [u8]) -> Bn254Fq {
+        assert(bytes.len() <= 32);
+        let mut array = [0;32];
+        for i in 0..bytes.len() {
+            array[i] = bytes[i];
+        }
         Bn254Fq {
-            inner: BigInt::from_le_bytes(bytes, bn254_fq)
+            array: array,
         }
     }
+
+    fn from_le_bytes_32(bytes: [u8;32]) -> Bn254Fq {
+        Bn254Fq {
+            array: bytes,
+        }
+    }
+
     fn to_le_bytes(self) -> [u8] {
-        self.inner.to_le_bytes()
+        self.array
     }
 }
 
 impl Add for Bn254Fq { 
     fn add(self: Self, other: Bn254Fq) -> Bn254Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fq {
-            inner: self.inner.bigint_add(other.inner)
+           array: a.bigint_add(b).to_le_bytes()
         }
     }
 }
 impl Sub for Bn254Fq { 
     fn sub(self: Self, other: Bn254Fq) -> Bn254Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fq {
-            inner: self.inner.bigint_sub(other.inner)
+           array: a.bigint_sub(b).to_le_bytes()
         }
     }
 }
 impl Mul for Bn254Fq { 
     fn mul(self: Self, other: Bn254Fq) -> Bn254Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fq {
-            inner: self.inner.bigint_mul(other.inner)
+           array: a.bigint_mul(b).to_le_bytes()
         }
-
     }
 }
 impl Div for Bn254Fq { 
     fn div(self: Self, other: Bn254Fq) -> Bn254Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Bn254Fq {
-            inner: self.inner.bigint_div(other.inner)
+           array: a.bigint_div(b).to_le_bytes()
         }
     }
 }
 impl Eq for Bn254Fq {
     fn eq(self: Self, other: Bn254Fq) -> bool {
-        self.inner.check_32_bytes(other.inner)
+        self.array == other.array
     }
 }
 
 struct Secpr1Fq {
-    inner: BigInt,
+    array: [u8;32],
 }
 
 impl BigField for Secpr1Fq {
     fn from_le_bytes(bytes: [u8]) -> Secpr1Fq {
+        assert(bytes.len() <= 32);
+        let mut array = [0;32];
+        for i in 0..bytes.len() {
+            array[i] = bytes[i];
+        }
         Secpr1Fq {
-            inner: BigInt::from_le_bytes(bytes, secpr1_fq)
+            array: array,
         }
     }
+
+    fn from_le_bytes_32(bytes: [u8;32]) -> Secpr1Fq {
+        Secpr1Fq {
+            array: bytes,
+        }
+    }
+
     fn to_le_bytes(self) -> [u8] {
-        self.inner.to_le_bytes()
+        self.array
     }
 }
 
 impl Add for Secpr1Fq { 
     fn add(self: Self, other: Secpr1Fq) -> Secpr1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fq {
-            inner: self.inner.bigint_add(other.inner)
+           array: a.bigint_add(b).to_le_bytes()
         }
     }
 }
 impl Sub for Secpr1Fq { 
     fn sub(self: Self, other: Secpr1Fq) -> Secpr1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fq {
-            inner: self.inner.bigint_sub(other.inner)
+           array: a.bigint_sub(b).to_le_bytes()
         }
     }
 }
 impl Mul for Secpr1Fq { 
     fn mul(self: Self, other: Secpr1Fq) -> Secpr1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fq {
-            inner: self.inner.bigint_mul(other.inner)
+           array: a.bigint_mul(b).to_le_bytes()
         }
-
     }
 }
 impl Div for Secpr1Fq { 
     fn div(self: Self, other: Secpr1Fq) -> Secpr1Fq {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fq {
-            inner: self.inner.bigint_div(other.inner)
+           array: a.bigint_div(b).to_le_bytes()
         }
     }
 }
 impl Eq for Secpr1Fq {
     fn eq(self: Self, other: Secpr1Fq) -> bool {
-        self.inner.check_32_bytes(other.inner)
+        self.array == other.array
     }
 }
 
 struct Secpr1Fr {
-    inner: BigInt,
+    array: [u8;32],
 }
 
 impl BigField for Secpr1Fr {
     fn from_le_bytes(bytes: [u8]) -> Secpr1Fr {
+        assert(bytes.len() <= 32);
+        let mut array = [0;32];
+        for i in 0..bytes.len() {
+            array[i] = bytes[i];
+        }
         Secpr1Fr {
-            inner: BigInt::from_le_bytes(bytes, secpr1_fr)
+            array: array,
         }
     }
+
+    fn from_le_bytes_32(bytes: [u8;32]) -> Secpr1Fr {
+        Secpr1Fr {
+            array: bytes,
+        }
+    }
+
     fn to_le_bytes(self) -> [u8] {
-        self.inner.to_le_bytes()
+        self.array
     }
 }
 
 impl Add for Secpr1Fr { 
     fn add(self: Self, other: Secpr1Fr) -> Secpr1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fr {
-            inner: self.inner.bigint_add(other.inner)
+           array: a.bigint_add(b).to_le_bytes()
         }
     }
 }
 impl Sub for Secpr1Fr { 
     fn sub(self: Self, other: Secpr1Fr) -> Secpr1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fr {
-            inner: self.inner.bigint_sub(other.inner)
+           array: a.bigint_sub(b).to_le_bytes()
         }
     }
 }
 impl Mul for Secpr1Fr { 
     fn mul(self: Self, other: Secpr1Fr) -> Secpr1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fr {
-            inner: self.inner.bigint_mul(other.inner)
+           array: a.bigint_mul(b).to_le_bytes()
         }
-
     }
 }
 impl Div for Secpr1Fr { 
     fn div(self: Self, other: Secpr1Fr) -> Secpr1Fr {
+        let a = BigInt::from_le_bytes(self.array.as_slice(), secpk1_fq);
+        let b = BigInt::from_le_bytes(other.array.as_slice(), secpk1_fq);
         Secpr1Fr {
-            inner: self.inner.bigint_div(other.inner)
+           array: a.bigint_div(b).to_le_bytes()
         }
     }
 }
 impl Eq for Secpr1Fr {
     fn eq(self: Self, other: Secpr1Fr) -> bool {
-        self.inner.check_32_bytes(other.inner)
+        self.array == other.array
     }
 }

@@ -7,7 +7,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::JsWitnessMap;
 
-fn extract_indices(witness_map: &WitnessMap, indices: Vec<Witness>) -> Result<WitnessMap, String> {
+pub(crate) fn extract_indices(
+    witness_map: &WitnessMap,
+    indices: Vec<Witness>,
+) -> Result<WitnessMap, String> {
     let mut extracted_witness_map = WitnessMap::new();
     for witness in indices {
         let witness_value = witness_map.get(&witness).ok_or(format!(
@@ -44,7 +47,7 @@ pub fn get_return_witness(
     let witness_map = WitnessMap::from(witness_map);
 
     let return_witness =
-        extract_indices(&witness_map, circuit.return_values.0.clone().into_iter().collect())?;
+        extract_indices(&witness_map, circuit.return_values.0.iter().copied().collect())?;
 
     Ok(JsWitnessMap::from(return_witness))
 }
@@ -71,7 +74,7 @@ pub fn get_public_parameters_witness(
     let witness_map = WitnessMap::from(solved_witness);
 
     let public_params_witness =
-        extract_indices(&witness_map, circuit.public_parameters.0.clone().into_iter().collect())?;
+        extract_indices(&witness_map, circuit.public_parameters.0.iter().copied().collect())?;
 
     Ok(JsWitnessMap::from(public_params_witness))
 }
