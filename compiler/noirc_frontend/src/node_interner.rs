@@ -2,9 +2,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
+use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span, Spanned};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
