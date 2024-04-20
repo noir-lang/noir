@@ -1,22 +1,22 @@
-trait fieldable {
+trait Fieldable {
     fn to_field(self) -> field;
 }
 
-impl fieldable for u32 {
+impl Fieldable for u32 {
     fn to_field(self) -> field {
         let res = self as field;
         res * 3    
     }
 }
 
-impl fieldable for [u32; 3] {
+impl Fieldable for [u32; 3] {
     fn to_field(self) -> field {
         let res = self[0] + self[1] + self[2];
         res as field
     }
 }
 
-impl fieldable for bool {
+impl Fieldable for bool {
     fn to_field(self) -> field {
         if self {
             14
@@ -26,7 +26,7 @@ impl fieldable for bool {
     }
 }
 
-impl fieldable for (u32, bool) {
+impl Fieldable for (u32, bool) {
     fn to_field(self) -> field {
         if self.1 {
             self.0 as field
@@ -36,19 +36,19 @@ impl fieldable for (u32, bool) {
     }
 }
 
-impl fieldable for field {
+impl Fieldable for field {
     fn to_field(self) -> field {
         self
     }
 }
 
-impl fieldable for str<6> {
+impl Fieldable for str<6> {
     fn to_field(self) -> field {
         6
     }
 }
 
-impl fieldable for () {
+impl Fieldable for () {
     fn to_field(self) -> field {
         0
     }
@@ -57,19 +57,19 @@ impl fieldable for () {
 type Point2D = [field; 2];
 type Point2DAlias = Point2D;
 
-impl fieldable for Point2DAlias {
+impl Fieldable for Point2DAlias {
     fn to_field(self) -> field {
         self[0] + self[1]
     }
 }
 
-impl fieldable for fmtstr<14, (field, field)> {
+impl Fieldable for fmtstr<14, (field, field)> {
     fn to_field(self) -> field {
         52
     }
 }
 
-impl fieldable for fn(u32) -> u32 {
+impl Fieldable for fn(u32) -> u32 {
     fn to_field(self) -> field {
         self(10) as field
     }
@@ -79,7 +79,7 @@ fn some_func(x: u32) -> u32 {
     x * 2 - 3
 }
 
-impl fieldable for u64 {
+impl Fieldable for u64 {
     fn to_field(self) -> field {
         66 as field
     }
