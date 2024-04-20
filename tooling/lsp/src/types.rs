@@ -1,5 +1,7 @@
 use fm::FileId;
-use lsp_types::{DefinitionOptions, OneOf};
+use lsp_types::{
+    DeclarationCapability, DefinitionOptions, OneOf, TypeDefinitionProviderCapability,
+};
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
@@ -25,7 +27,8 @@ pub(crate) mod request {
 
     // Re-providing lsp_types that we don't need to override
     pub(crate) use lsp_types::request::{
-        CodeLensRequest as CodeLens, Formatting, GotoDefinition, Shutdown,
+        CodeLensRequest as CodeLens, Formatting, GotoDeclaration, GotoDefinition,
+        GotoTypeDefinition, Shutdown,
     };
 
     #[derive(Debug)]
@@ -110,9 +113,17 @@ pub(crate) struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) text_document_sync: Option<TextDocumentSyncCapability>,
 
+    /// The server provides go to declaration support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) declaration_provider: Option<DeclarationCapability>,
+
     /// The server provides goto definition support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) definition_provider: Option<OneOf<bool, DefinitionOptions>>,
+
+    /// The server provides goto type definition support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) type_definition_provider: Option<TypeDefinitionProviderCapability>,
 
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -222,3 +233,4 @@ pub(crate) struct NargoProfileRunResult {
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
 pub(crate) type GotoDefinitionResult = Option<lsp_types::GotoDefinitionResponse>;
+pub(crate) type GotoDeclarationResult = Option<lsp_types::request::GotoDeclarationResponse>;

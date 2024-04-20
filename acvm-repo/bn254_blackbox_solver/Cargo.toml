@@ -2,7 +2,7 @@
 name = "bn254_blackbox_solver"
 description = "Solvers for black box functions which are specific for the bn254 curve"
 # x-release-please-start-version
-version = "0.38.0"
+version = "0.43.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -16,21 +16,18 @@ repository.workspace = true
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
 thiserror.workspace = true
-
-rust-embed = { version = "6.6.0", features = [
-    "debug-embed",
-    "interpolate-folder-path",
-    "include-exclude",
-] }
+cfg-if = "1.0.0"
+hex.workspace = true
+lazy_static = "1.4"
 
 # BN254 fixed base scalar multiplication solver
-grumpkin = { git = "https://github.com/noir-lang/grumpkin", rev = "56d99799381f79e42148aaef0de2b0cf9a4b9a5d", features = ["std"] }
+grumpkin = { version = "0.1.0", package = "noir_grumpkin", features = ["std"] } 
 ark-ec = { version = "^0.4.0", default-features = false }
 ark-ff = { version = "^0.4.0", default-features = false }
 num-bigint.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasmer = { version = "4.2.3", default-features = false, features = [
+wasmer = { version = "4.2.6", default-features = false, features = [
     "js-default",
 ] }
 
@@ -40,16 +37,19 @@ js-sys.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 getrandom.workspace = true
-wasmer = "4.2.3"
+wasmer = "4.2.6"
 
-[build-dependencies]
-pkg-config = "0.3"
-tar = "~0.4.15"
-flate2 = "~1.0.1"
-reqwest = { version = "0.11.20", default-features = false, features = [
-    "rustls-tls",
-    "blocking",
+[dev-dependencies]
+criterion = "0.5.0"
+pprof = { version = "0.12", features = [
+    "flamegraph",
+    "frame-pointer",
+    "criterion",
 ] }
+
+[[bench]]
+name = "criterion"
+harness = false
 
 [features]
 default = ["bn254"]

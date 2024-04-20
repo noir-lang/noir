@@ -6,6 +6,9 @@ import {
   WasmBlackBoxFunctionSolver,
   WitnessMap,
   ForeignCallHandler,
+  executeProgram,
+  WitnessStack,
+  StackItem,
 } from '@noir-lang/acvm_js';
 
 it('successfully executes circuit and extracts return value', async () => {
@@ -156,4 +159,38 @@ it('successfully executes 500 circuits with same backend', async function () {
 
     expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
   }
+});
+
+/**
+ * Below are all the same tests as above but using `executeProgram`
+ * TODO: also add a couple tests for executing multiple circuits
+ */
+it('executeProgram: successfully executes program and extracts return value', async () => {
+  const { bytecode, initialWitnessMap, resultWitness, expectedResult } = await import('../shared/addition');
+
+  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
+
+  const solvedStackItem: StackItem = witnessStack[0];
+  expect(solvedStackItem.index).to.be.eq(0);
+  const solvedWitnessMap: WitnessMap = solvedStackItem.witness;
+
+  // Witness stack should be consistent with initial witness
+  initialWitnessMap.forEach((value, key) => {
+    expect(solvedWitnessMap.get(key) as string).to.be.eq(value);
+  });
+
+  // Solved witness should contain expected return value
+  expect(solvedWitnessMap.get(resultWitness)).to.be.eq(expectedResult);
+});
+
+it('executeProgram: successfully process a program of acir functions with a nested call', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessStack } = await import('../shared/nested_acir_call');
+
+  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
+
+  expect(witnessStack).to.be.deep.eq(expectedWitnessStack);
 });

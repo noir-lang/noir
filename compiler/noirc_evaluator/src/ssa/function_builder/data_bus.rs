@@ -77,14 +77,13 @@ impl DataBus {
 impl FunctionBuilder {
     /// Insert a value into a data bus builder
     fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
-        assert!(databus.databus.is_none(), "initialising finalized call data");
+        assert!(databus.databus.is_none(), "initializing finalized call data");
         let typ = self.current_function.dfg[value].get_type().clone();
         match typ {
             Type::Numeric(_) => {
                 databus.values.push_back(value);
                 databus.index += 1;
             }
-            Type::Reference(_) => unreachable!(),
             Type::Array(typ, len) => {
                 assert!(typ.len() == 1, "unsupported composite type");
                 databus.map.insert(value, databus.index);
@@ -93,13 +92,16 @@ impl FunctionBuilder {
                     let index = self
                         .current_function
                         .dfg
-                        .make_constant(FieldElement::from(i as i128), Type::field());
+                        .make_constant(FieldElement::from(i as i128), Type::length_type());
                     let element = self.insert_array_get(value, index, typ[0].clone());
                     self.add_to_data_bus(element, databus);
                 }
             }
-            Type::Slice(_) => unreachable!(),
-            Type::Function => unreachable!(),
+            Type::Reference(_) => {
+                unreachable!("Attempted to add invalid type (reference) to databus")
+            }
+            Type::Slice(_) => unreachable!("Attempted to add invalid type (slice) to databus"),
+            Type::Function => unreachable!("Attempted to add invalid type (function) to databus"),
         }
     }
 
@@ -128,7 +130,7 @@ impl FunctionBuilder {
     /// Generate the data bus for call-data, based on the parameters of the entry block
     /// and a boolean vector telling which ones are call-data
     pub(crate) fn call_data_bus(&mut self, is_params_databus: Vec<bool>) -> DataBusBuilder {
-        //filter parameters of the first block that have call-data visilibity
+        //filter parameters of the first block that have call-data visibility
         let first_block = self.current_function.entry_block();
         let params = self.current_function.dfg[first_block].parameters();
         let mut databus_param = Vec::new();

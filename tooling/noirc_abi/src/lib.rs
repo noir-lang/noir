@@ -10,9 +10,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_frontend::{
-    hir::Context, Signedness, StructType, Type, TypeBinding, TypeVariableKind, Visibility,
-};
+use noirc_frontend::{hir::Context, Signedness, Type, TypeBinding, TypeVariableKind, Visibility};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::{collections::BTreeMap, str};
@@ -142,14 +140,15 @@ impl AbiType {
                     Signedness::Signed => Sign::Signed,
                 };
 
-                Self::Integer { sign, width: *bit_width }
+                Self::Integer { sign, width: (*bit_width).into() }
             }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                    TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => Self::from_type(context, typ),
+                TypeBinding::Unbound(_) => {
+                    Self::from_type(context, &Type::default_int_or_field_type())
                 }
-            }
+            },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
@@ -157,12 +156,8 @@ impl AbiType {
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-            Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
-            Type::Constant(_) => unreachable!(),
-            Type::TraitAsType(..) => unreachable!(),
-            Type::Struct(def, ref args) => {
+
+            Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
@@ -171,16 +166,23 @@ impl AbiType {
                     context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
                 Self::Struct { fields, path }
             }
+            Type::Alias(def, args) => Self::from_type(context, &def.borrow().get_type(args)),
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |typ| Self::from_type(context, typ));
                 Self::Tuple { fields }
             }
-            Type::TypeVariable(_, _) => unreachable!(),
-            Type::NamedGeneric(..) => unreachable!(),
-            Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
+            Type::Error
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(..)
+            | Type::Forall(..)
+            | Type::Code
+            | Type::Slice(_)
+            | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
+            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-            Type::NotConstant => unreachable!(),
         }
     }
 
@@ -305,15 +307,7 @@ impl Abi {
                     .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
                     .clone();
 
-                if !value.matches_abi(&expected_type) {
-                    let param = self
-                        .parameters
-                        .iter()
-                        .find(|param| param.name == param_name)
-                        .unwrap()
-                        .clone();
-                    return Err(AbiError::TypeMismatch { param, value });
-                }
+                value.find_type_mismatch(&expected_type, param_name.clone())?;
 
                 Self::encode_value(value, &expected_type).map(|v| (param_name, v))
             })
@@ -511,31 +505,35 @@ fn decode_string_value(field_elements: &[FieldElement]) -> String {
     final_string.to_owned()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ContractEvent {
-    /// Event name
-    name: String,
-    /// The fully qualified path to the event definition
-    path: String,
-
-    /// Fields of the event
-    #[serde(
-        serialize_with = "serialization::serialize_struct_fields",
-        deserialize_with = "serialization::deserialize_struct_fields"
-    )]
-    fields: Vec<(String, AbiType)>,
-}
-
-impl ContractEvent {
-    pub fn from_struct_type(context: &Context, struct_type: &StructType) -> Self {
-        let fields = vecmap(struct_type.get_fields(&[]), |(name, typ)| {
-            (name, AbiType::from_type(context, &typ))
-        });
-        // For the ABI, we always want to resolve the struct paths from the root crate
-        let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
-
-        Self { name: struct_type.name.0.contents.clone(), path, fields }
-    }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum AbiValue {
+    Field {
+        value: FieldElement,
+    },
+    Integer {
+        sign: bool,
+        value: String,
+    },
+    Boolean {
+        value: bool,
+    },
+    String {
+        value: String,
+    },
+    Array {
+        value: Vec<AbiValue>,
+    },
+    Struct {
+        #[serde(
+            serialize_with = "serialization::serialize_struct_field_values",
+            deserialize_with = "serialization::deserialize_struct_field_values"
+        )]
+        fields: Vec<(String, AbiValue)>,
+    },
+    Tuple {
+        fields: Vec<AbiValue>,
+    },
 }
 
 fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {

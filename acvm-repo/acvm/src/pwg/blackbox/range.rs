@@ -4,7 +4,7 @@ use crate::{
 };
 use acir::{circuit::opcodes::FunctionInput, native_types::WitnessMap};
 
-pub(super) fn solve_range_opcode(
+pub(crate) fn solve_range_opcode(
     initial_witness: &WitnessMap,
     input: &FunctionInput,
 ) -> Result<(), OpcodeResolutionError> {

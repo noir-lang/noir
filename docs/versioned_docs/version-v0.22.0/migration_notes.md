@@ -6,6 +6,20 @@ keywords: [Noir, notes, migration, updating, upgrading]
 
 Noir is in full-speed development. Things break fast, wild, and often. This page attempts to leave some notes on errors you might encounter when upgrading and how to resolve them until proper patches are built.
 
+### `backend encountered an error: libc++.so.1`
+
+Depending on your OS, you may encounter the following error when running `nargo prove` for the first time:
+
+```text
+The backend encountered an error: "/home/codespace/.nargo/backends/acvm-backend-barretenberg/backend_binary: error while loading shared libraries: libc++.so.1: cannot open shared object file: No such file or directory\n"
+```
+
+Install the `libc++-dev` library with:
+
+```bash
+sudo apt install libc++-dev
+```
+
 ## ≥0.19
 
 ### Enforcing `compiler_version`
@@ -50,7 +64,7 @@ If you are using the default barretenberg backend, simply run:
 nargo prove
 ```
 
-with you Noir program.
+with your Noir program.
 
 This will trigger the download and installation of the latest version of barretenberg compatible with your Nargo in use.
 
@@ -78,7 +92,7 @@ nargo backend install acvm-backend-barretenberg https://github.com/noir-lang/bar
 
 This downloads and installs a specific bb.js based version of barretenberg binary from GitHub.
 
-The gzipped filed is running [this bash script](https://github.com/noir-lang/barretenberg-js-binary/blob/master/run-bb-js.sh), where we need to gzip it as the Nargo currently expect the backend to be zipped up.
+The gzipped file is running [this bash script](https://github.com/noir-lang/barretenberg-js-binary/blob/master/run-bb-js.sh), where we need to gzip it as the Nargo currently expect the backend to be zipped up.
 
 Then run:
 

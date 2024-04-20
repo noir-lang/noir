@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         # Description
-        Thanks for taking the time to create the Issue, and welcome to the Noirot family!
+        Thanks for taking the time to create the Issue and welcome to the Noir community!
   - type: textarea
     id: aim
     attributes:
@@ -38,45 +38,69 @@ body:
         2.
         3.
         4.
-  - type: markdown
-    attributes:
-      value: |
-        # Environment
-        Specify your versions of Noir releases used.
-  - type: markdown
-    attributes:
-      value: |
-        ## Using Nargo?
   - type: dropdown
-    id: nargo-install
+    id: impact
     attributes:
-      label: Installation Method
-      description: How did you install Nargo?
-      multiple: false
+      label: Project Impact
+      description: How does this affect a project you or others are working on? 
       options:
-        - Binary
-        - Compiled from source
-  - type: input
-    id: nargo-version
+        - "Nice-to-have"
+        - "Blocker"
+  - type: textarea
+    id: impact_context
     attributes:
-      label: Nargo Version
-      description: What is the output of the `nargo --version` command?
-      placeholder: "nargo 0.6.0 (git version hash: 0181813203a9e3e46c6d8c3169ad5d25971d4282, is dirty: false)"
-  - type: markdown
+      label: Impact Context
+      description: If a nice-to-have / blocker, supplement how does this Issue affect the project.
+  - type: dropdown
+    id: workaround
     attributes:
-      value: |
-        ## Using TypeScript?
-        Please await for our new set of packages.
-        You can find our target release timeframe on the [Noir Roadmap](https://github.com/orgs/noir-lang/projects/1/views/16).
-  - type: markdown
+      label: Workaround
+      description: Is there a workaround for this Issue? 
+      options:
+        - "Yes"
+  - type: textarea
+    id: workaround_description
     attributes:
-      value: |
-        # Misc
+      label: Workaround Description
+      description: If yes, supplement how could the Issue be worked around.
   - type: textarea
     id: additional
     attributes:
       label: Additional Context
       description: Supplement further information if applicable.
+  - type: markdown
+    attributes:
+      value: |
+        # Environment
+        Specify your version of Noir tooling used.
+  - type: markdown
+    attributes:
+      value: |
+        ## Nargo (CLI)
+  - type: dropdown
+    id: nargo-install
+    attributes:
+      label: Installation Method
+      description: How did you install Nargo?
+      options:
+        - Binary (`noirup` default)
+        - Compiled from source
+  - type: input
+    id: nargo-version
+    attributes:
+      label: Nargo Version
+      description: Output of running `nargo --version`
+      placeholder: "nargo version = 0.23.0 noirc version = 0.23.0+5be9f9d7e2f39ca228df10e5a530474af0331704 (git version hash: 5be9f9d7e2f39ca228df10e5a530474af0331704, is dirty: false)"
+  - type: markdown
+    attributes:
+      value: |
+        ## NoirJS (JavaScript)
+  - type: input
+    id: noirjs-version
+    attributes:
+      label: NoirJS Version
+      description: Version number of `noir_js` in `package.json`
+      placeholder: "0.23.0"
   - type: markdown
     attributes:
       value: |
@@ -87,11 +111,8 @@ body:
       label: Would you like to submit a PR for this Issue?
       description: Fellow contributors are happy to provide support where applicable.
       options:
-        - "No"
         - "Maybe"
         - "Yes"
-    validations:
-      required: true
   - type: textarea
     id: pr_support
     attributes:

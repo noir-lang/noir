@@ -2,7 +2,8 @@ import { defaultReporter } from '@web/test-runner';
 import { summaryReporter } from '@web/test-runner';
 import { fileURLToPath } from 'url';
 import { esbuildPlugin } from '@web/dev-server-esbuild';
-import { playwrightLauncher } from "@web/test-runner-playwright";
+import { playwrightLauncher } from '@web/test-runner-playwright';
+import { importMapsPlugin } from '@web/dev-server-import-maps';
 
 let reporter = summaryReporter();
 const debugPlugins = [];
@@ -21,13 +22,23 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
 
 export default {
   browsers: [
-    playwrightLauncher({ product: "chromium" }),
+    playwrightLauncher({ product: 'chromium' }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
   plugins: [
     esbuildPlugin({
       ts: true,
+    }),
+    importMapsPlugin({
+      inject: {
+        importMap: {
+          imports: {
+            // mock os module
+            os: '/test/mocks/os.js',
+          },
+        },
+      },
     }),
     ...debugPlugins,
   ],

@@ -1,14 +1,93 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
 
+use base64::Engine;
+use flate2::read::DeflateDecoder;
+use flate2::write::DeflateEncoder;
+use flate2::Compression;
+use serde::Deserializer;
+use serde::Serializer;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::io::Read;
+use std::io::Write;
 use std::mem;
 
 use crate::Location;
-use serde::{Deserialize, Serialize};
+use noirc_printable_type::PrintableType;
+use serde::{
+    de::Error as DeserializationError, ser::Error as SerializationError, Deserialize, Serialize,
+};
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugVarId(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugFnId(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugTypeId(pub u32);
+
+#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
+pub struct DebugVariable {
+    pub name: String,
+    pub debug_type_id: DebugTypeId,
+}
+
+#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
+pub struct DebugFunction {
+    pub name: String,
+    pub arg_names: Vec<String>,
+}
+
+pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
+pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
+pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+pub struct ProgramDebugInfo {
+    pub debug_infos: Vec<DebugInfo>,
+}
+
+impl ProgramDebugInfo {
+    pub fn serialize_compressed_base64_json<S>(
+        debug_info: &ProgramDebugInfo,
+        s: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let json_str = serde_json::to_string(debug_info).map_err(S::Error::custom)?;
+
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(json_str.as_bytes()).map_err(S::Error::custom)?;
+        let compressed_data = encoder.finish().map_err(S::Error::custom)?;
+
+        let encoded_b64 = base64::prelude::BASE64_STANDARD.encode(compressed_data);
+        s.serialize_str(&encoded_b64)
+    }
+
+    pub fn deserialize_compressed_base64_json<'de, D>(
+        deserializer: D,
+    ) -> Result<ProgramDebugInfo, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let encoded_b64: String = Deserialize::deserialize(deserializer)?;
+
+        let compressed_data =
+            base64::prelude::BASE64_STANDARD.decode(encoded_b64).map_err(D::Error::custom)?;
+
+        let mut decoder = DeflateDecoder::new(&compressed_data[..]);
+        let mut decompressed_data = Vec::new();
+        decoder.read_to_end(&mut decompressed_data).map_err(D::Error::custom)?;
+
+        let json_str = String::from_utf8(decompressed_data).map_err(D::Error::custom)?;
+        serde_json::from_str(&json_str).map_err(D::Error::custom)
+    }
+}
 
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -18,6 +97,9 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+    pub variables: DebugVariables,
+    pub functions: DebugFunctions,
+    pub types: DebugTypes,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -29,8 +111,13 @@ pub struct OpCodesCount {
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
-        DebugInfo { locations }
+    pub fn new(
+        locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+        variables: DebugVariables,
+        functions: DebugFunctions,
+        types: DebugTypes,
+    ) -> Self {
+        Self { locations, variables, functions, types }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -58,7 +145,7 @@ impl DebugInfo {
 
         for (opcode_location, locations) in self.locations.iter() {
             for location in locations.iter() {
-                let opcodes = accumulator.entry(*location).or_insert(Vec::new());
+                let opcodes = accumulator.entry(*location).or_default();
                 opcodes.push(opcode_location);
             }
         }

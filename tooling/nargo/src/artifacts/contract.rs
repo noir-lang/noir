@@ -1,23 +1,50 @@
-use acvm::acir::circuit::Circuit;
-use noirc_abi::{Abi, ContractEvent};
-use noirc_driver::ContractFunctionType;
+use acvm::acir::circuit::Program;
+use noirc_abi::{Abi, AbiType, AbiValue};
+use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use serde::{Deserialize, Serialize};
 
-/// `PreprocessedContract` represents a Noir contract which has been preprocessed by a particular backend proving system.
-///
-/// This differs from a generic Noir contract artifact in that:
-/// - The ACIR bytecode has had an optimization pass applied to tailor it for the backend.
-/// - Proving and verification keys have been pregenerated based on this ACIR.
+use noirc_driver::DebugFile;
+use noirc_errors::debug_info::ProgramDebugInfo;
+use std::collections::{BTreeMap, HashMap};
+
+use fm::FileId;
+
 #[derive(Serialize, Deserialize)]
-pub struct PreprocessedContract {
+pub struct ContractOutputsArtifact {
+    pub structs: HashMap<String, Vec<AbiType>>,
+    pub globals: HashMap<String, Vec<AbiValue>>,
+}
+
+impl From<CompiledContractOutputs> for ContractOutputsArtifact {
+    fn from(outputs: CompiledContractOutputs) -> Self {
+        ContractOutputsArtifact { structs: outputs.structs, globals: outputs.globals }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ContractArtifact {
     /// Version of noir used to compile this contract
     pub noir_version: String,
     /// The name of the contract.
     pub name: String,
     /// Each of the contract's functions are compiled into a separate program stored in this `Vec`.
-    pub functions: Vec<PreprocessedContractFunction>,
-    /// All the events defined inside the contract scope.
-    pub events: Vec<ContractEvent>,
+    pub functions: Vec<ContractFunctionArtifact>,
+
+    pub outputs: ContractOutputsArtifact,
+    /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
+    pub file_map: BTreeMap<FileId, DebugFile>,
+}
+
+impl From<CompiledContract> for ContractArtifact {
+    fn from(contract: CompiledContract) -> Self {
+        ContractArtifact {
+            noir_version: contract.noir_version,
+            name: contract.name,
+            functions: contract.functions.into_iter().map(ContractFunctionArtifact::from).collect(),
+            outputs: contract.outputs.into(),
+            file_map: contract.file_map,
+        }
+    }
 }
 
 /// Each function in the contract will be compiled as a separate noir program.
@@ -25,18 +52,37 @@ pub struct PreprocessedContract {
 /// A contract function unlike a regular Noir program however can have additional properties.
 /// One of these being a function type.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PreprocessedContractFunction {
+pub struct ContractFunctionArtifact {
     pub name: String,
 
-    pub function_type: ContractFunctionType,
+    pub is_unconstrained: bool,
 
-    pub is_internal: bool,
+    pub custom_attributes: Vec<String>,
 
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Circuit,
+    pub bytecode: Program,
+
+    #[serde(
+        serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",
+        deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
+    )]
+    pub debug_symbols: ProgramDebugInfo,
+}
+
+impl From<ContractFunction> for ContractFunctionArtifact {
+    fn from(func: ContractFunction) -> Self {
+        ContractFunctionArtifact {
+            name: func.name,
+            is_unconstrained: func.is_unconstrained,
+            custom_attributes: func.custom_attributes,
+            abi: func.abi,
+            bytecode: func.bytecode,
+            debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
+        }
+    }
 }

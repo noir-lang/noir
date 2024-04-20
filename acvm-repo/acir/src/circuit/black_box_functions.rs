@@ -19,6 +19,8 @@ pub enum BlackBoxFunc {
     SHA256,
     /// Calculates the Blake2s hash of the inputs.
     Blake2s,
+    /// Calculates the Blake3 hash of the inputs.
+    Blake3,
     /// Verifies a Schnorr signature over a curve which is "pairing friendly" with the curve on which the ACIR circuit is defined.
     ///
     /// The exact curve which this signature uses will vary based on the curve being used by ACIR.
@@ -30,12 +32,6 @@ pub enum BlackBoxFunc {
     PedersenCommitment,
     /// Calculates a Pedersen hash to the inputs.
     PedersenHash,
-    /// Hashes a set of inputs and applies the field modulus to the result
-    /// to return a value which can be represented as a [`FieldElement`][acir_field::FieldElement]
-    ///
-    /// This is implemented using the `Blake2s` hash function.
-    /// The "128" in the name specifies that this function should have 128 bits of security.
-    HashToField128Security,
     /// Verifies a ECDSA signature over the secp256k1 curve.
     EcdsaSecp256k1,
     /// Verifies a ECDSA signature over the secp256r1 curve.
@@ -44,9 +40,29 @@ pub enum BlackBoxFunc {
     FixedBaseScalarMul,
     /// Calculates the Keccak256 hash of the inputs.
     Keccak256,
+    /// Keccak Permutation function of 1600 width
+    Keccakf1600,
     /// Compute a recursive aggregation object when verifying a proof inside another circuit.
     /// This outputted aggregation object will then be either checked in a top-level verifier or aggregated upon again.
     RecursiveAggregation,
+    /// Addition over the embedded curve on which [`FieldElement`][acir_field::FieldElement] is defined.
+    EmbeddedCurveAdd,
+    /// BigInt addition
+    BigIntAdd,
+    /// BigInt subtraction
+    BigIntSub,
+    /// BigInt multiplication
+    BigIntMul,
+    /// BigInt division
+    BigIntDiv,
+    /// BigInt from le bytes
+    BigIntFromLeBytes,
+    /// BigInt to le bytes
+    BigIntToLeBytes,
+    /// Permutation function of Poseidon2
+    Poseidon2Permutation,
+    /// SHA256 compression function
+    Sha256Compression,
 }
 
 impl std::fmt::Display for BlackBoxFunc {
@@ -61,38 +77,60 @@ impl BlackBoxFunc {
             BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
+            BlackBoxFunc::Blake3 => "blake3",
             BlackBoxFunc::PedersenCommitment => "pedersen_commitment",
             BlackBoxFunc::PedersenHash => "pedersen_hash",
-            BlackBoxFunc::HashToField128Security => "hash_to_field_128_security",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
             BlackBoxFunc::FixedBaseScalarMul => "fixed_base_scalar_mul",
+            BlackBoxFunc::EmbeddedCurveAdd => "embedded_curve_add",
             BlackBoxFunc::AND => "and",
             BlackBoxFunc::XOR => "xor",
             BlackBoxFunc::RANGE => "range",
             BlackBoxFunc::Keccak256 => "keccak256",
+            BlackBoxFunc::Keccakf1600 => "keccakf1600",
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
+            BlackBoxFunc::BigIntAdd => "bigint_add",
+            BlackBoxFunc::BigIntSub => "bigint_sub",
+            BlackBoxFunc::BigIntMul => "bigint_mul",
+            BlackBoxFunc::BigIntDiv => "bigint_div",
+            BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",
+            BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
+            BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
+            BlackBoxFunc::Sha256Compression => "sha256_compression",
         }
     }
+
     pub fn lookup(op_name: &str) -> Option<BlackBoxFunc> {
         match op_name {
             "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
+            "blake3" => Some(BlackBoxFunc::Blake3),
             "pedersen_commitment" => Some(BlackBoxFunc::PedersenCommitment),
             "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
-            "hash_to_field_128_security" => Some(BlackBoxFunc::HashToField128Security),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
             "fixed_base_scalar_mul" => Some(BlackBoxFunc::FixedBaseScalarMul),
+            "embedded_curve_add" => Some(BlackBoxFunc::EmbeddedCurveAdd),
             "and" => Some(BlackBoxFunc::AND),
             "xor" => Some(BlackBoxFunc::XOR),
             "range" => Some(BlackBoxFunc::RANGE),
             "keccak256" => Some(BlackBoxFunc::Keccak256),
+            "keccakf1600" => Some(BlackBoxFunc::Keccakf1600),
             "recursive_aggregation" => Some(BlackBoxFunc::RecursiveAggregation),
+            "bigint_add" => Some(BlackBoxFunc::BigIntAdd),
+            "bigint_sub" => Some(BlackBoxFunc::BigIntSub),
+            "bigint_mul" => Some(BlackBoxFunc::BigIntMul),
+            "bigint_div" => Some(BlackBoxFunc::BigIntDiv),
+            "bigint_from_le_bytes" => Some(BlackBoxFunc::BigIntFromLeBytes),
+            "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
+            "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
+            "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
             _ => None,
         }
     }
+
     pub fn is_valid_black_box_func_name(op_name: &str) -> bool {
         BlackBoxFunc::lookup(op_name).is_some()
     }

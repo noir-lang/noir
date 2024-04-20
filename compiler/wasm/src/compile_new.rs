@@ -1,10 +1,13 @@
 use crate::compile::{
-    file_manager_with_source_map, preprocess_contract, preprocess_program, JsCompileResult,
+    file_manager_with_source_map, JsCompileContractResult, JsCompileProgramResult,
     PathToFileSourceMap,
 };
 use crate::errors::{CompileError, JsCompileError};
+use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
+use nargo::parse_all;
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -20,7 +23,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 pub struct CompilerContext {
     // `wasm_bindgen` currently doesn't allow lifetime parameters on structs so we must use a `'static` lifetime.
     // `Context` must then own the `FileManager` to satisfy this lifetime.
-    context: Context<'static>,
+    context: Context<'static, 'static>,
 }
 
 #[wasm_bindgen(js_name = "CrateId")]
@@ -34,7 +37,9 @@ impl CompilerContext {
         console_error_panic_hook::set_once();
 
         let fm = file_manager_with_source_map(source_map);
-        CompilerContext { context: Context::new(fm) }
+        let parsed_files = parse_all(&fm);
+
+        CompilerContext { context: Context::new(fm, parsed_files) }
     }
 
     #[cfg(test)]
@@ -79,24 +84,25 @@ impl CompilerContext {
         crate_name: String,
         from: &CrateIDWrapper,
         to: &CrateIDWrapper,
-    ) {
-        let parsed_crate_name: CrateName = crate_name
-            .parse()
-            .unwrap_or_else(|_| panic!("Failed to parse crate name {}", crate_name));
+    ) -> Result<(), JsCompileError> {
+        let parsed_crate_name: CrateName =
+            crate_name.parse().map_err(|err_string| JsCompileError::new(err_string, Vec::new()))?;
+
         add_dep(&mut self.context, from.0, to.0, parsed_crate_name);
+        Ok(())
     }
 
     pub fn compile_program(
         mut self,
         program_width: usize,
-    ) -> Result<JsCompileResult, JsCompileError> {
+    ) -> Result<JsCompileProgramResult, JsCompileError> {
         let compile_options = CompileOptions::default();
-        let np_language = acvm::ExpressionWidth::Bounded { width: program_width };
+        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
 
         let root_crate_id = *self.context.root_crate_id();
 
         let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None, true)
+            compile_main(&mut self.context, root_crate_id, &compile_options, None)
                 .map_err(|errs| {
                     CompileError::with_file_diagnostics(
                         "Failed to compile program",
@@ -106,18 +112,18 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
+        let optimized_program = nargo::ops::transform_program(compiled_program, np_language);
+        let warnings = optimized_program.warnings.clone();
 
-        let compile_output = preprocess_program(optimized_program);
-        Ok(JsCompileResult::new(compile_output))
+        Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
     }
 
     pub fn compile_contract(
         mut self,
         program_width: usize,
-    ) -> Result<JsCompileResult, JsCompileError> {
+    ) -> Result<JsCompileContractResult, JsCompileError> {
         let compile_options = CompileOptions::default();
-        let np_language = acvm::ExpressionWidth::Bounded { width: program_width };
+        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
         let root_crate_id = *self.context.root_crate_id();
 
         let compiled_contract =
@@ -131,25 +137,65 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
+        let optimized_contract = nargo::ops::transform_contract(compiled_contract, np_language);
 
-        let compile_output = preprocess_contract(optimized_contract);
-        Ok(JsCompileResult::new(compile_output))
+        let functions =
+            optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
+
+        let contract_artifact = ContractArtifact {
+            noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
+            name: optimized_contract.name,
+            functions,
+            outputs: optimized_contract.outputs.into(),
+            file_map: optimized_contract.file_map,
+        };
+
+        Ok(JsCompileContractResult::new(contract_artifact, optimized_contract.warnings))
     }
 }
 
 /// This is a method that exposes the same API as `compile`
 /// But uses the Context based APi internally
 #[wasm_bindgen]
-pub fn compile_(
+pub fn compile_program_(
     entry_point: String,
-    contracts: Option<bool>,
     dependency_graph: Option<crate::compile::JsDependencyGraph>,
     file_source_map: PathToFileSourceMap,
-) -> Result<JsCompileResult, JsCompileError> {
-    use std::collections::HashMap;
-
+) -> Result<JsCompileProgramResult, JsCompileError> {
     console_error_panic_hook::set_once();
+
+    let compiler_context =
+        prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
+    let program_width = 3;
+
+    compiler_context.compile_program(program_width)
+}
+
+/// This is a method that exposes the same API as `compile`
+/// But uses the Context based APi internally
+#[wasm_bindgen]
+pub fn compile_contract_(
+    entry_point: String,
+    dependency_graph: Option<crate::compile::JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<JsCompileContractResult, JsCompileError> {
+    console_error_panic_hook::set_once();
+
+    let compiler_context =
+        prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
+    let program_width = 3;
+
+    compiler_context.compile_contract(program_width)
+}
+
+/// This is a method that exposes the same API as `prepare_context`
+/// But uses the Context based API internally
+fn prepare_compiler_context(
+    entry_point: String,
+    dependency_graph: Option<crate::compile::JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<CompilerContext, JsCompileError> {
+    use std::collections::HashMap;
 
     let dependency_graph: crate::compile::DependencyGraph =
         if let Some(dependency_graph) = dependency_graph {
@@ -188,7 +234,7 @@ pub fn compile_(
         crate_names.insert(lib_name.clone(), crate_id);
 
         // Add the dependency edges
-        compiler_context.add_dependency_edge(lib_name_string, &root_id, &crate_id);
+        compiler_context.add_dependency_edge(lib_name_string, &root_id, &crate_id)?;
     }
 
     // Process the transitive dependencies of the root
@@ -207,22 +253,20 @@ pub fn compile_(
                 .entry(dependency_name.clone())
                 .or_insert_with(|| add_noir_lib(&mut compiler_context, dependency_name));
 
-            compiler_context.add_dependency_edge(dependency_name_string, &crate_id, dep_crate_id);
+            compiler_context.add_dependency_edge(
+                dependency_name_string,
+                &crate_id,
+                dep_crate_id,
+            )?;
         }
     }
 
-    let is_contract = contracts.unwrap_or(false);
-    let program_width = 3;
-
-    if is_contract {
-        compiler_context.compile_contract(program_width)
-    } else {
-        compiler_context.compile_program(program_width)
-    }
+    Ok(compiler_context)
 }
 
 #[cfg(test)]
 mod test {
+    use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;
 
@@ -236,8 +280,9 @@ mod test {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
+        let parsed_files = parse_all(&fm);
 
-        let mut context = Context::new(fm);
+        let mut context = Context::new(fm, parsed_files);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         CompilerContext { context }
@@ -278,8 +323,8 @@ mod test {
         let lib1_crate_id = context.process_dependency_crate("lib1/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
-        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
-        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id).unwrap();
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id).unwrap();
 
         assert_eq!(context.crate_graph().number_of_crates(), 3);
     }
@@ -303,9 +348,9 @@ mod test {
         let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
-        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
-        context.add_dependency_edge("lib2".to_string(), &lib1_crate_id, &lib2_crate_id);
-        context.add_dependency_edge("lib3".to_string(), &lib2_crate_id, &lib3_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id).unwrap();
+        context.add_dependency_edge("lib2".to_string(), &lib1_crate_id, &lib2_crate_id).unwrap();
+        context.add_dependency_edge("lib3".to_string(), &lib2_crate_id, &lib3_crate_id).unwrap();
 
         assert_eq!(context.crate_graph().number_of_crates(), 5);
     }
@@ -328,8 +373,8 @@ mod test {
         let lib3_crate_id = context.process_dependency_crate("lib3/lib.nr".to_string());
         let root_crate_id = context.root_crate_id();
 
-        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id);
-        context.add_dependency_edge("lib3".to_string(), &lib2_crate_id, &lib3_crate_id);
+        context.add_dependency_edge("lib1".to_string(), &root_crate_id, &lib1_crate_id).unwrap();
+        context.add_dependency_edge("lib3".to_string(), &lib2_crate_id, &lib3_crate_id).unwrap();
 
         assert_eq!(context.crate_graph().number_of_crates(), 5);
     }

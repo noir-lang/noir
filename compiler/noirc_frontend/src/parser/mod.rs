@@ -14,8 +14,8 @@ mod parser;
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    Ident, LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable,
-    StatementKind, TypeImpl, UseTree,
+    Ident, LetStatement, ModuleDeclaration, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias,
+    Recoverable, StatementKind, TypeImpl, UseTree,
 };
 
 use chumsky::prelude::*;
@@ -28,7 +28,7 @@ pub use parser::parse_program;
 #[derive(Debug, Clone)]
 pub(crate) enum TopLevelStatement {
     Function(NoirFunction),
-    Module(Ident),
+    Module(ModuleDeclaration),
     Import(UseTree),
     Struct(NoirStruct),
     Trait(NoirTrait),
@@ -97,14 +97,14 @@ where
 /// Sequence the two parsers.
 /// Fails if the first parser fails, otherwise forces
 /// the second parser to succeed while logging any errors.
-fn then_commit<'a, P1, P2, T1, T2: 'a>(
+fn then_commit<'a, P1, P2, T1, T2>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<(T1, T2)> + 'a
 where
     P1: NoirParser<T1> + 'a,
     P2: NoirParser<T2> + 'a,
-    T2: Clone + Recoverable,
+    T2: Clone + Recoverable + 'a,
 {
     let second_parser = skip_then_retry_until(second_parser)
         .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
@@ -112,14 +112,15 @@ where
     first_parser.then(second_parser)
 }
 
-fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
+fn then_commit_ignore<'a, P1, P2, T1, T2>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<T1> + 'a
 where
     P1: NoirParser<T1> + 'a,
     P2: NoirParser<T2> + 'a,
-    T2: Clone,
+    T1: 'a,
+    T2: Clone + 'a,
 {
     let second_parser = skip_then_retry_until(second_parser);
     first_parser.then_ignore(second_parser)
@@ -140,10 +141,10 @@ where
     first_parser.ignore_then(second_parser)
 }
 
-fn skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
+fn skip_then_retry_until<'a, P, T>(parser: P) -> impl NoirParser<Option<T>> + 'a
 where
     P: NoirParser<T> + 'a,
-    T: Clone,
+    T: Clone + 'a,
 {
     let terminators = [
         Token::EOF,
@@ -208,7 +209,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
@@ -220,7 +221,7 @@ pub struct SortedModule {
     pub globals: Vec<LetStatement>,
 
     /// Module declarations like `mod foo;`
-    pub module_decls: Vec<Ident>,
+    pub module_decls: Vec<ModuleDeclaration>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
     pub submodules: Vec<SortedSubModule>,
@@ -229,7 +230,7 @@ pub struct SortedModule {
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for decl in &self.module_decls {
-            writeln!(f, "mod {decl};")?;
+            writeln!(f, "{decl};")?;
         }
 
         for import in &self.imports {
@@ -309,7 +310,7 @@ pub enum ItemKind {
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     Global(LetStatement),
-    ModuleDecl(Ident),
+    ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
 }
 
@@ -344,6 +345,7 @@ impl std::fmt::Display for SortedSubModule {
     }
 }
 
+#[derive(Clone)]
 pub struct SortedSubModule {
     pub name: Ident,
     pub contents: SortedModule,
@@ -379,8 +381,8 @@ impl SortedModule {
         self.imports.extend(import_stmt.desugar(None));
     }
 
-    fn push_module_decl(&mut self, mod_name: Ident) {
-        self.module_decls.push(mod_name);
+    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration) {
+        self.module_decls.push(mod_decl);
     }
 
     fn push_submodule(&mut self, submodule: SortedSubModule) {
@@ -473,7 +475,7 @@ impl std::fmt::Display for TopLevelStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
-            TopLevelStatement::Module(m) => write!(f, "mod {m}"),
+            TopLevelStatement::Module(m) => m.fmt(f),
             TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
             TopLevelStatement::Trait(t) => t.fmt(f),
             TopLevelStatement::TraitImpl(i) => i.fmt(f),

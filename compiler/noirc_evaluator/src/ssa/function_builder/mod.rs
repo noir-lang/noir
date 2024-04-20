@@ -17,9 +17,8 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
-        function::RuntimeType,
-        instruction::{Endian, InstructionId, Intrinsic},
-        types::NumericType,
+        function::{InlineType, RuntimeType},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -43,21 +42,24 @@ impl FunctionBuilder {
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    pub(crate) fn new(
-        function_name: String,
-        function_id: FunctionId,
-        runtime: RuntimeType,
-    ) -> Self {
-        let mut new_function = Function::new(function_name, function_id);
-        new_function.set_runtime(runtime);
-        let current_block = new_function.entry_block();
+    pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
+        let new_function = Function::new(function_name, function_id);
 
         Self {
+            current_block: new_function.entry_block(),
             current_function: new_function,
-            current_block,
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
         }
+    }
+
+    /// Set the runtime of the initial function that is created internally after constructing
+    /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
+    /// This should only be used immediately following construction of a FunctionBuilder
+    /// and will panic if there are any already finished functions.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        self.current_function.set_runtime(runtime);
     }
 
     /// Finish the current function and create a new function.
@@ -80,8 +82,13 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new ACIR function.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir);
+    pub(crate) fn new_function(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        inline_type: InlineType,
+    ) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
     /// Finish the current function and create a new unconstrained function.
@@ -114,6 +121,11 @@ impl FunctionBuilder {
     /// Insert a numeric constant into the current function of type Field
     pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), Type::field())
+    }
+
+    /// Insert a numeric constant into the current function of type Type::length_type()
+    pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
+        self.numeric_constant(value.into(), Type::length_type())
     }
 
     /// Insert an array constant into the current function with the given element values.
@@ -149,9 +161,10 @@ impl FunctionBuilder {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
+        let block = self.current_block();
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
-            self.current_block,
+            block,
             ctrl_typevars,
             self.call_stack.clone(),
         )
@@ -191,12 +204,9 @@ impl FunctionBuilder {
         self.call_stack.clone()
     }
 
-    /// Insert a Load instruction at the end of the current block, loading from the given offset
-    /// of the given address which should point to a previous Allocate instruction. Note that
-    /// this is limited to loading a single value. Loading multiple values (such as a tuple)
-    /// will require multiple loads.
-    /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
-    /// an array will have an offset of 3.
+    /// Insert a Load instruction at the end of the current block, loading from the given address
+    /// which should point to a previous Allocate instruction. Note that this is limited to loading
+    /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
@@ -217,6 +227,9 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
+        let lhs_type = self.type_of_value(lhs);
+        let rhs_type = self.type_of_value(rhs);
+        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
@@ -250,9 +263,22 @@ impl FunctionBuilder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        assert_message: Option<String>,
+        assert_message: Option<Box<ConstrainError>>,
     ) {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
+    }
+
+    /// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
+    pub(crate) fn insert_range_check(
+        &mut self,
+        value: ValueId,
+        max_bit_size: u32,
+        assert_message: Option<String>,
+    ) {
+        self.insert_instruction(
+            Instruction::RangeCheck { value, max_bit_size, assert_message },
+            None,
+        );
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -264,104 +290,6 @@ impl FunctionBuilder {
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
-    }
-
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    /// and truncate the result to bit_size
-    pub(crate) fn insert_wrapping_shift_left(
-        &mut self,
-        lhs: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-    ) -> ValueId {
-        let base = self.field_constant(FieldElement::from(2_u128));
-        let typ = self.current_function.dfg.type_of_value(lhs);
-        let (max_bit, pow) =
-            if let Some(rhs_constant) = self.current_function.dfg.get_numeric_constant(rhs) {
-                // Happy case is that we know precisely by how many bits the the integer will
-                // increase: lhs_bit_size + rhs
-                let (rhs_bit_size_pow_2, overflows) =
-                    2_u128.overflowing_pow(rhs_constant.to_u128() as u32);
-                if overflows {
-                    assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
-                    if bit_size < 128 {
-                        let zero = self.numeric_constant(FieldElement::zero(), typ);
-                        return InsertInstructionResult::SimplifiedTo(zero).first();
-                    }
-                }
-                let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
-                (bit_size + (rhs_constant.to_u128() as u32), pow)
-            } else {
-                // we use a predicate to nullify the result in case of overflow
-                let bit_size_var =
-                    self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
-                let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
-                let one = self.numeric_constant(FieldElement::one(), Type::unsigned(1));
-                let predicate = self.insert_binary(overflow, BinaryOp::Eq, one);
-                let predicate = self.insert_cast(predicate, typ.clone());
-                // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
-                let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
-                let pow = self.pow(base, rhs_unsigned);
-                let pow = self.insert_cast(pow, typ);
-                (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
-            };
-
-        if max_bit <= bit_size {
-            self.insert_binary(lhs, BinaryOp::Mul, pow)
-        } else {
-            let result = self.insert_binary(lhs, BinaryOp::Mul, pow);
-            self.insert_truncate(result, bit_size, max_bit)
-        }
-    }
-
-    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
-    pub(crate) fn insert_shift_right(
-        &mut self,
-        lhs: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-    ) -> ValueId {
-        let base = self.field_constant(FieldElement::from(2_u128));
-        // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
-        let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
-        let pow = self.pow(base, rhs_unsigned);
-        self.insert_binary(lhs, BinaryOp::Div, pow)
-    }
-
-    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
-    /// Pseudo-code of the computation:
-    /// let mut r = 1;
-    /// let rhs_bits = to_bits(rhs);
-    /// for i in 1 .. bit_size + 1 {
-    ///     let r_squared = r * r;
-    ///     let b = rhs_bits[bit_size - i];
-    ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
-    /// }
-    pub(crate) fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let typ = self.current_function.dfg.type_of_value(rhs);
-        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-            let length = self.field_constant(FieldElement::from(bit_size as i128));
-            let result_types =
-                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.insert_call(to_bits, vec![rhs, length], result_types);
-            let rhs_bits = rhs_bits[1];
-            let one = self.field_constant(FieldElement::one());
-            let mut r = one;
-            for i in 1..bit_size + 1 {
-                let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
-                let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
-                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.insert_array_get(rhs_bits, idx, Type::field());
-                let r1 = self.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.insert_binary(one, BinaryOp::Sub, b);
-                let r2 = self.insert_binary(c, BinaryOp::Mul, r_squared);
-                r = self.insert_binary(r1, BinaryOp::Add, r2);
-            }
-            r
-        } else {
-            unreachable!("Value must be unsigned in power operation");
-        }
     }
 
     /// Insert an instruction to extract an element from an array
@@ -382,12 +310,34 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
+            .first()
+    }
+
+    /// Insert an instruction to increment an array's reference count. This only has an effect
+    /// in unconstrained code where arrays are reference counted and copy on write.
+    pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::IncrementRc { value }, None);
+    }
+
+    /// Insert an instruction to decrement an array's reference count. This only has an effect
+    /// in unconstrained code where arrays are reference counted and copy on write.
+    pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::DecrementRc { value }, None);
+    }
+
+    /// Insert an enable_side_effects_if instruction. These are normally only automatically
+    /// inserted during the flattening pass when branching is removed.
+    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
+        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
     }
 
     /// Terminates the current block with the given terminator instruction
+    /// if the current block does not already have a terminator instruction.
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
-        self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        if self.current_function.dfg[self.current_block].terminator().is_none() {
+            self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        }
     }
 
     /// Terminate the current block with a jmp instruction to jmp to the given
@@ -460,19 +410,67 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        self.update_array_reference_count(value, true, None);
+    }
+
+    /// Insert instructions to decrement the reference count of any array(s) stored
+    /// within the given value. If the given value is not an array and does not contain
+    /// any arrays, this does nothing.
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
+        self.update_array_reference_count(value, false, None);
+    }
+
+    /// Increment or decrement the given value's reference count if it is an array.
+    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
+    /// are ignored outside of unconstrained code.
+    fn update_array_reference_count(
+        &mut self,
+        value: ValueId,
+        increment: bool,
+        load_address: Option<ValueId>,
+    ) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
             Type::Reference(element) => {
                 if element.contains_an_array() {
-                    let value = self.insert_load(value, element.as_ref().clone());
-                    self.increment_array_reference_count(value);
+                    let reference = value;
+                    let value = self.insert_load(reference, element.as_ref().clone());
+                    self.update_array_reference_count(value, increment, Some(reference));
                 }
             }
-            Type::Array(..) | Type::Slice(..) => {
-                self.insert_instruction(Instruction::IncrementRc { value }, None);
+            typ @ Type::Array(..) | typ @ Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
+                let update_rc = |this: &mut Self, value| {
+                    if increment {
+                        this.insert_inc_rc(value);
+                    } else {
+                        this.insert_dec_rc(value);
+                    }
+                };
+
+                update_rc(self, value);
+                let dfg = &self.current_function.dfg;
+
+                // This is a bit odd, but in brillig the inc_rc instruction operates on
+                // a copy of the array's metadata, so we need to re-store a loaded array
+                // even if there have been no other changes to it.
+                if let Some(address) = load_address {
+                    // If we already have a load from the Type::Reference case, avoid inserting
+                    // another load and rc update.
+                    self.insert_store(address, value);
+                } else if let Value::Instruction { instruction, .. } = &dfg[value] {
+                    let instruction = &dfg[*instruction];
+                    if let Instruction::Load { address } = instruction {
+                        // We can't re-use `value` in case the original address was stored
+                        // to again in the meantime. So introduce another load.
+                        let address = *address;
+                        let new_load = self.insert_load(address, typ);
+                        update_rc(self, new_load);
+                        self.insert_store(address, new_load);
+                    }
+                }
             }
         }
     }
@@ -509,7 +507,6 @@ mod tests {
     use acvm::FieldElement;
 
     use crate::ssa::ir::{
-        function::RuntimeType,
         instruction::{Endian, Intrinsic},
         map::Id,
         types::Type,
@@ -524,7 +521,7 @@ mod tests {
         // let x = 7;
         // let bits = x.to_le_bits(8);
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let one = builder.numeric_constant(FieldElement::one(), Type::bool());
         let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
 

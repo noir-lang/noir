@@ -30,7 +30,9 @@ impl AstPrinter {
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
         match expr {
-            Expression::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
+            Expression::Ident(ident) => {
+                write!(f, "{}${}", ident.name, ident.definition)
+            }
             Expression::Literal(literal) => self.print_literal(literal, f),
             Expression::Block(exprs) => self.print_block(exprs, f),
             Expression::Unary(unary) => self.print_unary(unary, f),
@@ -71,6 +73,8 @@ impl AstPrinter {
                 self.print_expr(expr, f)?;
                 write!(f, ";")
             }
+            Expression::Break => write!(f, "break"),
+            Expression::Continue => write!(f, "continue"),
         }
     }
 
@@ -93,6 +97,11 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
+            super::ast::Literal::Slice(array) => {
+                write!(f, "&[")?;
+                self.print_comma_separated(&array.contents, f)?;
+                write!(f, "]")
+            }
             super::ast::Literal::Integer(x, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
@@ -100,6 +109,9 @@ impl AstPrinter {
                 write!(f, "f\"")?;
                 s.fmt(f)?;
                 write!(f, "\"")
+            }
+            super::ast::Literal::Unit => {
+                write!(f, "()")
             }
         }
     }

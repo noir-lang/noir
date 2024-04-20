@@ -17,6 +17,7 @@ mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
+mod export_cmd;
 mod fmt_cmd;
 mod info_cmd;
 mod init_cmd;
@@ -69,6 +70,8 @@ enum NargoCommand {
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
     #[command(hide = true)] // Hidden while the feature is being built out
+    Export(export_cmd::ExportCommand),
+    #[command(hide = true)] // Hidden while the feature is being built out
     Debug(debug_cmd::DebugCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
@@ -79,6 +82,7 @@ enum NargoCommand {
     Dap(dap_cmd::DapCommand),
 }
 
+#[cfg(not(feature = "codegen-docs"))]
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
@@ -109,6 +113,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+        NargoCommand::Export(args) => export_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
@@ -120,5 +125,12 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 
+    Ok(())
+}
+
+#[cfg(feature = "codegen-docs")]
+pub(crate) fn start_cli() -> eyre::Result<()> {
+    let markdown: String = clap_markdown::help_markdown::<NargoCli>();
+    println!("{markdown}");
     Ok(())
 }

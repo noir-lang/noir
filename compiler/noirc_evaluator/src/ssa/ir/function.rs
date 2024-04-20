@@ -12,9 +12,37 @@ use super::value::ValueId;
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
-    Acir,
+    Acir(InlineType),
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
+}
+
+/// Represents how a RuntimeType::Acir function should be inlined.
+/// This type is only relevant for ACIR functions as we do not inline any Brillig functions
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub(crate) enum InlineType {
+    /// The most basic entry point can expect all its functions to be inlined.
+    /// All function calls are expected to be inlined into a single ACIR.
+    #[default]
+    Inline,
+    /// Functions marked as foldable will not be inlined and compiled separately into ACIR
+    Fold,
+}
+
+impl RuntimeType {
+    /// Returns whether the runtime type represents an entry point.
+    /// We return `false` for InlineType::Inline on default, which is true
+    /// in all cases except for main. `main` should be supported with special
+    /// handling in any places where this function determines logic.
+    pub(crate) fn is_entry_point(&self) -> bool {
+        match self {
+            RuntimeType::Acir(inline_type) => match inline_type {
+                InlineType::Inline => false,
+                InlineType::Fold => true,
+            },
+            RuntimeType::Brillig => true,
+        }
+    }
 }
 
 /// A function holds a list of instructions.
@@ -47,7 +75,7 @@ impl Function {
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir }
+        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir(InlineType::default()) }
     }
 
     /// The name of the function.
@@ -129,8 +157,17 @@ impl Function {
 impl std::fmt::Display for RuntimeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeType::Acir => write!(f, "acir"),
+            RuntimeType::Acir(inline_type) => write!(f, "acir({inline_type})"),
             RuntimeType::Brillig => write!(f, "brillig"),
+        }
+    }
+}
+
+impl std::fmt::Display for InlineType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InlineType::Inline => write!(f, "inline"),
+            InlineType::Fold => write!(f, "fold"),
         }
     }
 }

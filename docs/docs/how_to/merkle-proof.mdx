@@ -5,6 +5,7 @@ description:
   merkle tree with a specified root, at a given index.
 keywords:
   [merkle proof, merkle membership proof, Noir, rust, hash function, Pedersen, sha256, merkle tree]
+sidebar_position: 4
 ---
 
 Let's walk through an example of a merkle membership proof in Noir that proves that a given leaf is
@@ -14,7 +15,7 @@ in a merkle tree.
 use dep::std;
 
 fn main(message : [Field; 62], index : Field, hashpath : [Field; 40], root : Field) {
-    let leaf = std::hash::hash_to_field(message);
+    let leaf = std::hash::hash_to_field(message.as_slice());
     let merkle_root = std::merkle::compute_merkle_root(leaf, index, hashpath);
     assert(merkle_root == root);
 }
@@ -27,7 +28,7 @@ random oracle. If only collision resistance is needed, then one can call `std::h
 instead.
 
 ```rust
-let leaf = std::hash::hash_to_field(message);
+let leaf = std::hash::hash_to_field(message.as_slice());
 ```
 
 The leaf is then passed to a compute_merkle_root function with the root, index and hashpath. The returned root can then be asserted to be the same as the provided root.
