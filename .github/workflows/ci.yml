@@ -145,7 +145,7 @@ jobs:
         run: earthly-ci --no-output +bench-ultra-honk --bench_mode=cache
 
   merge-check:
-    runs-on: ${{ github.actor }}-x86
+    runs-on: ubuntu-latest
     needs: [e2e, bb-native-tests, bb-bench]
     if: always()  # Ensures this job runs regardless of the success or failure of dependencies.
     steps:
@@ -160,8 +160,8 @@ jobs:
           echo "Pull request merging now allowed."
 
   notify:
-    needs: [e2e, bb-native-tests, bb-bench]
     runs-on: ubuntu-latest
+    needs: [e2e, bb-native-tests, bb-bench]
     if: ${{ github.ref == 'refs/heads/master' && failure() }}
     steps:
       - name: Send notification to aztec3-ci channel if workflow failed on master
