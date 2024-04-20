@@ -19,7 +19,7 @@ fn id<I>(x: [field; I]) -> [field; I] {
 }
 
 struct MyStruct<S> {
-    data: [Field; S],
+    data: [field; S],
 }
 
 impl<S> MyStruct<S> {

@@ -1,10 +1,10 @@
 struct Header {
-    params: [Field; 3],
+    params: [field; 3],
 }
 
 struct MyNote {
-    plain: Field,
-    array: [Field; 2],
+    plain: field,
+    array: [field; 2],
     header: Header,
 }
 

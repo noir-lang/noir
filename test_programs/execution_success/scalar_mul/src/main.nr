@@ -9,8 +9,8 @@ fn main(
     b_pub_y: pub field
 ) {
     let mut priv_key = a;
-    let mut pub_x: Field = a_pub_x;
-    let mut pub_y: Field = a_pub_y;
+    let mut pub_x: field = a_pub_x;
+    let mut pub_y: field = a_pub_y;
     if a != 1 {
         // Change `a` in Prover.toml to test input `b`
         priv_key = b;

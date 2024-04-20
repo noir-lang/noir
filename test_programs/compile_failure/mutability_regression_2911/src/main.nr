@@ -1,5 +1,5 @@
 // Expect 'Variable must be mutable to be assigned to' error
 fn main() {
-    let slice : &mut [Field] = &mut [];
+    let slice : &mut [field] = &mut [];
     slice = &mut (*slice).push_back(1);
 }

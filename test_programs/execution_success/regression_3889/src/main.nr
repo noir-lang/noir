@@ -1,6 +1,6 @@
 mod Foo {
     struct NewType{
-        a: Field,
+        a: field,
     }
 }
 
@@ -11,7 +11,7 @@ mod Bar {
 
 mod Baz {
     struct Works {
-        a: Field,
+        a: field,
     }
     use crate::Bar::BarStruct;
     use crate::Bar::NewType;

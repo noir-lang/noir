@@ -1,6 +1,6 @@
 use dep::std::slice;
 unconstrained fn main(x: field, y: field) {
-    let mut slice: [Field] = &[y, x];
+    let mut slice: [field] = &[y, x];
     assert(slice.len() == 2);
 
     slice = slice.push_back(7);
@@ -131,7 +131,7 @@ unconstrained fn merge_slices_mutate_in_loop(x: field, y: field) -> [field] {
     let mut slice = [0; 2];
     if x != y {
         for i in 0..5 {
-            slice = slice.push_back(i as Field);
+            slice = slice.push_back(i as field);
         }
     } else {
         slice = slice.push_back(x);

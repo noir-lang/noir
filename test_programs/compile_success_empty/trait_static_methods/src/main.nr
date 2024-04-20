@@ -1,17 +1,17 @@
 trait ATrait {
     fn asd() -> Self;
 
-    fn static_method() -> Field {
+    fn static_method() -> field {
         Self::static_method_2()
     }
 
-    fn static_method_2() -> Field {
+    fn static_method_2() -> field {
         100
     }
 }
 
 struct Foo {
-    x: Field
+    x: field
 }
 impl ATrait for Foo {
     fn asd() -> Self {
@@ -21,7 +21,7 @@ impl ATrait for Foo {
 }
 
 struct Bar {
-    x: Field
+    x: field
 }
 impl ATrait for Bar {
     // The trait method is declared as returning `Self`
@@ -30,7 +30,7 @@ impl ATrait for Bar {
         Bar{x: 100}
     }
 
-    fn static_method_2() -> Field {
+    fn static_method_2() -> field {
         200
     }
 }
@@ -40,7 +40,7 @@ fn main() {
     assert(Bar::static_method() == 200);
 
     // Regression for #3773
-    let zero: Field = MyDefault::my_default();
+    let zero: field = MyDefault::my_default();
     assert(zero == 0);
 }
 
@@ -49,16 +49,16 @@ trait MyDefault {
 }
 
 // This impl is first, so if the type directed search picks the first impl
-// instead of the correct Field impl below, we'll get a panic in SSA from
+// instead of the correct field impl below, we'll get a panic in SSA from
 // a type mismatch.
-impl MyDefault for (Field, Field) {
-    fn my_default() -> (Field, Field) {
+impl MyDefault for (field, field) {
+    fn my_default() -> (field, field) {
         (0, 0)
     }
 }
 
-impl MyDefault for Field {
-    fn my_default() -> Field {
+impl MyDefault for field {
+    fn my_default() -> field {
         0
     }
 }

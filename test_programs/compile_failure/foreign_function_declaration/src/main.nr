@@ -3,8 +3,8 @@
 // This would otherwise be a perfectly valid definition of the `pedersen_hash` black box function,
 // however executing the circuit results in an unhelpful ICE.
 #[foreign(pedersen_hash)]
-fn my_pedersen_hash<N>(_input: [Field; N]) -> Field {}
+fn my_pedersen_hash<N>(_input: [field; N]) -> field {}
 
-fn main() -> pub Field {
+fn main() -> pub field {
     my_pedersen_hash([1])
 }

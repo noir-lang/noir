@@ -1,6 +1,6 @@
 struct myStruct {
-    foo: Field,
-    foo_arr: [Field; 2],
+    foo: field,
+    foo_arr: [field; 2],
 }
 // Tests a very simple program.
 // 

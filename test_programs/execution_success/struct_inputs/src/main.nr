@@ -2,7 +2,7 @@ mod foo;
 
 struct myStruct {
     foo: u32,
-    bar: Field,
+    bar: field,
     message: str<5>,
 }
 

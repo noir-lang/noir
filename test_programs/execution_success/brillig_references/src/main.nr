@@ -16,7 +16,7 @@ unconstrained fn main(mut x: field) {
     // Test nested struct allocations with a mutable reference to an array.
     let mut c = C { foo: 0, bar: &mut C2 { array: &mut [1, 2] } };
     *c.bar.array = [3, 4];
-    let arr: [Field; 2] = *c.bar.array;
+    let arr: [field; 2] = *c.bar.array;
     assert(arr[0] == 3);
     assert(arr[1] == 4);
 }
@@ -25,17 +25,17 @@ unconstrained fn add1(x: &mut field) {
     *x += 1;
 }
 
-struct S { y: Field }
+struct S { y: field }
 
-struct Nested { y: &mut &mut Field }
+struct Nested { y: &mut &mut field }
 
 struct C {
-    foo: Field,
+    foo: field,
     bar: &mut C2,
 }
 
 struct C2 {
-    array: &mut [Field; 2]
+    array: &mut [field; 2]
 }
 
 impl S {

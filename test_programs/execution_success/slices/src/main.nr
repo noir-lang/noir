@@ -176,7 +176,7 @@ fn merge_slices_mutate_in_loop(x: field, y: field) -> [field] {
     let mut slice = [0; 2];
     if x != y {
         for i in 0..5 {
-            slice = slice.push_back(i as Field);
+            slice = slice.push_back(i as field);
         }
     } else {
         slice = slice.push_back(x);
@@ -332,6 +332,6 @@ fn regression_slice_call_result(x: field, y: field) {
 }
 
 fn regression_4506() {
-    let slice: [Field] = &[1, 2, 3];
+    let slice: [field] = &[1, 2, 3];
     assert(slice == slice);
 }

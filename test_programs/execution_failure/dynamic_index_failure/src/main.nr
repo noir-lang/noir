@@ -1,4 +1,4 @@
-fn main(mut x: [u32; 5], z: Field) {
+fn main(mut x: [u32; 5], z: field) {
     let idx = z + 10;
 
     x[z] = 4;

@@ -1,8 +1,8 @@
 mod foo;
 mod baz;
 
-global M: Field = 32;
-global L: Field = 10; // Unused globals currently allowed
+global M: field = 32;
+global L: field = 10; // Unused globals currently allowed
 global N: u64 = 5;
 global T_LEN = 2; // Type inference is allowed on globals
 
@@ -10,12 +10,12 @@ global T_LEN = 2; // Type inference is allowed on globals
 global DERIVED = M + L;
 
 struct Dummy {
-     x: [Field; N],
-     y: [Field; foo::MAGIC_NUMBER]
+     x: [field; N],
+     y: [field; foo::MAGIC_NUMBER]
 }
 
 struct Test {
-    v: Field,
+    v: field,
 }
 global VALS: [Test; 1] = [Test { v: 100 }];
 global NESTED = [VALS, VALS];
@@ -25,7 +25,7 @@ unconstrained fn calculate_global_value() -> field {
 }
 
 // Regression test for https://github.com/noir-lang/noir/issues/4318
-global CALCULATED_GLOBAL: Field = calculate_global_value();
+global CALCULATED_GLOBAL: field = calculate_global_value();
 
 fn main(
     a: [field; M + N - N],
@@ -49,7 +49,7 @@ fn main(
     let mut y = 5;
     let mut x = M;
     for i in 0..N * N {
-        let M: Field = 10;
+        let M: field = 10;
         x = M;
 
         y = i;
@@ -62,7 +62,7 @@ fn main(
 
     arrays_neq(a, b);
 
-    let t: [Field; T_LEN] = [N as field, M];
+    let t: [field; T_LEN] = [N as field, M];
     assert(t[1] == 32);
 
     assert(15 == my_submodule::my_helper());
@@ -75,7 +75,7 @@ fn main(
     let sugared = [0; my_submodule::N + 2];
     assert(sugared[my_submodule::N + 1] == 0);
 
-    let arr: [Field; my_submodule::N] = [N as field; 10];
+    let arr: [field; my_submodule::N] = [N as field; 10];
     assert((arr[0] == 5) & (arr[9] == 5));
 
     foo::from_foo(d);
@@ -94,28 +94,28 @@ fn arrays_neq(a: [field; M], b: [field; M]) {
 }
 
 mod my_submodule {
-    global N: Field = 10;
-    global L: Field = 50;
+    global N: field = 10;
+    global L: field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
         assert(x | y == 1);
     }
 
     pub fn my_helper() -> field {
-        let N: Field = 15; // Like in Rust, local variables override globals
+        let N: field = 15; // Like in Rust, local variables override globals
         let x = N;
         x
     }
 }
 
 struct Foo {
-  a: Field,
+  a: field,
 }
 
 struct Bar {}
 
 impl Bar {
-    fn get_a() -> Field {
+    fn get_a() -> field {
         1
     }
 }

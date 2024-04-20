@@ -13,14 +13,14 @@ global TX_EFFECT_HASH_LOG_FIELDS = 4;
 global TX_EFFECT_HASH_FULL_FIELDS = 165;
 
 struct PublicDataUpdateRequest {
-    leaf_slot : Field,
-    old_value : Field,
-    new_value : Field
+    leaf_slot : field,
+    old_value : field,
+    new_value : field
 }
 
 struct NewContractData {
-    contract_address: Field,
-    portal_contract_address: Field,
+    contract_address: field,
+    portal_contract_address: field,
 }
 
 impl NewContractData {
@@ -30,12 +30,12 @@ impl NewContractData {
 }
 
 struct DataToHash {
-    new_note_hashes: [Field; MAX_NEW_NOTE_HASHES_PER_TX],
-    new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
+    new_note_hashes: [field; MAX_NEW_NOTE_HASHES_PER_TX],
+    new_nullifiers: [field; MAX_NEW_NULLIFIERS_PER_TX],
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
-    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
-    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    new_l2_to_l1_msgs: [field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
+    encrypted_logs_hash: [field; NUM_FIELDS_PER_SHA256],
+    unencrypted_logs_hash: [field; NUM_FIELDS_PER_SHA256],
     new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
 }
 

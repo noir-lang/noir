@@ -1,8 +1,8 @@
-fn out_of_bounds(arr_1: [Field; 50]) -> Field {
+fn out_of_bounds(arr_1: [field; 50]) -> field {
     arr_1[50 + 1]
 }
 
-unconstrained fn out_of_bounds_unconstrained_wrapper(arr_1: [Field; 50], arr_2: [Field; 50]) -> Field {
+unconstrained fn out_of_bounds_unconstrained_wrapper(arr_1: [field; 50], arr_2: [field; 50]) -> field {
     out_of_bounds(arr_1)
 }
 

@@ -8,7 +8,7 @@ fn main() {
     let mut c1 = 0;
     for i in 0..2 {
         let mut as_bits = (arr[i] as field).to_le_bits(2);
-        c1 = c1 + as_bits[0] as Field;
+        c1 = c1 + as_bits[0] as field;
 
         if i == 0 {
             assert(arr[i] == 1); // 1

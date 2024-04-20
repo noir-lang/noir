@@ -37,12 +37,12 @@ impl<T_D> C<T_D> {
 }
 // ---
 struct MethodInterface<T_D> {
-        some_method_on_t_d: fn(T_D)->Field,
+        some_method_on_t_d: fn(T_D)->field,
     }
 // ---
 // Note
 struct D {
-        d: Field,
+        d: field,
     }
 
 fn d_method(input: D) -> field {

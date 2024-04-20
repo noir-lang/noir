@@ -7,7 +7,7 @@ fn main(x: field, result: [u8; 32]) {
 }
 
 unconstrained fn sha256(x: field) -> [u8; 32] {
-    // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
+    // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x field
     // The padding is taken care of by the program
     std::hash::sha256([x as u8])
 }

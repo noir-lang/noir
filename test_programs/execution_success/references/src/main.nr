@@ -40,17 +40,17 @@ fn add1(x: &mut field) {
     *x += 1;
 }
 
-struct S { y: Field }
+struct S { y: field }
 
-struct Nested { y: &mut &mut Field }
+struct Nested { y: &mut &mut field }
 
 struct C {
-    foo: Field,
+    foo: field,
     bar: &mut C2,
 }
 
 struct C2 {
-    array: &mut [Field; 2]
+    array: &mut [field; 2]
 }
 
 impl S {
@@ -75,7 +75,7 @@ fn regression_1887() {
 }
 
 struct Foo { bar: Bar }
-struct Bar { x: Field }
+struct Bar { x: field }
 
 impl Bar {
     fn mutate(&mut self) {

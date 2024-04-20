@@ -1,11 +1,11 @@
 struct Foo {
-    bar: Field,
-    array: [Field; 2],
+    bar: field,
+    array: [field; 2],
 }
 
 struct Pair {
     first: Foo,
-    second: Field,
+    second: field,
 }
 
 impl Foo {
@@ -25,8 +25,8 @@ impl Pair {
 }
 
 struct Nested {
-    a: Field,
-    b: Field
+    a: field,
+    b: field
 }
 struct MyStruct {
     my_bool: bool,
@@ -39,7 +39,7 @@ fn test_struct_in_tuple(a_bool: bool, x: field, y: field) -> (MyStruct, bool) {
 }
 
 struct Animal {
-    legs: Field,
+    legs: field,
     eyes: u8,
 }
 

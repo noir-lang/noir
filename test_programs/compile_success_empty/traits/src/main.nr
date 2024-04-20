@@ -1,16 +1,16 @@
 use dep::std;
 
 trait MyDefault {
-    fn my_default(x: Field, y: Field) -> Self;
+    fn my_default(x: field, y: field) -> Self;
 }
 
 struct Foo {
-    bar: Field,
-    array: [Field; 2],
+    bar: field,
+    array: [field; 2],
 }
 
 impl MyDefault for Foo {
-    fn my_default(x: Field,y: Field) -> Self {
+    fn my_default(x: field,y: field) -> Self {
         Self { bar: x, array: [x,y] }
     }
 }

@@ -1,15 +1,15 @@
 struct Point {
-    x: Field,
-    y: Field,
+    x: field,
+    y: field,
 }
 
 impl Point {
-    fn serialize(self) -> [Field; 2] {
+    fn serialize(self) -> [field; 2] {
         [self.x, self.y]
     }
 }
 
-fn sum(values: [Field]) -> Field {
+fn sum(values: [field]) -> field {
     let mut sum = 0;
     for value in values {
         sum = sum + value;

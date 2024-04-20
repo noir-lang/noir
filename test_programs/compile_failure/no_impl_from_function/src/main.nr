@@ -1,5 +1,5 @@
 fn main() {
-    let array: [Field; 3] = [1, 2, 3];
+    let array: [field; 3] = [1, 2, 3];
     assert(foo(array));
 
     // Ensure this still works if we have to infer the type of the integer literals

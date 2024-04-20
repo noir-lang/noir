@@ -1,10 +1,10 @@
 use dep::std::assert_constant;
 
-fn main(x: Field) {
+fn main(x: field) {
     foo(5, x);
 }
 
-fn foo(constant: Field, non_constant: Field) {
+fn foo(constant: field, non_constant: field) {
     assert_constant(constant);
     assert_constant(non_constant);
 }

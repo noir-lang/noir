@@ -1,13 +1,13 @@
 trait Serialize<N> {
-    fn serialize(self) -> [Field; N];
+    fn serialize(self) -> [field; N];
 }
 
 struct ValueNote {
-    value: Field,
+    value: field,
 }
 
 impl Serialize<1> for ValueNote {
-    fn serialize(self) -> [Field; 1] {
+    fn serialize(self) -> [field; 1] {
         [self.value]
     }
 }

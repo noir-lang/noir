@@ -1,8 +1,8 @@
 // Duplicate functions should not compile
-fn hello(x: Field) -> Field {
+fn hello(x: field) -> field {
     x
 }
 
-fn hello(x: Field) -> Field {
+fn hello(x: field) -> field {
     x
 }

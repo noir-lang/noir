@@ -9,15 +9,15 @@ fn ret_fn() -> fn(field) -> field {
 // which would support higher-order functions in a better way
 // support returning closures:
 //
-// fn ret_closure() -> fn(Field) -> Field {
+// fn ret_closure() -> fn(field) -> field {
 //     let y = 1;
-//     let inner_closure = |z| -> Field{
+//     let inner_closure = |z| -> field{
 //         z + y
 //     };
 //     inner_closure
 // }
 fn ret_lambda() -> fn(field) -> field {
-    let cl = |z: Field| -> Field {
+    let cl = |z: field| -> field {
         z + 1
     };
     cl

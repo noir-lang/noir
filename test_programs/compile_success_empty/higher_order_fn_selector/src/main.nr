@@ -16,13 +16,13 @@ fn selector(flag: &mut bool) -> fn(&mut field) -> () {
 fn main() {
     let mut flag: bool = true;
 
-    let mut x: Field = 100;
+    let mut x: field = 100;
     let returned_func = selector(&mut flag);
     returned_func(&mut x);
 
     assert(x == 200);
 
-    let mut y: Field = 100;
+    let mut y: field = 100;
     let returned_func2 = selector(&mut flag);
     returned_func2(&mut y);
 

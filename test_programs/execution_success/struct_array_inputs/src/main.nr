@@ -1,6 +1,6 @@
 struct Foo {
-    bar: Field,
-    baz: Field,
+    bar: field,
+    baz: field,
 }
 
 fn main(foos: [Foo; 3]) -> pub field {

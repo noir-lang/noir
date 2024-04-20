@@ -1,5 +1,5 @@
-impl Field {
-    fn something(self) -> Field {
+impl field {
+    fn something(self) -> field {
         self
     }
 }

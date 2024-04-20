@@ -1,7 +1,7 @@
 use dep::std;
 
 fn main(x: field, a: field) {
-    let y: Field = 2040124;
+    let y: field = 2040124;
     let be_byte_array = y.to_be_bytes(31);
     let le_byte_array = x.to_le_bytes(31);
 

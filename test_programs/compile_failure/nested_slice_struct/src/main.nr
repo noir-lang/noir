@@ -1,18 +1,18 @@
 struct FooParent {
-    parent_arr: [Field; 3],
+    parent_arr: [field; 3],
     foos: [Foo],
 }
 
 struct Bar {
-    inner: [Field; 3],
+    inner: [field; 3],
 }
 
 struct Foo {
-    a: Field,
-    b: [Field],
+    a: field,
+    b: [field],
     bar: Bar,
 }
 
-fn main(x: Field, y: pub Field) {
+fn main(x: field, y: pub field) {
     assert(x != y);
 }

@@ -1,27 +1,27 @@
 trait SomeTrait {
-    fn magic_number(self) -> Field;
+    fn magic_number(self) -> field;
 }
 
 struct A {}
 struct B {}
 struct C {
-    x: Field
+    x: field
 }
 
 impl SomeTrait for A {
-    fn magic_number(self) -> Field {
+    fn magic_number(self) -> field {
         2
     }
 }
 
 impl SomeTrait for B {
-    fn magic_number(self) -> Field {
+    fn magic_number(self) -> field {
         4
     }
 }
 
 impl SomeTrait for C {
-    fn magic_number(self) -> Field {
+    fn magic_number(self) -> field {
         self.x
     }
 }

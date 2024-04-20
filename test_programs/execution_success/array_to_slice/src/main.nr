@@ -8,15 +8,15 @@ fn as_slice_push<T, N>(xs: [T; N]) -> [T] {
 }
 
 // Expected that x == 0 and y == 1
-fn main(x: Field, y: pub Field) {
-    let xs: [Field; 0] = [];
-    let ys: [Field; 1] = [1];
-    let zs: [Field; 2] = [1, 2];
-    let ws: [Field; 3] = [1; 3];
-    let qs: [Field; 4] = [3, 2, 1, 0];
+fn main(x: field, y: pub field) {
+    let xs: [field; 0] = [];
+    let ys: [field; 1] = [1];
+    let zs: [field; 2] = [1, 2];
+    let ws: [field; 3] = [1; 3];
+    let qs: [field; 4] = [3, 2, 1, 0];
 
-    let mut dynamic: [Field; 4] = [3, 2, 1, 0];
-    let dynamic_expected: [Field; 4] = [1000, 2, 1, 0];
+    let mut dynamic: [field; 4] = [3, 2, 1, 0];
+    let dynamic_expected: [field; 4] = [1000, 2, 1, 0];
     dynamic[x] = 1000;
 
     assert(x != y);
@@ -36,7 +36,7 @@ fn main(x: Field, y: pub Field) {
     regression_4609_append_dynamic_slices(x, y);
 }
 
-fn regression_4609_append_slices(x: Field, y: Field) {
+fn regression_4609_append_slices(x: field, y: field) {
     let sl = [x, 1, 2, 3].as_slice();
     let sl2 = [y, 5, 6].as_slice();
     let sl3 = sl.append(sl2);
@@ -44,7 +44,7 @@ fn regression_4609_append_slices(x: Field, y: Field) {
     assert(sl3[4] == y);
 }
 
-fn regression_4609_append_dynamic_slices(x: Field, y: Field) {
+fn regression_4609_append_dynamic_slices(x: field, y: field) {
     let mut sl = [x, 1, 2, 3].as_slice();
     sl[x] = x + 10;
     let mut sl2 = [y, 5, 6].as_slice();

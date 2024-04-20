@@ -11,7 +11,7 @@ use dep::std::ec::montcurve::affine::Point as MGaffine;
 use dep::std::ec::montcurve::curvegroup::Point as MG;
 
 fn main() {
-    // This test only makes sense if Field is the right prime field.
+    // This test only makes sense if field is the right prime field.
     if 21888242871839275222246405745257275088548364400416034343698204186575808495617 == 0 {
         // Define Baby Jubjub (ERC-2494) parameters in affine representation
         let bjj_affine = AffineCurve::new(

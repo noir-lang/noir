@@ -32,7 +32,7 @@ fn main(message: pub str<11>, y: field, hex_as_string: str<4>, hex_as_field: fie
     std::print(hash);
 
     assert(hex_as_string == "0x41");
-    // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and Field
+    // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and field
     assert(hex_as_field == 0x41);
 
     // Single digit & odd length hex literals are valid
@@ -79,7 +79,7 @@ fn test_failed_constraint() {
 }
 
 struct Test {
-    a: Field,
-    b: Field,
-    c: [Field; 2],
+    a: field,
+    b: field,
+    c: [field; 2],
 }

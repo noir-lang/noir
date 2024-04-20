@@ -3,12 +3,12 @@ fn main(x: field, y: pub field) {
     println(string);
 
     // TODO: fmtstr cannot be printed
-    // let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
+    // let fmt_str: fmtstr<14, (field, field)> = f"i: {x}, j: {y}";
     // let fmt_fmt_str = f"fmtstr: {fmt_str}, i: {x}";
     // println(fmt_fmt_str);
 
     // A `fmtstr` lets you easily perform string interpolation.
-    let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
+    let fmt_str: fmtstr<14, (field, field)> = f"i: {x}, j: {y}";
 
     let fmt_str = string_identity(fmt_str);
     println(fmt_str);
@@ -73,7 +73,7 @@ fn main(x: field, y: pub field) {
     println(closured_lambda);
 }
 
-fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Field)> {
+fn string_identity(string: fmtstr<14, (field, field)>) -> fmtstr<14, (field, field)> {
     string
 }
 
@@ -81,18 +81,18 @@ fn string_with_generics<N, T>(string: fmtstr<N, T>) -> fmtstr<N, T> {
     string
 }
 
-fn string_with_partial_generics<N, T>(string: fmtstr<N, (Field, T)>) -> fmtstr<N, (Field, T)> {
+fn string_with_partial_generics<N, T>(string: fmtstr<N, (field, T)>) -> fmtstr<N, (field, T)> {
     string
 }
 
 struct myStruct {
-    y: Field,
-    x: Field,
+    y: field,
+    x: field,
 }
 
 struct fooStruct {
     my_struct: myStruct,
-    foo: Field,
+    foo: field,
 }
 
 fn regression_2903() {

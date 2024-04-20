@@ -1,5 +1,5 @@
 #[oracle(getNoun)]
-unconstrained fn external_fn() -> Field {
+unconstrained fn external_fn() -> field {
     100 / 5
 }
 

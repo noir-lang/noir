@@ -3,9 +3,9 @@
 global ARRAY_SIZE = 5;
 
 struct ExecutionResult {
-    original: [Field; ARRAY_SIZE],
-    modified_once: [Field; ARRAY_SIZE],
-    modified_twice: [Field; ARRAY_SIZE],
+    original: [field; ARRAY_SIZE],
+    modified_once: [field; ARRAY_SIZE],
+    modified_twice: [field; ARRAY_SIZE],
 }
 
 impl ExecutionResult {

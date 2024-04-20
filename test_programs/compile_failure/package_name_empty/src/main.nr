@@ -1,1 +1,1 @@
-fn main(x: Field) { }
+fn main(x: field) { }

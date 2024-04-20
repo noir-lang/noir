@@ -1,5 +1,5 @@
 struct Bar {
-    inner: [Field; 3],
+    inner: [field; 3],
 }
 
 fn main(y: pub u32) {

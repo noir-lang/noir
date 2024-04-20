@@ -1,3 +1,3 @@
-fn main(x: Field) -> pub Field {
+fn main(x: field) -> pub field {
     x % 2
 }

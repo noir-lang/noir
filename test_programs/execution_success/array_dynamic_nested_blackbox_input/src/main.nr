@@ -3,8 +3,8 @@ struct Bar {
 }
 
 struct Foo {
-    a: Field,
-    b: [Field; 3],
+    a: field,
+    b: [field; 3],
     bar: Bar,
 }
 

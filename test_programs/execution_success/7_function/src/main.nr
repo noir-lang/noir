@@ -32,7 +32,7 @@ fn pow(base: field, exponent: field) -> field {
     let b = exponent.to_le_bits(32 as u32);
     for i in 1..33 {
         r = r*r;
-        r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
+        r = (b[32-i] as field) * (r * base) + (1 - b[32-i] as field) * r;
     }
     r
 }
@@ -127,9 +127,9 @@ fn main(x: u32, y: u32, a: field, arr1: [u32; 9], arr2: [u32; 9]) {
 }
 // Issue #628
 fn arr_to_field(arr: [u32; 9]) -> [field; 9] {
-    let mut as_field: [Field; 9] = [0 as field; 9];
+    let mut as_field: [field; 9] = [0 as field; 9];
     for i in 0..9 {
-        as_field[i] = arr[i] as Field;
+        as_field[i] = arr[i] as field;
     }
     as_field
 }

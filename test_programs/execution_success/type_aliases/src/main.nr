@@ -1,6 +1,6 @@
 type Foo<T> = [T; 2];
 
-type Bar = Field;
+type Bar = field;
 
 type One<A, B> = (A, B);
 type Two<A> = One<A, u32>;
@@ -11,7 +11,7 @@ struct MyStruct {
 }
 
 fn main(x: [field; 2]) {
-    let a: Foo<Field> = [1, 2];
+    let a: Foo<field> = [1, 2];
     assert(a[0] != x[0]);
 
     let b: Bar = 2;
