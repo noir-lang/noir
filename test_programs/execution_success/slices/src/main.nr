@@ -161,7 +161,7 @@ fn merge_slices_return(x: field, y: field) -> [field] {
 
 // Test mutating a slice inside of an if statement
 fn merge_slices_mutate(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -173,7 +173,7 @@ fn merge_slices_mutate(x: field, y: field) -> [field] {
 
 // Test mutating a slice inside of a loop in an if statement
 fn merge_slices_mutate_in_loop(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         for i in 0..5 {
             slice = slice.push_back(i as field);
@@ -185,7 +185,7 @@ fn merge_slices_mutate_in_loop(x: field, y: field) -> [field] {
 }
 
 fn merge_slices_mutate_two_ifs(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -204,7 +204,7 @@ fn merge_slices_mutate_two_ifs(x: field, y: field) -> [field] {
 }
 
 fn merge_slices_mutate_between_ifs(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -230,7 +230,7 @@ fn merge_slices_mutate_between_ifs(x: field, y: field) -> [field] {
 }
 
 fn merge_slices_push_then_pop(x: field, y: field) {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -254,7 +254,7 @@ fn merge_slices_push_then_pop(x: field, y: field) {
 }
 
 fn merge_slices_push_then_insert(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -277,7 +277,7 @@ fn merge_slices_push_then_insert(x: field, y: field) -> [field] {
 }
 
 fn merge_slices_remove_between_ifs(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);

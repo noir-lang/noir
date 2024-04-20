@@ -108,7 +108,7 @@ unconstrained fn merge_slices_else(x: field) {
 }
 // Test returning a merged slice without a mutation
 unconstrained fn merge_slices_return(x: field, y: field) -> [field] {
-    let slice = [0; 2];
+    let slice = &[0; 2];
     if x != y {
         if x != 20 { slice.push_back(y) } else { slice }
     } else {
@@ -117,7 +117,7 @@ unconstrained fn merge_slices_return(x: field, y: field) -> [field] {
 }
 // Test mutating a slice inside of an if statement
 unconstrained fn merge_slices_mutate(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -128,7 +128,7 @@ unconstrained fn merge_slices_mutate(x: field, y: field) -> [field] {
 }
 // Test mutating a slice inside of a loop in an if statement
 unconstrained fn merge_slices_mutate_in_loop(x: field, y: field) -> [field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         for i in 0..5 {
             slice = slice.push_back(i as field);

@@ -16,7 +16,7 @@ unconstrained fn create_foo(id: field, value: field) -> NestedSliceStruct {
 }
 
 unconstrained fn main(a: field, b: field) {
-    let mut slice = [create_foo(a, b), create_foo(b, a)];
+    let mut slice = &[create_foo(a, b), create_foo(b, a)];
     assert(slice.len() == 2);
 
     assert(slice[0].id == a);
