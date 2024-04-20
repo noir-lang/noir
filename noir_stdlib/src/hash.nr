@@ -25,8 +25,8 @@ pub fn blake3<N>(input: [u8; N]) -> [u8; 32]
 
 // docs:start:pedersen_commitment
 struct PedersenPoint {
-   x : Field,
-   y : Field,
+   x : field,
+   y : field,
 }
 
 pub fn pedersen_commitment<N>(input: [field; N]) -> PedersenPoint {
@@ -35,7 +35,7 @@ pub fn pedersen_commitment<N>(input: [field; N]) -> PedersenPoint {
 }
 
 #[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
+pub fn __pedersen_commitment_with_separator<N>(input: [field; N], separator: u32) -> [field; 2] {}
 
 pub fn pedersen_commitment_with_separator<N>(input: [field; N], separator: u32) -> PedersenPoint {
     let values = __pedersen_commitment_with_separator(input, separator);
@@ -50,14 +50,14 @@ pub fn pedersen_hash<N>(input: [field; N]) -> field
 }
 
 #[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator<N>(input: [field; N], separator: u32) -> field {}
 
 pub fn hash_to_field(inputs: [field]) -> field {
     let mut sum = 0;
 
     for input in inputs {
         let input_bytes: [u8; 32] = input.to_le_bytes(32).as_array();
-        sum += crate::field::bytes32_to_field(blake2s(input_bytes));
+        sum += crate::field_element::bytes32_to_field(blake2s(input_bytes));
     }
 
     sum
@@ -84,11 +84,11 @@ trait Hash{
 }
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
-// TODO: consider making the types generic here ([u8], [Field], etc.)
+// TODO: consider making the types generic here ([u8], [field], etc.)
 trait Hasher{
-    fn finish(self) -> Field;
+    fn finish(self) -> field;
     
-    fn write(&mut self, input: Field);
+    fn write(&mut self, input: field);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
@@ -116,7 +116,7 @@ where
     }    
 }
 
-impl Hash for Field {
+impl Hash for field {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, self);
     }
@@ -124,43 +124,43 @@ impl Hash for Field {
 
 impl Hash for u8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
 impl Hash for u32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
 impl Hash for u64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
 impl Hash for i8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
 impl Hash for i32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
 impl Hash for i64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
 impl Hash for bool {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self as Field);
+        H::write(state, self as field);
     }
 }
 
@@ -170,8 +170,8 @@ impl Hash for () {
 
 impl Hash for U128 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, self.lo as Field);
-        H::write(state, self.hi as Field);
+        H::write(state, self.lo as field);
+        H::write(state, self.hi as field);
     }
 }
 

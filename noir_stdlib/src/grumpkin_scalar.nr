@@ -1,6 +1,6 @@
 struct GrumpkinScalar {
-    low: Field,
-    high: Field,
+    low: field,
+    high: field,
 }
 
 impl GrumpkinScalar {
@@ -10,7 +10,7 @@ impl GrumpkinScalar {
     }
 }
 
-global GRUMPKIN_SCALAR_SERIALIZED_LEN: Field = 2;
+global GRUMPKIN_SCALAR_SERIALIZED_LEN: field = 2;
 
 pub fn deserialize_grumpkin_scalar(fields: [field; GRUMPKIN_SCALAR_SERIALIZED_LEN]) -> GrumpkinScalar {
     GrumpkinScalar { low: fields[0], high: fields[1] }

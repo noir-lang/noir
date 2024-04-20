@@ -5,7 +5,7 @@ unconstrained fn create_mock_oracle<N>(name: str<N>) -> field {}
 unconstrained fn set_mock_params_oracle<P>(id: field, params: P) {}
 
 #[oracle(get_mock_last_params)]
-unconstrained fn get_mock_last_params_oracle<P>(id: Field) -> P {}
+unconstrained fn get_mock_last_params_oracle<P>(id: field) -> P {}
 
 #[oracle(set_mock_returns)]
 unconstrained fn set_mock_returns_oracle<R>(id: field, returns: R) {}
@@ -17,7 +17,7 @@ unconstrained fn set_mock_times_oracle(id: field, times: u64) {}
 unconstrained fn clear_mock_oracle(id: field) {}
 
 struct OracleMock {
-    id: Field,
+    id: field,
 }
 
 impl OracleMock {

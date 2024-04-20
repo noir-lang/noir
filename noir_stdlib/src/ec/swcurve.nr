@@ -12,15 +12,15 @@ mod affine {
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
-        a: Field,
-        b: Field,
+        a: field,
+        b: field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in Cartesian coordinates
     struct Point {
-        x: Field,
-        y: Field,
+        x: field,
+        y: field,
         infty: bool // Indicator for point at infinity
     }
 
@@ -160,8 +160,8 @@ mod affine {
         }
 
         // Simplified Shallue-van de Woestijne-Ulas map-to-curve method; see <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-16.html#name-simplified-shallue-van-de-w>.
-        // First determine non-square z != -1 in Field s.t. g(x) - z irreducible over Field and g(b/(z*a)) is square,
-        // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
+        // First determine non-square z != -1 in field s.t. g(x) - z irreducible over field and g(b/(z*a)) is square,
+        // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a field element to a point on curve c.
         fn swu_map(self, z: field, u: field) -> Point {
             // Check whether curve is admissible
             assert(self.a * self.b != 0);
@@ -197,16 +197,16 @@ mod curvegroup {
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
-        a: Field,
-        b: Field,
+        a: field,
+        b: field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in three-dimensional Jacobian coordinates
     struct Point {
-        x: Field,
-        y: Field,
-        z: Field // z = 0 corresponds to point at infinity.
+        x: field,
+        y: field,
+        z: field // z = 0 corresponds to point at infinity.
     }
 
     impl Point {

@@ -4,7 +4,7 @@ trait Default {
 }
 // docs:end:default-trait
 
-impl Default for Field { fn default() -> Field { 0 } }
+impl Default for field { fn default() -> field { 0 } }
 
 impl Default for u8 { fn default() -> u8 { 0 } }
 impl Default for u32 { fn default() -> u32 { 0 } }

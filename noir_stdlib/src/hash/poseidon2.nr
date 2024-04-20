@@ -4,8 +4,8 @@ use crate::default::Default;
 global RATE: u32 = 3;
 
 struct Poseidon2 {
-    cache: [Field;3],
-    state: [Field;4],
+    cache: [field;3],
+    state: [field;4],
     cache_size: u32,
     squeeze_mode: bool, // 0 => absorb, 1 => squeeze
 }
@@ -97,7 +97,7 @@ impl Poseidon2 {
 
     fn hash_internal<N>(input: [field; N], in_len: u64, is_variable_length: bool) -> field {
         let two_pow_64 = 18446744073709551616;
-        let iv : Field = (in_len as Field) * two_pow_64;
+        let iv : field = (in_len as field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);
         for i in 0..input.len() {
             if i < in_len {
@@ -116,12 +116,12 @@ impl Poseidon2 {
 }
 
 struct Poseidon2Hasher{
-    _state: [Field],
+    _state: [field],
 }
 
 impl Hasher for Poseidon2Hasher {
-    fn finish(self) -> Field {
-        let iv : Field = (self._state.len() as Field)*18446744073709551616;    // iv = (self._state.len() << 64)
+    fn finish(self) -> field {
+        let iv : field = (self._state.len() as field)*18446744073709551616;    // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
         for i in 0..self._state.len() {
             sponge.absorb(self._state[i]);
@@ -129,7 +129,7 @@ impl Hasher for Poseidon2Hasher {
         sponge.squeeze()
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: field){
         self._state = self._state.push_back(input);
     }
 }

@@ -116,7 +116,7 @@ global MIMC_BN254_CONSTANTS: [field; MIMC_BN254_ROUNDS] = [
 
 //mimc implementation with hardcoded parameters for BN254 curve.
 #[field(bn254)]
-pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
+pub fn mimc_bn254<N>(array: [field; N]) -> field {
     let exponent = 7;
     let mut r = 0;
     for elem in array {
@@ -127,12 +127,12 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
 }
 
 struct MimcHasher {
-    _state: [Field],
+    _state: [field],
 }
 
 impl Hasher for MimcHasher {
     #[field(bn254)]
-    fn finish(self) -> Field {
+    fn finish(self) -> field {
         let exponent = 7;
         let mut r = 0;
         for i in 0..self._state.len() {
@@ -142,7 +142,7 @@ impl Hasher for MimcHasher {
         r
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: field){
         self._state = self._state.push_back(input);
     }
 }

@@ -5,7 +5,7 @@ use crate::ec::tecurve::affine::Curve as TECurve;
 struct BabyJubjub {
     curve: TECurve,
     base8: TEPoint,
-    suborder: Field,
+    suborder: field,
 }
 
 #[field(bn254)]

@@ -16,15 +16,15 @@ mod affine {
 
     // Curve specification
     struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
-        j: Field,
-        k: Field,
+        j: field,
+        k: field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in Cartesian coordinates
     struct Point {
-        x: Field,
-        y: Field,
+        x: field,
+        y: field,
         infty: bool // Indicator for point at infinity
     }
 
@@ -177,7 +177,7 @@ mod affine {
         fn elligator2_map(self, u: field) -> Point {
             let j = self.j;
             let k = self.k;
-            let z = ZETA; // Non-square Field element required for map
+            let z = ZETA; // Non-square field element required for map
 
             // Check whether curve is admissible
             assert(j != 0);
@@ -223,16 +223,16 @@ mod curvegroup {
     use crate::cmp::Eq;
 
     struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
-        j: Field,
-        k: Field,
+        j: field,
+        k: field,
         // Generator as point in projective coordinates
         gen: Point
     }
     // Point in projective coordinates
     struct Point {
-        x: Field,
-        y: Field,
-        z: Field
+        x: field,
+        y: field,
+        z: field
     }
 
     impl Point {

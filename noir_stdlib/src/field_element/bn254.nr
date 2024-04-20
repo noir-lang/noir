@@ -1,20 +1,20 @@
 // The low and high decomposition of the field modulus
-global PLO: Field = 53438638232309528389504892708671455233;
-global PHI: Field = 64323764613183177041862057485226039389;
+global PLO: field = 53438638232309528389504892708671455233;
+global PHI: field = 64323764613183177041862057485226039389;
 
-global TWO_POW_128: Field = 0x100000000000000000000000000000000;
+global TWO_POW_128: field = 0x100000000000000000000000000000000;
 
 /// A hint for decomposing a single field into two 16 byte fields.
 unconstrained fn decompose_unsafe(x: field) -> (field, field) {
     let x_bytes = x.to_le_bytes(32);
 
-    let mut low: Field = 0;
-    let mut high: Field = 0;
+    let mut low: field = 0;
+    let mut high: field = 0;
 
     let mut offset = 1;
     for i in 0..16 {
-        low += (x_bytes[i] as Field) * offset;
-        high += (x_bytes[i + 16] as Field) * offset;
+        low += (x_bytes[i] as field) * offset;
+        high += (x_bytes[i + 16] as field) * offset;
         offset *= 256;
     }
 
@@ -105,7 +105,7 @@ pub fn lt(a: field, b: field) -> bool {
 
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{decompose_unsafe, decompose, lt_unsafe, assert_gt, gt, lt, TWO_POW_128, lte_unsafe, PLO, PHI};
+    use crate::field_element::bn254::{decompose_unsafe, decompose, lt_unsafe, assert_gt, gt, lt, TWO_POW_128, lte_unsafe, PLO, PHI};
 
     #[test]
     fn check_decompose_unsafe() {
@@ -166,14 +166,14 @@ mod tests {
     #[test]
     fn check_plo_phi() {
         assert_eq(PLO + PHI * TWO_POW_128, 0);
-        let p_bytes = crate::field::modulus_le_bytes();
-        let mut p_low: Field = 0;
-        let mut p_high: Field = 0;
+        let p_bytes = crate::field_element::modulus_le_bytes();
+        let mut p_low: field = 0;
+        let mut p_high: field = 0;
 
         let mut offset = 1;
         for i in 0..16 {
-            p_low += (p_bytes[i] as Field) * offset;
-            p_high += (p_bytes[i + 16] as Field) * offset;
+            p_low += (p_bytes[i] as field) * offset;
+            p_high += (p_bytes[i + 16] as field) * offset;
             offset *= 256;
         }
         assert_eq(p_low, PLO);

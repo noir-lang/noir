@@ -4,12 +4,12 @@ use crate::hash::Hasher;
 use crate::default::Default;
 
 struct PoseidonConfig<M,N> {
-    t: Field, // Width, i.e. state size
+    t: field, // Width, i.e. state size
     rf: u8, // Number of full rounds; should be even
     rp: u8, // Number of partial rounds
-    alpha: Field, // S-box power; depends on the underlying field
-    ark: [Field; M], // Additive round keys
-    mds: [Field; N] // MDS Matrix in row-major order
+    alpha: field, // S-box power; depends on the underlying field
+    ark: [field; M], // Additive round keys
+    mds: [field; N] // MDS Matrix in row-major order
 }
 
 pub fn config<M, N>(
@@ -28,7 +28,7 @@ pub fn config<M, N>(
 
     PoseidonConfig { t, rf, rp, alpha, ark, mds }
 }
-// General Poseidon permutation on elements of type Field
+// General Poseidon permutation on elements of type field
 fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [field; O]) -> [field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
@@ -104,12 +104,12 @@ fn apply_matrix<N, M>(a: [field; M], x: [field; N]) -> [field; N] {
 }
 
 struct PoseidonHasher{
-    _state: [Field],
+    _state: [field],
 }
 
 impl Hasher for PoseidonHasher {
     #[field(bn254)]
-    fn finish(self) -> Field {
+    fn finish(self) -> field {
         let mut result = 0;
         let len = self._state.len();
         assert(len < 16);
@@ -162,7 +162,7 @@ impl Hasher for PoseidonHasher {
         result
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: field){
         self._state = self._state.push_back(input);
     }
 }

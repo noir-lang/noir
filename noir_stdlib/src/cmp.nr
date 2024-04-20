@@ -4,7 +4,7 @@ trait Eq {
 }
 // docs:end:eq-trait
 
-impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
+impl Eq for field { fn eq(self, other: field) -> bool { self == other } }
 
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
 impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
@@ -79,7 +79,7 @@ impl Eq for Ordering {
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
 struct Ordering {
-    result: Field,
+    result: field,
 }
 
 impl Ordering {
@@ -105,7 +105,7 @@ trait Ord {
 }
 // docs:end:ord-trait
 
-// Note: Field deliberately does not implement Ord
+// Note: field deliberately does not implement Ord
 
 impl Ord for u64 {
     fn cmp(self, other: u64) -> Ordering {

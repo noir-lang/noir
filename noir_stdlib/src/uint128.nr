@@ -1,11 +1,11 @@
 use crate::ops::{Add, Sub, Mul, Div, Rem, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
 
-global pow64 : Field = 18446744073709551616; //2^64;
+global pow64 : field = 18446744073709551616; //2^64;
 
 struct U128 {
-    lo: Field,
-    hi: Field,
+    lo: field,
+    hi: field,
 }
 
 impl U128 {
@@ -24,13 +24,13 @@ impl U128 {
         let mut lo = 0;
         let mut base = 1;
         for i in 0..8 {
-            lo += (bytes[i] as Field)*base;
+            lo += (bytes[i] as field)*base;
             base *= 256;
         }
         let mut hi = 0;
         base = 1;
         for i in 8..16 {
-            hi += (bytes[i] as Field)*base;
+            hi += (bytes[i] as field)*base;
             base *= 256;
         }
         U128 { lo, hi }
@@ -142,10 +142,10 @@ impl U128 {
 impl Add for U128 {
     fn add(self: Self, b: U128) -> U128 {
         let low = self.lo + b.lo;
-        let lo = low as u64 as Field;
+        let lo = low as u64 as field;
         let carry = (low - lo) / pow64;  
         let high = self.hi + b.hi + carry;
-        let hi = high as u64 as Field;
+        let hi = high as u64 as field;
         assert(hi == high, "attempt to add with overflow");
         U128 {
             lo,
@@ -157,10 +157,10 @@ impl Add for U128 {
 impl Sub for U128 {
     fn sub(self: Self, b: U128) -> U128 {
         let low = pow64 + self.lo - b.lo;
-        let lo = low as u64 as Field;
-        let borrow = (low == lo) as Field;
+        let lo = low as u64 as field;
+        let borrow = (low == lo) as field;
         let high = self.hi - b.hi - borrow;
-        let hi = high as u64 as Field;
+        let hi = high as u64 as field;
         assert(hi == high, "attempt to subtract with underflow");
         U128 {
             lo,
@@ -173,14 +173,14 @@ impl Mul for U128 {
     fn mul(self: Self, b: U128) -> U128 {
         assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
         let low = self.lo*b.lo;
-        let lo = low as u64 as Field;
+        let lo = low as u64 as field;
         let carry = (low - lo) / pow64;
         let high = if crate::field_element::modulus_num_bits() as u32 > 196 {
             (self.lo+self.hi)*(b.lo+b.hi) - low + carry
         } else {
             self.lo*b.hi + self.hi*b.lo + carry
         };
-        let hi = high as u64 as Field;
+        let hi = high as u64 as field;
         assert(hi == high, "attempt to multiply with overflow");
         U128 {
             lo,
@@ -231,8 +231,8 @@ impl Ord for U128 {
 impl BitOr for U128 { 
     fn bitor(self, other: U128) -> U128 {
         U128 {
-            lo: ((self.lo as u64) | (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) | (other.hi as u64))as Field
+            lo: ((self.lo as u64) | (other.lo as u64)) as field,
+            hi: ((self.hi as u64) | (other.hi as u64))as field
         }
     }
 }
@@ -240,8 +240,8 @@ impl BitOr for U128 {
 impl BitAnd for U128 {
     fn bitand(self, other: U128) -> U128 { 
         U128 {
-            lo: ((self.lo as u64) & (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) & (other.hi as u64)) as Field
+            lo: ((self.lo as u64) & (other.lo as u64)) as field,
+            hi: ((self.hi as u64) & (other.hi as u64)) as field
         }
     }
 }
@@ -249,8 +249,8 @@ impl BitAnd for U128 {
 impl BitXor for U128 {
     fn bitxor(self, other: U128) -> U128 { 
         U128 {
-            lo: ((self.lo as u64) ^ (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) ^ (other.hi as u64)) as Field
+            lo: ((self.lo as u64) ^ (other.lo as u64)) as field,
+            hi: ((self.hi as u64) ^ (other.hi as u64)) as field
         }
     }
 }
@@ -260,10 +260,10 @@ impl Shl for U128 {
         assert(other < U128::from_u64s_le(128,0), "attempt to shift left with overflow");
         let exp_bits = other.lo.to_be_bits(7);
 
-        let mut r: Field = 2;
-        let mut y: Field = 1;
+        let mut r: field = 2;
+        let mut y: field = 1;
         for i in 1..8 {
-            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            y = (exp_bits[7-i] as field) * (r * y) + (1 - exp_bits[7-i] as field) * y;
             r *= r;
         }
         self.wrapping_mul(U128::from_integer(y))
@@ -275,10 +275,10 @@ impl Shr for U128 {
         assert(other < U128::from_u64s_le(128,0), "attempt to shift right with overflow");
         let exp_bits = other.lo.to_be_bits(7);
 
-        let mut r: Field = 2;
-        let mut y: Field = 1;
+        let mut r: field = 2;
+        let mut y: field = 1;
         for i in 1..8 {
-            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            y = (exp_bits[7-i] as field) * (r * y) + (1 - exp_bits[7-i] as field) * y;
             r *= r;
         }
         self / U128::from_integer(y)

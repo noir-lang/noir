@@ -113,16 +113,16 @@ mod bounded_vec_tests {
 
     #[test]
     fn empty_equality() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+        let mut bounded_vec1: BoundedVec<field, 3> = BoundedVec::new();
+        let mut bounded_vec2: BoundedVec<field, 3> = BoundedVec::new();
 
         assert_eq(bounded_vec1, bounded_vec2);
     }
 
     #[test]
     fn inequality() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+        let mut bounded_vec1: BoundedVec<field, 3> = BoundedVec::new();
+        let mut bounded_vec2: BoundedVec<field, 3> = BoundedVec::new();
         bounded_vec1.push(1);
         bounded_vec2.push(2);
 

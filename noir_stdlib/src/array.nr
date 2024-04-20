@@ -108,7 +108,7 @@ impl<T, N> [T; N] {
     }
 }
 
-// helper function used to look up the position of a value in an array of Field
+// helper function used to look up the position of a value in an array of field
 // Note that function returns 0 if the value is not found
 unconstrained fn find_index<N>(a: [u64; N], find: u64) -> u64 {
     let mut result = 0;

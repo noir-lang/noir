@@ -14,15 +14,15 @@ mod affine {
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
-        a: Field,
-        d: Field,
+        a: field,
+        d: field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in Cartesian coordinates
     struct Point {
-        x: Field,
-        y: Field
+        x: field,
+        y: field
     }
 
     impl Point {
@@ -206,17 +206,17 @@ mod curvegroup {
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
-        a: Field,
-        d: Field,
+        a: field,
+        d: field,
         // Generator as point in projective coordinates
         gen: Point
     }
     // Point in extended twisted Edwards coordinates
     struct Point {
-        x: Field,
-        y: Field,
-        t: Field,
-        z: Field
+        x: field,
+        y: field,
+        t: field,
+        z: field
     }
 
     impl Point {

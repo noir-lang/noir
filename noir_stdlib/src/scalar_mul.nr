@@ -1,8 +1,8 @@
 use crate::ops::Add;
 
 struct EmbeddedCurvePoint {
-    x: Field,
-    y: Field,
+    x: field,
+    y: field,
 }
 
 impl EmbeddedCurvePoint {
