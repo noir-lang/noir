@@ -1,7 +1,7 @@
 mod a {
     mod b {
         struct Data {
-            a: field
+            a: Field
         }
     }
 

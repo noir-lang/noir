@@ -63,7 +63,7 @@ contract Benchmarking {
         storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            FunctionSelector::from_signature("broadcast(Field)"),
+            FunctionSelector::from_signature("broadcast(field)"),
             [owner]
         );
     }
