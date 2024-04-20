@@ -7,8 +7,8 @@ impl Hasher {
         Self { fields: [] }
     }
 
-    pub fn add(&mut self, field: field) {
-        self.fields = self.fields.push_back(field);
+    pub fn add(&mut self, field_element: field) {
+        self.fields = self.fields.push_back(field_element);
     }
 }
 

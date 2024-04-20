@@ -1,5 +1,5 @@
 trait Fromfield {
-    fn from_field(field: field) -> Self;
+    fn from_field(value: field) -> Self;
 }
 
 impl Fromfield for field {
