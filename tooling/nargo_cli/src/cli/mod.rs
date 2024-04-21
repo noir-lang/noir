@@ -82,6 +82,7 @@ enum NargoCommand {
     Dap(dap_cmd::DapCommand),
 }
 
+#[cfg(not(feature = "codegen-docs"))]
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
@@ -124,5 +125,12 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 
+    Ok(())
+}
+
+#[cfg(feature = "codegen-docs")]
+pub(crate) fn start_cli() -> eyre::Result<()> {
+    let markdown: String = clap_markdown::help_markdown::<NargoCli>();
+    println!("{markdown}");
     Ok(())
 }

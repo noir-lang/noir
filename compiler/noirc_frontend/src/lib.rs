@@ -11,6 +11,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 pub mod ast;
+pub mod debug;
 pub mod graph;
 pub mod lexer;
 pub mod monomorphization;
@@ -48,20 +49,19 @@ pub mod macros_api {
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
     pub use crate::node_interner::{NodeInterner, StructId};
-    pub use crate::parser::SortedModule;
+    pub use crate::parser::{parse_program, SortedModule};
     pub use crate::token::SecondaryAttribute;
 
     pub use crate::hir::def_map::ModuleDefId;
     pub use crate::{
         hir::Context as HirContext, BlockExpression, CallExpression, CastExpression, Distinctness,
-        Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, LetStatement,
-        Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind,
-        Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+        Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, ItemVisibility,
+        LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path,
+        PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
     };
     pub use crate::{
-        ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
-        NoirStruct, Param, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl,
-        UnaryOp,
+        ForLoopStatement, ForRange, FunctionDefinition, ImportStatement, NoirStruct, Param,
+        PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
     };
 
     /// Methods to process the AST before and after type checking
@@ -71,10 +71,16 @@ pub mod macros_api {
             &self,
             ast: SortedModule,
             crate_id: &CrateId,
+            file_id: FileId,
             context: &HirContext,
         ) -> Result<SortedModule, (MacroError, FileId)>;
+
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.
-        fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext);
+        fn process_typed_ast(
+            &self,
+            crate_id: &CrateId,
+            context: &mut HirContext,
+        ) -> Result<(), (MacroError, FileId)>;
     }
 }

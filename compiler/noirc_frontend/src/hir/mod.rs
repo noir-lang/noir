@@ -1,35 +1,48 @@
+pub mod comptime;
 pub mod def_collector;
 pub mod def_map;
 pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
+use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::parser::ParserError;
+use crate::ParsedModule;
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use self::def_map::TestFunction;
+
+pub type ParsedFiles = HashMap<fm::FileId, (ParsedModule, Vec<ParserError>)>;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context<'file_manager> {
+pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
-    pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
+    pub def_maps: BTreeMap<CrateId, CrateDefMap>,
     // In the WASM context, we take ownership of the file manager,
     // which is why this needs to be a Cow. In all use-cases, the file manager
     // is read-only however, once it has been passed to the Context.
     pub file_manager: Cow<'file_manager, FileManager>,
 
+    pub debug_instrumenter: DebugInstrumenter,
+
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
+
+    // A map of all parsed files.
+    // Same as the file manager, we take ownership of the parsed files in the WASM context.
+    // Parsed files is also read only.
+    pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -39,25 +52,36 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl Context<'_> {
-    pub fn new(file_manager: FileManager) -> Context<'static> {
+impl Context<'_, '_> {
+    pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
+            parsed_files: Cow::Owned(parsed_files),
         }
     }
 
-    pub fn from_ref_file_manager(file_manager: &FileManager) -> Context<'_> {
+    pub fn from_ref_file_manager<'file_manager, 'parsed_files>(
+        file_manager: &'file_manager FileManager,
+        parsed_files: &'parsed_files ParsedFiles,
+    ) -> Context<'file_manager, 'parsed_files> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
+            parsed_files: Cow::Borrowed(parsed_files),
         }
+    }
+
+    pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
+        self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 
     /// Returns the CrateDefMap for a given CrateId.
@@ -66,6 +90,10 @@ impl Context<'_> {
     /// This is how the compiler knows to compile a Crate.
     pub fn def_map(&self, crate_id: &CrateId) -> Option<&CrateDefMap> {
         self.def_maps.get(crate_id)
+    }
+
+    pub fn def_map_mut(&mut self, crate_id: &CrateId) -> Option<&mut CrateDefMap> {
+        self.def_maps.get_mut(crate_id)
     }
 
     /// Return the CrateId for each crate that has been compiled
@@ -130,7 +158,8 @@ impl Context<'_> {
         }
     }
 
-    /// Recursively walks down the crate dependency graph from crate_id until we reach requested crate
+    /// Tries to find the requested crate in the current one's dependencies,
+    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
     /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
     /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
     /// re-exported by lib1 and used by the main crate.
@@ -140,16 +169,26 @@ impl Context<'_> {
         crate_id: &CrateId,
         target_crate_id: &CrateId,
     ) -> Option<Vec<String>> {
-        for dep in &self.crate_graph[crate_id].dependencies {
-            if &dep.crate_id == target_crate_id {
-                return Some(vec![dep.name.to_string()]);
-            }
-            if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
-                path.insert(0, dep.name.to_string());
-                return Some(path);
-            }
-        }
-        None
+        self.crate_graph[crate_id]
+            .dependencies
+            .iter()
+            .find_map(|dep| {
+                if &dep.crate_id == target_crate_id {
+                    Some(vec![dep.name.to_string()])
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                self.crate_graph[crate_id].dependencies.iter().find_map(|dep| {
+                    if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+                        path.insert(0, dep.name.to_string());
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+            })
     }
 
     pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
@@ -214,7 +253,7 @@ impl Context<'_> {
             .get_all_contracts(&self.def_interner)
     }
 
-    fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
+    pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
     }
 }

@@ -44,7 +44,7 @@ fn dead_instruction_elimination(function: &mut Function) {
         context.remove_unused_instructions_in_block(function, *block);
     }
 
-    context.remove_increment_rc_instructions(&mut function.dfg);
+    context.remove_rc_instructions(&mut function.dfg);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -53,10 +53,10 @@ struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// IncrementRc instructions must be revisited after the main DIE pass since
+    /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
-    increment_rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+    rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
 
 impl Context {
@@ -85,8 +85,9 @@ impl Context {
             } else {
                 let instruction = &function.dfg[*instruction_id];
 
-                if let Instruction::IncrementRc { .. } = instruction {
-                    self.increment_rc_instructions.push((*instruction_id, block_id));
+                use Instruction::*;
+                if matches!(instruction, IncrementRc { .. } | DecrementRc { .. }) {
+                    self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
                         self.mark_used_instruction_results(&function.dfg, value);
@@ -145,16 +146,19 @@ impl Context {
         }
     }
 
-    fn remove_increment_rc_instructions(self, dfg: &mut DataFlowGraph) {
-        for (increment_rc, block) in self.increment_rc_instructions {
-            let value = match &dfg[increment_rc] {
+    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
+        for (rc, block) in self.rc_instructions {
+            let value = match &dfg[rc] {
                 Instruction::IncrementRc { value } => *value,
-                other => unreachable!("Expected IncrementRc instruction, found {other:?}"),
+                Instruction::DecrementRc { value } => *value,
+                other => {
+                    unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}")
+                }
             };
 
-            // This could be more efficient if we have to remove multiple IncrementRcs in a single block
+            // This could be more efficient if we have to remove multiple instructions in a single block
             if !self.used_values.contains(&value) {
-                dfg[block].instructions_mut().retain(|instruction| *instruction != increment_rc);
+                dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
             }
         }
     }
@@ -165,7 +169,6 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            function::RuntimeType,
             instruction::{BinaryOp, Intrinsic},
             map::Id,
             types::Type,
@@ -195,7 +198,7 @@ mod test {
         let main_id = Id::test_new(0);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
         let b1 = builder.insert_block();
 

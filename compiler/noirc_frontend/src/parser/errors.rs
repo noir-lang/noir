@@ -1,6 +1,7 @@
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
+use crate::IntegerBitSize;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
@@ -40,6 +41,8 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("Integer bit size {0} isn't supported")]
+    InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
 }
@@ -107,25 +110,31 @@ impl ParserError {
 
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let reason_str: String = if self.reason.is_none() {
+            "".to_string()
+        } else {
+            format!("\nreason: {}", Diagnostic::from(self.clone()))
+        };
         let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
         expected.append(&mut vecmap(&self.expected_labels, |label| format!("{label}")));
 
         if expected.is_empty() {
-            write!(f, "Unexpected {} in input", self.found)
+            write!(f, "Unexpected {} in input{}", self.found, reason_str)
         } else if expected.len() == 1 {
             let first = expected.first().unwrap();
             let vowel = "aeiou".contains(first.chars().next().unwrap());
             write!(
                 f,
-                "Expected a{} {} but found {}",
+                "Expected a{} {} but found {}{}",
                 if vowel { "n" } else { "" },
                 first,
-                self.found
+                self.found,
+                reason_str
             )
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {}, expected one of {}", self.found, expected)
+            write!(f, "Unexpected {}, expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }
@@ -143,6 +152,11 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
+                        format!("Use of invalid bit size {}", bit_size),
+                        format!("Allowed bit sizes for integers are {}", IntegerBitSize::allowed_sizes().iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

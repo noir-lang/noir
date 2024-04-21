@@ -32,7 +32,8 @@ mod reflection {
     };
 
     use brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode, RegisterOrMemory,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapValueType, Opcode as BrilligOpcode,
+        ValueOrArray,
     };
     use serde_reflection::{Tracer, TracerConfig};
 
@@ -41,9 +42,9 @@ mod reflection {
             brillig::{BrilligInputs, BrilligOutputs},
             directives::Directive,
             opcodes::BlackBoxFuncCall,
-            Circuit, Opcode, OpcodeLocation,
+            Circuit, ExpressionWidth, Opcode, OpcodeLocation, Program,
         },
-        native_types::{Witness, WitnessMap},
+        native_types::{Witness, WitnessMap, WitnessStack},
     };
 
     #[test]
@@ -58,7 +59,9 @@ mod reflection {
         };
 
         let mut tracer = Tracer::new(TracerConfig::default());
+        tracer.trace_simple_type::<Program>().unwrap();
         tracer.trace_simple_type::<Circuit>().unwrap();
+        tracer.trace_simple_type::<ExpressionWidth>().unwrap();
         tracer.trace_simple_type::<Opcode>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
@@ -69,13 +72,14 @@ mod reflection {
         tracer.trace_simple_type::<BinaryIntOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
         tracer.trace_simple_type::<Directive>().unwrap();
-        tracer.trace_simple_type::<RegisterOrMemory>().unwrap();
+        tracer.trace_simple_type::<ValueOrArray>().unwrap();
+        tracer.trace_simple_type::<HeapValueType>().unwrap();
 
         let registry = tracer.registry().unwrap();
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new("Circuit".to_string())
+        let config = serde_generate::CodeGeneratorConfig::new("Program".to_string())
             .with_encodings(vec![serde_generate::Encoding::Bincode]);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
@@ -103,12 +107,13 @@ mod reflection {
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Witness>().unwrap();
         tracer.trace_simple_type::<WitnessMap>().unwrap();
+        tracer.trace_simple_type::<WitnessStack>().unwrap();
 
         let registry = tracer.registry().unwrap();
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new("WitnessMap".to_string())
+        let config = serde_generate::CodeGeneratorConfig::new("WitnessStack".to_string())
             .with_encodings(vec![serde_generate::Encoding::Bincode]);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();

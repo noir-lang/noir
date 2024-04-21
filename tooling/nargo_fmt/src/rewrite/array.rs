@@ -1,11 +1,17 @@
 use noirc_frontend::{hir::resolution::errors::Span, token::Token, Expression};
 
 use crate::{
-    utils::{Expr, FindToken},
+    items::Item,
+    utils::FindToken,
     visitor::{expr::NewlineMode, FmtVisitor},
 };
 
-pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_span: Span) -> String {
+pub(crate) fn rewrite(
+    mut visitor: FmtVisitor,
+    array: Vec<Expression>,
+    array_span: Span,
+    is_slice: bool,
+) -> String {
     let pattern: &[_] = &[' ', '\t'];
 
     visitor.indent.block_indent(visitor.config);
@@ -39,12 +45,12 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         let (leading, _) = visitor.format_comment_in_block(leading);
         let (trailing, _) = visitor.format_comment_in_block(trailing);
 
-        result.push(Expr { leading, value: item, trailing, different_line: false });
+        result.push(Item { leading, value: item, trailing, different_line: false });
     }
 
     let slice = visitor.slice(last_position..end_position);
     let (comment, _) = visitor.format_comment_in_block(slice);
-    result.push(Expr {
+    result.push(Item {
         leading: "".into(),
         value: "".into(),
         trailing: comment,
@@ -74,8 +80,9 @@ pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_spa
         }
     }
 
+    let open_bracket = if is_slice { "&[" } else { "[" };
     crate::visitor::expr::wrap_exprs(
-        "[",
+        open_bracket,
         "]",
         items_str.trim().into(),
         nested_indent,

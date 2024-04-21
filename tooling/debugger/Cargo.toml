@@ -11,11 +11,12 @@ build-data.workspace = true
 
 [dependencies]
 acvm.workspace = true
+fm.workspace = true
 nargo.workspace = true
+noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
 noirc_driver.workspace = true
-fm.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
 dap.workspace = true
@@ -26,5 +27,4 @@ serde_json.workspace = true
 [dev-dependencies]
 assert_cmd = "2.0.12"
 rexpect = "0.5.0"
-test-binary = "3.0.1"
 tempfile.workspace = true

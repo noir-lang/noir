@@ -10,7 +10,7 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         &self,
         public_key_x: &acvm::FieldElement,
         public_key_y: &acvm::FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, acvm::BlackBoxResolutionError> {
         self.0.schnorr_verify(public_key_x, public_key_y, signature, message)
@@ -39,58 +39,22 @@ impl BlackBoxFunctionSolver for WrapperSolver {
     ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
         self.0.pedersen_hash(inputs, domain_separator)
     }
-}
 
-// We also have a mocked implementation of the `BlackBoxFunctionSolver` trait for use in tests
-
-#[cfg(test)]
-pub(crate) struct MockBackend;
-
-#[cfg(test)]
-impl BlackBoxFunctionSolver for MockBackend {
-    fn schnorr_verify(
+    fn ec_add(
         &self,
-        _public_key_x: &acvm::FieldElement,
-        _public_key_y: &acvm::FieldElement,
-        _signature: &[u8],
-        _message: &[u8],
-    ) -> Result<bool, acvm::BlackBoxResolutionError> {
-        Err(acvm::BlackBoxResolutionError::Failed(
-            acvm::acir::BlackBoxFunc::SchnorrVerify,
-            "Unsupported opcode".to_owned(),
-        ))
-    }
-
-    fn pedersen_commitment(
-        &self,
-        _inputs: &[acvm::FieldElement],
-        _domain_separator: u32,
+        input1_x: &acvm::FieldElement,
+        input1_y: &acvm::FieldElement,
+        input2_x: &acvm::FieldElement,
+        input2_y: &acvm::FieldElement,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        Err(acvm::BlackBoxResolutionError::Failed(
-            acvm::acir::BlackBoxFunc::PedersenCommitment,
-            "Unsupported opcode".to_owned(),
-        ))
+        self.0.ec_add(input1_x, input1_y, input2_x, input2_y)
     }
 
-    fn fixed_base_scalar_mul(
+    fn poseidon2_permutation(
         &self,
-        _low: &acvm::FieldElement,
-        _high: &acvm::FieldElement,
-    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        Err(acvm::BlackBoxResolutionError::Failed(
-            acvm::acir::BlackBoxFunc::FixedBaseScalarMul,
-            "Unsupported opcode".to_owned(),
-        ))
-    }
-
-    fn pedersen_hash(
-        &self,
-        _inputs: &[acvm::FieldElement],
-        _domain_separator: u32,
-    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
-        Err(acvm::BlackBoxResolutionError::Failed(
-            acvm::acir::BlackBoxFunc::PedersenHash,
-            "Unsupported opcode".to_owned(),
-        ))
+        inputs: &[acvm::FieldElement],
+        len: u32,
+    ) -> Result<Vec<acvm::FieldElement>, acvm::BlackBoxResolutionError> {
+        self.0.poseidon2_permutation(inputs, len)
     }
 }

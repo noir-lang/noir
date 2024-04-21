@@ -42,6 +42,14 @@ pub enum RuntimeError {
     UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
     AssertConstantFailed { call_stack: CallStack },
+    #[error("Nested slices are not supported")]
+    NestedSlice { call_stack: CallStack },
+    #[error("Big Integer modulus do no match")]
+    BigIntModulus { call_stack: CallStack },
+    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
+    #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
+    UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
 }
 
 // We avoid showing the actual lhs and rhs since most of the time they are just 0
@@ -66,7 +74,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let message = warning.to_string();
                 let (secondary_message, call_stack) = match warning {
                     InternalWarning::ReturnConstant { call_stack } => {
-                        ("constant value".to_string(), call_stack)
+                        ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                     InternalWarning::VerifyProof { call_stack } => {
                         ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof".to_string(), call_stack)
@@ -85,7 +93,7 @@ impl From<SsaReport> for FileDiagnostic {
 
 #[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
 pub enum InternalWarning {
-    #[error("Returning a constant value is not allowed")]
+    #[error("Return variable contains a constant value")]
     ReturnConstant { call_stack: CallStack },
     #[error("Calling std::verify_proof(...) does not verify a proof")]
     VerifyProof { call_stack: CallStack },
@@ -129,7 +137,11 @@ impl RuntimeError {
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
-            | RuntimeError::UnsupportedIntegerSize { call_stack, .. } => call_stack,
+            | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
+            | RuntimeError::NestedSlice { call_stack, .. }
+            | RuntimeError::BigIntModulus { call_stack, .. }
+            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack } => call_stack,
         }
     }
 }
@@ -149,15 +161,26 @@ impl RuntimeError {
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
-                    This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                    This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
                     noirc_errors::Span::inclusive(0, 0)
+                )
+            }
+            RuntimeError::UnknownLoopBound { .. } => {
+                let primary_message = self.to_string();
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+
+                Diagnostic::simple_error(
+                    primary_message,
+                    "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
+                    location.span,
                 )
             }
             _ => {
                 let message = self.to_string();
                 let location =
-                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+                    self.call_stack().back().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

@@ -9,7 +9,10 @@ use iter_extended::vecmap;
 use super::{
     basic_block::BasicBlockId,
     function::Function,
-    instruction::{Instruction, InstructionId, TerminatorInstruction},
+    instruction::{
+        ConstrainError, Instruction, InstructionId, TerminatorInstruction,
+        UserDefinedConstrainError,
+    },
     value::ValueId,
 };
 
@@ -133,9 +136,17 @@ pub(crate) fn display_instruction(
         write!(f, "{} = ", value_list(function, results))?;
     }
 
+    display_instruction_inner(function, &function.dfg[instruction], f)
+}
+
+fn display_instruction_inner(
+    function: &Function,
+    instruction: &Instruction,
+    f: &mut Formatter,
+) -> Result {
     let show = |id| value(function, id);
 
-    match &function.dfg[instruction] {
+    match instruction {
         Instruction::Binary(binary) => {
             writeln!(f, "{} {}, {}", binary.operator, show(binary.lhs), show(binary.rhs))
         }
@@ -145,10 +156,15 @@ pub(crate) fn display_instruction(
             let value = show(*value);
             writeln!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
         }
-        Instruction::Constrain(lhs, rhs, message) => match message {
-            Some(message) => writeln!(f, "constrain {} == {} '{message}'", show(*lhs), show(*rhs)),
-            None => writeln!(f, "constrain {} == {}", show(*lhs), show(*rhs)),
-        },
+        Instruction::Constrain(lhs, rhs, error) => {
+            write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;
+            if let Some(error) = error {
+                write!(f, " ")?;
+                display_constrain_error(function, error, f)
+            } else {
+                writeln!(f)
+            }
+        }
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
@@ -163,20 +179,37 @@ pub(crate) fn display_instruction(
         Instruction::ArrayGet { array, index } => {
             writeln!(f, "array_get {}, index {}", show(*array), show(*index))
         }
-        Instruction::ArraySet { array, index, value } => {
-            writeln!(
-                f,
-                "array_set {}, index {}, value {}",
-                show(*array),
-                show(*index),
-                show(*value)
-            )
+        Instruction::ArraySet { array, index, value, mutable } => {
+            let array = show(*array);
+            let index = show(*index);
+            let value = show(*value);
+            let mutable = if *mutable { " mut" } else { "" };
+            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}",)
         }
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
         }
+        Instruction::DecrementRc { value } => {
+            writeln!(f, "dec_rc {}", show(*value))
+        }
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+        }
+    }
+}
+
+fn display_constrain_error(
+    function: &Function,
+    error: &ConstrainError,
+    f: &mut Formatter,
+) -> Result {
+    match error {
+        ConstrainError::Intrinsic(assert_message_string)
+        | ConstrainError::UserDefined(UserDefinedConstrainError::Static(assert_message_string)) => {
+            writeln!(f, "{assert_message_string:?}")
+        }
+        ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(assert_message_call)) => {
+            display_instruction_inner(function, assert_message_call, f)
         }
     }
 }

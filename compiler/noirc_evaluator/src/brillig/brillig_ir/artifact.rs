@@ -3,17 +3,21 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::dfg::CallStack;
 
-/// Represents a parameter or a return value of a function.
-#[derive(Debug, Clone)]
+/// Represents a parameter or a return value of an entry point function.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum BrilligParameter {
-    Simple,
+    /// A single address parameter or return value. Holds the bit size of the parameter.
+    SingleAddr(u32),
+    /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
-    Slice(Vec<BrilligParameter>),
+    /// A slice parameter or return value. Holds the type of a slice item.
+    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
+    Slice(Vec<BrilligParameter>, usize),
 }
 
 /// The result of compiling and linking brillig artifacts.
 /// This is ready to run bytecode with attached metadata.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct GeneratedBrillig {
     pub(crate) byte_code: Vec<BrilligOpcode>,
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
@@ -97,7 +101,7 @@ impl BrilligArtifact {
         // Replace STOP with RETURN because this is not the end of the program now.
         let stop_position = byte_code
             .iter()
-            .position(|opcode| matches!(opcode, BrilligOpcode::Stop))
+            .position(|opcode| matches!(opcode, BrilligOpcode::Stop { .. }))
             .expect("Trying to link with a function that does not have a stop opcode");
 
         byte_code[stop_position] = BrilligOpcode::Return;
@@ -105,7 +109,7 @@ impl BrilligArtifact {
         self.byte_code.append(&mut byte_code);
 
         // Remove all resolved external calls and transform them to jumps
-        let is_resolved = |label: &Label| self.labels.get(label).is_some();
+        let is_resolved = |label: &Label| self.labels.contains_key(label);
 
         let resolved_external_calls = self
             .unresolved_external_call_labels

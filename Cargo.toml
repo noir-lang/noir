@@ -1,7 +1,9 @@
 [workspace]
 
 members = [
+    # Aztec Macro crate for metaprogramming
     "aztec_macros",
+    # Compiler crates
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
@@ -24,6 +26,7 @@ members = [
     "tooling/nargo_toml",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
+    "tooling/acvm_cli",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -34,30 +37,29 @@ members = [
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
 ]
-default-members = ["tooling/nargo_cli"]
+default-members = ["tooling/nargo_cli", "tooling/acvm_cli"]
 resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.22.0"
+version = "0.27.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.71.1"
+rust-version = "1.73.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.38.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.38.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.38.0", path = "acvm-repo/acvm" }
-stdlib = { version = "0.37.1", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
-brillig = { version = "0.38.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.38.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.38.0", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "0.38.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "0.43.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.43.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.43.0", path = "acvm-repo/acvm" }
+brillig = { version = "0.43.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.43.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.43.0", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "0.43.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }
@@ -68,18 +70,17 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
-noir_wasm = { path = "compiler/wasm" }
 
 # Noir tooling workspace dependencies
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
-nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noir_lsp_wasm = { path = "tooling/lsp_wasm" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
+acvm_cli = { path = "tooling/acvm_cli" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }
@@ -97,8 +98,6 @@ getrandom = "0.2"
 
 # Debugger
 dap = "0.4.1-alpha1"
-
-cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive", "env"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"
@@ -107,6 +106,14 @@ chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312", default
     "ahash",
     "std",
 ] }
+
+# Benchmarking
+criterion = "0.5.0"
+# Note that using the "frame-pointer" feature breaks framegraphs on linux
+# https://github.com/tikv/pprof-rs/pull/172
+pprof = { version = "0.13", features = ["flamegraph","criterion"] }
+
+
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
@@ -125,7 +132,9 @@ num-traits = "0.2"
 similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
+flate2 = "1.0.24"
 
+im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

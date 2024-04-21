@@ -7,12 +7,6 @@ use acvm::{
 use js_sys::{JsString, Map};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
-#[wasm_bindgen(typescript_custom_section)]
-const WITNESS_MAP: &'static str = r#"
-// Map from witness index to hex string value of witness.
-export type WitnessMap = Map<number, string>;
-"#;
-
 // WitnessMap
 #[wasm_bindgen]
 extern "C" {

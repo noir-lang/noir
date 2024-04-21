@@ -337,6 +337,25 @@ impl DataFlowGraph {
         self.values[value].get_type().clone()
     }
 
+    /// Returns the maximum possible number of bits that `value` can potentially be.
+    ///
+    /// Should `value` be a numeric constant then this function will return the exact number of bits required,
+    /// otherwise it will return the minimum number of bits based on type information.
+    pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
+        match self[value] {
+            Value::Instruction { instruction, .. } => {
+                if let Instruction::Cast(original_value, _) = self[instruction] {
+                    self.type_of_value(original_value).bit_size()
+                } else {
+                    self.type_of_value(value).bit_size()
+                }
+            }
+
+            Value::NumericConstant { constant, .. } => constant.num_bits(),
+            _ => self.type_of_value(value).bit_size(),
+        }
+    }
+
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
@@ -356,6 +375,30 @@ impl DataFlowGraph {
 
         // Add value to the list of results for this instruction
         results.push(value_id);
+        value_id
+    }
+
+    /// Replaces an instruction result with a fresh id.
+    pub(crate) fn replace_result(
+        &mut self,
+        instruction_id: InstructionId,
+        prev_value_id: ValueId,
+    ) -> ValueId {
+        let typ = self.type_of_value(prev_value_id);
+        let results = self.results.get_mut(&instruction_id).unwrap();
+        let res_position = results
+            .iter()
+            .position(|&id| id == prev_value_id)
+            .expect("Result id not found while replacing");
+
+        let value_id = self.values.insert(Value::Instruction {
+            typ,
+            position: res_position,
+            instruction: instruction_id,
+        });
+
+        // Replace the value in list of results for this instruction
+        results[res_position] = value_id;
         value_id
     }
 

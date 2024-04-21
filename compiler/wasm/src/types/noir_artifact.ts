@@ -1,4 +1,42 @@
-import { Abi, AbiType } from '@noir-lang/noirc_abi';
+import { Abi, AbiType } from '@noir-lang/types';
+
+/**
+ * A basic value.
+ */
+export interface BasicValue<T extends string, V> {
+  /**
+   * The kind of the value.
+   */
+  kind: T;
+  value: V;
+}
+
+/**
+ * An exported value.
+ */
+export type AbiValue =
+  | BasicValue<'boolean', boolean>
+  | BasicValue<'string', string>
+  | BasicValue<'array', AbiValue[]>
+  | TupleValue
+  | IntegerValue
+  | StructValue;
+
+export type TypedStructFieldValue<T> = { name: string; value: T };
+
+export interface StructValue {
+  kind: 'struct';
+  fields: TypedStructFieldValue<AbiValue>[];
+}
+
+export interface TupleValue {
+  kind: 'tuple';
+  fields: AbiValue[];
+}
+
+export interface IntegerValue extends BasicValue<'integer', string> {
+  sign: boolean;
+}
 
 /**
  * A named type.
@@ -15,70 +53,58 @@ export interface ABIVariable {
 }
 
 /**
- * A contract event.
- */
-export interface EventAbi {
-  /**
-   * The event name.
-   */
-  name: string;
-  /**
-   * Fully qualified name of the event.
-   */
-  path: string;
-  /**
-   * The fields of the event.
-   */
-  fields: ABIVariable[];
-}
-
-/** The Noir function types. */
-export type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
-
-/**
  * The compilation result of an Noir function.
  */
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
-  /** The type of the function. */
-  function_type: NoirFunctionType;
-  /** Whether the function is internal. */
-  is_internal: boolean;
+  /** Whether the function is unconstrained. */
+  is_unconstrained: boolean;
+  /** The custom attributes applied to the function. */
+  custom_attributes: string[];
   /** The ABI of the function. */
   abi: Abi;
   /** The bytecode of the function in base64. */
   bytecode: string;
+  /** The debug information, compressed and base64 encoded. */
+  debug_symbols: string;
 }
 
 /**
  * The compilation result of an Noir contract.
  */
-export interface CompiledContract {
+export interface ContractArtifact {
   /** The name of the contract. */
   name: string;
-  /** Compilation backend. */
-  backend: string;
+  /** Version of noir used for the build. */
+  noir_version: string;
   /** The functions of the contract. */
   functions: NoirFunctionEntry[];
-  /** The events of the contract */
-  events: EventAbi[];
+
+  outputs: {
+    structs: Record<string, AbiType[]>;
+    globals: Record<string, AbiValue[]>;
+  };
+  /** The map of file ID to the source code and path of the file. */
+  file_map: DebugFileMap;
 }
 
 /**
  * The compilation result of an Noir contract.
  */
-export interface CompiledCircuit {
+export interface ProgramArtifact {
+  /** Version of noir used for the build. */
+  noir_version: string;
   /** The hash of the circuit. */
   hash?: number;
-  /** Compilation backend. */
-  backend: string;
-  /**
-   * The ABI of the function.
-   */
+  /** * The ABI of the function. */
   abi: Abi;
   /** The bytecode of the circuit in base64. */
   bytecode: string;
+  /** The debug information, compressed and base64 encoded. */
+  debug_symbols: string;
+  /** The map of file ID to the source code and path of the file. */
+  file_map: DebugFileMap;
 }
 
 /**
@@ -126,6 +152,16 @@ export interface DebugInfo {
 }
 
 /**
+ * The debug information for a given program.
+ */
+export interface ProgramDebugInfo {
+  /**
+   * An array that maps to each function of a program.
+   */
+  debug_infos: Array<DebugInfo>;
+}
+
+/**
  * Maps a file ID to its metadata for debugging purposes.
  */
 export type DebugFileMap = Record<
@@ -142,19 +178,8 @@ export type DebugFileMap = Record<
   }
 >;
 
-/**
- * The debug metadata of an Noir contract.
- */
-export interface DebugMetadata {
-  /**
-   * The debug information for each function.
-   */
-  debug_symbols: DebugInfo[];
-  /**
-   * The map of file ID to the source code and path of the file.
-   */
-  file_map: DebugFileMap;
-}
+/** Compilation warning */
+export type Warning = unknown;
 
 /**
  * The compilation artifacts of a given contract.
@@ -163,12 +188,10 @@ export interface ContractCompilationArtifacts {
   /**
    * The compiled contract.
    */
-  contract: CompiledContract;
+  contract: ContractArtifact;
 
-  /**
-   * The artifact that contains the debug metadata about the contract.
-   */
-  debug?: DebugMetadata;
+  /** Compilation warnings. */
+  warnings: Warning[];
 }
 
 /**
@@ -182,29 +205,8 @@ export interface ProgramCompilationArtifacts {
   /**
    * The compiled contract.
    */
-  program: CompiledCircuit;
+  program: ProgramArtifact;
 
-  /**
-   * The artifact that contains the debug metadata about the contract.
-   */
-  debug?: DebugMetadata;
-}
-
-/**
- * output of Noir Wasm compilation, can be for a contract or lib/binary
- */
-export type CompilationResult = ContractCompilationArtifacts | ProgramCompilationArtifacts;
-
-/**
- * Check if it has Contract unique property
- */
-export function isContractCompilationArtifacts(artifact: CompilationResult): artifact is ContractCompilationArtifacts {
-  return (artifact as ContractCompilationArtifacts).contract !== undefined;
-}
-
-/**
- * Check if it has Contract unique property
- */
-export function isProgramCompilationArtifacts(artifact: CompilationResult): artifact is ProgramCompilationArtifacts {
-  return (artifact as ProgramCompilationArtifacts).program !== undefined;
+  /** Compilation warnings. */
+  warnings: Warning[];
 }

@@ -1,0 +1,7 @@
+[package]
+name = "bounded_vec"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.23.0"
+
+[dependencies]

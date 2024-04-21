@@ -1,17 +1,17 @@
+// docs:start:eq-trait
 trait Eq {
     fn eq(self, other: Self) -> bool;
 }
+// docs:end:eq-trait
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
-impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
-impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
-impl Eq for u16 { fn eq(self, other: u16) -> bool { self == other } }
-impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
+impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
+impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
+impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
 
 impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
-impl Eq for i16 { fn eq(self, other: i16) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
 impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
 
@@ -21,6 +21,16 @@ impl Eq for bool { fn eq(self, other: bool) -> bool { self == other } }
 impl<T, N> Eq for [T; N] where T: Eq {
     fn eq(self, other: [T; N]) -> bool {
         let mut result = true;
+        for i in 0 .. self.len() {
+            result &= self[i].eq(other[i]);
+        }
+        result
+    }
+}
+
+impl<T> Eq for [T] where T: Eq {
+    fn eq(self, other: [T]) -> bool {
+        let mut result = self.len() == other.len();
         for i in 0 .. self.len() {
             result &= self[i].eq(other[i]);
         }
@@ -66,7 +76,6 @@ impl Eq for Ordering {
     }
 }
 
-
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
 struct Ordering {
@@ -90,27 +99,16 @@ impl Ordering {
     }
 }
 
-
+// docs:start:ord-trait
 trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
+// docs:end:ord-trait
 
 // Note: Field deliberately does not implement Ord
 
-impl Ord for u8 {
-    fn cmp(self, other: u8) -> Ordering {
-        if self < other {
-            Ordering::less()
-        } else if self > other {
-            Ordering::greater()
-        } else {
-            Ordering::equal()
-        }
-    }
-}
-
-impl Ord for u16 {
-    fn cmp(self, other: u16) -> Ordering {
+impl Ord for u64 {
+    fn cmp(self, other: u64) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -133,8 +131,8 @@ impl Ord for u32 {
     }
 }
 
-impl Ord for u64 {
-    fn cmp(self, other: u64) -> Ordering {
+impl Ord for u8 {
+    fn cmp(self, other: u8) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -147,18 +145,6 @@ impl Ord for u64 {
 
 impl Ord for i8 {
     fn cmp(self, other: i8) -> Ordering {
-        if self < other {
-            Ordering::less()
-        } else if self > other {
-            Ordering::greater()
-        } else {
-            Ordering::equal()
-        }
-    }
-}
-
-impl Ord for i16 {
-    fn cmp(self, other: i16) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -222,6 +208,26 @@ impl<T, N> Ord for [T; N] where T: Ord {
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {
         let mut result = Ordering::equal();
+        for i in 0 .. self.len() {
+            if result == Ordering::equal() {
+                let result_i = self[i].cmp(other[i]);
+
+                if result_i == Ordering::less() {
+                    result = result_i;
+                } else if result_i == Ordering::greater() {
+                    result = result_i;
+                }
+            }
+        }
+        result
+    }
+}
+
+impl<T> Ord for [T] where T: Ord {
+    // The first non-equal element of both arrays determines
+    // the ordering for the whole array.
+    fn cmp(self, other: [T]) -> Ordering {
+        let mut result = self.len().cmp(other.len());
         for i in 0 .. self.len() {
             if result == Ordering::equal() {
                 let result_i = self[i].cmp(other[i]);
@@ -306,5 +312,57 @@ impl<A, B, C, D, E> Ord for (A, B, C, D, E) where A: Ord, B: Ord, C: Ord, D: Ord
         }
 
         result
+    }
+}
+
+// Compares and returns the maximum of two values.
+//
+// Returns the second argument if the comparison determines them to be equal.
+//
+// # Examples
+//
+// ```
+// use std::cmp;
+//
+// assert_eq(cmp::max(1, 2), 2);
+// assert_eq(cmp::max(2, 2), 2);
+// ```
+pub fn max<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v1 } else { v2 }
+}
+
+// Compares and returns the minimum of two values.
+//
+// Returns the first argument if the comparison determines them to be equal.
+//
+// # Examples
+//
+// ```
+// use std::cmp;
+//
+// assert_eq(cmp::min(1, 2), 1);
+// assert_eq(cmp::min(2, 2), 2);
+// ```
+pub fn min<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v2 } else { v1 }
+}
+
+mod cmp_tests {
+    use crate::cmp::{min, max};
+
+    #[test]
+    fn sanity_check_min() {
+        assert_eq(min(0 as u64, 1 as u64), 0);
+        assert_eq(min(0 as u64, 0 as u64), 0);
+        assert_eq(min(1 as u64, 1 as u64), 1);
+        assert_eq(min(255 as u8, 0 as u8), 0);
+    }
+
+    #[test]
+    fn sanity_check_max() {
+        assert_eq(max(0 as u64, 1 as u64), 1);
+        assert_eq(max(0 as u64, 0 as u64), 0);
+        assert_eq(max(1 as u64, 1 as u64), 1);
+        assert_eq(max(255 as u8, 0 as u8), 255);
     }
 }

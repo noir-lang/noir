@@ -1,17 +1,11 @@
+use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
-use super::{
-    compile_cmd::compile_bin_package,
-    fs::{create_named_dir, write_to_file},
-};
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use acvm::ExpressionWidth;
 use clap::Args;
-use fm::FileManager;
-use nargo::insert_all_files_for_workspace_into_file_manager;
-use nargo::package::Package;
-use nargo::workspace::Workspace;
+use nargo::ops::{compile_program, report_errors};
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
@@ -48,17 +42,35 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = backend.get_backend_info()?;
-    for package in &workspace {
-        let smart_contract_string = smart_contract_for_package(
+    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+    for package in binary_packages {
+        let compilation_result = compile_program(
             &workspace_file_manager,
-            &workspace,
-            backend,
+            &parsed_files,
             package,
             &args.compile_options,
-            expression_width,
+            None,
+        );
+
+        let program = report_errors(
+            compilation_result,
+            &workspace_file_manager,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
         )?;
+
+        let program = nargo::ops::transform_program(program, expression_width);
+
+        // TODO(https://github.com/noir-lang/noir/issues/4428):
+        // We do not expect to have a smart contract verifier for a foldable program with multiple circuits.
+        // However, in the future we can expect to possibly have non-inlined ACIR functions during compilation
+        // that will be inlined at a later step such as by the ACVM compiler or by the backend.
+        // Add appropriate handling here once the compiler enables multiple ACIR functions.
+        assert_eq!(program.program.functions.len(), 1);
+        let smart_contract_string = backend.eth_contract(&program.program)?;
 
         let contract_dir = workspace.contracts_directory_path(package);
         create_named_dir(&contract_dir, "contract");
@@ -69,18 +81,4 @@ pub(crate) fn run(
     }
 
     Ok(())
-}
-
-fn smart_contract_for_package(
-    file_manager: &FileManager,
-    workspace: &Workspace,
-    backend: &Backend,
-    package: &Package,
-    compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
-) -> Result<String, CliError> {
-    let program =
-        compile_bin_package(file_manager, workspace, package, compile_options, expression_width)?;
-
-    Ok(backend.eth_contract(&program.circuit)?)
 }

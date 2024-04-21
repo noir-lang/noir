@@ -3,11 +3,11 @@ use crate::{
     cli::{ContractCommand, WriteVkCommand},
     Backend, BackendError,
 };
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 use tempfile::tempdir;
 
 impl Backend {
-    pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
+    pub fn eth_contract(&self, program: &Program) -> Result<String, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
 
@@ -15,9 +15,9 @@ impl Backend {
         let temp_directory_path = temp_directory.path().to_path_buf();
 
         // Create a temporary file for the circuit
-        let bytecode_path = temp_directory_path.join("circuit").with_extension("bytecode");
-        let serialized_circuit = Circuit::serialize_circuit(circuit);
-        write_to_file(&serialized_circuit, &bytecode_path);
+        let bytecode_path = temp_directory_path.join("program").with_extension("bytecode");
+        let serialized_program = Program::serialize_program(program);
+        write_to_file(&serialized_program, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");
@@ -38,7 +38,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use acvm::acir::{
-        circuit::{Circuit, Opcode, PublicInputs},
+        circuit::{Circuit, ExpressionWidth, Opcode, Program, PublicInputs},
         native_types::{Expression, Witness},
     };
 
@@ -51,14 +51,17 @@ mod tests {
 
         let circuit = Circuit {
             current_witness_index: 4,
+            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes: vec![constraint],
             private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
+            recursive: false,
         };
+        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
-        let contract = get_mock_backend()?.eth_contract(&circuit)?;
+        let contract = get_mock_backend()?.eth_contract(&program)?;
 
         assert!(contract.contains("contract VerifierContract"));
 

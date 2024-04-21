@@ -28,14 +28,64 @@ use crate::{
 };
 use iter_extended::vecmap;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+pub enum IntegerBitSize {
+    One,
+    Eight,
+    ThirtyTwo,
+    SixtyFour,
+}
+
+impl IntegerBitSize {
+    pub fn allowed_sizes() -> Vec<Self> {
+        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+    }
+}
+
+impl From<IntegerBitSize> for u32 {
+    fn from(size: IntegerBitSize) -> u32 {
+        use IntegerBitSize::*;
+        match size {
+            One => 1,
+            Eight => 8,
+            ThirtyTwo => 32,
+            SixtyFour => 64,
+        }
+    }
+}
+
+pub struct InvalidIntegerBitSizeError(pub u32);
+
+impl TryFrom<u32> for IntegerBitSize {
+    type Error = InvalidIntegerBitSizeError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use IntegerBitSize::*;
+        match value {
+            1 => Ok(One),
+            8 => Ok(Eight),
+            32 => Ok(ThirtyTwo),
+            64 => Ok(SixtyFour),
+            _ => Err(InvalidIntegerBitSizeError(value)),
+        }
+    }
+}
+
+impl core::fmt::Display for IntegerBitSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", u32::from(*self))
+    }
+}
+
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
     FieldElement,
-    Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(Signedness, u32),                                     // u32 = Integer(unsigned, 32)
+    Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
+    Slice(Box<UnresolvedType>),
+    Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
@@ -45,7 +95,7 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>),
+    Named(Path, Vec<UnresolvedType>, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
     TraitAsType(Path, Vec<UnresolvedType>),
@@ -61,6 +111,9 @@ pub enum UnresolvedTypeData {
         /*ret:*/ Box<UnresolvedType>,
         /*env:*/ Box<UnresolvedType>,
     ),
+
+    // The type of quoted code for metaprogramming
+    Code,
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -102,15 +155,13 @@ impl std::fmt::Display for UnresolvedTypeData {
         use UnresolvedTypeData::*;
         match self {
             FieldElement => write!(f, "Field"),
-            Array(len, typ) => match len {
-                None => write!(f, "[{typ}]"),
-                Some(len) => write!(f, "[{typ}; {len}]"),
-            },
+            Array(len, typ) => write!(f, "[{typ}; {len}]"),
+            Slice(typ) => write!(f, "[{typ}]"),
             Integer(sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Named(s, args) => {
+            Named(s, args, _) => {
                 let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
                 if args.is_empty() {
                     write!(f, "{s}")
@@ -152,6 +203,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
+            Code => write!(f, "Code"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
@@ -179,6 +231,14 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
+    pub fn is_synthesized(&self) -> bool {
+        match &self.typ {
+            UnresolvedTypeData::MutableReference(ty) => ty.is_synthesized(),
+            UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
+            _ => false,
+        }
+    }
+
     pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
         UnresolvedType { typ, span: None }
     }
@@ -189,11 +249,17 @@ impl UnresolvedType {
 }
 
 impl UnresolvedTypeData {
-    pub fn from_int_token(token: IntType) -> UnresolvedTypeData {
+    pub fn from_int_token(
+        token: IntType,
+    ) -> Result<UnresolvedTypeData, InvalidIntegerBitSizeError> {
         use {IntType::*, UnresolvedTypeData::Integer};
         match token {
-            Signed(num_bits) => Integer(Signedness::Signed, num_bits),
-            Unsigned(num_bits) => Integer(Signedness::Unsigned, num_bits),
+            Signed(num_bits) => {
+                Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+            }
+            Unsigned(num_bits) => {
+                Ok(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)?))
+            }
         }
     }
 
@@ -291,8 +357,8 @@ impl UnresolvedTypeExpression {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Represents whether the function can be called outside its module/crate
-pub enum FunctionVisibility {
+/// Represents whether the definition can be referenced outside its module/crate
+pub enum ItemVisibility {
     Public,
     Private,
     PublicCrate,

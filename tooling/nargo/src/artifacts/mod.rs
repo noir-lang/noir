@@ -5,4 +5,5 @@
 //! to generate them using these artifacts as a starting point.
 pub mod contract;
 pub mod debug;
+mod debug_vars;
 pub mod program;

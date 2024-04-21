@@ -25,7 +25,7 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathResolutionError(PathResolutionError),
+    PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
     Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
@@ -60,28 +60,32 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
-    #[error("Incorrect amount of arguments to generic type constructor")]
-    IncorrectGenericCount { span: Span, struct_type: String, actual: usize, expected: usize },
+    #[error("Incorrect amount of arguments to {item_name}")]
+    IncorrectGenericCount { span: Span, item_name: String, actual: usize, expected: usize },
     #[error("{0}")]
     ParserError(Box<ParserError>),
-    #[error("Function is not defined in a contract yet sets its contract visibility")]
-    ContractFunctionTypeInNormalFunction { span: Span },
     #[error("Cannot create a mutable reference to {variable}, it was declared to be immutable")]
     MutableReferenceToImmutableVariable { variable: String, span: Span },
     #[error("Mutable references to array indices are unsupported")]
     MutableReferenceToArrayElement { span: Span },
-    #[error("Function is not defined in a contract yet sets is_internal")]
-    ContractFunctionInternalInNormalFunction { span: Span },
     #[error("Numeric constants should be printed without formatting braces")]
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("{name} is private and not visible from the current module")]
-    PrivateFunctionCalled { name: String, span: Span },
-    #[error("{name} is not visible from the current crate")]
-    NonCrateFunctionCalled { name: String, span: Span },
-    #[error("Only sized types may be used in the entry point to a program")]
-    InvalidTypeForEntryPoint { span: Span },
+    #[error("Nested slices are not supported")]
+    NestedSlices { span: Span },
+    #[error("#[recursive] attribute is only allowed on entry points to a program")]
+    MisplacedRecursiveAttribute { ident: Ident },
+    #[error("#[abi(tag)] attribute is only allowed in contracts")]
+    AbiAttributeOusideContract { span: Span },
+    #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
+    LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
+    DependencyCycle { span: Span, item: String, cycle: String },
+    #[error("break/continue are only allowed in unconstrained functions")]
+    JumpInConstrainedFn { is_break: bool, span: Span },
+    #[error("break/continue are only allowed within loops")]
+    JumpOutsideLoop { is_break: bool, span: Span },
 }
 
 impl ResolverError {
@@ -136,33 +140,33 @@ impl From<ResolverError> for Diagnostic {
                 field.span(),
             ),
             ResolverError::NoSuchField { field, struct_definition } => {
-                let mut error = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!("no such field {field} defined in struct {struct_definition}"),
                     String::new(),
                     field.span(),
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here with no {field} field"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
-            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
+            ResolverError::MissingFields { span, mut missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
-                let missing_fields = missing_fields.join(", ");
+                let remaining_fields_names = match &missing_fields[..] {
+                    [field1] => field1.clone(),
+                    [field1, field2] => format!("{field1} and {field2}"),
+                    [field1, field2, field3] => format!("{field1}, {field2} and {field3}"),
+                    _ => {
+                        let len = missing_fields.len() - 3;
+                        let len_plural = if len != 1 {"s"} else {""};
 
-                let mut error = Diagnostic::simple_error(
-                    format!("missing field{plural}: {missing_fields}"),
+                        let truncated_fields = format!(" and {len} other field{len_plural}");
+                        missing_fields.truncate(3);
+                        format!("{}{truncated_fields}", missing_fields.join(", "))
+                    }
+                };
+
+                Diagnostic::simple_error(
+                    format!("missing field{plural} {remaining_fields_names} in struct {struct_definition}"),
                     String::new(),
                     span,
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
             ResolverError::UnnecessaryMut { first_mut, second_mut } => {
                 let mut error = Diagnostic::simple_error(
@@ -259,33 +263,23 @@ impl From<ResolverError> for Diagnostic {
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
                 span,
             ),
-            ResolverError::IncorrectGenericCount { span, struct_type, actual, expected } => {
+            ResolverError::IncorrectGenericCount { span, item_name, actual, expected } => {
                 let expected_plural = if expected == 1 { "" } else { "s" };
                 let actual_plural = if actual == 1 { "is" } else { "are" };
 
                 Diagnostic::simple_error(
-                    format!("The struct type {struct_type} has {expected} generic{expected_plural} but {actual} {actual_plural} given here"),
+                    format!("`{item_name}` has {expected} generic argument{expected_plural} but {actual} {actual_plural} given here"),
                     "Incorrect number of generic arguments".into(),
                     span,
                 )
             }
             ResolverError::ParserError(error) => (*error).into(),
-            ResolverError::ContractFunctionTypeInNormalFunction { span } => Diagnostic::simple_error(
-                "Only functions defined within contracts can set their contract function type".into(),
-                "Non-contract functions cannot be 'open'".into(),
-                span,
-            ),
             ResolverError::MutableReferenceToImmutableVariable { variable, span } => {
                 Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), span)
             },
             ResolverError::MutableReferenceToArrayElement { span } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), span)
             },
-            ResolverError::ContractFunctionInternalInNormalFunction { span } => Diagnostic::simple_error(
-                "Only functions defined within contracts can set their functions to be internal".into(),
-                "Non-contract functions cannot be 'internal'".into(),
-                span,
-            ),
             ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
                 "Numeric constants should be printed without formatting braces".to_string(),
@@ -294,16 +288,58 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), span),
-            // This will be upgraded to an error in future versions
-            ResolverError::PrivateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                format!("{name} is private and not visible from the current module"),
-                format!("{name} is private"), span),
-            ResolverError::NonCrateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                    format!("{name} is not visible from the current crate"),
-                    format!("{name} is only visible within its crate"), span),
-            ResolverError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
-                "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
+            ResolverError::NestedSlices { span } => Diagnostic::simple_error(
+                "Nested slices are not supported".into(),
+                "Try to use a constant sized array instead".into(),
+                span,
+            ),
+            ResolverError::MisplacedRecursiveAttribute { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[recursive] attribute on function {name} rather than the main function"),
+                    "misplaced #[recursive] attribute".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
+                diag
+            }
+            ResolverError::AbiAttributeOusideContract { span } => {
+                Diagnostic::simple_error(
+                    "#[abi(tag)] attributes can only be used in contracts".to_string(),
+                    "misplaced #[abi(tag)] attribute".to_string(),
+                    span,
+                )
+            },
+            ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
+                "Definition of low-level function outside of standard library".into(),
+                "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
+                ident.span(),
+            ),
+            ResolverError::DependencyCycle { span, item, cycle } => {
+                Diagnostic::simple_error(
+                    "Dependency cycle found".into(),
+                    format!("'{item}' recursively depends on itself: {cycle}"),
+                    span,
+                )
+            },
+            ResolverError::JumpInConstrainedFn { is_break, span } => {
+                let item = if is_break { "break" } else { "continue" };
+                Diagnostic::simple_error(
+                    format!("{item} is only allowed in unconstrained functions"),
+                    "Constrained code must always have a known number of loop iterations".into(),
+                    span,
+                )
+            },
+            ResolverError::JumpOutsideLoop { is_break, span } => {
+                let item = if is_break { "break" } else { "continue" };
+                Diagnostic::simple_error(
+                    format!("{item} is only allowed within loops"),
+                    "".into(),
+                    span,
+                )
+            },
         }
     }
 }

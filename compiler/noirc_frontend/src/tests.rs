@@ -52,10 +52,12 @@ mod test {
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
         let fm = FileManager::new(root);
-        let mut context = Context::new(fm);
+
+        let mut context = Context::new(fm, Default::default());
         context.def_interner.populate_dummy_operator_traits();
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
         let (program, parser_errors) = parse_program(src);
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
         remove_experimental_warnings(&mut errors);
@@ -79,7 +81,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                Vec::new(), // No macro processors
+                &[], // No macro processors
             ));
         }
         (program, context, errors)
@@ -87,6 +89,56 @@ mod test {
 
     pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
         get_program(src).2
+    }
+
+    #[test]
+    fn check_trait_implemented_for_all_t() {
+        let src = "
+        trait Default {
+            fn default() -> Self;
+        }
+        
+        trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+        
+        trait IsDefault {
+            fn is_default(self) -> bool;
+        }
+        
+        impl<T> IsDefault for T where T: Default + Eq {
+            fn is_default(self) -> bool {
+                self.eq(T::default())
+            }
+        }
+        
+        struct Foo {
+            a: u64,
+        }
+        
+        impl Eq for Foo {
+            fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        }
+        
+        impl Default for u64 {
+            fn default() -> Self {
+                0
+            }
+        }
+        
+        impl Default for Foo {
+            fn default() -> Self {
+                Foo { a: Default::default() }
+            }
+        }
+        
+        fn main(a: Foo) -> pub bool {
+            a.is_default()
+        }";
+
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
     }
 
     #[test]
@@ -483,15 +535,13 @@ mod test {
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::DefinitionError(
-                    DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                        actual_num_parameters,
-                        expected_num_parameters,
-                        trait_name,
-                        method_name,
-                        ..
-                    },
-                ) => {
+                CompilationError::TypeError(TypeCheckError::MismatchTraitImplNumParameters {
+                    actual_num_parameters,
+                    expected_num_parameters,
+                    trait_name,
+                    method_name,
+                    ..
+                }) => {
                     assert_eq!(actual_num_parameters, &1_usize);
                     assert_eq!(expected_num_parameters, &2_usize);
                     assert_eq!(method_name, "default");
@@ -728,6 +778,9 @@ mod test {
                 HirStatement::Semi(semi_expr) => semi_expr,
                 HirStatement::For(for_loop) => for_loop.block,
                 HirStatement::Error => panic!("Invalid HirStatement!"),
+                HirStatement::Break => panic!("Unexpected break"),
+                HirStatement::Continue => panic!("Unexpected continue"),
+                HirStatement::Comptime(_) => panic!("Unexpected comptime"),
             };
             let expr = interner.expression(&expr_id);
 
@@ -904,7 +957,7 @@ mod test {
     #[test]
     fn resolve_for_expr() {
         let src = r#"
-            fn main(x : Field) {
+            fn main(x : u64) {
                 for i in 1..20 {
                     let _z = x + i;
                 };
@@ -981,19 +1034,19 @@ mod test {
     fn resolve_complex_closures() {
         let src = r#"
             fn main(x: Field) -> pub Field {
-                let closure_without_captures = |x| x + x;
+                let closure_without_captures = |x: Field| -> Field { x + x };
                 let a = closure_without_captures(1);
 
-                let closure_capturing_a_param = |y| y + x;
+                let closure_capturing_a_param = |y: Field| -> Field { y + x };
                 let b = closure_capturing_a_param(2);
 
-                let closure_capturing_a_local_var = |y| y + b;
+                let closure_capturing_a_local_var = |y: Field| -> Field { y + b };
                 let c = closure_capturing_a_local_var(3);
 
-                let closure_with_transitive_captures = |y| {
+                let closure_with_transitive_captures = |y: Field| -> Field {
                     let d = 5;
-                    let nested_closure = |z| {
-                        let doubly_nested_closure = |w| w + x + b;
+                    let nested_closure = |z: Field| -> Field {
+                        let doubly_nested_closure = |w: Field| -> Field { w + x + b };
                         a + z + y + d + x + doubly_nested_closure(4) + x + y
                     };
                     let res = nested_closure(5);
@@ -1076,9 +1129,9 @@ mod test {
     }
 
     fn check_rewrite(src: &str, expected: &str) {
-        let (_program, context, _errors) = get_program(src);
+        let (_program, mut context, _errors) = get_program(src);
         let main_func_id = context.def_interner.find_function("main").unwrap();
-        let program = monomorphize(main_func_id, &context.def_interner);
+        let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
         assert!(format!("{}", program) == expected);
     }
 
@@ -1111,5 +1164,122 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
 }
 "#;
         check_rewrite(src, expected_rewrite);
+    }
+
+    #[test]
+    fn deny_cyclic_structs() {
+        let src = r#"
+            struct Foo { bar: Bar }
+            struct Bar { foo: Foo }
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn deny_cyclic_globals() {
+        let src = r#"
+            global A = B;
+            global B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn deny_cyclic_type_aliases() {
+        let src = r#"
+            type A = B;
+            type B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn ensure_nested_type_aliases_type_check() {
+        let src = r#"
+            type A = B;
+            type B = u8;
+            fn main() {
+                let _a: A = 0 as u16;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn type_aliases_in_entry_point() {
+        let src = r#"
+            type Foo = u8;
+            fn main(_x: Foo) {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    #[test]
+    fn operators_in_global_used_in_type() {
+        let src = r#"
+            global ONE = 1;
+            global COUNT = ONE + 2;
+            fn main() {
+                let _array: [Field; COUNT] = [1, 2, 3];
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    #[test]
+    fn break_and_continue_in_constrained_fn() {
+        let src = r#"
+            fn main() {
+                for i in 0 .. 10 {
+                    if i == 2 {
+                        continue;
+                    }
+                    if i == 5 {
+                        break;
+                    }
+                }
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
+    #[test]
+    fn break_and_continue_outside_loop() {
+        let src = r#"
+            unconstrained fn main() {
+                continue;
+                break;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
+    // Regression for #2540
+    #[test]
+    fn for_loop_over_array() {
+        let src = r#"
+            fn hello<N>(_array: [u1; N]) {
+                for _ in 0..N {}
+            }
+
+            fn main() {
+                let array: [u1; 2] = [0, 1];
+                hello(array);
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    // Regression for #4545
+    #[test]
+    fn type_aliases_in_main() {
+        let src = r#"
+            type Outer<N> = [u8; N];
+            fn main(_arg: Outer<1>) {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
     }
 }

@@ -7,10 +7,11 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+    macros_api::MacroProcessor,
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
+    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -20,7 +21,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{LocalModuleId, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -41,16 +42,28 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    macro_processors: &[&dyn MacroProcessor],
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        errors.extend(collector.parse_module_declaration(context, &decl, crate_id));
+        errors.extend(collector.parse_module_declaration(
+            context,
+            &decl,
+            crate_id,
+            macro_processors,
+        ));
     }
 
-    errors.extend(collector.collect_submodules(context, crate_id, ast.submodules, file_id));
+    errors.extend(collector.collect_submodules(
+        context,
+        crate_id,
+        ast.submodules,
+        file_id,
+        macro_processors,
+    ));
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
@@ -72,7 +85,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_functions(context, ast.functions, crate_id));
 
-    errors.extend(collector.collect_trait_impls(context, ast.trait_impls, crate_id));
+    collector.collect_trait_impls(context, ast.trait_impls, crate_id);
 
     collector.collect_impls(context, ast.impls, crate_id);
 
@@ -89,13 +102,16 @@ impl<'a> ModCollector<'a> {
         for global in globals {
             let name = global.pattern.name_ident().clone();
 
-            // First create dummy function in the DefInterner
-            // So that we can get a StmtId
-            let stmt_id = context.def_interner.push_empty_global();
+            let global_id = context.def_interner.push_empty_global(
+                name.clone(),
+                self.module_id,
+                self.file_id,
+                global.attributes.clone(),
+            );
 
             // Add the statement to the scope so its path can be looked up later
-            let result =
-                self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .declare_global(name, global_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
@@ -109,7 +125,7 @@ impl<'a> ModCollector<'a> {
             self.def_collector.collected_globals.push(UnresolvedGlobal {
                 file_id: self.file_id,
                 module_id: self.module_id,
-                stmt_id,
+                global_id,
                 stmt_def: global,
             });
         }
@@ -126,7 +142,7 @@ impl<'a> ModCollector<'a> {
                 trait_id: None,
             };
 
-            for method in r#impl.methods {
+            for (method, _) in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
                 let location = Location::new(method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &method.def, module_id, location);
@@ -144,7 +160,7 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
-    ) -> Vec<(CompilationError, fm::FileId)> {
+    ) {
         for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
@@ -168,11 +184,11 @@ impl<'a> ModCollector<'a> {
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
                 trait_id: None, // will be filled later
+                trait_generics: trait_impl.trait_generics,
             };
 
             self.def_collector.collected_traits_impls.push(unresolved_trait_impl);
         }
-        vec![]
     }
 
     fn collect_trait_impl_function_overrides(
@@ -220,6 +236,7 @@ impl<'a> ModCollector<'a> {
 
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
+            let visibility = function.def.visibility;
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
@@ -236,7 +253,7 @@ impl<'a> ModCollector<'a> {
 
             // Add function to scope/ns of the module
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(name, func_id);
+                .declare_function(name, visibility, func_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -395,12 +412,11 @@ impl<'a> ModCollector<'a> {
 
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
-                            visibility: crate::FunctionVisibility::Public,
+                            visibility: ItemVisibility::Public,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
-                            contract_function_type: None,
-                            is_internal: None,
+                            is_comptime: false,
                         };
 
                         let location = Location::new(name.span(), self.file_id);
@@ -409,7 +425,7 @@ impl<'a> ModCollector<'a> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
-                            .declare_function(name.clone(), func_id)
+                            .declare_function(name.clone(), ItemVisibility::Public, func_id)
                         {
                             Ok(()) => {
                                 if let Some(body) = body {
@@ -440,11 +456,16 @@ impl<'a> ModCollector<'a> {
                         }
                     }
                     TraitItem::Constant { name, .. } => {
-                        let stmt_id = context.def_interner.push_empty_global();
+                        let global_id = context.def_interner.push_empty_global(
+                            name.clone(),
+                            trait_id.0.local_id,
+                            self.file_id,
+                            vec![],
+                        );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [trait_id.0.local_id.0]
-                            .declare_global(name.clone(), stmt_id)
+                            .declare_global(name.clone(), global_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedConst,
@@ -491,6 +512,7 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         submodules: Vec<SortedSubModule>,
         file_id: FileId,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
@@ -503,6 +525,7 @@ impl<'a> ModCollector<'a> {
                         child,
                         crate_id,
                         context,
+                        macro_processors,
                     ));
                 }
                 Err(error) => {
@@ -519,15 +542,16 @@ impl<'a> ModCollector<'a> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_name: &Ident,
+        mod_decl: &ModuleDeclaration,
         crate_id: CrateId,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =
-            match find_module(&context.file_manager, self.file_id, &mod_name.0.contents) {
+            match find_module(&context.file_manager, self.file_id, &mod_decl.ident.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(expected_path) => {
-                    let mod_name = mod_name.clone();
+                    let mod_name = mod_decl.ident.clone();
                     let err =
                         DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
                     errors.push((err.into(), self.file_id));
@@ -535,17 +559,17 @@ impl<'a> ModCollector<'a> {
                 }
             };
 
-        let location = Location { file: self.file_id, span: mod_name.span() };
+        let location = Location { file: self.file_id, span: mod_decl.ident.span() };
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
-                mod_name: mod_name.clone(),
+                mod_name: mod_decl.ident.clone(),
                 span: location.span,
             };
             errors.push((error.into(), location.file));
 
             let error = DefCollectorErrorKind::ModuleOriginallyDefined {
-                mod_name: mod_name.clone(),
+                mod_name: mod_decl.ident.clone(),
                 span: old_location.span,
             };
             errors.push((error.into(), old_location.file));
@@ -555,15 +579,32 @@ impl<'a> ModCollector<'a> {
         context.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let (ast, parsing_errors) = parse_file(&context.file_manager, child_file_id);
-        let ast = ast.into_sorted();
+        let (ast, parsing_errors) = context.parsed_file_results(child_file_id);
+        let mut ast = ast.into_sorted();
+
+        for macro_processor in macro_processors {
+            match macro_processor.process_untyped_ast(
+                ast.clone(),
+                &crate_id,
+                child_file_id,
+                context,
+            ) {
+                Ok(processed_ast) => {
+                    ast = processed_ast;
+                }
+                Err((error, file_id)) => {
+                    let def_error = DefCollectorErrorKind::MacroError(error);
+                    errors.push((def_error.into(), file_id));
+                }
+            }
+        }
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), child_file_id)).collect::<Vec<_>>(),
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(mod_name, child_file_id, true, false) {
+        match self.push_child_module(&mod_decl.ident, child_file_id, true, false) {
             Ok(child_mod_id) => {
                 errors.extend(collect_defs(
                     self.def_collector,
@@ -572,6 +613,7 @@ impl<'a> ModCollector<'a> {
                     child_mod_id,
                     crate_id,
                     context,
+                    macro_processors,
                 ));
             }
             Err(error) => {
@@ -634,7 +676,10 @@ fn find_module(
     anchor: FileId,
     mod_name: &str,
 ) -> Result<FileId, String> {
-    let anchor_path = file_manager.path(anchor).with_extension("");
+    let anchor_path = file_manager
+        .path(anchor)
+        .expect("File must exist in file manager in order for us to be resolving its imports.")
+        .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of

@@ -1,12 +1,14 @@
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
+use std::rc::Rc;
+
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::FunctionKind;
-use crate::{Distinctness, FunctionReturnType, Type, Visibility};
+use crate::{Distinctness, FunctionReturnType, Type, TypeVariable, Visibility};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -22,8 +24,8 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    pub const fn as_expr(&self) -> &ExprId {
-        &self.0
+    pub const fn as_expr(&self) -> ExprId {
+        self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
@@ -43,12 +45,7 @@ pub struct Parameters(pub Vec<Param>);
 impl Parameters {
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
-        let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(ident) => ident.location.span,
-            HirPattern::Mutable(_, span) => *span,
-            HirPattern::Tuple(_, span) => *span,
-            HirPattern::Struct(_, _, span) => *span,
-        });
+        let mut spans = vecmap(&self.0, |param| param.0.span());
 
         let merged_span = spans.pop().unwrap();
         for span in spans {
@@ -108,6 +105,12 @@ pub struct FuncMeta {
     /// or a Type::Forall for generic functions.
     pub typ: Type,
 
+    /// The set of generics that are declared directly on this function in the source code.
+    /// This does not include generics from an outer scope, like those introduced by
+    /// an `impl<T>` block. This also does not include implicit generics added by the compiler
+    /// such as a trait's `Self` type variable.
+    pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
+
     pub location: Location,
 
     // This flag is needed for the attribute check pass
@@ -117,6 +120,14 @@ pub struct FuncMeta {
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// True if this function is an entry point to the program.
+    /// For non-contracts, this means the function is `main`.
+    pub is_entry_point: bool,
+
+    /// True if this function is marked with an attribute
+    /// that indicates it should not be inlined, such as for folding.
+    pub should_fold: bool,
 }
 
 impl FuncMeta {
@@ -127,7 +138,7 @@ impl FuncMeta {
     pub fn can_ignore_return_type(&self) -> bool {
         match self.kind {
             FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal => false,
+            FunctionKind::Normal | FunctionKind::Recursive => false,
         }
     }
 
