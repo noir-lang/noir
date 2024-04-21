@@ -7,11 +7,10 @@ use async_lsp::{concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::
 use noir_lsp::NargoLspService;
 use tower::ServiceBuilder;
 
-mod backend;
 
 fn main() {
     // let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::initialize().await;
-    let blackbox_solver = backend::MockBackend;
+    let blackbox_solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
     let (server, _) = async_lsp::MainLoop::new_server(|client| {
         let router = NargoLspService::new(&client, blackbox_solver);
 
