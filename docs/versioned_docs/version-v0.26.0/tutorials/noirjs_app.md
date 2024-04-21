@@ -92,40 +92,29 @@ Before we proceed with any coding, let's get our environment tailored for Noir. 
 In your freshly minted `vite-project` folder, create a new file named `vite.config.js` and open it in your code editor. Paste the following to set the stage:
 
 ```javascript
-import { defineConfig } from 'vite';
-import path from 'path';
-import copy from 'rollup-plugin-copy';
+import { defineConfig } from "vite";
+import copy from "rollup-plugin-copy";
 
 export default defineConfig({
   esbuild: {
-    target: 'esnext',
+    target: "esnext",
   },
   optimizeDeps: {
     esbuildOptions: {
-      target: 'esnext',
+      target: "esnext",
     },
   },
   plugins: [
     copy({
       targets: [
-        { src: 'node_modules/@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm', dest: 'public/web' },
-        { src: 'node_modules/@noir-lang/acvm_js/web/acvm_js_bg.wasm', dest: 'public/web' },
+        { src: "node_modules/**/*.wasm", dest: "node_modules/.vite/dist" },
       ],
-      hook: 'writeBundle',
+      copySync: true,
+      hook: "buildStart",
     }),
   ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
   server: {
     port: 3000,
-    strictPort: true,
-  },
-  build: {
-    sourcemap: true,
-    rollupOptions: {},
   },
 });
 ```
