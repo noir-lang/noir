@@ -425,7 +425,7 @@ impl<'interner> TypeChecker<'interner> {
 // XXX: These tests are all manual currently.
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
-pub mod test {
+pub(crate) mod test {
     use std::collections::{BTreeMap, HashMap};
     use std::vec;
 
@@ -552,7 +552,6 @@ pub mod test {
     }
 
     #[test]
-    #[should_panic]
     fn basic_let_stmt() {
         let src = r#"
             fn main(x : Field) {
@@ -561,7 +560,7 @@ pub mod test {
             }
         "#;
 
-        type_check_src_code(src, vec![String::from("main")]);
+        type_check_src_code(src, vec![String::from("main")], 1);
     }
 
     #[test]
@@ -573,7 +572,7 @@ pub mod test {
             }
         "#;
 
-        type_check_src_code(src, vec![String::from("main")]);
+        type_check_src_code(src, vec![String::from("main")], 0);
     }
     #[test]
     fn basic_call_expr() {
@@ -587,7 +586,7 @@ pub mod test {
             }
         "#;
 
-        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+        type_check_src_code(src, vec![String::from("main"), String::from("foo")], 0);
     }
     #[test]
     fn basic_for_expr() {
@@ -602,7 +601,7 @@ pub mod test {
 
         "#;
 
-        type_check_src_code(src, vec![String::from("main")]);
+        type_check_src_code(src, vec![String::from("main")], 0);
     }
     #[test]
     fn basic_closure() {
@@ -613,7 +612,7 @@ pub mod test {
             }
         "#;
 
-        type_check_src_code(src, vec![String::from("main")]);
+        type_check_src_code(src, vec![String::from("main")], 0);
     }
 
     #[test]
@@ -625,7 +624,7 @@ pub mod test {
         }
        "#;
 
-        type_check_src_code(src, vec![String::from("main")]);
+        type_check_src_code(src, vec![String::from("main")], 0);
     }
 
     #[test]
@@ -637,7 +636,7 @@ pub mod test {
         }
         "#;
 
-        type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
+        type_check_src_code(src, vec![String::from("fold")], 1);
     }
 
     #[test]
@@ -649,7 +648,7 @@ pub mod test {
             }
         "#;
 
-        type_check_src_code(src, vec![String::from("fold")]);
+        type_check_src_code(src, vec![String::from("fold")], 0);
     }
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
@@ -684,13 +683,9 @@ pub mod test {
         }
     }
 
-    pub fn type_check_src_code(src: &str, func_namespace: Vec<String>) -> (NodeInterner, FuncId) {
-        type_check_src_code_errors_expected(src, func_namespace, 0)
-    }
-
     // This function assumes that there is only one function and this is the
     // func id that is returned
-    fn type_check_src_code_errors_expected(
+    pub(crate) fn type_check_src_code(
         src: &str,
         func_namespace: Vec<String>,
         expected_num_type_check_errs: usize,

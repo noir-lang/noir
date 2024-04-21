@@ -6,7 +6,7 @@ use super::interpreter::{Interpreter, InterpreterError, Value};
 use crate::hir::type_check::test::type_check_src_code;
 
 fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
-    let (mut interner, main_id) = type_check_src_code(src, func_namespace);
+    let (mut interner, main_id) = type_check_src_code(src, func_namespace, 0);
     let mut interpreter = Interpreter::new(&mut interner);
 
     let no_location = Location::dummy();
