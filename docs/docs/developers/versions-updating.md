@@ -61,10 +61,16 @@ The second point requires a restart of the extension, which you can trigger with
 ## Updating
 ### TL;DR
 
-1. Updating the sandbox and CLI:
+1. Updating Aztec sandbox to the latest version (includes `aztec-nargo`, `aztec-cli`, etc):
 
 ```shell
 aztec-up
+```
+
+To set `VERSION` for a particular git tag, eg for [aztec-package-v**0.35.0**](https://github.com/AztecProtocol/aztec-packages/tree/aztec-packages-v0.35.0)
+
+```shell
+VERSION=0.35.0 aztec-up
 ```
 
 2. Updating aztec-nr and individual @aztec dependencies:
@@ -125,14 +131,18 @@ If the dependencies fail to resolve ensure that the tag matches a tag in the [az
 
 ## Updating `aztec-nargo`
 
-`aztec-nargo` is updated by running:
+As mentioned in the tl;dr, `aztec-nargo` is updated as part of updating the whole sandbox via:
 
 ```bash
 aztec-up
 ```
 
-If exceptionally needing to test different versions, a `VERSION` tag can be specified. Eg to use `master`:
+The version of aztec-nargo that comes with a particular version of the Aztec sandbox can be seen in the monorepo. Eg tag: aztec-packages-v0.35.0 contains aztec-nargo [v0.27.0](https://github.com/AztecProtocol/aztec-packages/blob/aztec-packages-v0.35.0/noir/noir-repo/Cargo.toml#L44).
+
+Set VERSION to specify the desired Aztec sandbox version, eg monorepo tag suffix [0.35.0](https://github.com/AztecProtocol/aztec-packages/tree/aztec-packages-v0.35.0) (to have `aztec-nargo` v0.27.0).
 
 ```bash
-VERSION=master aztec-up
+VERSION=<tag-suffix> aztec-up
 ```
+
+Note: Being under highly active development it is NOT recommended to specify, `master`, due to the increased effort to align tooling, dependencies, and example code syntax.
