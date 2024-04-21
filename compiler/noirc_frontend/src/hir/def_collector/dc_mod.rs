@@ -102,8 +102,12 @@ impl<'a> ModCollector<'a> {
         for global in globals {
             let name = global.pattern.name_ident().clone();
 
-            let global_id =
-                context.def_interner.push_empty_global(name.clone(), self.module_id, self.file_id);
+            let global_id = context.def_interner.push_empty_global(
+                name.clone(),
+                self.module_id,
+                self.file_id,
+                global.attributes.clone(),
+            );
 
             // Add the statement to the scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
@@ -412,6 +416,7 @@ impl<'a> ModCollector<'a> {
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
+                            is_comptime: false,
                         };
 
                         let location = Location::new(name.span(), self.file_id);
@@ -455,6 +460,7 @@ impl<'a> ModCollector<'a> {
                             name.clone(),
                             trait_id.0.local_id,
                             self.file_id,
+                            vec![],
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules

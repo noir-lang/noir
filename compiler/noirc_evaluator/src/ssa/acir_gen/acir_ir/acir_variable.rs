@@ -1261,7 +1261,8 @@ impl AcirContext {
                 let modulus = self.big_int_ctx.modulus(bigint.modulus_id());
                 let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
                 output_count = bytes_len as usize;
-                (field_inputs, vec![FieldElement::from(bytes_len as u128)])
+                assert!(bytes_len == 32);
+                (field_inputs, vec![])
             }
             BlackBoxFunc::BigIntFromLeBytes => {
                 let invalid_input = "ICE - bigint operation requires 2 inputs";
@@ -1463,6 +1464,7 @@ impl AcirContext {
         id
     }
 
+    // TODO: Delete this method once we remove the `Brillig` opcode
     pub(crate) fn brillig(
         &mut self,
         predicate: AcirVar,
@@ -1518,6 +1520,105 @@ impl AcirContext {
         });
         let predicate = self.var_to_expression(predicate)?;
         self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
+
+        fn range_constraint_value(
+            context: &mut AcirContext,
+            value: &AcirValue,
+        ) -> Result<(), RuntimeError> {
+            match value {
+                AcirValue::Var(var, typ) => {
+                    let numeric_type = match typ {
+                        AcirType::NumericType(numeric_type) => numeric_type,
+                        _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
+                    };
+                    context.range_constrain_var(*var, numeric_type, None)?;
+                }
+                AcirValue::Array(values) => {
+                    for value in values {
+                        range_constraint_value(context, value)?;
+                    }
+                }
+                AcirValue::DynamicArray(_) => {
+                    unreachable!("Brillig opcodes cannot return dynamic arrays")
+                }
+            }
+            Ok(())
+        }
+
+        // This is a hack to ensure that if we're compiling a brillig entrypoint function then
+        // we don't also add a number of range constraints.
+        if !unsafe_return_values {
+            for output_var in &outputs_var {
+                range_constraint_value(self, output_var)?;
+            }
+        }
+        Ok(outputs_var)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn brillig_call(
+        &mut self,
+        predicate: AcirVar,
+        generated_brillig: &GeneratedBrillig,
+        inputs: Vec<AcirValue>,
+        outputs: Vec<AcirType>,
+        attempt_execution: bool,
+        unsafe_return_values: bool,
+        brillig_function_index: u32,
+    ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let brillig_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
+            match i {
+                AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
+                AcirValue::Array(vars) => {
+                    let mut var_expressions: Vec<Expression> = Vec::new();
+                    for var in vars {
+                        self.brillig_array_input(&mut var_expressions, var)?;
+                    }
+                    Ok(BrilligInputs::Array(var_expressions))
+                }
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
+                    Ok(BrilligInputs::MemoryArray(block_id))
+                }
+            }
+        })?;
+
+        // Optimistically try executing the brillig now, if we can complete execution they just return the results.
+        // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
+        //
+        // We do _not_ want to do this in the situation where the `main` function is unconstrained, as if execution succeeds
+        // the entire program will be replaced with witness constraints to its outputs.
+        if attempt_execution {
+            if let Some(brillig_outputs) =
+                self.execute_brillig(&generated_brillig.byte_code, &brillig_inputs, &outputs)
+            {
+                return Ok(brillig_outputs);
+            }
+        }
+
+        // Otherwise we must generate ACIR for it and execute at runtime.
+        let mut brillig_outputs = Vec::new();
+        let outputs_var = vecmap(outputs, |output| match output {
+            AcirType::NumericType(_) => {
+                let witness_index = self.acir_ir.next_witness_index();
+                brillig_outputs.push(BrilligOutputs::Simple(witness_index));
+                let var = self.add_data(AcirVarData::Witness(witness_index));
+                AcirValue::Var(var, output.clone())
+            }
+            AcirType::Array(element_types, size) => {
+                let (acir_value, witnesses) = self.brillig_array_output(&element_types, size);
+                brillig_outputs.push(BrilligOutputs::Array(witnesses));
+                acir_value
+            }
+        });
+        let predicate = self.var_to_expression(predicate)?;
+
+        self.acir_ir.brillig_call(
+            Some(predicate),
+            generated_brillig,
+            brillig_inputs,
+            brillig_outputs,
+            brillig_function_index,
+        );
 
         fn range_constraint_value(
             context: &mut AcirContext,
@@ -1623,7 +1724,7 @@ impl AcirContext {
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
             AcirType::NumericType(_) => {
                 let var = self.add_data(AcirVarData::Const(
-                    memory.next().expect("Missing return data").value,
+                    memory.next().expect("Missing return data").to_field(),
                 ));
                 AcirValue::Var(var, output.clone())
             }
@@ -1657,7 +1758,7 @@ impl AcirContext {
                     AcirType::NumericType(_) => {
                         let memory_value =
                             memory_iter.next().expect("ICE: Unexpected end of memory");
-                        let var = self.add_data(AcirVarData::Const(memory_value.value));
+                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
                         array_values.push_back(AcirValue::Var(var, element_type.clone()));
                     }
                 }
@@ -1763,6 +1864,7 @@ impl AcirContext {
         id: u32,
         inputs: Vec<AcirValue>,
         output_count: usize,
+        predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
         let inputs = inputs
@@ -1778,7 +1880,8 @@ impl AcirContext {
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
-        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs });
+        let predicate = Some(self.var_to_expression(predicate)?);
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
 }

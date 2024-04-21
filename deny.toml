@@ -58,7 +58,7 @@ allow = [
     # bitmaps 2.1.0, im 15.1.0
     "MPL-2.0",
     # Boost Software License
-    "BSL-1.0",
+    "BSL-1.0"
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
@@ -70,6 +70,7 @@ exceptions = [
     { allow = ["CC0-1.0"], name = "more-asserts" },
     { allow = ["CC0-1.0"], name = "jsonrpc" },
     { allow = ["CC0-1.0"], name = "notify" },
+    { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["MPL-2.0"], name = "sized-chunks" },
     { allow = ["MPL-2.0"], name = "webpki-roots" },
 

@@ -1,5 +1,3 @@
-# TODO(https://github.com/noir-lang/noir/issues/4707): Change these inputs to fail the assertion in `fn return_value`
-# and change `enable` to false. For now we need the inputs to pass as we do not handle predicates with ACIR calls
-x = "5"
+x = "10"
 y = "10"
-enable = true
+enable = false

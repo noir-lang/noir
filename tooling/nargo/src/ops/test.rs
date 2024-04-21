@@ -84,7 +84,7 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
-    debug: DebugInfo,
+    debug: Vec<DebugInfo>,
     circuit_execution: Result<WitnessStack, NargoError>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {

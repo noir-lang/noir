@@ -25,7 +25,7 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
-/// The output of the Acir-gen pass
+/// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
     /// If witness index is `None` then we have not yet created a witness
@@ -58,6 +58,10 @@ pub(crate) struct GeneratedAcir {
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 
     pub(crate) warnings: Vec<SsaReport>,
+
+    /// Name for the corresponding entry point represented by this Acir-gen output.
+    /// Only used for debugging and benchmarking purposes
+    pub(crate) name: String,
 }
 
 impl GeneratedAcir {
@@ -163,17 +167,27 @@ impl GeneratedAcir {
                 BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: inputs[0].clone(), outputs },
-            BlackBoxFunc::Blake2s => {
-                BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
-            }
-            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: inputs[0].clone(), outputs },
+            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
+            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
             BlackBoxFunc::SchnorrVerify => {
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
                     public_key_y: inputs[1][0],
                     // Schnorr signature is an r & s, 32 bytes each
-                    signature: inputs[2].clone(),
+                    signature: inputs[2]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     message: inputs[3].clone(),
                     output: outputs[0],
                 }
@@ -191,24 +205,48 @@ impl GeneratedAcir {
             BlackBoxFunc::EcdsaSecp256k1 => {
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: inputs[0].clone(),
-                    public_key_y: inputs[1].clone(),
+                    public_key_x: inputs[0]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    public_key_y: inputs[1]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: inputs[2].clone(),
-                    hashed_message: inputs[3].clone(),
+                    signature: inputs[2]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    hashed_message: inputs[3]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: inputs[0].clone(),
-                    public_key_y: inputs[1].clone(),
+                    public_key_x: inputs[0]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    public_key_y: inputs[1]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: inputs[2].clone(),
-                    hashed_message: inputs[3].clone(),
+                    signature: inputs[2]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    hashed_message: inputs[3]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
                 }
             }
@@ -236,15 +274,21 @@ impl GeneratedAcir {
                     }
                 };
 
-                BlackBoxFuncCall::Keccak256VariableLength {
+                BlackBoxFuncCall::Keccak256 {
                     inputs: inputs[0].clone(),
                     var_message_size,
-                    outputs,
+                    outputs: outputs
+                        .try_into()
+                        .expect("Compiler should generate correct size outputs"),
                 }
             }
-            BlackBoxFunc::Keccakf1600 => {
-                BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
-            }
+            BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
+                inputs: inputs[0]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
             BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
                 verification_key: inputs[0].clone(),
                 proof: inputs[1].clone(),
@@ -286,9 +330,15 @@ impl GeneratedAcir {
                 len: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::Sha256Compression => BlackBoxFuncCall::Sha256Compression {
-                inputs: inputs[0].clone(),
-                hash_values: inputs[1].clone(),
-                outputs,
+                inputs: inputs[0]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                hash_values: inputs[1]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
         };
 
@@ -539,6 +589,7 @@ impl GeneratedAcir {
         Ok(())
     }
 
+    // TODO: Delete this method once we remove the `Brillig` opcode
     pub(crate) fn brillig(
         &mut self,
         predicate: Option<Expression>,
@@ -563,6 +614,37 @@ impl GeneratedAcir {
             self.assert_messages.insert(
                 OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
                 message,
+            );
+        }
+    }
+
+    pub(crate) fn brillig_call(
+        &mut self,
+        predicate: Option<Expression>,
+        generated_brillig: &GeneratedBrillig,
+        inputs: Vec<BrilligInputs>,
+        outputs: Vec<BrilligOutputs>,
+        brillig_function_index: u32,
+    ) {
+        let opcode =
+            AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };
+        self.push_opcode(opcode);
+        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
+            self.locations.insert(
+                OpcodeLocation::Brillig {
+                    acir_index: self.opcodes.len() - 1,
+                    brillig_index: *brillig_index,
+                },
+                call_stack.clone(),
+            );
+        }
+        for (brillig_index, message) in generated_brillig.assert_messages.iter() {
+            self.assert_messages.insert(
+                OpcodeLocation::Brillig {
+                    acir_index: self.opcodes.len() - 1,
+                    brillig_index: *brillig_index,
+                },
+                message.clone(),
             );
         }
     }

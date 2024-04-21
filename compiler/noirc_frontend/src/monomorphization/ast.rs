@@ -92,6 +92,7 @@ pub enum Literal {
     Slice(ArrayLiteral),
     Integer(FieldElement, Type, Location),
     Bool(bool),
+    Unit,
     Str(String),
     FmtStr(String, u64, Box<Expression>),
 }

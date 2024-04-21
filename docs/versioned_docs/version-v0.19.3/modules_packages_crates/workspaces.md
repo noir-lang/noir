@@ -10,16 +10,18 @@ For a project with the following structure:
 
 ```tree
 ├── crates
-│   ├── a
-│   │   ├── Nargo.toml
-│   │   └── src
-│   │       └── main.nr
-│   └── b
-│       ├── Nargo.toml
-│       └── src
-│           └── main.nr
-├── Nargo.toml
-└── Prover.toml
+│   ├── a
+│   │   ├── Nargo.toml
+│   │   └── Prover.toml
+│   │   └── src
+│   │       └── main.nr
+│   └── b
+│       ├── Nargo.toml
+│       └── Prover.toml
+│       └── src
+│           └── main.nr
+│
+└── Nargo.toml
 ```
 
 You can define a workspace in Nargo.toml like so:

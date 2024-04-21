@@ -1,5 +1,6 @@
 use std::{future::Future, pin::Pin};
 
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::BlackBoxFunctionSolver;
 use acvm::{
     acir::circuit::{Circuit, Program},
@@ -13,7 +14,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
     foreign_call::{resolve_brillig, ForeignCallHandler},
-    JsExecutionError, JsWitnessMap, JsWitnessStack,
+    public_witness::extract_indices,
+    JsExecutionError, JsSolvedAndReturnWitness, JsWitnessMap, JsWitnessStack,
 };
 
 #[wasm_bindgen]
@@ -56,6 +58,44 @@ pub async fn execute_circuit(
     let witness_map =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
     Ok(witness_map.into())
+}
+
+/// Executes an ACIR circuit to generate the solved witness from the initial witness.
+/// This method also extracts the public return values from the solved witness into its own return witness.
+///
+/// @param {&WasmBlackBoxFunctionSolver} solver - A black box solver.
+/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
+/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `circuit`..
+/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the circuit.
+/// @returns {SolvedAndReturnWitness} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.
+#[wasm_bindgen(js_name = executeCircuitWithReturnWitness, skip_jsdoc)]
+pub async fn execute_circuit_with_return_witness(
+    solver: &WasmBlackBoxFunctionSolver,
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+) -> Result<JsSolvedAndReturnWitness, Error> {
+    console_error_panic_hook::set_once();
+
+    let program: Program = Program::deserialize_program(&program)
+    .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
+
+    let mut witness_stack = execute_program_with_native_program_and_return(
+        solver,
+        &program,
+        initial_witness,
+        &foreign_call_handler,
+    )
+    .await?;
+    let solved_witness =
+        witness_stack.pop().expect("Should have at least one witness on the stack").witness;
+
+    let main_circuit = &program.functions[0];
+    let return_witness =
+        extract_indices(&solved_witness, main_circuit.return_values.0.iter().copied().collect())
+            .map_err(|err| JsExecutionError::new(err, None))?;
+
+    Ok((solved_witness, return_witness).into())
 }
 
 /// Executes an ACIR circuit to generate the solved witness from the initial witness.
@@ -127,7 +167,27 @@ async fn execute_program_with_native_type_return(
     let program: Program = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
 
-    let executor = ProgramExecutor::new(&program.functions, &solver.0, foreign_call_executor);
+    execute_program_with_native_program_and_return(
+        solver,
+        &program,
+        initial_witness,
+        foreign_call_executor,
+    )
+    .await
+}
+
+async fn execute_program_with_native_program_and_return(
+    solver: &WasmBlackBoxFunctionSolver,
+    program: &Program,
+    initial_witness: JsWitnessMap,
+    foreign_call_executor: &ForeignCallHandler,
+) -> Result<WitnessStack, Error> {
+    let executor = ProgramExecutor::new(
+        &program.functions,
+        &program.unconstrained_functions,
+        &solver.0,
+        foreign_call_executor,
+    );
     let witness_stack = executor.execute(initial_witness.into()).await?;
 
     Ok(witness_stack)
@@ -135,6 +195,8 @@ async fn execute_program_with_native_type_return(
 
 struct ProgramExecutor<'a, B: BlackBoxFunctionSolver> {
     functions: &'a [Circuit],
+
+    unconstrained_functions: &'a [BrilligBytecode],
 
     blackbox_solver: &'a B,
 
@@ -144,10 +206,16 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver> {
 impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
     fn new(
         functions: &'a [Circuit],
+        unconstrained_functions: &'a [BrilligBytecode],
         blackbox_solver: &'a B,
         foreign_call_handler: &'a ForeignCallHandler,
     ) -> Self {
-        ProgramExecutor { functions, blackbox_solver, foreign_call_handler }
+        ProgramExecutor {
+            functions,
+            unconstrained_functions,
+            blackbox_solver,
+            foreign_call_handler,
+        }
     }
 
     async fn execute(&self, initial_witness: WitnessMap) -> Result<WitnessStack, Error> {
@@ -166,7 +234,12 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
         witness_stack: &'a mut WitnessStack,
     ) -> Pin<Box<dyn Future<Output = Result<WitnessMap, Error>> + 'a>> {
         Box::pin(async {
-            let mut acvm = ACVM::new(self.blackbox_solver, &circuit.opcodes, initial_witness);
+            let mut acvm = ACVM::new(
+                self.blackbox_solver,
+                &circuit.opcodes,
+                initial_witness,
+                self.unconstrained_functions,
+            );
 
             loop {
                 let solver_status = acvm.solve();
@@ -177,7 +250,7 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
                         unreachable!("Execution should not stop while in `InProgress` state.")
                     }
                     ACVMStatus::Failure(error) => {
-                        let (assert_message, call_stack) = match &error {
+                        let (assert_message, call_stack): (Option<&str>, _) = match &error {
                             OpcodeResolutionError::UnsatisfiedConstrain {
                                 opcode_location: ErrorLocation::Resolved(opcode_location),
                             }
@@ -188,12 +261,16 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
                                 circuit.get_assert_message(*opcode_location),
                                 Some(vec![*opcode_location]),
                             ),
-                            OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
+                            OpcodeResolutionError::BrilligFunctionFailed {
+                                call_stack,
+                                message,
+                            } => {
+                                let revert_message = message.as_ref().map(String::as_str);
                                 let failing_opcode = call_stack
                                     .last()
                                     .expect("Brillig error call stacks cannot be empty");
                                 (
-                                    circuit.get_assert_message(*failing_opcode),
+                                    revert_message.or(circuit.get_assert_message(*failing_opcode)),
                                     Some(call_stack.clone()),
                                 )
                             }
