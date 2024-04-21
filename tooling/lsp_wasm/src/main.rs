@@ -7,7 +7,6 @@ use async_lsp::{concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::
 use noir_lsp::NargoLspService;
 use tower::ServiceBuilder;
 
-
 fn main() {
     // let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::initialize().await;
     let blackbox_solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
