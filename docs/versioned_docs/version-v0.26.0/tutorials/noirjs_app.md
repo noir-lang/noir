@@ -233,6 +233,7 @@ At this point in the tutorial, your folder structure should look like this:
 └── circuit
     └── ...same as above
 └── vite-project
+    └── vite.config.js
     ├── main.js
     ├── package.json
     └── index.html
