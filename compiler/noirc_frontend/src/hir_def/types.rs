@@ -6,15 +6,18 @@ use std::{
 };
 
 use crate::{
+    ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
-    IntegerBitSize,
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use noirc_printable_type::PrintableType;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{
+    ast::{Ident, Signedness},
+    node_interner::StructId,
+};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 

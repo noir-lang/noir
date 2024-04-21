@@ -4,9 +4,9 @@ use std::sync::{Mutex, RwLock};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use noirc_frontend::ast::{BinaryOpKind, Signedness};
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
-use noirc_frontend::{BinaryOpKind, Signedness};
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -562,7 +562,7 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn insert_binary(
         &mut self,
         mut lhs: ValueId,
-        operator: noirc_frontend::BinaryOpKind,
+        operator: BinaryOpKind,
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
@@ -625,7 +625,7 @@ impl<'a> FunctionContext<'a> {
     fn insert_array_equality(
         &mut self,
         lhs: ValueId,
-        operator: noirc_frontend::BinaryOpKind,
+        operator: BinaryOpKind,
         rhs: ValueId,
         location: Location,
     ) -> Values {
@@ -1090,23 +1090,23 @@ impl<'a> FunctionContext<'a> {
 
 /// True if the given operator cannot be encoded directly and needs
 /// to be represented as !(some other operator)
-fn operator_requires_not(op: noirc_frontend::BinaryOpKind) -> bool {
-    use noirc_frontend::BinaryOpKind::*;
+fn operator_requires_not(op: BinaryOpKind) -> bool {
+    use BinaryOpKind::*;
     matches!(op, NotEqual | LessEqual | GreaterEqual)
 }
 
 /// True if the given operator cannot be encoded directly and needs
 /// to have its lhs and rhs swapped to be represented with another operator.
 /// Example: (a > b) needs to be represented as (b < a)
-fn operator_requires_swapped_operands(op: noirc_frontend::BinaryOpKind) -> bool {
-    use noirc_frontend::BinaryOpKind::*;
+fn operator_requires_swapped_operands(op: BinaryOpKind) -> bool {
+    use BinaryOpKind::*;
     matches!(op, Greater | LessEqual)
 }
 
 /// If the operation requires its result to be truncated because it is an integer, the maximum
 /// number of bits that result may occupy is returned.
 fn operator_result_max_bit_size_to_truncate(
-    op: noirc_frontend::BinaryOpKind,
+    op: BinaryOpKind,
     lhs: ValueId,
     rhs: ValueId,
     dfg: &DataFlowGraph,
@@ -1123,7 +1123,7 @@ fn operator_result_max_bit_size_to_truncate(
 
     let lhs_bit_size = get_bit_size(lhs_type)?;
     let rhs_bit_size = get_bit_size(rhs_type)?;
-    use noirc_frontend::BinaryOpKind::*;
+    use BinaryOpKind::*;
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
@@ -1173,7 +1173,7 @@ fn operator_result_max_bit_size_to_truncate(
 /// Take care when using this to insert a binary instruction: this requires
 /// checking operator_requires_not and operator_requires_swapped_operands
 /// to represent the full operation correctly.
-fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
+fn convert_operator(op: BinaryOpKind) -> BinaryOp {
     match op {
         BinaryOpKind::Add => BinaryOp::Add,
         BinaryOpKind::Subtract => BinaryOp::Sub,

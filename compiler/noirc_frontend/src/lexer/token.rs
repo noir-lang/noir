@@ -412,8 +412,8 @@ impl Token {
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
     }
 
-    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
-        use crate::BinaryOpKind::*;
+    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::ast::BinaryOpKind>> {
+        use crate::ast::BinaryOpKind::*;
         let binary_op = match self {
             Token::Plus => Add,
             Token::Ampersand => And,

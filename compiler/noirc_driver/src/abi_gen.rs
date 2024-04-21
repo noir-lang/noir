@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiValue};
+use noirc_frontend::ast::Visibility;
 use noirc_frontend::{
     hir::Context,
     hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern},
     macros_api::{HirExpression, HirLiteral},
     node_interner::{FuncId, NodeInterner},
-    Visibility,
 };
 use std::ops::Range;
 

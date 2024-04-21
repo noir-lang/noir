@@ -2,8 +2,9 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
+use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
-use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
+use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
@@ -31,7 +32,7 @@ pub enum HirExpression {
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Error,
-    Quote(crate::BlockExpression),
+    Quote(crate::ast::BlockExpression),
 }
 
 impl HirExpression {
