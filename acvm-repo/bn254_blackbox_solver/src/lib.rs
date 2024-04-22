@@ -6,6 +6,8 @@ use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
+mod generator;
+mod pedersen;
 mod poseidon2;
 mod wasm;
 
