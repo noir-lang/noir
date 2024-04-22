@@ -6,4 +6,10 @@ fn main(mut x: u32, y: u32, z: u32) {
     x *= x; //20736
     x *= x; //429 981 696
     assert(x == z);
+
+    let nine = x * x;
+    assert(nine == 9);
+
+    let sixteen = y * y;
+    assert(sixteen == 16);
 }
