@@ -116,11 +116,7 @@ impl SharedContext {
     }
 
     fn add_call_to_resolve(&mut self, func_id: FunctionId, call_to_resolve: (OpcodeLocation, u32)) {
-        if let Some(calls_to_resolve) = self.brillig_stdlib_calls_to_resolve.get_mut(&func_id) {
-            calls_to_resolve.push(call_to_resolve);
-        } else {
-            self.brillig_stdlib_calls_to_resolve.insert(func_id, vec![call_to_resolve]);
-        }
+        self.brillig_stdlib_calls_to_resolve.entry(func_id).or_default().push(call_to_resolve);
     }
 }
 
@@ -286,13 +282,13 @@ impl Ssa {
                 for (opcode_location, brillig_stdlib_func) in
                     &generated_acir.brillig_stdlib_func_locations
                 {
-                    let mut call_to_existing_bytecode = None;
                     if let Some(generated_pointer) =
                         shared_context.generated_brillig_stdlib_pointer(brillig_stdlib_func)
                     {
-                        // We cannot insert in the Brillig calls to resolve map here as we are doing an immutable borrow
-                        // to the shared context to fetch the pre-existing generated pointer.
-                        call_to_existing_bytecode = Some((*opcode_location, generated_pointer));
+                        shared_context.add_call_to_resolve(
+                            function.id(),
+                            (*opcode_location, generated_pointer),
+                        );
                     } else {
                         let code = brillig_stdlib_func.get_generated_brillig();
                         let generated_pointer = shared_context.new_generated_pointer();
@@ -303,9 +299,6 @@ impl Ssa {
                             *opcode_location,
                             code,
                         );
-                    }
-                    if let Some(new_call_to_resolve) = call_to_existing_bytecode {
-                        shared_context.add_call_to_resolve(function.id(), new_call_to_resolve);
                     }
                 }
 
@@ -3051,7 +3044,7 @@ mod test {
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         // We expect two brillig functions:
         //   - Quotient (shared between both divisions)
-        //   - Inversion, caused by division-by-zero check (shared between both divisions) 
+        //   - Inversion, caused by division-by-zero check (shared between both divisions)
         assert_eq!(brillig_functions.len(), 2, "Should only have generated two Brillig functions");
 
         let main_acir = &acir_functions[0];
@@ -3123,7 +3116,7 @@ mod test {
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         // We expect 3 brillig functions:
         //   - Quotient (shared between both divisions)
-        //   - Inversion, caused by division-by-zero check (shared between both divisions) 
+        //   - Inversion, caused by division-by-zero check (shared between both divisions)
         //   - Custom brillig function `foo`
         assert_eq!(
             brillig_functions.len(),
@@ -3210,7 +3203,7 @@ mod test {
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
         // We expect 3 brillig functions:
         //   - Quotient (shared between both divisions)
-        //   - Inversion, caused by division-by-zero check (shared between both divisions) 
+        //   - Inversion, caused by division-by-zero check (shared between both divisions)
         //   - Custom brillig function `foo`
         assert_eq!(
             brillig_functions.len(),
