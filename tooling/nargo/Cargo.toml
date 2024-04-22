@@ -4,12 +4,10 @@ description = "Noir's package manager"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[build-dependencies]
-rustc_version = "0.4.0"
 
 [dependencies]
 acvm.workspace = true

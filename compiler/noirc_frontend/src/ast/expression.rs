@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use crate::token::{Attributes, Token};
-use crate::{
+use crate::ast::{
     Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use crate::token::{Attributes, Token};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};

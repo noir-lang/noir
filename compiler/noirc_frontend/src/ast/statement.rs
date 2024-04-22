@@ -1,17 +1,18 @@
 use std::fmt::Display;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use acvm::FieldElement;
+use iter_extended::vecmap;
+use noirc_errors::{Span, Spanned};
+
+use super::{
+    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
+    MethodCallExpression, UnresolvedType,
+};
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
-use crate::{
-    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
-};
-use acvm::FieldElement;
-use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
@@ -148,7 +149,7 @@ impl StatementKind {
             let lvalue_expr = lvalue.as_expression();
             let error_msg = "Token passed to Statement::assign is not a binary operator";
 
-            let infix = crate::InfixExpression {
+            let infix = crate::ast::InfixExpression {
                 lhs: lvalue_expr,
                 operator: operator.try_into_binary_op(span).expect(error_msg),
                 rhs: expression,
@@ -521,8 +522,8 @@ impl LValue {
                 }))
             }
             LValue::Dereference(lvalue, _span) => {
-                ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
-                    operator: crate::UnaryOp::Dereference { implicitly_added: false },
+                ExpressionKind::Prefix(Box::new(crate::ast::PrefixExpression {
+                    operator: crate::ast::UnaryOp::Dereference { implicitly_added: false },
                     rhs: lvalue.as_expression(),
                 }))
             }

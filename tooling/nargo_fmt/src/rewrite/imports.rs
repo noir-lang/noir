@@ -1,4 +1,4 @@
-use noirc_frontend::{PathKind, UseTreeKind};
+use noirc_frontend::ast;
 
 use crate::{
     items::Item,
@@ -60,13 +60,13 @@ pub(crate) struct UseTree {
 }
 
 impl UseTree {
-    pub(crate) fn from_ast(use_tree: noirc_frontend::UseTree) -> Self {
+    pub(crate) fn from_ast(use_tree: ast::UseTree) -> Self {
         let mut result = UseTree { path: vec![] };
 
         match use_tree.prefix.kind {
-            PathKind::Crate => result.path.push(UseSegment::Crate),
-            PathKind::Dep => result.path.push(UseSegment::Dep),
-            PathKind::Plain => {}
+            ast::PathKind::Crate => result.path.push(UseSegment::Crate),
+            ast::PathKind::Dep => result.path.push(UseSegment::Dep),
+            ast::PathKind::Plain => {}
         };
 
         result.path.extend(
@@ -78,13 +78,13 @@ impl UseTree {
         );
 
         match use_tree.kind {
-            UseTreeKind::Path(name, alias) => {
+            ast::UseTreeKind::Path(name, alias) => {
                 result.path.push(UseSegment::Ident(
                     name.to_string(),
                     alias.map(|rename| rename.to_string()),
                 ));
             }
-            UseTreeKind::List(list) => {
+            ast::UseTreeKind::List(list) => {
                 let segment = UseSegment::List(list.into_iter().map(UseTree::from_ast).collect());
                 result.path.push(segment);
             }

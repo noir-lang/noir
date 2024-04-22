@@ -1,6 +1,5 @@
+use crate::ast::{Ident, Path};
 use crate::hir::resolution::import::PathResolutionError;
-use crate::Ident;
-use crate::Path;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;

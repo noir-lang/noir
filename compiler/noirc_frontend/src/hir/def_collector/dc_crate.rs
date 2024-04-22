@@ -19,11 +19,11 @@ use crate::hir::Context;
 use crate::macros_api::{MacroError, MacroProcessor};
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId, TraitId, TypeAliasId};
 
-use crate::parser::{ParserError, SortedModule};
-use crate::{
+use crate::ast::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
 };
+use crate::parser::{ParserError, SortedModule};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
@@ -314,8 +314,7 @@ impl DefCollector {
             }
         }
 
-        let mut resolved_module = ResolvedModule::default();
-        resolved_module.errors = errors;
+        let mut resolved_module = ResolvedModule { errors, ..Default::default() };
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -420,11 +419,11 @@ fn inject_prelude(
 ) {
     let segments: Vec<_> = "std::prelude"
         .split("::")
-        .map(|segment| crate::Ident::new(segment.into(), Span::default()))
+        .map(|segment| crate::ast::Ident::new(segment.into(), Span::default()))
         .collect();
 
     let path =
-        Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
+        Path { segments: segments.clone(), kind: crate::ast::PathKind::Dep, span: Span::default() };
 
     if !crate_id.is_stdlib() {
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(

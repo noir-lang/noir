@@ -1,7 +1,7 @@
-use noirc_frontend::{
-    macros_api::Span, token::Token, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
-    Literal, UnaryOp,
+use noirc_frontend::ast::{
+    ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, UnaryOp,
 };
+use noirc_frontend::{macros_api::Span, token::Token};
 
 use crate::visitor::{
     expr::{format_brackets, format_parens, NewlineMode},

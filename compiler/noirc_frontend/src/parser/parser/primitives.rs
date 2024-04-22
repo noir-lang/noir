@@ -1,9 +1,9 @@
 use chumsky::prelude::*;
 
+use crate::ast::{ExpressionKind, Ident, UnaryOp};
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
     token::{Keyword, Token, TokenKind},
-    ExpressionKind, Ident, UnaryOp,
 };
 
 use super::path;

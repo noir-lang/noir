@@ -6,6 +6,7 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::{
     hir_def::{
         expr::{
@@ -21,8 +22,7 @@ use crate::{
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
-    BinaryOpKind, FunctionKind, IntegerBitSize, Shared, Signedness, Type, TypeBinding,
-    TypeBindings, TypeVariableKind,
+    TypeBindings, TypeVariableKind, Type, TypeBinding, Shared
 };
 
 use super::errors::{IResult, InterpreterError};
@@ -502,7 +502,7 @@ impl<'a> Interpreter<'a> {
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = self.evaluate(prefix.rhs)?;
         match prefix.operator {
-            crate::UnaryOp::Minus => match rhs {
+            crate::ast::UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
                 Value::I32(value) => Ok(Value::I32(-value)),
@@ -519,7 +519,7 @@ impl<'a> Interpreter<'a> {
                     })
                 }
             },
-            crate::UnaryOp::Not => match rhs {
+            crate::ast::UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
                 Value::I32(value) => Ok(Value::I32(!value)),
@@ -532,8 +532,8 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            crate::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
-            crate::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+            crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
+            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);

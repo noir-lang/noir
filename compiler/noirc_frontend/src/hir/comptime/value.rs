@@ -9,7 +9,8 @@ use crate::{
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{HirExpression, HirLiteral, NodeInterner},
     node_interner::{ExprId, FuncId},
-    BlockExpression, Ident, IntegerBitSize, Shared, Signedness, Type,
+    ast::{ BlockExpression, Ident, IntegerBitSize, Signedness },
+    Type, Shared,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -117,8 +118,8 @@ impl Value {
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
                 let item = "returning closures from a comptime fn";
-                return Err(InterpreterError::Unimplemented { item, location })
-            },
+                return Err(InterpreterError::Unimplemented { item, location });
+            }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
                 HirExpression::Tuple(fields)
