@@ -3018,7 +3018,7 @@ mod test {
         //     b0(v0: u32, v1: u32, v2: u32):
         //       v3 = div v0, v1
         //       constrain v3 == v2
-        //       v4 = div v0, v1
+        //       v4 = div v2, v2
         //       constrain v4 == u32 1
         //       return
         // }
