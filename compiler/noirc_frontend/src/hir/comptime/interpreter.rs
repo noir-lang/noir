@@ -22,7 +22,7 @@ use crate::{
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
-    TypeBindings, TypeVariableKind, Type, TypeBinding, Shared
+    Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use super::errors::{IResult, InterpreterError};

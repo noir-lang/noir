@@ -6,11 +6,11 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
+    ast::{BlockExpression, Ident, IntegerBitSize, Signedness},
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{HirExpression, HirLiteral, NodeInterner},
     node_interner::{ExprId, FuncId},
-    ast::{ BlockExpression, Ident, IntegerBitSize, Signedness },
-    Type, Shared,
+    Shared, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
 
