@@ -3204,6 +3204,7 @@ dependencies = [
  "noirc_frontend",
  "num-bigint",
  "plonky2",
+ "plonky2_u32",
  "serde",
  "serde_json",
  "thiserror",
@@ -3606,9 +3607,8 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "plonky2"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d04c7dfa293cd62a8e1e3f21157dba8508ab2de6078b0e5fae202a4fc98ef224"
+version = "0.2.0"
+source = "git+https://github.com/metacraft-labs/plonky2#3ae50655f371184023815f50a42555c1cd9d7023"
 dependencies = [
  "ahash 0.8.11",
  "anyhow",
@@ -3631,9 +3631,8 @@ dependencies = [
 
 [[package]]
 name = "plonky2_field"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e27aab0723672905a49e4771232d7fcf71b97dd0e57634f1dfb5492635f765fc"
+version = "0.2.0"
+source = "git+https://github.com/metacraft-labs/plonky2#3ae50655f371184023815f50a42555c1cd9d7023"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -3648,17 +3647,26 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ff44a90aaca13e10e7ddf8fab815ba1b404c3f7c3ca82aaf11c46beabaa923"
+source = "git+https://github.com/metacraft-labs/plonky2#3ae50655f371184023815f50a42555c1cd9d7023"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
+name = "plonky2_u32"
+version = "0.1.0"
+source = "git+https://github.com/metacraft-labs/plonky2-u32#2f460df88dc85b90815d2c895caab85a16b796a1"
+dependencies = [
+ "anyhow",
+ "itertools 0.10.5",
+ "num",
+ "plonky2",
+]
+
+[[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b16136f5f3019c1e83035af76cccddd56d789a5e2933306270185c3f99f12259"
+source = "git+https://github.com/metacraft-labs/plonky2#3ae50655f371184023815f50a42555c1cd9d7023"
 
 [[package]]
 name = "plotters"
