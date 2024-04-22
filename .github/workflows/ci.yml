@@ -42,7 +42,7 @@ jobs:
       # prepare images locally, tagged by commit hash
       - name: "Build E2E Image"
         timeout-minutes: 40
-        run: earthly-ci ./yarn-project+export-end-to-end
+        run: earthly ./yarn-project+export-end-to-end
       # We base our e2e list used in e2e-x86 off the targets in ./yarn-project/end-to-end
       # (Note ARM uses just 2 tests as a smoketest)
       - name: Create list of end-to-end jobs
@@ -67,7 +67,7 @@ jobs:
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 25
-        run: earthly-ci -P --no-output +${{ matrix.test }} --e2e_mode=cache
+        run: earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
       # TODO
       # - name: Upload logs
       #   run: BRANCH=${{ github.ref_name }} PULL_REQUEST=${{ github.event.number }} scripts/ci/upload_logs_to_s3 ./yarn-project/end-to-end/log
@@ -91,7 +91,7 @@ jobs:
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 25
         # limit our parallelism to half our cores
-        run: earthly-ci --no-output +test --hardware_concurrency=64
+        run: earthly --no-output +test --hardware_concurrency=64
 
   # push benchmarking binaries to dockerhub registry
   bb-bench-binaries:
@@ -106,7 +106,7 @@ jobs:
       - name: Build and Push Binaries
         timeout-minutes: 15
         working-directory: ./barretenberg/cpp/
-        run: earthly-ci --push +bench-binaries
+        run: earthly --push +bench-binaries
 
   setup-bench:
     uses: ./.github/workflows/setup-runner.yml
@@ -134,12 +134,12 @@ jobs:
       - name: Client IVC Bench
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 15
-        run: earthly-ci --no-output +bench-client-ivc --bench_mode=cache
+        run: earthly --no-output +bench-client-ivc --bench_mode=cache
 
       - name: Ultrahonk Bench
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 15
-        run: earthly-ci --no-output +bench-ultra-honk --bench_mode=cache
+        run: earthly --no-output +bench-ultra-honk --bench_mode=cache
 
   merge-check:
     runs-on: ${{ inputs.username || github.actor }}-x86
