@@ -4,14 +4,14 @@ global NUM_HASHES = 2;
 global HASH_LENGTH = 10;
 
 #[fold]
-pub fn poseidon_hash<N>(inputs: [Field; N]) -> Field {
+pub fn poseidon_hash<N>(inputs: [field; N]) -> field {
     Poseidon2::hash(inputs, inputs.len())
 }
 
 fn main(
-    to_hash: [[Field; HASH_LENGTH]; NUM_HASHES],
+    to_hash: [[field; HASH_LENGTH]; NUM_HASHES],
     enable: [bool; NUM_HASHES]
-) -> pub [Field; NUM_HASHES + 1] {
+) -> pub [field; NUM_HASHES + 1] {
     let mut result = [0; NUM_HASHES + 1];
     for i in 0..NUM_HASHES {
         let enable = enable[i];

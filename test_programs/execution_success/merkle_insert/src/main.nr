@@ -2,13 +2,13 @@ use dep::std;
 use dep::std::hash::mimc;
 
 fn main(
-    old_root: Field,
-    old_leaf: Field,
-    old_hash_path: [Field; 3],
-    new_root: pub Field,
-    leaf: Field,
-    index: Field,
-    mimc_input: [Field; 4]
+    old_root: field,
+    old_leaf: field,
+    old_hash_path: [field; 3],
+    new_root: pub field,
+    leaf: field,
+    index: field,
+    mimc_input: [field; 4]
 ) {
     assert(old_root == std::merkle::compute_merkle_root(old_leaf, index, old_hash_path));
 

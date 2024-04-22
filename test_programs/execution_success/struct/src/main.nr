@@ -1,15 +1,15 @@
 struct Foo {
-    bar: Field,
-    array: [Field; 2],
+    bar: field,
+    array: [field; 2],
 }
 
 struct Pair {
     first: Foo,
-    second: Field,
+    second: field,
 }
 
 impl Foo {
-    fn default(x: Field, y: Field) -> Self {
+    fn default(x: field, y: field) -> Self {
         Self { bar: 0, array: [x, y] }
     }
 }
@@ -19,27 +19,27 @@ impl Pair {
         p.first
     }
 
-    fn bar(self) -> Field {
+    fn bar(self) -> field {
         self.foo().bar
     }
 }
 
 struct Nested {
-    a: Field,
-    b: Field
+    a: field,
+    b: field
 }
 struct MyStruct {
     my_bool: bool,
     my_int: u32,
     my_nest: Nested,
 }
-fn test_struct_in_tuple(a_bool: bool, x: Field, y: Field) -> (MyStruct, bool) {
+fn test_struct_in_tuple(a_bool: bool, x: field, y: field) -> (MyStruct, bool) {
     let my_struct = MyStruct { my_bool: a_bool, my_int: 5, my_nest: Nested { a: x, b: y } };
     (my_struct, a_bool)
 }
 
 struct Animal {
-    legs: Field,
+    legs: field,
     eyes: u8,
 }
 
@@ -50,7 +50,7 @@ fn get_dog() -> Animal {
 
 struct Unit;
 
-fn main(x: Field, y: Field) {
+fn main(x: field, y: field) {
     let unit = Unit {};
 
     let first = Foo::default(x, y);
@@ -67,7 +67,7 @@ fn main(x: Field, y: Field) {
     assert(struct_from_tuple.my_nest.a == 0);
     // Regression test for issue #670
     let Animal { legs, eyes } = get_dog();
-    let six = legs + eyes as Field;
+    let six = legs + eyes as field;
 
     assert(six == 6);
 

@@ -1,14 +1,14 @@
 struct Bar {
-    inner: [Field; 3],
+    inner: [field; 3],
 }
 
 struct Foo {
-    a: Field,
-    b: [Field; 3],
+    a: field,
+    b: [field; 3],
     bar: Bar,
 }
 
-fn main(y: Field) {
+fn main(y: field) {
     let foo_one = Foo { a: 1, b: [2, 3, 20], bar: Bar { inner: [100, 101, 102] } };
     let foo_two = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] } };
     let foo_three = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };

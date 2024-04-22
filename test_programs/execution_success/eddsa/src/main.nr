@@ -5,7 +5,7 @@ use dep::std::hash;
 use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};
 use dep::std::hash::poseidon2::Poseidon2Hasher;
 
-fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
+fn main(msg: pub field, _priv_key_a: field, _priv_key_b: field) {
     // Skip this test for non-bn254 backends
     if compat::is_bn254() {
         let bjj = baby_jubjub();
@@ -25,14 +25,14 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
 
         let r8_a = bjj.curve.mul(r_a, bjj.base8);
         let r8_b = bjj.curve.mul(r_b, bjj.base8);
-        // let h_a: [Field; 6] = hash::poseidon::bn254::hash_5([
+        // let h_a: [field; 6] = hash::poseidon::bn254::hash_5([
         //     r8_a.x,
         //     r8_a.y,
         //     pub_key_a.x,
         //     pub_key_a.y,
         //     msg,
         // ]);
-        // let h_b: [Field; 6] = hash::poseidon::bn254::hash_5([
+        // let h_b: [field; 6] = hash::poseidon::bn254::hash_5([
         //     r8_b.x,
         //     r8_b.y,
         //     pub_key_b.x,

@@ -9,9 +9,9 @@ fn test_vec_new_bad() {
 }
 
 // docs:start:new_example
-fn foo() -> BoundedVec<Field, 10> {
+fn foo() -> BoundedVec<field, 10> {
     // Ok! MaxLen is specified with a type annotation
-    let v1: BoundedVec<Field, 3> = BoundedVec::new();
+    let v1: BoundedVec<field, 3> = BoundedVec::new();
     let v2 = BoundedVec::new();
 
     // Ok! MaxLen is known from the type of foo's return value
@@ -28,7 +28,7 @@ fn bad() {
 
 #[test]
 fn test_vec_push_pop() {
-    let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 3> = BoundedVec::new();
     assert(vec.len == 0);
     vec.push(2);
     assert(vec.len == 1);
@@ -66,7 +66,7 @@ fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
 #[test(should_fail_with = "push out of bounds")]
 fn push_docs_example() {
     // docs:start:bounded-vec-push-example
-    let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut v: BoundedVec<field, 2> = BoundedVec::new();
 
     v.push(1);
     v.push(2);
@@ -79,7 +79,7 @@ fn push_docs_example() {
 #[test]
 fn pop_docs_example() {
     // docs:start:bounded-vec-pop-example
-    let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut v: BoundedVec<field, 2> = BoundedVec::new();
     v.push(1);
     v.push(2);
 
@@ -96,7 +96,7 @@ fn pop_docs_example() {
 #[test]
 fn len_docs_example() {
     // docs:start:bounded-vec-len-example
-    let mut v: BoundedVec<Field, 4> = BoundedVec::new();
+    let mut v: BoundedVec<field, 4> = BoundedVec::new();
     assert(v.len() == 0);
 
     v.push(100);
@@ -116,7 +116,7 @@ fn len_docs_example() {
 #[test]
 fn max_len_docs_example() {
     // docs:start:bounded-vec-max-len-example
-    let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+    let mut v: BoundedVec<field, 5> = BoundedVec::new();
 
     assert(v.max_len() == 5);
     v.push(10);
@@ -127,7 +127,7 @@ fn max_len_docs_example() {
 #[test]
 fn storage_docs_example() {
     // docs:start:bounded-vec-storage-example
-    let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+    let mut v: BoundedVec<field, 5> = BoundedVec::new();
 
     assert(v.storage() == [0, 0, 0, 0, 0]);
 
@@ -139,7 +139,7 @@ fn storage_docs_example() {
 #[test]
 fn test_vec_extend_from_array() {
     // docs:start:bounded-vec-extend-from-array-example
-    let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
 
     assert(vec.len == 2);
@@ -151,8 +151,8 @@ fn test_vec_extend_from_array() {
 #[test]
 fn test_vec_extend_from_bounded_vec() {
     // docs:start:bounded-vec-extend-from-bounded-vec-example
-    let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
-    let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
+    let mut v1: BoundedVec<field, 5> = BoundedVec::new();
+    let mut v2: BoundedVec<field, 7> = BoundedVec::new();
 
     v2.extend_from_array([1, 2, 3]);
     v1.extend_from_bounded_vec(v2);
@@ -164,13 +164,13 @@ fn test_vec_extend_from_bounded_vec() {
 
 #[test(should_fail_with="extend_from_array out of bounds")]
 fn test_vec_extend_from_array_out_of_bound() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
     vec.extend_from_array([2, 4, 6]);
 }
 
 #[test(should_fail_with="extend_from_array out of bounds")]
 fn test_vec_extend_from_array_twice_out_of_bound() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
     vec.extend_from_array([2]);
     assert(vec.len == 1);
     vec.extend_from_array([4, 6]);
@@ -178,36 +178,36 @@ fn test_vec_extend_from_array_twice_out_of_bound() {
 
 #[test(should_fail)]
 fn test_vec_get_out_of_bound() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
     let _x = vec.get(2);
 }
 
 #[test(should_fail)]
 fn test_vec_get_not_declared() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
     vec.extend_from_array([2]);
     let _x = vec.get(1);
 }
 
 #[test(should_fail)]
 fn test_vec_get_uninitialized() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
     let _x = vec.get(0);
 }
 
 #[test(should_fail_with="push out of bounds")]
 fn test_vec_push_out_of_bound() {
-    let mut vec: BoundedVec<Field, 1> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 1> = BoundedVec::new();
     vec.push(1);
     vec.push(2);
 }
 
 #[test(should_fail_with="extend_from_bounded_vec out of bounds")]
 fn test_vec_extend_from_bounded_vec_out_of_bound() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
 
-    let mut another_vec: BoundedVec<Field, 3> = BoundedVec::new();
+    let mut another_vec: BoundedVec<field, 3> = BoundedVec::new();
     another_vec.extend_from_array([1, 2, 3]);
 
     vec.extend_from_bounded_vec(another_vec);
@@ -215,10 +215,10 @@ fn test_vec_extend_from_bounded_vec_out_of_bound() {
 
 #[test(should_fail_with="extend_from_bounded_vec out of bounds")]
 fn test_vec_extend_from_bounded_vec_twice_out_of_bound() {
-    let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 2> = BoundedVec::new();
     vec.extend_from_array([1, 2]);
 
-    let mut another_vec: BoundedVec<Field, 1> = BoundedVec::new();
+    let mut another_vec: BoundedVec<field, 1> = BoundedVec::new();
     another_vec.push(3);
 
     vec.extend_from_bounded_vec(another_vec);
@@ -238,7 +238,7 @@ fn test_vec_any() {
 #[test]
 fn test_vec_any_not_default() {
     let default_value = 0;
-    let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
+    let mut vec: BoundedVec<field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
     assert(!vec.any(|v| v == default_value));
 }

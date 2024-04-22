@@ -11,7 +11,7 @@ mod grumpkin_scalar_mul;
 mod scalar_mul;
 mod sha256;
 mod sha512;
-mod field;
+mod field_element;
 mod ec;
 mod unsafe;
 mod collections;
@@ -42,7 +42,7 @@ unconstrained pub fn println<T>(input: T) {
 }
 
 #[foreign(recursive_aggregation)]
-pub fn verify_proof<N>(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+pub fn verify_proof<N>(verification_key: [field], proof: [field], public_inputs: [field], key_hash: field) {}
 
 // Asserts that the given value is known at compile-time.
 // Useful for debugging for-loop bounds.
@@ -52,10 +52,10 @@ pub fn assert_constant<T>(x: T) {}
 // `as` should be the default for users to cast between primitive types, and in the future
 // traits can be used to work with generic types.
 #[builtin(from_field)]
-fn from_field<T>(x: Field) -> T {}
+fn from_field<T>(x: field) -> T {}
 
 #[builtin(as_field)]
-fn as_field<T>(x: T) -> Field {}
+fn as_field<T>(x: T) -> field {}
 
 pub fn wrapping_add<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) + crate::as_field(y))

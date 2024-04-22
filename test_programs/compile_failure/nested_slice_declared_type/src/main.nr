@@ -1,6 +1,6 @@
-fn main(x: Field, y: pub Field) {
+fn main(x: field, y: pub field) {
     assert(x != y);
 
-    let slice: [[Field]] = [];
+    let slice: [[field]] = [];
     assert(slice.len() != 10);
 }

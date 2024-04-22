@@ -14,20 +14,20 @@ mod affine {
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
-        a: Field,
-        d: Field,
+        a: field,
+        d: field,
         // Generator as point in Cartesian coordinates
         gen: Point
     }
     // Point in Cartesian coordinates
     struct Point {
-        x: Field,
-        y: Field
+        x: field,
+        y: field
     }
 
     impl Point {
         // Point constructor
-        pub fn new(x: Field, y: Field) -> Self {
+        pub fn new(x: field, y: field) -> Self {
             Self { x, y }
         }
 
@@ -79,7 +79,7 @@ mod affine {
 
     impl Curve {
         // Curve constructor
-        pub fn new(a: Field, d: Field, gen: Point) -> Curve {
+        pub fn new(a: field, d: field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(a * d * (a - d) != 0);
 
@@ -137,12 +137,12 @@ mod affine {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        fn mul(self, n: field, p: Point) -> Point {
             self.into_group().mul(n, p.into_group()).into_affine()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<N>(self, n: [field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -182,12 +182,12 @@ mod affine {
         }
 
         // Elligator 2 map-to-curve method (via rational map)
-        fn elligator2_map(self, u: Field) -> Point {
+        fn elligator2_map(self, u: field) -> Point {
             self.into_montcurve().elligator2_map(u).into_tecurve()
         }
 
         // Simplified SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        fn swu_map(self, z: field, u: field) -> Point {
             self.into_montcurve().swu_map(z, u).into_tecurve()
         }
     }
@@ -206,22 +206,22 @@ mod curvegroup {
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
-        a: Field,
-        d: Field,
+        a: field,
+        d: field,
         // Generator as point in projective coordinates
         gen: Point
     }
     // Point in extended twisted Edwards coordinates
     struct Point {
-        x: Field,
-        y: Field,
-        t: Field,
-        z: Field
+        x: field,
+        y: field,
+        t: field,
+        z: field
     }
 
     impl Point {
         // Point constructor
-        pub fn new(x: Field, y: Field, t: Field, z: Field) -> Self {
+        pub fn new(x: field, y: field, t: field, z: field) -> Self {
             Self { x, y, t, z }
         }
 
@@ -267,7 +267,7 @@ mod curvegroup {
 
     impl Curve {
         // Curve constructor
-        pub fn new(a: Field, d: Field, gen: Point) -> Curve {
+        pub fn new(a: field, d: field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(a * d * (a - d) != 0);
 
@@ -353,8 +353,8 @@ mod curvegroup {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        pub fn mul(self, n: Field, p: Point) -> Point {
-            let N_BITS = crate::field::modulus_num_bits();
+        pub fn mul(self, n: field, p: Point) -> Point {
+            let N_BITS = crate::field_element::modulus_num_bits();
 
             // TODO: temporary workaround until issue 1354 is solved
             let mut n_as_bits: [u1; 254] = [0; 254];
@@ -367,7 +367,7 @@ mod curvegroup {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<N>(self, n: [field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -403,12 +403,12 @@ mod curvegroup {
         }
 
         // Elligator 2 map-to-curve method (via rational maps)
-        fn elligator2_map(self, u: Field) -> Point {
+        fn elligator2_map(self, u: field) -> Point {
             self.into_montcurve().elligator2_map(u).into_tecurve()
         }
 
         // Simplified SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        fn swu_map(self, z: field, u: field) -> Point {
             self.into_montcurve().swu_map(z, u).into_tecurve()
         }
     }

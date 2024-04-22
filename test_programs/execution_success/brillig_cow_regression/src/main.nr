@@ -13,29 +13,29 @@ global TX_EFFECT_HASH_LOG_FIELDS = 4;
 global TX_EFFECT_HASH_FULL_FIELDS = 165;
 
 struct PublicDataUpdateRequest {
-    leaf_slot : Field,
-    old_value : Field,
-    new_value : Field
+    leaf_slot : field,
+    old_value : field,
+    new_value : field
 }
 
 struct NewContractData {
-    contract_address: Field,
-    portal_contract_address: Field,
+    contract_address: field,
+    portal_contract_address: field,
 }
 
 impl NewContractData {
-    fn hash(self) -> Field {
+    fn hash(self) -> field {
         dep::std::hash::pedersen_hash([self.contract_address, self.portal_contract_address])
     }
 }
 
 struct DataToHash {
-    new_note_hashes: [Field; MAX_NEW_NOTE_HASHES_PER_TX],
-    new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
+    new_note_hashes: [field; MAX_NEW_NOTE_HASHES_PER_TX],
+    new_nullifiers: [field; MAX_NEW_NULLIFIERS_PER_TX],
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
-    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
-    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    new_l2_to_l1_msgs: [field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
+    encrypted_logs_hash: [field; NUM_FIELDS_PER_SHA256],
+    unencrypted_logs_hash: [field; NUM_FIELDS_PER_SHA256],
     new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
 }
 
@@ -88,17 +88,17 @@ impl U256 {
         U256 { inner: [high_0, high_1, low_0, low_1] }
     }
 
-    pub fn to_u128_limbs(self) -> [Field; 2] {
+    pub fn to_u128_limbs(self) -> [field; 2] {
         let two_pow_64 = 2.pow_32(64);
 
-        let high = (self.inner[0] as Field) * two_pow_64 + self.inner[1] as Field;
-        let low  = (self.inner[2] as Field) * two_pow_64 + self.inner[3] as Field;
+        let high = (self.inner[0] as field) * two_pow_64 + self.inner[1] as field;
+        let low  = (self.inner[2] as field) * two_pow_64 + self.inner[3] as field;
 
         [high, low]
     }
 }
 
-unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA256] {
+unconstrained fn main(kernel_data: DataToHash) -> pub [field; NUM_FIELDS_PER_SHA256] {
     let mut tx_effects_hash_inputs = [0; TX_EFFECT_HASH_INPUT_SIZE];
 
     let new_note_hashes = kernel_data.new_note_hashes;

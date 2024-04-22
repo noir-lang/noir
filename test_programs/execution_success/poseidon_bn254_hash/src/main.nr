@@ -2,7 +2,7 @@
 use dep::std::hash::poseidon;
 use dep::std::hash::poseidon2;
 
-fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field, x3: [Field; 4], y3: Field) {
+fn main(x1: [field; 2], y1: pub field, x2: [field; 4], y2: pub field, x3: [field; 4], y3: field) {
     let hash1 = poseidon::bn254::hash_2(x1);
     assert(hash1 == y1);
 

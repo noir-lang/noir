@@ -1,25 +1,25 @@
 use dep::std;
 
 trait MyDefault {
-    fn my_default(x: Field, y: Field) -> Self;
+    fn my_default(x: field, y: field) -> Self;
 
-    fn method2(x: Field) -> Field {
+    fn method2(x: field) -> field {
 	    x
     }
 }
 
 struct Foo {
-    bar: Field,
-    array: [Field; 2],
+    bar: field,
+    array: [field; 2],
 }
 
 impl MyDefault for Foo {
-    fn my_default(x: Field,y: Field) -> Self {
+    fn my_default(x: field,y: field) -> Self {
         Self { bar: x, array: [x,y] }
     }
 }
 
-fn main(x: Field) {
+fn main(x: field) {
     let first = Foo::method2(x);
     assert(first == x);
 }

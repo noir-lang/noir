@@ -1,5 +1,5 @@
 fn main() {
-    let a: [[[[Field; 2]; 2]; 2]; 2] = [[[[1, 2], [3, 4]], [[5, 6], [7, 8]]], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]];
+    let a: [[[[field; 2]; 2]; 2]; 2] = [[[[1, 2], [3, 4]], [[5, 6], [7, 8]]], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]];
     assert(a.my_eq(a));
 }
 
@@ -13,7 +13,7 @@ impl<T> MyEq for [T; 2] where T: MyEq {
           & self[0].my_eq(other[0])
     }
 }
-// Impl for u32 but not Field
+// Impl for u32 but not field
 impl MyEq for u32 {
     fn my_eq(self, other: Self) -> bool {
         self == other

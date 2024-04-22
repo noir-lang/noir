@@ -1,6 +1,6 @@
 struct Bar<T> {
-    one: Field,
-    two: Field,
+    one: field,
+    two: field,
     other: T,
 }
 
@@ -25,14 +25,14 @@ impl<N> BigInt<N> {
     }
 }
 
-impl Bar<Field> {
-    fn get_other(self) -> Field {
+impl Bar<field> {
+    fn get_other(self) -> field {
         self.other
     }
 }
 
-fn main(x: Field, y: Field) {
-    let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };
+fn main(x: field, y: field) {
+    let bar1: Bar<field> = Bar { one: x, two: y, other: 0 };
     let bar2 = Bar { one: x, two: y, other: [0] };
 
     foo(bar1);
@@ -42,25 +42,25 @@ fn main(x: Field, y: Field) {
     let int2 = BigInt { limbs: [2] };
     let BigInt { limbs } = int1.second(int2).first(int1);
     assert(limbs == int2.limbs);
-    // Test impl exclusively for Bar<Field>
+    // Test impl exclusively for Bar<field>
     assert(bar1.get_other() == bar1.other);
     // Expected type error
     // assert(bar2.get_other() == bar2.other);
     let one = x;
     let two = y;
-    let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
+    let nested_generics: Bar<Bar<field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
     assert(nested_generics.other.other == bar1.get_other());
 
     let _ = regression_2055([1, 2, 3]);
 }
 
-fn regression_2055<LEN>(bytes: [u8; LEN]) -> Field {
+fn regression_2055<LEN>(bytes: [u8; LEN]) -> field {
     let mut f = 0;
     let mut b = 1;
     let mut len = LEN - 1; // FAILS
     for i in 0..LEN {
         let j = len - i;
-        f += (bytes[j] as Field) * b;
+        f += (bytes[j] as field) * b;
         b *= 256;
     }
     f

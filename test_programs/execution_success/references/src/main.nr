@@ -1,4 +1,4 @@
-fn main(mut x: Field) {
+fn main(mut x: field) {
     add1(&mut x);
     assert(x == 3);
 
@@ -36,21 +36,21 @@ fn main(mut x: Field) {
     regression_2560(s_ref);
 }
 
-fn add1(x: &mut Field) {
+fn add1(x: &mut field) {
     *x += 1;
 }
 
-struct S { y: Field }
+struct S { y: field }
 
-struct Nested { y: &mut &mut Field }
+struct Nested { y: &mut &mut field }
 
 struct C {
-    foo: Field,
+    foo: field,
     bar: &mut C2,
 }
 
 struct C2 {
-    array: &mut [Field; 2]
+    array: &mut [field; 2]
 }
 
 impl S {
@@ -58,12 +58,12 @@ impl S {
         self.y += 2;
     }
 
-    fn get_y(self) -> Field {
+    fn get_y(self) -> field {
         self.y
     }
 }
 
-fn mutate_copy(mut a: Field) {
+fn mutate_copy(mut a: field) {
     a = 7;
 }
 // Previously the `foo.bar` in `foo.bar.mutate()` would insert an automatic dereference
@@ -75,7 +75,7 @@ fn regression_1887() {
 }
 
 struct Foo { bar: Bar }
-struct Bar { x: Field }
+struct Bar { x: field }
 
 impl Bar {
     fn mutate(&mut self) {
@@ -107,11 +107,11 @@ fn regression_2255() {
     assert(*x == 1);
 }
 
-fn regression_2255_helper(mut x: &mut Field) {
+fn regression_2255_helper(mut x: &mut field) {
     *x = 1;
 }
 
-fn regression_2218(x: Field, y: Field) -> Field {
+fn regression_2218(x: field, y: field) -> field {
     let q = &mut &mut 0;
     let q1 = *q;
     let q2 = *q;
@@ -136,22 +136,22 @@ fn regression_2218(x: Field, y: Field) -> Field {
     value
 }
 
-fn regression_2218_if_inner_if(x: Field, y: Field) {
+fn regression_2218_if_inner_if(x: field, y: field) {
     let value = regression_2218(x, y);
     assert(value == 2);
 }
 
-fn regression_2218_if_inner_else(x: Field, y: Field) {
+fn regression_2218_if_inner_else(x: field, y: field) {
     let value = regression_2218(x, y);
     assert(value == 15);
 }
 
-fn regression_2218_else(x: Field, y: Field) {
+fn regression_2218_else(x: field, y: field) {
     let value = regression_2218(x, y);
     assert(value == 20);
 }
 
-fn regression_2218_loop(x: Field, y: Field) {
+fn regression_2218_loop(x: field, y: field) {
     let q = &mut &mut 0;
     let q1 = *q;
     let q2 = *q;

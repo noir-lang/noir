@@ -56,8 +56,8 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
             format!("fn{env}({args}) -> {return_type}")
         }
         UnresolvedTypeData::Unspecified => todo!(),
-        UnresolvedTypeData::FieldElement
-        | UnresolvedTypeData::Integer(_, _)
+        UnresolvedTypeData::FieldElement => "field".to_owned(),
+        UnresolvedTypeData::Integer(_, _)
         | UnresolvedTypeData::Bool
         | UnresolvedTypeData::Named(_, _, _)
         | UnresolvedTypeData::Unit

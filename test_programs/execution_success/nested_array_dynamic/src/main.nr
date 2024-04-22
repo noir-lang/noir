@@ -1,19 +1,19 @@
 struct Bar {
-    inner: [Field; 3],
+    inner: [field; 3],
 }
 
 struct Foo {
-    a: Field,
-    b: [Field; 3],
+    a: field,
+    b: [field; 3],
     bar: Bar,
 }
 
 struct FooParent {
-    array: [Field; 3],
+    array: [field; 3],
     foos: [Foo; 4],
 }
 
-fn main(mut x: [Foo; 4], y: pub Field) {
+fn main(mut x: [Foo; 4], y: pub field) {
     assert(x[y - 3].a == 1);
     assert(x[y - 3].b == [2, 3, 20]);
     assert(x[y - 2].a == 4);

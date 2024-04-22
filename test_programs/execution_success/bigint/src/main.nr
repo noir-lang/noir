@@ -10,8 +10,8 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
         a_be_bytes[31-i] = x[i];
         b_be_bytes[31-i] = y[i];
     }
-    let a_field = dep::std::field::bytes32_to_field(a_be_bytes);
-    let b_field = dep::std::field::bytes32_to_field(b_be_bytes);
+    let a_field = dep::std::field_element::bytes32_to_field(a_be_bytes);
+    let b_field = dep::std::field_element::bytes32_to_field(b_be_bytes);
 
     // Regression for #4682
     let c = if x[0] != 0 {

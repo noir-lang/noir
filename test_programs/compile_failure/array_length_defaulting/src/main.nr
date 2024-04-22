@@ -3,7 +3,7 @@ fn main() {
     foo(x);
 }
 
-fn foo<N>(array: [Field; N]) {
+fn foo<N>(array: [field; N]) {
     for elem in array {
         println(elem);
     }

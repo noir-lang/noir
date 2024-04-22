@@ -1,8 +1,8 @@
 use crate::ops::Add;
 
 struct EmbeddedCurvePoint {
-    x: Field,
-    y: Field,
+    x: field,
+    y: field,
 }
 
 impl EmbeddedCurvePoint {
@@ -26,9 +26,9 @@ impl Add for EmbeddedCurvePoint {
 #[foreign(fixed_base_scalar_mul)]
 // docs:start:fixed_base_embedded_curve
 pub fn fixed_base_embedded_curve(
-    low: Field,
-    high: Field
-) -> [Field; 2]
+    low: field,
+    high: field
+) -> [field; 2]
 // docs:end:fixed_base_embedded_curve
 {}
 
@@ -42,4 +42,4 @@ fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) ->
 }
 
 #[foreign(embedded_curve_add)]
-fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 2] {}
+fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [field; 2] {}

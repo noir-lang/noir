@@ -1,28 +1,28 @@
 trait Trait1 {
-    fn tralala() -> Field;
+    fn tralala() -> field;
 }
 
 trait Trait2 {
-    fn tralala() -> Field;
+    fn tralala() -> field;
 }
 
 struct Struct1 {
 }
 
 impl Struct1 {
-    fn tralala() -> Field {
+    fn tralala() -> field {
         123456
     }
 }
 
 impl Trait1 for Struct1 {
-    fn tralala() -> Field {
+    fn tralala() -> field {
         111111
     }
 }
 
 impl Trait2 for Struct1 {
-    fn tralala() -> Field {
+    fn tralala() -> field {
         222222
     }
 }

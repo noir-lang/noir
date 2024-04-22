@@ -4,7 +4,7 @@ trait Add {
 }
 // docs:end:add-trait
 
-impl Add for Field { fn add(self, other: Field) -> Field { self + other } }
+impl Add for field { fn add(self, other: field) -> field { self + other } }
 
 impl Add for u64 { fn add(self, other: u64) -> u64 { self + other } }
 impl Add for u32 { fn add(self, other: u32) -> u32 { self + other } }
@@ -20,7 +20,7 @@ trait Sub {
 }
 // docs:end:sub-trait
 
-impl Sub for Field { fn sub(self, other: Field) -> Field { self - other } }
+impl Sub for field { fn sub(self, other: field) -> field { self - other } }
 
 impl Sub for u64 { fn sub(self, other: u64) -> u64 { self - other } }
 impl Sub for u32 { fn sub(self, other: u32) -> u32 { self - other } }
@@ -36,7 +36,7 @@ trait Mul {
 }
 // docs:end:mul-trait
 
-impl Mul for Field { fn mul(self, other: Field) -> Field { self * other } }
+impl Mul for field { fn mul(self, other: field) -> field { self * other } }
 
 impl Mul for u64 { fn mul(self, other: u64) -> u64 { self * other } }
 impl Mul for u32 { fn mul(self, other: u32) -> u32 { self * other } }
@@ -52,7 +52,7 @@ trait Div {
 }
 // docs:end:div-trait
 
-impl Div for Field { fn div(self, other: Field) -> Field { self / other } }
+impl Div for field { fn div(self, other: field) -> field { self / other } }
 
 impl Div for u64 { fn div(self, other: u64) -> u64 { self / other } }
 impl Div for u32 { fn div(self, other: u32) -> u32 { self / other } }

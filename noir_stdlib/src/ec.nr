@@ -54,7 +54,7 @@ mod consts; // Commonly used curve presets
 //
 // Curves
 // ======
-// A curve configuration (Curve) is completely determined by the Field coefficients of its defining
+// A curve configuration (Curve) is completely determined by the field coefficients of its defining
 // equation (a and b in the case of swcurve, a and d in the case of tecurve, and j and k in
 // the case of montcurve) together with a generator (`gen`) in the corresponding coordinate system.
 // For example, the Baby Jubjub curve configuration as defined in ERC-2494 may be instantiated as a Twisted
@@ -74,13 +74,13 @@ mod consts; // Commonly used curve presets
 //
 // `constrain tecurve::Point::zero().eq(bjj_affine.subtract(bjj_affine.gen, bjj_affine.gen));`
 //
-// scalar multiplication as the `mul` method, where the scalar is assumed to be a Field* element, e.g.
+// scalar multiplication as the `mul` method, where the scalar is assumed to be a field* element, e.g.
 //
 // `constrain tecurve::Point::zero().eq(bjj_affine.mul(2, tecurve::Point::zero());`
 //
 // There is a scalar multiplication method (`bit_mul`) provided where the scalar input is expected to be
 // an array of bits (little-endian convention), as well as a multi-scalar multiplication method** (`msm`)
-// which takes an array of Field elements and an array of elliptic curve points as arguments, both assumed
+// which takes an array of field elements and an array of elliptic curve points as arguments, both assumed
 // to be of the same length.
 //
 // Curve configurations may be converted between different coordinate representations by calling the `into_group`
@@ -96,30 +96,30 @@ mod consts; // Commonly used curve presets
 //
 // Curve maps
 // ==========
-// There are a few different ways of mapping Field elements to elliptic curves. Here we provide the simplified
+// There are a few different ways of mapping field elements to elliptic curves. Here we provide the simplified
 // Shallue-van de Woestijne-Ulas and Elligator 2 methods, the former being applicable to all curve types
 // provided above subject to the constraint that the coefficients of the corresponding Short Weierstraß curve satisfies
 // a*b != 0 and the latter being applicable to Montgomery and Twisted Edwards curves subject to the constraint that
 // the coefficients of the corresponding Montgomery curve satisfy j*k != 0 and (j^2 - 4)/k^2 is non-square.
 //
 // The simplified Shallue-van de Woestijne-Ulas method is exposed as the method `swu_map` on the Curve configuration and
-// depends on two parameters, a Field element z != -1 for which g(x) - z is irreducible over Field and g(b/(z*a)) is
+// depends on two parameters, a field element z != -1 for which g(x) - z is irreducible over field and g(b/(z*a)) is
 // square, where g(x) = x^3 + a*x + b is the right-hand side of the defining equation of the corresponding Short
-// Weierstraß curve, and a Field element u to be mapped onto the curve. For example, in the case of bjj_affine above,
+// Weierstraß curve, and a field element u to be mapped onto the curve. For example, in the case of bjj_affine above,
 // it may be determined using the scripts provided at <https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve> that z = 5.
 //
 // The Elligator 2 method is exposed as the method `elligator2_map` on the Curve configurations of Montgomery and
-// Twisted Edwards curves. Like the simplified SWU method above, it depends on a certain non-square element of Field,
-// but this element need not satisfy any further conditions, so it is included as the (Field-dependent) constant
-//`ZETA` below. Thus, the `elligator2_map` method depends only on one parameter, the Field element to be mapped onto
+// Twisted Edwards curves. Like the simplified SWU method above, it depends on a certain non-square element of field,
+// but this element need not satisfy any further conditions, so it is included as the (field-dependent) constant
+//`ZETA` below. Thus, the `elligator2_map` method depends only on one parameter, the field element to be mapped onto
 // the curve.
 //
 // For details on all of the above in the context of hashing to elliptic curves, see <https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html>.
 // 
 //
-// *TODO: Replace Field with Bigint.
+// *TODO: Replace field with Bigint.
 // **TODO: Support arrays of structs to make this work.
-// Field-dependent constant ZETA = a non-square element of Field
+// Field-dependent constant ZETA = a non-square element of field
 // Required for Elligator 2 map
 // TODO: Replace with built-in constant.
 global ZETA = 5;
@@ -143,37 +143,37 @@ global C5 = 19103219067921713944291392827692070036145651957329286315305642004821
 //    out
 //}
 // TODO: Make this built-in.
-pub fn safe_inverse(x: Field) -> Field {
+pub fn safe_inverse(x: field) -> field {
     if x == 0 { 0 } else { 1 / x }
 }
-// Boolean indicating whether Field element is a square, i.e. whether there exists a y in Field s.t. x = y*y.
-pub fn is_square(x: Field) -> bool {
+// Boolean indicating whether field element is a square, i.e. whether there exists a y in field s.t. x = y*y.
+pub fn is_square(x: field) -> bool {
     let v = pow(x, 0 - 1 / 2);
 
     v * (v - 1) == 0
 }
-// Power function of two Field arguments of arbitrary size.
-// Adapted from std::field::pow_32.
-pub fn pow(x: Field, y: Field) -> Field {
+// Power function of two field arguments of arbitrary size.
+// Adapted from std::field_element::pow_32.
+pub fn pow(x: field, y: field) -> field {
     // As in tests with minor modifications
-    let N_BITS = crate::field::modulus_num_bits();
+    let N_BITS = crate::field_element::modulus_num_bits();
 
-    let mut r = 1 as Field;
+    let mut r: field = 1;
     let b = y.to_le_bits(N_BITS as u32);
 
     for i in 0..N_BITS {
         r *= r;
-        r *= (b[N_BITS - 1 - i] as Field)*x + (1-b[N_BITS - 1 - i] as Field);
+        r *= (b[N_BITS - 1 - i] as field)*x + (1-b[N_BITS - 1 - i] as field);
     }
 
     r
 }
-// Tonelli-Shanks algorithm for computing the square root of a Field element.
-// Requires C1 = max{c: 2^c divides (p-1)}, where p is the order of Field
+// Tonelli-Shanks algorithm for computing the square root of a field element.
+// Requires C1 = max{c: 2^c divides (p-1)}, where p is the order of field
 // as well as C3 = (C2 - 1)/2, where C2 = (p-1)/(2^c1),
-// and C5 = ZETA^C2, where ZETA is a non-square element of Field.
+// and C5 = ZETA^C2, where ZETA is a non-square element of field.
 // These are pre-computed above as globals.
-pub fn sqrt(x: Field) -> Field {
+pub fn sqrt(x: field) -> field {
     let mut z = pow(x, C3);
     let mut t = z * z * x;
     z *= x;

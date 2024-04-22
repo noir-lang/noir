@@ -1,3 +1,3 @@
-fn main(x: Field) {
+fn main(x: field) {
     assert(x == 1);
 }

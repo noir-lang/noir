@@ -6,7 +6,7 @@ use crate::default::Default;
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
+fn mimc<N>(x: field, k: field, constants: [field; N], exp: field) -> field {
     //round 0
     let mut t = x + k;
     let mut h = t.pow_32(exp);
@@ -20,7 +20,7 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
 
 global MIMC_BN254_ROUNDS = 91;
 //generated from seed "mimc" using keccak256 
-global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
+global MIMC_BN254_CONSTANTS: [field; MIMC_BN254_ROUNDS] = [
         0,
         20888961410941983456478427210666206549300505294776164667214940546594746570981,
         15265126113435022738560151911929040668591755459209400716467504685752745317193,
@@ -116,7 +116,7 @@ global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
 
 //mimc implementation with hardcoded parameters for BN254 curve.
 #[field(bn254)]
-pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
+pub fn mimc_bn254<N>(array: [field; N]) -> field {
     let exponent = 7;
     let mut r = 0;
     for elem in array {
@@ -127,12 +127,12 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
 }
 
 struct MimcHasher {
-    _state: [Field],
+    _state: [field],
 }
 
 impl Hasher for MimcHasher {
     #[field(bn254)]
-    fn finish(self) -> Field {
+    fn finish(self) -> field {
         let exponent = 7;
         let mut r = 0;
         for i in 0..self._state.len() {
@@ -142,7 +142,7 @@ impl Hasher for MimcHasher {
         r
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: field){
         self._state = self._state.push_back(input);
     }
 }

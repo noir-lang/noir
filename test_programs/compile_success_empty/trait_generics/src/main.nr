@@ -1,5 +1,5 @@
 fn main() {
-    let xs: [Field; 1] = [3];
+    let xs: [field; 1] = [3];
     let ys: [u32; 1] = [3];
     foo(xs, ys);
 
@@ -21,7 +21,7 @@ impl<T, U, N> MyInto<[U; N]> for [T; N] where T: MyInto<U> {
     }
 }
 
-impl MyInto<u32> for Field {
+impl MyInto<u32> for field {
     fn into(self) -> u32 {
         self as u32
     }
@@ -30,27 +30,27 @@ impl MyInto<u32> for Field {
 /// Serialize example
 
 trait Serializable<N> {
-    fn serialize(self) -> [Field; N];
+    fn serialize(self) -> [field; N];
 }
 
 struct Data {
-    a: Field,
-    b: Field,
+    a: field,
+    b: field,
 }
 
 impl Serializable<2> for Data {
-    fn serialize(self) -> [Field; 2] {
+    fn serialize(self) -> [field; 2] {
         [self.a, self.b]
     }
 }
 
-fn sum<T, M>(data: T) -> Field where T: Serializable<M> {
+fn sum<T, M>(data: T) -> field where T: Serializable<M> {
     let serialized = data.serialize();
     serialized.fold(0, |acc, elem| acc + elem)
 }
 
 // Test static trait method syntax
-fn sum_static<T, M>(data: T) -> Field where T: Serializable<M> {
+fn sum_static<T, M>(data: T) -> field where T: Serializable<M> {
     let serialized = Serializable::serialize(data);
     serialized.fold(0, |acc, elem| acc + elem)
 }

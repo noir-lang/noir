@@ -1,3 +1,3 @@
 struct MyStruct {
-    Q: Field,
+    Q: field,
 }

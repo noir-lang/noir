@@ -14,16 +14,16 @@ fn main() {
     assert(foo(itWorks2).data[0] == itWorks2.data[0] + 1);
 }
 
-fn id<I>(x: [Field; I]) -> [Field; I] {
+fn id<I>(x: [field; I]) -> [field; I] {
     x
 }
 
 struct MyStruct<S> {
-    data: [Field; S],
+    data: [field; S],
 }
 
 impl<S> MyStruct<S> {
-    fn insert(mut self: Self, index: Field, elem: Field) -> Self {
+    fn insert(mut self: Self, index: field, elem: field) -> Self {
         // Regression test for numeric generics on impls
         assert(index as u64 < S as u64);
 

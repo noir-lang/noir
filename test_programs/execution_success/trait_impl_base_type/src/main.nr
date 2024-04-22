@@ -1,23 +1,23 @@
 trait Fieldable {
-    fn to_field(self) -> Field;
+    fn to_field(self) -> field;
 }
 
 impl Fieldable for u32 {
-    fn to_field(self) -> Field {
-        let res = self as Field;
+    fn to_field(self) -> field {
+        let res = self as field;
         res * 3    
     }
 }
 
 impl Fieldable for [u32; 3] {
-    fn to_field(self) -> Field {
+    fn to_field(self) -> field {
         let res = self[0] + self[1] + self[2];
-        res as Field
+        res as field
     }
 }
 
 impl Fieldable for bool {
-    fn to_field(self) -> Field {
+    fn to_field(self) -> field {
         if self {
             14
         } else {
@@ -27,51 +27,51 @@ impl Fieldable for bool {
 }
 
 impl Fieldable for (u32, bool) {
-    fn to_field(self) -> Field {
+    fn to_field(self) -> field {
         if self.1 {
-            self.0 as Field
+            self.0 as field
         } else {
             32
         }
     }
 }
 
-impl Fieldable for Field {
-    fn to_field(self) -> Field {
+impl Fieldable for field {
+    fn to_field(self) -> field {
         self
     }
 }
 
 impl Fieldable for str<6> {
-    fn to_field(self) -> Field {
+    fn to_field(self) -> field {
         6
     }
 }
 
 impl Fieldable for () {
-    fn to_field(self) -> Field {
+    fn to_field(self) -> field {
         0
     }
 }
 
-type Point2D = [Field; 2];
+type Point2D = [field; 2];
 type Point2DAlias = Point2D;
 
 impl Fieldable for Point2DAlias {
-    fn to_field(self) -> Field {
+    fn to_field(self) -> field {
         self[0] + self[1]
     }
 }
 
-impl Fieldable for fmtstr<14, (Field, Field)> {
-    fn to_field(self) -> Field {
+impl Fieldable for fmtstr<14, (field, field)> {
+    fn to_field(self) -> field {
         52
     }
 }
 
 impl Fieldable for fn(u32) -> u32 {
-    fn to_field(self) -> Field {
-        self(10) as Field
+    fn to_field(self) -> field {
+        self(10) as field
     }
 }
 
@@ -80,8 +80,8 @@ fn some_func(x: u32) -> u32 {
 }
 
 impl Fieldable for u64 {
-    fn to_field(self) -> Field {
-        66 as Field
+    fn to_field(self) -> field {
+        66 as field
     }
 }
 // x = 15
@@ -93,7 +93,7 @@ fn main(x: u32) {
     assert(b_true.to_field() == 14);
     let b_false = 2 == 3;
     assert(b_false.to_field() == 3);
-    let f = 13 as Field;
+    let f = 13 as field;
     assert(f.to_field() == 13);
     let k_true = (12 as u32, true);
     assert(k_true.to_field() == 12);
@@ -105,8 +105,8 @@ fn main(x: u32) {
     assert(unit.to_field() == 0);
     let point: Point2DAlias = [2, 3];
     assert(point.to_field() == 5);
-    let i: Field = 2;
-    let j: Field = 6;
+    let i: field = 2;
+    let j: field = 6;
     assert(f"i: {i}, j: {j}".to_field() == 52);
     assert(some_func.to_field() == 17);
 

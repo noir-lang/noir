@@ -7,12 +7,12 @@ use crate::hash::poseidon::apply_matrix;
 // Optimised permutation for this particular field; uses hardcoded rf and rp values,
 // which should agree with those in pos_conf.
 #[field(bn254)]
-pub fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [Field; O] {
+pub fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [field; O]) -> [field; O] {
     let PoseidonConfig {t, rf: config_rf, rp: config_rp, alpha, ark, mds} = pos_conf;
     let rf: u8 = 8;
     let rp: u8 = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68][state.len() - 2];
 
-    assert(t == state.len() as Field);
+    assert(t == state.len() as field);
     assert(rf == config_rf);
     assert(rp == config_rp);
 
@@ -58,11 +58,11 @@ pub fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -
 #[field(bn254)]
 fn absorb<M, N, O, P>(
     pos_conf: PoseidonConfig<M, N>,
-    mut state: [Field; O], // Initial state; usually [0; O]
-    rate: Field, // Rate
-    capacity: Field, // Capacity; usually 1
-    msg: [Field; P] // Arbitrary length message
-) -> [Field; O] {
+    mut state: [field; O], // Initial state; usually [0; O]
+    rate: field, // Rate
+    capacity: field, // Capacity; usually 1
+    msg: [field; P] // Arbitrary length message
+) -> [field; O] {
     assert(pos_conf.t == rate + capacity);
 
     let mut i = 0;
@@ -86,12 +86,12 @@ fn absorb<M, N, O, P>(
 }
 // Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
 #[field(bn254)]
-pub fn sponge<N>(msg: [Field; N]) -> Field {
+pub fn sponge<N>(msg: [field; N]) -> field {
     absorb(consts::x5_5_config(), [0; 5], 4, 1, msg)[1]
 }
 // Various instances of the Poseidon hash function
 // Consistent with Circom's implementation
-pub fn hash_1(input: [Field; 1]) -> Field {
+pub fn hash_1(input: [field; 1]) -> field {
     let mut state = [0; 2];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -100,7 +100,7 @@ pub fn hash_1(input: [Field; 1]) -> Field {
     perm::x5_2(state)[0]
 }
 
-pub fn hash_2(input: [Field; 2]) -> Field {
+pub fn hash_2(input: [field; 2]) -> field {
     let mut state = [0; 3];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -109,7 +109,7 @@ pub fn hash_2(input: [Field; 2]) -> Field {
     perm::x5_3(state)[0]
 }
 
-pub fn hash_3(input: [Field; 3]) -> Field {
+pub fn hash_3(input: [field; 3]) -> field {
     let mut state = [0; 4];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -118,7 +118,7 @@ pub fn hash_3(input: [Field; 3]) -> Field {
     perm::x5_4(state)[0]
 }
 
-pub fn hash_4(input: [Field; 4]) -> Field {
+pub fn hash_4(input: [field; 4]) -> field {
     let mut state = [0; 5];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -127,7 +127,7 @@ pub fn hash_4(input: [Field; 4]) -> Field {
     perm::x5_5(state)[0]
 }
 
-pub fn hash_5(input: [Field; 5]) -> Field {
+pub fn hash_5(input: [field; 5]) -> field {
     let mut state = [0; 6];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -136,7 +136,7 @@ pub fn hash_5(input: [Field; 5]) -> Field {
     perm::x5_6(state)[0]
 }
 
-pub fn hash_6(input: [Field; 6]) -> Field {
+pub fn hash_6(input: [field; 6]) -> field {
     let mut state = [0; 7];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -145,7 +145,7 @@ pub fn hash_6(input: [Field; 6]) -> Field {
     perm::x5_7(state)[0]
 }
 
-pub fn hash_7(input: [Field; 7]) -> Field {
+pub fn hash_7(input: [field; 7]) -> field {
     let mut state = [0; 8];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -154,7 +154,7 @@ pub fn hash_7(input: [Field; 7]) -> Field {
     perm::x5_8(state)[0]
 }
 
-pub fn hash_8(input: [Field; 8]) -> Field {
+pub fn hash_8(input: [field; 8]) -> field {
     let mut state = [0; 9];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -163,7 +163,7 @@ pub fn hash_8(input: [Field; 8]) -> Field {
     perm::x5_9(state)[0]
 }
 
-pub fn hash_9(input: [Field; 9]) -> Field {
+pub fn hash_9(input: [field; 9]) -> field {
     let mut state = [0; 10];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -172,7 +172,7 @@ pub fn hash_9(input: [Field; 9]) -> Field {
     perm::x5_10(state)[0]
 }
 
-pub fn hash_10(input: [Field; 10]) -> Field {
+pub fn hash_10(input: [field; 10]) -> field {
     let mut state = [0; 11];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -181,7 +181,7 @@ pub fn hash_10(input: [Field; 10]) -> Field {
     perm::x5_11(state)[0]
 }
 
-pub fn hash_11(input: [Field; 11]) -> Field {
+pub fn hash_11(input: [field; 11]) -> field {
     let mut state = [0; 12];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -190,7 +190,7 @@ pub fn hash_11(input: [Field; 11]) -> Field {
     perm::x5_12(state)[0]
 }
 
-pub fn hash_12(input: [Field; 12]) -> Field {
+pub fn hash_12(input: [field; 12]) -> field {
     let mut state = [0; 13];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -199,7 +199,7 @@ pub fn hash_12(input: [Field; 12]) -> Field {
     perm::x5_13(state)[0]
 }
 
-pub fn hash_13(input: [Field; 13]) -> Field {
+pub fn hash_13(input: [field; 13]) -> field {
     let mut state = [0; 14];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -208,7 +208,7 @@ pub fn hash_13(input: [Field; 13]) -> Field {
     perm::x5_14(state)[0]
 }
 
-pub fn hash_14(input: [Field; 14]) -> Field {
+pub fn hash_14(input: [field; 14]) -> field {
     let mut state = [0; 15];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -217,7 +217,7 @@ pub fn hash_14(input: [Field; 14]) -> Field {
     perm::x5_15(state)[0]
 }
 
-pub fn hash_15(input: [Field; 15]) -> Field {
+pub fn hash_15(input: [field; 15]) -> field {
     let mut state = [0; 16];
     for i in 0..input.len() {
         state[i+1] = input[i];
@@ -226,7 +226,7 @@ pub fn hash_15(input: [Field; 15]) -> Field {
     perm::x5_16(state)[0]
 }
 
-pub fn hash_16(input: [Field; 16]) -> Field {
+pub fn hash_16(input: [field; 16]) -> field {
     let mut state = [0; 17];
     for i in 0..input.len() {
         state[i+1] = input[i];

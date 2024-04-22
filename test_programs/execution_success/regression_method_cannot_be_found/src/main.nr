@@ -1,6 +1,6 @@
 use dep::std;
 struct Item {
-    id: Field,
+    id: field,
 }
 
 impl Item {

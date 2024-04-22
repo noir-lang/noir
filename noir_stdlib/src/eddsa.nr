@@ -6,12 +6,12 @@ use crate::hash::poseidon::PoseidonHasher;
 
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(
-    pub_key_x: Field,
-    pub_key_y: Field,
-    signature_s: Field,
-    signature_r8_x: Field,
-    signature_r8_y: Field,
-    message: Field
+    pub_key_x: field,
+    pub_key_y: field,
+    signature_s: field,
+    signature_r8_x: field,
+    signature_r8_y: field,
+    message: field
 ) -> bool {
     let mut hasher = PoseidonHasher::default();
     eddsa_verify_with_hasher(
@@ -26,12 +26,12 @@ pub fn eddsa_poseidon_verify(
 }
 
 pub fn eddsa_verify_with_hasher<H>(
-    pub_key_x: Field,
-    pub_key_y: Field,
-    signature_s: Field,
-    signature_r8_x: Field,
-    signature_r8_y: Field,
-    message: Field,
+    pub_key_x: field,
+    pub_key_y: field,
+    signature_s: field,
+    signature_r8_x: field,
+    signature_r8_y: field,
+    message: field,
     hasher: &mut H
 ) -> bool 
 where H: Hasher {
@@ -52,7 +52,7 @@ where H: Hasher {
     pub_key_x.hash(hasher);
     pub_key_y.hash(hasher);
     message.hash(hasher);
-    let hash: Field = (*hasher).finish();
+    let hash: field = (*hasher).finish();
     // Calculate second part of the right side:  right2 = h*8*A
     // Multiply by 8 by doubling 3 times. This also ensures that the result is in the subgroup.
     let pub_key_mul_2 = bjj.curve.add(pub_key, pub_key);
@@ -69,7 +69,7 @@ where H: Hasher {
 }
 
 // Returns the public key of the given secret key as (pub_key_x, pub_key_y)
-pub fn eddsa_to_pub(secret: Field) -> (Field, Field) {
+pub fn eddsa_to_pub(secret: field) -> (field, field) {
     let bjj = baby_jubjub();
     let pub_key = bjj.curve.mul(secret, bjj.curve.gen);
     (pub_key.x, pub_key.y)

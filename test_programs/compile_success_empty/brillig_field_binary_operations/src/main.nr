@@ -8,18 +8,18 @@ fn main() {
     assert((x / y) == div(x, y));
 }
 
-unconstrained fn add(x: Field, y: Field) -> Field {
+unconstrained fn add(x: field, y: field) -> field {
     x + y
 }
 
-unconstrained fn sub(x: Field, y: Field) -> Field {
+unconstrained fn sub(x: field, y: field) -> field {
     x - y
 }
 
-unconstrained fn mul(x: Field, y: Field) -> Field {
+unconstrained fn mul(x: field, y: field) -> field {
     x * y
 }
 
-unconstrained fn div(x: Field, y: Field) -> Field {
+unconstrained fn div(x: field, y: field) -> field {
     x / y
 }

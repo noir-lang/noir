@@ -2,15 +2,15 @@ fn len_plus_1<T, N>(array: [T; N]) -> u64 {
     array.len() + 1
 }
 
-fn add_lens<T, N, M>(a: [T; N], b: [Field; M]) -> u64 {
+fn add_lens<T, N, M>(a: [T; N], b: [field; M]) -> u64 {
     a.len() + b.len()
 }
 
-fn nested_call<N>(b: [Field; N]) -> u64 {
+fn nested_call<N>(b: [field; N]) -> u64 {
     len_plus_1(b)
 }
 
-fn main(x: Field, len3: [u8; 3], len4: [Field; 4]) {
+fn main(x: field, len3: [u8; 3], len4: [field; 4]) {
     assert(len_plus_1(len3) == 4);
     assert(len_plus_1(len4) == 5);
     assert(add_lens(len3, len4) == 7);

@@ -3,14 +3,14 @@ use dep::std::hash::BuildHasherDefault;
 use dep::std::hash::poseidon2::Poseidon2Hasher;
 
 struct Entry{
-    key: Field,
-    value: Field
+    key: field,
+    value: field
 }
 
 global HASHMAP_CAP = 8;
 global HASHMAP_LEN = 6;
 
-fn allocate_hashmap() -> HashMap<Field, Field, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> {
+fn allocate_hashmap() -> HashMap<field, field, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> {
     HashMap::default()
 }
 

@@ -1,5 +1,5 @@
 struct MyStruct {
-    Q: Field,
+    Q: field,
 }
 
 impl dep::crate1::MyTrait for MyStruct {

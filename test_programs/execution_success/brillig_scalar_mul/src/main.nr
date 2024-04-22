@@ -1,16 +1,16 @@
 use dep::std;
 
 unconstrained fn main(
-    a: Field,
-    a_pub_x: pub Field,
-    a_pub_y: pub Field,
-    b: Field,
-    b_pub_x: pub Field,
-    b_pub_y: pub Field
+    a: field,
+    a_pub_x: pub field,
+    a_pub_y: pub field,
+    b: field,
+    b_pub_x: pub field,
+    b_pub_y: pub field
 ) {
     let mut priv_key = a;
-    let mut pub_x: Field = a_pub_x;
-    let mut pub_y: Field = a_pub_y;
+    let mut pub_x: field = a_pub_x;
+    let mut pub_y: field = a_pub_y;
     if a != 1 {
         // Change `a` in Prover.toml to test input `b`
         priv_key = b;

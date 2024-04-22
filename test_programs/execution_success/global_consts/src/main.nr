@@ -1,8 +1,8 @@
 mod foo;
 mod baz;
 
-global M: Field = 32;
-global L: Field = 10; // Unused globals currently allowed
+global M: field = 32;
+global L: field = 10; // Unused globals currently allowed
 global N: u64 = 5;
 global T_LEN = 2; // Type inference is allowed on globals
 
@@ -10,38 +10,38 @@ global T_LEN = 2; // Type inference is allowed on globals
 global DERIVED = M + L;
 
 struct Dummy {
-     x: [Field; N],
-     y: [Field; foo::MAGIC_NUMBER]
+     x: [field; N],
+     y: [field; foo::MAGIC_NUMBER]
 }
 
 struct Test {
-    v: Field,
+    v: field,
 }
 global VALS: [Test; 1] = [Test { v: 100 }];
 global NESTED = [VALS, VALS];
 
-unconstrained fn calculate_global_value() -> Field {
+unconstrained fn calculate_global_value() -> field {
     42
 }
 
 // Regression test for https://github.com/noir-lang/noir/issues/4318
-global CALCULATED_GLOBAL: Field = calculate_global_value();
+global CALCULATED_GLOBAL: field = calculate_global_value();
 
 fn main(
-    a: [Field; M + N - N],
-    b: [Field; 30 + N / 2],
-    c: pub [Field; foo::MAGIC_NUMBER],
-    d: [Field; foo::bar::N]
+    a: [field; M + N - N],
+    b: [field; 30 + N / 2],
+    c: pub [field; foo::MAGIC_NUMBER],
+    d: [field; foo::bar::N]
 ) {
     let test_struct = Dummy { x: d, y: c };
 
     for i in 0..foo::MAGIC_NUMBER {
-        assert(c[i] == foo::MAGIC_NUMBER as Field);
-        assert(test_struct.y[i] == foo::MAGIC_NUMBER as Field);
+        assert(c[i] == foo::MAGIC_NUMBER as field);
+        assert(test_struct.y[i] == foo::MAGIC_NUMBER as field);
         assert(test_struct.y[i] != NESTED[1][0].v);
     }
 
-    assert(N as Field != M);
+    assert(N as field != M);
 
     let expected: u32 = 42;
     assert(foo::TYPE_INFERRED == expected);
@@ -49,7 +49,7 @@ fn main(
     let mut y = 5;
     let mut x = M;
     for i in 0..N * N {
-        let M: Field = 10;
+        let M: field = 10;
         x = M;
 
         y = i;
@@ -62,12 +62,12 @@ fn main(
 
     arrays_neq(a, b);
 
-    let t: [Field; T_LEN] = [N as Field, M];
+    let t: [field; T_LEN] = [N as field, M];
     assert(t[1] == 32);
 
     assert(15 == my_submodule::my_helper());
 
-    let add_submodules_N = my_submodule::N + foo::bar::N as Field;
+    let add_submodules_N = my_submodule::N + foo::bar::N as field;
     assert(15 == add_submodules_N);
     let add_from_bar_N = my_submodule::N + foo::bar::from_bar(1);
     assert(15 == add_from_bar_N);
@@ -75,7 +75,7 @@ fn main(
     let sugared = [0; my_submodule::N + 2];
     assert(sugared[my_submodule::N + 1] == 0);
 
-    let arr: [Field; my_submodule::N] = [N as Field; 10];
+    let arr: [field; my_submodule::N] = [N as field; 10];
     assert((arr[0] == 5) & (arr[9] == 5));
 
     foo::from_foo(d);
@@ -85,37 +85,37 @@ fn main(
     assert(CALCULATED_GLOBAL == 42);
 }
 
-fn multiplyByM(x: Field) -> Field {
+fn multiplyByM(x: field) -> field {
     x * M
 }
 
-fn arrays_neq(a: [Field; M], b: [Field; M]) {
+fn arrays_neq(a: [field; M], b: [field; M]) {
     assert(a != b);
 }
 
 mod my_submodule {
-    global N: Field = 10;
-    global L: Field = 50;
+    global N: field = 10;
+    global L: field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
         assert(x | y == 1);
     }
 
-    pub fn my_helper() -> Field {
-        let N: Field = 15; // Like in Rust, local variables override globals
+    pub fn my_helper() -> field {
+        let N: field = 15; // Like in Rust, local variables override globals
         let x = N;
         x
     }
 }
 
 struct Foo {
-  a: Field,
+  a: field,
 }
 
 struct Bar {}
 
 impl Bar {
-    fn get_a() -> Field {
+    fn get_a() -> field {
         1
     }
 }

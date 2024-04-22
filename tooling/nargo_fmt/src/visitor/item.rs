@@ -220,6 +220,8 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(use_tree, span);
                     self.last_position = span.end();
                 }
+
+                // TODO: rewrite instances of "Field" into "field" in these items.
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TraitImpl(_)

@@ -1,9 +1,9 @@
 struct Point {
-    x: Field,
-    y: Field,
+    x: field,
+    y: field,
 }
 
-unconstrained fn sum_slice(slice: [[Point; 2]]) -> Field {
+unconstrained fn sum_slice(slice: [[Point; 2]]) -> field {
     let mut sum = 0;
     for i in 0..slice.len() {
         for j in 0..slice[i].len() {

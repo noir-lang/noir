@@ -1,38 +1,38 @@
 mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
-use crate::field::modulus_num_bits;
+use crate::field_element::modulus_num_bits;
 use crate::hash::Hasher;
 use crate::default::Default;
 
 struct PoseidonConfig<M,N> {
-    t: Field, // Width, i.e. state size
+    t: field, // Width, i.e. state size
     rf: u8, // Number of full rounds; should be even
     rp: u8, // Number of partial rounds
-    alpha: Field, // S-box power; depends on the underlying field
-    ark: [Field; M], // Additive round keys
-    mds: [Field; N] // MDS Matrix in row-major order
+    alpha: field, // S-box power; depends on the underlying field
+    ark: [field; M], // Additive round keys
+    mds: [field; N] // MDS Matrix in row-major order
 }
 
 pub fn config<M, N>(
-    t: Field,
+    t: field,
     rf: u8,
     rp: u8,
-    alpha: Field,
-    ark: [Field; M],
-    mds: [Field; N]
+    alpha: field,
+    ark: [field; M],
+    mds: [field; N]
 ) -> PoseidonConfig<M,N> {
     // Input checks
     let mul = crate::wrapping_mul(t as u8, (rf + rp));
     assert(mul == ark.len() as u8);
-    assert(t * t == mds.len() as Field);
+    assert(t * t == mds.len() as field);
     assert(alpha != 0);
 
     PoseidonConfig { t, rf, rp, alpha, ark, mds }
 }
-// General Poseidon permutation on elements of type Field
-fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [Field; O] {
+// General Poseidon permutation on elements of type field
+fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [field; O]) -> [field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
-    assert(t == state.len() as Field);
+    assert(t == state.len() as field);
 
     let mut count = 0;
     // for r in 0..rf + rp
@@ -57,11 +57,11 @@ fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [F
 // Absorption. Fully absorbs input message.
 fn absorb<M, N, O, P>(
     pos_conf: PoseidonConfig<M, N>,
-    mut state: [Field; O], // Initial state; usually [0; O]
-    rate: Field, // Rate
-    capacity: Field, // Capacity; usually 1
-    msg: [Field; P]
-) -> [Field; O] {
+    mut state: [field; O], // Initial state; usually [0; O]
+    rate: field, // Rate
+    capacity: field, // Capacity; usually 1
+    msg: [field; P]
+) -> [field; O] {
     assert(pos_conf.t == rate + capacity);
 
     let mut i = 0;
@@ -84,13 +84,13 @@ fn absorb<M, N, O, P>(
     state
 }
 // Check security of sponge instantiation
-fn check_security(rate: Field, width: Field, security: Field) -> bool {
+fn check_security(rate: field, width: field, security: field) -> bool {
     let n = modulus_num_bits();
 
-    ((n - 1) as Field * (width - rate) / 2) as u8 > security as u8
+    ((n - 1) as field * (width - rate) / 2) as u8 > security as u8
 }
 // A*x where A is an n x n matrix in row-major order and x an n-vector
-fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {
+fn apply_matrix<N, M>(a: [field; M], x: [field; N]) -> [field; N] {
     let mut y = x;
 
     for i in 0..x.len() {
@@ -104,12 +104,12 @@ fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {
 }
 
 struct PoseidonHasher{
-    _state: [Field],
+    _state: [field],
 }
 
 impl Hasher for PoseidonHasher {
     #[field(bn254)]
-    fn finish(self) -> Field {
+    fn finish(self) -> field {
         let mut result = 0;
         let len = self._state.len();
         assert(len < 16);
@@ -162,7 +162,7 @@ impl Hasher for PoseidonHasher {
         result
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: field){
         self._state = self._state.push_back(input);
     }
 }

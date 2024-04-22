@@ -1,49 +1,49 @@
 use dep::std;
 
 trait MyDefault {
-    fn my_default(x: Field, y: Field) -> Self;
+    fn my_default(x: field, y: field) -> Self;
 
-    fn method2(x: Field) -> Field {
+    fn method2(x: field) -> field {
         x
     }
 }
 
 struct Foo {
-    bar: Field,
-    array: [Field; 2],
+    bar: field,
+    array: [field; 2],
 }
 
 impl MyDefault for Foo {
-    fn my_default(x: Field,y: Field) -> Self {
+    fn my_default(x: field,y: field) -> Self {
         Self { bar: x, array: [x,y] }
     }
 
-    fn method2(x: Field) -> Field {
+    fn method2(x: field) -> field {
         x * 3
     }
 }
 
 trait F {
-    fn f1(self) -> Field;
-    fn f2(_self: Self) -> Field { 2 }
-    fn f3(_self: Self) -> Field { 3 }
-    fn f4(_self: Self) -> Field { 4 }
-    fn f5(_self: Self) -> Field { 5 }
+    fn f1(self) -> field;
+    fn f2(_self: Self) -> field { 2 }
+    fn f3(_self: Self) -> field { 3 }
+    fn f4(_self: Self) -> field { 4 }
+    fn f5(_self: Self) -> field { 5 }
 }
 
 struct Bar {}
 
 impl F for Bar {
-    fn f5(_self: Self) -> Field { 50 }
-    fn f1(_self: Self) -> Field { 10 }
-    fn f3(_self: Self) -> Field { 30 }
+    fn f5(_self: Self) -> field { 50 }
+    fn f1(_self: Self) -> field { 10 }
+    fn f3(_self: Self) -> field { 30 }
 }
 // Impls on mutable references are temporarily disabled
 // impl F for &mut Bar {
-//     fn f1(self) -> Field { 101 }
-//     fn f5(self) -> Field { 505 }
+//     fn f1(self) -> field { 101 }
+//     fn f5(self) -> field { 505 }
 // }
-fn main(x: Field) {
+fn main(x: field) {
     let first = Foo::method2(x);
     assert(first == 3 * x);
 

@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(x: Field) {
-    let a: Field = x / 0;
+fn main(x: field) {
+    let a: field = x / 0;
     std::println(a);
 }

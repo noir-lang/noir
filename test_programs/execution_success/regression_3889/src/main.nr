@@ -1,6 +1,6 @@
 mod Foo {
     struct NewType{
-        a: Field,
+        a: field,
     }
 }
 
@@ -11,12 +11,12 @@ mod Bar {
 
 mod Baz {
     struct Works {
-        a: Field,
+        a: field,
     }
     use crate::Bar::BarStruct;
     use crate::Bar::NewType;
 }
 
-fn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {
+fn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub field {
     works.a + fails.a + also_fails.a
 }

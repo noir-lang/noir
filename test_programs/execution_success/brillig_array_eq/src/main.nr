@@ -1,4 +1,4 @@
 // Simple example of checking where two arrays are equal
-unconstrained fn main(a: [Field; 32], b: [Field; 32]) {
+unconstrained fn main(a: [field; 32], b: [field; 32]) {
     assert(a == b);
 }

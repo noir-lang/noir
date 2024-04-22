@@ -1,6 +1,6 @@
 use dep::std::collections::vec::Vec;
 
-fn main(x: Field, y: pub Field) {
+fn main(x: field, y: pub field) {
     let mut vector = Vec::new();
 
     assert(vector.len() == 0);

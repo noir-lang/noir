@@ -30,9 +30,9 @@ impl From<u8> for u32 { fn from(value: u8) -> u32 { value as u32 } }
 impl From<u8> for u64 { fn from(value: u8) -> u64 { value as u64 } }
 impl From<u32> for u64 { fn from(value: u32) -> u64 { value as u64 } }
 
-impl From<u8> for Field { fn from(value: u8) -> Field { value as Field } }
-impl From<u32> for Field { fn from(value: u32) -> Field { value as Field } }
-impl From<u64> for Field { fn from(value: u64) -> Field { value as Field } }
+impl From<u8> for field { fn from(value: u8) -> field { value as field } }
+impl From<u32> for field { fn from(value: u32) -> field { value as field } }
+impl From<u64> for field { fn from(value: u64) -> field { value as field } }
 
 // Signed integers
 
@@ -48,5 +48,5 @@ impl From<bool> for u64 { fn from(value: bool) -> u64 { value as u64 } }
 impl From<bool> for i8 { fn from(value: bool) -> i8 { value as i8 } }
 impl From<bool> for i32 { fn from(value: bool) -> i32 { value as i32 } }
 impl From<bool> for i64 { fn from(value: bool) -> i64 { value as i64 } }
-impl From<bool> for Field { fn from(value: bool) -> Field { value as Field } }
+impl From<bool> for field { fn from(value: bool) -> field { value as field } }
 // docs:end:from-impls

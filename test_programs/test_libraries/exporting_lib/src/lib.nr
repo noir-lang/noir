@@ -1,5 +1,5 @@
 struct MyStruct {
-    inner: Field
+    inner: field
 }
 
 type FooStruct = MyStruct;

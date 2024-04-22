@@ -7,19 +7,19 @@ use dep::std::cmp::Eq;
 
 use utils::cut;
 
-type K = Field;
-type V = Field;
+type K = field;
+type V = field;
 
 // It is more convenient and readable to use structs as input.
 struct Entry{
-    key: Field,
-    value: Field
+    key: field,
+    value: field
 }
 
 global HASHMAP_CAP = 8;
 global HASHMAP_LEN = 6;
 
-global FIELD_CMP = |a: Field, b: Field| a.lt(b);
+global FIELD_CMP = |a: field, b: field| a.lt(b);
 
 global K_CMP = FIELD_CMP;
 global V_CMP = FIELD_CMP;
@@ -211,7 +211,7 @@ fn doc_tests() {
     // docs:end:with_hasher_example
 
     // docs:start:insert_example
-    let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let mut map: HashMap<field, field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     map.insert(12, 42);
     assert(map.len() == 1);
     // docs:end:insert_example
@@ -255,7 +255,7 @@ fn doc_tests() {
     // docs:end:len_example
 
     // docs:start:capacity_example
-    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let empty_map: HashMap<field, field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     assert(empty_map.len() == 0);
     assert(empty_map.capacity() == 42);
     // docs:end:capacity_example
@@ -283,8 +283,8 @@ fn doc_tests() {
     // docs:end:retain_example
 
     // docs:start:eq_example
-    let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
-    let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let mut map1: HashMap<field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let mut map2: HashMap<field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 
     map1.insert(1, 2);
     map1.insert(3, 4);
@@ -297,7 +297,7 @@ fn doc_tests() {
 }
 
 // docs:start:get_example
-fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
+fn get_example(map: HashMap<field, field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     let x = map.get(12);
 
     if x.is_some() {
@@ -306,7 +306,7 @@ fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>
 }
 // docs:end:get_example
 
-fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
+fn entries_examples(map: HashMap<field, field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     // docs:start:entries_example
     let entries = map.entries();
 
@@ -344,7 +344,7 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Ha
     // docs:end:values_example
 }
 
-fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
+fn iter_examples(mut map: HashMap<field, field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     // docs:start:iter_mut_example
     // Add 1 to each key in the map, and double the value associated with that key.
     map.iter_mut(|k, v| (k + 1, v * 2));

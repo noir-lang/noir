@@ -1,7 +1,7 @@
 global N = 2;
 
 struct barStruct {
-    val: Field,
-    array: [Field; 2],
+    val: field,
+    array: [field; 2],
     message: str<5>,
 }

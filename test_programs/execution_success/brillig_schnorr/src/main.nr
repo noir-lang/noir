@@ -3,9 +3,9 @@ use dep::std;
 // to figure out the circuit instance
 unconstrained fn main(
     message: [u8; 10],
-    message_field: Field,
-    pub_key_x: Field,
-    pub_key_y: Field,
+    message_field: field,
+    pub_key_x: field,
+    pub_key_y: field,
     signature: [u8; 64]
 ) {
     // Regression for issue #2421

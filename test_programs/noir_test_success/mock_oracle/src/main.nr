@@ -1,8 +1,8 @@
 use dep::std::test::OracleMock;
 
 struct Point {
-    x: Field,
-    y: Field,
+    x: field,
+    y: field,
 }
 
 impl Eq for Point {
@@ -12,23 +12,23 @@ impl Eq for Point {
 }
 
 #[oracle(void_field)]
-unconstrained fn void_field_oracle() -> Field {}
+unconstrained fn void_field_oracle() -> field {}
 
-unconstrained fn void_field() -> Field {
+unconstrained fn void_field() -> field {
     void_field_oracle()
 }
 
 #[oracle(field_field)]
-unconstrained fn field_field_oracle(_x: Field) -> Field {}
+unconstrained fn field_field_oracle(_x: field) -> field {}
 
-unconstrained fn field_field(x: Field) -> Field {
+unconstrained fn field_field(x: field) -> field {
     field_field_oracle(x)
 }
 
 #[oracle(struct_field)]
-unconstrained fn struct_field_oracle(_point: Point, _array: [Field; 4]) -> Field {}
+unconstrained fn struct_field_oracle(_point: Point, _array: [field; 4]) -> field {}
 
-unconstrained fn struct_field(point: Point, array: [Field; 4]) -> Field {
+unconstrained fn struct_field(point: Point, array: [field; 4]) -> field {
     struct_field_oracle(point, array)
 }
 
@@ -115,7 +115,7 @@ fn test_mock_struct_field() {
 
     assert_eq(0, struct_field(point, array));
 
-    let last_params: (Point, [Field; 4]) = timeless_mock.get_last_params();
+    let last_params: (Point, [field; 4]) = timeless_mock.get_last_params();
     assert_eq(last_params.0, point);
     assert_eq(last_params.1, array);
 

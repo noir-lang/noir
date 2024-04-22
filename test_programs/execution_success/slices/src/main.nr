@@ -1,7 +1,7 @@
 use dep::std::slice;
 use dep::std;
 
-fn main(x: Field, y: pub Field) {
+fn main(x: field, y: pub field) {
     let mut slice = &[0; 2];
     assert(slice[0] == 0);
     assert(slice[0] != 1);
@@ -89,12 +89,12 @@ fn regression_2083() {
 }
 
 // The parameters to this function must come from witness values (inputs to main)
-fn regression_merge_slices(x: Field, y: Field) {
+fn regression_merge_slices(x: field, y: field) {
     merge_slices_if(x, y);
     merge_slices_else(x);
 }
 
-fn merge_slices_if(x: Field, y: Field) {
+fn merge_slices_if(x: field, y: field) {
     let slice = merge_slices_return(x, y);
     assert(slice.len() == 3);
     assert(slice[2] == 10);
@@ -134,7 +134,7 @@ fn merge_slices_if(x: Field, y: Field) {
     assert(slice.len() == 5);
 }
 
-fn merge_slices_else(x: Field) {
+fn merge_slices_else(x: field) {
     let slice = merge_slices_return(x, 5);
     assert(slice[0] == 0);
     assert(slice[1] == 0);
@@ -150,7 +150,7 @@ fn merge_slices_else(x: Field) {
 }
 
 // Test returning a merged slice without a mutation
-fn merge_slices_return(x: Field, y: Field) -> [Field] {
+fn merge_slices_return(x: field, y: field) -> [field] {
     let slice = &[0; 2];
     if x != y {
         if x != 20 { slice.push_back(y) } else { slice }
@@ -160,7 +160,7 @@ fn merge_slices_return(x: Field, y: Field) -> [Field] {
 }
 
 // Test mutating a slice inside of an if statement
-fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
+fn merge_slices_mutate(x: field, y: field) -> [field] {
     let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -172,11 +172,11 @@ fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
 }
 
 // Test mutating a slice inside of a loop in an if statement
-fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
+fn merge_slices_mutate_in_loop(x: field, y: field) -> [field] {
     let mut slice = &[0; 2];
     if x != y {
         for i in 0..5 {
-            slice = slice.push_back(i as Field);
+            slice = slice.push_back(i as field);
         }
     } else {
         slice = slice.push_back(x);
@@ -184,7 +184,7 @@ fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     slice
 }
 
-fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
+fn merge_slices_mutate_two_ifs(x: field, y: field) -> [field] {
     let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -203,7 +203,7 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
     slice
 }
 
-fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
+fn merge_slices_mutate_between_ifs(x: field, y: field) -> [field] {
     let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -229,7 +229,7 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
     slice
 }
 
-fn merge_slices_push_then_pop(x: Field, y: Field) {
+fn merge_slices_push_then_pop(x: field, y: field) {
     let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -253,7 +253,7 @@ fn merge_slices_push_then_pop(x: Field, y: Field) {
     assert(elem == x);
 }
 
-fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
+fn merge_slices_push_then_insert(x: field, y: field) -> [field] {
     let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -276,7 +276,7 @@ fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
     slice
 }
 
-fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
+fn merge_slices_remove_between_ifs(x: field, y: field) -> [field] {
     let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -307,7 +307,7 @@ fn regression_2370() {
     slice = &[1, 2, 3];
 }
 
-fn regression_4418(x: Field) {
+fn regression_4418(x: field) {
     let mut crash = x.to_be_bytes(32);
 
     if x != 0 {
@@ -315,7 +315,7 @@ fn regression_4418(x: Field) {
     }
 }
 
-fn regression_slice_call_result(x: Field, y: Field) {
+fn regression_slice_call_result(x: field, y: field) {
     let mut slice = merge_slices_return(x, y);
     if x != 0 {
         slice = slice.push_back(5);
@@ -332,6 +332,6 @@ fn regression_slice_call_result(x: Field, y: Field) {
 }
 
 fn regression_4506() {
-    let slice: [Field] = &[1, 2, 3];
+    let slice: [field] = &[1, 2, 3];
     assert(slice == slice);
 }

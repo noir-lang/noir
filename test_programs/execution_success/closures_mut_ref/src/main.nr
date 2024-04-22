@@ -1,4 +1,4 @@
-fn main(mut x: Field) {
+fn main(mut x: field) {
     let one = 1;
     let add1 = |z| {
         *z = *z + one;

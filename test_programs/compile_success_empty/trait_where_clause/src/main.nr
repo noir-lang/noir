@@ -7,17 +7,17 @@ mod the_trait;
 use crate::the_trait::Asd;
 use crate::the_trait::StaticTrait;
 
-struct Add10  { x: Field, }
-struct Add20  { x: Field, }
-struct Add30  { x: Field, }
-struct AddXY  { x: Field, y: Field, }
+struct Add10  { x: field, }
+struct Add20  { x: field, }
+struct Add30  { x: field, }
+struct AddXY  { x: field, y: field, }
 
-impl Asd for Add10 { fn asd(self) -> Field { self.x + 10 } }
-impl Asd for Add20 { fn asd(self) -> Field { self.x + 20 } }
-impl Asd for Add30 { fn asd(self) -> Field { self.x + 30 } }
+impl Asd for Add10 { fn asd(self) -> field { self.x + 10 } }
+impl Asd for Add20 { fn asd(self) -> field { self.x + 20 } }
+impl Asd for Add30 { fn asd(self) -> field { self.x + 30 } }
 
 impl Asd for AddXY {
-    fn asd(self) -> Field {
+    fn asd(self) -> field {
         self.x + self.y
     }
 }
@@ -29,14 +29,14 @@ impl StaticTrait for Static100 {
 
 struct Static200 {}
 impl StaticTrait for Static200 {
-    fn static_function(slf: Self) -> Field { 200 }
+    fn static_function(slf: Self) -> field { 200 }
 }
 
 fn assert_asd_eq_100<T>(t: T) where T: crate::the_trait::Asd {
     assert(t.asd() == 100);
 }
 
-fn add_one_to_static_function<T>(t: T) -> Field where T: StaticTrait {
+fn add_one_to_static_function<T>(t: T) -> field where T: StaticTrait {
     T::static_function(t) + 1
 }
 

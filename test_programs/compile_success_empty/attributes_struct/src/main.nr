@@ -1,8 +1,8 @@
 #[some_attribute]
 #[another_attribute]
 struct SomeStruct {
-    a: Field,
-    b: Field
+    a: field,
+    b: field
 }
 
 fn main() {}

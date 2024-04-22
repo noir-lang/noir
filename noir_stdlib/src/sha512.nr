@@ -77,9 +77,9 @@ fn msg_u8_to_u64(msg: [u8; 128]) -> [u64; 16] {
     let mut msg64: [u64; 16] = [0; 16];
 
     for i in 0..16 {
-        let mut msg_field: Field = 0;
+        let mut msg_field: field = 0;
         for j in 0..8 {
-            msg_field = msg_field * 256 + msg[128 - 8*(i + 1) + j] as Field;
+            msg_field = msg_field * 256 + msg[128 - 8*(i + 1) + j] as field;
         }
         msg64[15 - i] = msg_field as u64;
     }
@@ -133,7 +133,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
     }
 
     let len = 8 * msg.len();
-    let len_bytes = (len as Field).to_le_bytes(16);
+    let len_bytes = (len as field).to_le_bytes(16);
     for _i in 0..128 {
         // In any case, fill blocks up with zeros until the last 128 (i.e. until i = 112).
         if i < 112 {
@@ -153,7 +153,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
     }
     // Return final hash as byte array
     for j in 0..8 {
-        let h_bytes = (h[7 - j] as Field).to_le_bytes(8);
+        let h_bytes = (h[7 - j] as field).to_le_bytes(8);
         for k in 0..8 {
             out_h[63 - 8*j - k] = h_bytes[k];
         }

@@ -1,18 +1,18 @@
 trait Serialize<N> {
-    fn serialize(self) -> [Field; N];
+    fn serialize(self) -> [field; N];
 }
 
 struct ValueNote {
-    value: Field,
+    value: field,
 }
 
 impl Serialize<1> for ValueNote {
-    fn serialize(self) -> [Field; 1] {
+    fn serialize(self) -> [field; 1] {
         [self.value]
     }
 }
 
-fn check<N>(serialized_note: [Field; N]) {
+fn check<N>(serialized_note: [field; N]) {
     assert(serialized_note[0] == 0);
 }
 

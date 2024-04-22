@@ -5,18 +5,18 @@ unconstrained fn push_back_to_slice<T>(slice: [T], item: T) -> [T] {
 }
 
 struct NestedSliceStruct {
-    id: Field,
-    arr: [Field]
+    id: field,
+    arr: [field]
 }
 
-unconstrained fn create_foo(id: Field, value: Field) -> NestedSliceStruct {
+unconstrained fn create_foo(id: field, value: field) -> NestedSliceStruct {
     let mut arr = [id];
     arr = arr.push_back(value);
     NestedSliceStruct { id, arr }
 }
 
-unconstrained fn main(a: Field, b: Field) {
-    let mut slice = [create_foo(a, b), create_foo(b, a)];
+unconstrained fn main(a: field, b: field) {
+    let mut slice = &[create_foo(a, b), create_foo(b, a)];
     assert(slice.len() == 2);
 
     assert(slice[0].id == a);

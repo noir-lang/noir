@@ -4,15 +4,15 @@ use crate::default::Default;
 global RATE: u32 = 3;
 
 struct Poseidon2 {
-    cache: [Field;3],
-    state: [Field;4],
+    cache: [field;3],
+    state: [field;4],
     cache_size: u32,
     squeeze_mode: bool, // 0 => absorb, 1 => squeeze
 }
 
 impl Poseidon2 {
 
-    pub fn hash<N>(input: [Field; N], message_size: u64) -> Field {
+    pub fn hash<N>(input: [field; N], message_size: u64) -> field {
         if message_size == N {
             Poseidon2::hash_internal(input, N, false)
         } else {
@@ -20,13 +20,13 @@ impl Poseidon2 {
         }
     }
 
-    fn new(iv: Field) -> Poseidon2 {
+    fn new(iv: field) -> Poseidon2 {
         let mut result = Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
         result.state[RATE] = iv;
         result
     }
 
-    fn perform_duplex(&mut self) -> [Field; RATE] {
+    fn perform_duplex(&mut self) -> [field; RATE] {
         // zero-pad the cache
         for i in 0..RATE {
             if i >= self.cache_size {
@@ -46,7 +46,7 @@ impl Poseidon2 {
         result
     }
 
-    fn absorb(&mut self, input: Field) {
+    fn absorb(&mut self, input: field) {
         if (!self.squeeze_mode) & (self.cache_size == RATE) {
             // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
             let _ = self.perform_duplex();
@@ -65,7 +65,7 @@ impl Poseidon2 {
         }
     }
 
-    fn squeeze(&mut self) -> Field {
+    fn squeeze(&mut self) -> field {
         if self.squeeze_mode & (self.cache_size == 0) {
             // If we're in squeze mode and the cache is empty, there is nothing left to squeeze out of the sponge!
             // Switch to absorb mode.
@@ -95,9 +95,9 @@ impl Poseidon2 {
         result
     }
 
-    fn hash_internal<N>(input: [Field; N], in_len: u64, is_variable_length: bool) -> Field {
+    fn hash_internal<N>(input: [field; N], in_len: u64, is_variable_length: bool) -> field {
         let two_pow_64 = 18446744073709551616;
-        let iv : Field = (in_len as Field) * two_pow_64;
+        let iv : field = (in_len as field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);
         for i in 0..input.len() {
             if i < in_len {
@@ -116,12 +116,12 @@ impl Poseidon2 {
 }
 
 struct Poseidon2Hasher{
-    _state: [Field],
+    _state: [field],
 }
 
 impl Hasher for Poseidon2Hasher {
-    fn finish(self) -> Field {
-        let iv : Field = (self._state.len() as Field)*18446744073709551616;    // iv = (self._state.len() << 64)
+    fn finish(self) -> field {
+        let iv : field = (self._state.len() as field)*18446744073709551616;    // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
         for i in 0..self._state.len() {
             sponge.absorb(self._state[i]);
@@ -129,7 +129,7 @@ impl Hasher for Poseidon2Hasher {
         sponge.squeeze()
     }
 
-    fn write(&mut self, input: Field){
+    fn write(&mut self, input: field){
         self._state = self._state.push_back(input);
     }
 }

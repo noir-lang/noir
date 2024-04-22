@@ -37,7 +37,7 @@ fn main() {
     assert(some.and(none).is_none());
     assert(some.and(some).is_some());
 
-    let add1_u64 = |value: Field| Option::some(value as u64 + 1);
+    let add1_u64 = |value: field| Option::some(value as u64 + 1);
 
     assert(none.and_then(|_value| none).is_none());
     assert(none.and_then(add1_u64).is_none());

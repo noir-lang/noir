@@ -1,31 +1,31 @@
-trait FromField {
-    fn from_field(field: Field) -> Self;
+trait Fromfield {
+    fn from_field(value: field) -> Self;
 }
 
-impl FromField for Field {
-    fn from_field(value: Field) -> Self {
+impl Fromfield for field {
+    fn from_field(value: field) -> Self {
         value
     }
 }
 
 trait Deserialize<N> {
-    fn deserialize(fields: [Field; N]) -> Self;
+    fn deserialize(fields: [field; N]) -> Self;
 }
 
 global AZTEC_ADDRESS_LENGTH = 1;
 
 struct AztecAddress {
-    inner : Field
+    inner : field
 }
 
-impl FromField for AztecAddress {
-    fn from_field(value: Field) -> Self {
+impl Fromfield for AztecAddress {
+    fn from_field(value: field) -> Self {
         Self { inner: value }
     }
 }
 
 impl Deserialize<AZTEC_ADDRESS_LENGTH> for AztecAddress {
-    fn deserialize(fields: [Field; AZTEC_ADDRESS_LENGTH]) -> Self {
+    fn deserialize(fields: [field; AZTEC_ADDRESS_LENGTH]) -> Self {
         AztecAddress::from_field(fields[0])
     }
 }
@@ -43,8 +43,8 @@ struct MyStruct<T> {
 }
 
 impl<T> Deserialize<1> for MyStruct<T> {
-    fn deserialize(fields: [Field; 1]) -> Self where T: FromField {
-        Self{ a: FromField::from_field(fields[0]) }
+    fn deserialize(fields: [field; 1]) -> Self where T: Fromfield {
+        Self{ a: Fromfield::from_field(fields[0]) }
     }
 }
 

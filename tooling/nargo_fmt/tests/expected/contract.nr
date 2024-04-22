@@ -41,13 +41,13 @@ contract Benchmarking {
 
     // Nec tincidunt praesent semper feugiat nibh sed pulvinar. Nibh nisl condimentum id venenatis a.
     #[aztec(private)]
-    fn create_note(owner: Field, value: Field) {
+    fn create_note(owner: field, value: field) {
         increment(storage.notes.at(owner), value, owner);
     }
 
     // Diam quam nulla porttitor massa id. Elit ullamcorper dignissim cras tincidunt lobortis feugiat.
     #[aztec(private)]
-    fn recreate_note(owner: Field, index: u32) {
+    fn recreate_note(owner: field, index: u32) {
         let owner_notes = storage.notes.at(owner);
         let getter_options = NoteGetterOptions::new().set_limit(1).set_offset(index);
         let notes = owner_notes.get_notes(getter_options);
@@ -58,19 +58,19 @@ contract Benchmarking {
 
     // Ultrices in iaculis nunc sed augue lacus.
     #[aztec(public)]
-    fn increment_balance(owner: Field, value: Field) {
+    fn increment_balance(owner: field, value: field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            FunctionSelector::from_signature("broadcast(Field)"),
+            FunctionSelector::from_signature("broadcast(field)"),
             [owner]
         );
     }
 
     // Est ultricies integer quis auctor elit sed. In nibh mauris cursus mattis molestie a iaculis.
     #[aztec(public)]
-    fn broadcast(owner: Field) {
+    fn broadcast(owner: field) {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
     }
 }
