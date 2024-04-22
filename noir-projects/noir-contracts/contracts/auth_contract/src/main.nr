@@ -20,7 +20,7 @@ contract Auth {
         assert(!admin.is_zero(), "invalid admin");
         storage.admin.initialize(admin);
         // Note that we don't initialize authorized with any value: because storage defaults to 0 it'll have a 'post'
-        // value of 0 and block of change 0, meaning it is effectively autoinitialized at the zero adddress.
+        // value of 0 and block of change 0, meaning it is effectively autoinitialized at the zero address.
     }
 
     #[aztec(public)]
