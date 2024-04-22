@@ -1,5 +1,4 @@
 mod asset;
-mod position;
 mod interest_math;
 mod helpers;
 
@@ -15,7 +14,6 @@ contract Lending {
     use dep::aztec::context::{PublicContext, Context, gas::GasOpts};
 
     use crate::asset::Asset;
-    use crate::position::Position;
     use crate::interest_math::compute_multiplier;
     use crate::helpers::{covered_by_collateral, DebtReturn, debt_updates, debt_value, compute_identifier};
     use dep::token::Token;
@@ -29,6 +27,12 @@ contract Lending {
         assets: Map<Field, PublicMutable<Asset>>,
         collateral: Map<AztecAddress, PublicMutable<Field>>,
         static_debt: Map<AztecAddress, PublicMutable<Field>>, // abusing keys very heavily
+    }
+
+    struct Position {
+        collateral: Field,
+        static_debt: Field,
+        debt: Field,
     }
 
     // Constructs the contract.
@@ -261,13 +265,11 @@ contract Lending {
         storage.static_debt.at(owner).write(debt_returns.static_debt.to_integer());
     }
 
-    #[aztec(public)]
-    fn get_asset(asset_id: Field) -> pub Asset {
+    unconstrained fn get_asset(asset_id: Field) -> pub Asset {
         storage.assets.at(asset_id).read()
     }
 
-    #[aztec(public)]
-    fn get_position(owner: AztecAddress) -> pub Position {
+    unconstrained fn get_position(owner: AztecAddress) -> pub Position {
         let collateral = storage.collateral.at(owner).read();
         let static_debt = storage.static_debt.at(owner).read();
         let asset: Asset = storage.assets.at(0).read();
@@ -278,8 +280,7 @@ contract Lending {
         Position { collateral, static_debt, debt }
     }
 
-    #[aztec(public)]
-    fn get_assets() -> pub [AztecAddress; 2] {
+    unconstrained fn get_assets() -> pub [AztecAddress; 2] {
         [storage.collateral_asset.read(), storage.stable_coin.read()]
     }
 }

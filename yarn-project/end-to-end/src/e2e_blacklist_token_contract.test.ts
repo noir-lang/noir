@@ -994,6 +994,7 @@ describe('e2e_blacklist_token_contract', () => {
         .methods.unshield(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce)
         .send();
       await expect(txReplay.wait()).rejects.toThrow('Transaction ');
+      // @todo @LHerskind This error is weird?
     });
 
     describe('failure cases', () => {
