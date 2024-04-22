@@ -407,18 +407,6 @@ jobs:
           command: create_ecr_manifest yarn-project x86_64,arm64
           aztec_manifest_key: yarn-project
 
-  yarn-project-test:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_build yarn-project-test 64
-          aztec_manifest_key: yarn-project-test
-
   prover-client-test:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -755,7 +743,6 @@ workflows:
       - end-to-end: *defaults_yarn_project
       - build-docs: *defaults_yarn_project_pre_join
       - prover-client-test: *defaults_yarn_project
-      - yarn-project-test: *defaults_yarn_project
       - yarn-project-x86_64: *defaults_yarn_project_pre_join
       - yarn-project-arm64: *defaults_yarn_project_pre_join
       - yarn-project-ecr-manifest:
@@ -804,7 +791,6 @@ workflows:
             - boxes-vanilla
             - boxes-react
             - noir-packages-tests
-            - yarn-project-test
             - prover-client-test
             - e2e-join
           <<: *defaults

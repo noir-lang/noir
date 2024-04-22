@@ -58,7 +58,7 @@ jobs:
       group: start-builder-${{ inputs.runner_label }}
     steps:
       - name: Start EC2 runner
-        uses: AztecProtocol/ec2-action-builder@v0.15
+        uses: AztecProtocol/ec2-action-builder@v0.14e
         with:
           github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}

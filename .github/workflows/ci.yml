@@ -77,8 +77,6 @@ jobs:
   bb-native-tests:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
-    strategy:
-      fail-fast: false
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       # Only allow one memory-hunger prover test to use this runner
@@ -92,6 +90,34 @@ jobs:
         timeout-minutes: 25
         # limit our parallelism to half our cores
         run: earthly --no-output +test --hardware_concurrency=64
+
+  yarn-project-formatting:
+    needs: setup
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      # Only allow one memory-hunger prover test to use this runner
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: yarn-project-test-${{ github.actor }}-x86
+      - name: "Yarn Project Tests"
+        timeout-minutes: 25
+        run: earthly --no-output ./yarn-project/+format-check
+
+  yarn-project-test:
+    needs: setup
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      # Only allow one memory-hunger prover test to use this runner
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: yarn-project-test-${{ github.actor }}-x86
+      - name: "Yarn Project Tests"
+        timeout-minutes: 25
+        run: earthly --no-output ./yarn-project/+test
 
   # push benchmarking binaries to dockerhub registry
   bb-bench-binaries:
@@ -142,13 +168,13 @@ jobs:
         run: earthly --no-output +bench-ultra-honk --bench_mode=cache
 
   merge-check:
-    runs-on: ${{ inputs.username || github.actor }}-x86
-    needs: [e2e, bb-native-tests, bb-bench]
+    runs-on: ubuntu-latest
+    needs: [e2e, bb-native-tests, bb-bench, yarn-project-formatting, yarn-project-test]
     steps:
       - run: echo Pull request merging now allowed.
 
   notify:
-    needs: [e2e, bb-native-tests, bb-bench]
+    needs: [e2e, bb-native-tests, bb-bench, yarn-project-formatting, yarn-project-test]
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/master' && failure() }}
     steps:
