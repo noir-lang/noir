@@ -152,6 +152,15 @@ impl LspService for NargoLspService {
     }
 }
 
+// This smooths over `vscode-test-web://` or other schemes that may be sent from a browser client
+fn uri_to_file_path(uri: &Url) -> Result<PathBuf, ()> {
+    if uri.scheme() == "vscode-test-web" {
+        Ok(PathBuf::from("/").join(uri.path()))
+    } else {
+        uri.to_file_path()
+    }
+}
+
 fn get_package_tests_in_crate(
     context: &Context,
     crate_id: &CrateId,
@@ -170,6 +179,8 @@ fn get_package_tests_in_crate(
             let file_path = fm.path(file_id).expect("file must exist to contain tests");
             let range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+            // These `file://` URIs are currently normalized inside of the vscode extension
+            // TODO: Do proper normalization inside the LSP instead of at the extension
             let file_uri = Url::from_file_path(file_path)
                 .expect("Expected a valid file path that can be converted into a URI");
 

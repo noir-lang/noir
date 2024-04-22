@@ -18,6 +18,7 @@ members = [
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
     "tooling/lsp",
+    "tooling/lsp_wasm",
     "tooling/debugger",
     "tooling/nargo",
     "tooling/nargo_fmt",
@@ -75,6 +76,7 @@ nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
+noir_lsp_wasm = { path = "tooling/lsp_wasm" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }

@@ -9,7 +9,7 @@ use noirc_frontend::hir::FunctionNameMatch;
 use crate::{
     byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
-    LspState,
+    uri_to_file_path, LspState,
 };
 
 const ARROW: &str = "▶\u{fe0e}";
@@ -49,7 +49,7 @@ fn on_code_lens_request_inner(
     state: &mut LspState,
     params: CodeLensParams,
 ) -> Result<CodeLensResult, ResponseError> {
-    let file_path = params.text_document.uri.to_file_path().map_err(|_| {
+    let file_path = uri_to_file_path(&params.text_document.uri).map_err(|_| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
