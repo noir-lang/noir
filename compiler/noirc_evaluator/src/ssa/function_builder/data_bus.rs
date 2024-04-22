@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::ssa::ir::{types::Type, value::ValueId};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
+use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
 
 use super::FunctionBuilder;
@@ -33,8 +34,8 @@ impl DataBusBuilder {
 
         for param in &main_signature.0 {
             let is_databus = match param.2 {
-                noirc_frontend::Visibility::Public | noirc_frontend::Visibility::Private => false,
-                noirc_frontend::Visibility::DataBus => true,
+                ast::Visibility::Public | ast::Visibility::Private => false,
+                ast::Visibility::DataBus => true,
             };
             let len = param.1.field_count() as usize;
             params_is_databus.extend(vec![is_databus; len]);
