@@ -91,6 +91,26 @@ mod test {
         get_program(src).2
     }
 
+    // TODO: relocate to end of trait tests
+    #[test]
+    fn test_impl_self_within_def() {
+        let src = "
+        // trait Ord {
+        //     fn cmp(self, other: Self) -> Ordering;
+        //
+        //     // fn max2(self, other: Self) -> Self;
+        // }
+
+        fn max_of_both<T>(lhs: T, rhs: T) -> bool where T: Ord {
+            if lhs > rhs { lhs } else { rhs }
+        }";
+
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
+    }
+
+
     #[test]
     fn check_trait_implemented_for_all_t() {
         let src = "

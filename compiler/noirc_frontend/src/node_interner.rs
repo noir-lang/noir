@@ -948,6 +948,7 @@ impl NodeInterner {
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
+        dbg!("get_trait: {:?}", id);
         &self.traits[&id]
     }
 
