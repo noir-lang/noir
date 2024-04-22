@@ -1,5 +1,5 @@
 [toolchain]
 channel = "1.73.0"
-components = [ "rust-src" ]
+components = [ "rust-src", "rustfmt", "clippy" ]
 targets = [ "wasm32-unknown-unknown", "wasm32-wasi", "aarch64-apple-darwin" ]
 profile = "default"
