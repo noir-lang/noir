@@ -292,7 +292,7 @@ impl Ssa {
                 context.convert_ssa_function(&self, function, brillig)?
             {
                 // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
-                // As we do want a reference to the `SharedContext` on the generated ACIR itself,
+                // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
                 // we instead store the opcode location at which a Brillig call to a std lib function occurred.
                 // We then defer resolving the function IDs of those Brillig functions to when we have generated Brillig
                 // for all normal Brillig calls.
