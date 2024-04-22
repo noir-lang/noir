@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{parser::ParserError, Ident, Type};
+use crate::{ast::Ident, parser::ParserError, Type};
 
 use super::import::PathResolutionError;
 
@@ -49,7 +49,7 @@ pub enum ResolverError {
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { span: Span },
     #[error("No global or generic type parameter found with the given name")]
-    NoSuchNumericTypeVariable { path: crate::Path },
+    NoSuchNumericTypeVariable { path: crate::ast::Path },
     #[error("Closures cannot capture mutable variables")]
     CapturedMutableVariable { span: Span },
     #[error("Test functions are not allowed to have any parameters")]

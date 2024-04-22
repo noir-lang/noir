@@ -109,7 +109,7 @@
 * reserve `unchecked` keyword ([#4432](https://github.com/noir-lang/noir/issues/4432))
 * Remove empty value from bounded vec ([#4431](https://github.com/noir-lang/noir/issues/4431))
 * Ban Fields in for loop indices and bitwise ops ([#4376](https://github.com/noir-lang/noir/issues/4376))
-* bump msrv to 1.73.0 ([#4406](https://github.com/noir-lang/noir/issues/4406))
+* Bump msrv to 1.73.0 ([#4406](https://github.com/noir-lang/noir/issues/4406))
 * **ci:** Bump MSRV to 1.72.1 and enforce that ACVM can be published using updated lockfile ([#4385](https://github.com/noir-lang/noir/issues/4385))
 * Restrict bit sizes ([#4235](https://github.com/noir-lang/noir/issues/4235))
 * move noir out of yarn-project (https://github.com/AztecProtocol/aztec-packages/pull/4479)

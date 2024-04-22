@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use crate::ast::{Ident, NoirFunction};
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Ident, NoirFunction, Type, TypeBindings, TypeVariable, TypeVariableId,
+    Generics, Type, TypeBindings, TypeVariable, TypeVariableId,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
