@@ -34,12 +34,16 @@ impl<'interner> Interpreter<'interner> {
     /// These nodes will be modified in place, replaced with the
     /// result of their evaluation.
     pub fn scan_function(&mut self, function: FuncId) {
+        let function = self.interner.function(&function);
 
+        let state = self.enter_function();
+        self.scan_expression(function.as_expr()).unwrap();
+        self.exit_function(state);
     }
 
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
         match self.interner.expression(&expr) {
-            HirExpression::Ident(_) => todo!(),
+            HirExpression::Ident(_) => Ok(()),
             HirExpression::Literal(literal) => self.scan_literal(literal),
             HirExpression::Block(block) => self.scan_block(block),
             HirExpression::Prefix(prefix) => self.scan_expression(prefix.rhs),
@@ -54,8 +58,10 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::Tuple(tuple) => self.scan_tuple(tuple),
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
             HirExpression::CompTime(block) => {
-                let _value = self.evaluate_block(block)?;
-                todo!("Inline block into hir")
+                let new_expr = self.evaluate_block(block)?.into_expression(self.interner);
+                let new_expr = self.interner.expression(&new_expr);
+                self.interner.replace_expr(&expr, new_expr);
+                Ok(())
             }
             HirExpression::Quote(_) => {
                 // This error could be detected much earlier in the compiler pipeline but
@@ -168,8 +174,9 @@ impl<'interner> Interpreter<'interner> {
             HirStatement::Semi(semi) => self.scan_expression(semi),
             HirStatement::Error => Ok(()),
             HirStatement::CompTime(comptime) => {
-                let _value = self.evaluate_comptime(comptime)?;
-                todo!("Inline value into hir")
+                let new_expr = self.evaluate_comptime(comptime)?.into_expression(self.interner);
+                self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
+                Ok(())
             }
         }
     }

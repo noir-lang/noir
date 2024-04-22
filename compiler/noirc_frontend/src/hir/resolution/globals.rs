@@ -17,13 +17,6 @@ pub(crate) struct ResolvedGlobals {
     pub(crate) errors: Vec<(CompilationError, FileId)>,
 }
 
-impl ResolvedGlobals {
-    pub(crate) fn extend(&mut self, oth: Self) {
-        self.globals.extend(oth.globals);
-        self.errors.extend(oth.errors);
-    }
-}
-
 pub(crate) fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,

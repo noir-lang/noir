@@ -5,8 +5,8 @@ use im::Vector;
 use iter_extended::vecmap;
 
 use crate::{
-    hir_def::expr::HirLambda, node_interner::FuncId, BlockExpression, IntegerBitSize, Shared,
-    Signedness, Type,
+    hir_def::expr::HirLambda, node_interner::{FuncId, ExprId}, BlockExpression, IntegerBitSize, Shared,
+    Signedness, Type, macros_api::{NodeInterner, HirExpression, HirLiteral},
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -63,5 +63,56 @@ impl Value {
                 Type::MutableReference(Box::new(element))
             }
         })
+    }
+
+    pub(crate) fn into_expression(self, interner: &mut NodeInterner) -> ExprId {
+        let expression = match self {
+            Value::Unit => todo!(),
+            Value::Bool(value) => {
+                HirExpression::Literal(HirLiteral::Bool(value))
+            },
+            Value::Field(value) => {
+                HirExpression::Literal(HirLiteral::Integer(value, false))
+            },
+            Value::I8(value) => {
+                let negative = value < 0 ;
+                let value = value.abs();
+                let value = (value as u128).into();
+                HirExpression::Literal(HirLiteral::Integer(value, negative))
+            },
+            Value::I32(value) => {
+                let negative = value < 0 ;
+                let value = value.abs();
+                let value = (value as u128).into();
+                HirExpression::Literal(HirLiteral::Integer(value, negative))
+            },
+            Value::I64(value) => {
+                let negative = value < 0 ;
+                let value = value.abs();
+                let value = (value as u128).into();
+                HirExpression::Literal(HirLiteral::Integer(value, negative))
+            },
+            Value::U8(value) => {
+                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+            },
+            Value::U32(value) => {
+                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+            },
+            Value::U64(value) => {
+                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+            },
+            Value::String(value) => {
+                HirExpression::Literal(HirLiteral::Str(value.as_ref().clone()))
+            },
+            Value::Function(_, _) => todo!(),
+            Value::Closure(_, _, _) => todo!(),
+            Value::Tuple(_) => todo!(),
+            Value::Struct(_, _) => todo!(),
+            Value::Pointer(_) => todo!(),
+            Value::Array(_, _) => todo!(),
+            Value::Slice(_, _) => todo!(),
+            Value::Code(_) => todo!(),
+        };
+        interner.push_expr(expression)
     }
 }

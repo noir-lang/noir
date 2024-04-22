@@ -329,7 +329,7 @@ impl<'a> Interpreter<'a> {
                 let typ = self.interner.id_type(id);
                 Ok(Value::Function(*function_id, typ))
             }
-            DefinitionKind::Local(_) => dbg!(self.lookup(&ident)),
+            DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
                 self.evaluate_let(let_)?;
