@@ -108,15 +108,6 @@ template <typename Flavor> class SumcheckProverRound {
     {
         BB_OP_COUNT_TIME();
 
-        // Compute the constant contribution of pow polynomials for each edge. This is the product of the partial
-        // evaluation result c_l (i.e. pow(u_0,...,u_{l-1})) where u_0,...,u_{l-1} are the verifier challenges from
-        // previous rounds) and the elements of pow(\vec{β}) not containing β_0,..., β_l.
-        std::vector<FF> pow_challenges(round_size >> 1);
-        pow_challenges[0] = pow_polynomial.partial_evaluation_result;
-        for (size_t i = 1; i < (round_size >> 1); ++i) {
-            pow_challenges[i] = pow_challenges[0] * pow_polynomial[i * pow_polynomial.periodicity];
-        }
-
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
         // on a specified minimum number of iterations per thread. This eventually leads to the use of a single thread.
@@ -144,11 +135,12 @@ template <typename Flavor> class SumcheckProverRound {
                 extend_edges(extended_edges[thread_idx], polynomials, edge_idx);
 
                 // Compute the i-th edge's univariate contribution,
-                // scale it by pow_challenge constant contribution and add it to the accumulators for Sˡ(Xₗ)
+                // scale it by the corresponding pow contribution and add it to the accumulators for Sˡ(Xₗ). The pow
+                // contribution represents the elements of pow(\vec{β}) not containing β_0,..., β_l
                 accumulate_relation_univariates(thread_univariate_accumulators[thread_idx],
                                                 extended_edges[thread_idx],
                                                 relation_parameters,
-                                                pow_challenges[edge_idx >> 1]);
+                                                pow_polynomial[(edge_idx >> 1) * pow_polynomial.periodicity]);
             }
         });
 
@@ -208,11 +200,15 @@ template <typename Flavor> class SumcheckProverRound {
                 bb::subrelation_is_linearly_independent<Relation, subrelation_idx>();
             // Except from the log derivative subrelation, each other subrelation in part is required to be 0 hence we
             // multiply by the power polynomial. As the sumcheck prover is required to send a univariate to the
-            // verifier, we additionally need a univariate contribution from the pow polynomial.
+            // verifier, we additionally need a univariate contribution from the pow polynomial which is the
+            // extended_random_polynomial.
             if (!is_subrelation_linearly_independent) {
                 result += extended;
             } else {
-                result += extended * extended_random_polynomial;
+                // Multiply by the pow polynomial univariate contribution and the partial
+                // evaluation result c_l (i.e. pow(u_0,...,u_{l-1})) where u_0,...,u_{l-1} are the verifier challenges
+                // from previous rounds)
+                result += extended * extended_random_polynomial * pow_polynomial.partial_evaluation_result;
             }
         };
         Utils::apply_to_tuple_of_tuples(tuple, extend_and_sum);
