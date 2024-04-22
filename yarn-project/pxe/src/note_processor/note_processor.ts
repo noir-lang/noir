@@ -166,7 +166,7 @@ export class NoteProcessor {
                   deferredNoteDaos.push(deferredNoteDao);
                 } else {
                   this.stats.failed++;
-                  this.log.warn(`Could not process note because of "${e}". Discarding note...`);
+                  this.log.error(`Could not process note because of "${e}". Discarding note...`);
                 }
               }
             }
