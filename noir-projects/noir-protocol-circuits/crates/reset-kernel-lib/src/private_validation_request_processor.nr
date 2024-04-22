@@ -5,8 +5,7 @@ use dep::types::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GENERATOR_INDEX__NSK_M
 },
-    grumpkin_private_key::GrumpkinPrivateKey, keys::compute_siloed_nullifier_secret_key,
-    hash::poseidon2_hash, traits::is_empty
+    grumpkin_private_key::GrumpkinPrivateKey, hash::poseidon2_hash, traits::is_empty
 };
 
 struct PrivateValidationRequestProcessor {
