@@ -4,6 +4,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::ast::{ItemVisibility, Path, TraitItem};
 use crate::{
     graph::CrateId,
     hir::{
@@ -16,7 +17,7 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Generics, ItemVisibility, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
+    Generics, Shared, Type, TypeVariable, TypeVariableKind,
 };
 
 use super::{

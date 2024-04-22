@@ -7,10 +7,8 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
-use noirc_frontend::{
-    monomorphization::ast::{self, Expression, Program},
-    Visibility,
-};
+use noirc_frontend::ast::{UnaryOp, Visibility};
+use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use crate::{
     errors::{InternalError, RuntimeError},
@@ -306,24 +304,24 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<Values, RuntimeError> {
         match unary.operator {
-            noirc_frontend::UnaryOp::Not => {
+            UnaryOp::Not => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
                 Ok(self.builder.insert_not(rhs).into())
             }
-            noirc_frontend::UnaryOp::Minus => {
+            UnaryOp::Minus => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
                 Ok(self.insert_binary(
                     zero,
-                    noirc_frontend::BinaryOpKind::Subtract,
+                    noirc_frontend::ast::BinaryOpKind::Subtract,
                     rhs,
                     unary.location,
                 ))
             }
-            noirc_frontend::UnaryOp::MutableReference => {
+            UnaryOp::MutableReference => {
                 Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
@@ -338,7 +336,7 @@ impl<'a> FunctionContext<'a> {
                     }
                 }))
             }
-            noirc_frontend::UnaryOp::Dereference { .. } => {
+            UnaryOp::Dereference { .. } => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 Ok(self.dereference(&rhs, &unary.result_type))
             }
