@@ -6,10 +6,6 @@ Keywords: [Noir, Development, Playground, IDE Tools, Language Service Provider, 
 
 Noir is meant to be easy to develop with. For that reason, a number of utilities have been put together to ease the development process as much as feasible in the zero-knowledge world.
 
-## Playground
-
-The Noir playground is an easy way to test small ideas, share snippets, and integrate in other websites. You can access it at [play.noir-lang.org](https://play.noir-lang.org).
-
 ## IDE tools
 
 When you install Nargo, you're also installing a Language Service Provider (LSP), which can be used by IDEs to provide syntax highlighting, codelens, warnings, and more.
