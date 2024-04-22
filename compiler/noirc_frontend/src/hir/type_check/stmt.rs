@@ -1,6 +1,7 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
+use crate::ast::UnaryOp;
 use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
@@ -8,7 +9,6 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
-use crate::UnaryOp;
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
@@ -51,6 +51,7 @@ impl<'interner> TypeChecker<'interner> {
             HirStatement::Constrain(constrain_stmt) => self.check_constrain_stmt(constrain_stmt),
             HirStatement::Assign(assign_stmt) => self.check_assign_stmt(assign_stmt, stmt_id),
             HirStatement::For(for_loop) => self.check_for_loop(for_loop),
+            HirStatement::Comptime(statement) => return self.check_statement(&statement),
             HirStatement::Break | HirStatement::Continue | HirStatement::Error => (),
         }
         Type::Unit

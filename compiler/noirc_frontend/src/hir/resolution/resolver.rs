@@ -25,25 +25,22 @@ use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
+use crate::ast::{
+    ArrayLiteral, BinaryOpKind, BlockExpression, Distinctness, Expression, ExpressionKind,
+    ForRange, FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
+    LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Statement, StatementKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{
-    hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
-    BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    StatementKind,
-};
-use crate::{
-    ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
-    Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Shared, Statement, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
-};
+use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -482,7 +479,7 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
-        use UnresolvedTypeData::*;
+        use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
@@ -944,6 +941,7 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let should_fold = attributes.is_foldable();
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -1024,8 +1022,6 @@ impl<'a> Resolver<'a> {
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
-        let should_fold = attributes.is_foldable();
-
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -1054,7 +1050,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        self.is_entry_point_function(func)
+        self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
@@ -1187,7 +1183,7 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_global_let(
         &mut self,
-        let_stmt: crate::LetStatement,
+        let_stmt: LetStatement,
         global_id: GlobalId,
     ) -> HirStatement {
         self.current_item = Some(DependencyId::Global(global_id));
@@ -1291,6 +1287,10 @@ impl<'a> Resolver<'a> {
                 HirStatement::Continue
             }
             StatementKind::Error => HirStatement::Error,
+            StatementKind::Comptime(statement) => {
+                let statement = self.resolve_stmt(*statement, span);
+                HirStatement::Comptime(self.interner.push_stmt(statement))
+            }
         }
     }
 

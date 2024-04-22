@@ -1,9 +1,9 @@
 use chumsky::Parser;
 
 use crate::{
+    ast::ExpressionKind,
     parser::NoirParser,
     token::{Token, TokenKind},
-    ExpressionKind,
 };
 
 use super::primitives::token_kind;
@@ -22,10 +22,10 @@ pub(super) fn literal() -> impl NoirParser<ExpressionKind> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::ast::Literal;
     use crate::parser::parser::{
         expression, expression_no_constructors, fresh_statement, term, test_helpers::*,
     };
-    use crate::Literal;
 
     fn expr_to_lit(expr: ExpressionKind) -> Literal {
         match expr {

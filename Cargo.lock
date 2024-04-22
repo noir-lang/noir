@@ -456,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "backend-interface"
-version = "0.11.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "bb_abstraction_leaks",
@@ -2827,7 +2827,6 @@ dependencies = [
  "noirc_frontend",
  "noirc_printable_type",
  "rayon",
- "rustc_version",
  "serde",
  "tempfile",
  "thiserror",
@@ -2872,7 +2871,6 @@ dependencies = [
  "predicates 2.1.5",
  "prettytable-rs",
  "rayon",
- "rustc_version",
  "serde",
  "serde_json",
  "similar-asserts",
