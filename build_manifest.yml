@@ -201,14 +201,6 @@ aztec:
     - yarn-project
   multiarch: buildx
 
-# Aztec faucet server. Has these dependencies because it's part of workspace. Consider moving out?
-aztec-faucet:
-  buildDir: yarn-project
-  projectDir: yarn-project/aztec-faucet
-  dependencies:
-    - bb.js
-    - noir-packages
-
 # Builds all the boxes. They are then independently tested in the container.
 boxes:
   buildDir: boxes
@@ -233,10 +225,6 @@ end-to-end:
     - yarn-project
   runDependencies:
     - aztec
-
-mainnet-fork:
-  buildDir: iac/mainnet-fork
-  projectDir: iac/mainnet-fork
 
 docs:
   buildDir: .
