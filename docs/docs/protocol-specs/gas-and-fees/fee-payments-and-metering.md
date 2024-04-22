@@ -57,7 +57,7 @@ All of these phases occur **within the same transaction**, ultimately resulting 
 
 ![Transaction Components](/img/protocol-specs/gas-and-fees/Transaction.png)
 
-The fee preparation and fee distribution phases respectively are responsible for ensuring that sufficient quantity of the fee payment asset is made available for the transaction and that it is correctly distributed to the sequencer with any refund being returned to the transaction sender. The sequencer will have have agency over which contract methods they are willing to accept for execution in these phases and will have visibility over the arguments passed to them. This is important as these functions must be successfully executed in order for the sequencer to be paid. It is assumed that the network will settle on a number of universally recognised fee payment contracts implementing fee preparation and distribution.
+The fee preparation and fee distribution phases respectively are responsible for ensuring that sufficient quantity of the fee payment asset is made available for the transaction and that it is correctly distributed to the sequencer with any refund being returned to the transaction sender. The sequencer will have have agency over which contract methods they are willing to accept for execution in these phases and will have visibility over the arguments passed to them. This is important as these functions must be successfully executed in order for the sequencer to be paid. It is assumed that the network will settle on a number of universally recognized fee payment contracts implementing fee preparation and distribution.
 
 ## Gas Metering
 
@@ -80,15 +80,15 @@ A comprehensive table of gas consuming operations can be found in the [fee sched
 
 ## Paying Transaction Fees
 
-Transactions will need to be provided with sufficient fees to cover their gas consumption. The [private kernel circuits](../circuits/high-level-topology.md) understand a transaction's private execution as having 2 phases. The first phase is for the payment of fees. It is during this phase that the private execution must generate side-effects and enqueued function calls for the fee preparation and fee distribution phases of the transaction. These side-effects are deemed non-revertible. Typically, only contracts designed to be written as transaction entrypoints will need to be concerned with these phases and once the fee payment execution is complete, the transaction is moved to the second phase where all execution is considered the appication logic. The [private kernel circuits](../circuits/high-level-topology.md) maintain a 'high water mark' of side effects below which those side effects are deemed non-revertible.
+Transactions will need to be provided with sufficient fees to cover their gas consumption. The [private kernel circuits](../circuits/high-level-topology.md) understand a transaction's private execution as having 2 phases. The first phase is for the payment of fees. It is during this phase that the private execution must generate side-effects and enqueued function calls for the fee preparation and fee distribution phases of the transaction. These side-effects are deemed non-revertible. Typically, only contracts designed to be written as transaction entrypoints will need to be concerned with these phases and once the fee payment execution is complete, the transaction is moved to the second phase where all execution is considered the application logic. The [private kernel circuits](../circuits/high-level-topology.md) maintain a 'high water mark' of side effects below which those side effects are deemed non-revertible.
 
 Transaction senders will need to compute a sufficient fee for the transaction considering both the transaction specific and amortized gas consumption. Transaction specific L1, L2, and DA gas can be calculated via simulation whereas amortized gas will need to be calculated by using a transaction sender specified minimum amortization. This minimum amortization is simply the minimum sized rollup that the transaction sender is willing to be included in. From this value, the amortized L1, L2 and DA gas values can be determined. Finally, a fixed amount of gas for the execution of fee distribution will need to be specified.
 
 An example of L2 gas amortization could be the transaction sender specifying a minimum amortization of 1024 transactions. The transaction sender would then compute the amount of amortized gas required for a rollup of that size:
 
 ```
-TotalGasToBeAmortised = (1024 - 2) * GMerge + GRoot
-L2AmortizedGasLimit = TotalGasToBeAmortised / 1024
+TotalGasToBeAmortized = (1024 - 2) * GMerge + GRoot
+L2AmortizedGasLimit = TotalGasToBeAmortized / 1024
 
 Where
   GMerge = The gas cost of proving the merge rollup circuit.
@@ -197,18 +197,16 @@ sequenceDiagram
   Alice->>AccountContract: run entrypoint
   AccountContract->>FPA: enqueue FPA.pay_fee(max_fee) msg_sender == Alice as fee distribution function
   AccountContract->>App: app logic
-    App->>AccountContract:
+  App->>AccountContract: response
   AccountContract->>Alice: finished private execution
 
   Alice->>Sequencer: tx object
 
-  Sequencer->>Sequencer: Recognise whitelisted function FPA.pay_fee(max_fee) and msg.sender == Alice
+  Sequencer->>Sequencer: Recognize whitelisted function FPA.pay_fee(max_fee) and msg.sender == Alice
   Sequencer->>FPA: verify that Alice has >= funds required from tx object
   FPA->>Sequencer: Alice has >= funds required from tx object
-
   Sequencer->>App: app logic
-  App->>Sequencer:
-
+  App->>Sequencer: response
   Sequencer->>FPA: FPA.pay_fee(max_fee)
   FPA->>FPA: calculate fee based on inputs to VM circuit
   FPA->>Alice: Alice's balance is reduced by fee amount
@@ -241,19 +239,19 @@ sequenceDiagram
   FPC->>AST: AST.transfer(FPC, max_fee + commission, nonce)
   AST->>AccountContract: check auth witness
   FPC->>FPC: enqueue FPA.private_fee_payment(max_fee) msg_sender == FPC as fee distribution function
-  FPC->>AccountContract:
+  FPC->>AccountContract: response
   AccountContract->>App: app logic
-    App->>AccountContract:
+  App->>AccountContract: response
   AccountContract->>Alice: finished private execution
 
   Alice->>Sequencer: tx object
 
-  Sequencer->>Sequencer: Recognise whitelisted function FPA.private_fee_payment(max_fee) and msg.sender == FPC
+  Sequencer->>Sequencer: Recognize whitelisted function FPA.private_fee_payment(max_fee) and msg.sender == FPC
   Sequencer->>FPA: verify that FPC has >= funds required from tx object
   FPA->>Sequencer: FPC has >= funds required from tx object
 
   Sequencer->>App: app logic
-  App->>Sequencer:
+  App->>Sequencer: response
 
   Sequencer->>FPA: FPA.private_fee_payment(max_fee)
   FPA->>FPA: calculate fee based on inputs to VM circuit
@@ -282,35 +280,34 @@ sequenceDiagram
   end
 
   Alice->>AccountContract: run entrypoint
-  AccountContract->>AccountContract: pulic auth witness for AST transfer
+  AccountContract->>AccountContract: public auth witness for AST transfer
   AccountContract->>FPC: public_fee_entrypoint(AST, max_fee, nonce)
   activate FPC
   FPC->>FPC: enqueue FPC.public_fee_preparation(Alice, AST, max_fee, nonce) as fee preparation with msg_sender == FPC
   FPC->>FPC: enqueue FPC.public_fee_payment(Alice, AST, max_fee) as fee distribution with msg_sender == FPC
-  FPC->>AccountContract:
-  deactivate FPC
+  FPC->>AccountContract: deactivate FPC
   AccountContract->>App: app logic
-    App->>AccountContract:
+  App->>AccountContract: response
   AccountContract->>Alice: finished private execution
 
   Alice->>Sequencer: tx object
 
-  Sequencer->>Sequencer: Recognise whitelisted function FPC.public_fee_preparation(Alice, AST, max_fee, nonce) and msg.sender == FPC
+  Sequencer->>Sequencer: Recognize whitelisted function FPC.public_fee_preparation(Alice, AST, max_fee, nonce) and msg.sender == FPC
   Sequencer->>FPC: FPC.public_fee_preparation(Alice, AST, max_fee, nonce)
   activate FPC
   FPC->>AST: AST.transfer_public(Alice, FPC, max_fee + commission, nonce)
   AST->>AccountContract: check auth witness
-    AccountContract->>AST:
-  AST->>FPC:
+    AccountContract->>AST: response
+  AST->>FPC: response
   FPC->>FPA: FPA.check_balance(max_fee)
-    FPA->>FPC:
+    FPA->>FPC: response
   FPC->>Sequencer: FPC has the funds
   deactivate FPC
 
   Sequencer->>App: app logic
-  App->>Sequencer:
+  App->>Sequencer: response
 
-  Sequencer->>Sequencer: Recognise whitelisted function FPC.public_fee_payment(Alice, AST, max_fee) and msg.sender == FPC
+  Sequencer->>Sequencer: Recognize whitelisted function FPC.public_fee_payment(Alice, AST, max_fee) and msg.sender == FPC
   Sequencer->>FPC: FPC.public_fee_payment(Alice, AST, max_fee)
   activate FPC
   FPC->>FPA: FPA.pay_fee(max_fee)
@@ -318,14 +315,14 @@ sequenceDiagram
   FPA->>Sequencer: Sequencer's balance is increased by fee amount
     FPA->>FPC: rebate value
   FPC->>AST: AST.transfer_public(FPC, Alice, rebate, 0)
-    AST->>FPC:
+    AST->>FPC: response
   FPC->>Alice: Alice's balance is increased by rebate value
   deactivate FPC
 ```
 
 ### DApp Sponsorship
 
-In this scenario a DApp wishes to pay the fee on behalf of a user for interactng with it. The DApp has a balance of FPA from which it wishes to pay for the transaction. It shares many similarities with the previous native asset fee payment scenario.
+In this scenario a DApp wishes to pay the fee on behalf of a user for interacting with it. The DApp has a balance of FPA from which it wishes to pay for the transaction. It shares many similarities with the previous native asset fee payment scenario.
 
 ```mermaid
 sequenceDiagram
@@ -342,7 +339,7 @@ sequenceDiagram
 
   Alice->>DApp: run entrypoint
   DApp->>AccountContract: check auth witness
-  AccountContract->>DApp:
+  AccountContract->>DApp: app logic
   DApp->>DApp: check if will sponsor action
   DApp->>FPA: enqueue FPA.pay_fee(max_fee) and msg_sender == DApp as fee distribution
   DApp->>DApp: app logic
@@ -350,13 +347,12 @@ sequenceDiagram
 
   Alice->>Sequencer: tx object
 
-  Sequencer->>Sequencer: Recognise whitelisted function FPA.pay_fee(max_fee) and msg.sender == DApp
+  Sequencer->>Sequencer: Recognize whitelisted function FPA.pay_fee(max_fee) and msg.sender == DApp
   Sequencer->>FPA: verify that DApp has >= funds required from tx object
   FPA->>Sequencer: DApp has >= funds required from tx object
 
   Sequencer->>DApp: app logic
-  DApp->>Sequencer:
-
+  DApp->>Sequencer: response
   Sequencer->>FPA: FPA.pay_fee(max_fee)
   FPA->>FPA: calculate fee based on inputs to VM circuit
   FPA->>DApp: DApp's balance is reduced by fee amount
