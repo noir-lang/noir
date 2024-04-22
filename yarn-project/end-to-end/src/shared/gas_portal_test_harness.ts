@@ -138,15 +138,15 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     /** Portal address. */
     public tokenPortalAddress: EthAddress,
     /** Token portal instance. */
-    public tokenPortal: any,
+    public tokenPortal: GetContractReturnType<typeof GasPortalAbi, WalletClient<HttpTransport, Chain, Account>>,
     /** Underlying token for portal tests. */
-    public underlyingERC20: any,
+    public underlyingERC20: GetContractReturnType<typeof PortalERC20Abi, WalletClient<HttpTransport, Chain, Account>>,
     /** Message Bridge Outbox. */
     public outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>,
     /** Viem Public client instance. */
     public publicClient: PublicClient<HttpTransport, Chain>,
     /** Viem Wallet Client instance. */
-    public walletClient: any,
+    public walletClient: WalletClient,
   ) {}
 
   generateClaimSecret(): [Fr, Fr] {
@@ -159,7 +159,9 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
 
   async mintTokensOnL1(amount: bigint) {
     this.logger.info('Minting tokens on L1');
-    await this.underlyingERC20.write.mint([this.ethAccount.toString(), amount], {} as any);
+    await this.publicClient.waitForTransactionReceipt({
+      hash: await this.underlyingERC20.write.mint([this.ethAccount.toString(), amount]),
+    });
     expect(await this.underlyingERC20.read.balanceOf([this.ethAccount.toString()])).toBe(amount);
   }
 
@@ -168,7 +170,9 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   }
 
   async sendTokensToPortalPublic(bridgeAmount: bigint, l2Address: AztecAddress, secretHash: Fr) {
-    await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount], {} as any);
+    await this.publicClient.waitForTransactionReceipt({
+      hash: await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount]),
+    });
 
     // Deposit tokens to the TokenPortal
     this.logger.info('Sending messages to L1 portal to be consumed publicly');
@@ -176,33 +180,9 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
     } as any);
-    await this.tokenPortal.write.depositToAztecPublic(args, {} as any);
-
-    return Fr.fromString(messageHash);
-  }
-
-  async sendTokensToPortalPrivate(
-    secretHashForRedeemingMintedNotes: Fr,
-    bridgeAmount: bigint,
-    secretHashForL2MessageConsumption: Fr,
-  ) {
-    await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount], {} as any);
-
-    // Deposit tokens to the TokenPortal
-    const deadline = 2 ** 32 - 1; // max uint32
-
-    this.logger.info('Sending messages to L1 portal to be consumed privately');
-    const args = [
-      secretHashForRedeemingMintedNotes.toString(),
-      bridgeAmount,
-      this.ethAccount.toString(),
-      deadline,
-      secretHashForL2MessageConsumption.toString(),
-    ] as const;
-    const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
-      account: this.ethAccount.toString(),
-    } as any);
-    await this.tokenPortal.write.depositToAztecPrivate(args, {} as any);
+    await this.publicClient.waitForTransactionReceipt({
+      hash: await this.tokenPortal.write.depositToAztecPublic(args),
+    });
 
     return Fr.fromString(messageHash);
   }

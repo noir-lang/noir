@@ -38,7 +38,7 @@ import { GasPortalTestingHarnessFactory, type IGasBridgingTestHarness } from './
 const TOKEN_NAME = 'BananaCoin';
 const TOKEN_SYMBOL = 'BC';
 const TOKEN_DECIMALS = 18n;
-const BRIDGED_FPC_GAS = 444n;
+const BRIDGED_FPC_GAS = BigInt(10e12);
 
 jest.setTimeout(1000_000);
 
@@ -125,13 +125,8 @@ describe('e2e_fees_account_init', () => {
   afterAll(() => ctx.teardown());
 
   beforeEach(() => {
-    gasSettings = GasSettings.from({
-      gasLimits: { daGas: 2, l1Gas: 2, l2Gas: 2 },
-      teardownGasLimits: { daGas: 1, l1Gas: 1, l2Gas: 1 },
-      maxFeesPerGas: { feePerDaGas: Fr.ONE, feePerL1Gas: Fr.ONE, feePerL2Gas: Fr.ONE },
-      inclusionFee: new Fr(5),
-    });
-    maxFee = 3n * 3n + 5n;
+    gasSettings = GasSettings.default();
+    maxFee = gasSettings.getFeeLimit().toBigInt();
     actualFee = 1n;
     bobsSecretKey = Fr.random();
     bobsPrivateSigningKey = Fq.random();
@@ -168,7 +163,7 @@ describe('e2e_fees_account_init', () => {
     describe('privately through an FPC', () => {
       let mintedPrivateBananas: bigint;
       beforeEach(async () => {
-        mintedPrivateBananas = 42n;
+        mintedPrivateBananas = BigInt(1e12);
 
         // TODO the following sequence of events ends in a timeout
         // 1. pxe.registerRecipient (aka just add the public key so pxe can encrypt notes)
@@ -243,7 +238,7 @@ describe('e2e_fees_account_init', () => {
       let mintedPublicBananas: bigint;
 
       beforeEach(async () => {
-        mintedPublicBananas = 37n;
+        mintedPublicBananas = BigInt(1e12);
         await bananaCoin.methods.mint_public(bobsAddress, mintedPublicBananas).send().wait();
       });
 
