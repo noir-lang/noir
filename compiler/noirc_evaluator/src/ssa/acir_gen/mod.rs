@@ -3042,7 +3042,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
+            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3114,7 +3114,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::Distinctness::Distinct)
+            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3201,7 +3201,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::Distinctness::Distinct)
+            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
