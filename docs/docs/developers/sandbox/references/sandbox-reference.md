@@ -115,6 +115,7 @@ Variables like `DEPLOY_AZTEC_CONTRACTS` & `AZTEC_NODE_PORT` are valid here as de
 # Configuration variables for connecting a Node to the Aztec Node P2P network. You'll need a running P2P-Bootstrap node to connect to.
 P2P_ENABLED='false' # A flag to enable P2P networking for this node. (default: false)
 P2P_BLOCK_CHECK_INTERVAL_MS=100 # The frequency in which to check for new L2 blocks.
+P2P_PEER_CHECK_INTERVAL_MS=1000 # The frequency in which to check for peers.
 P2P_L2_BLOCK_QUEUE_SIZE=1000 # Size of queue of L2 blocks to store.
 P2P_TCP_LISTEN_PORT=40400 # The tcp port on which the P2P service should listen for connections.
 P2P_TCP_LISTEN_IP= #The tcp IP on which the P2P service should listen for connections.
@@ -122,7 +123,6 @@ PEER_ID_PRIVATE_KEY='' # An optional peer id private key. If blank, will generat
 BOOTSTRAP_NODES='' # A list of bootstrap peers to connect to, separated by commas
 P2P_ANNOUNCE_HOSTNAME='' # Hostname to announce to the p2p network
 P2P_ANNOUNCE_PORT='' # Port to announce to the p2p network
-P2P_KAD_CLIENT='false' # Optional specification to run as a client in the Kademlia routing protocol.
 P2P_NAT_ENABLED='false' # Whether to enable NAT from libp2p
 P2P_MIN_PEERS=10 # The minimum number of peers (a peer count below this will cause the node to look for more peers)
 P2P_MAX_PEERS=100 # The maximum number of peers (a peer count above this will cause the node to refuse connection attempts)

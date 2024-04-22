@@ -4,7 +4,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore, type AztecSingleton } from '@aztec/kv-store';
 
 import { getP2PConfigEnvVars } from '../config.js';
-import { type P2PService } from '../service/service.js';
+import type { P2PService } from '../service/service.js';
 import { type TxPool } from '../tx_pool/index.js';
 
 /**

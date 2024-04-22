@@ -291,7 +291,15 @@ resource "aws_ecs_task_definition" "aztec-node" {
       {
         "name": "P2P_MAX_PEERS",
         "value": "${var.P2P_MAX_PEERS}"
-      }
+      },
+      {
+        "name": "P2P_BLOCK_CHECK_INTERVAL_MS",
+        "value": "1000"
+      },
+      {
+        "name": "P2P_PEER_CHECK_INTERVAL_MS",
+        "value": "2000"
+      },
     ],
     "mountPoints": [
       {

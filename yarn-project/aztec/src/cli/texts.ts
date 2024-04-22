@@ -7,6 +7,7 @@ const contractAddresses =
   'availabilityOracleAddress:AVAILABILITY_ORACLE_CONTRACT_ADDRESS - string - The deployed L1 availability oracle contract address.\n';
 const p2pOptions =
   'p2pBlockCheckIntervalMS:P2P_BLOCK_CHECK_INTERVAL_MS - number - The frequency in which to check for blocks. Default: 100\n' +
+  'p2pPeerCheckIntervalMS:P2P_PEER_CHECK_INTERVAL_MS - number - The frequency in which to check for peers. Default: 1000\n' +
   'p2pL2QueueSize:P2P_L2_QUEUE_SIZE - number - Size of queue of L2 blocks to store. Default: 1000\n' +
   'tcpListenPort:TCP_LISTEN_PORT - number - The tcp port on which the P2P service should listen for connections. Default: 40400\n' +
   'tcpListenIp:TCP_LISTEN_IP - string - The tcp IP on which the P2P service should listen for connections. Default: 0.0.0.0\n' +
@@ -14,7 +15,6 @@ const p2pOptions =
   'bootstrapNodes:BOOTSTRAP_NODES - string - A list of bootstrap peers to connect to.\n' +
   'announceHostname:P2P_ANNOUNCE_HOSTNAME - string - P2P Hostname to announce.\n' +
   'announcePort:P2P_ANNOUNCE_PORT - number - P2P Port to announce.\n' +
-  'clientKADRouting:P2P_KAD_CLIENT - boolean - Optional specification to run as a client in the Kademlia routing protocol. Default: false\n' +
   'enableNat:P2P_NAT_ENABLED - boolean - Whether to enable NAT from libp2p (ignored for bootstrap node). Default: false\n' +
   'minPeerCount:P2P_MIN_PEERS - number - The minimum number of peers to connect to. Default: 10\n' +
   'maxPeerCount:P2P_MAX_PEERS - number - The maximum number of peers to connect to. Default: 100\n';
