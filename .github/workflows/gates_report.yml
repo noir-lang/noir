@@ -74,7 +74,7 @@ jobs:
        
       - name: Compare gates reports
         id: gates_diff
-        uses: vezenovm/noir-gates-diff@353d9f552f49872c0b83fb20e8025d9f5a917337
+        uses: vezenovm/noir-gates-diff@575853721458c0c334c8d2f2475d8a5486b65a48
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
