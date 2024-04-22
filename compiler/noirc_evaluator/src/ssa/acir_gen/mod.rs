@@ -98,8 +98,8 @@ impl SharedContext {
     fn generated_brillig_stdlib_pointer(
         &self,
         brillig_stdlib_func: &BrilligStdlibFunc,
-    ) -> Option<&u32> {
-        self.brillig_stdlib_func_pointer.get(brillig_stdlib_func)
+    ) -> Option<u32> {
+        self.brillig_stdlib_func_pointer.get(brillig_stdlib_func).copied()
     }
 
     fn insert_generated_brillig_stdlib(
