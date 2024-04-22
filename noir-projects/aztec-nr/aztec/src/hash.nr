@@ -4,10 +4,8 @@ use dep::protocol_types::{
     GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET, GENERATOR_INDEX__NULLIFIER, ARGS_HASH_CHUNK_COUNT,
     GENERATOR_INDEX__FUNCTION_ARGS, ARGS_HASH_CHUNK_LENGTH
 },
-    traits::Hash, hash::{pedersen_hash, silo_nullifier}
+    traits::Hash, hash::{pedersen_hash, poseidon2_hash, silo_nullifier, sha256_to_field}
 };
-
-use dep::protocol_types::hash::sha256_to_field;
 
 pub fn compute_secret_hash(secret: Field) -> Field {
     // TODO(#1205) This is probably not the right index to use
