@@ -139,7 +139,7 @@ export class AcirSimulator {
     contractAddress: AztecAddress,
   ) {
     if (entryPointArtifact.functionType !== FunctionType.UNCONSTRAINED) {
-      throw new Error(`Cannot run ${entryPointArtifact.functionType} function as constrained`);
+      throw new Error(`Cannot run ${entryPointArtifact.functionType} function as unconstrained`);
     }
 
     const context = new ViewDataOracle(contractAddress, [], this.db, this.node);
