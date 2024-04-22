@@ -292,7 +292,7 @@ impl Ssa {
                     {
                         // We cannot insert in the Brillig calls to resolve map here as we are doing an immutable borrow
                         // to the shared context to fetch the pre-existing generated pointer.
-                        call_to_existing_bytecode = Some((*opcode_location, *generated_pointer));
+                        call_to_existing_bytecode = Some((*opcode_location, generated_pointer));
                     } else {
                         let code = brillig_stdlib_func.get_generated_brillig();
                         let generated_pointer = shared_context.new_generated_pointer();
