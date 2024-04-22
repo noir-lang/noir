@@ -4,8 +4,6 @@ title: How to Send a Transaction
 
 This guide explains how to send a transaction using [Aztec.js](../main.md).
 
-To do this from the CLI, go [here](../../sandbox/references/cli-commands.md#sending-a-transaction).
-
 ## Prerequisites
 
 You should have a wallet to act as the transaction sender, and a contract that has been deployed.

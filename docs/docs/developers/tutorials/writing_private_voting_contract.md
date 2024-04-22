@@ -191,7 +191,7 @@ aztec-cli call get_vote --contract-artifact ./target/private_voting-Voting.json 
 
 This should return `1n`.
 
-You can follow this pattern to test `end_vote()` and access control of other functions. Find more information about calling functions from the CLI [here](../sandbox/references/cli-commands.md).
+You can follow this pattern to test `end_vote()` and access control of other functions.
 
 ## Next steps
 

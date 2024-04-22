@@ -308,7 +308,6 @@ const sidebars = {
           label: "References",
           type: "category",
           items: [
-            "developers/sandbox/references/cli-commands",
             "developers/sandbox/references/sandbox-reference",
             "developers/sandbox/references/cheat_codes",
             {

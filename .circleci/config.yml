@@ -443,18 +443,6 @@ jobs:
           command: build aztec
           aztec_manifest_key: aztec
 
-  cli:
-    machine:
-      image: default
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build cli
-          aztec_manifest_key: cli
-
   mainnet-fork:
     machine:
       image: default
@@ -621,7 +609,6 @@ jobs:
             should_release || exit 0
             deploy_dockerhub noir
             deploy_dockerhub aztec
-            deploy_dockerhub cli
             deploy_dockerhub aztec-faucet
             deploy_dockerhub mainnet-fork
       - run:
@@ -851,7 +838,6 @@ workflows:
 
       # Artifacts
       - aztec-package: *defaults_yarn_project
-      - cli: *defaults_yarn_project
 
       # Boxes.
       - boxes:
@@ -872,7 +858,6 @@ workflows:
           requires:
             - end-to-end
             - aztec-package
-            - cli
           <<: *defaults
 
       # Everything that must complete before deployment.

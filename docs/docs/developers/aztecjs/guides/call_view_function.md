@@ -4,8 +4,6 @@ title: How to Simulate a Function Call
 
 This guide explains how to `simulate` a function call using [Aztec.js](../main.md).
 
-To do this from the CLI, go [here](../../sandbox/references/cli-commands.md#calling-an-unconstrained-view-function).
-
 ## Prerequisites
 
 You should have a wallet to act as the caller, and a contract that has been deployed.
@@ -14,7 +12,7 @@ You can learn how to create wallets from [this guide](./create_account.md).
 
 You can learn how to deploy a contract [here](./deploy_contract.md).
 
-## Relevent imports
+## Relevant imports
 
 You will need to import this from Aztec.js:
 

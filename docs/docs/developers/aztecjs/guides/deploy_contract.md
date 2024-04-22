@@ -4,8 +4,6 @@ title: How to Deploy a Contract
 
 This guide explains how to deploy a smart contract using [Aztec.js](../main.md).
 
-To do this from the CLI, go [here](../../sandbox/references/cli-commands.md#deploying-a-token-contract).
-
 ## Prerequisites
 
 You should have a wallet to act as the deployer, and a contract artifact ready to be deployed.

@@ -106,10 +106,6 @@ pxe:
   ARG e2e_mode=local
   DO +E2E_TEST --test=pxe.test.ts --e2e_mode=$e2e_mode
 
-cli-docs-sandbox:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=cli_docs_sandbox.test.ts --e2e_mode=$e2e_mode
-
 e2e-docs-examples:
   ARG e2e_mode=local
   DO +E2E_TEST --test=docs_examples.test.ts --e2e_mode=$e2e_mode

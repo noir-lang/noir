@@ -41,7 +41,6 @@ function title() {
   fi
   echo -e "This will install the following scripts and update your PATH if necessary:"
   echo -e "  ${bold}${g}aztec${r}         - launches various infrastructure subsystems (node, sequencer, prover, pxe, etc)."
-  echo -e "  ${bold}${g}aztec-cli${r}     - a command line tool for interfacing and experimenting with infrastructure."
   echo -e "  ${bold}${g}aztec-nargo${r}   - aztec's build of nargo, the noir compiler toolchain."
   echo -e "  ${bold}${g}aztec-sandbox${r} - a wrapper around docker-compose that launches services needed for sandbox testing."
   echo -e "  ${bold}${g}aztec-up${r}      - a tool to upgrade the aztec toolchain to the latest, or specific versions."
@@ -106,7 +105,6 @@ export DOCKER_CLI_HINTS=false
 if [ -z "${SKIP_PULL:-}" ]; then
   info "Pulling aztec version $VERSION..."
   pull_container aztec
-  pull_container cli
   pull_container noir
 fi
 
@@ -123,7 +121,6 @@ info "Installing scripts in $BIN_PATH..."
 rm -f $BIN_PATH/aztec*
 install_bin .aztec-run
 install_bin aztec
-install_bin aztec-cli
 install_bin aztec-sandbox
 install_bin aztec-up
 install_bin aztec-nargo

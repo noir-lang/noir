@@ -153,7 +153,6 @@ yarn-project-test:
   rebuildPatterns:
     - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh|nr|toml|snap)$
     - ^yarn-project/Dockerfile$
-    - ^yarn-project/cli/aztec-cli
   dependencies:
     - bb.js
     - noir-packages
@@ -185,7 +184,6 @@ yarn-project:
   rebuildPatterns:
     - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh|nr|toml|snap)$
     - ^yarn-project/Dockerfile$
-    - ^yarn-project/cli/aztec-cli
   dependencies:
     - bb.js
     - noir-packages
@@ -210,14 +208,6 @@ aztec-faucet:
   dependencies:
     - bb.js
     - noir-packages
-
-# A runnable container, sets entrypoint to be the aztec-cli entrypoint.
-cli:
-  buildDir: yarn-project
-  projectDir: yarn-project/cli
-  dependencies:
-    - yarn-project
-  multiarch: buildx
 
 # Builds all the boxes. They are then independently tested in the container.
 boxes:

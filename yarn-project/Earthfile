@@ -49,7 +49,7 @@ build:
 
 aztec-prod:
     FROM +build
-    RUN yarn workspaces focus @aztec/cli @aztec/aztec --production && yarn cache clean
+    RUN yarn workspaces focus @aztec/aztec --production && yarn cache clean
     SAVE ARTIFACT /usr/src /usr/src
 
 aztec-prod-slim:
@@ -59,11 +59,6 @@ aztec-prod-slim:
 aztec:
     FROM +aztec-prod-slim
     ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/aztec/dest/bin/index.js"]
-    EXPOSE 8080
-
-cli:
-    FROM +aztec-prod-slim
-    ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/cli/dest/bin/index.js"]
     EXPOSE 8080
 
 end-to-end-prod:

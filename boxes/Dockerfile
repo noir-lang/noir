@@ -13,7 +13,7 @@ COPY --from=noir-projects /usr/src/noir-projects/noir-protocol-circuits/crates/t
 WORKDIR /usr/src/boxes
 COPY . .
 ENV AZTEC_NARGO=/usr/src/noir/noir-repo/target/release/nargo
-ENV AZTEC_CLI=/usr/src/yarn-project/cli/aztec-cli-dest
+ENV AZTEC_COMPILE=/usr/src/yarn-project/noir-compiler/aztec-compile-dest
 RUN yarn
 RUN npx -y playwright@1.42 install --with-deps
 ENTRYPOINT ["/bin/sh", "-c"]

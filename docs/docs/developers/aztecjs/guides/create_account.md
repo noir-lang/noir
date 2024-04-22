@@ -4,8 +4,6 @@ title: How to Create a New Account
 
 This guide explains how to create a new account using [Aztec.js](../main.md).
 
-To do this from the CLI, go [here](../../sandbox/references/cli-commands.md#creating-accounts).
-
 ## Relevant imports
 
 You will need to import these libraries:

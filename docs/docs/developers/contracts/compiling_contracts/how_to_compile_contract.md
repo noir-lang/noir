@@ -254,7 +254,7 @@ At the moment, the compiler generates these interfaces from already compiled ABI
 
 ## Next steps
 
-Once you have compiled your contracts, you can use the generated artifacts via the `Contract` class in the `aztec.js` package to deploy and interact with them, or rely on the type-safe typescript classes directly. Alternatively, use the CLI [to deploy](../../sandbox/references/cli-commands.md#deploying-a-token-contract) and [interact](../../sandbox/references/cli-commands.md#calling-an-unconstrained-view-function) with them.
+Once you have compiled your contracts, you can use the generated artifacts via the `Contract` class in the `aztec.js` package to deploy and interact with them, or rely on the type-safe typescript classes directly.
 
 import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 <Disclaimer/>
