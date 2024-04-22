@@ -70,6 +70,7 @@
     "@aztec/bb.js": "portal:../barretenberg/ts",
     "@noir-lang/acvm_js": "portal:../noir/packages/acvm_js",
     "@noir-lang/types": "portal:../noir/packages/types",
-    "@noir-lang/noirc_abi": "portal:../noir/packages/noirc_abi"
+    "@noir-lang/noirc_abi": "portal:../noir/packages/noirc_abi",
+    "jest-runner@^29.7.0": "patch:jest-runner@npm%3A29.7.0#./.yarn/patches/jest-runner-npm-29.7.0-3bc9f82b58.patch"
   }
 }

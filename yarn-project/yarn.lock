@@ -8951,7 +8951,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-runner@npm:^29.7.0":
+"jest-runner@npm:29.7.0":
   version: 29.7.0
   resolution: "jest-runner@npm:29.7.0"
   dependencies:
@@ -8977,6 +8977,35 @@ __metadata:
     p-limit: ^3.1.0
     source-map-support: 0.5.13
   checksum: f0405778ea64812bf9b5c50b598850d94ccf95d7ba21f090c64827b41decd680ee19fcbb494007cdd7f5d0d8906bfc9eceddd8fa583e753e736ecd462d4682fb
+  languageName: node
+  linkType: hard
+
+"jest-runner@patch:jest-runner@npm%3A29.7.0#./.yarn/patches/jest-runner-npm-29.7.0-3bc9f82b58.patch::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
+  version: 29.7.0
+  resolution: "jest-runner@patch:jest-runner@npm%3A29.7.0#./.yarn/patches/jest-runner-npm-29.7.0-3bc9f82b58.patch::version=29.7.0&hash=a79dea&locator=%40aztec%2Faztec3-packages%40workspace%3A."
+  dependencies:
+    "@jest/console": ^29.7.0
+    "@jest/environment": ^29.7.0
+    "@jest/test-result": ^29.7.0
+    "@jest/transform": ^29.7.0
+    "@jest/types": ^29.6.3
+    "@types/node": "*"
+    chalk: ^4.0.0
+    emittery: ^0.13.1
+    graceful-fs: ^4.2.9
+    jest-docblock: ^29.7.0
+    jest-environment-node: ^29.7.0
+    jest-haste-map: ^29.7.0
+    jest-leak-detector: ^29.7.0
+    jest-message-util: ^29.7.0
+    jest-resolve: ^29.7.0
+    jest-runtime: ^29.7.0
+    jest-util: ^29.7.0
+    jest-watcher: ^29.7.0
+    jest-worker: ^29.7.0
+    p-limit: ^3.1.0
+    source-map-support: 0.5.13
+  checksum: 8345cba67695e45a6cc1fddca470ba61d981c6fa3565b53728ba36678acf6ce7657868e7483ab34b75e433efd42f57fd2894031069c06ac48b7b22ac9950ff1d
   languageName: node
   linkType: hard
 
