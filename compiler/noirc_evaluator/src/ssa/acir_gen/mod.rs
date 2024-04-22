@@ -95,13 +95,30 @@ impl SharedContext {
         self.generated_brillig.len() as u32
     }
 
-    fn generated_brillig_stdlib_pointer(
-        &self,
+    fn generate_brillig_calls_to_resolve(
+        &mut self,
         brillig_stdlib_func: &BrilligStdlibFunc,
-    ) -> Option<u32> {
-        self.brillig_stdlib_func_pointer.get(brillig_stdlib_func).copied()
+        func_id: FunctionId,
+        opcode_location: OpcodeLocation,
+    ) {
+        if let Some(generated_pointer) =
+            self.brillig_stdlib_func_pointer.get(brillig_stdlib_func).copied()
+        {
+            self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
+        } else {
+            let code = brillig_stdlib_func.get_generated_brillig();
+            let generated_pointer = self.new_generated_pointer();
+            self.insert_generated_brillig_stdlib(
+                *brillig_stdlib_func,
+                generated_pointer,
+                func_id,
+                opcode_location,
+                code,
+            );
+        }
     }
 
+    /// Insert a newly generated Brillig stdlib function
     fn insert_generated_brillig_stdlib(
         &mut self,
         brillig_stdlib_func: BrilligStdlibFunc,
@@ -282,24 +299,11 @@ impl Ssa {
                 for (opcode_location, brillig_stdlib_func) in
                     &generated_acir.brillig_stdlib_func_locations
                 {
-                    if let Some(generated_pointer) =
-                        shared_context.generated_brillig_stdlib_pointer(brillig_stdlib_func)
-                    {
-                        shared_context.add_call_to_resolve(
-                            function.id(),
-                            (*opcode_location, generated_pointer),
-                        );
-                    } else {
-                        let code = brillig_stdlib_func.get_generated_brillig();
-                        let generated_pointer = shared_context.new_generated_pointer();
-                        shared_context.insert_generated_brillig_stdlib(
-                            *brillig_stdlib_func,
-                            generated_pointer,
-                            function.id(),
-                            *opcode_location,
-                            code,
-                        );
-                    }
+                    shared_context.generate_brillig_calls_to_resolve(
+                        brillig_stdlib_func,
+                        function.id(),
+                        *opcode_location,
+                    );
                 }
 
                 // Fetch the Brillig stdlib calls to resolve for this function
