@@ -58,7 +58,7 @@ jobs:
       group: start-builder-${{ inputs.runner_label }}
     steps:
       - name: Start EC2 runner
-        uses: AztecProtocol/ec2-action-builder@v0.14e
+        uses: AztecProtocol/ec2-action-builder@v0.15
         with:
           github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -104,6 +104,8 @@ jobs:
           if ! [ -f /etc/docker/daemon.json ] ; then
             echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json
             sudo service docker restart
+            # helps to not overuse space
+            docker system prune -f || true
             echo "Configured docker daemon for making many networks."
             # Run maybe_exit_spot.sh every minute
             cp scripts/ci/spot_runner_graceful_exit.sh /run/spot_runner_graceful_exit.sh
@@ -114,10 +116,6 @@ jobs:
           else
             echo "Docker daemon already configured."
           fi
-
-      - name: Run Docker Prune
-        # helps to not overuse space
-        run: docker system prune -f -a || true
 
       - name: Run Earthly Bootstrap
         run: earthly bootstrap
