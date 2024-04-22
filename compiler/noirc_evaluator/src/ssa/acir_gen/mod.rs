@@ -3208,6 +3208,10 @@ mod test {
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
+        // We expect 3 brillig functions:
+        //   - Quotient (shared between both divisions)
+        //   - Inversion, caused by division-by-zero check (shared between both divisions) 
+        //   - Custom brillig function `foo`
         assert_eq!(
             brillig_functions.len(),
             3,
