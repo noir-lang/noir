@@ -155,6 +155,10 @@
     to="/learn/concepts/communication/public_private_calls/main"
 
 [[redirects]]
+    from="/learn/concepts/communication/public_private_calls/main"
+    to="/learn/concepts/communication/public_private_calls"
+
+[[redirects]]
     from = "/aztec/how-it-works/l1-l2-messaging"
     to = "/learn/concepts/communication/cross_chain_calls"
 

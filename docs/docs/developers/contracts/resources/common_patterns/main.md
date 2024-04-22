@@ -38,11 +38,12 @@ Note - you could also create a note and send it to the user. The problem is ther
 
 ### Reading public storage in private
 
-You can't read public storage in private domain. But nevertheless reading public storage is desirable. There are two ways:
+You can't read public storage in private domain. But nevertheless reading public storage is desirable. This is the naive way:
 
-1. For public storage that changes infrequently, use the slow updates tree! Learn more about it [here](../../../../learn/concepts/communication/public_private_calls/slow_updates_tree.md).
+<!-- TODO https://github.com/AztecProtocol/aztec-packages/issues/5508: mention SharedMutable as an alternative
+-->
 
-2. You pass the data as a parameter to your private method and later assert in public that the data is correct. E.g.:
+- You pass the data as a parameter to your private method and later assert in public that the data is correct. E.g.:
 
 ```rust
 struct Storage {

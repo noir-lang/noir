@@ -1,10 +1,10 @@
 ---
-title: Private - Public execution
+title: Private <> Public Communication
 ---
 
 import Image from "@theme/IdealImage";
 
-import Disclaimer from "../../../../misc/common/\_disclaimer.mdx";
+import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 
 <Disclaimer/>
 
@@ -78,32 +78,10 @@ Theoretically the builder has all the state trees after the public function has 
 
 From the above, we should have a decent idea about what private and public functions can do inside the L2, and how they might interact.
 
+<!-- TODO https://github.com/AztecProtocol/aztec-packages/issues/5508: mention SharedMutable
 ## A note on L2 access control
 
 Many applications rely on some form of access control to function well. USDC have a blacklist, where only parties not on the list should be able to transfer. And other systems such as Aave have limits such that only the pool contract is able to mint debt tokens and transfers held funds.
 
 Access control like this cannot easily be enforced in the private domain, as reading is also nullifying(to ensure data is up to date). However, as it is possible to read historical public state, one can combine private and public functions to get the desired effect.
-
-Say the public state holds a `mapping(address user => bool blacklisted)` and a value with the block number of the last update `last_updated`. The private functions can then use this public blacklist IF it also performs a public function call that reverts if the block number of the historical state is older than the `last_updated`. This means that updating the blacklist would make pending transactions fail, but allow a public blacklist to be used. Similar would work for the Aave example, where it is just a public value with the allowed caller contracts. Example of how this would be written is seen below. Note that because the `onlyFresh` is done in public, the user might not know when he is generating his proof whether it will be valid or not.
-
-```solidity
-function transfer(
-  secret address to,
-  secret uint256 amount,
-  secret HistoricalState state
-  ) secret returns(bool) {
-  if (blacklisted[msg.sender] || blacklisted[to]) revert("Blacklisted");
-  onlyFresh(state.blockNumber);
-  // logic
-}
-
-function onlyFresh(pub uint256 blockNumber) public {
-  if (blockNumber < last_updated) revert("Stale state");
-}
-```
-
-:::info
-This is not a perfect solution, as any functions using access control might end up doing a lot of public calls it could put a significant burden on sequencers and greatly increase the cost of the transaction for the user. We are investigating ways to improve.
-:::
-
-Using a dual-tree structure with a pending and a current tree, it is possible to update public data from a private function. The update is fulfilled when the pending tree becomes the current after the end of a specified epoch. It is also possible to read historical public data directly from a private function. This works perfectly for public data that is not updated often, such as a blacklist. This structure is called a slow updates tree, and you can read about how it works [in the next section](./slow_updates_tree.md).
+-->

@@ -19,7 +19,7 @@ The engineering roadmap is long. There are no timings assigned here. In a loose 
 ## Standardization efforts
 
 - Recommended Aztec smart contract coding patterns
-- Access Control (whitelists/blacklists) - probably needs the Slow Updates tree (or something similar).
+- Access Control (whitelists/blacklists) - probably needs the Shared Mutable.
 - Basic _example_ private tokens
     - Including recursive calls to 'get_notes'.
 - Compliant private tokens
@@ -117,11 +117,10 @@ CI takes up a significant amount of time. It gets its own section here, so we re
 - Do a RFC from the external community
 - Implement
 
-## Slow Updates tree?
+## Shared Mutable State
 
-We _need_ a way to read mutable public data from a private function. 
-
-Note: we just published the [Slow Updates Tree](../../learn/concepts/communication/public_private_calls/slow_updates_tree.md).
+We _need_ a way to read mutable public data from a private function. We are moving away from the old Slow Updates Tree in favor of Shared Mutable.
+<!-- TODO https://github.com/AztecProtocol/aztec-packages/issues/5508: add links -->
 
 ## Contract classes and instances?
 

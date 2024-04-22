@@ -26,7 +26,7 @@ On this and the following pages in this section, you’ll learn:
 
 Public state variables can be read by anyone, while private state variables can only be read by their owner (or people whom the owner has shared the decrypted data or note viewing key with).
 
-Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](../../../../learn/concepts/hybrid_state/main.md) and [private/public execution](../../../../learn/concepts/communication/public_private_calls/main.md)) for more background.
+Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](../../../../learn/concepts/hybrid_state/main.md) and [private/public execution](../../../../learn/concepts/communication/public_private_calls.md)) for more background.
 
 ## Storage struct
 
@@ -94,5 +94,5 @@ require(minters[msg.sender], "caller is not minter");
 ## Concepts mentioned
 
 - [State Model](../../../../learn/concepts/hybrid_state/main.md)
-- [Public-private execution](../../../../learn/concepts/communication/public_private_calls/main.md)
+- [Public-private execution](../../../../learn/concepts/communication/public_private_calls.md)
 - [Function Contexts](../../writing_contracts/functions/context.md)

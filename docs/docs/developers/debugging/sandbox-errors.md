@@ -86,7 +86,7 @@ Calling a private Aztec.nr function in a public kernel is not allowed.
 
 #### 3005 - PUBLIC_KERNEL\_\_NON_EMPTY_PRIVATE_CALL_STACK
 
-Public functions are executed after all the private functions are (see [private-public execution](../../learn/concepts/communication/public_private_calls/main.md)). As such, private call stack must be empty when executing in the public kernel.
+Public functions are executed after all the private functions are (see [private-public execution](../../learn/concepts/communication/public_private_calls.md)). As such, private call stack must be empty when executing in the public kernel.
 
 #### 3011 - PUBLIC_KERNEL\_\_CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH
 
@@ -189,7 +189,7 @@ Users may create a proof against a historical state in Aztec. The rollup circuit
 
 - "${treeName} tree next available leaf index mismatch" - validating a tree's root is not enough. It also checks that the `next_available_leaf_index` is as expected. This is the next index we can insert new values into. Note that for the public data tree, this test is skipped since as it is a sparse tree unlike the others.
 
-- "Public call stack size exceeded" - In Aztec, the sequencer executes all enqueued public functions in a transaction (to prevent race conditions - see [private-public execution](../../learn/concepts/communication/public_private_calls/main.md)). This error says there are too many public functions requested.
+- "Public call stack size exceeded" - In Aztec, the sequencer executes all enqueued public functions in a transaction (to prevent race conditions - see [private-public execution](../../learn/concepts/communication/public_private_calls.md)). This error says there are too many public functions requested.
 
 - "Array size exceeds target length" - happens if you add more items than allowed by the constants set due to our circuit limitations (eg sending too many L2 to L1 messages or creating a function that exceeds the call stack length or returns more values than what Aztec.nr functions allow)
 
