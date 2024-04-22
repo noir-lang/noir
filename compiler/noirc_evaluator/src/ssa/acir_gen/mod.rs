@@ -3030,7 +3030,7 @@ mod test {
         builder.insert_constrain(v0_div_v1, main_v2, None);
 
         // Call the same primitive operation again
-        let v2_div_v2 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
+        let v2_div_v2 = builder.insert_binary(main_v2, BinaryOp::Div, main_v2);
         let one = builder.numeric_constant(1u128, Type::unsigned(32));
         builder.insert_constrain(v2_div_v2, one, None);
 
