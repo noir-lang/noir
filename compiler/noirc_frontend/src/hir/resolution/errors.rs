@@ -86,6 +86,8 @@ pub enum ResolverError {
     JumpInConstrainedFn { is_break: bool, span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
+    #[error("Self-referential structs are not supported")]
+    SelfReferentialStruct { span: Span },
 }
 
 impl ResolverError {
@@ -336,6 +338,13 @@ impl From<ResolverError> for Diagnostic {
                 let item = if is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
                     format!("{item} is only allowed within loops"),
+                    "".into(),
+                    span,
+                )
+            },
+            ResolverError::SelfReferentialStruct { span } => {
+                Diagnostic::simple_error(
+                    "Self-referential structs are not supported".into(),
                     "".into(),
                     span,
                 )

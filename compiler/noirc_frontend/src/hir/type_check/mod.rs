@@ -615,37 +615,6 @@ pub mod test {
     }
 
     #[test]
-    fn self_referential_struct() {
-        let src = r#"
-            struct Option<T> {
-                _is_some: bool,
-                _value: T,
-            }
-
-            impl<T> Option<T> {
-                /// Constructs a None value
-                pub fn none() -> Self {
-                    Self { _is_some: false, _value: crate::unsafe::zeroed() }
-                }
-            }
-
-            struct SelfReferential
-            {
-                prop : Option<SelfReferential>
-            }
-
-            // #[test]
-            // unconstrained
-            // fn test_self_referential()
-            // {
-            //     let self_ref = SelfReferential { prop : Option::none() };
-            // }
-       "#;
-
-        type_check_src_code(src, vec![String::from("main")]);
-    }
-
-    #[test]
     fn closure_with_no_args() {
         let src = r#"
         fn main(x : Field) -> pub Field {
@@ -655,6 +624,18 @@ pub mod test {
        "#;
 
         type_check_src_code(src, vec![String::from("main")]);
+    }
+
+    #[test]
+    fn fold_entry_point() {
+        let src = r#"
+            #[fold]
+            fn fold(x: &mut Field) -> Field {
+                *x
+        }
+        "#;
+
+        type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
     }
 
     #[test]

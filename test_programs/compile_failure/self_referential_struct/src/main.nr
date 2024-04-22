@@ -1,11 +1,11 @@
-struct SelfReferential
-{
-    prop : Option<SelfReferential>
+struct Option2<T> {
+    _is_some: bool,
+    _value: T,
 }
 
-#[test]
-unconstrained
-fn test_self_referential()
+struct SelfReferential
 {
-    let self_ref = SelfReferential { prop : Option::none() };
+    prop : Option2<SelfReferential>
 }
+
+fn main(x: SelfReferential) { assert(x._is_some); }

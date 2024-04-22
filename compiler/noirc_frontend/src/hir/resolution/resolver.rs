@@ -22,7 +22,7 @@ use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -99,6 +99,9 @@ pub struct Resolver<'a> {
     /// Used to link items to their dependencies in the dependency graph
     current_item: Option<DependencyId>,
 
+    /// In-resolution names
+    resolving_names: BTreeSet<Ident>,
+
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
     /// be overridden for impls. Impls are an odd case since the methods within resolve
@@ -162,6 +165,7 @@ impl<'a> Resolver<'a> {
             lambda_stack: Vec::new(),
             current_trait_impl: None,
             current_item: None,
+            resolving_names: BTreeSet::new(),
             file,
             in_contract,
             in_unconstrained_fn: false,
@@ -507,13 +511,7 @@ impl<'a> Resolver<'a> {
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args, _) => {
-                // TODO: remove before PR
-                // dbg!("calling resolve_named_type..");
-                let result = self.resolve_named_type(path, args, new_variables);
-                // dbg!("called resolve_named_type: {:?}", result.clone());
-                result
-            },
+            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
             TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
 
             Tuple(fields) => {
@@ -572,11 +570,6 @@ impl<'a> Resolver<'a> {
         args: Vec<UnresolvedType>,
         new_variables: &mut Generics,
     ) -> Type {
-        // TODO: remove before PR
-        // if self.current_item.is_some() {
-        //     panic!("resolve_named_type: self {:?}, path {:?}, args {:?}, new vars {:?}", self.current_item, path.clone(), args.clone(), new_variables.clone());
-        // }
-
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -628,17 +621,16 @@ impl<'a> Resolver<'a> {
             return Type::Alias(alias, args);
         }
 
-        // TODO: remove before PR
-        // dbg!("structs: {:?}", &self.interner.structs);
-        if let Some(current_item_id) = self.current_item {
-            dbg!("dependency: {:?}", self.interner.get_or_insert_dependency(current_item_id));
-            dbg!("dependency: {:?}", self.interner.check_for_dependency_cycles());
-        }
-        dbg!("lookup_struct_or_error: self {:?}, path {:?}, args {:?}, new vars {:?}", self.current_item, path.clone(), args.clone(), new_variables.clone());
-        dbg!("ok: {:?}", self.lookup_struct_or_error(path.clone()));
-
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
+                if self.resolving_names.contains(&struct_type.borrow().name) {
+                    self.push_err(ResolverError::SelfReferentialStruct {
+                        span: struct_type.borrow().name.span(),
+                    });
+
+                    return Type::Error;
+                }
+
                 let expected_generic_count = struct_type.borrow().generics.len();
                 if !self.in_contract
                     && self
@@ -903,18 +895,16 @@ impl<'a> Resolver<'a> {
         unresolved: NoirStruct,
         struct_id: StructId,
     ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
-
-        dbg!("resolve_struct_fields: {:?}", unresolved.clone().name);
-        // dbg!("resolve_struct_fields: {:?}, {:?}, {:?}", &self.interner.structs, unresolved.clone(), struct_id);
-        panic!("resolve_struct_fields: {:?}, {:?}, {:?}", &self.interner.structs, unresolved, struct_id);
-
         let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
         self.current_item = Some(DependencyId::Struct(struct_id));
+
+        self.resolving_names.insert(unresolved.name.clone());
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        self.resolving_names.remove(&unresolved.name);
 
         (generics, fields, self.errors)
     }
