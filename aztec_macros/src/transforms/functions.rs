@@ -26,7 +26,7 @@ use crate::{
 pub fn transform_function(
     ty: &str,
     func: &mut NoirFunction,
-    storage_defined: bool,
+    storage_struct_name: Option<String>,
     is_initializer: bool,
     insert_init_check: bool,
     is_internal: bool,
@@ -54,8 +54,8 @@ pub fn transform_function(
     }
 
     // Add access to the storage struct
-    if storage_defined {
-        let storage_def = abstract_storage(&ty.to_lowercase(), false);
+    if let Some(storage_struct_name) = storage_struct_name {
+        let storage_def = abstract_storage(storage_struct_name, &ty.to_lowercase(), false);
         func.def.body.statements.insert(0, storage_def);
     }
 
@@ -206,8 +206,11 @@ pub fn export_fn_abi(
 /// ```
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
-pub fn transform_unconstrained(func: &mut NoirFunction) {
-    func.def.body.statements.insert(0, abstract_storage("Unconstrained", true));
+pub fn transform_unconstrained(func: &mut NoirFunction, storage_struct_name: String) {
+    func.def
+        .body
+        .statements
+        .insert(0, abstract_storage(storage_struct_name, "Unconstrained", true));
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -572,7 +575,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// unconstrained fn lol() {
 ///   let storage = Storage::init(Context::none());
 /// }
-fn abstract_storage(typ: &str, unconstrained: bool) -> Statement {
+fn abstract_storage(storage_struct_name: String, typ: &str, unconstrained: bool) -> Statement {
     let init_context_call = if unconstrained {
         call(
             variable_path(chained_dep!("aztec", "context", "Context", "none")), // Path
@@ -588,8 +591,8 @@ fn abstract_storage(typ: &str, unconstrained: bool) -> Statement {
     assignment(
         "storage", // Assigned to
         call(
-            variable_path(chained_path!("Storage", "init")), // Path
-            vec![init_context_call],                         // args
+            variable_path(chained_path!(storage_struct_name.as_str(), "init")), // Path
+            vec![init_context_call],                                            // args
         ),
     )
 }
