@@ -24,6 +24,12 @@ use acvm::{
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
+/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
+/// This index should be used when adding a Brillig call during code generation.
+/// Code generation should then keep track of that unresolved call opcode which will be resolved with the
+/// correct function index after code generation.
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: u32 = 0;
+
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
 pub(crate) struct GeneratedAcir {
@@ -484,7 +490,7 @@ impl GeneratedAcir {
             &inverse_code,
             inputs,
             outputs,
-            0,
+            PLACEHOLDER_BRILLIG_INDEX,
             Some(BrilligStdlibFunc::Inverse),
         );
 

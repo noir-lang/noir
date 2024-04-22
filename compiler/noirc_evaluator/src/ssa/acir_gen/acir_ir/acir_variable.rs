@@ -1,5 +1,5 @@
 use super::big_int::BigIntContext;
-use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir};
+use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError, SsaReport};
@@ -333,7 +333,7 @@ impl AcirContext {
             vec![AcirType::field()],
             true,
             false,
-            0,
+            PLACEHOLDER_BRILLIG_INDEX,
             Some(BrilligStdlibFunc::Inverse),
         )?;
         let inverted_var = Self::expect_one_var(results);
@@ -723,7 +723,7 @@ impl AcirContext {
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
                 false,
-                0,
+                PLACEHOLDER_BRILLIG_INDEX,
                 Some(BrilligStdlibFunc::Quotient(bit_size + 1)),
             )?
             .try_into()
