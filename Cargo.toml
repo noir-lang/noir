@@ -78,6 +78,7 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
+acvm_cli = { path = "tooling/acvm_cli" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }

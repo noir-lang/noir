@@ -638,18 +638,6 @@ pub mod test {
         type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
     }
 
-    #[test]
-    fn fold_entry_point() {
-        let src = r#"
-            #[fold]
-            fn fold(x: &mut Field) -> Field {
-                *x
-            }
-        "#;
-
-        type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
-    }
-
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 
