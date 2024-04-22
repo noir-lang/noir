@@ -1,6 +1,6 @@
 ---
 title: Tooling
-Description: This section provides information about the various tools and utilities available for Noir development. It covers the Noir playground, IDE tools, Codespaces, and community projects.
+Description: This section provides information about the various tools and utilities available for Noir development. It covers IDE tools, Codespaces, and community projects.
 Keywords: [Noir, Development, Playground, IDE Tools, Language Service Provider, VS Code Extension, Codespaces, noir-starter, Community Projects, Awesome Noir Repository, Developer Tooling]
 ---
 
