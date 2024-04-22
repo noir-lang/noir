@@ -36,7 +36,6 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
           # must be globally unique for build x runner
           concurrency_key: build-master-arm
       # prepare images locally, tagged by commit hash

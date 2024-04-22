@@ -9,9 +9,6 @@ inputs:
   concurrency_key:
     required: false
     description: 'Concurrency key for locking jobs'
-  concurrency_token:
-    required: false
-    description: 'TODO unused'
 runs:
   # define an action, runs in OS of caller
   using: composite

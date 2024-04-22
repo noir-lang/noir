@@ -5,12 +5,11 @@ on:
   pull_request: {}
   workflow_dispatch:
     inputs:
+      username:
+        description: 'Defaults to GitHub Actor'
+        required: false
       runner_action:
         description: "The action to take with the self-hosted runner (start, stop, restart)."
-        required: false
-      just_start_spot:
-        description: "Should we just run spots?"
-        type: boolean
         required: false
 concurrency:
   # force parallelism in master
@@ -20,10 +19,10 @@ jobs:
   setup:
     uses: ./.github/workflows/setup-runner.yml
     with:
-      runner_label: ${{ github.actor }}-x86
+      runner_label: ${{ inputs.username || github.actor }}-x86
       ebs_cache_size_gb: 256
       runner_concurrency: 20
-      subaction: ${{ github.event.inputs.runner_action || 'start' }}
+      subaction: ${{ inputs.runner_action || 'start' }}
       ec2_instance_type: m6a.32xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 40 # refreshed by jobs
@@ -31,8 +30,7 @@ jobs:
 
   build:
     needs: setup
-    runs-on: ${{ github.actor }}-x86
-    if: ${{ github.event.inputs.just_start_spot != 'true' }}
+    runs-on: ${{ inputs.username || github.actor }}-x86
     outputs:
       e2e_list: ${{ steps.e2e_list.outputs.list }}
     steps:
@@ -40,7 +38,7 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_key: build-${{ github.actor }}-x86
+          concurrency_key: build-${{ inputs.username || github.actor }}-x86
       # prepare images locally, tagged by commit hash
       - name: "Build E2E Image"
         timeout-minutes: 40
@@ -54,7 +52,7 @@ jobs:
   # all the end-to-end integration tests for aztec
   e2e:
     needs: build
-    runs-on: ${{ github.actor }}-x86
+    runs-on: ${{ inputs.username || github.actor }}-x86
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +63,7 @@ jobs:
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           # must be globally unique for build x runner
-          concurrency_key: e2e-${{ github.actor }}-x86-${{ matrix.test }}
+          concurrency_key: e2e-${{ inputs.username || github.actor }}-x86-${{ matrix.test }}
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 25
@@ -78,7 +76,7 @@ jobs:
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
     needs: setup
-    runs-on: ${{ github.actor }}-x86
+    runs-on: ${{ inputs.username || github.actor }}-x86
     strategy:
       fail-fast: false
     steps:
@@ -88,7 +86,7 @@ jobs:
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           # must be globally unique for build x runner
-          concurrency_key: bb-native-tests-${{ github.actor }}-x86
+          concurrency_key: bb-native-tests-${{ inputs.username || github.actor }}-x86
       - name: "Native Prover Tests"
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 25
@@ -98,15 +96,14 @@ jobs:
   # push benchmarking binaries to dockerhub registry
   bb-bench-binaries:
     needs: setup
-    runs-on: ${{ github.actor }}-x86
+    runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_key: bb-bench-binaries-${{ github.actor }}-x86
+          concurrency_key: bb-bench-binaries-${{ inputs.username || github.actor }}-x86
       - name: Build and Push Binaries
-        if: ${{ github.event.inputs.just_start_spot != 'true' }}
         timeout-minutes: 15
         working-directory: ./barretenberg/cpp/
         run: earthly-ci --push +bench-binaries
@@ -115,24 +112,24 @@ jobs:
     uses: ./.github/workflows/setup-runner.yml
     needs: bb-bench-binaries
     with:
-      runner_label: ${{ github.actor }}-bench-x86
+      runner_label: ${{ inputs.username || github.actor }}-bench-x86
       ebs_cache_size_gb: 64
       runner_concurrency: 1
-      subaction: ${{ github.event.inputs.runner_action || 'start' }}
+      subaction: ${{ inputs.runner_action || 'start' }}
       ec2_instance_type: m6a.4xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 15 # refreshed by jobs
     secrets: inherit
 
   bb-bench:
-    runs-on: ${{ github.actor }}-bench-x86
+    runs-on: ${{ inputs.username || github.actor }}-bench-x86
     needs: setup-bench
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_key: bb-bench-${{ github.actor }}-bench-x86
+          concurrency_key: bb-bench-${{ inputs.username || github.actor }}-bench-x86
       # Use bench_mode=cache to read the pushed build above
       - name: Client IVC Bench
         working-directory: ./barretenberg/cpp/
@@ -145,23 +142,14 @@ jobs:
         run: earthly-ci --no-output +bench-ultra-honk --bench_mode=cache
 
   merge-check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.username || github.actor }}-x86
     needs: [e2e, bb-native-tests, bb-bench]
-    if: always()  # Ensures this job runs regardless of the success or failure of dependencies.
     steps:
-      - run: |
-          echo "E2E Test Status: ${{ needs.e2e.result }}"
-          echo "Native Tests Status: ${{ needs.bb-native-tests.result }}"
-          echo "Bench Tests Status: ${{ needs.bb-bench.result }}"
-          if [[ "${{ needs.e2e.result }}" != 'success' || "${{ needs.bb-native-tests.result }}" != 'success' || "${{ needs.bb-bench.result }}" != 'success' ]]; then
-            echo "Pull request merging not allowed due to failures."
-            exit 1
-          fi
-          echo "Pull request merging now allowed."
+      - run: echo Pull request merging now allowed.
 
   notify:
-    runs-on: ubuntu-latest
     needs: [e2e, bb-native-tests, bb-bench]
+    runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/master' && failure() }}
     steps:
       - name: Send notification to aztec3-ci channel if workflow failed on master

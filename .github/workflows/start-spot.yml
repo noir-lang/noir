@@ -1,27 +1,35 @@
 # Useful if the spot runners are in a bad state
-name: Start Personal Spot
+name: Start/Stop Personal Spot
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Defaults to GitHub Actor'
+        required: false
+      action:
+        description: 'Can also be stop or restart, defaults to start'
+        required: false
+        default: 'start'
 jobs:
-  stop-build-x86:
+  start-build:
     uses: ./.github/workflows/setup-runner.yml
     with:
-      runner_label: ${{ github.actor }}-x86
+      runner_label: ${{ inputs.username || github.actor }}-x86
       ebs_cache_size_gb: 256
       runner_concurrency: 20
-      subaction: start
+      subaction: ${{ inputs.action }}
       ec2_instance_type: m6a.32xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 40 # refreshed by jobs
     secrets: inherit
 
-  stop-bench:
+  start-bench:
     uses: ./.github/workflows/setup-runner.yml
     with:
-      runner_label: ${{ github.actor }}-bench-x86
+      runner_label: ${{ inputs.username || github.actor }}-bench-x86
       ebs_cache_size_gb: 64
       runner_concurrency: 1
-      subaction: start
+      subaction: ${{ inputs.action }}
       ec2_instance_type: m6a.4xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 15 # refreshed by jobs
