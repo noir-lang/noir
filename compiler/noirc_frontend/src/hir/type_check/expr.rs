@@ -309,6 +309,12 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Quote(_) => Type::Code,
             HirExpression::CompTime(block) => self.check_block(block),
+
+            // Unquote should be inserted & removed by the comptime interpreter.
+            // Even if we allowed it here, we wouldn't know what type to give to the result.
+            HirExpression::Unquote(block) => {
+                unreachable!("Unquote remaining during type checking {block}")
+            }
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());

@@ -33,6 +33,11 @@ pub(crate) enum InterpreterError {
     InvalidValuesForBinary { lhs: Value, rhs: Value, operator: &'static str, location: Location },
     CastToNonNumericType { typ: Type, location: Location },
     QuoteInRuntimeCode { location: Location },
+    NonStructInConstructor { typ: Type, location: Location },
+    CannotInlineMacro { value: Value, location: Location },
+    UnquoteFoundDuringEvaluation { location: Location },
+
+    Unimplemented { item: &'static str, location: Location },
 
     // Perhaps this should be unreachable! due to type checking also preventing this error?
     // Currently it and the Continue variant are the only interpreter errors without a Location field

@@ -333,9 +333,17 @@ impl DefCollector {
             crate_id,
         ));
 
-        resolved_module.errors.extend(resolve_traits(context, def_collector.collected_traits, crate_id));
+        resolved_module.errors.extend(resolve_traits(
+            context,
+            def_collector.collected_traits,
+            crate_id,
+        ));
         // Must resolve structs before we resolve globals.
-        resolved_module.errors.extend(resolve_structs(context, def_collector.collected_types, crate_id));
+        resolved_module.errors.extend(resolve_structs(
+            context,
+            def_collector.collected_types,
+            crate_id,
+        ));
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
@@ -352,7 +360,11 @@ impl DefCollector {
         //
         // These are resolved after trait impls so that struct methods are chosen
         // over trait methods if there are name conflicts.
-        resolved_module.errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
+        resolved_module.errors.extend(collect_impls(
+            context,
+            crate_id,
+            &def_collector.collected_impls,
+        ));
 
         // We must wait to resolve non-integer globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
@@ -497,7 +509,12 @@ impl ResolvedModule {
         }
     }
 
-    fn resolve_globals(&mut self, context: &mut Context, literal_globals: Vec<UnresolvedGlobal>, crate_id: CrateId) {
+    fn resolve_globals(
+        &mut self,
+        context: &mut Context,
+        literal_globals: Vec<UnresolvedGlobal>,
+        crate_id: CrateId,
+    ) {
         let globals = resolve_globals(context, literal_globals, crate_id);
         self.globals.extend(globals.globals);
         self.errors.extend(globals.errors);

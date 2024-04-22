@@ -2,13 +2,18 @@ use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use im::Vector;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::Location;
 
 use crate::{
-    hir_def::expr::HirLambda, node_interner::{FuncId, ExprId}, BlockExpression, IntegerBitSize, Shared,
-    Signedness, Type, macros_api::{NodeInterner, HirExpression, HirLiteral},
+    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
+    macros_api::{HirExpression, HirLiteral, NodeInterner},
+    node_interner::{ExprId, FuncId},
+    BlockExpression, Ident, IntegerBitSize, Shared, Signedness, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
+
+use super::errors::{IResult, InterpreterError};
 
 #[allow(unused)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,54 +70,100 @@ impl Value {
         })
     }
 
-    pub(crate) fn into_expression(self, interner: &mut NodeInterner) -> ExprId {
+    pub(crate) fn into_expression(
+        self,
+        interner: &mut NodeInterner,
+        location: Location,
+    ) -> IResult<ExprId> {
+        let typ = self.get_type().into_owned();
+
         let expression = match self {
-            Value::Unit => todo!(),
-            Value::Bool(value) => {
-                HirExpression::Literal(HirLiteral::Bool(value))
-            },
-            Value::Field(value) => {
-                HirExpression::Literal(HirLiteral::Integer(value, false))
-            },
+            Value::Unit => HirExpression::Literal(HirLiteral::Unit),
+            Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value, false)),
             Value::I8(value) => {
-                let negative = value < 0 ;
+                let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
                 HirExpression::Literal(HirLiteral::Integer(value, negative))
-            },
+            }
             Value::I32(value) => {
-                let negative = value < 0 ;
+                let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
                 HirExpression::Literal(HirLiteral::Integer(value, negative))
-            },
+            }
             Value::I64(value) => {
-                let negative = value < 0 ;
+                let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
                 HirExpression::Literal(HirLiteral::Integer(value, negative))
-            },
+            }
             Value::U8(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
-            },
+            }
             Value::U32(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
-            },
+            }
             Value::U64(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+            }
+            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::Function(id, _typ) => {
+                let id = interner.function_definition_id(id);
+                let impl_kind = ImplKind::NotATraitMethod;
+                HirExpression::Ident(HirIdent { location, id, impl_kind })
+            }
+            Value::Closure(_lambda, _env, _typ) => {
+                // TODO: How should a closure's environment be inlined?
+                let item = "returning closures from a comptime fn";
+                return Err(InterpreterError::Unimplemented { item, location })
             },
-            Value::String(value) => {
-                HirExpression::Literal(HirLiteral::Str(value.as_ref().clone()))
-            },
-            Value::Function(_, _) => todo!(),
-            Value::Closure(_, _, _) => todo!(),
-            Value::Tuple(_) => todo!(),
-            Value::Struct(_, _) => todo!(),
-            Value::Pointer(_) => todo!(),
-            Value::Array(_, _) => todo!(),
-            Value::Slice(_, _) => todo!(),
-            Value::Code(_) => todo!(),
+            Value::Tuple(fields) => {
+                let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
+                HirExpression::Tuple(fields)
+            }
+            Value::Struct(fields, typ) => {
+                let fields = try_vecmap(fields, |(name, field)| {
+                    let field = field.into_expression(interner, location)?;
+                    Ok((Ident::new(unwrap_rc(name), location.span), field))
+                })?;
+
+                let (r#type, struct_generics) = match typ.follow_bindings() {
+                    Type::Struct(def, generics) => (def, generics),
+                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+                };
+
+                HirExpression::Constructor(HirConstructorExpression {
+                    r#type,
+                    struct_generics,
+                    fields,
+                })
+            }
+            Value::Array(elements, _) => {
+                let elements =
+                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
+            }
+            Value::Slice(elements, _) => {
+                let elements =
+                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
+            }
+            Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
+            Value::Pointer(_) => {
+                return Err(InterpreterError::CannotInlineMacro { value: self, location })
+            }
         };
-        interner.push_expr(expression)
+
+        let id = interner.push_expr(expression);
+        interner.push_expr_location(id, location.span, location.file);
+        interner.push_expr_type(id, typ);
+        Ok(id)
     }
+}
+
+/// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
+fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
+    Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }

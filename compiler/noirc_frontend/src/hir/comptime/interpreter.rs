@@ -314,6 +314,12 @@ impl<'a> Interpreter<'a> {
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
             HirExpression::CompTime(block) => self.evaluate_block(block),
+            HirExpression::Unquote(block) => {
+                // An Unquote expression being found is indicative of a macro being
+                // expanded within another comptime fn which we don't currently support.
+                let location = self.interner.expr_location(&id);
+                Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
+            }
             HirExpression::Error => {
                 let location = self.interner.expr_location(&id);
                 Err(InterpreterError::ErrorNodeEncountered { location })

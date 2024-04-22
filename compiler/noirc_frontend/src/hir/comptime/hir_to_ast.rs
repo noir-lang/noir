@@ -25,7 +25,7 @@ impl StmtId {
     #[allow(unused)]
     fn to_ast(self, interner: &NodeInterner) -> Statement {
         let statement = interner.statement(&self);
-        let span = interner.statement_span(&self);
+        let span = interner.statement_span(self);
 
         let kind = match statement {
             HirStatement::Let(let_stmt) => {
@@ -168,9 +168,12 @@ impl ExprId {
                 let body = lambda.body.to_ast(interner);
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
-            HirExpression::Quote(block) => ExpressionKind::Quote(block),
             HirExpression::Error => ExpressionKind::Error,
             HirExpression::CompTime(block) => ExpressionKind::CompTime(block.into_ast(interner)),
+            HirExpression::Quote(block) => ExpressionKind::Quote(block),
+
+            // A macro was evaluated here!
+            HirExpression::Unquote(block) => ExpressionKind::Block(block),
         };
 
         Expression::new(kind, span)

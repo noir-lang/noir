@@ -1,4 +1,4 @@
-use crate::{node_interner::FuncId, macros_api::NodeInterner};
+use crate::{macros_api::NodeInterner, node_interner::FuncId};
 
 mod errors;
 mod hir_to_ast;

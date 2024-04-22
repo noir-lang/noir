@@ -20,7 +20,7 @@ use crate::{
         stmt::HirForStatement,
     },
     macros_api::{HirExpression, HirLiteral, HirStatement},
-    node_interner::{ExprId, StmtId, FuncId},
+    node_interner::{ExprId, FuncId, StmtId},
 };
 
 use super::{
@@ -58,7 +58,9 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::Tuple(tuple) => self.scan_tuple(tuple),
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
             HirExpression::CompTime(block) => {
-                let new_expr = self.evaluate_block(block)?.into_expression(self.interner);
+                let location = self.interner.expr_location(&expr);
+                let new_expr =
+                    self.evaluate_block(block)?.into_expression(self.interner, location)?;
                 let new_expr = self.interner.expression(&new_expr);
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
@@ -70,6 +72,15 @@ impl<'interner> Interpreter<'interner> {
                 Err(InterpreterError::QuoteInRuntimeCode { location })
             }
             HirExpression::Error => Ok(()),
+
+            // Unquote should only be inserted by the comptime interpreter while expanding macros
+            // and is removed by the Hir -> Ast conversion pass which converts it into a normal block.
+            // If we find one now during scanning it most likely means the Hir -> Ast conversion
+            // missed it somehow. In the future we may allow users to manually write unquote
+            // expressions in their code but for now this is unreachable.
+            HirExpression::Unquote(block) => {
+                unreachable!("Found unquote block while scanning: {block}")
+            }
         }
     }
 
@@ -174,7 +185,9 @@ impl<'interner> Interpreter<'interner> {
             HirStatement::Semi(semi) => self.scan_expression(semi),
             HirStatement::Error => Ok(()),
             HirStatement::CompTime(comptime) => {
-                let new_expr = self.evaluate_comptime(comptime)?.into_expression(self.interner);
+                let location = self.interner.statement_location(comptime);
+                let new_expr =
+                    self.evaluate_comptime(comptime)?.into_expression(self.interner, location)?;
                 self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
                 Ok(())
             }

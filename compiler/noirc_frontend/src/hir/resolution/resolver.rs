@@ -1327,7 +1327,9 @@ impl<'a> Resolver<'a> {
 
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
-        self.interner.push_stmt(hir_stmt)
+        let id = self.interner.push_stmt(hir_stmt);
+        self.interner.push_statement_location(id, stmt.span, self.file);
+        id
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {

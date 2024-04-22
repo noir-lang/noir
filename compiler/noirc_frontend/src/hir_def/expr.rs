@@ -31,6 +31,7 @@ pub enum HirExpression {
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Quote(crate::BlockExpression),
+    Unquote(crate::BlockExpression),
     CompTime(HirBlockExpression),
     Error,
 }
