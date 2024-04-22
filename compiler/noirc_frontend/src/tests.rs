@@ -1281,5 +1281,4 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
     }
-
 }
