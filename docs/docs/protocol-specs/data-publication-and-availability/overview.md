@@ -76,7 +76,7 @@ Eventually consensus forms and blocks from the _dynamic_ chain gets included in 
 Below image is from [Bridging and Finality: Ethereum](https://jumpcrypto.com/writing/bridging-and-finality-ethereum/).
 ![](https://jumpcrypto-com.ghost.io/content/images/2023/03/ZK-Bridging-4--1-.png)
 
-In rollup land, the _available_ chain will often live outside the host where it is built upon before blocks make their way onto the host DA and later get _finalized_ by the the validating light node that lives on the host as a smart contract.
+In rollup land, the _available_ chain will often live outside the host where it is built upon before blocks make their way onto the host DA and later get _finalized_ by the validating light node that lives on the host as a smart contract.
 
 > Depending on the rollup mechanism, rollup full nodes will be able to finalize their own view of the chain as soon as data is available on the host.
 

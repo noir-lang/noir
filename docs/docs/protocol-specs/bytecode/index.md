@@ -144,7 +144,7 @@ If the function is public, the entry will be its ABI. If the function is private
 | `width?` | `number` | The width of the integer in bits. Applies to integers only. |
 | `length?` | `number` | The length of the array or string. Applies to arrays and strings only. |
 | `type?` | [AbiType](#abi-type) | The types of the array elements. Applies to arrays only. |
-| `fields?` | [ABIVariable[]](#abi-variable) | The The fields of the struct. Applies to structs only. |
+| `fields?` | [ABIVariable[]](#abi-variable) | the fields of the struct. Applies to structs only. |
 
 ### Bytecode in the artifact
 

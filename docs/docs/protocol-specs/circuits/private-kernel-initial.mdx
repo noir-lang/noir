@@ -168,8 +168,8 @@ The circuit undergoes the following validations for data within [`private_inputs
        For each `note_hash` at index `i` in `note_hashes`:
 
        - Find the `request_index` at [`hints`](#hints).`note_hash_range_hints[i]`, which is the index of the `private_call_requests` with the smallest `counter_start` that was emitted after the `note_hash`.
-       - If `request_index` equals `NM`, indicating no request was emitted after the `note_hash`, its counter must be greater the the `counter_end` of the last request.
-       - If `request_index` equals `0`, indicating no request was emitted before the `note_hash`. Its counter must be less the the `counter_start` of the first request.
+       - If `request_index` equals `NM`, indicating no request was emitted after the `note_hash`, its counter must be greater the `counter_end` of the last request.
+       - If `request_index` equals `0`, indicating no request was emitted before the `note_hash`. Its counter must be less the `counter_start` of the first request.
        - Otherwise, the request was emitted after the `note_hash`, and its immediate previous request was emitted before the `note_hash`. Its counter must fall between those two requests.
 
        The code simplifies as:

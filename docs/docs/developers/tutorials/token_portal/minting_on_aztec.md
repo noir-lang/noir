@@ -24,7 +24,7 @@ The `claim_public` function enables anyone to consume the message on the user's 
 **What’s happening here?**
 
 1. We first recompute the L1->L2 message content by calling `get_mint_public_content_hash()`. Note that the method does exactly the same as what the TokenPortal contract does in `depositToAztecPublic()` to create the content hash.
-2. We then attempt to consume the L1->L2 message by passing the `msg_key`, the the content hash, and the "secret". Since we are depositing to Aztec publicly, this secret is public, anyone can know this and is usually 0.
+2. We then attempt to consume the L1->L2 message by passing the `msg_key`, the content hash, and the "secret". Since we are depositing to Aztec publicly, this secret is public, anyone can know this and is usually 0.
    - `context.consume_l1_to_l2_message()` takes in the content_hash and secret to recreate the original message. The L1 to L2 message consists of:
      - Sender - who on L1 sent the message + chain ID of L1. The context variable knows the portal address on L1 and adds that
      - Recipient - i.e. this aztec contract address which is consuming the message + the current version of the aztec rollup.

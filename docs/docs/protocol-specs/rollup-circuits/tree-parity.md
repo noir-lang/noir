@@ -95,7 +95,7 @@ class BaseParityInputs {
     msgs: List~Fr[2]~
 }
 ```
-The logic of the the circuits is quite simple - build both a SHA256 and a snark-friendly tree from the same inputs.
+The logic of the circuits is quite simple - build both a SHA256 and a snark-friendly tree from the same inputs.
 For optimization purposes, it can be useful to have the layers take more than 2 inputs to increase the task of every layer.
 If each just take 2 inputs, the overhead of recursing through the layers might be higher than the actual work done.
 Recall that all the inputs are already chosen by the L1, so we don't need to worry about which to chose.

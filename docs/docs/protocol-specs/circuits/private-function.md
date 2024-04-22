@@ -16,7 +16,7 @@ The private inputs of a private function circuit are customizable.
 
 <!-- Mike review:
 - Elaborate on what the `counter`s are for (or link to a section which describes them).
-- It would be nice to explain what's inside a call_stack_item_hash, or to link to a definition of the the private_call_stack_item and public_call_stack_item structs.
+- It would be nice to explain what's inside a call_stack_item_hash, or to link to a definition of the private_call_stack_item and public_call_stack_item structs.
 - It seems the L1->L2 messages tree doesn't exist anymore (according to the `../state/*` section of this paper. Perhaps it's been absorbed into the note hashes tree?). Consider updating the structs accordingly. EDIT: it should still exist.
 - I think there's still some outstanding ugliness originating from the "where to read?" debate:
     - Read requests for notes are being output by private functions, but the `note_hash_tree_root` is also available - so which should be used by an app?
