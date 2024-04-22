@@ -7,14 +7,14 @@ use dep::aztec::{
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
 
-// Transparent note represents a note that is created in the clear (public execution),
-// but can only be spent by those that know the preimage of the "secret_hash"
+// Transparent note represents a note that is created in the clear (public execution), but can only be spent by those
+// that know the preimage of the "secret_hash" (the secret). This is typically used when shielding a token balance.
+// Owner of the tokens provides a "secret_hash" as an argument to the public "shield" function and then the tokens
+// can be redeemed in private by presenting the preimage of the "secret_hash" (the secret).
 #[aztec(note)]
 struct TransparentNote {
     amount: Field,
     secret_hash: Field,
-    // the secret is just here for ease of use and won't be (de)serialized
-    secret: Field,
 }
 
 struct TransparentNoteProperties {
@@ -34,19 +34,27 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN> for TransparentNote {
         TransparentNote {
             amount: serialized_note[0],
             secret_hash: serialized_note[1],
-            secret: 0,
             header: NoteHeader::empty(),
         }
     }
 
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): Ensure nullifier collisions are prevented
     fn compute_nullifier(self, _context: &mut PrivateContext) -> Field {
         self.compute_nullifier_without_context()
     }
 
+    // Computing a nullifier in a transparent note is not guarded by making secret a part of the nullifier preimage (as
+    // is common in other cases) and instead is guarded by the functionality of "redeem_shield" function. There we do
+    // the following:
+    //      1) We pass the secret as an argument to the function and use it to compute a secret hash,
+    //      2) we fetch a note via the "get_notes" oracle which accepts the secret hash as an argument,
+    //      3) the "get_notes" oracle constrains that the secret hash in the returned note matches the one computed in
+    //         circuit. 
+    // This achieves that the note can only be spent by the party that knows the secret.
     fn compute_nullifier_without_context(self) -> Field {
         let siloed_note_hash = compute_note_hash_for_consumption(self);
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([self.secret, siloed_note_hash],0)
+        pedersen_hash([siloed_note_hash], 0)
     }
 
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
@@ -55,26 +63,12 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN> for TransparentNote {
 }
 
 impl TransparentNote {
-
     // CONSTRUCTORS
-
     pub fn new(amount: Field, secret_hash: Field) -> Self {
-        TransparentNote { amount, secret_hash, secret: 0, header: NoteHeader::empty() }
-    }
-
-    // new oracle call primitive
-    // get me the secret corresponding to this hash
-    pub fn new_from_secret(amount: Field, secret: Field) -> Self {
-        TransparentNote { amount, secret_hash: compute_secret_hash(secret), secret, header: NoteHeader::empty() }
+        TransparentNote { amount, secret_hash, header: NoteHeader::empty() }
     }
 
     // CUSTOM FUNCTIONS FOR THIS NOTE TYPE
-
-    pub fn knows_secret(self, secret: Field) {
-        let hash = compute_secret_hash(secret);
-        assert(self.secret_hash == hash);
-    }
-
     // Custom serialization forces us to manually create the metadata struct and its getter
     pub fn properties() -> TransparentNoteProperties {
         TransparentNoteProperties {
