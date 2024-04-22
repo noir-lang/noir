@@ -146,9 +146,7 @@ export const uniswapL1L2TestSuite = (
         client: walletClient,
       });
       // deploy l2 uniswap contract and attach to portal
-      uniswapL2Contract = await UniswapContract.deploy(ownerWallet)
-        .send({ portalContract: uniswapPortalAddress })
-        .deployed();
+      uniswapL2Contract = await UniswapContract.deploy(ownerWallet, uniswapPortalAddress).send().deployed();
 
       const registryAddress = (await pxe.getNodeInfo()).l1ContractAddresses.registryAddress;
 

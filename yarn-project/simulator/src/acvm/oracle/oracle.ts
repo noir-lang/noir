@@ -68,7 +68,6 @@ export class Oracle {
       instance.deployer,
       instance.contractClassId,
       instance.initializationHash,
-      instance.portalContractAddress,
       instance.publicKeysHash,
     ].map(toACVMField);
   }

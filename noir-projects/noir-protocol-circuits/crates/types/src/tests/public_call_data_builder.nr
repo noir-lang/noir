@@ -21,7 +21,6 @@ struct PublicCallDataBuilder {
     function_data: FunctionData,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     proof: Proof,
-    portal_contract_address: EthAddress,
     bytecode_hash: Field,
 }
 
@@ -29,7 +28,6 @@ impl PublicCallDataBuilder {
     pub fn new() -> Self {
         let contract_data = fixtures::contracts::default_contract;
         let contract_address = contract_data.address;
-        let portal_contract_address = contract_data.portal_contract_address;
 
         let contract_function = fixtures::contract_functions::default_public_function;
         let function_data = contract_function.data;
@@ -39,7 +37,6 @@ impl PublicCallDataBuilder {
         public_inputs.call_context = CallContext {
             msg_sender: fixtures::contracts::parent_contract.address,
             storage_contract_address: contract_address,
-            portal_contract_address,
             function_selector: function_data.selector,
             is_delegate_call: false,
             is_static_call: false,
@@ -53,7 +50,6 @@ impl PublicCallDataBuilder {
             function_data,
             public_call_stack: BoundedVec::new(),
             proof: Proof {},
-            portal_contract_address,
             bytecode_hash: contract_function.acir_hash
         }
     }
@@ -61,7 +57,6 @@ impl PublicCallDataBuilder {
     pub fn is_delegate_call(&mut self) -> Self {
         self.public_inputs.call_context.is_delegate_call = true;
         self.public_inputs.call_context.storage_contract_address = fixtures::contracts::parent_contract.address;
-        self.public_inputs.call_context.portal_contract_address = fixtures::contracts::parent_contract.portal_contract_address;
         self.public_inputs.call_context.msg_sender = fixtures::MSG_SENDER;
         *self
     }
@@ -165,7 +160,6 @@ impl PublicCallDataBuilder {
             },
             public_call_stack: self.public_call_stack.storage,
             proof: self.proof,
-            portal_contract_address: self.portal_contract_address,
             bytecode_hash: self.bytecode_hash
         }
     }

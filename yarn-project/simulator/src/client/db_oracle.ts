@@ -8,7 +8,6 @@ import {
 import { type CompleteAddress, type Header } from '@aztec/circuits.js';
 import { type FunctionArtifactWithDebugMetadata, type FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
-import { type EthAddress } from '@aztec/foundation/eth-address';
 import { type Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
@@ -112,15 +111,6 @@ export interface DBOracle extends CommitmentsDB {
     contractAddress: AztecAddress,
     functionName: string,
   ): Promise<FunctionArtifactWithDebugMetadata | undefined>;
-
-  /**
-   * Retrieves the portal contract address associated with the given contract address.
-   * Throws an error if the input contract address is not found or invalid.
-   *
-   * @param contractAddress - The address of the contract whose portal address is to be fetched.
-   * @returns A Promise that resolves to an EthAddress instance, representing the portal contract address.
-   */
-  getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 
   /**
    * Gets the index of a nullifier in the nullifier tree.

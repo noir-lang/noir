@@ -68,15 +68,6 @@ export class FeePerDAGas extends EnvironmentGetterInstruction {
   }
 }
 
-export class Portal extends EnvironmentGetterInstruction {
-  static type: string = 'PORTAL';
-  static readonly opcode: Opcode = Opcode.PORTAL;
-
-  protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.portal.toField();
-  }
-}
-
 export class ChainId extends EnvironmentGetterInstruction {
   static type: string = 'CHAINID';
   static readonly opcode: Opcode = Opcode.CHAINID;

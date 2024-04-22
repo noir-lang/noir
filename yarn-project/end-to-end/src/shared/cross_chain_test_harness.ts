@@ -101,9 +101,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   const token = await TokenContract.deploy(wallet, owner, 'TokenName', 'TokenSymbol', 18).send().deployed();
 
   // deploy l2 token bridge and attach to the portal
-  const bridge = await TokenBridgeContract.deploy(wallet, token.address)
-    .send({ portalContract: tokenPortalAddress })
-    .deployed();
+  const bridge = await TokenBridgeContract.deploy(wallet, token.address, tokenPortalAddress).send().deployed();
 
   if ((await token.methods.admin().simulate()) !== owner.toBigInt()) {
     throw new Error(`Token admin is not ${owner}`);

@@ -42,7 +42,6 @@ export function createAvmExecutionEnvironment(
     current.contractAddress,
     current.callContext.storageContractAddress,
     current.callContext.msgSender,
-    current.callContext.portalContractAddress,
     globalVariables.gasFees.feePerL1Gas,
     globalVariables.gasFees.feePerL2Gas,
     globalVariables.gasFees.feePerDaGas,
@@ -63,7 +62,6 @@ export function createPublicExecutionContext(avmContext: AvmContext, calldata: F
   const callContext = CallContext.from({
     msgSender: avmContext.environment.sender,
     storageContractAddress: avmContext.environment.storageAddress,
-    portalContractAddress: avmContext.environment.portal,
     functionSelector: avmContext.environment.temporaryFunctionSelector,
     isDelegateCall: avmContext.environment.isDelegateCall,
     isStaticCall: avmContext.environment.isStaticCall,

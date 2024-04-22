@@ -11,12 +11,11 @@ struct ContractInstanceDeployed {
     salt: Field, 
     contract_class_id: ContractClassId, 
     initialization_hash: Field, 
-    portal_contract_address: EthAddress, 
     public_keys_hash: PublicKeysHash, 
     deployer: AztecAddress,
 }
 
-global CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE: Field = 9;
+global CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE: Field = 8;
 
 impl Serialize<CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE> for ContractInstanceDeployed {
     fn serialize(self: Self) -> [Field; CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE] {
@@ -27,7 +26,6 @@ impl Serialize<CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE> for ContractInstanceD
             self.salt,
             self.contract_class_id.to_field(),
             self.initialization_hash,
-            self.portal_contract_address.to_field(),
             self.public_keys_hash.to_field(),
             self.deployer.to_field(),
         ]

@@ -5,7 +5,6 @@ import {
   type ContractClassWithId,
   type ContractInstanceWithAddress,
   type DebugLogger,
-  EthAddress,
   Fr,
   type PXE,
   TxStatus,
@@ -96,13 +95,11 @@ describe('e2e_deploy_contract contract class registration', () => {
       const deployInstance = async (opts: { constructorName?: string; deployer?: AztecAddress } = {}) => {
         const initArgs = [wallet.getAddress(), 42] as StatefulContractCtorArgs;
         const salt = Fr.random();
-        const portalAddress = EthAddress.random();
         const publicKeysHash = Fr.random();
         const instance = getContractInstanceFromDeployParams(artifact, {
           constructorArgs: initArgs,
           salt,
           publicKeysHash,
-          portalAddress,
           constructorArtifact: opts.constructorName,
           deployer: opts.deployer,
         });
@@ -122,7 +119,6 @@ describe('e2e_deploy_contract contract class registration', () => {
         const registered = await t.registerContract(wallet, StatefulTestContract, {
           constructorName: opts.constructorName,
           salt: instance.salt,
-          portalAddress: instance.portalContractAddress,
           publicKeysHash,
           initArgs,
           deployer: opts.deployer,
@@ -143,7 +139,6 @@ describe('e2e_deploy_contract contract class registration', () => {
           expect(deployed!.address).toEqual(instance.address);
           expect(deployed!.contractClassId).toEqual(contractClass.id);
           expect(deployed!.initializationHash).toEqual(instance.initializationHash);
-          expect(deployed!.portalContractAddress).toEqual(instance.portalContractAddress);
           expect(deployed!.publicKeysHash).toEqual(instance.publicKeysHash);
           expect(deployed!.salt).toEqual(instance.salt);
           expect(deployed!.deployer).toEqual(instance.deployer);

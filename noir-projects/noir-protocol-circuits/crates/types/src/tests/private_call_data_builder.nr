@@ -34,7 +34,6 @@ struct PrivateCallDataBuilder {
     contract_class_public_bytecode_commitment: Field,
     function_leaf_membership_witness: FunctionLeafMembershipWitness,
     note_hash_read_request_membership_witnesses: BoundedVec<NoteHashReadRequestMembershipWitness, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
-    portal_contract_address: EthAddress,
     acir_hash: Field,
     gas_settings: GasSettings,
 }
@@ -62,7 +61,6 @@ impl PrivateCallDataBuilder {
             contract_class_artifact_hash: contract_data.artifact_hash,
             contract_class_public_bytecode_commitment: contract_data.public_bytecode_commitment,
             note_hash_read_request_membership_witnesses: BoundedVec::new(),
-            portal_contract_address: public_inputs.call_context.portal_contract_address,
             acir_hash: contract_function.acir_hash,
             gas_settings: public_inputs.gas_settings
         }
@@ -71,7 +69,6 @@ impl PrivateCallDataBuilder {
     pub fn is_delegate_call(&mut self) -> Self {
         self.public_inputs.call_context.is_delegate_call = true;
         self.public_inputs.call_context.storage_contract_address = fixtures::contracts::parent_contract.address;
-        self.public_inputs.call_context.portal_contract_address = fixtures::contracts::parent_contract.portal_contract_address;
         self.public_inputs.call_context.msg_sender = fixtures::MSG_SENDER;
         *self
     }
@@ -201,7 +198,6 @@ impl PrivateCallDataBuilder {
             contract_class_artifact_hash: self.contract_class_artifact_hash,
             contract_class_public_bytecode_commitment: self.contract_class_public_bytecode_commitment,
             note_hash_read_request_membership_witnesses: self.note_hash_read_request_membership_witnesses.storage,
-            portal_contract_address: self.portal_contract_address,
             acir_hash: self.acir_hash
         }
     }

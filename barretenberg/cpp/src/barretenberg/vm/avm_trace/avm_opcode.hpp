@@ -41,7 +41,6 @@ enum class OpCode : uint8_t {
     ADDRESS,
     STORAGEADDRESS,
     SENDER,
-    PORTAL,
     FEEPERL1GAS,
     FEEPERL2GAS,
     FEEPERDAGAS,

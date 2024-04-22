@@ -17,7 +17,6 @@ nestedExecutionEnvironment = ExecutionEnvironment {
     sender: isDelegateCall ? context.sender : context.address,
     address: M[addrOffset],
     storageAddress: isDelegateCall ? context.storageAddress : M[addrOffset],
-    portal: callingContext.worldState.contracts[M[addrOffset]].portal,
     feePerL1Gas: context.environment.feePerL1Gas,
     feePerL2Gas: context.environment.feePerL2Gas,
     feePerDaGas: context.environment.feePerDaGas,

@@ -39,7 +39,6 @@ export class GetContractInstance extends Instruction {
             new Field(0),
             new Field(0),
             new Field(0),
-            new Field(0),
           ]
         : [
             new Fr(1), // found
@@ -47,7 +46,6 @@ export class GetContractInstance extends Instruction {
             instance.deployer.toField(),
             instance.contractClassId,
             instance.initializationHash,
-            instance.portalContractAddress.toField(),
             instance.publicKeysHash,
           ].map(f => new Field(f));
 

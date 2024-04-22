@@ -1,6 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -15,7 +14,6 @@ export class ContractInstanceDeployedEvent {
     public readonly salt: Fr,
     public readonly contractClassId: Fr,
     public readonly initializationHash: Fr,
-    public readonly portalContractAddress: EthAddress,
     public readonly publicKeysHash: Fr,
     public readonly deployer: AztecAddress,
   ) {}
@@ -42,7 +40,6 @@ export class ContractInstanceDeployedEvent {
     const salt = reader.readObject(Fr);
     const contractClassId = reader.readObject(Fr);
     const initializationHash = reader.readObject(Fr);
-    const portalContractAddress = EthAddress.fromField(reader.readObject(Fr));
     const publicKeysHash = reader.readObject(Fr);
     const deployer = reader.readObject(AztecAddress);
 
@@ -52,7 +49,6 @@ export class ContractInstanceDeployedEvent {
       salt,
       contractClassId,
       initializationHash,
-      portalContractAddress,
       publicKeysHash,
       deployer,
     );
@@ -68,7 +64,6 @@ export class ContractInstanceDeployedEvent {
       version: this.version,
       contractClassId: this.contractClassId,
       initializationHash: this.initializationHash,
-      portalContractAddress: this.portalContractAddress,
       publicKeysHash: this.publicKeysHash,
       salt: this.salt,
       deployer: this.deployer,

@@ -11,7 +11,6 @@ import {
 import {
   type AztecAddress,
   type CompleteAddress,
-  type EthAddress,
   type Fr,
   type FunctionSelector,
   type Header,
@@ -115,10 +114,6 @@ export class SimulatorOracle implements DBOracle {
     const instance = await this.contractDataOracle.getContractInstance(contractAddress);
     const artifact = await this.contractDataOracle.getContractArtifact(instance.contractClassId);
     return artifact && getFunctionArtifactWithDebugMetadata(artifact, functionName);
-  }
-
-  async getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress> {
-    return await this.contractDataOracle.getPortalContractAddress(contractAddress);
   }
 
   /**

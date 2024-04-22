@@ -404,7 +404,6 @@ export function makeCallContext(seed = 0, overrides: Partial<FieldsOf<CallContex
   return CallContext.from({
     msgSender: makeAztecAddress(seed),
     storageContractAddress: makeAztecAddress(seed + 1),
-    portalContractAddress: makeEthAddress(seed + 2),
     functionSelector: makeSelector(seed + 3),
     isStaticCall: false,
     isDelegateCall: false,
@@ -767,7 +766,6 @@ export function makePublicCallData(seed = 1, full = false): PublicCallData {
     makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, makeCallRequest, seed + 0x300),
     makeProof(),
     fr(seed + 1),
-    fr(seed + 2),
   );
 
   return publicCallData;
@@ -863,7 +861,6 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
       makeNoteHashReadRequestMembershipWitness,
       seed + 0x70,
     ),
-    portalContractAddress: makeEthAddress(seed + 0x40).toField(),
     acirHash: fr(seed + 0x60),
   });
 }

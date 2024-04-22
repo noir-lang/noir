@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, Fr } from '@aztec/circuits.js';
 
 import { type DeepMockProxy, mockDeep } from 'jest-mock-extended';
 
@@ -47,7 +47,6 @@ describe('Contract opcodes', () => {
         salt: new Fr(20),
         contractClassId: new Fr(30),
         initializationHash: new Fr(40),
-        portalContractAddress: EthAddress.random(),
         publicKeysHash: new Fr(50),
         deployer: AztecAddress.random(),
       };
@@ -56,14 +55,13 @@ describe('Contract opcodes', () => {
 
       await new GetContractInstance(/*indirect=*/ 0, /*addressOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 
-      const actual = context.machineState.memory.getSlice(1, 7);
+      const actual = context.machineState.memory.getSlice(1, 6);
       expect(actual).toEqual([
         new Field(1), // found
         new Field(contractInstance.salt),
         new Field(contractInstance.deployer),
         new Field(contractInstance.contractClassId),
         new Field(contractInstance.initializationHash),
-        new Field(contractInstance.portalContractAddress.toField()),
         new Field(contractInstance.publicKeysHash),
       ]);
     });
@@ -74,10 +72,9 @@ describe('Contract opcodes', () => {
 
       await new GetContractInstance(/*indirect=*/ 0, /*addressOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 
-      const actual = context.machineState.memory.getSlice(1, 7);
+      const actual = context.machineState.memory.getSlice(1, 6);
       expect(actual).toEqual([
         new Field(0), // found
-        new Field(0),
         new Field(0),
         new Field(0),
         new Field(0),

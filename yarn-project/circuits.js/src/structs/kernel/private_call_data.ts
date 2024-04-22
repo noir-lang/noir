@@ -68,10 +68,6 @@ export class PrivateCallData {
       typeof MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
     >,
     /**
-     * The address of the portal contract corresponding to the contract on which the function is being invoked.
-     */
-    public portalContractAddress: Fr,
-    /**
      * The hash of the ACIR of the function being invoked.
      */
     public acirHash: Fr,
@@ -95,7 +91,6 @@ export class PrivateCallData {
       fields.saltedInitializationHash,
       fields.functionLeafMembershipWitness,
       fields.noteHashReadRequestMembershipWitnesses,
-      fields.portalContractAddress,
       fields.acirHash,
     ] as const;
   }
@@ -131,7 +126,6 @@ export class PrivateCallData {
       reader.readObject(Fr),
       reader.readObject(MembershipWitness.deserializer(FUNCTION_TREE_HEIGHT)),
       reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, NoteHashReadRequestMembershipWitness),
-      reader.readObject(Fr),
       reader.readObject(Fr),
     );
   }

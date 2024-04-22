@@ -382,7 +382,7 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     const derivedTxContext = this.txContext.clone();
 
-    const derivedCallContext = await this.deriveCallContext(
+    const derivedCallContext = this.deriveCallContext(
       targetContractAddress,
       targetArtifact,
       sideEffectCounter,
@@ -443,7 +443,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     isStaticCall = isStaticCall || this.callContext.isStaticCall;
 
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
-    const derivedCallContext = await this.deriveCallContext(
+    const derivedCallContext = this.deriveCallContext(
       targetContractAddress,
       targetArtifact,
       sideEffectCounter,
@@ -481,18 +481,16 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param isStaticCall - Whether the call is a static call.
    * @returns The derived call context.
    */
-  private async deriveCallContext(
+  private deriveCallContext(
     targetContractAddress: AztecAddress,
     targetArtifact: FunctionArtifact,
     startSideEffectCounter: number,
     isDelegateCall = false,
     isStaticCall = false,
   ) {
-    const portalContractAddress = await this.db.getPortalContractAddress(targetContractAddress);
     return new CallContext(
       isDelegateCall ? this.callContext.msgSender : this.contractAddress,
       isDelegateCall ? this.contractAddress : targetContractAddress,
-      portalContractAddress,
       FunctionSelector.fromNameAndParameters(targetArtifact.name, targetArtifact.parameters),
       isDelegateCall,
       isStaticCall,

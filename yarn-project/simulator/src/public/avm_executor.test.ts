@@ -1,4 +1,4 @@
-import { AztecAddress, CallContext, EthAddress, FunctionData, FunctionSelector, type Header } from '@aztec/circuits.js';
+import { AztecAddress, CallContext, FunctionData, FunctionSelector, type Header } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -20,7 +20,6 @@ describe('AVM WitGen and Proof Generation', () => {
   const callContext = CallContext.from({
     msgSender: AztecAddress.random(),
     storageContractAddress: AztecAddress.random(),
-    portalContractAddress: EthAddress.random(),
     functionSelector: FunctionSelector.empty(),
     isDelegateCall: false,
     isStaticCall: false,

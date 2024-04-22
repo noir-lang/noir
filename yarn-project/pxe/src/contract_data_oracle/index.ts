@@ -53,20 +53,6 @@ export class ContractDataOracle {
   }
 
   /**
-   * Retrieve the portal contract address associated with the given contract address.
-   * This function searches for the corresponding contract tree in the local cache and returns the portal contract address.
-   * If the contract tree is not found in the cache, it fetches the contract data from the database and creates a new ContractTree instance.
-   * Throws an error if the contract address is not found in the database.
-   *
-   * @param contractAddress - The AztecAddress of the contract whose portal contract address needs to be retrieved.
-   * @returns A Promise that resolves to the portal contract address.
-   */
-  public async getPortalContractAddress(contractAddress: AztecAddress) {
-    const instance = await this.getContractInstance(contractAddress);
-    return instance.portalContractAddress;
-  }
-
-  /**
    * Retrieves the artifact of a specified function within a given contract.
    * The function is identified by its selector, which is a unique code generated from the function's signature.
    * Throws an error if the contract address or function selector are invalid or not found.

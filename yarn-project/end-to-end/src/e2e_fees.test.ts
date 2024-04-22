@@ -647,6 +647,7 @@ describe('e2e_fees', () => {
     // Mint bananas privately
     const secret = Fr.random();
     const secretHash = computeMessageSecretHash(secret);
+    logger.debug(`Minting ${amount} bananas privately for ${address} with secret ${secretHash.toString()}`);
     const receipt = await bananaCoin.methods.mint_private(amount, secretHash).send().wait();
 
     // Setup auth wit

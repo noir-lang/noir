@@ -744,7 +744,6 @@ fn handle_getter_instruction(
         "avmOpcodeAddress" => AvmOpcode::ADDRESS,
         "avmOpcodeStorageAddress" => AvmOpcode::STORAGEADDRESS,
         "avmOpcodeSender" => AvmOpcode::SENDER,
-        "avmOpcodePortal" => AvmOpcode::PORTAL,
         "avmOpcodeFeePerL1Gas" => AvmOpcode::FEEPERL1GAS,
         "avmOpcodeFeePerL2Gas" => AvmOpcode::FEEPERL2GAS,
         "avmOpcodeFeePerDaGas" => AvmOpcode::FEEPERDAGAS,

@@ -13,7 +13,7 @@ import { deriveKeys } from '../keys/index.js';
 /**
  * Returns the deployment address for a given contract instance as defined on the [Protocol Specs](../../../../docs/docs/protocol-specs/addresses-and-keys/specification.md).
  * ```
- * salted_initialization_hash = pedersen([salt, initialization_hash, deployer, portal_contract_address as Field], GENERATOR__SALTED_INITIALIZATION_HASH)
+ * salted_initialization_hash = pedersen([salt, initialization_hash, deployer], GENERATOR__SALTED_INITIALIZATION_HASH)
  * partial_address = pedersen([contract_class_id, salted_initialization_hash], GENERATOR__CONTRACT_PARTIAL_ADDRESS_V1)
  * address = poseidon2Hash([public_keys_hash, partial_address, GENERATOR__CONTRACT_ADDRESS_V1])
  * ```
@@ -35,7 +35,7 @@ export function computeContractAddressFromInstance(
  */
 export function computePartialAddress(
   instance:
-    | Pick<ContractInstance, 'contractClassId' | 'initializationHash' | 'salt' | 'portalContractAddress' | 'deployer'>
+    | Pick<ContractInstance, 'contractClassId' | 'initializationHash' | 'salt' | 'deployer'>
     | { contractClassId: Fr; saltedInitializationHash: Fr },
 ): Fr {
   const saltedInitializationHash =
@@ -47,16 +47,13 @@ export function computePartialAddress(
 }
 
 /**
- * Computes the salted initialization hash for an address, defined as the hash of the salt, initialization hash, and portal address.
+ * Computes the salted initialization hash for an address, defined as the hash of the salt and initialization hash.
  * @param instance - Contract instance for which to compute the salted initialization hash.
  */
 export function computeSaltedInitializationHash(
-  instance: Pick<ContractInstance, 'initializationHash' | 'salt' | 'portalContractAddress' | 'deployer'>,
+  instance: Pick<ContractInstance, 'initializationHash' | 'salt' | 'deployer'>,
 ): Fr {
-  return pedersenHash(
-    [instance.salt, instance.initializationHash, instance.deployer, instance.portalContractAddress],
-    GeneratorIndex.PARTIAL_ADDRESS,
-  );
+  return pedersenHash([instance.salt, instance.initializationHash, instance.deployer], GeneratorIndex.PARTIAL_ADDRESS);
 }
 
 /**

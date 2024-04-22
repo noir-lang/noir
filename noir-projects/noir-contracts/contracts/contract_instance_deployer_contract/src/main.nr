@@ -14,7 +14,6 @@ contract ContractInstanceDeployer {
         salt: Field,
         contract_class_id: ContractClassId,
         initialization_hash: Field,
-        portal_contract_address: EthAddress,
         public_keys_hash: PublicKeysHash,
         universal_deploy: bool
     ) {
@@ -26,13 +25,7 @@ contract ContractInstanceDeployer {
             context.msg_sender()
         };
 
-        let partial_address = PartialAddress::compute(
-            contract_class_id,
-            salt,
-            initialization_hash,
-            portal_contract_address,
-            deployer
-        );
+        let partial_address = PartialAddress::compute(contract_class_id, salt, initialization_hash, deployer);
 
         let address = AztecAddress::compute(public_keys_hash, partial_address);
 
@@ -40,16 +33,7 @@ contract ContractInstanceDeployer {
         context.push_new_nullifier(address.to_field(), 0);
 
         // Broadcast the event
-        let event = ContractInstanceDeployed {
-            contract_class_id,
-            address,
-            public_keys_hash,
-            portal_contract_address,
-            initialization_hash,
-            salt,
-            deployer,
-            version: 1
-        };
+        let event = ContractInstanceDeployed { contract_class_id, address, public_keys_hash, initialization_hash, salt, deployer, version: 1 };
         let event_payload = event.serialize();
         dep::aztec::oracle::debug_log::debug_log_array_with_prefix("ContractInstanceDeployed", event_payload);
         context.emit_unencrypted_log(event_payload);

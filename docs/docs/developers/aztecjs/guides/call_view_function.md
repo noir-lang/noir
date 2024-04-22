@@ -31,7 +31,6 @@ Call the `simulate` function on the typescript contract wrapper like this:
 #include_code simulate_function yarn-project/end-to-end/src/composed/docs_examples.test.ts typescript
 
 :::info Note
-
 - If the simulated function is `unconstrained` you will get a properly typed value.
 - If the simulated function is `public` or `private` it will return a Field array of size 4.
-  :::
+:::

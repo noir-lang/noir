@@ -9,7 +9,6 @@ use crate::{
 struct CallContext {
     msg_sender : AztecAddress,
     storage_contract_address : AztecAddress,
-    portal_contract_address : EthAddress,
     function_selector : FunctionSelector,
 
     is_delegate_call : bool,
@@ -47,7 +46,6 @@ impl Serialize<CALL_CONTEXT_LENGTH> for CallContext {
 
         serialized.push(self.msg_sender.to_field());
         serialized.push(self.storage_contract_address.to_field());
-        serialized.push(self.portal_contract_address.to_field());
         serialized.push(self.function_selector.to_field());
         serialized.push(self.is_delegate_call as Field);
         serialized.push(self.is_static_call as Field);
@@ -63,7 +61,6 @@ impl Deserialize<CALL_CONTEXT_LENGTH> for CallContext {
         CallContext {
             msg_sender: AztecAddress::from_field(reader.read()),
             storage_contract_address: AztecAddress::from_field(reader.read()),
-            portal_contract_address: EthAddress::from_field(reader.read()),
             function_selector: FunctionSelector::from_field(reader.read()),
             is_delegate_call: reader.read() as bool,
             is_static_call: reader.read() as bool,
@@ -77,7 +74,6 @@ impl Empty for CallContext {
         CallContext {
             msg_sender: AztecAddress::empty(),
             storage_contract_address: AztecAddress::empty(),
-            portal_contract_address: EthAddress::empty(),
             function_selector: FunctionSelector::empty(),
             is_delegate_call: false,
             is_static_call: false,

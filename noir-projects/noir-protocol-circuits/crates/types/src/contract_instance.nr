@@ -13,7 +13,6 @@ struct ContractInstance {
     deployer: AztecAddress,
     contract_class_id : ContractClassId,
     initialization_hash : Field,
-    portal_contract_address : EthAddress,
     public_keys_hash : PublicKeysHash,
 }
 
@@ -22,8 +21,7 @@ impl Eq for ContractInstance {
         self.public_keys_hash.eq(other.public_keys_hash) &
         self.initialization_hash.eq(other.initialization_hash) &
         self.contract_class_id.eq(other.contract_class_id) &
-        self.salt.eq(other.salt) &
-        self.portal_contract_address.eq(other.portal_contract_address)
+        self.salt.eq(other.salt)
     }
 }
 
@@ -34,7 +32,6 @@ impl Serialize<CONTRACT_INSTANCE_LENGTH> for ContractInstance {
             self.deployer.to_field(),
             self.contract_class_id.to_field(),
             self.initialization_hash,
-            self.portal_contract_address.to_field(),
             self.public_keys_hash.to_field()
         ]
     }
@@ -47,8 +44,7 @@ impl Deserialize<CONTRACT_INSTANCE_LENGTH> for ContractInstance {
             deployer: AztecAddress::from_field(serialized[1]),
             contract_class_id: ContractClassId::from_field(serialized[2]),
             initialization_hash: serialized[3],
-            portal_contract_address: EthAddress::from_field(serialized[4]),
-            public_keys_hash: PublicKeysHash::from_field(serialized[5]),
+            public_keys_hash: PublicKeysHash::from_field(serialized[4]),
         }
     }
 }
@@ -67,7 +63,6 @@ impl ContractInstance {
                 self.contract_class_id,
                 self.salt,
                 self.initialization_hash,
-                self.portal_contract_address,
                 self.deployer
             )
         )

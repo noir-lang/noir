@@ -27,6 +27,5 @@ struct PrivateCallData {
     
     note_hash_read_request_membership_witnesses: [NoteHashReadRequestMembershipWitness; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
 
-    portal_contract_address: EthAddress,
     acir_hash: Field,
 }

@@ -20,9 +20,8 @@ pub fn deploy_contract(context: &mut PrivateContext, target: AztecAddress) {
     serialized_args[0] = instance.salt;
     serialized_args[1] = instance.contract_class_id.to_field();
     serialized_args[2] = instance.initialization_hash;
-    serialized_args[3] = instance.portal_contract_address.to_field();
-    serialized_args[4] = instance.public_keys_hash.to_field();
-    serialized_args[5] = universal_deploy as Field;
+    serialized_args[3] = instance.public_keys_hash.to_field();
+    serialized_args[4] = universal_deploy as Field;
 
     let _call_result = context.call_private_function(
         AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),

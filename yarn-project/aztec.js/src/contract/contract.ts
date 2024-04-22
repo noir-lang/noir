@@ -19,7 +19,6 @@ export class Contract extends ContractBase {
    * @param address - The deployed contract's address.
    * @param artifact - Build artifact of the contract.
    * @param wallet - The wallet to use when interacting with the contract.
-   * @param portalContract - The portal contract address on L1, if any.
    * @returns A promise that resolves to a new Contract instance.
    */
   public static async at(address: AztecAddress, artifact: ContractArtifact, wallet: Wallet): Promise<Contract> {

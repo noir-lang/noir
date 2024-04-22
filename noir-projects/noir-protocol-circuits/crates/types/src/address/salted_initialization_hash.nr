@@ -19,19 +19,13 @@ impl SaltedInitializationHash {
         Self { inner: field }
     }
 
-    pub fn compute(
-        salt: Field,
-        initialization_hash: Field,
-        portal_contract_address: EthAddress,
-        deployer: AztecAddress
-    ) -> Self {
+    pub fn compute(salt: Field, initialization_hash: Field, deployer: AztecAddress) -> Self {
         SaltedInitializationHash::from_field(
             pedersen_hash(
                 [
             salt,
             initialization_hash,
-            deployer.to_field(),
-            portal_contract_address.to_field()
+            deployer.to_field()
         ],
                 GENERATOR_INDEX__PARTIAL_ADDRESS
             )

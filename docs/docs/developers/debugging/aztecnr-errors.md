@@ -45,7 +45,7 @@ To address the error. find the line in the contract that is throwing the error a
 
 This error occurs when you are trying to interact with a smart contract via an Private Execution Environment (PXE) that does not have the necessary information to execute a transaction.
 
-To execute a transaction, the PXE needs to know the complete address of a contract, portal address (if portal is used) and contract artifacts.
+To execute a transaction, the PXE needs to know the complete address of a contract and contract artifacts.
 
 To address the error, add the contract to the PXE by calling [`pxe.addContracts(...)`](../../apis/pxe/interfaces/PXE.md#addcontracts).
 

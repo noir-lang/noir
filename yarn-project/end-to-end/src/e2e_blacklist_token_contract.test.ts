@@ -401,7 +401,6 @@ describe('e2e_blacklist_token_contract', () => {
         });
 
         it('mint <u128 but recipient balance >u128', async () => {
-          // @todo @LHerskind this one don't make sense. It fails because of total supply overflowing.
           const amount = 2n ** 128n - tokenSim.balanceOfPrivate(wallets[0].getAddress());
           expect(amount).toBeLessThan(2n ** 128n);
           await expect(asset.methods.mint_private(amount, secretHash).prove()).rejects.toThrow(U128_OVERFLOW_ERROR);

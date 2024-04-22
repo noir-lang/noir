@@ -2,7 +2,7 @@
 contract Test {
     use dep::aztec::prelude::{
         AztecAddress, EthAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions,
-        PrivateContext, PrivateImmutable, PrivateSet
+        PrivateContext, PrivateImmutable, PrivateSet, SharedImmutable
     };
 
     use dep::aztec::protocol_types::{
@@ -44,17 +44,6 @@ contract Test {
         let pub_key = get_public_key_oracle(address);
 
         [pub_key.x, pub_key.y]
-    }
-
-    #[aztec(private)]
-    fn get_portal_contract_address() -> EthAddress {
-        context.this_portal_address()
-    }
-
-    // Get the address of the l1 portal for this contract (taken from the input context)
-    #[aztec(private)]
-    fn get_this_portal_address() -> EthAddress {
-        context.this_portal_address()
     }
 
     // Get the address of this contract (taken from the input context)
@@ -194,12 +183,12 @@ contract Test {
 
     // Purely exists for testing
     #[aztec(public)]
-    fn create_l2_to_l1_message_public(amount: Field, secret_hash: Field) {
+    fn create_l2_to_l1_message_public(amount: Field, secret_hash: Field, portal_address: EthAddress) {
         // Create a commitment to the amount
         let note = DummyNote::new(amount, secret_hash);
 
         // Public oracle call to emit new commitment.
-        context.message_portal(context.this_portal_address(), note.get_commitment());
+        context.message_portal(portal_address, note.get_commitment());
     }
 
     #[aztec(public)]
@@ -262,30 +251,27 @@ contract Test {
         to: AztecAddress,
         amount: Field,
         secret: Field,
-        message_leaf_index: Field
+        message_leaf_index: Field,
+        portal_address: EthAddress
     ) {
         let content_hash = get_mint_public_content_hash(to, amount);
         // Consume message and emit nullifier
-        context.consume_l1_to_l2_message(
-            content_hash,
-            secret,
-            context.this_portal_address(),
-            message_leaf_index
-        );
+        context.consume_l1_to_l2_message(content_hash, secret, portal_address, message_leaf_index);
     }
 
     #[aztec(private)]
     fn consume_mint_private_message(
         secret_hash_for_redeeming_minted_notes: Field,
         amount: Field,
-        secret_for_L1_to_L2_message_consumption: Field
+        secret_for_L1_to_L2_message_consumption: Field,
+        portal_address: EthAddress
     ) {
         // Consume L1 to L2 message and emit nullifier
         let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes, amount);
         context.consume_l1_to_l2_message(
             content_hash,
             secret_for_L1_to_L2_message_consumption,
-            context.this_portal_address()
+            portal_address
         );
     }
 

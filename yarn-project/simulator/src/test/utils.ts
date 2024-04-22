@@ -23,7 +23,5 @@ export const buildL1ToL2Message = (
   const content = sha256ToField([selectorBuf, ...contentPreimage]);
   const secretHash = computeMessageSecretHash(secret);
 
-  // Eventually the kernel will need to prove the kernel portal pair exists within the contract tree,
-  // EthAddress.random() will need to be replaced when this happens
   return new L1ToL2Message(new L1Actor(EthAddress.random(), 1), new L2Actor(targetContract, 1), content, secretHash);
 };

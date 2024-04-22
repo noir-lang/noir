@@ -110,15 +110,12 @@ fn deploy (
   salt: Field,
   contract_class_id: Field,
   initialization_hash: Field,
-  portal_contract_address: Field,
   public_keys_hash: Field,
   universal_deploy?: boolean,
 )
   let contract_class_registerer: Contract = ContractClassRegisterer::at(CONTRACT_CLASS_REGISTERER_ADDRESS);
 
   assert(nullifier_exists(silo(contract_class_id, contract_class_registerer.address)));
-
-  assert(is_valid_eth_address(portal_contract_address));
 
   let deployer: Address = if universal_deploy { 0 } else { msg_sender };
   let version: Field = 1;
@@ -129,13 +126,12 @@ fn deploy (
     deployer,
     contract_class_id,
     initialization_hash,
-    portal_contract_address,
     public_keys_hash
   );
 
   emit_nullifier(address);
 
-  emit_unencrypted_event(ContractInstanceDeployed::new(address, version, salt, contract_class_id, initialization_hash, portal_contract_address, public_keys_hash));
+  emit_unencrypted_event(ContractInstanceDeployed::new(address, version, salt, contract_class_id, initialization_hash, public_keys_hash));
 ```
 
 > See [address](../addresses-and-keys/address.md) for `address_crh`.

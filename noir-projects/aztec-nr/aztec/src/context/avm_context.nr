@@ -181,9 +181,6 @@ impl ContextInterface for AvmContext {
     fn this_address(self) -> AztecAddress {
         address()
     }
-    fn this_portal_address(self) -> EthAddress {
-        portal()
-    }
     fn chain_id(self) -> Field {
         chain_id()
     }

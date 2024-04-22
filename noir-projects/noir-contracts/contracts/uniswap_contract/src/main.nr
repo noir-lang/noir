@@ -5,7 +5,7 @@ mod util;
 // Has two separate flows for private and public respectively
 // Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1
 contract Uniswap {
-    use dep::aztec::prelude::{FunctionSelector, AztecAddress, EthAddress, Map, PublicMutable};
+    use dep::aztec::prelude::{FunctionSelector, AztecAddress, EthAddress, Map, PublicMutable, SharedImmutable};
     use dep::aztec::context::gas::GasOpts;
 
     use dep::authwit::auth::{
@@ -24,8 +24,15 @@ contract Uniswap {
         // tracks the nonce used to create the approval message for burning funds
         // gets incremented each time after use to prevent replay attacks
         nonce_for_burn_approval: PublicMutable<Field>,
+        portal_address: SharedImmutable<EthAddress>,
     }
     // docs:end:uniswap_setup
+
+    #[aztec(public)]
+    #[aztec(initializer)]
+    fn constructor(portal_address: EthAddress) {
+        storage.portal_address.initialize(portal_address);
+    }
 
     // docs:start:swap_public
     #[aztec(public)]
@@ -84,7 +91,7 @@ contract Uniswap {
             secret_hash_for_L1_to_l2_message,
             caller_on_L1
         );
-        context.message_portal(context.this_portal_address(), content_hash);
+        context.message_portal(storage.portal_address.read_public(), content_hash);
     }
     // docs:end:swap_public
 
@@ -142,7 +149,7 @@ contract Uniswap {
             secret_hash_for_L1_to_l2_message,
             caller_on_L1
         );
-        context.message_portal(context.this_portal_address(), content_hash);
+        context.message_portal(storage.portal_address.read_private(), content_hash);
     }
     // docs:end:swap_private
 
@@ -197,11 +204,12 @@ contract Uniswap {
         // increment nonce_for_burn_approval so it won't be used again
         storage.nonce_for_burn_approval.write(nonce_for_burn_approval + 1);
 
+        let this_portal_address = storage.portal_address.read_public();
         // Exit to L1 Uniswap Portal !
         TokenBridge::at(token_bridge).exit_to_l1_public(
-            context.this_portal_address(),
+            this_portal_address,
             amount,
-            context.this_portal_address(),
+            this_portal_address,
             nonce_for_burn_approval
         ).call(&mut context)
     }

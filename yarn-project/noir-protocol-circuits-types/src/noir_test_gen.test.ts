@@ -1,7 +1,6 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
 import {
   AztecAddress,
-  EthAddress,
   FunctionSelector,
   NOTE_HASH_TREE_HEIGHT,
   computeContractAddressFromInstance,
@@ -22,12 +21,11 @@ describe('Data generation for noir tests', () => {
   setupCustomSnapshotSerializers(expect);
 
   type FixtureContractData = Omit<ContractClass, 'version' | 'publicFunctions'> &
-    Pick<ContractInstance, 'publicKeysHash' | 'portalContractAddress' | 'salt'> &
+    Pick<ContractInstance, 'publicKeysHash' | 'salt'> &
     Pick<ContractClass, 'privateFunctions'> & { toString: () => string };
 
   const defaultContract: FixtureContractData = {
     artifactHash: new Fr(12345),
-    portalContractAddress: EthAddress.fromField(new Fr(23456)),
     packedBytecode: Buffer.from([3, 4, 5, 6, 7]),
     publicKeysHash: new Fr(45678),
     salt: new Fr(56789),
@@ -40,7 +38,6 @@ describe('Data generation for noir tests', () => {
 
   const parentContract: FixtureContractData = {
     artifactHash: new Fr(1212),
-    portalContractAddress: EthAddress.fromField(new Fr(2323)),
     packedBytecode: Buffer.from([3, 4, 3, 4]),
     publicKeysHash: new Fr(4545),
     salt: new Fr(5656),
@@ -75,7 +72,6 @@ describe('Data generation for noir tests', () => {
         private_functions_root: privateFunctionsRoot.toString(),
         address: `AztecAddress { inner: ${address.toString()} }`,
         partial_address: `PartialAddress { inner: ${partialAddress.toString()} }`,
-        portal_contract_address: `EthAddress { inner: ${contract.portalContractAddress.toString()} }`,
         contract_class_id: `ContractClassId { inner: ${contractClassId.toString()} }`,
         public_keys_hash: `PublicKeysHash { inner: ${contract.publicKeysHash.toString()} }`,
         salted_initialization_hash: `SaltedInitializationHash { inner: ${saltedInitializationHash.toString()} }`,

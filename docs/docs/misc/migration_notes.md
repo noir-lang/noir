@@ -8,6 +8,33 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.36.0
 
+## [Aztec.nr & js] Portal addresses
+
+Deployments have been modified. No longer are portal addresses treated as a special class, being immutably set on creation of a contract. They are no longer passed in differently compared to the other variables and instead should be implemented using usual storage by those who require it. One should use the storage that matches the usecase - likely shared storage to support private and public.
+
+This means that you will likely add the portal as a constructor argument
+
+```diff
+- fn constructor(token: AztecAddress) {
+-    storage.token.write(token);
+- }
++ struct Storage {
+    ...
++   portal_address: SharedImmutable<AztecAddress>,
++ }
++ fn constructor(token: AztecAddress, portal_address: EthAddress) {
++    storage.token.write(token);
++    storage.portal_address.initialize(portal_address);
++ }
+```
+
+And read it from storage whenever needed instead of from the context.
+
+```diff
+- context.this_portal_address(),
++ storage.portal_address.read_public(),
+```
+
 ### [Aztec.nr] Oracles
 
 Oracle `get_nullifier_secret_key` was renamed to `get_app_nullifier_secret_key` and `request_nullifier_secret_key` function on PrivateContext was renamed as `request_app_nullifier_secret_key`.
@@ -100,7 +127,6 @@ and change the call to `get_portal_address`
 - let portal_address = get_portal_address(contract_address);
 + let portal_address = SomeContract::at(contract_address).get_portal_address().call(&mut context);
 ```
-
 
 ### [Aztec.nr] Required gas limits for public-to-public calls
 

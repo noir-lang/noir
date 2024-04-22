@@ -300,7 +300,7 @@ export interface PXE {
   getSyncStatus(): Promise<SyncStatus>;
 
   /**
-   * Returns a Contact Instance given its address, which includes the contract class identifier, portal address,
+   * Returns a Contact Instance given its address, which includes the contract class identifier,
    * initialization hash, deployment salt, and public keys hash.
    * TODO(@spalladino): Should we return the public keys in plain as well here?
    * @param address - Deployment address of the contract.

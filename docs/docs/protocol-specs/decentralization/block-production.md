@@ -24,12 +24,11 @@ We should probably introduce the PXE somewhere
 | RAM     | 32gb    | 64gb        |
 
 :::info Estimates
-
 - **CPU**: Help
 - **Network**: 40KB for a transaction with proof (see [P2P network](./p2p-network.md#network-bandwidth)). Assuming gossiping grows the data upload/download 10x, ~400KB per tx. With 10 tx/s that's 4MB/s or 32mb/s.
 - **Storage**: [~1548 bytes per transaction](../data-publication-and-availability/index.md#aztec-specific-data) + tree overhead, ~ 0.4 TB per year.
 - **RAM**: Help
-  :::
+:::
 
 ### Sequencers
 
@@ -106,14 +105,13 @@ Anyone ->> Network: eligible as a sequencer
 ## Block production
 
 :::danger **TODO**
-
 - The diagram needs to be updated with respect to "VRF".
 - In **Prover commitment** phase, it is not said what the signature is used for. I'm expecting that it is used to allow the prover to publish the message on behalf of the sequencer, but it is not made clear.
 - In **Backup** phase, would be useful if we add a comment on the duration
 - In Diagram
   - add a dedicated timeline from the block production's PoV
   - get rid of "pre-confirmed"
-    :::
+:::
 
 ![Governance Summary Image](/img/protocol-specs/decentralization/Aztec-Block-Production-1.png)
 

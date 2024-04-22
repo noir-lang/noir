@@ -426,7 +426,6 @@ export function mapCallContextFromNoir(callContext: CallContextNoir): CallContex
   return new CallContext(
     mapAztecAddressFromNoir(callContext.msg_sender),
     mapAztecAddressFromNoir(callContext.storage_contract_address),
-    mapEthAddressFromNoir(callContext.portal_contract_address),
     mapFunctionSelectorFromNoir(callContext.function_selector),
     callContext.is_delegate_call,
     callContext.is_static_call,
@@ -443,7 +442,6 @@ export function mapCallContextToNoir(callContext: CallContext): CallContextNoir 
   return {
     msg_sender: mapAztecAddressToNoir(callContext.msgSender),
     storage_contract_address: mapAztecAddressToNoir(callContext.storageContractAddress),
-    portal_contract_address: mapEthAddressToNoir(callContext.portalContractAddress),
     function_selector: mapFunctionSelectorToNoir(callContext.functionSelector),
     is_delegate_call: callContext.isDelegateCall,
     is_static_call: callContext.isStaticCall,
@@ -793,8 +791,6 @@ export function mapPrivateCallDataToNoir(privateCallData: PrivateCallData): Priv
     contract_class_public_bytecode_commitment: mapFieldToNoir(privateCallData.contractClassPublicBytecodeCommitment),
     public_keys_hash: mapWrappedFieldToNoir(privateCallData.publicKeysHash),
     salted_initialization_hash: mapWrappedFieldToNoir(privateCallData.saltedInitializationHash),
-    //TODO this seems like the wrong type in circuits.js
-    portal_contract_address: mapEthAddressToNoir(EthAddress.fromField(privateCallData.portalContractAddress)),
     acir_hash: mapFieldToNoir(privateCallData.acirHash),
   };
 }
@@ -1618,7 +1614,6 @@ export function mapPublicCallDataToNoir(publicCall: PublicCallData): PublicCallD
     call_stack_item: mapPublicCallStackItemToNoir(publicCall.callStackItem),
     public_call_stack: mapTuple(publicCall.publicCallStack, mapCallRequestToNoir),
     proof: {},
-    portal_contract_address: mapEthAddressToNoir(EthAddress.fromField(publicCall.portalContractAddress)),
     bytecode_hash: mapFieldToNoir(publicCall.bytecodeHash),
   };
 }

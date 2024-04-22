@@ -24,12 +24,13 @@ The `claim_public` function enables anyone to consume the message on the user's 
 **What’s happening here?**
 
 1. We first recompute the L1->L2 message content by calling `get_mint_public_content_hash()`. Note that the method does exactly the same as what the TokenPortal contract does in `depositToAztecPublic()` to create the content hash.
-2. We then attempt to consume the L1->L2 message by passing the `msg_key`, the content hash, and the "secret". Since we are depositing to Aztec publicly, this secret is public, anyone can know this and is usually 0.
-   - `context.consume_l1_to_l2_message()` takes in the content_hash and secret to recreate the original message. The L1 to L2 message consists of:
-     - Sender - who on L1 sent the message + chain ID of L1. The context variable knows the portal address on L1 and adds that
-     - Recipient - i.e. this aztec contract address which is consuming the message + the current version of the aztec rollup.
-     - The content - which is reconstructed in the `get_mint_public_content_hash()`
-   - Note that the `content_hash` requires `to`, `amount` and `canceller`. If a malicious user tries to mint tokens to their address by changing the to address, the content hash will be different to what the token portal had calculated on L1 and the `msg_Key` will also be different, thus preventing the L1->L2 message from being consumed. This is why we add these parameters into the content.
+2. We then attempt to consume the L1->L2 message. Since we are depositing to Aztec publicly, all of the inputs are public.
+   - `context.consume_l1_to_l2_message()` takes in the few parameters:
+     - `content_hash`: The content - which is reconstructed in the `get_mint_public_content_hash()`
+     - `secret`: The secret used for consumption, often 0 for public messages
+     - `sender`: Who on L1 sent the message. Which should match the stored `portal_address` in our case as we only want to allow messages from a specific sender.
+     - `message_leaf_index`: The index in the message tree of the message.
+   - Note that the `content_hash` requires `to` and `amount`. If a malicious user tries to mint tokens to their address by changing the to address, the content hash will be different to what the token portal had calculated on L1 and thus not be in the tree, failing the consumption. This is why we add these parameters into the content.
 3. Then we call `Token::at(storage.token.read()).mint_public()` to mint the tokens to the to address.
 
 ## Private flow

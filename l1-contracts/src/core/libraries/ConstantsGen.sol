@@ -89,7 +89,7 @@ library Constants {
   uint256 internal constant DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE =
     0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
   uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
-    0x0cde95a10e1160d0ff69ac8212cb5902fa5add38d8596595631fcf3a667798e0;
+    0x1236d27f14d2934fd666beff34a0b4b746949f5d51a149eb67f908eb95092f54;
   uint256 internal constant DEFAULT_GAS_LIMIT = 1_000_000_000;
   uint256 internal constant DEFAULT_TEARDOWN_GAS_LIMIT = 100_000_000;
   uint256 internal constant DEFAULT_MAX_FEE_PER_GAS = 10;
@@ -99,9 +99,9 @@ library Constants {
   uint256 internal constant GAS_LENGTH = 3;
   uint256 internal constant GAS_SETTINGS_LENGTH =
     GAS_LENGTH * 2 + GAS_FEES_LENGTH /* inclusion_fee */ + 1;
-  uint256 internal constant CALL_CONTEXT_LENGTH = 7;
+  uint256 internal constant CALL_CONTEXT_LENGTH = 6;
   uint256 internal constant CONTENT_COMMITMENT_LENGTH = 4;
-  uint256 internal constant CONTRACT_INSTANCE_LENGTH = 6;
+  uint256 internal constant CONTRACT_INSTANCE_LENGTH = 5;
   uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 2;
   uint256 internal constant CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH = 2;
   uint256 internal constant ETH_ADDRESS_LENGTH = 1;

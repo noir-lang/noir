@@ -24,23 +24,13 @@ export class PublicCallData {
      */
     public readonly proof: Proof,
     /**
-     * Address of the corresponding portal contract.
-     */
-    public readonly portalContractAddress: Fr,
-    /**
      * Hash of the L2 contract bytecode.
      */
     public readonly bytecodeHash: Fr,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(
-      this.callStackItem,
-      this.publicCallStack,
-      this.proof,
-      this.portalContractAddress,
-      this.bytecodeHash,
-    );
+    return serializeToBuffer(this.callStackItem, this.publicCallStack, this.proof, this.bytecodeHash);
   }
 
   static fromBuffer(buffer: BufferReader | Buffer) {
@@ -52,7 +42,6 @@ export class PublicCallData {
         CallRequest,
       ),
       reader.readObject(Proof),
-      reader.readObject(Fr),
       reader.readObject(Fr),
     );
   }

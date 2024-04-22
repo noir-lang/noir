@@ -186,10 +186,6 @@ impl ContextInterface for PublicContext {
         self.inputs.call_context.storage_contract_address
     }
 
-    fn this_portal_address(self) -> EthAddress {
-        self.inputs.call_context.portal_contract_address
-    }
-
     fn chain_id(self) -> Field {
         self.inputs.public_global_variables.chain_id
     }

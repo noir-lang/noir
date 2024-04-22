@@ -5,7 +5,6 @@ import {
   CallContext,
   CallRequest,
   type ContractStorageUpdateRequest,
-  EthAddress,
   Fr,
   FunctionData,
   Gas,
@@ -66,7 +65,7 @@ export class PublicExecutionResultBuilder {
     revertReason?: SimulationError;
   }) {
     const builder = new PublicExecutionResultBuilder({
-      callContext: new CallContext(from, tx.to, EthAddress.ZERO, tx.functionData.selector, false, false, 0),
+      callContext: new CallContext(from, tx.to, tx.functionData.selector, false, false, 0),
       contractAddress: tx.to,
       functionData: tx.functionData,
       args: tx.args,

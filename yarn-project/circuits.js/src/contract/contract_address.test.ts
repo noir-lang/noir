@@ -2,7 +2,7 @@ import { ABIParameterVisibility, type FunctionAbi, FunctionType } from '@aztec/f
 import { Fr } from '@aztec/foundation/fields';
 import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
-import { AztecAddress, EthAddress, deriveKeys } from '../index.js';
+import { AztecAddress, deriveKeys } from '../index.js';
 import {
   computeContractAddressFromInstance,
   computeContractAddressFromPartial,
@@ -26,7 +26,6 @@ describe('ContractAddress', () => {
     const mockInstance = {
       initializationHash: new Fr(1),
       salt: new Fr(2),
-      portalContractAddress: EthAddress.fromField(new Fr(3)),
       deployer: AztecAddress.fromField(new Fr(4)),
     };
     const result = computeSaltedInitializationHash(mockInstance);
@@ -57,7 +56,6 @@ describe('ContractAddress', () => {
     const salt = new Fr(3n);
     const contractClassId = new Fr(4n);
     const initializationHash = new Fr(5n);
-    const portalContractAddress = EthAddress.fromField(new Fr(6n));
     const deployer = AztecAddress.fromField(new Fr(7));
     const publicKeysHash = deriveKeys(secretKey).publicKeysHash;
 
@@ -66,7 +64,6 @@ describe('ContractAddress', () => {
       salt,
       contractClassId,
       initializationHash,
-      portalContractAddress,
       deployer,
       version: 1,
     }).toString();

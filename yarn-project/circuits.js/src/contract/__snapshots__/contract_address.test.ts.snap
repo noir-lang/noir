@@ -4,10 +4,10 @@ exports[`ContractAddress Address from partial matches Noir 1`] = `"0x1b6ead051e7
 
 exports[`ContractAddress Public key hash matches Noir 1`] = `"0x22d83a089d7650514c2de24cd30185a414d943eaa19817c67bffe2c3183006a3"`;
 
-exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x1b61d59f21fcb9653c56b86f5e45f2d0b69dcbb7efebfbcda6f53eb7abaaa4eb"`;
+exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x0bed63221d281713007bfb0c063e1f61d0646404fb3701b99bb92f41b6390604"`;
 
 exports[`ContractAddress computeInitializationHash 1`] = `Fr<0x109865e4b959adba34b722e72a69baaf9ee78e31bb1042318f0d91006ed86780>`;
 
 exports[`ContractAddress computePartialAddress 1`] = `Fr<0x1923a6246e305720b6aaf751fde0342613e93c82e455c3831e28375c16dd40d8>`;
 
-exports[`ContractAddress computeSaltedInitializationHash 1`] = `Fr<0x25e70e2b5cf1171b74aa1ab4bf1973859a65949a4c83a5365d71434d2062b2b4>`;
+exports[`ContractAddress computeSaltedInitializationHash 1`] = `Fr<0x15cf30c8f37df5115e0cafbccce8f46a86e5e76487d7d9be48e0fd641c46e77c>`;

@@ -6,7 +6,6 @@ import {
   getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
 import { type ContractArtifact, type FunctionArtifact, getInitializer } from '@aztec/foundation/abi';
-import { type EthAddress } from '@aztec/foundation/eth-address';
 import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -23,11 +22,9 @@ import { DeploySentTx } from './deploy_sent_tx.js';
 
 /**
  * Options for deploying a contract on the Aztec network.
- * Allows specifying a portal contract, contract address salt, and additional send method options.
+ * Allows specifying a contract address salt, and additional send method options.
  */
 export type DeployOptions = {
-  /** The Ethereum address of the Portal contract. */
-  portalContract?: EthAddress;
   /** An optional salt value used to deterministically calculate the contract address. */
   contractAddressSalt?: Fr;
   /** Set to true to *not* include the sender in the address computation. */
@@ -76,7 +73,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * the transaction for deployment. The resulting signed transaction can be
    * later sent using the `send()` method.
    *
-   * @param options - An object containing optional deployment settings, including portalContract, contractAddressSalt, and from.
+   * @param options - An object containing optional deployment settings, contractAddressSalt, and from.
    * @returns A Promise resolving to an object containing the signed transaction data and other relevant information.
    */
   public async create(options: DeployOptions = {}): Promise<TxExecutionRequest> {
@@ -186,7 +183,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * This function extends the 'send' method from the ContractFunctionInteraction class,
    * allowing us to send a transaction specifically for contract deployment.
    *
-   * @param options - An object containing various deployment options such as portalContract, contractAddressSalt, and from.
+   * @param options - An object containing various deployment options such as contractAddressSalt and from.
    * @returns A SentTx object that returns the receipt and the deployed contract instance.
    */
   public override send(options: DeployOptions = {}): DeploySentTx<TContract> {
@@ -209,7 +206,6 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       this.instance = getContractInstanceFromDeployParams(this.artifact, {
         constructorArgs: this.args,
         salt: options.contractAddressSalt,
-        portalAddress: options.portalContract,
         publicKeysHash: this.publicKeysHash,
         constructorArtifact: this.constructorArtifact,
         deployer: options.universalDeploy ? AztecAddress.ZERO : this.wallet.getAddress(),

@@ -185,7 +185,6 @@ AvmSessionInputs {
     address: AztecAddress,
     storageAddress: AztecAddress,
     sender: AztecAddress,
-    portal: AztecAddress,
     contractCallDepth: field,
     isStaticCall: boolean,
     isDelegateCall: boolean,

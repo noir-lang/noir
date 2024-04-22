@@ -43,7 +43,8 @@ export class GasPortalTestingHarnessFactory {
   private async createMock() {
     const wallet = this.config.wallet;
 
-    const gasL2 = await GasTokenContract.deploy(wallet)
+    // In this case we are not using a portal we just yolo it.
+    const gasL2 = await GasTokenContract.deploy(wallet, EthAddress.ZERO)
       .send({
         contractAddressSalt: getCanonicalGasToken(EthAddress.ZERO).instance.salt,
       })

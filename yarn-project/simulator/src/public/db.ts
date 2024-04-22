@@ -1,5 +1,5 @@
 import { type NullifierMembershipWitness } from '@aztec/circuit-types';
-import { type EthAddress, type FunctionSelector, type L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
+import { type FunctionSelector, type L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -60,13 +60,6 @@ export interface PublicContractsDB {
    * @returns The bytecode or undefined if not found.
    */
   getBytecode(address: AztecAddress, selector: FunctionSelector): Promise<Buffer | undefined>;
-
-  /**
-   * Returns the portal contract address for an L2 address.
-   * @param address - The L2 contract address.
-   * @returns The portal contract address or undefined if not found.
-   */
-  getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined>;
 
   /**
    * Returns a publicly deployed contract instance.

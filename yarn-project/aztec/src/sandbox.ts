@@ -1,7 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { type AztecAddress, BatchCall, SignerlessWallet, type Wallet } from '@aztec/aztec.js';
-import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
+import { type AztecAddress, SignerlessWallet, type Wallet } from '@aztec/aztec.js';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type AztecNode } from '@aztec/circuit-types';
 import {
@@ -30,6 +29,7 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
+import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 
@@ -172,12 +172,15 @@ async function deployCanonicalL2GasToken(deployer: Wallet, l1ContractAddresses: 
     return;
   }
 
-  const batch = new BatchCall(deployer, [
-    (await registerContractClass(deployer, canonicalGasToken.artifact)).request(),
-    deployInstance(deployer, canonicalGasToken.instance).request(),
-  ]);
+  const gasToken = await GasTokenContract.deploy(deployer, gasPortalAddress)
+    .send({ contractAddressSalt: canonicalGasToken.instance.salt, universalDeploy: true })
+    .deployed();
 
-  await batch.send().wait();
+  if (gasToken.address !== canonicalGasToken.address) {
+    throw new Error(
+      `Deployed Gas Token address ${gasToken.address} does not match expected address ${canonicalGasToken.address}`,
+    );
+  }
 
   logger.info(`Deployed Gas Token on L2 at ${canonicalGasToken.address}`);
 }

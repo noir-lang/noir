@@ -1,5 +1,4 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt8, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -16,8 +15,6 @@ export interface ContractInstance {
   contractClassId: Fr;
   /** Hash of the selector and arguments to the constructor. */
   initializationHash: Fr;
-  /** Optional address of the L1 portal contract. */
-  portalContractAddress: EthAddress;
   /** Optional hash of the struct of public keys used for encryption and nullifying by this contract. */
   publicKeysHash: Fr;
   /** Optional deployer address or zero if this was a universal deploy. */
@@ -31,7 +28,6 @@ export class SerializableContractInstance {
   public readonly salt: Fr;
   public readonly contractClassId: Fr;
   public readonly initializationHash: Fr;
-  public readonly portalContractAddress: EthAddress;
   public readonly publicKeysHash: Fr;
   public readonly deployer: AztecAddress;
 
@@ -42,7 +38,6 @@ export class SerializableContractInstance {
     this.salt = instance.salt;
     this.contractClassId = instance.contractClassId;
     this.initializationHash = instance.initializationHash;
-    this.portalContractAddress = instance.portalContractAddress;
     this.publicKeysHash = instance.publicKeysHash;
     this.deployer = instance.deployer;
   }
@@ -53,7 +48,6 @@ export class SerializableContractInstance {
       this.salt,
       this.contractClassId,
       this.initializationHash,
-      this.portalContractAddress,
       this.publicKeysHash,
       this.deployer,
     );
@@ -71,7 +65,6 @@ export class SerializableContractInstance {
       salt: reader.readObject(Fr),
       contractClassId: reader.readObject(Fr),
       initializationHash: reader.readObject(Fr),
-      portalContractAddress: reader.readObject(EthAddress),
       publicKeysHash: reader.readObject(Fr),
       deployer: reader.readObject(AztecAddress),
     });
@@ -83,7 +76,6 @@ export class SerializableContractInstance {
       salt: Fr.random(),
       contractClassId: Fr.random(),
       initializationHash: Fr.random(),
-      portalContractAddress: EthAddress.random(),
       publicKeysHash: Fr.random(),
       deployer: AztecAddress.random(),
       ...opts,

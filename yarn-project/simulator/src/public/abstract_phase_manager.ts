@@ -450,8 +450,7 @@ export abstract class AbstractPhaseManager {
       c.toCallRequest(callStackItem.publicInputs.callContext),
     );
     const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
-    const portalContractAddress = result.execution.callContext.portalContractAddress.toField();
-    return new PublicCallData(callStackItem, publicCallStack, makeEmptyProof(), portalContractAddress, bytecodeHash);
+    return new PublicCallData(callStackItem, publicCallStack, makeEmptyProof(), bytecodeHash);
   }
 }
 

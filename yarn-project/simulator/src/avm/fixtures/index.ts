@@ -56,7 +56,6 @@ export function initExecutionEnvironment(overrides?: Partial<AvmExecutionEnviron
     overrides?.address ?? AztecAddress.zero(),
     overrides?.storageAddress ?? AztecAddress.zero(),
     overrides?.sender ?? AztecAddress.zero(),
-    overrides?.portal ?? EthAddress.ZERO,
     overrides?.feePerL1Gas ?? Fr.zero(),
     overrides?.feePerL2Gas ?? Fr.zero(),
     overrides?.feePerDaGas ?? Fr.zero(),

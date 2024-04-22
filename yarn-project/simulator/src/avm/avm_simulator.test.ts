@@ -3,7 +3,6 @@ import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak256, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
 import { AvmNestedCallsTestContractArtifact, AvmTestContractArtifact } from '@aztec/noir-contracts.js';
@@ -186,11 +185,6 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     it('sender', async () => {
       const sender = AztecAddress.fromField(new Fr(1));
       await testEnvGetter('sender', sender, 'get_sender');
-    });
-
-    it('portal', async () => {
-      const portal = EthAddress.fromField(new Fr(1));
-      await testEnvGetter('portal', portal, 'get_portal');
     });
 
     it('getFeePerL1Gas', async () => {
@@ -772,7 +766,6 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         deployer: AztecAddress.fromBigInt(0x456n),
         contractClassId: new Fr(0x789),
         initializationHash: new Fr(0x101112),
-        portalContractAddress: EthAddress.fromField(new Fr(0x131415)),
         publicKeysHash: new Fr(0x161718),
       };
 
