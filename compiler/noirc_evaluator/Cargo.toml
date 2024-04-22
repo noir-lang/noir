@@ -22,4 +22,5 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 chrono = "0.4.37"
-plonky2 = "0.2.1"
+plonky2 = { git = "https://github.com/metacraft-labs/plonky2" }
+plonky2_u32 = { git = "https://github.com/metacraft-labs/plonky2-u32" }

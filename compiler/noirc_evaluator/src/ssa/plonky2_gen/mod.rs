@@ -1,15 +1,16 @@
 mod circuit;
 mod config;
 mod div_generator;
+mod intrinsics;
 
 use super::{
     ir::{
         dfg::DataFlowGraph,
-        instruction::{Binary, InstructionId},
+        instruction::{Binary, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };
-use acvm::FieldElement;
+use acvm::{acir::BlackBoxFunc, FieldElement};
 pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
 use plonky2::{
@@ -19,6 +20,7 @@ use plonky2::{
 use std::collections::HashMap;
 
 use self::config::{P2Builder, P2Config, P2Field};
+use self::intrinsics::make_sha256_circuit;
 
 use crate::errors::Plonky2GenError;
 use crate::ssa::ir::{
@@ -238,6 +240,32 @@ impl Builder {
         Ok(P2Value::make_integer(bit_size_a, target))
     }
 
+    fn perform_sha256(&mut self, argument: (u32, Vec<Target>), destination: ValueId) {
+        assert!(
+            argument.0 == 8,
+            "element size of argument to sha256 is not of size 8 but {}",
+            argument.0
+        );
+        let msg_len = u64::try_from(argument.1.len()).unwrap() * u64::try_from(argument.0).unwrap();
+        let sha256targets = make_sha256_circuit(&mut self.builder, msg_len);
+        let mut j = 0;
+        for target in argument.1 {
+            let split_arg = self.builder.split_le(target, 8);
+            for arg_bit in split_arg.iter().rev() {
+                self.builder.connect(arg_bit.target, sha256targets.message[j].target);
+                j += 1;
+            }
+        }
+        j = 0;
+        let mut result = Vec::new();
+        while j < 256 {
+            result.push(self.builder.le_sum(sha256targets.digest[j..j + 8].iter().rev()));
+            j += 8;
+        }
+        let p2value = P2Value::make_array(8, result);
+        self.set(destination, p2value);
+    }
+
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
         let instruction = self.dfg[instruction_id].clone();
 
@@ -359,6 +387,52 @@ impl Builder {
                 self.set(destinations[0], P2Value::make_integer(bit_size, target));
             }
 
+            Instruction::Call { func, arguments } => {
+                let func = self.dfg[func].clone();
+
+                assert!(arguments.len() == 1);
+                let argument = self.get_array(arguments[0])?;
+
+                match func {
+                    Value::Intrinsic(intrinsic) => match intrinsic {
+                        Intrinsic::BlackBox(bb_func) => match bb_func {
+                            BlackBoxFunc::SHA256 => {
+                                let destinations: Vec<_> = self
+                                    .dfg
+                                    .instruction_results(instruction_id)
+                                    .iter()
+                                    .cloned()
+                                    .collect();
+                                assert!(destinations.len() == 1);
+                                self.perform_sha256(argument, destinations[0]);
+                            }
+                            _ => {
+                                let feature_name = format!("black box function {:?}", bb_func);
+                                return Err(Plonky2GenError::UnsupportedFeature {
+                                    name: feature_name,
+                                });
+                            }
+                        },
+                        _ => {
+                            let feature_name = format!("intrinsic {:?}", intrinsic);
+                            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        }
+                    },
+                    _ => {
+                        let feature_name = format!("calling {:?}", func);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                }
+            }
+
+            Instruction::IncrementRc { .. } => {
+                // ignore
+            }
+
+            Instruction::DecrementRc { .. } => {
+                // ignore
+            }
+
             _ => {
                 let feature_name = format!(
                     "instruction {:?} <- {:?}",
@@ -442,6 +516,26 @@ impl Builder {
             }
         };
         Ok(target)
+    }
+
+    fn get_array(&mut self, value_id: ValueId) -> Result<(u32, Vec<Target>), Plonky2GenError> {
+        let p2value = self.get(value_id).unwrap();
+        let bit_size = match p2value.typ {
+            P2Type::Array(bit_size) => bit_size,
+            _ => {
+                let message = format!("argument to get_array is of type {:?}", p2value.typ);
+                return Err(Plonky2GenError::ICE { message });
+            }
+        };
+        let targets = match p2value.target {
+            P2Target::ArrayTarget(ref targets) => targets.clone(),
+            _ => {
+                return Err(Plonky2GenError::ICE {
+                    message: "argument to get_array is not an array".to_owned(),
+                })
+            }
+        };
+        Ok((bit_size, targets))
     }
 
     fn get_array_element(
