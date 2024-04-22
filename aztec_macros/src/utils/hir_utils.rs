@@ -7,8 +7,11 @@ use noirc_frontend::{
         resolution::{path_resolver::StandardPathResolver, resolver::Resolver},
         type_check::type_check_func,
     },
-    macros_api::{FileId, HirContext, MacroError, ModuleDefId, StructId},
-    node_interner::{FuncId, TraitId},
+    macros_api::{
+        FileId, HirContext, HirExpression, HirLiteral, MacroError, ModuleDefId, NodeInterner,
+        StructId,
+    },
+    node_interner::{FuncId, TraitId, TraitImplKind},
     ItemVisibility, LetStatement, NoirFunction, Shared, Signedness, StructType, Type,
 };
 
@@ -307,5 +310,82 @@ fn find_non_contract_dependencies_bfs(
                         None
                     }
                 })
+        })
+}
+
+pub fn get_serialized_length(
+    traits: &[TraitId],
+    trait_name: &str,
+    typ: &Type,
+    interner: &NodeInterner,
+) -> Result<u64, MacroError> {
+    let serialized_trait_impl_kind = traits
+        .iter()
+        .find_map(|&trait_id| {
+            let r#trait = interner.get_trait(trait_id);
+            if r#trait.name.0.contents == trait_name && r#trait.generics.len() == 1 {
+                interner.lookup_all_trait_implementations(typ, trait_id).into_iter().next()
+            } else {
+                None
+            }
+        })
+        .ok_or(MacroError {
+            primary_message: format!("Type {} must implement {} trait", typ, trait_name),
+            secondary_message: None,
+            span: None,
+        })?;
+
+    let serialized_trait_impl_id = match serialized_trait_impl_kind {
+        TraitImplKind::Normal(trait_impl_id) => Ok(trait_impl_id),
+        _ => Err(MacroError {
+            primary_message: format!("{} trait impl for {} must not be assumed", trait_name, typ),
+            secondary_message: None,
+            span: None,
+        }),
+    }?;
+
+    let serialized_trait_impl_shared = interner.get_trait_implementation(*serialized_trait_impl_id);
+    let serialized_trait_impl = serialized_trait_impl_shared.borrow();
+
+    match serialized_trait_impl.trait_generics.first().unwrap() {
+        Type::Constant(value) => Ok(*value),
+        _ => Err(MacroError {
+            primary_message: format!("{} length for {} must be a constant", trait_name, typ),
+            secondary_message: None,
+            span: None,
+        }),
+    }
+}
+
+pub fn get_global_numberic_const(
+    context: &HirContext,
+    const_name: &str,
+) -> Result<u128, MacroError> {
+    context
+        .def_interner
+        .get_all_globals()
+        .iter()
+        .find_map(|global_info| {
+            if global_info.ident.0.contents == const_name {
+                let stmt = context.def_interner.get_global_let_statement(global_info.id);
+                if let Some(let_stmt) = stmt {
+                    let expression = context.def_interner.expression(&let_stmt.expression);
+                    match expression {
+                        HirExpression::Literal(HirLiteral::Integer(value, _)) => {
+                            Some(value.to_u128())
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .ok_or(MacroError {
+            primary_message: format!("Could not find {} global constant", const_name),
+            secondary_message: None,
+            span: None,
         })
 }
