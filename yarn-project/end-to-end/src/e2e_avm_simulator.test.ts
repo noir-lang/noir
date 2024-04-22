@@ -35,14 +35,14 @@ describe('e2e_avm_simulator', () => {
     describe('Storage', () => {
       it('Modifies storage (Field)', async () => {
         await avmContract.methods.set_storage_single(20n).send().wait();
-        expect(await avmContract.methods.view_storage_single().simulate()).toEqual(20n);
+        expect(await avmContract.methods.read_storage_single().simulate()).toEqual(20n);
       });
 
       it('Modifies storage (Map)', async () => {
         const address = AztecAddress.fromBigInt(9090n);
         await avmContract.methods.set_storage_map(address, 100).send().wait();
         await avmContract.methods.add_storage_map(address, 100).send().wait();
-        expect(await avmContract.methods.view_storage_map(address).simulate()).toEqual(200n);
+        expect(await avmContract.methods.read_storage_map(address).simulate()).toEqual(200n);
       });
     });
 

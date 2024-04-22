@@ -26,8 +26,7 @@ contract TokenBridge {
     #[aztec(private)]
     #[aztec(initializer)]
     fn constructor(token: AztecAddress) {
-        let selector = FunctionSelector::from_signature("_initialize((Field))");
-        context.call_public_function(context.this_address(), selector, [token.to_field()]);
+        TokenBridge::at(context.this_address())._initialize(token).enqueue(&mut context);
     }
     // docs:end:token_bridge_storage_and_constructor
 
@@ -99,11 +98,7 @@ contract TokenBridge {
         // `mint_private` on token is public. So we call an internal public function
         // which then calls the public method on the token contract.
         // Since the secret_hash is passed, no secret is leaked.
-        context.call_public_function(
-            context.this_address(),
-            FunctionSelector::from_signature("_call_mint_on_token(Field,Field)"),
-            [amount, secret_hash_for_redeeming_minted_notes]
-        );
+        TokenBridge::at(context.this_address())._call_mint_on_token(amount, secret_hash_for_redeeming_minted_notes).enqueue(&mut context);
     }
     // docs:end:claim_private
 
@@ -124,11 +119,7 @@ contract TokenBridge {
 
         // docs:start:call_assert_token_is_same
         // Assert that user provided token address is same as seen in storage.
-        context.call_public_function(
-            context.this_address(),
-            FunctionSelector::from_signature("_assert_token_is_same((Field))"),
-            [token.to_field()]
-        );
+        TokenBridge::at(context.this_address())._assert_token_is_same(token).enqueue(&mut context);
         // docs:end:call_assert_token_is_same
 
         // Burn tokens
@@ -136,17 +127,9 @@ contract TokenBridge {
     }
     /// docs:end:exit_to_l1_private
 
-    // View function that is callable by other contracts.
-    // Unconstrained can't be called by others since it isn't safe.
+    // docs:start:read_token
     #[aztec(public)]
     fn get_token() -> AztecAddress {
-        storage.token.read()
-    }
-
-    // /// Unconstrained ///
-
-    // docs:start:read_token
-    unconstrained fn token() -> pub AztecAddress {
         storage.token.read()
     }
     // docs:end:read_token

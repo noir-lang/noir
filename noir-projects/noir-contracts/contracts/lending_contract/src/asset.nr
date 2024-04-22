@@ -13,14 +13,16 @@ struct Asset {
     oracle: AztecAddress,
 }
 
-global SERIALIZED_LEN: Field = 4;
+global SERIALIZED_LEN: Field = 6;
 
 impl Serialize<SERIALIZED_LEN> for Asset {
     fn serialize(Asset: Asset) -> [Field; SERIALIZED_LEN] {
         [
-            Asset.interest_accumulator.to_integer(),
+            Asset.interest_accumulator.lo as Field,
+            Asset.interest_accumulator.hi as Field,
             Asset.last_updated_ts as Field,
-            Asset.loan_to_value.to_integer(),
+            Asset.loan_to_value.lo as Field,
+            Asset.loan_to_value.hi as Field,
             Asset.oracle.to_field()
         ]
     }
@@ -30,10 +32,10 @@ impl Deserialize<SERIALIZED_LEN> for Asset {
     // Right now we are wasting so many writes. If changing last_updated_ts
     // we will end up rewriting all of them, wasting writes.
     fn deserialize(fields: [Field; SERIALIZED_LEN]) -> Asset {
-        let interest_accumulator = U128::from_integer(fields[0]);
-        let last_updated_ts = fields[1] as u64;
-        let loan_to_value = U128::from_integer(fields[2]);
-        let oracle = AztecAddress::from_field(fields[3]);
+        let interest_accumulator = U128 {lo: fields[0], hi: fields[1]};
+        let last_updated_ts = fields[2] as u64;
+        let loan_to_value = U128 {lo: fields[3], hi: fields[4]};
+        let oracle = AztecAddress::from_field(fields[5]);
 
         Asset {
             interest_accumulator,

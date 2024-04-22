@@ -41,18 +41,6 @@ contract AvmTest {
     /************************************************************************
      * Storage
      ************************************************************************/
-    unconstrained fn view_storage_single() -> pub Field {
-        storage.single.read()
-    }
-
-    unconstrained fn view_storage_list() -> pub [Field; 2] {
-        storage.list.read().serialize()
-    }
-
-    unconstrained fn view_storage_map(address: AztecAddress) -> pub u32 {
-        storage.map.at(address).read()
-    }
-
     #[aztec(public-vm)]
     fn set_storage_single(a: Field) {
         storage.single.write(a);

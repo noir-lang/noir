@@ -8,7 +8,7 @@ global ASSET_SERIALIZED_LEN: Field = 1;
 
 impl Serialize<ASSET_SERIALIZED_LEN> for Asset {
     fn serialize(asset: Asset) -> [Field; ASSET_SERIALIZED_LEN] {
-        [asset.price.to_integer()]
+        [asset.price.to_field()]
     }
 }
 
