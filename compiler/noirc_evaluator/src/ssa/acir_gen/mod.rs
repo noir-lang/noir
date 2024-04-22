@@ -3015,7 +3015,7 @@ mod test {
         //     b0(v0: u32, v1: u32, v2: u32):
         //       v3 = div v0, v1
         //       constrain v3 == v2
-        //       v4 = div v2, v2
+        //       v4 = div v1, v2
         //       constrain v4 == u32 1
         //       return
         // }
@@ -3030,9 +3030,9 @@ mod test {
         builder.insert_constrain(v0_div_v1, main_v2, None);
 
         // Call the same primitive operation again
-        let v2_div_v2 = builder.insert_binary(main_v2, BinaryOp::Div, main_v2);
+        let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
         let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        builder.insert_constrain(v2_div_v2, one, None);
+        builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
 
@@ -3072,7 +3072,7 @@ mod test {
         //       constrain v4 == v2
         //       v5 = call f1(v0, v1)
         //       v6 = call f1(v0, v1)
-        //       v7 = div v0, v1
+        //       v7 = div v1, v2
         //       constrain v7 == u32 1
         //       return
         // }
@@ -3100,9 +3100,9 @@ mod test {
         builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
 
         // Call the same primitive operation again
-        let v2_div_v2 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
+        let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
         let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        builder.insert_constrain(v2_div_v2, one, None);
+        builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
 
@@ -3148,7 +3148,7 @@ mod test {
         //       constrain v4 == v2
         //       v5 = call f1(v0, v1)
         //       v6 = call f2(v0, v1)
-        //       v7 = div v0, v1
+        //       v7 = div v1, v2
         //       constrain v7 == u32 1
         //       return
         // }
@@ -3186,9 +3186,9 @@ mod test {
         builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
 
         // Call the same primitive operation again
-        let v2_div_v2 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
+        let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
         let one = builder.numeric_constant(1u128, Type::unsigned(32));
-        builder.insert_constrain(v2_div_v2, one, None);
+        builder.insert_constrain(v1_div_v2, one, None);
 
         builder.terminate_with_return(vec![]);
 
