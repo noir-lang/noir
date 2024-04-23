@@ -86,6 +86,10 @@ e2e-tests:
   FROM ../+end-to-end
   RUN yarn test ./src/e2e
 
+flakey-e2e-tests:
+  FROM ../+end-to-end
+  RUN yarn test --passWithNoTests ./src/flakey || true
+
 e2e-sandbox-example:
   ARG e2e_mode=local
   DO +E2E_TEST --test=e2e_sandbox_example.test.ts --e2e_mode=$e2e_mode
