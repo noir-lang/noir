@@ -1,4 +1,4 @@
-use dep::aztec::protocol_types::traits::{FromField, ToField, Serialize};
+use dep::aztec::protocol_types::traits::{FromField, ToField, Serialize, Deserialize};
 
 global ADMIN_FLAG: u64 = 1;
 global MINTER_FLAG: u64 = 2;
@@ -41,14 +41,26 @@ impl ToField for UserFlags {
     }
 }
 
-// We don't actually need to implement this trait, but the current macros system requires that all types that are 
-// contained by a state variable are serializable in order to determine their length.
-// Once https://github.com/AztecProtocol/aztec-packages/issues/5736 is closed we'll be able to remove this (unless 
-// https://github.com/AztecProtocol/aztec-packages/issues/5491 is addressed first, in which case we'd remove the to/from
-// field traits instead).
-impl Serialize<1> for UserFlags {
-    fn serialize(self) -> [Field; 1] {
-        [self.to_field()]
+// We implement this as it is used when serializing the state variable into return values
+// This is very inefficient if used to store the state variable.
+// We are currently "abusing" that the `to_field` is called in the `scheduled_value_change`
+// where we are using this value.
+impl Serialize<3> for UserFlags {
+    fn serialize(self) -> [Field; 3] {
+        [self.is_admin.to_field(), self.is_minter.to_field(), self.is_blacklisted.to_field()]
+        // [self.to_field()]
+    }
+}
+
+// We implement this as it is required for other contracts to be able to "rebuild" the variable
+// after having received the serialized value as a return-value
+impl Deserialize<3> for UserFlags {
+    fn deserialize(fields: [Field; 3]) -> Self {
+        Self {
+            is_admin: fields[0] as bool,
+            is_minter: fields[1] as bool,
+            is_blacklisted: fields[2] as bool,
+        }
     }
 }
 
