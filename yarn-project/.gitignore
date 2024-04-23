@@ -27,17 +27,17 @@ end-to-end/src/web/main.js.LICENSE.txt
 entry-points/src/artifacts
 l1-artifacts/generated
 l1-contracts/generated
-noir-compiler/target/
-noir-compiler/proofs/
-noir-compiler/Prover.toml
-noir-compiler/Verifier.toml
-noir-compiler/noir-protocol-circuits-types/.gitignore wow
-noir-compiler/proofs/
-noir-compiler/Prover.toml
-noir-compiler/Verifier.toml
-noir-compiler/src/target
-noir-compiler/src/crs
-noir-compiler/src/types
+builder/target/
+builder/proofs/
+builder/Prover.toml
+builder/Verifier.toml
+builder/noir-protocol-circuits-types/.gitignore wow
+builder/proofs/
+builder/Prover.toml
+builder/Verifier.toml
+builder/src/target
+builder/src/crs
+builder/src/types
 noir-protocol-circuits-types/src/types/
 protocol-contracts/src/artifacts
 scripts/tmp

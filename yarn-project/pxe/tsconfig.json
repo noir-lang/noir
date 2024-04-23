@@ -25,7 +25,7 @@
       "path": "../kv-store"
     },
     {
-      "path": "../noir-compiler"
+      "path": "../builder"
     },
     {
       "path": "../noir-protocol-circuits-types"

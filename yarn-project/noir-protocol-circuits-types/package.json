@@ -37,9 +37,9 @@
     }
   },
   "dependencies": {
+    "@aztec/builder": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/noir-compiler": "workspace:^",
     "@aztec/types": "workspace:^",
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
     "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi",

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "compile": "cd src/contracts && ${AZTEC_NARGO:-aztec-nargo} compile",
-    "codegen": "${AZTEC_COMPILE:-aztec-compile} codegen src/contracts/target -o artifacts",
+    "codegen": "${AZTEC_BUILDER:-aztec-builder} codegen src/contracts/target -o artifacts",
     "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./src/contracts/target",
     "prep": "yarn clean && yarn compile && yarn codegen && tsc -b",
     "dev": "yarn prep && webpack serve --mode development",

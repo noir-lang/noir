@@ -90,7 +90,7 @@ deploy_package entrypoints
 deploy_package accounts
 deploy_package l1-artifacts
 deploy_package ethereum
-deploy_package noir-compiler
+deploy_package builder
 deploy_package noir-contracts.js
 deploy_package kv-store
 deploy_package merkle-tree

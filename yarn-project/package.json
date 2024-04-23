@@ -39,7 +39,7 @@
     "kv-store",
     "l1-artifacts",
     "merkle-tree",
-    "noir-compiler",
+    "builder",
     "noir-contracts.js",
     "noir-protocol-circuits-types",
     "p2p",

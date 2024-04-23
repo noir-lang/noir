@@ -25,7 +25,7 @@ const main = async () => {
     .default(`http://${LOCALHOST}:8080`)
     .makeOptionMandatory(true);
 
-  program.name('aztec-compile');
+  program.name('aztec-builder');
   program
     .command('codegen')
     .argument('<noir-abi-path>', 'Path to the Noir ABI or project dir.')

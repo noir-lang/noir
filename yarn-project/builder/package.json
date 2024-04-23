@@ -1,5 +1,5 @@
 {
-  "name": "@aztec/noir-compiler",
+  "name": "@aztec/builder",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -14,7 +14,7 @@
     "tsconfig": "./tsconfig.json"
   },
   "bin": {
-    "aztec-compile": "dest/cli.js"
+    "aztec-builder": "dest/cli.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",

@@ -10,7 +10,7 @@
       "path": "../aztec.js"
     },
     {
-      "path": "../noir-compiler"
+      "path": "../builder"
     }
   ],
   "include": [

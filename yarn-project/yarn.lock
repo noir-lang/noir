@@ -196,6 +196,7 @@ __metadata:
     "@aztec/archiver": "workspace:^"
     "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
+    "@aztec/builder": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/entrypoints": "workspace:^"
@@ -203,7 +204,6 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/kv-store": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
-    "@aztec/noir-compiler": "workspace:^"
     "@aztec/noir-contracts.js": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/protocol-contracts": "workspace:^"
@@ -237,6 +237,42 @@ __metadata:
   bin:
     bb.js: ./dest/node/main.js
   languageName: node
+  linkType: soft
+
+"@aztec/builder@workspace:^, @aztec/builder@workspace:builder":
+  version: 0.0.0-use.local
+  resolution: "@aztec/builder@workspace:builder"
+  dependencies:
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
+    "@iarna/toml": ^2.2.5
+    "@jest/globals": ^29.5.0
+    "@types/fs-extra": ^11.0.1
+    "@types/jest": ^29.5.0
+    "@types/lodash.camelcase": ^4.3.7
+    "@types/lodash.capitalize": ^4.2.7
+    "@types/lodash.uniqby": ^4.7.9
+    "@types/node": ^18.7.23
+    "@types/pako": ^2.0.0
+    "@types/semver": ^7.5.4
+    base64-js: ^1.5.1
+    commander: ^9.0.0
+    fs-extra: ^11.1.1
+    jest: ^29.5.0
+    lodash.camelcase: ^4.3.0
+    lodash.capitalize: ^4.2.1
+    lodash.uniqby: ^4.7.0
+    memfs: ^4.6.0
+    pako: ^2.1.0
+    semver: ^7.5.4
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^5.0.4
+    unzipit: ^1.4.3
+  bin:
+    aztec-builder: dest/cli.js
+  languageName: unknown
   linkType: soft
 
 "@aztec/circuit-types@workspace:^, @aztec/circuit-types@workspace:circuit-types":
@@ -525,48 +561,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-compiler@workspace:^, @aztec/noir-compiler@workspace:noir-compiler":
-  version: 0.0.0-use.local
-  resolution: "@aztec/noir-compiler@workspace:noir-compiler"
-  dependencies:
-    "@aztec/circuits.js": "workspace:^"
-    "@aztec/foundation": "workspace:^"
-    "@aztec/types": "workspace:^"
-    "@iarna/toml": ^2.2.5
-    "@jest/globals": ^29.5.0
-    "@types/fs-extra": ^11.0.1
-    "@types/jest": ^29.5.0
-    "@types/lodash.camelcase": ^4.3.7
-    "@types/lodash.capitalize": ^4.2.7
-    "@types/lodash.uniqby": ^4.7.9
-    "@types/node": ^18.7.23
-    "@types/pako": ^2.0.0
-    "@types/semver": ^7.5.4
-    base64-js: ^1.5.1
-    commander: ^9.0.0
-    fs-extra: ^11.1.1
-    jest: ^29.5.0
-    lodash.camelcase: ^4.3.0
-    lodash.capitalize: ^4.2.1
-    lodash.uniqby: ^4.7.0
-    memfs: ^4.6.0
-    pako: ^2.1.0
-    semver: ^7.5.4
-    ts-node: ^10.9.1
-    tslib: ^2.4.0
-    typescript: ^5.0.4
-    unzipit: ^1.4.3
-  bin:
-    aztec-compile: dest/cli.js
-  languageName: unknown
-  linkType: soft
-
 "@aztec/noir-contracts.js@workspace:^, @aztec/noir-contracts.js@workspace:noir-contracts.js":
   version: 0.0.0-use.local
   resolution: "@aztec/noir-contracts.js@workspace:noir-contracts.js"
   dependencies:
     "@aztec/aztec.js": "workspace:^"
-    "@aztec/noir-compiler": "workspace:^"
+    "@aztec/builder": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     jest: ^29.5.0
@@ -580,12 +580,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/noir-protocol-circuits-types@workspace:noir-protocol-circuits-types"
   dependencies:
+    "@aztec/builder": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/kv-store": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
-    "@aztec/noir-compiler": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js"
@@ -711,13 +711,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/pxe@workspace:pxe"
   dependencies:
+    "@aztec/builder": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/key-store": "workspace:^"
     "@aztec/kv-store": "workspace:^"
-    "@aztec/noir-compiler": "workspace:^"
     "@aztec/noir-contracts.js": "workspace:^"
     "@aztec/noir-protocol-circuits-types": "workspace:^"
     "@aztec/protocol-contracts": "workspace:^"

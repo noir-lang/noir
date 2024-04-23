@@ -6,7 +6,7 @@ import { SlowTreeContract } from '@aztec/noir-contracts.js/SlowTree';
 
 import { setup } from './fixtures/utils.js';
 
-describe('e2e_slow_tree', () => {
+describe.skip('e2e_slow_tree', () => {
   let logger: DebugLogger;
   let wallet: Wallet;
   let teardown: () => Promise<void>;

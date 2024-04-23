@@ -22,7 +22,7 @@ This will output a JSON [artifact](./artifacts.md) for each contract in the proj
 
 :::note
 This command looks for `Nargo.toml` files by ascending up the parent directories, and will compile the top-most Nargo.toml file it finds.
-Eg: if you are in `/hobbies/cool-game/contracts/easter-egg/`, and both `cool-game` and `easter-egg` contain a Nargo.toml file, then `aztec-compile` will be performed on `cool-game/Nargo.toml` and compile the project(s) specified within it. Eg
+Eg: if you are in `/hobbies/cool-game/contracts/easter-egg/`, and both `cool-game` and `easter-egg` contain a Nargo.toml file, then `aztec-nargo compile` will be performed on `cool-game/Nargo.toml` and compile the project(s) specified within it. Eg
 ```
 [workspace]
 members = [

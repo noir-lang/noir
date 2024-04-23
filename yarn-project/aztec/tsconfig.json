@@ -40,7 +40,7 @@
       "path": "../l1-artifacts"
     },
     {
-      "path": "../noir-compiler"
+      "path": "../builder"
     },
     {
       "path": "../noir-contracts.js"

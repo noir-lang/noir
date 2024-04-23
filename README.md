@@ -27,14 +27,6 @@ Alternatively, to just hack on Noir contracts and Typescript, run `./bootstrap.s
 
 To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
 
-To build noir code, make sure that you are using the version from `yarn-project/noir-compiler/src/noir-version.json`.
-
-Install nargo by running
-
-```
-noirup -v TAG_FROM_THE_FILE
-```
-
 ## Continuous Integration
 
 This repository uses CircleCI for continuous integration. Build steps are managed using [`build-system`](https://github.com/AztecProtocol/build-system). Small packages are built and tested as part of a docker build operation, while larger ones and end-to-end tests spin up a large AWS spot instance. Each successful build step creates a new docker image that gets tagged with the package name and commit.
