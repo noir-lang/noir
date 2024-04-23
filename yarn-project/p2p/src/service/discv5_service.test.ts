@@ -48,7 +48,7 @@ describe('Discv5Service', () => {
     const node2 = await createNode(port);
     await node1.start();
     await node2.start();
-    await sleep(100);
+    await sleep(200);
     const node1Peers = await Promise.all(node1.getAllPeers().map(async peer => (await peer.peerId()).toString()));
     const node2Peers = await Promise.all(node2.getAllPeers().map(async peer => (await peer.peerId()).toString()));
 
@@ -68,17 +68,20 @@ describe('Discv5Service', () => {
     const node2 = await createNode(port);
     await node1.start();
     await node2.start();
-    await sleep(100);
+    await sleep(200);
 
     await node2.stop();
     await bootNode.stop();
 
     await node2.start();
-    await sleep(100);
+    await sleep(200);
 
     const node2Peers = await Promise.all(node2.getAllPeers().map(async peer => (await peer.peerId()).toString()));
     expect(node2Peers).toHaveLength(1);
     expect(node2Peers).toContain(node1.getPeerId().toString());
+
+    await node1.stop();
+    await node2.stop();
   });
 
   const createNode = async (port: number) => {
