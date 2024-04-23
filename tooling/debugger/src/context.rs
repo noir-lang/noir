@@ -411,20 +411,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    fn currently_executing_brillig(&self) -> bool {
-        if self.brillig_solver.is_some() {
-            return true;
-        }
-
-        match self.get_current_opcode_location() {
-            Some(OpcodeLocation::Brillig { .. }) => true,
-            Some(OpcodeLocation::Acir(acir_index)) => {
-                matches!(self.get_opcodes()[acir_index], Opcode::Brillig(_))
-            }
-            _ => false,
-        }
-    }
-
     fn get_current_acir_index(&self) -> Option<usize> {
         self.get_current_opcode_location().map(|opcode_location| match opcode_location {
             OpcodeLocation::Acir(acir_index) => acir_index,
@@ -448,8 +434,25 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
+    pub(super) fn is_executing_brillig(&self) -> bool {
+        if self.brillig_solver.is_some() {
+            return true;
+        }
+
+        match self.get_current_opcode_location() {
+            Some(OpcodeLocation::Brillig { .. }) => true,
+            Some(OpcodeLocation::Acir(acir_index)) => {
+                matches!(
+                    self.get_opcodes()[acir_index],
+                    Opcode::Brillig(_) | Opcode::BrilligCall { .. }
+                )
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn step_acir_opcode(&mut self) -> DebugCommandResult {
-        if self.currently_executing_brillig() {
+        if self.is_executing_brillig() {
             self.step_out_of_brillig_opcode()
         } else {
             let status = self.acvm.solve_opcode();
@@ -511,12 +514,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 return result;
             }
         }
-    }
-
-    pub(super) fn is_executing_brillig(&self) -> bool {
-        let opcodes = self.get_opcodes();
-        let acir_index = self.acvm.instruction_pointer();
-        acir_index < opcodes.len() && matches!(opcodes[acir_index], Opcode::Brillig(..))
     }
 
     pub(super) fn get_brillig_memory(&self) -> Option<&[MemoryValue]> {
