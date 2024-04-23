@@ -467,6 +467,74 @@ impl Builder {
                 // ignore
             }
 
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let p2value = self.get(value).unwrap();
+                let target = match p2value.typ {
+                    P2Type::Field => match p2value.target {
+                        P2Target::IntTarget(target) => target,
+                        _ => {
+                            let message =
+                                format!("value of type Field, but target is {:?}", p2value.target);
+                            return Err(Plonky2GenError::ICE { message });
+                        }
+                    },
+                    P2Type::Integer(..) => match p2value.target {
+                        P2Target::IntTarget(target) => target,
+                        _ => {
+                            let message = format!(
+                                "value of type Integer, but target is {:?}",
+                                p2value.target
+                            );
+                            return Err(Plonky2GenError::ICE { message });
+                        }
+                    },
+                    _ => {
+                        let feature_name = format!("truncating a {:?}", p2value.typ);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                };
+                let mut bits =
+                    self.builder.split_le(target, usize::try_from(max_bit_size).unwrap());
+                bits.truncate(usize::try_from(bit_size).unwrap());
+                let result = self.builder.le_sum(bits.iter());
+                let p2value = P2Value::make_integer(bit_size, result);
+
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+                self.set(destinations[0], p2value);
+            }
+
+            Instruction::Cast(value_id, typ) => {
+                // Just checking that the value is already of the right bit size.
+                let (old_bit_size, target) = self.get_integer(value_id).unwrap();
+                let bit_size = match typ {
+                    Type::Numeric(numeric_type) => match numeric_type {
+                        NumericType::Unsigned { bit_size } => {
+                            assert!(old_bit_size == bit_size);
+                            bit_size
+                        }
+                        _ => {
+                            let feature_name = format!("cast to {numeric_type}");
+                            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        }
+                    },
+                    _ => {
+                        let feature_name = format!("cast to {typ}");
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                };
+                let new_target = self.builder.add_virtual_target();
+                self.builder.connect(target, new_target);
+
+                let p2value = P2Value::make_integer(bit_size, new_target);
+
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+                self.set(destinations[0], p2value);
+            }
+
             _ => {
                 let feature_name = format!(
                     "instruction {:?} <- {:?}",
