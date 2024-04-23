@@ -54,7 +54,9 @@ pub struct NodeInterner {
     // For a given function ID, this gives the function's modifiers which includes
     // its visibility and whether it is unconstrained, among other information.
     // Unlike func_meta, this map is filled out during definition collection rather than name resolution.
-    function_modifiers: HashMap<FuncId, FunctionModifiers>,
+   
+    // TODO: remove pub before PR
+    pub(crate) function_modifiers: HashMap<FuncId, FunctionModifiers>,
 
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
@@ -948,7 +950,6 @@ impl NodeInterner {
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
-        dbg!("get_trait: {:?}", id);
         &self.traits[&id]
     }
 
@@ -1193,6 +1194,9 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+        // TODO: remove before PR
+        // dbg!("lookup_trait_implementation_helper", object_type, trait_id, trait_generics, type_bindings.clone());
+
         let make_constraint =
             || TraitConstraint::new(object_type.clone(), trait_id, trait_generics.to_vec());
 
@@ -1203,6 +1207,9 @@ impl NodeInterner {
 
         let object_type = object_type.substitute(type_bindings);
 
+        // TODO: remove before PR
+        // dbg!("lookup_trait_implementation_helper2", object_type.clone());
+
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
             return Err(Vec::new());
@@ -1210,6 +1217,11 @@ impl NodeInterner {
 
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
+        // TODO: remove before PR
+        // dbg!("lookup_trait_implementation_helper3", impls);
+        dbg!("lookup_trait_implementation_helper: map", &self.trait_implementation_map);
+        // dbg!("lookup_trait_implementation_helper: selected", &self.selected_trait_implementations);
 
         let mut matching_impls = Vec::new();
 
@@ -1322,13 +1334,27 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: Vec<Type>,
     ) -> bool {
+        // TODO: remove before PR
+        dbg!("add_assumed_trait_implementation called!", &object_type, trait_id, &trait_generics);
+
         // Make sure there are no overlapping impls
         if self.try_lookup_trait_implementation(&object_type, trait_id, &trait_generics).is_ok() {
+            dbg!("add_assumed_trait_implementation skipped!!!");
             return false;
         }
 
+        // let mut tt: HashMap<u64, Vec<u64>> = HashMap::new();
+        // let ff = tt.entry(0).or_default();
+        // ff.push(1);
+        // assert_eq!(tt, HashMap::new());
+
+        dbg!("add_assumed_trait_implementation called! (2)");
+
+        dbg!(&self.trait_implementation_map);
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((object_type.clone(), TraitImplKind::Assumed { object_type, trait_generics }));
+
+        dbg!(&self.trait_implementation_map);
         true
     }
 
@@ -1353,6 +1379,16 @@ impl NodeInterner {
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
+
+        // TODO: remove before PR
+        if let Ok((TraitImplKind::Assumed { .. }, _)) = self.try_lookup_trait_implementation(
+            &instantiated_object_type,
+            trait_id,
+            &trait_generics,
+        ) {
+            panic!("found assumed trait!");
+        }
+        // TODO: end remove before PR
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
