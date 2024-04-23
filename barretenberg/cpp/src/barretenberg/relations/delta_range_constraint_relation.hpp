@@ -15,6 +15,15 @@ template <typename FF_> class DeltaRangeConstraintRelationImpl {
     };
 
     /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        return (in.q_delta_range.value_at(0).is_zero() && in.q_delta_range.value_at(1).is_zero());
+    }
+
+    /**
      * @brief Expression for the generalized permutation sort gate.
      * @details The relation is defined as C(in(X)...) =
      *    q_delta_range * \sum{ i = [0, 3]} \alpha^i D_i(D_i - 1)(D_i - 2)(D_i - 3)

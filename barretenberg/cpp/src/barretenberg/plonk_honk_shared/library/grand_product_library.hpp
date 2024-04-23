@@ -71,6 +71,8 @@ void compute_grand_product(const size_t circuit_size,
         const size_t end = (thread_idx + 1) * block_size;
         typename Flavor::AllValues evaluations;
         auto evaluations_view = evaluations.get_all();
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/940): construction of evaluations is equivalent to
+        // calling get_row which creates full copies. avoid?
         for (size_t i = start; i < end; ++i) {
             for (auto [eval, full_poly] : zip_view(evaluations_view, full_polynomials_view)) {
                 eval = full_poly.size() > i ? full_poly[i] : 0;

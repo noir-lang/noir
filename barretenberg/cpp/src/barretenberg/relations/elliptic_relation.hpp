@@ -14,6 +14,15 @@ template <typename FF_> class EllipticRelationImpl {
         6, // y-coordinate sub-relation
     };
 
+    /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        return (in.q_elliptic.value_at(0).is_zero() && in.q_elliptic.value_at(1).is_zero());
+    }
+
     // TODO(@zac-williamson #2609 find more generic way of doing this)
     static constexpr FF get_curve_b()
     {

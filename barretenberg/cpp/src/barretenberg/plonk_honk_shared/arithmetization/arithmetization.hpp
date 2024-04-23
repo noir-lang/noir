@@ -259,8 +259,6 @@ template <typename FF_> class UltraHonkArith {
         UltraHonkTraceBlock ecc_op;
         UltraHonkTraceBlock pub_inputs;
         UltraHonkTraceBlock arithmetic;
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/919): Change: DeltaRangeConstraint -->
-        // DeltaRangeConstraint
         UltraHonkTraceBlock delta_range;
         UltraHonkTraceBlock elliptic;
         UltraHonkTraceBlock aux;

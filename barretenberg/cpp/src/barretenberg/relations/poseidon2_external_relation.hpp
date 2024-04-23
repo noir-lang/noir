@@ -14,6 +14,15 @@ template <typename FF_> class Poseidon2ExternalRelationImpl {
     };
 
     /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        return (in.q_poseidon2_external.value_at(0).is_zero() && in.q_poseidon2_external.value_at(1).is_zero());
+    }
+
+    /**
      * @brief Expression for the poseidon2 external round relation, based on E_i in Section 6 of
      * https://eprint.iacr.org/2023/323.pdf.
      * @details This relation is defined as C(in(X)...) :=

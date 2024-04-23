@@ -13,6 +13,15 @@ template <typename FF_> class UltraArithmeticRelationImpl {
     };
 
     /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        return (in.q_arith.value_at(0).is_zero() && in.q_arith.value_at(1).is_zero());
+    }
+
+    /**
      * @brief Expression for the Ultra Arithmetic gate.
      * @details This relation encapsulates several idenitities, toggled by the value of q_arith in [0, 1, 2, 3, ...].
      * The following description is reproduced from the Plonk analog 'plookup_arithmetic_widget':
