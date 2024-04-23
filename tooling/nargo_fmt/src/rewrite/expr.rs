@@ -159,7 +159,7 @@ pub(crate) fn rewrite(
         }
         ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => visitor.slice(span).to_string(),
         ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
-        ExpressionKind::CompTime(block) => {
+        ExpressionKind::Comptime(block) => {
             format!("comptime {}", rewrite_block(visitor, block, span))
         }
         ExpressionKind::Error => unreachable!(),

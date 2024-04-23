@@ -170,7 +170,7 @@ impl ExprId {
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
             HirExpression::Error => ExpressionKind::Error,
-            HirExpression::CompTime(block) => ExpressionKind::CompTime(block.into_ast(interner)),
+            HirExpression::Comptime(block) => ExpressionKind::Comptime(block.into_ast(interner)),
             HirExpression::Quote(block) => ExpressionKind::Quote(block),
 
             // A macro was evaluated here!

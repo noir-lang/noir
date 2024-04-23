@@ -5,9 +5,8 @@ use noirc_errors::Location;
 use super::value::Value;
 
 /// The possible errors that can halt the interpreter.
-#[allow(unused)]
 #[derive(Debug)]
-pub(crate) enum InterpreterError {
+pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, call_location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
     NonCompTimeVarReferenced { name: String, location: Location },

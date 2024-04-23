@@ -307,7 +307,7 @@ impl<'a> Interpreter<'a> {
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
-            HirExpression::CompTime(block) => self.evaluate_block(block),
+            HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unquote(block) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.

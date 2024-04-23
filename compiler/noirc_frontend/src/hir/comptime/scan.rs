@@ -33,12 +33,13 @@ impl<'interner> Interpreter<'interner> {
     /// Scan through a function, evaluating any CompTime nodes found.
     /// These nodes will be modified in place, replaced with the
     /// result of their evaluation.
-    pub fn scan_function(&mut self, function: FuncId) {
+    pub fn scan_function(&mut self, function: FuncId) -> IResult<()> {
         let function = self.interner.function(&function);
 
         let state = self.enter_function();
-        self.scan_expression(function.as_expr()).unwrap();
+        self.scan_expression(function.as_expr())?;
         self.exit_function(state);
+        Ok(())
     }
 
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
@@ -57,7 +58,7 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::If(if_) => self.scan_if(if_),
             HirExpression::Tuple(tuple) => self.scan_tuple(tuple),
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
-            HirExpression::CompTime(block) => {
+            HirExpression::Comptime(block) => {
                 let location = self.interner.expr_location(&expr);
                 let new_expr =
                     self.evaluate_block(block)?.into_expression(self.interner, location)?;
