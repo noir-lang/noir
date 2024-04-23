@@ -47,6 +47,8 @@ namespace avm_main(256);
     pol commit sel_op_mul;
     // DIV
     pol commit sel_op_div;
+    // FDIV
+    pol commit sel_op_fdiv;
     // NOT
     pol commit sel_op_not;
     // EQ
@@ -137,6 +139,7 @@ namespace avm_main(256);
     sel_op_sub * (1 - sel_op_sub) = 0;
     sel_op_mul * (1 - sel_op_mul) = 0;
     sel_op_div * (1 - sel_op_div) = 0;
+    sel_op_fdiv * (1 - sel_op_fdiv) = 0;
     sel_op_not * (1 - sel_op_not) = 0;
     sel_op_eq * (1 - sel_op_eq) = 0;
     sel_op_and * (1 - sel_op_and) = 0;
@@ -188,39 +191,48 @@ namespace avm_main(256);
     #[OUTPUT_U8]
     (sel_op_eq + sel_op_lte + sel_op_lt) * (w_in_tag - 1) = 0;
 
+    //====== FDIV OPCODE CONSTRAINTS ============================================
     // Relation for division over the finite field
     // If tag_err == 1 in a division, then ib == 0 and op_err == 1.
-    #[SUBOP_DIVISION_FF]
-    sel_op_div * (1 - op_err) * (ic * ib - ia) = 0;
+    #[SUBOP_FDIV]
+    sel_op_fdiv * (1 - op_err) * (ic * ib - ia) = 0;
 
-    // When sel_op_div == 1, we want ib == 0 <==> op_err == 1
+    // When sel_op_fdiv == 1, we want ib == 0 <==> op_err == 1
     // This can be achieved with the 2 following relations.
     // inv is an extra witness to show that we can invert ib, i.e., inv = ib^(-1)
     // If ib == 0, we have to set inv = 1 to satisfy the second relation,
     // because op_err == 1 from the first relation.
-    #[SUBOP_DIVISION_ZERO_ERR1]
-    sel_op_div * (ib * inv - 1 + op_err) = 0;
-    #[SUBOP_DIVISION_ZERO_ERR2]
-    sel_op_div * op_err * (1 - inv) = 0;
+    #[SUBOP_FDIV_ZERO_ERR1]
+    sel_op_fdiv * (ib * inv - 1 + op_err) = 0;
+    #[SUBOP_FDIV_ZERO_ERR2]
+    sel_op_fdiv * op_err * (1 - inv) = 0;
+
+    // Enforcement that instruction tags are FF (tag constant 6).
+    // TODO: These 2 conditions might be removed and enforced through
+    //       the bytecode decomposition instead.
+    #[SUBOP_FDIV_R_IN_TAG_FF]
+    sel_op_fdiv * (r_in_tag - 6) = 0;
+    #[SUBOP_FDIV_W_IN_TAG_FF]
+    sel_op_fdiv * (w_in_tag - 6) = 0;
 
     // op_err cannot be maliciously activated for a non-relevant
-    // operation selector, i.e., op_err == 1 ==> sel_op_div || sel_op_XXX || ...
-    // op_err * (sel_op_div + sel_op_XXX + ... - 1) == 0
+    // operation selector, i.e., op_err == 1 ==> sel_op_fdiv || sel_op_XXX || ...
+    // op_err * (sel_op_fdiv + sel_op_XXX + ... - 1) == 0
     // Note that the above is even a stronger constraint, as it shows
     // that exactly one sel_op_XXX must be true.
     // At this time, we have only division producing an error.
     #[SUBOP_ERROR_RELEVANT_OP]
-    op_err * (sel_op_div - 1) = 0;
+    op_err * (sel_op_fdiv - 1) = 0;
 
     // TODO: constraint that we stop execution at the first error (tag_err or op_err)
     // An error can only happen at the last sub-operation row.
 
     // OPEN/POTENTIAL OPTIMIZATION: Dedicated error per relevant operation?
-    // For the division, we could lower the degree from 4 to 3
-    // (sel_op_div - op_div_err) * (ic * ib - ia) = 0;
+    // For the finite field division, we could lower the degree from 4 to 3
+    // (sel_op_fdiv - op_fdiv_err) * (ic * ib - ia) = 0;
     // Same for the relations related to the error activation:
-    // (ib * inv - 1 + op_div_err) = 0 && op_err * (1 - inv) = 0 
-    // This works in combination with op_div_err * (sel_op_div - 1) = 0;
+    // (ib * inv - 1 + op_fdiv_err) = 0 && op_err * (1 - inv) = 0 
+    // This works in combination with op_fdiv_err * (sel_op_fdiv - 1) = 0;
     // Drawback is the need to paralllelize the latter.
 
     //===== CONTROL FLOW =======================================================
@@ -257,7 +269,7 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul + sel_op_not
+    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_fdiv + sel_op_mul + sel_op_not
                           + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor + sel_op_cast);
 
     // Program counter must increment if not jumping or returning
@@ -303,8 +315,8 @@ namespace avm_main(256);
     (sel_mov + sel_cmov) * (r_in_tag - w_in_tag) = 0;
 
     //===== ALU CONSTRAINTS =====================================================
-    // TODO: when division is moved to the alu, we will need to add the selector in the list below.
-    pol ALU_R_TAG_SEL = sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq + sel_op_lt + sel_op_lte + sel_op_shr + sel_op_shl;
+    pol ALU_R_TAG_SEL = sel_op_add + sel_op_sub + sel_op_mul + sel_op_div + sel_op_not + sel_op_eq
+                      + sel_op_lt + sel_op_lte + sel_op_shr + sel_op_shl;
     pol ALU_W_TAG_SEL = sel_op_cast;
     pol ALU_ALL_SEL = ALU_R_TAG_SEL + ALU_W_TAG_SEL;
 
@@ -325,11 +337,11 @@ namespace avm_main(256);
 
     #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic, sel_op_add, sel_op_sub,
-             sel_op_mul, sel_op_eq, sel_op_not, sel_op_cast,
+             sel_op_mul, sel_op_div, sel_op_eq, sel_op_not, sel_op_cast,
              sel_op_lt, sel_op_lte, sel_op_shr, sel_op_shl, alu_in_tag}
     is
     avm_alu.alu_sel {avm_alu.clk, avm_alu.ia, avm_alu.ib, avm_alu.ic, avm_alu.op_add, avm_alu.op_sub,
-                     avm_alu.op_mul, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_cast,
+                     avm_alu.op_mul, avm_alu.op_div, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_cast,
                      avm_alu.op_lt, avm_alu.op_lte, avm_alu.op_shr, avm_alu.op_shl, avm_alu.in_tag};
 
     // Based on the boolean selectors, we derive the binary op id to lookup in the table;

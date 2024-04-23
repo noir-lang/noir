@@ -188,6 +188,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_cast{};
     FF avm_main_sel_op_div{};
     FF avm_main_sel_op_eq{};
+    FF avm_main_sel_op_fdiv{};
     FF avm_main_sel_op_lt{};
     FF avm_main_sel_op_lte{};
     FF avm_main_sel_op_mul{};
@@ -334,8 +335,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 269;
-    static constexpr size_t num_polys = 229;
+    static constexpr size_t num_fixed_columns = 270;
+    static constexpr size_t num_polys = 230;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -486,6 +487,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_cast[i] = rows[i].avm_main_sel_op_cast;
             polys.avm_main_sel_op_div[i] = rows[i].avm_main_sel_op_div;
             polys.avm_main_sel_op_eq[i] = rows[i].avm_main_sel_op_eq;
+            polys.avm_main_sel_op_fdiv[i] = rows[i].avm_main_sel_op_fdiv;
             polys.avm_main_sel_op_lt[i] = rows[i].avm_main_sel_op_lt;
             polys.avm_main_sel_op_lte[i] = rows[i].avm_main_sel_op_lte;
             polys.avm_main_sel_op_mul[i] = rows[i].avm_main_sel_op_mul;

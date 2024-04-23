@@ -26,6 +26,7 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::SUB, three_operand_format },
     { OpCode::MUL, three_operand_format },
     { OpCode::DIV, three_operand_format },
+    { OpCode::FDIV, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
     // Compute - Comparators
     { OpCode::EQ, three_operand_format },
     { OpCode::LT, three_operand_format },

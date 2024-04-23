@@ -38,8 +38,8 @@ class AvmTraceBuilder {
     // Multiplication with direct or indirect memory access.
     void op_mul(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Division with direct or indirect memory access.
-    void op_div(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Finite field division with direct or indirect memory access.
+    void op_fdiv(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset);
 
     // Bitwise not with direct or indirect memory access.
     void op_not(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag in_tag);

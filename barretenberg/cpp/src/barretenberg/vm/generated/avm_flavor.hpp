@@ -71,11 +71,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 227;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 228;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 269;
+    static constexpr size_t NUM_ALL_ENTITIES = 270;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
@@ -314,6 +314,7 @@ class AvmFlavor {
                               avm_main_sel_op_cast,
                               avm_main_sel_op_div,
                               avm_main_sel_op_eq,
+                              avm_main_sel_op_fdiv,
                               avm_main_sel_op_lt,
                               avm_main_sel_op_lte,
                               avm_main_sel_op_mul,
@@ -544,6 +545,7 @@ class AvmFlavor {
                      avm_main_sel_op_cast,
                      avm_main_sel_op_div,
                      avm_main_sel_op_eq,
+                     avm_main_sel_op_fdiv,
                      avm_main_sel_op_lt,
                      avm_main_sel_op_lte,
                      avm_main_sel_op_mul,
@@ -779,6 +781,7 @@ class AvmFlavor {
                               avm_main_sel_op_cast,
                               avm_main_sel_op_div,
                               avm_main_sel_op_eq,
+                              avm_main_sel_op_fdiv,
                               avm_main_sel_op_lt,
                               avm_main_sel_op_lte,
                               avm_main_sel_op_mul,
@@ -1051,6 +1054,7 @@ class AvmFlavor {
                      avm_main_sel_op_cast,
                      avm_main_sel_op_div,
                      avm_main_sel_op_eq,
+                     avm_main_sel_op_fdiv,
                      avm_main_sel_op_lt,
                      avm_main_sel_op_lte,
                      avm_main_sel_op_mul,
@@ -1323,6 +1327,7 @@ class AvmFlavor {
                      avm_main_sel_op_cast,
                      avm_main_sel_op_div,
                      avm_main_sel_op_eq,
+                     avm_main_sel_op_fdiv,
                      avm_main_sel_op_lt,
                      avm_main_sel_op_lte,
                      avm_main_sel_op_mul,
@@ -1854,6 +1859,7 @@ class AvmFlavor {
             Base::avm_main_sel_op_cast = "AVM_MAIN_SEL_OP_CAST";
             Base::avm_main_sel_op_div = "AVM_MAIN_SEL_OP_DIV";
             Base::avm_main_sel_op_eq = "AVM_MAIN_SEL_OP_EQ";
+            Base::avm_main_sel_op_fdiv = "AVM_MAIN_SEL_OP_FDIV";
             Base::avm_main_sel_op_lt = "AVM_MAIN_SEL_OP_LT";
             Base::avm_main_sel_op_lte = "AVM_MAIN_SEL_OP_LTE";
             Base::avm_main_sel_op_mul = "AVM_MAIN_SEL_OP_MUL";
@@ -2100,6 +2106,7 @@ class AvmFlavor {
         Commitment avm_main_sel_op_cast;
         Commitment avm_main_sel_op_div;
         Commitment avm_main_sel_op_eq;
+        Commitment avm_main_sel_op_fdiv;
         Commitment avm_main_sel_op_lt;
         Commitment avm_main_sel_op_lte;
         Commitment avm_main_sel_op_mul;
@@ -2347,6 +2354,7 @@ class AvmFlavor {
             avm_main_sel_op_cast = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_div = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_eq = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_op_fdiv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_lt = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_lte = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_mul = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -2597,6 +2605,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_sel_op_cast, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_div, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_eq, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_op_fdiv, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_lt, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_lte, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_mul, Transcript::proof_data);

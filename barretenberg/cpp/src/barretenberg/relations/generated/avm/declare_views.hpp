@@ -137,6 +137,7 @@
     [[maybe_unused]] auto avm_main_sel_op_cast = View(new_term.avm_main_sel_op_cast);                                  \
     [[maybe_unused]] auto avm_main_sel_op_div = View(new_term.avm_main_sel_op_div);                                    \
     [[maybe_unused]] auto avm_main_sel_op_eq = View(new_term.avm_main_sel_op_eq);                                      \
+    [[maybe_unused]] auto avm_main_sel_op_fdiv = View(new_term.avm_main_sel_op_fdiv);                                  \
     [[maybe_unused]] auto avm_main_sel_op_lt = View(new_term.avm_main_sel_op_lt);                                      \
     [[maybe_unused]] auto avm_main_sel_op_lte = View(new_term.avm_main_sel_op_lte);                                    \
     [[maybe_unused]] auto avm_main_sel_op_mul = View(new_term.avm_main_sel_op_mul);                                    \

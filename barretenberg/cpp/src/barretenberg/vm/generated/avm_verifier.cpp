@@ -264,6 +264,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
     commitments.avm_main_sel_op_eq =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
+    commitments.avm_main_sel_op_fdiv =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fdiv);
     commitments.avm_main_sel_op_lt =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_lt);
     commitments.avm_main_sel_op_lte =

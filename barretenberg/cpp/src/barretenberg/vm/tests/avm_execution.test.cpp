@@ -382,9 +382,9 @@ TEST_F(AvmExecutionTests, nestedInternalCalls)
 
 // Positive test with JUMP and CALLDATACOPY
 // We test bytecode which first invoke CALLDATACOPY on a FF array of two values.
-// Then, a JUMP call skips a SUB opcode to land to a DIV operation and RETURN.
+// Then, a JUMP call skips a SUB opcode to land to a FDIV operation and RETURN.
 // Calldata: [13, 156]
-// Bytecode layout: CALLDATACOPY  JUMP  SUB  DIV  RETURN
+// Bytecode layout: CALLDATACOPY  JUMP  SUB  FDIV  RETURN
 //                        0         1    2    3     4
 TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
 {
@@ -394,16 +394,15 @@ TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
                                "00000002"                     // copy_size
                                "0000000A"                     // dst_offset // M[10] = 13, M[11] = 156
                                + to_hex(OpCode::JUMP) +       // opcode JUMP
-                               "00000003"                     // jmp_dest (DIV located at 3)
+                               "00000003"                     // jmp_dest (FDIV located at 3)
                                + to_hex(OpCode::SUB) +        // opcode SUB
                                "00"                           // Indirect flag
                                "06"                           // FF
                                "0000000B"                     // addr 11
                                "0000000A"                     // addr 10
                                "00000001"                     // addr c 1 (If executed would be 156 - 13 = 143)
-                               + to_hex(OpCode::DIV) +        // opcode DIV
+                               + to_hex(OpCode::FDIV) +       // opcode FDIV
                                "00"                           // Indirect flag
-                               "06"                           // FF
                                "0000000B"                     // addr 11
                                "0000000A"                     // addr 10
                                "00000001"                     // addr c 1 (156 / 13 = 12)
@@ -443,8 +442,8 @@ TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
         EXPECT_EQ(trace.at(i + 1).avm_main_pc, pc_sequence.at(i));
     }
 
-    // Find the first row enabling the division selector.
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_div == 1; });
+    // Find the first row enabling the fdiv selector.
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fdiv == 1; });
     EXPECT_EQ(row->avm_main_ic, 12);
 
     // Find the first row enabling the subtraction selector.

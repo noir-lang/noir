@@ -272,8 +272,8 @@ void AvmTraceBuilder::op_mul(
     });
 }
 
-/** TODO: Implement for non finite field types
- * @brief Division with direct or indirect memory access.
+/**
+ * @brief Finite field division with direct or indirect memory access.
  *
  * @param indirect A byte encoding information about indirect/direct memory access.
  * @param a_offset An index in memory pointing to the first operand of the division.
@@ -281,8 +281,7 @@ void AvmTraceBuilder::op_mul(
  * @param dst_offset An index in memory pointing to the output of the division.
  * @param in_tag The instruction memory tag of the operands.
  */
-void AvmTraceBuilder::op_div(
-    uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag)
+void AvmTraceBuilder::op_fdiv(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset)
 {
     auto clk = static_cast<uint32_t>(main_trace.size());
 
@@ -290,10 +289,10 @@ void AvmTraceBuilder::op_div(
     bool tag_match = res.tag_match;
 
     // Reading from memory and loading into ia resp. ib.
-    auto read_a =
-        mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IA, res.direct_a_offset, in_tag, in_tag);
-    auto read_b =
-        mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IB, res.direct_b_offset, in_tag, in_tag);
+    auto read_a = mem_trace_builder.read_and_load_from_memory(
+        clk, IntermRegister::IA, res.direct_a_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
+    auto read_b = mem_trace_builder.read_and_load_from_memory(
+        clk, IntermRegister::IB, res.direct_b_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
     tag_match = read_a.tag_match && read_b.tag_match;
 
     // a * b^(-1) = c
@@ -315,7 +314,8 @@ void AvmTraceBuilder::op_div(
     }
 
     // Write into memory value c from intermediate register ic.
-    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, res.direct_c_offset, c, in_tag, in_tag);
+    mem_trace_builder.write_into_memory(
+        clk, IntermRegister::IC, res.direct_c_offset, c, AvmMemoryTag::FF, AvmMemoryTag::FF);
 
     main_trace.push_back(Row{
         .avm_main_clk = clk,
@@ -338,11 +338,11 @@ void AvmTraceBuilder::op_div(
         .avm_main_mem_op_c = FF(1),
         .avm_main_op_err = tag_match ? error : FF(1),
         .avm_main_pc = FF(pc++),
-        .avm_main_r_in_tag = FF(static_cast<uint32_t>(in_tag)),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .avm_main_rwc = FF(1),
-        .avm_main_sel_op_div = FF(1),
+        .avm_main_sel_op_fdiv = FF(1),
         .avm_main_tag_err = FF(static_cast<uint32_t>(!tag_match)),
-        .avm_main_w_in_tag = FF(static_cast<uint32_t>(in_tag)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
     });
 }
 
