@@ -20,6 +20,17 @@ aztec-nargo compile
 
 This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing the Noir ABI artifacts.
 
+:::note
+This command looks for `Nargo.toml` files by ascending up the parent directories, and will compile the top-most Nargo.toml file it finds.
+Eg: if you are in `/hobbies/cool-game/contracts/easter-egg/`, and both `cool-game` and `easter-egg` contain a Nargo.toml file, then `aztec-compile` will be performed on `cool-game/Nargo.toml` and compile the project(s) specified within it. Eg
+```
+[workspace]
+members = [
+    "contracts/easter-egg",
+]
+```
+:::
+
 ### Typescript Interfaces
 
 You can use the code generator to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
