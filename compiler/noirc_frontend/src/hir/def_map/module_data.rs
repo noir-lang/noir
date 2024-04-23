@@ -2,12 +2,9 @@ use std::collections::HashMap;
 
 use noirc_errors::Location;
 
-use crate::{
-    node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId},
-    Ident, ItemVisibility,
-};
-
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
+use crate::ast::{Ident, ItemVisibility};
+use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 
 /// Contains the actual contents of a module: its parent (if one exists),
 /// children, and scope with all definitions defined within the scope.

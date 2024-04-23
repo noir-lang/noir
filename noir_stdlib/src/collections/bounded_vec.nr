@@ -98,15 +98,12 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
 impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
-        let mut ret = self.len == other.len;
-        let mut exceeded_len = false;
-        for i in 0..MaxLen {
-            exceeded_len |= i == self.len;
-            if !exceeded_len {
-                ret &= self.storage[i] == other.storage[i];
-            }
-        }
-        ret
+        // TODO: https://github.com/noir-lang/noir/issues/4837
+        //
+        // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
+        // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
+        
+        (self.len == other.len) & (self.storage == other.storage)
     }
 }
 
@@ -130,27 +127,5 @@ mod bounded_vec_tests {
         bounded_vec2.push(2);
 
         assert(bounded_vec1 != bounded_vec2);
-    }
-
-    #[test]
-    fn equality_respects_specified_length() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        bounded_vec1.push(1);
-
-        // This BoundedVec has an extra value past the end of its specified length,
-        // this should be ignored when checking equality so they are considered equal.
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec { storage: [1, 2, 0], len: 1 };
-
-        assert_eq(bounded_vec1, bounded_vec2);
-
-        // Pushing another entry onto `bounded_vec1` to make the underlying arrays equal should
-        // result in the `BoundedVec`s being unequal as their lengths are different.
-        bounded_vec1.push(2);
-
-        assert(bounded_vec1 != bounded_vec2);
-
-        bounded_vec2.push(2);
-
-        assert_eq(bounded_vec1, bounded_vec2);
     }
 }

@@ -3,6 +3,7 @@ name = "noirc_frontend"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,6 +18,7 @@ iter-extended.workspace = true
 chumsky.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
+im.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 rustc-hash = "1.1.0"

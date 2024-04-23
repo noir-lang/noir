@@ -1,8 +1,7 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
-use crate::{
-    node_interner::{FuncId, TraitId},
-    Ident, ItemVisibility,
-};
+use crate::ast::{Ident, ItemVisibility};
+use crate::node_interner::{FuncId, TraitId};
+
 use std::collections::{hash_map::Entry, HashMap};
 
 type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;

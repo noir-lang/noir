@@ -6,9 +6,9 @@ use std::rc::Rc;
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
+use crate::ast::{Distinctness, FunctionKind, FunctionReturnType, Visibility};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::FunctionKind;
-use crate::{Distinctness, FunctionReturnType, Type, TypeVariable, Visibility};
+use crate::{Type, TypeVariable};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -24,8 +24,8 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    pub const fn as_expr(&self) -> &ExprId {
-        &self.0
+    pub const fn as_expr(&self) -> ExprId {
+        self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {

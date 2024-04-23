@@ -93,17 +93,18 @@ fn transform_module(
     // Check for a user defined storage struct
 
     let maybe_storage_struct_name = check_for_storage_definition(module)?;
+
     let storage_defined = maybe_storage_struct_name.is_some();
 
-    if let Some(storage_struct_name) = maybe_storage_struct_name {
-        if !check_for_storage_implementation(module, &storage_struct_name) {
-            generate_storage_implementation(module, &storage_struct_name)?;
+    if let Some(ref storage_struct_name) = maybe_storage_struct_name {
+        if !check_for_storage_implementation(module, storage_struct_name) {
+            generate_storage_implementation(module, storage_struct_name)?;
         }
         // Make sure we're only generating the storage layout for the root crate
         // In case we got a contract importing other contracts for their interface, we
         // don't want to generate the storage layout for them
         if crate_id == context.root_crate_id() {
-            generate_storage_layout(module, storage_struct_name)?;
+            generate_storage_layout(module, storage_struct_name.clone())?;
         }
     }
 
@@ -164,14 +165,14 @@ fn transform_module(
             transform_function(
                 fn_type,
                 func,
-                storage_defined,
+                maybe_storage_struct_name.clone(),
                 is_initializer,
                 insert_init_check,
                 is_internal,
             )?;
             has_transformed_module = true;
         } else if storage_defined && func.def.is_unconstrained {
-            transform_unconstrained(func);
+            transform_unconstrained(func, maybe_storage_struct_name.clone().unwrap());
             has_transformed_module = true;
         }
     }
