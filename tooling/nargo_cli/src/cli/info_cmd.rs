@@ -220,13 +220,13 @@ fn byte_index(string: &str, index: u32) -> usize {
     byte_index
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Serialize)]
 struct InfoReport {
     programs: Vec<ProgramInfo>,
     contracts: Vec<ContractInfo>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize)]
 struct ProgramInfo {
     package_name: String,
     #[serde(skip)]
@@ -248,7 +248,7 @@ impl From<ProgramInfo> for Vec<Row> {
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize)]
 struct ContractInfo {
     name: String,
     #[serde(skip)]
@@ -257,7 +257,7 @@ struct ContractInfo {
     functions: Vec<FunctionInfo>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize)]
 struct FunctionInfo {
     name: String,
     acir_opcodes: usize,
