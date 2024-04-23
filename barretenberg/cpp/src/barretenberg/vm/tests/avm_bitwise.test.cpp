@@ -116,7 +116,7 @@ void common_validate_shift_op(std::vector<Row> const& trace,
     EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
     EXPECT_EQ(row->avm_main_rwa, FF(0));
 
-    // Check that ia register is correctly set with memory load operations.
+    // Check that ib register is correctly set with memory load operations.
     EXPECT_EQ(row->avm_main_ib, b);
     EXPECT_EQ(row->avm_main_mem_idx_b, addr_b);
     EXPECT_EQ(row->avm_main_mem_op_b, FF(1));

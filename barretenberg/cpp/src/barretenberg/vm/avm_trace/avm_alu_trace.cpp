@@ -781,6 +781,7 @@ FF AvmAluTraceBuilder::op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     uint256_t a_u256{ a };
     // Check that the shifted amount is an 8-bit integer
     ASSERT(uint256_t(b) < 256);
+    ASSERT(in_tag != AvmMemoryTag::U0 || in_tag != AvmMemoryTag::FF);
 
     uint8_t b_u8 = static_cast<uint8_t>(uint256_t(b));
     uint256_t c_u256 = a_u256 >> b_u8;
@@ -792,6 +793,7 @@ FF AvmAluTraceBuilder::op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     if (b_u8 >= num_bits) {
         u8_pow_2_counters[1][b_u8 - num_bits]++;
         // Even though the registers are trivially zero, we call this function to increment the lookup counters
+        // Future workaround would be to decouple the range_check toggle and the counter from this function
         [[maybe_unused]] auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(0);
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
             .alu_clk = clk,
@@ -803,7 +805,7 @@ FF AvmAluTraceBuilder::op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
             .alu_u64_tag = in_tag == AvmMemoryTag::U64,
             .alu_u128_tag = in_tag == AvmMemoryTag::U128,
             .alu_ia = a,
-            .alu_ib = FF(b_u8),
+            .alu_ib = b,
             .alu_ic = 0,
             .hi_lo_limbs = { 0, 0, 0, 0 },
             .mem_tag_bits = num_bits,
@@ -820,7 +822,7 @@ FF AvmAluTraceBuilder::op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     uint256_t rng_chk_lo = (uint256_t(1) << b_u8) - x_lo - 1;
     uint256_t rng_chk_hi = (uint256_t(1) << (num_bits - b_u8)) - x_hi - 1;
 
-    // Each hi and lo limb is range checked over 128bits
+    // Each hi and lo limb is range checked over 128 bits
     uint256_t limb = rng_chk_lo + (rng_chk_hi << uint256_t(128));
     // Load the range check values into the ALU registers
     auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(limb);
@@ -868,6 +870,8 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     uint256_t a_u256{ a };
     // Check that the shift amount is an 8-bit integer
     ASSERT(uint256_t(b) < 256);
+    ASSERT(in_tag != AvmMemoryTag::U0 || in_tag != AvmMemoryTag::FF);
+
     uint8_t b_u8 = static_cast<uint8_t>(uint256_t(b));
 
     uint256_t c_u256 = a_u256 << b_u8;
@@ -878,6 +882,7 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     if (b_u8 >= num_bits) {
         u8_pow_2_counters[1][b_u8 - num_bits]++;
         // Even though the registers are trivially zero, we call this function to increment the lookup counters
+        // Future workaround would be to decouple the range_check toggle and the counter from this function
         [[maybe_unused]] auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(0);
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
             .alu_clk = clk,
@@ -889,7 +894,7 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
             .alu_u64_tag = in_tag == AvmMemoryTag::U64,
             .alu_u128_tag = in_tag == AvmMemoryTag::U128,
             .alu_ia = a,
-            .alu_ib = FF(b_u8),
+            .alu_ib = b,
             .alu_ic = 0,
             .hi_lo_limbs = { 0, 0, 0, 0 },
             .mem_tag_bits = num_bits,
@@ -908,7 +913,7 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     uint256_t rng_chk_lo = uint256_t(uint256_t(1) << (num_bits - b_u8)) - x_lo - 1;
     uint256_t rng_chk_hi = uint256_t(uint256_t(1) << b_u8) - x_hi - 1;
 
-    // Each hi and lo limb is range checked over 128bits
+    // Each hi and lo limb is range checked over 128 bits
     uint256_t limb = rng_chk_lo + (rng_chk_hi << 128);
     // Load the range check values into the ALU registers
     auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(limb);
@@ -930,10 +935,10 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     case AvmMemoryTag::U128:
         c = FF{ uint256_t::from_uint128(uint128_t(c_u256)) };
         break;
-    // Unsupported instruction tags
+    // Unsupported instruction tags, asserted earlier in function
     case AvmMemoryTag::U0:
     case AvmMemoryTag::FF:
-        return 0;
+        __builtin_unreachable();
     }
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
