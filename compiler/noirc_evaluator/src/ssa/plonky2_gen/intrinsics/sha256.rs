@@ -5,14 +5,14 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 
 #[rustfmt::skip]
-pub const H256: [u32; 8] = [
+const H256: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 ];
 
 /// Constants necessary for SHA-256 family of digests.
 #[rustfmt::skip]
-pub const K256: [u32; 64] = [
+const K256: [u32; 64] = [
     0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5,
     0x3956C25B, 0x59F111F1, 0x923F82A4, 0xAB1C5ED5,
     0xD807AA98, 0x12835B01, 0x243185BE, 0x550C7DC3,
@@ -31,12 +31,12 @@ pub const K256: [u32; 64] = [
     0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2
 ];
 
-pub struct Sha256Targets {
-    pub message: Vec<BoolTarget>,
-    pub digest: Vec<BoolTarget>,
+pub(crate) struct Sha256Targets {
+    pub(crate) message: Vec<BoolTarget>,
+    pub(crate) digest: Vec<BoolTarget>,
 }
 
-pub fn array_to_bits(bytes: &[u8]) -> Vec<bool> {
+fn array_to_bits(bytes: &[u8]) -> Vec<bool> {
     let len = bytes.len();
     let mut ret = Vec::new();
     for i in 0..len {
@@ -48,7 +48,7 @@ pub fn array_to_bits(bytes: &[u8]) -> Vec<bool> {
     ret
 }
 
-pub fn u32_to_bits_target<F: RichField + Extendable<D>, const D: usize, const B: usize>(
+fn u32_to_bits_target<F: RichField + Extendable<D>, const D: usize, const B: usize>(
     builder: &mut CircuitBuilder<F, D>,
     a: &U32Target,
 ) -> Vec<BoolTarget> {
@@ -60,7 +60,7 @@ pub fn u32_to_bits_target<F: RichField + Extendable<D>, const D: usize, const B:
     res
 }
 
-pub fn bits_to_u32_target<F: RichField + Extendable<D>, const D: usize>(
+fn bits_to_u32_target<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     bits_target: Vec<BoolTarget>,
 ) -> U32Target {
