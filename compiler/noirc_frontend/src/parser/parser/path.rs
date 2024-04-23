@@ -1,5 +1,5 @@
+use crate::ast::{Path, PathKind};
 use crate::parser::NoirParser;
-use crate::{Path, PathKind};
 
 use crate::token::{Keyword, Token};
 

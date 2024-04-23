@@ -4,14 +4,16 @@ use acvm::acir::acir_field::FieldOptions;
 use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_errors::Location;
 
+use crate::ast::{
+    FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
+    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     macros_api::MacroProcessor,
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
-    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -416,6 +418,7 @@ impl<'a> ModCollector<'a> {
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
+                            is_comptime: false,
                         };
 
                         let location = Location::new(name.span(), self.file_id);

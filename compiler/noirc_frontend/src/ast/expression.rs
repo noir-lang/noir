@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use crate::token::{Attributes, Token};
-use crate::{
+use crate::ast::{
     Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use crate::token::{Attributes, Token};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -387,6 +387,9 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
+    /// True if this function was defined with the 'comptime' keyword
+    pub is_comptime: bool,
+
     /// Indicate if this function was defined with the 'pub' keyword
     pub visibility: ItemVisibility,
 
@@ -679,10 +682,12 @@ impl FunctionDefinition {
                 span: ident.span().merge(unresolved_type.span.unwrap()),
             })
             .collect();
+
         FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
             visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,

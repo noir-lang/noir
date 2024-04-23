@@ -1,5 +1,6 @@
 use noirc_errors::Span;
-use noirc_frontend::{macros_api::MacroError, UnresolvedTypeData};
+use noirc_frontend::ast;
+use noirc_frontend::macros_api::MacroError;
 
 use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 
@@ -7,9 +8,9 @@ use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 pub enum AztecMacroError {
     AztecDepNotFound,
     ContractHasTooManyPrivateFunctions { span: Span },
-    UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
-    UnsupportedFunctionReturnType { span: Span, typ: UnresolvedTypeData },
-    UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
+    UnsupportedFunctionArgumentType { span: Span, typ: ast::UnresolvedTypeData },
+    UnsupportedFunctionReturnType { span: Span, typ: ast::UnresolvedTypeData },
+    UnsupportedStorageType { span: Option<Span>, typ: ast::UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
     CouldNotImplementComputeNoteHashAndNullifier { secondary_message: Option<String> },
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },

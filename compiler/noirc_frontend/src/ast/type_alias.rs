@@ -1,4 +1,4 @@
-use crate::{Ident, UnresolvedGenerics, UnresolvedType};
+use super::{Ident, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::Span;
 use std::fmt::Display;

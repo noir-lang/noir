@@ -105,66 +105,65 @@ fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {
 
 struct PoseidonHasher{
     _state: [Field],
-    _len: u64,
 }
 
 impl Hasher for PoseidonHasher {
     #[field(bn254)]
     fn finish(self) -> Field {
         let mut result = 0;
-        assert(self._len < 16);
-        if self._len == 1 {
+        let len = self._state.len();
+        assert(len < 16);
+        if len == 1 {
             result = bn254::hash_1([self._state[0]]);
         } 
-        if self._len == 2 {
+        if len == 2 {
             result = bn254::hash_2([self._state[0],self._state[1]]);
         } 
-        if self._len == 3 {
+        if len == 3 {
             result = bn254::hash_3([self._state[0],self._state[1],self._state[2]]);
         } 
-        if self._len == 4 {
+        if len == 4 {
             result = bn254::hash_4([self._state[0],self._state[1],self._state[2],self._state[3]]);
         } 
-        if self._len == 5 {
+        if len == 5 {
             result = bn254::hash_5([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4]]);
         }
-        if self._len == 6 {
+        if len == 6 {
             result = bn254::hash_6([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5]]);
         }
-        if self._len == 7 {
+        if len == 7 {
             result = bn254::hash_7([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6]]);
         }
-        if self._len == 8 {
+        if len == 8 {
             result = bn254::hash_8([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7]]);
         }
-        if self._len == 9 {
+        if len == 9 {
             result = bn254::hash_9([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8]]);
         }
-        if self._len == 10 {
+        if len == 10 {
             result = bn254::hash_10([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8], self._state[9]]);
         }
-        if self._len == 11 {
+        if len == 11 {
             result = bn254::hash_11([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8], self._state[9], self._state[10]]);
         }
-        if self._len == 12 {
+        if len == 12 {
             result = bn254::hash_12([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8], self._state[9], self._state[10], self._state[11]]);
         }
-        if self._len == 13 {
+        if len == 13 {
             result = bn254::hash_13([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8], self._state[9], self._state[10], self._state[11], self._state[12]]);
         }
-        if self._len == 14 {
+        if len == 14 {
             result = bn254::hash_14([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8], self._state[9], self._state[10], self._state[11], self._state[12], self._state[13]]);
         }
-        if self._len == 15 {
+        if len == 15 {
             result = bn254::hash_15([self._state[0],self._state[1],self._state[2],self._state[3],self._state[4], self._state[5], self._state[6], self._state[7], self._state[8], self._state[9], self._state[10], self._state[11], self._state[12], self._state[13], self._state[14]]);
         }
         
         result
     }
 
-    fn write(&mut self, input: [Field]){
-        self._state = self._state.append(input);
-        self._len += input.len();
+    fn write(&mut self, input: Field){
+        self._state = self._state.push_back(input);
     }
 }
 
@@ -172,7 +171,6 @@ impl Default for PoseidonHasher{
     fn default() -> Self{
         PoseidonHasher{
             _state: &[],
-            _len: 0,
         }
     }
 }

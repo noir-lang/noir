@@ -4,8 +4,8 @@ use crate::parser::{
     ParserError, ParserErrorReason,
 };
 
+use crate::ast::{BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Recoverable};
 use crate::token::{Keyword, Token};
-use crate::{BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Recoverable};
 
 use chumsky::prelude::*;
 use noirc_errors::Spanned;
@@ -74,11 +74,11 @@ where
 mod test {
     use super::*;
     use crate::{
+        ast::Literal,
         parser::parser::{
             expression,
             test_helpers::{parse_all, parse_all_failing, parse_with},
         },
-        Literal,
     };
 
     /// Deprecated constrain usage test
