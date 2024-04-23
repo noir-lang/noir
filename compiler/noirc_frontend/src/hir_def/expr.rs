@@ -33,7 +33,7 @@ pub enum HirExpression {
     Lambda(HirLambda),
     Quote(crate::ast::BlockExpression),
     Unquote(crate::ast::BlockExpression),
-    CompTime(HirBlockExpression),
+    Comptime(HirBlockExpression),
     Error,
 }
 

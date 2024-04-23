@@ -524,7 +524,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")
             }
-            HirExpression::CompTime(_) => {
+            HirExpression::Comptime(_) => {
                 unreachable!("comptime expression remaining in runtime code")
             }
         };

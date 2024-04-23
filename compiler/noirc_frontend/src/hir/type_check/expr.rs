@@ -309,7 +309,7 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
             HirExpression::Quote(_) => Type::Code,
-            HirExpression::CompTime(block) => self.check_block(block),
+            HirExpression::Comptime(block) => self.check_block(block),
 
             // Unquote should be inserted & removed by the comptime interpreter.
             // Even if we allowed it here, we wouldn't know what type to give to the result.

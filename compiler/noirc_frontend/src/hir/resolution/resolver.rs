@@ -1602,7 +1602,7 @@ impl<'a> Resolver<'a> {
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
-            ExpressionKind::CompTime(block) => HirExpression::CompTime(self.resolve_block(block)),
+            ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
         };
 
         // If these lines are ever changed, make sure to change the early return

@@ -548,7 +548,7 @@ fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::CompTime).ignore_then(block(statement)).map(ExpressionKind::CompTime)
+    keyword(Keyword::CompTime).ignore_then(block(statement)).map(ExpressionKind::Comptime)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
