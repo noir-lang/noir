@@ -8,6 +8,12 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.36.0
 
+## `FieldNote` removed
+
+`FieldNote` only existed for testing purposes, and was not a note type that should be used in any real application. Its name unfortunately led users to think that it was a note type suitable to store a `Field` value, which it wasn't.
+
+If using `FieldNote`, you most likely want to use `ValueNote` instead, which has both randomness for privacy and an owner for proper nullification.
+
 ## `SlowUpdatesTree` replaced for `SharedMutable`
 
 The old `SlowUpdatesTree` contract and libraries have been removed from the codebase, use the new `SharedMutable` library instead. This will require that you add a global variable specifying a delay in blocks for updates, and replace the slow updates tree state variable with `SharedMutable` variables.

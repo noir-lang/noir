@@ -1,5 +1,8 @@
+mod test_note;
+
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
+
     use dep::aztec::prelude::{
         AztecAddress, EthAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions,
         PrivateContext, PrivateImmutable, PrivateSet, SharedImmutable
@@ -25,8 +28,9 @@ contract Test {
         oracle::{get_public_key::get_public_key as get_public_key_oracle, unsafe_rand::unsafe_rand}
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
-    use dep::field_note::field_note::FieldNote;
     use dep::value_note::value_note::ValueNote;
+
+    use crate::test_note::TestNote;
 
     #[aztec(event)]
     struct ExampleEvent {
@@ -35,8 +39,8 @@ contract Test {
 
     #[aztec(storage)]
     struct Storage {
-        example_constant: PrivateImmutable<FieldNote>,
-        example_set: PrivateSet<FieldNote>,
+        example_constant: PrivateImmutable<TestNote>,
+        example_set: PrivateSet<TestNote>,
     }
 
     #[aztec(private)]
@@ -122,10 +126,7 @@ contract Test {
         opt_notes[0].unwrap().value
     }
 
-    unconstrained fn call_view_notes_many(
-        storage_slot: Field,
-        active_or_nullified: bool
-    ) -> pub [Field; 2] {
+    unconstrained fn call_view_notes_many(storage_slot: Field, active_or_nullified: bool) -> pub [Field; 2] {
         assert(
             storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
         );
@@ -298,7 +299,7 @@ contract Test {
 
     #[aztec(private)]
     fn set_constant(value: Field) {
-        let mut note = FieldNote::new(value);
+        let mut note = TestNote::new(value);
         storage.example_constant.initialize(&mut note, false);
     }
 
@@ -352,7 +353,7 @@ contract Test {
         let notes_set = storage.example_set;
         let secret_hash = compute_secret_hash(secret);
         let mut options = NoteGetterOptions::new();
-        options = options.select(FieldNote::properties().value, secret_hash, Option::none()).set_limit(1);
+        options = options.select(TestNote::properties().value, secret_hash, Option::none()).set_limit(1);
         let notes = notes_set.get_notes(options);
         let note = notes[0].unwrap_unchecked();
         notes_set.remove(note);

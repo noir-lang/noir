@@ -5,7 +5,6 @@ contract ImportTest {
 
     use dep::test::{Test, Test::DeepStruct, Test::DummyNote};
 
-    use dep::test::Test::FieldNote;
     use dep::test::Test::ValueNote;
 
     // Calls the test_code_gen on the Test contract at the target address

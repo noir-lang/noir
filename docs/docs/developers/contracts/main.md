@@ -2,7 +2,7 @@
 title: Smart Contracts
 ---
 
-This section is a collection of how-to guides and references for building smart contracts with Aztec.nr. 
+This section is a collection of how-to guides and references for building smart contracts with Aztec.nr.
 
 If you are looking for an overview of how smart contracts work, head to the [Concepts section](../../learn/concepts/smart_contracts/main.md).
 

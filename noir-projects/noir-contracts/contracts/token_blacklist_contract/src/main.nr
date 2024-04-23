@@ -18,8 +18,6 @@ contract TokenBlacklist {
         state_vars::{Map, PublicMutable, PrivateSet, SharedMutable, SharedImmutable}
     };
 
-    use dep::field_note::field_note::FieldNote;
-
     use dep::authwit::{auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public}};
 
     use crate::types::{transparent_note::TransparentNote, token_note::TokenNote, balances_map::BalancesMap, roles::UserFlags};

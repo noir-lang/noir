@@ -65,7 +65,7 @@ describe('e2e_non_contract_account', () => {
   }, 120_000);
 
   // Note: This test doesn't really belong here as it doesn't have anything to do with non-contract accounts. I needed
-  // to test the FieldNote functionality and it doesn't really fit anywhere else. Creating a separate e2e test for this
+  // to test the TestNote functionality and it doesn't really fit anywhere else. Creating a separate e2e test for this
   // seems wasteful. Move this test if a better place is found.
   it('can set and get a constant', async () => {
     const value = 123n;
@@ -86,7 +86,7 @@ describe('e2e_non_contract_account', () => {
       wallet.getCompleteAddress().address,
       contract.address,
       TestContract.storage.example_constant.slot,
-      TestContract.notes.FieldNote.id,
+      TestContract.notes.TestNote.id,
       txHash,
     );
     await wallet.addNote(extendedNote);
