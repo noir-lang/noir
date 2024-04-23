@@ -1,5 +1,5 @@
 use super::ModuleDefId;
-use crate::ItemVisibility;
+use crate::ast::ItemVisibility;
 
 // This works exactly the same as in r-a, just simplified
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

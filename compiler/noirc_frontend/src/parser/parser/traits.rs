@@ -5,14 +5,16 @@ use super::{
     function_return_type,
 };
 
+use crate::ast::{
+    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
+    UnresolvedTraitConstraint, UnresolvedType,
+};
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
         ParserErrorReason, TopLevelStatement,
     },
     token::{Keyword, Token},
-    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
-    UnresolvedTraitConstraint, UnresolvedType,
 };
 
 use super::{generic_type_args, parse_type, path, primitives::ident};

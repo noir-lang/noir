@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use fm::FileId;
 
+use crate::ast::ItemVisibility;
 use crate::{
     graph::CrateId,
     hir::{
@@ -13,7 +14,7 @@ use crate::{
         Context,
     },
     node_interner::{FuncId, NodeInterner},
-    ItemVisibility, Type,
+    Type,
 };
 
 use super::{

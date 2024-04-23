@@ -1,5 +1,5 @@
 use super::import::{resolve_import, ImportDirective, PathResolution, PathResolutionResult};
-use crate::Path;
+use crate::ast::Path;
 use std::collections::BTreeMap;
 
 use crate::graph::CrateId;

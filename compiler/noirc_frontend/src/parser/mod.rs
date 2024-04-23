@@ -11,12 +11,11 @@ mod labels;
 #[allow(clippy::module_inception)]
 mod parser;
 
-use crate::token::{Keyword, Token};
-use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{
-    Ident, LetStatement, ModuleDeclaration, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias,
-    Recoverable, StatementKind, TypeImpl, UseTree,
+use crate::ast::{
+    Expression, Ident, ImportStatement, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
+    NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
 };
+use crate::token::{Keyword, Token};
 
 use chumsky::prelude::*;
 use chumsky::primitive::Container;

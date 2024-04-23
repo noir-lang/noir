@@ -1,6 +1,7 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
+use crate::ast::{BinaryOpKind, UnaryOp};
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
@@ -11,7 +12,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
-    BinaryOpKind, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
+    TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -717,7 +718,7 @@ impl<'interner> TypeChecker<'interner> {
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                operator: crate::UnaryOp::Dereference { implicitly_added: true },
+                operator: crate::ast::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
             this.interner.push_expr_type(old_lhs, lhs_type);
@@ -1110,7 +1111,7 @@ impl<'interner> TypeChecker<'interner> {
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
             let target = Type::polymorphic_integer(self.interner);
 
-            use BinaryOpKind::*;
+            use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
             self.unify(lhs_type, &target, || match op.kind {
                 Less | LessEqual | Greater | GreaterEqual => FieldComparison { span },
@@ -1202,7 +1203,7 @@ impl<'interner> TypeChecker<'interner> {
 
     fn type_check_prefix_operand(
         &mut self,
-        op: &crate::UnaryOp,
+        op: &crate::ast::UnaryOp,
         rhs_type: &Type,
         span: Span,
     ) -> Type {
@@ -1216,7 +1217,7 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         match op {
-            crate::UnaryOp::Minus => {
+            crate::ast::UnaryOp::Minus => {
                 if rhs_type.is_unsigned() {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
@@ -1228,7 +1229,7 @@ impl<'interner> TypeChecker<'interner> {
                 });
                 expected
             }
-            crate::UnaryOp::Not => {
+            crate::ast::UnaryOp::Not => {
                 let rhs_type = rhs_type.follow_bindings();
 
                 // `!` can work on booleans or integers
@@ -1238,10 +1239,10 @@ impl<'interner> TypeChecker<'interner> {
 
                 unify(Type::Bool)
             }
-            crate::UnaryOp::MutableReference => {
+            crate::ast::UnaryOp::MutableReference => {
                 Type::MutableReference(Box::new(rhs_type.follow_bindings()))
             }
-            crate::UnaryOp::Dereference { implicitly_added: _ } => {
+            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type

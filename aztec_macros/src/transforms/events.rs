@@ -1,5 +1,9 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
+use noirc_frontend::ast::{
+    ExpressionKind, FunctionDefinition, FunctionReturnType, ItemVisibility, Literal, NoirFunction,
+    Visibility,
+};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{
@@ -8,8 +12,6 @@ use noirc_frontend::{
         UnresolvedTypeData,
     },
     token::SecondaryAttribute,
-    ExpressionKind, FunctionDefinition, FunctionReturnType, ItemVisibility, Literal, NoirFunction,
-    Visibility,
 };
 
 use crate::{
