@@ -12,7 +12,7 @@ use chumsky::prelude::*;
 use noirc_errors::Span;
 
 fn maybe_comp_time() -> impl NoirParser<()> {
-    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
             emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
         }

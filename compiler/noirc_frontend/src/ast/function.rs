@@ -3,8 +3,8 @@ use std::fmt::Display;
 use noirc_errors::Span;
 
 use crate::{
+    ast::{FunctionReturnType, Ident, Param, Visibility},
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
-    FunctionReturnType, Ident, Param, Visibility,
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};

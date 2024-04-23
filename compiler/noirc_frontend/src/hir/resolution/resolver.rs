@@ -25,25 +25,22 @@ use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
+use crate::ast::{
+    ArrayLiteral, BinaryOpKind, BlockExpression, Distinctness, Expression, ExpressionKind,
+    ForRange, FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
+    LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Statement, StatementKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{
-    hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
-    BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    StatementKind,
-};
-use crate::{
-    ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
-    Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Shared, Statement, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
-};
+use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -478,7 +475,7 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
-        use UnresolvedTypeData::*;
+        use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
@@ -1171,7 +1168,7 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_global_let(
         &mut self,
-        let_stmt: crate::LetStatement,
+        let_stmt: LetStatement,
         global_id: GlobalId,
     ) -> HirStatement {
         self.current_item = Some(DependencyId::Global(global_id));
@@ -1326,7 +1323,9 @@ impl<'a> Resolver<'a> {
 
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
-        self.interner.push_stmt(hir_stmt)
+        let id = self.interner.push_stmt(hir_stmt);
+        self.interner.push_statement_location(id, stmt.span, self.file);
+        id
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
@@ -1534,7 +1533,9 @@ impl<'a> Resolver<'a> {
                 collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
-            ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
+            ExpressionKind::Block(block_expr) => {
+                HirExpression::Block(self.resolve_block(block_expr))
+            }
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
 
@@ -1601,6 +1602,7 @@ impl<'a> Resolver<'a> {
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
+            ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -1933,14 +1935,14 @@ impl<'a> Resolver<'a> {
         Ok(path_resolution.module_def_id)
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
+    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
         let statements =
             self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
-        HirExpression::Block(HirBlockExpression { statements })
+        HirBlockExpression { statements }
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
-        let hir_block = self.resolve_block(block);
+        let hir_block = HirExpression::Block(self.resolve_block(block));
         self.interner.push_expr(hir_block)
     }
 

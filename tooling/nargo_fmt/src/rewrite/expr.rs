@@ -1,7 +1,7 @@
-use noirc_frontend::{
-    macros_api::Span, token::Token, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
-    Literal, UnaryOp,
+use noirc_frontend::ast::{
+    ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, UnaryOp,
 };
+use noirc_frontend::{macros_api::Span, token::Token};
 
 use crate::visitor::{
     expr::{format_brackets, format_parens, NewlineMode},
@@ -159,6 +159,9 @@ pub(crate) fn rewrite(
         }
         ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => visitor.slice(span).to_string(),
         ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
+        ExpressionKind::Comptime(block) => {
+            format!("comptime {}", rewrite_block(visitor, block, span))
+        }
         ExpressionKind::Error => unreachable!(),
     }
 }
