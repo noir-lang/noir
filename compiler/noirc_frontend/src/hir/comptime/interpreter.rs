@@ -258,7 +258,7 @@ impl<'a> Interpreter<'a> {
             }
         }
         let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonCompTimeVarReferenced { name, location })
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
@@ -272,12 +272,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        // Justification for `NonCompTimeVarReferenced`:
+        // Justification for `NonComptimeVarReferenced`:
         // If we have an id to lookup at all that means name resolution successfully
         // found another variable in scope for this name. If the name is in scope
         // but unknown by the interpreter it must be because it was not a comptime variable.
         let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonCompTimeVarReferenced { name, location })
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
@@ -1017,7 +1017,7 @@ impl<'a> Interpreter<'a> {
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
-            HirStatement::CompTime(statement) => self.evaluate_comptime(statement),
+            HirStatement::Comptime(statement) => self.evaluate_comptime(statement),
             HirStatement::Semi(expression) => {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
