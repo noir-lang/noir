@@ -400,7 +400,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             return self.step_brillig_opcode();
         }
 
-        match self.acvm.step_into_brillig_opcode() {
+        match self.acvm.step_into_brillig() {
             StepResult::IntoBrillig(solver) => {
                 self.brillig_solver = Some(solver);
                 self.step_brillig_opcode()

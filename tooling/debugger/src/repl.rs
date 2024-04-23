@@ -79,12 +79,16 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         println!("At opcode {}: {}", ip, opcode_summary);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                        let Opcode::Brillig(ref brillig) = opcodes[acir_index] else {
-                            unreachable!("Brillig location does not contain a Brillig block");
+                        let brillig_bytecode = match opcodes[acir_index] {
+                            Opcode::Brillig(ref brillig) => &brillig.bytecode,
+                            Opcode::BrilligCall { id, .. } => {
+                                &self.unconstrained_functions[id as usize].bytecode
+                            }
+                            _ => unreachable!("Brillig location does not contain a Brillig block"),
                         };
                         println!(
                             "At opcode {}.{}: {:?}",
-                            acir_index, brillig_index, brillig.bytecode[brillig_index]
+                            acir_index, brillig_index, brillig_bytecode[brillig_index]
                         );
                     }
                 }
