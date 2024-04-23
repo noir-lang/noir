@@ -10,7 +10,7 @@ use crate::{
 
 use acvm::acir::{
     circuit::{
-        brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         OpcodeLocation,
     },
