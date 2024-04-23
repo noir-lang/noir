@@ -62,6 +62,12 @@ class AvmTraceBuilder {
     // Less Than or Equal to with direct or indirect memory access.
     void op_lte(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
+    // Shift Right with direct or indirect memory access.
+    void op_shr(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+
+    // Shift Left with direct or indirect memory access.
+    void op_shl(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+
     // Set a constant from bytecode with direct or indirect memory access.
     void op_set(uint8_t indirect, uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
 

@@ -15,6 +15,9 @@ namespace avm_main(256);
     pol commit sel_rng_8;  // Boolean selector for the  8-bit range check lookup
     pol commit sel_rng_16; // Boolean selector for the 16-bit range check lookup
 
+    //===== Lookup table powers of 2 =============================================
+    pol commit table_pow_2; // Table of powers of 2 for 8-bit numbers. 
+
     //===== CONTROL FLOW ==========================================================
     // Program counter
     pol commit pc; 
@@ -60,6 +63,10 @@ namespace avm_main(256);
     pol commit sel_op_lt;
     // LTE
     pol commit sel_op_lte;
+    // SHL
+    pol commit sel_op_shl;
+    // SHR
+    pol commit sel_op_shr;
 
     // Helper selector to characterize an ALU chiplet selector
     pol commit alu_sel;
@@ -138,6 +145,8 @@ namespace avm_main(256);
     sel_op_cast * (1 - sel_op_cast) = 0;
     sel_op_lt * (1 - sel_op_lt) = 0;
     sel_op_lte * (1 - sel_op_lte) = 0;
+    sel_op_shl * (1 - sel_op_shl) = 0;
+    sel_op_shr * (1 - sel_op_shr) = 0;
 
     sel_internal_call * (1 - sel_internal_call) = 0;
     sel_internal_return * (1 - sel_internal_return) = 0;
@@ -295,7 +304,7 @@ namespace avm_main(256);
 
     //===== ALU CONSTRAINTS =====================================================
     // TODO: when division is moved to the alu, we will need to add the selector in the list below.
-    pol ALU_R_TAG_SEL = sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq + sel_op_lt + sel_op_lte;
+    pol ALU_R_TAG_SEL = sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq + sel_op_lt + sel_op_lte + sel_op_shr + sel_op_shl;
     pol ALU_W_TAG_SEL = sel_op_cast;
     pol ALU_ALL_SEL = ALU_R_TAG_SEL + ALU_W_TAG_SEL;
 
@@ -317,11 +326,11 @@ namespace avm_main(256);
     #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic, sel_op_add, sel_op_sub,
              sel_op_mul, sel_op_eq, sel_op_not, sel_op_cast,
-             sel_op_lt, sel_op_lte, alu_in_tag}
+             sel_op_lt, sel_op_lte, sel_op_shr, sel_op_shl, alu_in_tag}
     is
     avm_alu.alu_sel {avm_alu.clk, avm_alu.ia, avm_alu.ib, avm_alu.ic, avm_alu.op_add, avm_alu.op_sub,
                      avm_alu.op_mul, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_cast,
-                     avm_alu.op_lt, avm_alu.op_lte, avm_alu.in_tag};
+                     avm_alu.op_lt, avm_alu.op_lte, avm_alu.op_shr, avm_alu.op_shl, avm_alu.in_tag};
 
     // Based on the boolean selectors, we derive the binary op id to lookup in the table;
     // TODO: Check if having 4 columns (op_id + 3 boolean selectors) is more optimal that just using the op_id
@@ -378,6 +387,17 @@ namespace avm_main(256);
 
     #[PERM_MAIN_MEM_IND_D]
     ind_op_d {clk, ind_d, mem_idx_d} is avm_mem.ind_op_d {avm_mem.clk, avm_mem.addr, avm_mem.val};
+
+    //====== Inter-table Shift Constraints (Lookups) ============================================
+    // Currently only used for shift operations but can be generalised for other uses.
+
+    // Lookup for 2**(ib)
+    #[LOOKUP_POW_2_0]
+    avm_alu.shift_sel {avm_alu.ib, avm_alu.two_pow_s} in sel_rng_8 {clk, table_pow_2};
+
+    // Lookup for 2**(t-ib)
+    #[LOOKUP_POW_2_1]
+    avm_alu.shift_sel {avm_alu.t_sub_s_bits , avm_alu.two_pow_t_sub_s} in sel_rng_8 {clk, table_pow_2};
 
     //====== Inter-table Constraints (Range Checks) ============================================
     // TODO: Investigate optimising these range checks. Handling non-FF elements should require less range checks.

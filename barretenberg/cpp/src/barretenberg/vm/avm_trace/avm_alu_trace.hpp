@@ -19,6 +19,8 @@ class AvmAluTraceBuilder {
         bool alu_op_lte = false;
         bool alu_op_cast = false;
         bool alu_op_cast_prev = false;
+        bool alu_op_shr = false;
+        bool alu_op_shl = false;
 
         bool alu_ff_tag = false;
         bool alu_u8_tag = false;
@@ -48,9 +50,15 @@ class AvmAluTraceBuilder {
         bool p_b_borrow = false;
         uint8_t cmp_rng_ctr = 0;
         bool rng_chk_sel = false;
+
+        // Shift Operations
+        uint8_t mem_tag_bits = 0;
+        uint8_t mem_tag_sub_shift = 0;
+        bool shift_lt_bit_len = true;
     };
 
     std::array<std::unordered_map<uint8_t, uint32_t>, 2> u8_range_chk_counters;
+    std::array<std::unordered_map<uint8_t, uint32_t>, 2> u8_pow_2_counters;
     std::array<std::unordered_map<uint16_t, uint32_t>, 15> u16_range_chk_counters;
 
     AvmAluTraceBuilder();
@@ -65,8 +73,11 @@ class AvmAluTraceBuilder {
     FF op_lt(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_lte(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
+    FF op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
+    FF op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
 
     bool is_range_check_required() const;
+    static bool is_alu_row_enabled(AvmAluTraceBuilder::AluTraceEntry const& r);
 
   private:
     std::vector<AluTraceEntry> alu_trace;
