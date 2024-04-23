@@ -567,21 +567,13 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let result_type = self.builder.type_of_value(lhs);
-        let mut result = match operator {
-            BinaryOpKind::Equal | BinaryOpKind::NotEqual
-                if matches!(result_type, Type::Array(..)) =>
-            {
-                return self.insert_array_equality(lhs, operator, rhs, location)
-            }
-            _ => {
-                let op = convert_operator(operator);
-                if operator_requires_swapped_operands(operator) {
-                    std::mem::swap(&mut lhs, &mut rhs);
-                }
 
-                self.builder.set_location(location).insert_binary(lhs, op, rhs)
-            }
-        };
+        let op = convert_operator(operator);
+        if operator_requires_swapped_operands(operator) {
+            std::mem::swap(&mut lhs, &mut rhs);
+        }
+
+        let result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
         if matches!(
