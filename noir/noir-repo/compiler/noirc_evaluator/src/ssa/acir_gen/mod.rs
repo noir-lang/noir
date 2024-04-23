@@ -39,7 +39,7 @@ use acvm::{
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_frontend::Distinctness;
+use noirc_frontend::ast::Distinctness;
 
 #[derive(Default)]
 struct SharedContext {
@@ -2595,7 +2595,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
+            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -2691,7 +2691,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
+            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the abvoe test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -2782,7 +2782,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
+            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -2894,7 +2894,7 @@ mod test {
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::Distinctness::Distinct)
+            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");

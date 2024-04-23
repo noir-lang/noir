@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use fm::FileId;
 use iter_extended::vecmap;
 
+use crate::ast::Ident;
 use crate::{
     graph::CrateId,
     hir::{
@@ -11,7 +12,7 @@ use crate::{
         Context,
     },
     node_interner::StructId,
-    Generics, Ident, Type,
+    Generics, Type,
 };
 
 use super::{errors::ResolverError, path_resolver::StandardPathResolver, resolver::Resolver};

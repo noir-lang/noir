@@ -5,6 +5,7 @@ default-run = "nargo"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,7 +16,6 @@ name = "nargo"
 path = "src/main.rs"
 
 [build-dependencies]
-rustc_version = "0.4.0"
 build-data.workspace = true
 toml.workspace = true
 
@@ -72,13 +72,9 @@ assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
 fm.workspace = true
-criterion = "0.5.0"
+criterion.workspace = true
+pprof.workspace = true
 paste = "1.0.14"
-pprof = { version = "0.12", features = [
-    "flamegraph",
-    "frame-pointer",
-    "criterion",
-] }
 iai = "0.1.1"
 test-binary = "3.0.2"
 

@@ -1,4 +1,8 @@
 use noirc_errors::Span;
+use noirc_frontend::ast::{
+    BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
+    NoirStruct, PathKind, Pattern, StatementKind, TypeImpl, UnresolvedType, UnresolvedTypeData,
+};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{
@@ -8,9 +12,7 @@ use noirc_frontend::{
     parse_program,
     parser::SortedModule,
     token::SecondaryAttribute,
-    BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
-    NoirStruct, PathKind, Pattern, StatementKind, Type, TypeImpl, UnresolvedType,
-    UnresolvedTypeData,
+    Type,
 };
 
 use crate::{

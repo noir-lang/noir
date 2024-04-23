@@ -1,3 +1,5 @@
+use crate::cmp::Eq;
+
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
     len: u64,
@@ -91,5 +93,39 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
             }
         }
         ret
+    }
+}
+
+impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
+    fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
+        // TODO: https://github.com/noir-lang/noir/issues/4837
+        //
+        // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
+        // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
+        
+        (self.len == other.len) & (self.storage == other.storage)
+    }
+}
+
+mod bounded_vec_tests {
+    // TODO: Allow imports from "super"
+    use crate::collections::bounded_vec::BoundedVec;
+
+    #[test]
+    fn empty_equality() {
+        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+
+        assert_eq(bounded_vec1, bounded_vec2);
+    }
+
+    #[test]
+    fn inequality() {
+        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+        bounded_vec1.push(1);
+        bounded_vec2.push(2);
+
+        assert(bounded_vec1 != bounded_vec2);
     }
 }

@@ -174,7 +174,8 @@ pub fn get_pack_cards(
     // generate pseudo randomness deterministically from 'seed' and user secret
     let secret = context.request_app_nullifier_secret_key(owner);
     let mix = secret + seed;
-    let random_bytes = std::hash::sha256_slice(mix.to_le_bytes(32));
+    let mix_bytes: [u8; 32] = mix.to_le_bytes(32).as_array();
+    let random_bytes = std::hash::sha256(mix_bytes);
 
     let mut cards = [Card::from_field(0); PACK_CARDS];
     // we generate PACK_CARDS cards

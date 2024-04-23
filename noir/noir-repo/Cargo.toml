@@ -45,7 +45,7 @@ version = "0.27.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.73.0"
+rust-version = "1.74.1"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
@@ -104,6 +104,14 @@ chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312", default
     "ahash",
     "std",
 ] }
+
+# Benchmarking
+criterion = "0.5.0"
+# Note that using the "frame-pointer" feature breaks framegraphs on linux
+# https://github.com/tikv/pprof-rs/pull/172
+pprof = { version = "0.13", features = ["flamegraph","criterion"] }
+
+
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
@@ -124,6 +132,7 @@ tempfile = "3.6.0"
 jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
 flate2 = "1.0.24"
 
+im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

@@ -10,8 +10,10 @@ dependencies = [
  "base64 0.21.2",
  "bincode",
  "brillig",
+ "criterion",
  "flate2",
  "fxhash",
+ "pprof 0.13.0",
  "serde",
  "serde-big-array",
  "serde-generate",
@@ -454,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "backend-interface"
-version = "0.11.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "bb_abstraction_leaks",
@@ -624,7 +626,7 @@ dependencies = [
  "lazy_static",
  "noir_grumpkin",
  "num-bigint",
- "pprof",
+ "pprof 0.12.1",
  "thiserror",
  "wasm-bindgen-futures",
  "wasmer",
@@ -2825,7 +2827,6 @@ dependencies = [
  "noirc_frontend",
  "noirc_printable_type",
  "rayon",
- "rustc_version",
  "serde",
  "tempfile",
  "thiserror",
@@ -2866,11 +2867,10 @@ dependencies = [
  "notify",
  "notify-debouncer-full",
  "paste",
- "pprof",
+ "pprof 0.13.0",
  "predicates 2.1.5",
  "prettytable-rs",
  "rayon",
- "rustc_version",
  "serde",
  "serde_json",
  "similar-asserts",
@@ -3161,6 +3161,7 @@ dependencies = [
  "base64 0.21.2",
  "chumsky",
  "fm",
+ "im",
  "iter-extended",
  "lalrpop",
  "lalrpop-util",
@@ -3530,6 +3531,28 @@ name = "pprof"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "978385d59daf9269189d052ca8a84c1acfd0715c0599a5d5188d4acc078ca46a"
+dependencies = [
+ "backtrace",
+ "cfg-if 1.0.0",
+ "criterion",
+ "findshlibs",
+ "inferno",
+ "libc",
+ "log",
+ "nix 0.26.4",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "smallvec",
+ "symbolic-demangle",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "pprof"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef5c97c51bd34c7e742402e216abdeb44d415fbe6ae41d56b114723e953711cb"
 dependencies = [
  "backtrace",
  "cfg-if 1.0.0",

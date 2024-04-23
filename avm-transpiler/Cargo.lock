@@ -1274,6 +1274,7 @@ dependencies = [
  "arena",
  "chumsky",
  "fm",
+ "im",
  "iter-extended",
  "lalrpop",
  "lalrpop-util",
