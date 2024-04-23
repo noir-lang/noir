@@ -132,10 +132,11 @@ pub(crate) fn run(
         .collect::<Result<_, _>>()?;
 
     let info_report = InfoReport { programs: program_info, contracts: contract_info };
-
     if args.json {
         // Expose machine-readable JSON data.
-        println!("{}", serde_json::to_string(&info_report).unwrap());
+        let info_report_as_json = serde_json::to_string(&info_report).unwrap();
+        dbg!(info_report_as_json.clone());
+        println!("{}", info_report_as_json);
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
