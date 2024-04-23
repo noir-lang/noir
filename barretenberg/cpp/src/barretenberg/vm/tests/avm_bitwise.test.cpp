@@ -216,6 +216,66 @@ enum BIT_FAILURES {
     IncorrectBinSelector,
 };
 
+enum SHIFT_FAILURES {
+    IncorrectShiftPastBitLength, // Incorrect Setting shift_lt_bit_len
+    IncorrectInputDecomposition,
+    ShiftOutputIncorrect,
+};
+
+std::tuple<std::vector<Row>, std::string> gen_mutated_trace_shift(std::vector<Row> trace,
+                                                                  std::function<bool(Row)>&& select_row,
+                                                                  FF const& c_mutated,
+                                                                  SHIFT_FAILURES fail_mode,
+                                                                  bool shr = true)
+{
+    auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
+    auto main_clk = main_trace_row->avm_main_clk;
+    // The corresponding row in the alu trace as well as the row where start = 1
+    auto alu_row =
+        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_alu_clk == main_clk; });
+
+    std::string failure;
+    switch (fail_mode) {
+    case IncorrectShiftPastBitLength:
+        alu_row->avm_alu_shift_lt_bit_len = FF(0);
+        update_slice_registers(*alu_row, uint256_t{ 0 });
+        alu_row->avm_alu_a_lo = FF(0);
+        alu_row->avm_alu_a_hi = FF(0);
+        failure = "SHIFT_LT_BIT_LEN";
+        return std::make_tuple(trace, failure);
+    case IncorrectInputDecomposition: {
+        // Subtrace one from b_lo and update b_lo
+        uint256_t b_lo = alu_row->avm_alu_b_lo - 1;
+        uint256_t b_hi = alu_row->avm_alu_b_hi;
+        alu_row->avm_alu_b_lo = b_lo;
+
+        // Update the range checks involving b_lo and b_hi so we dont throw an error about the range checks
+        if (shr) {
+            uint256_t a_lo = (uint256_t(1) << alu_row->avm_alu_ib) - b_lo - 1;
+            uint256_t a_hi = (uint256_t(1) << (32 - uint8_t(alu_row->avm_alu_ib))) - b_hi - 1;
+            alu_row->avm_alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
+            alu_row->avm_alu_a_hi = a_hi;
+            // Update slice registers
+            update_slice_registers(*alu_row, a_lo + (a_hi << 128));
+            failure = "SHR_INPUT_DECOMPOSITION";
+            return std::make_tuple(trace, failure);
+        }
+        uint256_t a_lo = (uint256_t(1) << (32 - uint8_t(alu_row->avm_alu_ib))) - b_lo - 1;
+        uint256_t a_hi = (uint256_t(1) << alu_row->avm_alu_ib) - b_hi - 1;
+        alu_row->avm_alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
+        alu_row->avm_alu_a_hi = a_hi;
+        // Update slice registers
+        update_slice_registers(*alu_row, a_lo + (a_hi << 128));
+        failure = "SHL_INPUT_DECOMPOSITION";
+        return std::make_tuple(trace, failure);
+    }
+    case ShiftOutputIncorrect:
+        alu_row->avm_alu_ic = c_mutated;
+        failure = shr ? "SHR_OUTPUT" : "SHL_OUTPUT";
+        return std::make_tuple(trace, failure);
+    }
+    return std::make_tuple(trace, failure);
+}
 std::vector<Row> gen_mutated_trace_bit(std::vector<Row> trace,
                                        std::function<bool(Row)>&& select_row,
                                        FF const& c_mutated,
@@ -554,6 +614,10 @@ class AvmBitwiseNegativeTestsOr : public AvmBitwiseTests,
                                   public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {};
 class AvmBitwiseNegativeTestsXor : public AvmBitwiseTests,
                                    public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {};
+class AvmBitwiseNegativeTestsShr : public AvmBitwiseTests,
+                                   public testing::WithParamInterface<std::tuple<SHIFT_FAILURES, ThreeOpParamRow>> {};
+class AvmBitwiseNegativeTestsShl : public AvmBitwiseTests,
+                                   public testing::WithParamInterface<std::tuple<SHIFT_FAILURES, ThreeOpParamRow>> {};
 class AvmBitwiseNegativeTestsFF : public AvmBitwiseTests {};
 class AvmBitwiseNegativeTestsU8 : public AvmBitwiseTests {};
 class AvmBitwiseNegativeTestsU16 : public AvmBitwiseTests {};
@@ -570,12 +634,17 @@ std::vector<std::tuple<std::string, BIT_FAILURES>> bit_failures = {
     { "OP_ID_REL", BIT_FAILURES::InconsistentOpId },
     { "BIN_SEL_CTR_REL", BIT_FAILURES::IncorrectBinSelector },
 };
+std::vector<SHIFT_FAILURES> shift_failures = { SHIFT_FAILURES::IncorrectShiftPastBitLength,
+                                               SHIFT_FAILURES::IncorrectInputDecomposition,
+                                               SHIFT_FAILURES::ShiftOutputIncorrect };
 // For the negative test the output is set to be incorrect so that we can test the byte lookups.
 // Picking "simple" inputs such as zero also makes it easier when check the byte length lookups as we dont
 // need to worry about copying the accmulated a & b registers into the main trace.
 std::vector<ThreeOpParamRow> neg_test_and = { { { 0, 0, 1 }, AvmMemoryTag::U32 } };
 std::vector<ThreeOpParamRow> neg_test_or = { { { 0, 0, 1 }, AvmMemoryTag::U32 } };
 std::vector<ThreeOpParamRow> neg_test_xor = { { { 0, 0, 1 }, AvmMemoryTag::U32 } };
+
+std::vector<ThreeOpParamRow> neg_test_shr = { { { 7, 2, 0 }, AvmMemoryTag::U32 } };
 /******************************************************************************
  * Negative Tests - FF
  ******************************************************************************/
@@ -640,6 +709,48 @@ TEST_P(AvmBitwiseNegativeTestsXor, AllNegativeTests)
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
                          AvmBitwiseNegativeTestsXor,
                          testing::Combine(testing::ValuesIn(bit_failures), testing::ValuesIn(neg_test_xor)));
+
+TEST_P(AvmBitwiseNegativeTestsShr, AllNegativeTests)
+{
+    const auto [failure, params] = GetParam();
+    const auto [operands, mem_tag] = params;
+    const auto [a, b, output] = operands;
+    auto trace_builder = avm_trace::AvmTraceBuilder();
+    trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
+    trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
+    trace_builder.op_shr(0, 0, 1, 2, mem_tag);
+    trace_builder.halt();
+    auto trace = trace_builder.finalize();
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_shr == FF(1); };
+
+    auto [mutated_trace, str] = gen_mutated_trace_shift(
+        std::move(trace), std::move(select_row), FF(uint256_t::from_uint128(output)), failure, true);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(mutated_trace)), str);
+}
+INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
+                         AvmBitwiseNegativeTestsShr,
+                         testing::Combine(testing::ValuesIn(shift_failures), testing::ValuesIn(neg_test_shr)));
+
+TEST_P(AvmBitwiseNegativeTestsShl, AllNegativeTests)
+{
+    const auto [failure, params] = GetParam();
+    const auto [operands, mem_tag] = params;
+    const auto [a, b, output] = operands;
+    auto trace_builder = avm_trace::AvmTraceBuilder();
+    trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
+    trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
+    trace_builder.op_shl(0, 0, 1, 2, mem_tag);
+    trace_builder.halt();
+    auto trace = trace_builder.finalize();
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_shl == FF(1); };
+
+    auto [mutated_trace, str] = gen_mutated_trace_shift(
+        std::move(trace), std::move(select_row), FF(uint256_t::from_uint128(output)), failure, false);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(mutated_trace)), str);
+}
+INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
+                         AvmBitwiseNegativeTestsShl,
+                         testing::Combine(testing::ValuesIn(shift_failures), testing::ValuesIn(neg_test_shr)));
 
 TEST_F(AvmBitwiseNegativeTestsFF, UndefinedOverFF)
 {

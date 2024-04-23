@@ -29,5 +29,6 @@ void mutate_ic_in_trace(std::vector<Row>& trace,
                         FF const& newValue,
                         bool alu = false);
 void clear_range_check_counters(std::vector<Row>& trace, uint256_t previous_value);
+void update_slice_registers(Row& row, uint256_t a);
 
 } // namespace tests_avm

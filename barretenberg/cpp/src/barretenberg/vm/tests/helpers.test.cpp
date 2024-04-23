@@ -78,6 +78,44 @@ void mutate_ic_in_trace(std::vector<Row>& trace, std::function<bool(Row)>&& sele
     mem_row->avm_mem_val = newValue;
 };
 
+// TODO: Should be a cleaner way to do this
+void update_slice_registers(Row& row, uint256_t a)
+{
+    row.avm_alu_u8_r0 = static_cast<uint8_t>(a);
+    a >>= 8;
+    row.avm_alu_u8_r1 = static_cast<uint8_t>(a);
+    a >>= 8;
+    row.avm_alu_u16_r0 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r1 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r2 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r3 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r4 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r5 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r6 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r7 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r8 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r9 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r10 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r11 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r12 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r13 = static_cast<uint16_t>(a);
+    a >>= 16;
+    row.avm_alu_u16_r14 = static_cast<uint16_t>(a);
+}
+
 // TODO: There has to be a better way to do.
 // This is a helper function to clear the range check counters associated with the alu register decomposition of
 // "previous_value" so we don't trigger a trivial range_check count error
