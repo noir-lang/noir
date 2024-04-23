@@ -1,8 +1,9 @@
 use std::iter::zip;
 
-use noirc_frontend::{
-    macros_api::Span, ConstrainKind, ConstrainStatement, ExpressionKind, ForRange, Statement,
-    StatementKind,
+use noirc_frontend::macros_api::Span;
+
+use noirc_frontend::ast::{
+    ConstrainKind, ConstrainStatement, ExpressionKind, ForRange, Statement, StatementKind,
 };
 
 use crate::{rewrite, visitor::expr::wrap_exprs};

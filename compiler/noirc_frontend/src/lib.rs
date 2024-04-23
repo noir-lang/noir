@@ -28,9 +28,6 @@ pub use lexer::token;
 // Parser API
 pub use parser::{parse_program, ParsedModule};
 
-// AST API
-pub use ast::*;
-
 // Type API
 pub use hir_def::types::*;
 
@@ -52,17 +49,18 @@ pub mod macros_api {
     pub use crate::parser::{parse_program, SortedModule};
     pub use crate::token::SecondaryAttribute;
 
-    pub use crate::hir::def_map::ModuleDefId;
-    pub use crate::{
-        hir::Context as HirContext, BlockExpression, CallExpression, CastExpression, Distinctness,
-        Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, ItemVisibility,
-        LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path,
-        PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+    pub use crate::ast::{
+        BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
+        FunctionReturnType, Ident, IndexExpression, ItemVisibility, LetStatement, Literal,
+        MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern,
+        Statement, UnresolvedType, UnresolvedTypeData, Visibility,
     };
-    pub use crate::{
+    pub use crate::ast::{
         ForLoopStatement, ForRange, FunctionDefinition, ImportStatement, NoirStruct, Param,
-        PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+        PrefixExpression, Signedness, StatementKind, TypeImpl, UnaryOp,
     };
+    pub use crate::hir::{def_map::ModuleDefId, Context as HirContext};
+    pub use crate::{StructType, Type};
 
     /// Methods to process the AST before and after type checking
     pub trait MacroProcessor {

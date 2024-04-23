@@ -3,13 +3,10 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
+use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
-use crate::BinaryOpKind;
-use crate::FunctionReturnType;
-use crate::IntegerBitSize;
-use crate::Signedness;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {

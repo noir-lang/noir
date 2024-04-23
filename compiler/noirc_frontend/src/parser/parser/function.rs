@@ -4,13 +4,13 @@ use super::{
     optional_visibility, parameter_name_recovery, parameter_recovery, parenthesized, parse_type,
     pattern, self_parameter, where_clause, NoirParser,
 };
-use crate::parser::labels::ParsingRuleLabel;
-use crate::parser::spanned;
-use crate::token::{Keyword, Token};
-use crate::{
+use crate::ast::{
     Distinctness, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction,
     Param, Visibility,
 };
+use crate::parser::labels::ParsingRuleLabel;
+use crate::parser::spanned;
+use crate::token::{Keyword, Token};
 
 use chumsky::prelude::*;
 

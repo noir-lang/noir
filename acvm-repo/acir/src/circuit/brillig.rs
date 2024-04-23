@@ -33,7 +33,7 @@ pub struct Brillig {
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligPointer].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
 pub struct BrilligBytecode {
     pub bytecode: Vec<BrilligOpcode>,
 }

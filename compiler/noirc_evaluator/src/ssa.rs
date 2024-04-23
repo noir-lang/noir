@@ -22,9 +22,8 @@ use acvm::acir::{
 
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
-use noirc_frontend::{
-    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
-};
+use noirc_frontend::ast::Visibility;
+use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
 use tracing::{span, Level};
 
 use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
