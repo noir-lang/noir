@@ -504,7 +504,9 @@ impl ResolvedModule {
         let mut interpreter = Interpreter::new(interner);
 
         for (_file, function) in &self.functions {
-            interpreter.scan_function(*function);
+            // .unwrap() is temporary here until we can convert
+            // from InterpreterError to (CompilationError, FileId)
+            interpreter.scan_function(*function).unwrap();
         }
     }
 

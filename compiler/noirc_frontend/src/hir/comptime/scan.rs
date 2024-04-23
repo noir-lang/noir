@@ -33,12 +33,13 @@ impl<'interner> Interpreter<'interner> {
     /// Scan through a function, evaluating any CompTime nodes found.
     /// These nodes will be modified in place, replaced with the
     /// result of their evaluation.
-    pub fn scan_function(&mut self, function: FuncId) {
+    pub fn scan_function(&mut self, function: FuncId) -> IResult<()> {
         let function = self.interner.function(&function);
 
         let state = self.enter_function();
-        self.scan_expression(function.as_expr()).unwrap();
+        self.scan_expression(function.as_expr())?;
         self.exit_function(state);
+        Ok(())
     }
 
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
