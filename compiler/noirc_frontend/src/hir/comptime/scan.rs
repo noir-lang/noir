@@ -1,15 +1,15 @@
 //! This module is for the scanning of the Hir by the interpreter.
-//! In this initial step, the Hir is scanned for `CompTime` nodes
+//! In this initial step, the Hir is scanned for `Comptime` nodes
 //! without actually executing anything until such a node is found.
 //! Once such a node is found, the interpreter will call the relevant
 //! evaluate method on that node type, insert the result into the Ast,
 //! and continue scanning the rest of the program.
 //!
-//! Since it mostly just needs to recur on the Hir looking for CompTime
+//! Since it mostly just needs to recur on the Hir looking for Comptime
 //! nodes, this pass is fairly simple. The only thing it really needs to
 //! ensure to do is to push and pop scopes on the interpreter as needed
 //! so that any variables defined within e.g. an `if` statement containing
-//! a `CompTime` block aren't accessible outside of the `if`.
+//! a `Comptime` block aren't accessible outside of the `if`.
 use crate::{
     hir_def::{
         expr::{
@@ -30,7 +30,7 @@ use super::{
 
 #[allow(dead_code)]
 impl<'interner> Interpreter<'interner> {
-    /// Scan through a function, evaluating any CompTime nodes found.
+    /// Scan through a function, evaluating any Comptime nodes found.
     /// These nodes will be modified in place, replaced with the
     /// result of their evaluation.
     pub fn scan_function(&mut self, function: FuncId) -> IResult<()> {
@@ -185,7 +185,7 @@ impl<'interner> Interpreter<'interner> {
             HirStatement::Expression(expression) => self.scan_expression(expression),
             HirStatement::Semi(semi) => self.scan_expression(semi),
             HirStatement::Error => Ok(()),
-            HirStatement::CompTime(comptime) => {
+            HirStatement::Comptime(comptime) => {
                 let location = self.interner.statement_location(comptime);
                 let new_expr =
                     self.evaluate_comptime(comptime)?.into_expression(self.interner, location)?;

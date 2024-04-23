@@ -780,7 +780,7 @@ mod test {
                 HirStatement::Error => panic!("Invalid HirStatement!"),
                 HirStatement::Break => panic!("Unexpected break"),
                 HirStatement::Continue => panic!("Unexpected continue"),
-                HirStatement::CompTime(_) => panic!("Unexpected comptime"),
+                HirStatement::Comptime(_) => panic!("Unexpected comptime"),
             };
             let expr = interner.expression(&expr_id);
 

@@ -66,8 +66,8 @@ impl StmtId {
             HirStatement::Expression(expr) => StatementKind::Expression(expr.to_ast(interner)),
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_ast(interner)),
             HirStatement::Error => StatementKind::Error,
-            HirStatement::CompTime(statement) => {
-                StatementKind::CompTime(Box::new(statement.to_ast(interner).kind))
+            HirStatement::Comptime(statement) => {
+                StatementKind::Comptime(Box::new(statement.to_ast(interner).kind))
             }
         };
 

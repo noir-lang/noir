@@ -20,7 +20,7 @@ pub enum HirStatement {
     Continue,
     Expression(ExprId),
     Semi(ExprId),
-    CompTime(StmtId),
+    Comptime(StmtId),
     Error,
 }
 

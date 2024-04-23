@@ -246,13 +246,7 @@ impl<'a> Interpreter<'a> {
         location: Location,
     ) -> IResult<()> {
         self.type_check(typ, &argument, location)?;
-        for scope in self.scopes.iter_mut().rev() {
-            if let Entry::Occupied(mut entry) = scope.entry(id) {
-                entry.insert(argument);
-                return Ok(());
-            }
-        }
-        Err(InterpreterError::NoValueForId { id, location })
+        self.mutate(id, argument, location)
     }
 
     /// Mutate an existing variable, potentially from a prior scope
@@ -263,17 +257,12 @@ impl<'a> Interpreter<'a> {
                 return Ok(());
             }
         }
-        Err(InterpreterError::NoValueForId { id, location })
+        let name = self.interner.definition(id).name.clone();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
-        for scope in self.scopes.iter().rev() {
-            if let Some(value) = scope.get(&ident.id) {
-                return Ok(value.clone());
-            }
-        }
-
-        Err(InterpreterError::NoValueForId { id: ident.id, location: ident.location })
+        self.lookup_id(ident.id, ident.location)
     }
 
     fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
@@ -283,7 +272,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        Err(InterpreterError::NoValueForId { id, location })
+        // Justification for `NonComptimeVarReferenced`:
+        // If we have an id to lookup at all that means name resolution successfully
+        // found another variable in scope for this name. If the name is in scope
+        // but unknown by the interpreter it must be because it was not a comptime variable.
+        let name = self.interner.definition(id).name.clone();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
@@ -1023,7 +1017,7 @@ impl<'a> Interpreter<'a> {
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
-            HirStatement::CompTime(statement) => self.evaluate_comptime(statement),
+            HirStatement::Comptime(statement) => self.evaluate_comptime(statement),
             HirStatement::Semi(expression) => {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
