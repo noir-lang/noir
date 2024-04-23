@@ -1,9 +1,0 @@
-[package]
-name = "slow_tree_contract"
-authors = [""]
-compiler_version = ">=0.25.0"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../aztec-nr/aztec" }
-slow_updates_tree = { path = "../../../aztec-nr/slow-updates-tree" }

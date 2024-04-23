@@ -12,16 +12,16 @@ On this page you will learn how to use the `popCapsule` oracle. To see what othe
 
 In a new file on the same level as your `main.nr`, implement an unconstrained function that calls the pop_capsule oracle:
 
-#include_code pop_capsule noir-projects/noir-contracts/contracts/slow_tree_contract/src/capsule.nr rust
+#include_code pop_capsule noir-projects/noir-contracts/contracts/contract_class_registerer_contract/src/capsule.nr rust
 
 ### 2. Import this into your smart contract
 
 If it lies in the same directory as your smart contract, you can import it like this:
 
-#include_code import_pop_capsule noir-projects/noir-contracts/contracts/slow_tree_contract/src/main.nr rust
+#include_code import_pop_capsule noir-projects/noir-contracts/contracts/contract_class_registerer_contract/src/main.nr rust
 
 ### 3. Use it as any other oracle
 
 Now it becomes a regular oracle you can call like this:
 
-#include_code pop_capsule noir-projects/noir-contracts/contracts/slow_tree_contract/src/main.nr rust
+#include_code pop_capsule noir-projects/noir-contracts/contracts/contract_class_registerer_contract/src/main.nr rust

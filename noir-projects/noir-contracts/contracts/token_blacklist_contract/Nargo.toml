@@ -8,4 +8,3 @@ type = "contract"
 aztec = { path = "../../../aztec-nr/aztec" }
 field_note = { path = "../../../aztec-nr/field-note" }
 authwit = { path = "../../../aztec-nr/authwit" }
-slow_tree = { path = "../slow_tree_contract" }
