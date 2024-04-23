@@ -387,6 +387,40 @@ impl Builder {
                 self.set(destinations[0], P2Value::make_integer(bit_size, target));
             }
 
+            Instruction::ArraySet { array, index, value, mutable } => {
+                let index = self.dfg[index].clone();
+                let num_index = match index {
+                    Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
+                    _ => {
+                        let feature_name = format!("indexing array with an {:?}", index);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                };
+                let (bit_size_a, targets) = self.get_array(array)?;
+                let (bit_size_b, new_value) = self.get_integer(value)?;
+                assert!(bit_size_a == bit_size_b);
+
+                let new_targets = self.builder.add_virtual_targets(targets.len());
+                for i in 0..targets.len() {
+                    if i == num_index {
+                        self.builder.connect(new_value, new_targets[i]);
+                    } else {
+                        self.builder.connect(targets[i], new_targets[i]);
+                    }
+                }
+
+                if mutable {
+                    // It's hard to test this, so leaving it as a potential bug at the moment.
+                    // self.set_array_element(array, num_index, new_value)?;
+                }
+                let new_array = P2Value::make_array(bit_size_a, new_targets);
+
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+                self.set(destinations[0], new_array);
+            }
+
             Instruction::Call { func, arguments } => {
                 let func = self.dfg[func].clone();
 
