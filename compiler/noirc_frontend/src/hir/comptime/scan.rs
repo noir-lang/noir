@@ -34,6 +34,12 @@ impl<'interner> Interpreter<'interner> {
     /// These nodes will be modified in place, replaced with the
     /// result of their evaluation.
     pub fn scan_function(&mut self, function: FuncId) -> IResult<()> {
+        // Don't scan through functions that are already comptime. They may use comptime-only
+        // features (most likely HirExpression::Quote) that we'd otherwise error for.
+        if self.interner.function_modifiers(&function).is_comptime {
+            return Ok(());
+        }
+
         let function = self.interner.function(&function);
 
         let state = self.enter_function();
