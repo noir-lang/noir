@@ -11,3 +11,5 @@ impl<T> Bar for (T, T) where T: Bar {
         self
     }
 }
+
+fn main() { }
