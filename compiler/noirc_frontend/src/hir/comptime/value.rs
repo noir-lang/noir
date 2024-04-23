@@ -16,7 +16,6 @@ use rustc_hash::FxHashMap as HashMap;
 
 use super::errors::{IResult, InterpreterError};
 
-#[allow(unused)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Unit,
