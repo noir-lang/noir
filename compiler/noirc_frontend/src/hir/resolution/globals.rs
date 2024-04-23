@@ -11,16 +11,10 @@ use crate::{
 use fm::FileId;
 use iter_extended::vecmap;
 
+#[derive(Default)]
 pub(crate) struct ResolvedGlobals {
     pub(crate) globals: Vec<(FileId, GlobalId)>,
     pub(crate) errors: Vec<(CompilationError, FileId)>,
-}
-
-impl ResolvedGlobals {
-    pub(crate) fn extend(&mut self, oth: Self) {
-        self.globals.extend(oth.globals);
-        self.errors.extend(oth.errors);
-    }
 }
 
 pub(crate) fn resolve_globals(

@@ -412,8 +412,8 @@ impl Token {
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
     }
 
-    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
-        use crate::BinaryOpKind::*;
+    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::ast::BinaryOpKind>> {
+        use crate::ast::BinaryOpKind::*;
         let binary_op = match self {
             Token::Plus => Add,
             Token::Ampersand => And,
@@ -811,7 +811,7 @@ pub enum Keyword {
     Break,
     CallData,
     Char,
-    CompTime,
+    Comptime,
     Constrain,
     Continue,
     Contract,
@@ -856,7 +856,7 @@ impl fmt::Display for Keyword {
             Keyword::Break => write!(f, "break"),
             Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
-            Keyword::CompTime => write!(f, "comptime"),
+            Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
@@ -904,7 +904,7 @@ impl Keyword {
             "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
             "char" => Keyword::Char,
-            "comptime" => Keyword::CompTime,
+            "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,

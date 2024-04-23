@@ -4,7 +4,7 @@ use crate::lexer::token::BorrowedToken;
 use crate::lexer::token as noir_token;
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::TopLevelStatement;
-use crate::{Ident, Path, PathKind, UseTree, UseTreeKind};
+use crate::ast::{Ident, Path, PathKind, UseTree, UseTreeKind};
 
 use lalrpop_util::ErrorRecovery;
 
@@ -61,7 +61,7 @@ extern {
         "break" => BorrowedToken::Keyword(noir_token::Keyword::Break),
         "call_data" => BorrowedToken::Keyword(noir_token::Keyword::CallData),
         "char" => BorrowedToken::Keyword(noir_token::Keyword::Char),
-        "comptime" => BorrowedToken::Keyword(noir_token::Keyword::CompTime),
+        "comptime" => BorrowedToken::Keyword(noir_token::Keyword::Comptime),
         "constrain" => BorrowedToken::Keyword(noir_token::Keyword::Constrain),
         "continue" => BorrowedToken::Keyword(noir_token::Keyword::Continue),
         "contract" => BorrowedToken::Keyword(noir_token::Keyword::Contract),

@@ -1,11 +1,14 @@
 use convert_case::{Case, Casing};
 use noirc_errors::Span;
-use noirc_frontend::{
-    macros_api::FieldElement, parse_program, BlockExpression, ConstrainKind, ConstrainStatement,
-    Distinctness, Expression, ExpressionKind, ForLoopStatement, ForRange, FunctionReturnType,
-    Ident, Literal, NoirFunction, NoirStruct, Param, PathKind, Pattern, Signedness, Statement,
-    StatementKind, UnresolvedType, UnresolvedTypeData, Visibility,
+use noirc_frontend::ast;
+use noirc_frontend::ast::{
+    BlockExpression, ConstrainKind, ConstrainStatement, Distinctness, Expression, ExpressionKind,
+    ForLoopStatement, ForRange, FunctionReturnType, Ident, Literal, NoirFunction, NoirStruct,
+    Param, PathKind, Pattern, Signedness, Statement, StatementKind, UnresolvedType,
+    UnresolvedTypeData, Visibility,
 };
+
+use noirc_frontend::{macros_api::FieldElement, parse_program};
 
 use crate::{
     chained_dep, chained_path,
@@ -334,7 +337,7 @@ fn serialize_to_hasher(
                 &UnresolvedType {
                     typ: UnresolvedTypeData::Integer(
                         Signedness::Unsigned,
-                        noirc_frontend::IntegerBitSize::ThirtyTwo,
+                        ast::IntegerBitSize::ThirtyTwo,
                     ),
                     span: None,
                 },

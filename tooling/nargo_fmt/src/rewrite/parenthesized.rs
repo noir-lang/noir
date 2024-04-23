@@ -1,4 +1,5 @@
-use noirc_frontend::{hir::resolution::errors::Span, Expression, ExpressionKind};
+use noirc_frontend::ast::{Expression, ExpressionKind};
+use noirc_frontend::hir::resolution::errors::Span;
 
 use crate::visitor::{FmtVisitor, Shape};
 
