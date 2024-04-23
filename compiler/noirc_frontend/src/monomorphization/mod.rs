@@ -521,6 +521,12 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
             HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
+            HirExpression::Unquote(_) => {
+                unreachable!("unquote expression remaining in runtime code")
+            }
+            HirExpression::Comptime(_) => {
+                unreachable!("comptime expression remaining in runtime code")
+            }
         };
 
         Ok(expr)
@@ -626,7 +632,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Error => unreachable!(),
 
             // All `comptime` statements & expressions should be removed before runtime.
-            HirStatement::Comptime(_) => unreachable!("comptime statement in runtime code"),
+            HirStatement::CompTime(_) => unreachable!("comptime statement in runtime code"),
         }
     }
 

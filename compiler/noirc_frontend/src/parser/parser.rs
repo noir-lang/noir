@@ -540,7 +540,7 @@ where
                 StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
             }),
         )))
-        .map(|statement| StatementKind::Comptime(Box::new(statement)))
+        .map(|statement| StatementKind::CompTime(Box::new(statement)))
 }
 
 /// Comptime in an expression position only accepts entire blocks
@@ -548,7 +548,7 @@ fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::CompTime).ignore_then(block(statement)).map(ExpressionKind::Block)
+    keyword(Keyword::CompTime).ignore_then(block(statement)).map(ExpressionKind::Comptime)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
