@@ -1,4 +1,4 @@
-use crate::{node_interner::DefinitionId, Type};
+use crate::Type;
 use acvm::FieldElement;
 use noirc_errors::Location;
 
@@ -10,7 +10,7 @@ use super::value::Value;
 pub(crate) enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, call_location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
-    NoValueForId { id: DefinitionId, location: Location },
+    NonCompTimeVarReferenced { name: String, location: Location },
     IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
     ErrorNodeEncountered { location: Location },
     NonFunctionCalled { value: Value, location: Location },
