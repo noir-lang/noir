@@ -1,10 +1,3 @@
-use noirc_frontend::{
-    hir::resolution::errors::Span,
-    parser::{Item, ItemKind},
-    token::{Keyword, Token},
-    Distinctness, NoirFunction, ParsedModule, Visibility,
-};
-
 use crate::{
     rewrite::{self, UseTree},
     utils::{
@@ -12,6 +5,13 @@ use crate::{
         FindToken,
     },
     visitor::expr::{format_seq, NewlineMode},
+};
+use noirc_frontend::ast::{Distinctness, NoirFunction, Visibility};
+use noirc_frontend::{
+    hir::resolution::errors::Span,
+    parser::{Item, ItemKind},
+    token::{Keyword, Token},
+    ParsedModule,
 };
 
 use super::{

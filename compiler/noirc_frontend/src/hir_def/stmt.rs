@@ -1,7 +1,8 @@
 use super::expr::HirIdent;
+use crate::ast::Ident;
 use crate::macros_api::SecondaryAttribute;
-use crate::node_interner::ExprId;
-use crate::{Ident, Type};
+use crate::node_interner::{ExprId, StmtId};
+use crate::Type;
 use fm::FileId;
 use noirc_errors::{Location, Span};
 
@@ -19,6 +20,7 @@ pub enum HirStatement {
     Continue,
     Expression(ExprId),
     Semi(ExprId),
+    Comptime(StmtId),
     Error,
 }
 

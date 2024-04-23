@@ -1,4 +1,4 @@
-use noirc_frontend::{UnresolvedType, UnresolvedTypeData};
+use noirc_frontend::ast::{UnresolvedType, UnresolvedTypeData};
 
 use crate::{
     utils::span_is_empty,

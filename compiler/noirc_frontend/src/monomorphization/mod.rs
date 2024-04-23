@@ -8,6 +8,7 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
+use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::{
     debug::DebugInstrumenter,
     hir_def::{
@@ -18,8 +19,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    FunctionKind, IntegerBitSize, Signedness, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableKind, UnaryOp, Visibility,
+    Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
 use acvm::FieldElement;
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -460,7 +460,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                     // If this is a comparison operator, the result is a boolean but
                     // the actual method call returns an Ordering
-                    use crate::BinaryOpKind::*;
+                    use crate::ast::BinaryOpKind::*;
                     let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
                         self.interner.ordering_type()
                     } else {
@@ -624,6 +624,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Break => Ok(ast::Expression::Break),
             HirStatement::Continue => Ok(ast::Expression::Continue),
             HirStatement::Error => unreachable!(),
+
+            // All `comptime` statements & expressions should be removed before runtime.
+            HirStatement::Comptime(_) => unreachable!("comptime statement in runtime code"),
         }
     }
 
@@ -1265,7 +1268,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         use ast::*;
 
-        let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
+        let int_type = Type::Integer(crate::ast::Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
             Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone(), location))
@@ -1594,7 +1597,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
             ast::Type::MutableReference(element) => {
-                use crate::UnaryOp::MutableReference;
+                use crate::ast::UnaryOp::MutableReference;
                 let rhs = Box::new(self.zeroed_value_of_type(element, location));
                 let result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {
@@ -1679,7 +1682,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut result =
             ast::Expression::Call(ast::Call { func, arguments, return_type, location });
 
-        use crate::BinaryOpKind::*;
+        use crate::ast::BinaryOpKind::*;
         match operator.kind {
             // Negate the result of the == operation
             NotEqual => {
