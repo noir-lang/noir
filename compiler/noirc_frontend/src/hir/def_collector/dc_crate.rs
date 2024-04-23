@@ -31,8 +31,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::vec;
 
 /// Stores all of the unresolved functions in a particular file/mod
-// TODO: remove debug
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
@@ -80,8 +79,7 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
-// TODO: remove debug
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UnresolvedTrait {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
@@ -91,8 +89,6 @@ pub struct UnresolvedTrait {
     pub fns_with_default_impl: UnresolvedFunctions,
 }
 
-// TODO: remove debug
-#[derive(Debug)]
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,

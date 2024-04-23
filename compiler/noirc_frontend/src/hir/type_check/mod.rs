@@ -47,8 +47,6 @@ pub struct TypeChecker<'interner> {
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
-    dbg!("type_check_func", &interner.function_modifiers[&func_id].name);
-
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
@@ -64,28 +62,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let expected_trait_constraints = meta.trait_constraints.clone();
     let name_span = meta.name.location.span;
 
-    // dbg!("type_check_func", &interner.function_ident(func_id));
-        // let name = self.function_name(func_id).to_owned();
-        // let span = self.function_meta(func_id).name.location.span;
-        // Spanned::from(name_span,
-
-
-
     let mut errors = Vec::new();
-
-    dbg!("type_check_func (2)", &expected_trait_constraints);
 
     // Temporarily add any impls in this function's `where` clause to scope
     for constraint in &expected_trait_constraints {
         let object = constraint.typ.clone();
         let trait_id = constraint.trait_id;
         let generics = constraint.trait_generics.clone();
-
-        if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
-            let trait_name = the_trait.name.to_string();
-            let typ = constraint.typ.clone();
-            dbg!("tcf", trait_name, typ);
-        }
 
         if !type_checker.interner.add_assumed_trait_implementation(object, trait_id, generics) {
             if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {

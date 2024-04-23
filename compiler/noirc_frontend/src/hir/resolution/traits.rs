@@ -125,7 +125,6 @@ fn resolve_trait_methods(
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(generics);
 
-            // TODO: THIS SEEMS TO BE WHERE IT COULD BE PICKED UP
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
             resolver.add_existing_generic("Self", name_span, self_typevar);
             resolver.set_self_type(Some(self_type.clone()));
@@ -139,17 +138,6 @@ fn resolve_trait_methods(
                 where_clause,
                 func_id,
             );
-
-            // // TODO: remove before PR
-            // dbg!("resolve_trait_methods!!!!!!!");
-            // dbg!("resolve_trait_methods!!!!!!!");
-            // dbg!("resolve_trait_methods!!!!!!!");
-            // dbg!("resolve_trait_methods!!!!!!!");
-            // dbg!("resolve_trait_methods!!!!!!!");
-            // dbg!("resolve_trait_methods!!!!!!!");
-            // dbg!(&func_meta.trait_constraints);
-            // // dbg!("resolve_trait_methods!!!!!!!", &name, &where_clause, &unresolved_trait, &unresolved_trait, &unresolved_trait.trait_def.generics, &trait_generics);
-
             resolver.interner.push_fn_meta(func_meta, func_id);
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
@@ -195,10 +183,6 @@ fn collect_trait_impl_methods(
     trait_id: TraitId,
     trait_impl: &mut UnresolvedTraitImpl,
 ) -> Vec<(CompilationError, FileId)> {
-    // TODO: remove before PR
-    dbg!("collect_trait_impl_methods");
-    // dbg!("collect_trait_impl_methods", &trait_impl);
-
     // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
     // for a particular method, the default implementation will be added at that slot.
     let mut ordered_methods = Vec::new();
@@ -224,26 +208,16 @@ fn collect_trait_impl_methods(
 
         if overrides.is_empty() {
             if let Some(default_impl) = &method.default_impl {
-                dbg!("default impl", &default_impl, &method, &trait_id);
-
+                // copy 'where' clause from unresolved trait impl
                 let mut default_impl_clone = default_impl.clone();
-                // copy where clause from unresolved trait
                 default_impl_clone.def.where_clause = trait_impl.where_clause.clone();
-
-                // let mut default_impl_def = default_impl.def.clone();
-                // panic!("default impl triggered!");
-                dbg!("default impl clone.def", &default_impl_clone.def);
 
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
                 let location = Location::new(default_impl.def.span, trait_impl.file_id);
                 interner.push_function(func_id, &default_impl.def, module, location);
                 func_ids_in_trait.insert(func_id);
-                ordered_methods.push((
-                    method.default_impl_module_id,
-                    func_id,
-                    *default_impl_clone,
-                ));
+                ordered_methods.push((method.default_impl_module_id, func_id, *default_impl_clone));
             } else {
                 let error = DefCollectorErrorKind::TraitMissingMethod {
                     trait_name: interner.get_trait(trait_id).name.clone(),

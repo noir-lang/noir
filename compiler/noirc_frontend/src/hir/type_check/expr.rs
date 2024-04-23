@@ -439,8 +439,6 @@ impl<'interner> TypeChecker<'interner> {
                         .collect::<Option<Vec<_>>>();
 
                     if let Some(constraints) = constraints {
-                        dbg!("verify_type_constraint", object_type, trait_id, trait_generics, function_ident_id);
-
                         self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
                     }
                 }
@@ -1265,7 +1263,6 @@ impl<'interner> TypeChecker<'interner> {
         object_type: &Type,
         span: Span,
     ) {
-        dbg!("typecheck_operator_method:", expr_id, trait_method_id, object_type, span, &self.interner.traits);
         let the_trait = self.interner.get_trait(trait_method_id.trait_id);
 
         let method = &the_trait.methods[trait_method_id.method_index];
