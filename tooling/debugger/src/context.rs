@@ -34,6 +34,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     debug_artifact: &'a DebugArtifact,
     breakpoints: HashSet<OpcodeLocation>,
     source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
+    unconstrained_functions: &'a [BrilligBytecode],
 }
 
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
@@ -59,6 +60,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             debug_artifact,
             breakpoints: HashSet::new(),
             source_to_opcodes,
+            unconstrained_functions,
         }
     }
 
@@ -552,15 +554,18 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         match *location {
             OpcodeLocation::Acir(acir_index) => acir_index < opcodes.len(),
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                acir_index < opcodes.len()
-                    && matches!(opcodes[acir_index], Opcode::Brillig(..))
-                    && {
-                        if let Opcode::Brillig(ref brillig) = opcodes[acir_index] {
-                            brillig_index < brillig.bytecode.len()
-                        } else {
-                            false
+                if acir_index < opcodes.len() {
+                    match &opcodes[acir_index] {
+                        Opcode::Brillig(brillig) => brillig_index < brillig.bytecode.len(),
+                        Opcode::BrilligCall { id, .. } => {
+                            let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                            brillig_index < bytecode.len()
                         }
+                        _ => false,
                     }
+                } else {
+                    false
+                }
             }
         }
     }
