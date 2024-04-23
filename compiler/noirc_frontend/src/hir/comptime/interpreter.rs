@@ -40,11 +40,11 @@ pub struct Interpreter<'interner> {
 
     /// True if we've expanded any macros into any functions and will need
     /// to redo name resolution & type checking for that function.
-    pub(super) changed_functions: HashSet<FuncId>,
+    changed_functions: HashSet<FuncId>,
 
     /// True if we've expanded any macros into global scope and will need
     /// to redo name resolution & type checking for everything.
-    pub(super) changed_globally: bool,
+    changed_globally: bool,
 
     in_loop: bool,
 
@@ -1020,8 +1020,8 @@ impl<'a> Interpreter<'a> {
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
-            HirStatement::Break => self.evaluate_break(),
-            HirStatement::Continue => self.evaluate_continue(),
+            HirStatement::Break => self.evaluate_break(statement),
+            HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
             HirStatement::CompTime(statement) => self.evaluate_comptime(statement),
             HirStatement::Semi(expression) => {
@@ -1181,19 +1181,21 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Unit)
     }
 
-    fn evaluate_break(&mut self) -> IResult<Value> {
+    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
-            Err(InterpreterError::BreakNotInLoop)
+            let location = self.interner.statement_location(id);
+            Err(InterpreterError::BreakNotInLoop { location })
         }
     }
 
-    fn evaluate_continue(&mut self) -> IResult<Value> {
+    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
-            Err(InterpreterError::ContinueNotInLoop)
+            let location = self.interner.statement_location(id);
+            Err(InterpreterError::ContinueNotInLoop { location })
         }
     }
 

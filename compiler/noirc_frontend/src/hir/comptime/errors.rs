@@ -41,11 +41,11 @@ pub(crate) enum InterpreterError {
 
     // Perhaps this should be unreachable! due to type checking also preventing this error?
     // Currently it and the Continue variant are the only interpreter errors without a Location field
-    BreakNotInLoop,
-    ContinueNotInLoop,
+    BreakNotInLoop { location: Location },
+    ContinueNotInLoop { location: Location },
 
-    // These cases are not errors but prevent us from running more code
-    // until the loop can be resumed properly.
+    // These cases are not errors, they are just used to prevent us from running more code
+    // until the loop can be resumed properly. These cases will never be displayed to users.
     Break,
     Continue,
 }
