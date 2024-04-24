@@ -3,6 +3,7 @@ use crate::context::{DebugCommandResult, DebugContext};
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
@@ -68,23 +69,18 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             Some(location) => {
                 match location {
                     OpcodeLocation::Acir(ip) => {
-                        // Default Brillig display is too bloated for this context,
-                        // so we limit it to denoting it's the start of a Brillig
-                        // block. The user can still use the `opcodes` command to
-                        // take a look at the whole block.
-                        let opcode_summary = match opcodes[ip] {
-                            Opcode::Brillig(..) => "BRILLIG: ...".into(),
-                            _ => format!("{}", opcodes[ip]),
-                        };
-                        println!("At opcode {}: {}", ip, opcode_summary);
+                        println!("At opcode {}: {}", ip, opcodes[ip]);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                        let Opcode::Brillig(ref brillig) = opcodes[acir_index] else {
-                            unreachable!("Brillig location does not contain a Brillig block");
-                        };
+                        let brillig_bytecode =
+                            if let Opcode::BrilligCall { id, .. } = opcodes[acir_index] {
+                                &self.unconstrained_functions[id as usize].bytecode
+                            } else {
+                                unreachable!("Brillig location does not contain Brillig opcodes");
+                            };
                         println!(
                             "At opcode {}.{}: {:?}",
-                            acir_index, brillig_index, brillig.bytecode[brillig_index]
+                            acir_index, brillig_index, brillig_bytecode[brillig_index]
                         );
                     }
                 }
@@ -104,12 +100,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 )
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                let Opcode::Brillig(ref brillig) = opcodes[*acir_index] else {
-                    unreachable!("Brillig location does not contain a Brillig block");
+                let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
+                {
+                    &self.unconstrained_functions[id as usize].bytecode
+                } else {
+                    unreachable!("Brillig location does not contain Brillig opcodes");
                 };
                 println!(
                     "Frame #{index}, opcode {}.{}: {:?}",
-                    acir_index, brillig_index, brillig.bytecode[*brillig_index]
+                    acir_index, brillig_index, brillig_bytecode[*brillig_index]
                 );
             }
         }
@@ -162,22 +161,30 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 ""
             }
         };
+        let print_brillig_bytecode = |acir_index, bytecode: &[BrilligOpcode]| {
+            for (brillig_index, brillig_opcode) in bytecode.iter().enumerate() {
+                println!(
+                    "{:>3}.{:<2} |{:2} {:?}",
+                    acir_index,
+                    brillig_index,
+                    brillig_marker(acir_index, brillig_index),
+                    brillig_opcode
+                );
+            }
+        };
         for (acir_index, opcode) in opcodes.iter().enumerate() {
             let marker = outer_marker(acir_index);
-            if let Opcode::Brillig(brillig) = opcode {
-                println!("{:>3} {:2} BRILLIG inputs={:?}", acir_index, marker, brillig.inputs);
-                println!("       |       outputs={:?}", brillig.outputs);
-                for (brillig_index, brillig_opcode) in brillig.bytecode.iter().enumerate() {
+            match &opcode {
+                Opcode::BrilligCall { id, inputs, outputs, .. } => {
                     println!(
-                        "{:>3}.{:<2} |{:2} {:?}",
-                        acir_index,
-                        brillig_index,
-                        brillig_marker(acir_index, brillig_index),
-                        brillig_opcode
+                        "{:>3} {:2} BRILLIG CALL id={} inputs={:?}",
+                        acir_index, marker, id, inputs
                     );
+                    println!("       |       outputs={:?}", outputs);
+                    let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                    print_brillig_bytecode(acir_index, bytecode);
                 }
-            } else {
-                println!("{:>3} {:2} {:?}", acir_index, marker, opcode);
+                _ => println!("{:>3} {:2} {:?}", acir_index, marker, opcode),
             }
         }
     }

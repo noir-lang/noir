@@ -106,7 +106,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     return Err(NargoError::ExecutionError(match call_stack {
                         Some(call_stack) => {
                             // First check whether we have a runtime assertion message that should be resolved on an ACVM failure
-                            // If we do not have a runtime assertion message, we check wether the error is a brillig error with a user-defined message,
+                            // If we do not have a runtime assertion message, we check whether the error is a brillig error with a user-defined message,
                             // and finally we should check whether the circuit has any hardcoded messages associated with a specific `OpcodeLocation`.
                             // Otherwise return the provided opcode resolution error.
                             if let Some(assert_message) = assert_message {
