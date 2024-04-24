@@ -149,16 +149,6 @@ impl std::fmt::Display for RuntimeType {
     }
 }
 
-// impl std::fmt::Display for InlineType {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             InlineType::Inline => write!(f, "inline"),
-//             InlineType::Fold => write!(f, "fold"),
-//             InlineType::Never => write!(f, "inline(never)"),
-//         }
-//     }
-// }
-
 /// FunctionId is a reference for a function
 ///
 /// This Id is how each function refers to other functions
