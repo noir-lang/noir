@@ -3,7 +3,8 @@ import {
   CallContext,
   FunctionData,
   type FunctionSelector,
-  Gas,
+  type Gas,
+  type GasSettings,
   type GlobalVariables,
   type Header,
   PublicContextInputs,
@@ -40,6 +41,9 @@ export class PublicExecutionContext extends TypedOracle {
     public readonly stateDb: PublicStateDB,
     public readonly contractsDb: PublicContractsDB,
     public readonly commitmentsDb: CommitmentsDB,
+    public readonly availableGas: Gas,
+    public readonly transactionFee: Fr,
+    public readonly gasSettings: GasSettings,
     private log = createDebugLogger('aztec:simulator:public_execution_context'),
   ) {
     super();
@@ -62,8 +66,8 @@ export class PublicExecutionContext extends TypedOracle {
       this.header,
       this.globalVariables,
       this.sideEffectCounter.current(),
-      Gas.test(), // TODO(palla/gas): Set proper values
-      new Fr(0),
+      this.availableGas,
+      this.transactionFee,
     );
     const fields = [...publicContextInputs.toFields(), ...args];
     return toACVMWitness(witnessStartIndex, fields);
@@ -222,6 +226,9 @@ export class PublicExecutionContext extends TypedOracle {
       this.stateDb,
       this.contractsDb,
       this.commitmentsDb,
+      this.availableGas,
+      this.transactionFee,
+      this.gasSettings,
       this.log,
     );
 

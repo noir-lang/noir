@@ -169,7 +169,7 @@ export function makeNewSideEffectLinkedToNoteHash(seed: number): SideEffectLinke
  * @param seed - The seed to use for generating the tx context.
  * @returns A tx context.
  */
-export function makeTxContext(seed: number): TxContext {
+export function makeTxContext(seed: number = 1): TxContext {
   // @todo @LHerskind should probably take value for chainId as it will be verified later.
   return new TxContext(new Fr(seed), Fr.ZERO, makeGasSettings());
 }
@@ -290,6 +290,10 @@ export function makeValidationRequests(seed = 1) {
 
 export function makeRollupValidationRequests(seed = 1) {
   return new RollupValidationRequests(new MaxBlockNumber(true, new Fr(seed + 0x31415)));
+}
+
+export function makeCombinedConstantData(seed = 1): CombinedConstantData {
+  return new CombinedConstantData(makeHeader(seed), makeTxContext(seed + 0x100));
 }
 
 /**

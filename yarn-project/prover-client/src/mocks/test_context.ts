@@ -1,5 +1,6 @@
 import { type BlockProver, type ProcessedTx, type Tx, type TxValidator } from '@aztec/circuit-types';
-import { GlobalVariables, Header } from '@aztec/circuits.js';
+import { type Gas, GlobalVariables, Header, type TxContext } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/foundation/fields';
 import { type DebugLogger } from '@aztec/foundation/log';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import {
@@ -121,11 +122,22 @@ export class TestContext {
     blockProver?: BlockProver,
     txValidator?: TxValidator<ProcessedTx>,
   ) {
-    const defaultExecutorImplementation = (execution: PublicExecution, _1: GlobalVariables, _2?: number) => {
+    const defaultExecutorImplementation = (
+      execution: PublicExecution,
+      _globalVariables: GlobalVariables,
+      availableGas: Gas,
+      _txContext: TxContext,
+      transactionFee?: Fr,
+      _sideEffectCounter?: number,
+    ) => {
       for (const tx of txs) {
         for (const request of tx.enqueuedPublicFunctionCalls) {
           if (execution.contractAddress.equals(request.contractAddress)) {
-            const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
+            const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build({
+              startGasLeft: availableGas,
+              endGasLeft: availableGas,
+              transactionFee,
+            });
             // result.unencryptedLogs = tx.unencryptedLogs.functionLogs[0];
             return Promise.resolve(result);
           }
@@ -150,6 +162,9 @@ export class TestContext {
     executorMock?: (
       execution: PublicExecution,
       globalVariables: GlobalVariables,
+      availableGas: Gas,
+      txContext: TxContext,
+      transactionFee?: Fr,
       sideEffectCounter?: number,
     ) => Promise<PublicExecutionResult>,
   ) {

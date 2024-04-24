@@ -105,7 +105,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
       const txRequest = await this.create();
       const simulatedTx = await this.pxe.simulateTx(txRequest, true);
       this.txRequest = undefined;
-      const flattened = simulatedTx.publicReturnValues;
+      const flattened = simulatedTx.publicOutput?.publicReturnValues;
       return flattened ? decodeReturnValues(this.functionDao, flattened) : [];
     }
   }

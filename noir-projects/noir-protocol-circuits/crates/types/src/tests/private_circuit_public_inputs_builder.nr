@@ -85,6 +85,10 @@ impl PrivateCircuitPublicInputsBuilder {
         public_inputs
     }
 
+    pub fn build_tx_context(self) -> TxContext {
+        TxContext::new(self.chain_id, self.version, self.gas_settings)
+    }
+
     pub fn finish(self) -> PrivateCircuitPublicInputs {
         PrivateCircuitPublicInputs {
             call_context: self.call_context,
@@ -107,7 +111,7 @@ impl PrivateCircuitPublicInputsBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
-            tx_context: TxContext::new(self.chain_id, self.version, self.gas_settings)
+            tx_context: self.build_tx_context()
         }
     }
 }

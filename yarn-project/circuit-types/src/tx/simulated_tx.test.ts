@@ -10,7 +10,7 @@ describe('simulated_tx', () => {
   it('convert undefined effects to and from json', () => {
     const simulatedTx = mockSimulatedTx();
     simulatedTx.privateReturnValues = undefined;
-    simulatedTx.publicReturnValues = undefined;
+    simulatedTx.publicOutput = undefined;
     expect(SimulatedTx.fromJSON(simulatedTx.toJSON())).toEqual(simulatedTx);
   });
 });

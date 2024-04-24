@@ -12,6 +12,9 @@ import {
   AppendOnlyTreeSnapshot,
   ContractStorageUpdateRequest,
   Fr,
+  Gas,
+  GasFees,
+  GasSettings,
   GlobalVariables,
   Header,
   PUBLIC_DATA_TREE_HEIGHT,
@@ -25,6 +28,7 @@ import {
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { fr, makeAztecAddress, makePublicCallRequest, makeSelector } from '@aztec/circuits.js/testing';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
+import { type FieldsOf } from '@aztec/foundation/types';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import { type PublicExecutionResult, type PublicExecutor, WASMSimulator } from '@aztec/simulator';
@@ -197,7 +201,7 @@ describe('public_processor', () => {
         db,
         publicExecutor,
         publicKernel,
-        GlobalVariables.empty(),
+        GlobalVariables.from({ ...GlobalVariables.empty(), gasFees: GasFees.default() }),
         header,
         publicContractsDB,
         publicWorldStateDB,
@@ -345,6 +349,9 @@ describe('public_processor', () => {
         publicCallRequests,
       });
 
+      const teardownGas = tx.data.constants.txContext.gasSettings.getTeardownLimits();
+      const teardownResultSettings = { startGasLeft: teardownGas, endGasLeft: teardownGas };
+
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -389,9 +396,9 @@ describe('public_processor', () => {
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
               ],
-            }).build(),
+            }).build(teardownResultSettings),
           ],
-        }).build(),
+        }).build(teardownResultSettings),
       ];
 
       publicExecutor.simulate.mockImplementation(execution => {
@@ -551,6 +558,9 @@ describe('public_processor', () => {
         publicCallRequests,
       });
 
+      const teardownGas = tx.data.constants.txContext.gasSettings.getTeardownLimits();
+      const teardownResultSettings = { startGasLeft: teardownGas, endGasLeft: teardownGas };
+
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -588,16 +598,16 @@ describe('public_processor', () => {
               from: publicCallRequests[1].contractAddress,
               tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
               revertReason: new SimulationError('Simulation Failed', []),
-            }).build(),
+            }).build(teardownResultSettings),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[1].contractAddress,
               tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 14, baseContractAddress),
               ],
-            }).build(),
+            }).build(teardownResultSettings),
           ],
-        }).build(),
+        }).build(teardownResultSettings),
       ];
 
       publicExecutor.simulate.mockImplementation(execution => {
@@ -648,15 +658,44 @@ describe('public_processor', () => {
         publicCallRequests,
       });
 
-      // const baseContractAddress = makeAztecAddress(30);
+      const gasLimits = Gas.from({ l1Gas: 1e9, l2Gas: 1e9, daGas: 1e9 });
+      const teardownGas = Gas.from({ l1Gas: 1e7, l2Gas: 1e7, daGas: 1e7 });
+      tx.data.constants.txContext.gasSettings = GasSettings.from({
+        gasLimits: gasLimits,
+        teardownGasLimits: teardownGas,
+        inclusionFee: new Fr(1e4),
+        maxFeesPerGas: { feePerDaGas: new Fr(10), feePerL1Gas: new Fr(10), feePerL2Gas: new Fr(10) },
+      });
+
+      // Private kernel tail to public pushes teardown gas allocation into revertible gas used
+      tx.data.forPublic!.end.gasUsed = teardownGas;
+      tx.data.forPublic!.endNonRevertibleData.gasUsed = Gas.empty();
+
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
 
       let simulatorCallCount = 0;
+
+      const initialGas = gasLimits.sub(teardownGas);
+      const afterSetupGas = initialGas.sub(Gas.from({ l2Gas: 1e6 }));
+      const afterAppGas = afterSetupGas.sub(Gas.from({ l2Gas: 2e6, daGas: 2e6 }));
+      const afterTeardownGas = teardownGas.sub(Gas.from({ l2Gas: 3e6, daGas: 3e6 }));
+
+      // Total gas used is the sum of teardown gas allocation plus all expenditures along the way,
+      // without including the gas used in the teardown phase (since that's consumed entirely up front).
+      const expectedTotalGasUsed = { l2Gas: 1e7 + 1e6 + 2e6, daGas: 1e7 + 2e6, l1Gas: 1e7 };
+
+      // Inclusion fee plus block gas fees times total gas used
+      const expectedTxFee = 1e4 + (1e7 + 1e6 + 2e6) * 1 + (1e7 + 2e6) * 1 + 1e7 * 1;
+      const transactionFee = new Fr(expectedTxFee);
+
       const simulatorResults: PublicExecutionResult[] = [
         // Setup
-        PublicExecutionResultBuilder.fromPublicCallRequest({ request: publicCallRequests[0] }).build(),
+        PublicExecutionResultBuilder.fromPublicCallRequest({ request: publicCallRequests[0] }).build({
+          startGasLeft: initialGas,
+          endGasLeft: afterSetupGas,
+        }),
 
         // App Logic
         PublicExecutionResultBuilder.fromPublicCallRequest({
@@ -665,7 +704,10 @@ describe('public_processor', () => {
             new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 14, baseContractAddress),
             new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 15, baseContractAddress),
           ],
-        }).build(),
+        }).build({
+          startGasLeft: afterSetupGas,
+          endGasLeft: afterAppGas,
+        }),
 
         // Teardown
         PublicExecutionResultBuilder.fromPublicCallRequest({
@@ -678,21 +720,26 @@ describe('public_processor', () => {
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
               ],
-            }).build(),
+            }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[1].contractAddress,
               tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
               ],
-            }).build(),
+            }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
           ],
-        }).build(),
+        }).build({
+          startGasLeft: teardownGas,
+          endGasLeft: afterTeardownGas,
+          transactionFee,
+        }),
       ];
 
       publicExecutor.simulate.mockImplementation(execution => {
         if (simulatorCallCount < simulatorResults.length) {
-          return Promise.resolve(simulatorResults[simulatorCallCount++]);
+          const result = simulatorResults[simulatorCallCount++];
+          return Promise.resolve(result);
         } else {
           throw new Error(`Unexpected execution request: ${execution}, call count: ${simulatorCallCount}`);
         }
@@ -711,11 +758,27 @@ describe('public_processor', () => {
       expect(setupSpy).toHaveBeenCalledTimes(1);
       expect(appLogicSpy).toHaveBeenCalledTimes(1);
       expect(teardownSpy).toHaveBeenCalledTimes(3);
+
+      const expectedSimulateCall = (availableGas: Partial<FieldsOf<Gas>>, txFee: number) => [
+        expect.anything(), // PublicExecution
+        expect.anything(), // GlobalVariables
+        Gas.from(availableGas),
+        expect.anything(), // TxContext
+        new Fr(txFee),
+        expect.anything(), // SideEffectCounter
+      ];
+
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(3);
+      expect(publicExecutor.simulate).toHaveBeenNthCalledWith(1, ...expectedSimulateCall(initialGas, 0));
+      expect(publicExecutor.simulate).toHaveBeenNthCalledWith(2, ...expectedSimulateCall(afterSetupGas, 0));
+      expect(publicExecutor.simulate).toHaveBeenNthCalledWith(3, ...expectedSimulateCall(teardownGas, expectedTxFee));
+
       expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(3);
       expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(0);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
+
+      expect(processed[0].data.end.gasUsed).toEqual(Gas.from(expectedTotalGasUsed));
 
       const txEffect = toTxEffect(processed[0]);
       expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(3);

@@ -229,6 +229,22 @@ pub fn update_non_revertible_gas_used(public_call: PublicCallData, circuit_outpu
         .sub(accum_end_gas_used);
 }
 
+// Validates that the start gas injected into the app circuit matches the remaining gas
+pub fn validate_start_gas(public_call: PublicCallData, previous_kernel: PublicKernelData) {
+    let public_call_start_gas = public_call.call_stack_item.public_inputs.start_gas_left;
+    let tx_gas_limits = previous_kernel.public_inputs.constants.tx_context.gas_settings.gas_limits;
+    let computed_start_gas = tx_gas_limits.sub(previous_kernel.public_inputs.end.gas_used).sub(previous_kernel.public_inputs.end_non_revertible.gas_used);
+    assert(
+        public_call_start_gas == computed_start_gas, "Start gas for public phase does not match transaction gas left"
+    );
+}
+
+// Validates the transaction fee injected into the app circuit is zero for non-teardown phases
+pub fn validate_transaction_fee_is_zero(public_call: PublicCallData) {
+    let transaction_fee = public_call.call_stack_item.public_inputs.transaction_fee;
+    assert(transaction_fee == 0, "Transaction fee must be zero on setup and app phases");
+}
+
 pub fn update_public_end_non_revertible_values(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder

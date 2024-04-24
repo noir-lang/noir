@@ -22,6 +22,9 @@ fn asc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {
     a.counter() < b.counter()
 }
 
+// Builds:
+// .finish -> KernelCircuitPublicInputs (from PrivateKernelTailCircuitPrivateInputs)
+// .finish_to_public -> PublicKernelCircuitPublicInputs (from PrivateKernelTailToPublicCircuitPrivateInputs)
 struct KernelCircuitPublicInputsComposer {
     public_inputs: PrivateKernelCircuitPublicInputsBuilder,
     previous_kernel: PrivateKernelData,
@@ -47,7 +50,7 @@ impl KernelCircuitPublicInputsComposer {
         sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
         sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
         sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
-        sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
+        sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX]
     ) -> Self {
         let public_inputs = PrivateKernelCircuitPublicInputsBuilder::empty();
 
@@ -62,7 +65,7 @@ impl KernelCircuitPublicInputsComposer {
             sorted_encrypted_log_hashes,
             sorted_encrypted_log_hashes_indexes,
             sorted_unencrypted_log_hashes,
-            sorted_unencrypted_log_hashes_indexes,
+            sorted_unencrypted_log_hashes_indexes
         }
     }
 
@@ -82,6 +85,8 @@ impl KernelCircuitPublicInputsComposer {
 
         self.silo_values();
 
+        self.set_gas_used();
+
         *self
     }
 
@@ -100,6 +105,12 @@ impl KernelCircuitPublicInputsComposer {
     pub fn finish_to_public(self) -> PublicKernelCircuitPublicInputs {
         let min_revertible_side_effect_counter = self.previous_kernel.public_inputs.min_revertible_side_effect_counter;
         self.public_inputs.finish_to_public(min_revertible_side_effect_counter)
+    }
+
+    fn set_gas_used(&mut self) {
+        // TODO(gas): Compute DA gas used here and add to public_inputs.(end,end_non_revertible).gas_used
+        let teardown_gas = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.teardown_gas_limits;
+        self.public_inputs.end.gas_used = teardown_gas;
     }
 
     fn silo_values(&mut self) {

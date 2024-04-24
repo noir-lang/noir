@@ -420,7 +420,7 @@ export class PXEService implements PXE {
     txRequest: TxExecutionRequest,
     simulatePublic: boolean,
     msgSender: AztecAddress | undefined = undefined,
-  ) {
+  ): Promise<SimulatedTx> {
     if (!txRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
     }
@@ -441,7 +441,7 @@ export class PXEService implements PXE {
       }
 
       if (simulatePublic) {
-        simulatedTx.publicReturnValues = await this.#simulatePublicCalls(simulatedTx.tx);
+        simulatedTx.publicOutput = await this.#simulatePublicCalls(simulatedTx.tx);
       }
 
       if (!msgSender) {

@@ -11,6 +11,10 @@ use crate::{
     mocked::AggregationObject, partial_state_reference::PartialStateReference, traits::Empty
 };
 
+// Builds:
+// .finish: PrivateKernelCircuitPublicInputs
+// .finish_tail: KernelCircuitPublicInputs (from KernelCircuitPublicInputsComposer)
+// .finish_to_public: PublicKernelCircuitPublicInputs (from KernelCircuitPublicInputsComposer)
 struct PrivateKernelCircuitPublicInputsBuilder {
     aggregation_object: AggregationObject,
     min_revertible_side_effect_counter: u32,

@@ -61,8 +61,12 @@ export interface PublicExecutionResult {
    * The revert reason if the execution reverted.
    */
   revertReason: SimulationError | undefined;
+  /** How much gas was available for this public execution. */
+  startGasLeft: Gas;
   /** How much gas was left after this public execution. */
-  gasLeft: Gas; // TODO(palla/gas): Check this field
+  endGasLeft: Gas;
+  /** Transaction fee set for this tx. */
+  transactionFee: Fr;
 }
 
 /**

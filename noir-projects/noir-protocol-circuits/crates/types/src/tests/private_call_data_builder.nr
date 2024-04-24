@@ -89,7 +89,7 @@ impl PrivateCallDataBuilder {
     }
 
     pub fn build_tx_context(self) -> TxContext {
-        TxContext { chain_id: 1, version: 0, gas_settings: self.gas_settings }
+        self.public_inputs.build_tx_context()
     }
 
     pub fn append_private_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
@@ -170,24 +170,21 @@ impl PrivateCallDataBuilder {
         self.public_inputs.unencrypted_log_preimages_length += preimages_length;
     }
 
-    pub fn get_call_stack_item_hash(self) -> Field {
-        let call_stack_item = PrivateCallStackItem {
+    fn build_call_stack_item(self) -> PrivateCallStackItem {
+        PrivateCallStackItem {
             contract_address: self.contract_address,
             function_data: self.function_data,
             public_inputs: self.public_inputs.finish()
-        };
-        call_stack_item.hash()
+        }
+    }
+
+    pub fn get_call_stack_item_hash(self) -> Field {
+        self.build_call_stack_item().hash()
     }
 
     pub fn finish(self) -> PrivateCallData {
-        let call_stack_item = PrivateCallStackItem {
-            contract_address: self.contract_address,
-            function_data: self.function_data,
-            public_inputs: self.public_inputs.finish()
-        };
-
         PrivateCallData {
-            call_stack_item,
+            call_stack_item: self.build_call_stack_item(),
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
             proof: self.proof,

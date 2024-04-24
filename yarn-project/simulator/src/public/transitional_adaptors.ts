@@ -5,7 +5,8 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   FunctionData,
-  GasSettings,
+  Gas,
+  type GasSettings,
   type GlobalVariables,
   type Header,
   L2ToL1Message,
@@ -37,6 +38,8 @@ export function createAvmExecutionEnvironment(
   current: PublicExecution,
   header: Header,
   globalVariables: GlobalVariables,
+  gasSettings: GasSettings,
+  transactionFee: Fr,
 ): AvmExecutionEnvironment {
   return new AvmExecutionEnvironment(
     current.contractAddress,
@@ -51,8 +54,8 @@ export function createAvmExecutionEnvironment(
     current.callContext.isStaticCall,
     current.callContext.isDelegateCall,
     current.args,
-    GasSettings.default(), // TODO(palla/gas): Set proper values
-    Fr.ZERO, // TODO(palla/gas): Set proper values
+    gasSettings,
+    transactionFee,
     current.functionData.selector,
   );
 }
@@ -85,6 +88,9 @@ export function createPublicExecutionContext(avmContext: AvmContext, calldata: F
     avmContext.persistableState.hostStorage.publicStateDb,
     avmContext.persistableState.hostStorage.contractsDb,
     avmContext.persistableState.hostStorage.commitmentsDb,
+    Gas.from(avmContext.machineState.gasLeft),
+    avmContext.environment.transactionFee,
+    avmContext.environment.gasSettings,
   );
 
   return context;
@@ -168,7 +174,9 @@ export async function convertAvmResults(
     unencryptedLogs,
     reverted: result.reverted,
     revertReason: result.revertReason ? createSimulationError(result.revertReason) : undefined,
-    gasLeft: endMachineState.gasLeft,
+    startGasLeft: executionContext.availableGas,
+    endGasLeft: endMachineState.gasLeft,
+    transactionFee: executionContext.transactionFee,
   };
 }
 

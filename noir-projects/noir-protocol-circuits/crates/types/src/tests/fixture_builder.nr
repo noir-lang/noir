@@ -50,6 +50,7 @@ struct FixtureBuilder {
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     gas_used: Gas,
+    non_revertible_gas_used: Gas,
 
     // Validation requests.
     max_block_number: MaxBlockNumber,
@@ -109,7 +110,8 @@ impl FixtureBuilder {
             min_revertible_side_effect_counter: 0,
             counter: 0,
             start_state: PartialStateReference::empty(),
-            gas_used: Gas::empty()
+            gas_used: Gas::empty(),
+            non_revertible_gas_used: Gas::empty()
         }
     }
 
@@ -128,7 +130,8 @@ impl FixtureBuilder {
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             private_call_stack: self.private_call_stack,
             public_call_stack: self.public_call_stack,
-            gas_used: self.gas_used
+            gas_used: self.gas_used,
+            non_revertible_gas_used: self.non_revertible_gas_used
         };
         public_inputs.finish()
     }
@@ -451,6 +454,7 @@ impl Empty for FixtureBuilder {
             counter: 0,
             start_state: PartialStateReference::empty(),
             gas_used: Gas::empty(),
+            non_revertible_gas_used: Gas::empty(),
         }
     }
 }

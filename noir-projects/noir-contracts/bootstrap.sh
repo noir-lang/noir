@@ -20,5 +20,4 @@ NARGO=${NARGO:-../../noir/noir-repo/target/release/nargo}
 $NARGO compile --silence-warnings
 
 echo "Transpiling avm contracts... (only '#[aztec(public-vm)]')"
-TRANSPILER=${TRANSPILER:-../../avm-transpiler/target/release/avm-transpiler}
-ls target/avm_*.json | parallel "$TRANSPILER {} {}"
+scripts/transpile.sh

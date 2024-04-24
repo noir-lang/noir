@@ -13,6 +13,7 @@ import {
   LogType,
   MerkleTreeId,
   NullifierMembershipWitness,
+  type ProcessOutput,
   type ProverClient,
   PublicDataWitness,
   type SequencerConfig,
@@ -634,7 +635,7 @@ export class AztecNodeService implements AztecNode {
    * Simulates the public part of a transaction with the current state.
    * @param tx - The transaction to simulate.
    **/
-  public async simulatePublicCalls(tx: Tx) {
+  public async simulatePublicCalls(tx: Tx): Promise<ProcessOutput> {
     this.log.info(`Simulating tx ${tx.getTxHash()}`);
     const blockNumber = (await this.blockSource.getBlockNumber()) + 1;
 
@@ -660,6 +661,7 @@ export class AztecNodeService implements AztecNode {
       new WASMSimulator(),
     );
     const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);
+    // REFACTOR: Consider merging ProcessReturnValues into ProcessedTx
     const [processedTxs, failedTxs, returns] = await processor.process([tx]);
     if (failedTxs.length) {
       this.log.warn(`Simulated tx ${tx.getTxHash()} fails: ${failedTxs[0].error}`);
@@ -671,7 +673,15 @@ export class AztecNodeService implements AztecNode {
       throw reverted[0].revertReason;
     }
     this.log.info(`Simulated tx ${tx.getTxHash()} succeeds`);
-    return returns[0];
+    const [processedTx] = processedTxs;
+    return {
+      constants: processedTx.data.constants,
+      encryptedLogs: processedTx.encryptedLogs,
+      unencryptedLogs: processedTx.unencryptedLogs,
+      end: processedTx.data.end,
+      revertReason: processedTx.revertReason,
+      publicReturnValues: returns[0],
+    };
   }
 
   public setConfig(config: Partial<SequencerConfig>): Promise<void> {
