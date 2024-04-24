@@ -2659,13 +2659,12 @@ mod test {
         basic_nested_call(InlineType::Never);
         basic_call_with_outputs_assert(InlineType::Never);
     }
-    
+
     #[test]
-    #[should_panic] 
+    #[should_panic]
     fn call_without_inline_attribute() {
         basic_call_with_outputs_assert(InlineType::Inline);
     }
-    
 
     fn basic_call_with_outputs_assert(inline_type: InlineType) {
         // acir(inline) fn main f0 {
