@@ -18,22 +18,6 @@ pub(crate) enum RuntimeType {
     Brillig,
 }
 
-// /// Represents how a RuntimeType::Acir function should be inlined.
-// /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-// #[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-// pub(crate) enum InlineType {
-//     /// The most basic entry point can expect all its functions to be inlined.
-//     /// All function calls are expected to be inlined into a single ACIR.
-//     #[default]
-//     Inline,
-//     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
-//     Fold,
-//     /// Similar to `Fold`, these functions will not be inlined and compile separately into ACIR.
-//     /// They are different from `Fold` though as they are expected to be inlined into the program
-//     /// entry point before being used in the backend.
-//     Never,
-// }
-
 impl RuntimeType {
     /// Returns whether the runtime type represents an entry point.
     /// We return `false` for InlineType::Inline on default, which is true
@@ -41,11 +25,6 @@ impl RuntimeType {
     /// handling in any places where this function determines logic.
     pub(crate) fn is_entry_point(&self) -> bool {
         match self {
-            // RuntimeType::Acir(inline_type) => match inline_type {
-            //     InlineType::Inline => false,
-            //     InlineType::Fold => true,
-            //     InlineType::Never => true,
-            // },
             RuntimeType::Acir(inline_type) => inline_type.is_entry_point(),
             RuntimeType::Brillig => true,
         }
