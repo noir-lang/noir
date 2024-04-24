@@ -652,7 +652,7 @@ mod tests {
     use acvm::{
         acir::{
             circuit::{
-                brillig::{Brillig, BrilligInputs, BrilligOutputs},
+                brillig::{BrilligInputs, BrilligOutputs},
                 opcodes::BlockId,
             },
             native_types::Expression,
@@ -669,12 +669,7 @@ mod tests {
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
-        let brillig_opcodes = Brillig {
-            inputs: vec![BrilligInputs::Single(Expression {
-                linear_combinations: vec![(fe_1, w_x)],
-                ..Expression::default()
-            })],
-            outputs: vec![],
+        let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress(0),
@@ -695,9 +690,17 @@ mod tests {
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
             ],
-            predicate: None,
         };
-        let opcodes = vec![Opcode::Brillig(brillig_opcodes)];
+        let opcodes = vec![Opcode::BrilligCall {
+            id: 0,
+            inputs: vec![BrilligInputs::Single(Expression {
+                linear_combinations: vec![(fe_1, w_x)],
+                ..Expression::default()
+            })],
+            outputs: vec![],
+            predicate: None,
+        }];
+        let brillig_funcs = &vec![brillig_bytecode];
         let current_witness_index = 2;
         let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
 
@@ -710,7 +713,6 @@ mod tests {
 
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
-        let brillig_funcs = &vec![];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
@@ -769,18 +771,7 @@ mod tests {
         let w_z = Witness(3);
 
         // This Brillig block is equivalent to: z = x + y
-        let brillig_opcodes = Brillig {
-            inputs: vec![
-                BrilligInputs::Single(Expression {
-                    linear_combinations: vec![(fe_1, w_x)],
-                    ..Expression::default()
-                }),
-                BrilligInputs::Single(Expression {
-                    linear_combinations: vec![(fe_1, w_y)],
-                    ..Expression::default()
-                }),
-            ],
-            outputs: vec![BrilligOutputs::Simple(w_z)],
+        let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress(0),
@@ -795,11 +786,24 @@ mod tests {
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 1 },
             ],
-            predicate: None,
         };
         let opcodes = vec![
             // z = x + y
-            Opcode::Brillig(brillig_opcodes),
+            Opcode::BrilligCall {
+                id: 0,
+                inputs: vec![
+                    BrilligInputs::Single(Expression {
+                        linear_combinations: vec![(fe_1, w_x)],
+                        ..Expression::default()
+                    }),
+                    BrilligInputs::Single(Expression {
+                        linear_combinations: vec![(fe_1, w_y)],
+                        ..Expression::default()
+                    }),
+                ],
+                outputs: vec![BrilligOutputs::Simple(w_z)],
+                predicate: None,
+            },
             // x + y - z = 0
             Opcode::AssertZero(Expression {
                 mul_terms: vec![],
@@ -819,7 +823,7 @@ mod tests {
 
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
-        let brillig_funcs = &vec![];
+        let brillig_funcs = &vec![brillig_bytecode];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
@@ -851,31 +855,24 @@ mod tests {
 
     #[test]
     fn test_offset_opcode_location() {
-        let opcodes = vec![
-            Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
-            Opcode::MemoryInit { block_id: BlockId(0), init: vec![] },
-            Opcode::Brillig(Brillig {
-                inputs: vec![],
-                outputs: vec![],
-                bytecode: vec![
-                    BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-                    BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-                    BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-                ],
-                predicate: None,
-            }),
-            Opcode::AssertZero(Expression::default()),
-        ];
-        let circuit = Circuit { opcodes, ..Circuit::default() };
-        let debug_artifact =
-            DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
-        let brillig_funcs = &vec![BrilligBytecode {
+        let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
             ],
-        }];
+        };
+
+        let opcodes = vec![
+            Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
+            Opcode::MemoryInit { block_id: BlockId(0), init: vec![] },
+            Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
+            Opcode::AssertZero(Expression::default()),
+        ];
+        let circuit = Circuit { opcodes, ..Circuit::default() };
+        let debug_artifact =
+            DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
+        let brillig_funcs = &vec![brillig_bytecode];
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,
             &circuit,
