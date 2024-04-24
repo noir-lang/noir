@@ -1,18 +1,19 @@
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
-use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirExpression, HirIdent};
-use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
-use crate::macros_api::HirLiteral;
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
-use crate::{
+use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression,
     IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-    MemberAccessExpression, MethodCallExpression, Path, Pattern, PrefixExpression, Type,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    MemberAccessExpression, MethodCallExpression, Path, Pattern, PrefixExpression, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression,
 };
+use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
+use crate::hir_def::expr::{HirArrayLiteral, HirExpression, HirIdent};
+use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
+use crate::hir_def::types::Type;
+use crate::macros_api::HirLiteral;
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
 // TODO:
 // - Full path for idents & types
@@ -36,6 +37,7 @@ impl StmtId {
                     pattern,
                     r#type,
                     expression,
+                    comptime: false,
                     attributes: Vec::new(),
                 })
             }
@@ -64,6 +66,9 @@ impl StmtId {
             HirStatement::Expression(expr) => StatementKind::Expression(expr.to_ast(interner)),
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_ast(interner)),
             HirStatement::Error => StatementKind::Error,
+            HirStatement::Comptime(statement) => {
+                StatementKind::Comptime(Box::new(statement.to_ast(interner).kind))
+            }
         };
 
         Statement { kind, span }

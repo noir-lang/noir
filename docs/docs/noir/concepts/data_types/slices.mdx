@@ -168,3 +168,28 @@ fn main() {
     assert(slice.len() == 2);
 }
 ```
+
+### as_array
+
+Converts this slice into an array.
+
+Make sure to specify the size of the resulting array.
+Panics if the resulting array length is different than the slice's length.
+
+```rust
+fn as_array<N>(self) -> [T; N]
+```
+
+Example:
+
+```rust
+fn main() {
+    let slice = &[5, 6];
+
+    // Always specify the length of the resulting array!
+    let array: [Field; 2] = slice.as_array();
+
+    assert(array[0] == slice[0]);
+    assert(array[1] == slice[1]);
+}
+```

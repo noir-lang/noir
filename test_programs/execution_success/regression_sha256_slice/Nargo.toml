@@ -1,7 +1,0 @@
-[package]
-name = "regression_sha256_slice"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.26.0"
-
-[dependencies]

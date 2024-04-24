@@ -1,12 +1,16 @@
 use noirc_errors::Span;
+use noirc_frontend::ast::{
+    ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, TraitImplItem, TypeImpl,
+    UnresolvedTypeData, UnresolvedTypeExpression,
+};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext, HirExpression, HirLiteral, HirStatement},
     parse_program,
     parser::SortedModule,
-    ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, TraitImplItem, Type,
-    TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
+    Type,
 };
+
 use regex::Regex;
 
 use crate::{
@@ -414,8 +418,7 @@ fn generate_note_properties_fn(
 
 // Automatically generate the method to compute the note's content hash as:
 // fn compute_note_content_hash(self: NoteType) -> Field {
-//    // TODO(#1205) Should use a non-zero generator index.
-//    dep::aztec::hash::pedersen_hash(self.serialize_content(), 0)
+//    dep::aztec::hash::pedersen_hash(self.serialize_content(), dep::aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
 // }
 //
 fn generate_compute_note_content_hash(
@@ -425,8 +428,7 @@ fn generate_compute_note_content_hash(
     let function_source = format!(
         "
         fn compute_note_content_hash(self: {}) -> Field {{
-            // TODO(#1205) Should use a non-zero generator index.
-            dep::aztec::hash::pedersen_hash(self.serialize_content(), 0)
+            dep::aztec::hash::pedersen_hash(self.serialize_content(), dep::aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
         }}
         ",
         note_type

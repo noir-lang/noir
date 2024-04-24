@@ -1,4 +1,4 @@
-use noirc_frontend::{hir::resolution::errors::Span, token::Token, Expression};
+use noirc_frontend::{ast::Expression, hir::resolution::errors::Span, token::Token};
 
 use crate::{
     items::Item,

@@ -1,6 +1,6 @@
 use dep::std::collections::map::HashMap;
 use dep::std::hash::BuildHasherDefault;
-use dep::std::hash::pedersen::PedersenHasher;
+use dep::std::hash::poseidon2::Poseidon2Hasher;
 
 struct Entry{
     key: Field,
@@ -10,7 +10,7 @@ struct Entry{
 global HASHMAP_CAP = 8;
 global HASHMAP_LEN = 6;
 
-fn allocate_hashmap() -> HashMap<Field, Field, HASHMAP_CAP, BuildHasherDefault<PedersenHasher>> {
+fn allocate_hashmap() -> HashMap<Field, Field, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> {
     HashMap::default()
 }
 

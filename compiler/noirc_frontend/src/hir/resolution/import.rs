@@ -4,8 +4,8 @@ use thiserror::Error;
 use crate::graph::CrateId;
 use std::collections::BTreeMap;
 
+use crate::ast::{Ident, ItemVisibility, Path, PathKind};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
-use crate::{Ident, ItemVisibility, Path, PathKind};
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
