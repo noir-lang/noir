@@ -8,42 +8,11 @@
 
 namespace bb {
 
-/**
- * Create GoblinTranslatorProver from proving key, witness and manifest.
- *
- * @param input_key Proving key.
- * @param input_manifest Input manifest
- *
- * @tparam settings Settings class.
- * */
-GoblinTranslatorProver::GoblinTranslatorProver(const std::shared_ptr<typename Flavor::ProvingKey>& input_key,
-                                               const std::shared_ptr<CommitmentKey>& commitment_key,
-                                               const std::shared_ptr<Transcript>& transcript)
-    : transcript(transcript)
-    , key(input_key)
-    , commitment_key(commitment_key)
-{
-    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
-        ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly));
-        prover_poly = key_poly.share();
-    }
-    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_shifted(), key->get_to_be_shifted())) {
-        ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly) + "_shift");
-        prover_poly = key_poly.shifted();
-    }
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/810): resolve weirdness around concatenated range
-    // constraints
-    prover_polynomials.concatenated_range_constraints_0 = key->concatenated_range_constraints_0;
-    prover_polynomials.concatenated_range_constraints_1 = key->concatenated_range_constraints_1;
-    prover_polynomials.concatenated_range_constraints_2 = key->concatenated_range_constraints_2;
-    prover_polynomials.concatenated_range_constraints_3 = key->concatenated_range_constraints_3;
-}
-
 GoblinTranslatorProver::GoblinTranslatorProver(CircuitBuilder& circuit_builder,
                                                const std::shared_ptr<Transcript>& transcript)
     : dyadic_circuit_size(Flavor::compute_dyadic_circuit_size(circuit_builder))
     , mini_circuit_dyadic_size(Flavor::compute_mini_circuit_dyadic_size(circuit_builder))
-
+    , transcript(transcript)
 {
     BB_OP_COUNT_TIME();
 
@@ -53,7 +22,14 @@ GoblinTranslatorProver::GoblinTranslatorProver(CircuitBuilder& circuit_builder,
     compute_witness(circuit_builder);
     compute_commitment_key(key->circuit_size);
 
-    *this = GoblinTranslatorProver(key, commitment_key, transcript);
+    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
+        ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly));
+        prover_poly = key_poly.share();
+    }
+    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_shifted(), key->get_to_be_shifted())) {
+        ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly) + "_shift");
+        prover_poly = key_poly.shifted();
+    }
 }
 
 /**
@@ -320,9 +296,9 @@ void GoblinTranslatorProver::execute_relation_check_rounds()
 void GoblinTranslatorProver::execute_zeromorph_rounds()
 {
     using ZeroMorph = ZeroMorphProver_<PCS>;
-    ZeroMorph::prove(prover_polynomials.get_unshifted(),
+    ZeroMorph::prove(prover_polynomials.get_unshifted_without_concatenated(),
                      prover_polynomials.get_to_be_shifted(),
-                     sumcheck_output.claimed_evaluations.get_unshifted(),
+                     sumcheck_output.claimed_evaluations.get_unshifted_without_concatenated(),
                      sumcheck_output.claimed_evaluations.get_shifted(),
                      sumcheck_output.challenge,
                      commitment_key,

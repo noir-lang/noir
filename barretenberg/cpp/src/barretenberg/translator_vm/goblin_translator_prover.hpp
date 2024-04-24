@@ -28,10 +28,6 @@ class GoblinTranslatorProver {
     size_t dyadic_circuit_size = 0;      // final power-of-2 circuit size
     size_t mini_circuit_dyadic_size = 0; // The size of the small circuit that contains non-range constraint relations
 
-    explicit GoblinTranslatorProver(const std::shared_ptr<ProvingKey>& input_key,
-                                    const std::shared_ptr<CommitmentKey>& commitment_key,
-                                    const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
-
     explicit GoblinTranslatorProver(CircuitBuilder& circuit_builder, const std::shared_ptr<Transcript>& transcript);
 
     void compute_witness(CircuitBuilder& circuit_builder);
