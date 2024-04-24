@@ -566,14 +566,12 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
-        let result_type = self.builder.type_of_value(lhs);
-
         let op = convert_operator(operator);
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
+        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
         if matches!(
