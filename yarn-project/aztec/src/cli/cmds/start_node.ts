@@ -29,6 +29,17 @@ export const startNode = async (
   // merge env vars and cli options
   let nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(aztecNodeConfigEnvVars, nodeCliOptions);
 
+  // Deploy contracts if needed
+  if (nodeCliOptions.deployAztecContracts || DEPLOY_AZTEC_CONTRACTS === 'true') {
+    let account;
+    if (nodeConfig.publisherPrivateKey === NULL_KEY) {
+      account = mnemonicToAccount(MNEMONIC);
+    } else {
+      account = privateKeyToAccount(nodeConfig.publisherPrivateKey);
+    }
+    await deployContractsToL1(nodeConfig, account);
+  }
+
   // if no publisher private key, then use MNEMONIC
   if (!options.archiver) {
     // expect archiver url in node config
@@ -40,18 +51,7 @@ export const startNode = async (
     nodeConfig.archiverUrl = archiverUrl;
   } else {
     const archiverCliOptions = parseModuleOptions(options.archiver);
-    nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(aztecNodeConfigEnvVars, archiverCliOptions, true);
-  }
-
-  // Deploy contracts if needed
-  if (nodeCliOptions.deployAztecContracts || DEPLOY_AZTEC_CONTRACTS === 'true') {
-    let account;
-    if (nodeConfig.publisherPrivateKey === NULL_KEY) {
-      account = mnemonicToAccount(MNEMONIC);
-    } else {
-      account = privateKeyToAccount(nodeConfig.publisherPrivateKey);
-    }
-    await deployContractsToL1(nodeConfig, account);
+    nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(nodeConfig, archiverCliOptions, true);
   }
 
   if (!options.sequencer) {
