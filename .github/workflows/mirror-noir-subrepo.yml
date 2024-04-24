@@ -9,12 +9,6 @@ concurrency:
   cancel-in-progress: false
 on:
   workflow_dispatch: {}
-  push:
-    branches:
-      - master
-    paths:
-      - "noir/noir-repo/**"
-      - "!noir/noir-repo/.gitrepo"
 
 jobs:
   mirror_repo:
