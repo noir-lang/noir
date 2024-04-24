@@ -162,17 +162,3 @@ impl FuncMeta {
         }
     }
 }
-
-// #[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-// pub(crate) enum InlineType {
-//     /// The most basic entry point can expect all its functions to be inlined.
-//     /// All function calls are expected to be inlined into a single ACIR.
-//     #[default]
-//     Inline,
-//     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
-//     Fold,
-//     /// Similar to `Fold`, these functions will not be inlined and compile separately into ACIR.
-//     /// They are different from `Fold` though as they are expected to be inlined into the program
-//     /// entry point before being used in the backend.
-//     Never,
-// }

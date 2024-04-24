@@ -305,13 +305,6 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(return_type, meta.location)?;
         let unconstrained = modifiers.is_unconstrained;
 
-        // All unconstrained functions are not inlined, so we oly
-        // let inline_type = if !unconstrained {
-        // let attributes = self.interner.function_attributes(&f);
-        // Some(InlineType::from(attributes));
-        // } else {
-        //     None
-        // };
         let attributes = self.interner.function_attributes(&f);
         let inline_type = InlineType::from(attributes);
 
