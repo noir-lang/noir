@@ -67,6 +67,10 @@ export const startNode = async (
     nodeConfig.disableProver = true;
   }
 
+  if (!nodeConfig.disableSequencer && nodeConfig.disableProver) {
+    throw new Error('Cannot run a sequencer without a prover');
+  }
+
   // Create and start Aztec Node.
   const node = await createAztecNode(nodeConfig);
   const nodeServer = createAztecNodeRpcServer(node);
