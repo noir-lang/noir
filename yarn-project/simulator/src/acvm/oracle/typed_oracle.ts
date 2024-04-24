@@ -233,4 +233,8 @@ export abstract class TypedOracle {
   ): Promise<PublicCallRequest> {
     throw new OracleMethodNotAvailableError('enqueuePublicFunctionCall');
   }
+
+  aes128Encrypt(_input: Buffer, _initializationVector: Buffer, _key: Buffer): Buffer {
+    throw new OracleMethodNotAvailableError('encrypt');
+  }
 }
