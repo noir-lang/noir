@@ -420,55 +420,6 @@ impl GeneratedAcir {
         Ok(limb_witnesses)
     }
 
-    /// Returns an expression which represents `lhs * rhs`
-    ///
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates [intermediate variables][`Witness`] accordingly.
-    /// There are two cases where we can optimize the multiplication between two expressions:
-    /// 1. If the sum of the degrees of both expressions is at most 2, then we can just multiply them
-    /// as each term in the result will be degree-2.
-    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
-    ///
-    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
-    /// which is what you get when you multiply two degree-1 univariate polynomials.
-    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
-        use std::borrow::Cow;
-        let lhs_is_linear = lhs.is_linear();
-        let rhs_is_linear = rhs.is_linear();
-
-        // Case 1: The sum of the degrees of both expressions is at most 2.
-        //
-        // If one of the expressions is constant then it does not increase the degree when multiplying by another expression.
-        // If both of the expressions are linear (degree <=1) then the product will be at most degree 2.
-        let both_are_linear = lhs_is_linear && rhs_is_linear;
-        let either_is_const = lhs.is_const() || rhs.is_const();
-        if both_are_linear || either_is_const {
-            return (lhs * rhs).expect("Both expressions are degree <= 1");
-        }
-
-        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
-        let lhs_reduced = if lhs_is_linear {
-            Cow::Borrowed(lhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(lhs).into())
-        };
-
-        // If the lhs and rhs are the same, then we do not need to reduce
-        // rhs, we only need to square the lhs.
-        if lhs == rhs {
-            return (&*lhs_reduced * &*lhs_reduced)
-                .expect("Both expressions are reduced to be degree <= 1");
-        };
-
-        let rhs_reduced = if rhs_is_linear {
-            Cow::Borrowed(rhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(rhs).into())
-        };
-
-        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
-    }
-
     /// Adds an inversion brillig opcode.
     ///
     /// This code will invert `expr` without applying constraints

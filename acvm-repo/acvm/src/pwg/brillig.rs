@@ -30,19 +30,6 @@ pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
-    /// Evaluates if the Brillig block should be skipped entirely
-    pub(super) fn should_skip(
-        witness: &WitnessMap,
-        brillig: &Brillig,
-    ) -> Result<bool, OpcodeResolutionError> {
-        // If the predicate is `None`, the block should never be skipped
-        // If the predicate is `Some` but we cannot find a value, then we return stalled
-        match &brillig.predicate {
-            Some(pred) => Ok(get_value(pred, witness)?.is_zero()),
-            None => Ok(false),
-        }
-    }
-
     /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap,
