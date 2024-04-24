@@ -1,12 +1,12 @@
-use std::{borrow::Cow, collections::hash_map::Entry, rc::Rc};
+use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::FieldElement;
 use im::Vector;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use crate::ast::{BinaryOpKind, BlockExpression, FunctionKind, IntegerBitSize, Signedness};
+use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::{
     hir_def::{
         expr::{
@@ -22,12 +22,16 @@ use crate::{
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
-use crate::{Shared, Type, TypeBinding, TypeBindings, TypeVariableKind};
+
+use super::errors::{IResult, InterpreterError};
+use super::value::Value;
+
 #[allow(unused)]
-pub(crate) struct Interpreter<'interner> {
+pub struct Interpreter<'interner> {
     /// To expand macros the Interpreter may mutate hir nodes within the NodeInterner
-    interner: &'interner mut NodeInterner,
+    pub(super) interner: &'interner mut NodeInterner,
 
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -48,72 +52,6 @@ pub(crate) struct Interpreter<'interner> {
     /// If this is false code is skipped over instead of executed.
     in_comptime_context: bool,
 }
-
-#[allow(unused)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Value {
-    Unit,
-    Bool(bool),
-    Field(FieldElement),
-    I8(i8),
-    I32(i32),
-    I64(i64),
-    U8(u8),
-    U32(u32),
-    U64(u64),
-    String(Rc<String>),
-    Function(FuncId, Type),
-    Closure(HirLambda, Vec<Value>, Type),
-    Tuple(Vec<Value>),
-    Struct(HashMap<Rc<String>, Value>, Type),
-    Pointer(Shared<Value>),
-    Array(Vector<Value>, Type),
-    Slice(Vector<Value>, Type),
-    Code(Rc<BlockExpression>),
-}
-
-/// The possible errors that can halt the interpreter.
-#[allow(unused)]
-#[derive(Debug)]
-pub(crate) enum InterpreterError {
-    ArgumentCountMismatch { expected: usize, actual: usize, call_location: Location },
-    TypeMismatch { expected: Type, value: Value, location: Location },
-    NoValueForId { id: DefinitionId, location: Location },
-    IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
-    ErrorNodeEncountered { location: Location },
-    NonFunctionCalled { value: Value, location: Location },
-    NonBoolUsedInIf { value: Value, location: Location },
-    NonBoolUsedInConstrain { value: Value, location: Location },
-    FailingConstraint { message: Option<Value>, location: Location },
-    NoMethodFound { object: Value, typ: Type, location: Location },
-    NonIntegerUsedInLoop { value: Value, location: Location },
-    NonPointerDereferenced { value: Value, location: Location },
-    NonTupleOrStructInMemberAccess { value: Value, location: Location },
-    NonArrayIndexed { value: Value, location: Location },
-    NonIntegerUsedAsIndex { value: Value, location: Location },
-    NonIntegerIntegerLiteral { typ: Type, location: Location },
-    NonIntegerArrayLength { typ: Type, location: Location },
-    NonNumericCasted { value: Value, location: Location },
-    IndexOutOfBounds { index: usize, length: usize, location: Location },
-    ExpectedStructToHaveField { value: Value, field_name: String, location: Location },
-    TypeUnsupported { typ: Type, location: Location },
-    InvalidValueForUnary { value: Value, operator: &'static str, location: Location },
-    InvalidValuesForBinary { lhs: Value, rhs: Value, operator: &'static str, location: Location },
-    CastToNonNumericType { typ: Type, location: Location },
-
-    // Perhaps this should be unreachable! due to type checking also preventing this error?
-    // Currently it and the Continue variant are the only interpreter errors without a Location field
-    BreakNotInLoop,
-    ContinueNotInLoop,
-
-    // These cases are not errors but prevent us from running more code
-    // until the loop can be resumed properly.
-    Break,
-    Continue,
-}
-
-#[allow(unused)]
-type IResult<T> = std::result::Result<T, InterpreterError>;
 
 #[allow(unused)]
 impl<'a> Interpreter<'a> {
@@ -193,14 +131,14 @@ impl<'a> Interpreter<'a> {
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
     /// `exit_function` is called.
-    fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
+    pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let scope = self.scopes.drain(1..).collect();
         self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
     }
 
-    fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
+    pub(super) fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
         self.in_loop = state.0;
 
         // Keep only the global scope
@@ -208,11 +146,11 @@ impl<'a> Interpreter<'a> {
         self.scopes.append(&mut state.1);
     }
 
-    fn push_scope(&mut self) {
+    pub(super) fn push_scope(&mut self) {
         self.scopes.push(HashMap::default());
     }
 
-    fn pop_scope(&mut self) {
+    pub(super) fn pop_scope(&mut self) {
         self.scopes.pop();
     }
 
@@ -308,13 +246,7 @@ impl<'a> Interpreter<'a> {
         location: Location,
     ) -> IResult<()> {
         self.type_check(typ, &argument, location)?;
-        for scope in self.scopes.iter_mut().rev() {
-            if let Entry::Occupied(mut entry) = scope.entry(id) {
-                entry.insert(argument);
-                return Ok(());
-            }
-        }
-        Err(InterpreterError::NoValueForId { id, location })
+        self.mutate(id, argument, location)
     }
 
     /// Mutate an existing variable, potentially from a prior scope
@@ -325,17 +257,12 @@ impl<'a> Interpreter<'a> {
                 return Ok(());
             }
         }
-        Err(InterpreterError::NoValueForId { id, location })
+        let name = self.interner.definition(id).name.clone();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
-        for scope in self.scopes.iter().rev() {
-            if let Some(value) = scope.get(&ident.id) {
-                return Ok(value.clone());
-            }
-        }
-
-        Err(InterpreterError::NoValueForId { id: ident.id, location: ident.location })
+        self.lookup_id(ident.id, ident.location)
     }
 
     fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
@@ -345,7 +272,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        Err(InterpreterError::NoValueForId { id, location })
+        // Justification for `NonComptimeVarReferenced`:
+        // If we have an id to lookup at all that means name resolution successfully
+        // found another variable in scope for this name. If the name is in scope
+        // but unknown by the interpreter it must be because it was not a comptime variable.
+        let name = self.interner.definition(id).name.clone();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
@@ -375,6 +307,13 @@ impl<'a> Interpreter<'a> {
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
+            HirExpression::Comptime(block) => self.evaluate_block(block),
+            HirExpression::Unquote(block) => {
+                // An Unquote expression being found is indicative of a macro being
+                // expanded within another comptime fn which we don't currently support.
+                let location = self.interner.expr_location(&id);
+                Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
+            }
             HirExpression::Error => {
                 let location = self.interner.expr_location(&id);
                 Err(InterpreterError::ErrorNodeEncountered { location })
@@ -390,7 +329,7 @@ impl<'a> Interpreter<'a> {
                 let typ = self.interner.id_type(id);
                 Ok(Value::Function(*function_id, typ))
             }
-            DefinitionKind::Local(_) => dbg!(self.lookup(&ident)),
+            DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
                 self.evaluate_let(let_)?;
@@ -503,7 +442,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub(super) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -1075,8 +1014,8 @@ impl<'a> Interpreter<'a> {
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
-            HirStatement::Break => self.evaluate_break(),
-            HirStatement::Continue => self.evaluate_continue(),
+            HirStatement::Break => self.evaluate_break(statement),
+            HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
             HirStatement::Comptime(statement) => self.evaluate_comptime(statement),
             HirStatement::Semi(expression) => {
@@ -1236,59 +1175,28 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Unit)
     }
 
-    fn evaluate_break(&mut self) -> IResult<Value> {
+    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
-            Err(InterpreterError::BreakNotInLoop)
+            let location = self.interner.statement_location(id);
+            Err(InterpreterError::BreakNotInLoop { location })
         }
     }
 
-    fn evaluate_continue(&mut self) -> IResult<Value> {
+    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
-            Err(InterpreterError::ContinueNotInLoop)
+            let location = self.interner.statement_location(id);
+            Err(InterpreterError::ContinueNotInLoop { location })
         }
     }
 
-    fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
+    pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
         let was_in_comptime = std::mem::replace(&mut self.in_comptime_context, true);
         let result = self.evaluate_statement(statement);
         self.in_comptime_context = was_in_comptime;
         result
-    }
-}
-
-impl Value {
-    fn get_type(&self) -> Cow<Type> {
-        Cow::Owned(match self {
-            Value::Unit => Type::Unit,
-            Value::Bool(_) => Type::Bool,
-            Value::Field(_) => Type::FieldElement,
-            Value::I8(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
-            Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
-            Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-            Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-            Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
-            Value::String(value) => {
-                let length = Type::Constant(value.len() as u64);
-                Type::String(Box::new(length))
-            }
-            Value::Function(_, typ) => return Cow::Borrowed(typ),
-            Value::Closure(_, _, typ) => return Cow::Borrowed(typ),
-            Value::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
-            }
-            Value::Struct(_, typ) => return Cow::Borrowed(typ),
-            Value::Array(_, typ) => return Cow::Borrowed(typ),
-            Value::Slice(_, typ) => return Cow::Borrowed(typ),
-            Value::Code(_) => Type::Code,
-            Value::Pointer(element) => {
-                let element = element.borrow().get_type().into_owned();
-                Type::MutableReference(Box::new(element))
-            }
-        })
     }
 }

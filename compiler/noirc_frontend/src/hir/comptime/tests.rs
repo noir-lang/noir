@@ -2,7 +2,9 @@
 
 use noirc_errors::Location;
 
-use super::interpreter::{Interpreter, InterpreterError, Value};
+use super::errors::InterpreterError;
+use super::interpreter::Interpreter;
+use super::value::Value;
 use crate::hir::type_check::test::type_check_src_code;
 
 fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
