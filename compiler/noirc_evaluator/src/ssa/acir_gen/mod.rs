@@ -3277,18 +3277,15 @@ mod test {
         // This check right now expects to only call one Brillig function.
         let mut num_normal_brillig_calls = 0;
         for (i, opcode) in opcodes.iter().enumerate() {
-            match opcode {
-                Opcode::BrilligCall { id, .. } => {
-                    if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
-                        // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
-                        continue;
-                    }
-                    // We only generate one normal Brillig call so we should expect a function ID of `0`
-                    let expected_id = 0u32;
-                    assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
-                    num_normal_brillig_calls += 1;
+            if let Opcode::BrilligCall { id, .. } = opcode {
+                if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
+                    // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
+                    continue;
                 }
-                _ => {}
+                // We only generate one normal Brillig call so we should expect a function ID of `0`
+                let expected_id = 0u32;
+                assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
+                num_normal_brillig_calls += 1;
             }
         }
 

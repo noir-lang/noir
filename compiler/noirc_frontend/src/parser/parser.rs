@@ -532,7 +532,7 @@ where
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::CompTime)
+    keyword(Keyword::Comptime)
         .ignore_then(choice((
             declaration(expr),
             for_loop(expr_no_constructors, statement.clone()),
@@ -548,7 +548,7 @@ fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::CompTime).ignore_then(block(statement)).map(ExpressionKind::Block)
+    keyword(Keyword::Comptime).ignore_then(block(statement)).map(ExpressionKind::Comptime)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -733,7 +733,7 @@ fn optional_distinctness() -> impl NoirParser<Distinctness> {
 }
 
 fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
             emit(ParserError::with_reason(
                 ParserErrorReason::ExperimentalFeature("comptime"),

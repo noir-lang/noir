@@ -6,8 +6,8 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
-            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirExpression, HirIdent,
+            HirLiteral, HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -271,34 +271,7 @@ impl<'interner> TypeChecker<'interner> {
                 let span = self.interner.expr_span(expr_id);
                 self.check_cast(lhs_type, cast_expr.r#type, span)
             }
-            HirExpression::Block(block_expr) => {
-                let mut block_type = Type::Unit;
-
-                let statements = block_expr.statements();
-                for (i, stmt) in statements.iter().enumerate() {
-                    let expr_type = self.check_statement(stmt);
-
-                    if let crate::hir_def::stmt::HirStatement::Semi(expr) =
-                        self.interner.statement(stmt)
-                    {
-                        let inner_expr_type = self.interner.id_type(expr);
-                        let span = self.interner.expr_span(&expr);
-
-                        self.unify(&inner_expr_type, &Type::Unit, || {
-                            TypeCheckError::UnusedResultError {
-                                expr_type: inner_expr_type.clone(),
-                                expr_span: span,
-                            }
-                        });
-                    }
-
-                    if i + 1 == statements.len() {
-                        block_type = expr_type;
-                    }
-                }
-
-                block_type
-            }
+            HirExpression::Block(block_expr) => self.check_block(block_expr),
             HirExpression::Prefix(prefix_expr) => {
                 let rhs_type = self.check_expression(&prefix_expr.rhs);
                 let span = self.interner.expr_span(&prefix_expr.rhs);
@@ -336,10 +309,42 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
             HirExpression::Quote(_) => Type::Code,
+            HirExpression::Comptime(block) => self.check_block(block),
+
+            // Unquote should be inserted & removed by the comptime interpreter.
+            // Even if we allowed it here, we wouldn't know what type to give to the result.
+            HirExpression::Unquote(block) => {
+                unreachable!("Unquote remaining during type checking {block}")
+            }
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());
         typ
+    }
+
+    fn check_block(&mut self, block: HirBlockExpression) -> Type {
+        let mut block_type = Type::Unit;
+
+        let statements = block.statements();
+        for (i, stmt) in statements.iter().enumerate() {
+            let expr_type = self.check_statement(stmt);
+
+            if let crate::hir_def::stmt::HirStatement::Semi(expr) = self.interner.statement(stmt) {
+                let inner_expr_type = self.interner.id_type(expr);
+                let span = self.interner.expr_span(&expr);
+
+                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
+                    expr_type: inner_expr_type.clone(),
+                    expr_span: span,
+                });
+            }
+
+            if i + 1 == statements.len() {
+                block_type = expr_type;
+            }
+        }
+
+        block_type
     }
 
     /// Returns the type of the given identifier
@@ -885,36 +890,6 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
-            // Special-case == and != for arrays
-            (Array(x_size, x_type), Array(y_size, y_type))
-                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
-            {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::ArrayLen,
-                    span: op.location.span,
-                });
-
-                let (_, use_impl) = self.comparator_operand_type_rules(x_type, y_type, op, span)?;
-
-                // If the size is not constant, we must fall back to a user-provided impl for
-                // equality on slices.
-                let size = x_size.follow_bindings();
-                let use_impl = use_impl || size.evaluate_to_u64().is_none();
-                Ok((Bool, use_impl))
-            }
-
-            (String(x_size), String(y_size)) => {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: *x_size.clone(),
-                    actual: *y_size.clone(),
-                    span: op.location.span,
-                    source: Source::StringLen,
-                });
-
-                Ok((Bool, false))
-            }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
