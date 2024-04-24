@@ -890,36 +890,6 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
-            // Special-case == and != for arrays
-            (Array(x_size, x_type), Array(y_size, y_type))
-                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
-            {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::ArrayLen,
-                    span: op.location.span,
-                });
-
-                let (_, use_impl) = self.comparator_operand_type_rules(x_type, y_type, op, span)?;
-
-                // If the size is not constant, we must fall back to a user-provided impl for
-                // equality on slices.
-                let size = x_size.follow_bindings();
-                let use_impl = use_impl || size.evaluate_to_u64().is_none();
-                Ok((Bool, use_impl))
-            }
-
-            (String(x_size), String(y_size)) => {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: *x_size.clone(),
-                    actual: *y_size.clone(),
-                    span: op.location.span,
-                    source: Source::StringLen,
-                });
-
-                Ok((Bool, false))
-            }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
