@@ -90,7 +90,7 @@ jobs:
 
       - name: Compare gates reports
         id: gates_diff
-        uses: vezenovm/noir-gates-diff@45e9c9a21deb236fa7f38138b42b33ddaf7c0985
+        uses: vezenovm/noir-gates-diff@acf12797860f237117e15c0d6e08d64253af52b6
         with:
           report: protocol_circuits_report.json
           summaryQuantile: 0 # Display any diff in gate count
