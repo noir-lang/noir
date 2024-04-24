@@ -14,4 +14,10 @@ describe('PublicKernelCircuitPrivateInputs', () => {
     expect(original).toEqual(serialized);
     expect(original).not.toBe(serialized);
   });
+
+  it('serializes to and deserializes from a string', () => {
+    const original = makePublicKernelCircuitPrivateInputs(123);
+    const serialized = PublicKernelCircuitPrivateInputs.fromString(original.toString());
+    expect(original).toEqual(serialized);
+  });
 });

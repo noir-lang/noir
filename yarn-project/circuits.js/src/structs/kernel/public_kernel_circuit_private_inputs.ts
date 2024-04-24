@@ -18,10 +18,27 @@ export class PublicKernelCircuitPrivateInputs {
     public readonly publicCall: PublicCallData,
   ) {}
 
+  /**
+   * Serializes the object to a buffer.
+   * @returns - Buffer representation of the object.
+   */
   toBuffer() {
     return serializeToBuffer(this.previousKernel, this.publicCall);
   }
 
+  /**
+   * Serializes the object to a hex string.
+   * @returns - Hex string representation of the object.
+   */
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserializes the object from a buffer.
+   * @param buffer - Buffer to deserialize.
+   * @returns - Deserialized object.
+   */
   static fromBuffer(buffer: BufferReader | Buffer) {
     const reader = BufferReader.asReader(buffer);
     const previousKernel = reader.readObject(PublicKernelData);
@@ -29,6 +46,19 @@ export class PublicKernelCircuitPrivateInputs {
     return new PublicKernelCircuitPrivateInputs(previousKernel, publicCall);
   }
 
+  /**
+   * Deserializes the object from a hex string.
+   * @param str - Hex string to deserialize.
+   * @returns - Deserialized object.
+   */
+  static fromString(str: string) {
+    return PublicKernelCircuitPrivateInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
+
+  /**
+   * Clones the object.
+   * @returns - Cloned object.
+   */
   clone() {
     return PublicKernelCircuitPrivateInputs.fromBuffer(this.toBuffer());
   }
