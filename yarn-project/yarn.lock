@@ -2857,7 +2857,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/noirc_abi@portal:../noir/packages/noirc_abi::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
-    "@noir-lang/types": 0.27.0
+    "@noir-lang/types": 0.28.0
   languageName: node
   linkType: soft
 
