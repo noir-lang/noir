@@ -447,10 +447,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         match self.get_current_opcode_location() {
             Some(OpcodeLocation::Brillig { .. }) => true,
             Some(OpcodeLocation::Acir(acir_index)) => {
-                matches!(
-                    self.get_opcodes()[acir_index],
-                    Opcode::BrilligCall { .. }
-                )
+                matches!(self.get_opcodes()[acir_index], Opcode::BrilligCall { .. })
             }
             _ => false,
         }

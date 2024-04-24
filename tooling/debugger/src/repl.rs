@@ -69,23 +69,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             Some(location) => {
                 match location {
                     OpcodeLocation::Acir(ip) => {
-                        // Default Brillig display is too bloated for this context,
-                        // so we limit it to denoting it's the start of a Brillig
-                        // block. The user can still use the `opcodes` command to
-                        // take a look at the whole block.
-                        let opcode_summary = match opcodes[ip] {
-                            Opcode::Brillig(..) => "BRILLIG: ...".into(),
-                            _ => format!("{}", opcodes[ip]),
-                        };
-                        println!("At opcode {}: {}", ip, opcode_summary);
+                        println!("At opcode {}: {}", ip, opcodes[ip]);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                        let brillig_bytecode = match opcodes[acir_index] {
-                            Opcode::BrilligCall { id, .. } => {
+                        let brillig_bytecode =
+                            if let Opcode::BrilligCall { id, .. } = opcodes[acir_index] {
                                 &self.unconstrained_functions[id as usize].bytecode
-                            }
-                            _ => unreachable!("Brillig location does not contain a Brillig block"),
-                        };
+                            } else {
+                                unreachable!("Brillig location does not contain Brillig opcodes");
+                            };
                         println!(
                             "At opcode {}.{}: {:?}",
                             acir_index, brillig_index, brillig_bytecode[brillig_index]
@@ -108,11 +100,11 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 )
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                let brillig_bytecode = match opcodes[*acir_index] {
-                    Opcode::BrilligCall { id, .. } => {
-                        &self.unconstrained_functions[id as usize].bytecode
-                    }
-                    _ => unreachable!("Brillig location does not contain a Brillig block"),
+                let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
+                {
+                    &self.unconstrained_functions[id as usize].bytecode
+                } else {
+                    unreachable!("Brillig location does not contain Brillig opcodes");
                 };
                 println!(
                     "Frame #{index}, opcode {}.{}: {:?}",
