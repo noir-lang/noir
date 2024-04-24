@@ -12,4 +12,4 @@ impl<T> Bar for (T, T) where T: Bar {
     }
 }
 
-fn main() { }
+fn main() {}
