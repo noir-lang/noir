@@ -10,7 +10,7 @@ use crate::{
 
 use acvm::acir::{
     circuit::{
-        brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         OpcodeLocation,
     },
@@ -623,35 +623,6 @@ impl GeneratedAcir {
         self.push_opcode(constraint);
 
         Ok(())
-    }
-
-    // TODO: Delete this method once we remove the `Brillig` opcode
-    pub(crate) fn brillig(
-        &mut self,
-        predicate: Option<Expression>,
-        generated_brillig: GeneratedBrillig,
-        inputs: Vec<BrilligInputs>,
-        outputs: Vec<BrilligOutputs>,
-    ) {
-        let opcode = AcirOpcode::Brillig(AcvmBrillig {
-            inputs,
-            outputs,
-            bytecode: generated_brillig.byte_code,
-            predicate,
-        });
-        self.push_opcode(opcode);
-        for (brillig_index, call_stack) in generated_brillig.locations {
-            self.locations.insert(
-                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
-                call_stack,
-            );
-        }
-        for (brillig_index, message) in generated_brillig.assert_messages {
-            self.assert_messages.insert(
-                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
-                message,
-            );
-        }
     }
 
     pub(crate) fn brillig_call(

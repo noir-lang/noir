@@ -228,7 +228,7 @@ struct InfoReport {
 
 #[derive(Debug, Serialize)]
 struct ProgramInfo {
-    name: String,
+    package_name: String,
     #[serde(skip)]
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
@@ -238,7 +238,7 @@ impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
         vecmap(program_info.functions, |function| {
             row![
-                Fm->format!("{}", program_info.name),
+                Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
                 format!("{:?}", program_info.expression_width),
                 Fc->format!("{}", function.acir_opcodes),
@@ -302,7 +302,7 @@ fn count_opcodes_and_gates_in_program(
         })
         .collect::<Result<_, _>>()?;
 
-    Ok(ProgramInfo { name: package.name.to_string(), expression_width, functions })
+    Ok(ProgramInfo { package_name: package.name.to_string(), expression_width, functions })
 }
 
 fn count_opcodes_and_gates_in_contract(

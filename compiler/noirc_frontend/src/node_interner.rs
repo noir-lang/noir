@@ -921,8 +921,16 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
-    pub fn statement_span(&self, stmt_id: &StmtId) -> Span {
+    pub fn statement_span(&self, stmt_id: StmtId) -> Span {
         self.id_location(stmt_id).span
+    }
+
+    pub fn statement_location(&self, stmt_id: StmtId) -> Location {
+        self.id_location(stmt_id)
+    }
+
+    pub fn push_statement_location(&mut self, id: StmtId, span: Span, file: FileId) {
+        self.id_to_location.insert(id.into(), Location::new(span, file));
     }
 
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {

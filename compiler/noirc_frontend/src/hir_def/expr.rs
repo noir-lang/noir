@@ -31,8 +31,10 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    Error,
     Quote(crate::ast::BlockExpression),
+    Unquote(crate::ast::BlockExpression),
+    Comptime(HirBlockExpression),
+    Error,
 }
 
 impl HirExpression {

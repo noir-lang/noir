@@ -71,10 +71,10 @@ jobs:
         run: |
           ./gates_report.sh
           mv gates_report.json ../gates_report.json
-       
+      
       - name: Compare gates reports
         id: gates_diff
-        uses: vezenovm/noir-gates-diff@f80ea702d579873ff80f0261c62e2bae5203748e
+        uses: vezenovm/noir-gates-diff@acf12797860f237117e15c0d6e08d64253af52b6
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
