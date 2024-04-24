@@ -93,6 +93,7 @@ They can be emitted by both public and private functions.
 :::danger
 - Emitting unencrypted events from private function is a significant privacy leak and it should be considered by the developer whether it is acceptable.
 - Unencrypted events are currently **NOT** linked to the contract emitting them, so it is practically a [`debug_log`](../oracles/main.md#a-few-useful-inbuilt-oracles).
+
 :::
 
 ### Call emit_unencrypted_log
