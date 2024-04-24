@@ -3207,7 +3207,7 @@ mod test {
         // Build a Brillig function
         build_basic_foo_with_return(&mut builder, foo_id, None);
         // Build an ACIR function which has the same logic as the Brillig function above
-        build_basic_foo_with_return(&mut builder, bar_id, Some(InlineType::default()));
+        build_basic_foo_with_return(&mut builder, bar_id, Some(InlineType::Fold));
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
