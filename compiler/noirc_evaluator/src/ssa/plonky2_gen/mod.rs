@@ -30,7 +30,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 struct P2Value {
     target: P2Target,
     typ: P2Type,
@@ -47,6 +47,36 @@ impl P2Value {
                 })
             }
         })
+    }
+
+    fn get_integer_target(&self) -> Result<Target, Plonky2GenError> {
+        match self.target {
+            P2Target::IntTarget(target) => Ok(target),
+            _ => {
+                let message = "get_integer_target called on non-int value".to_owned();
+                Err(Plonky2GenError::ICE { message })
+            }
+        }
+    }
+
+    fn get_boolean_target(&self) -> Result<BoolTarget, Plonky2GenError> {
+        match self.target {
+            P2Target::BoolTarget(bool_target) => Ok(bool_target),
+            _ => {
+                let message = format!("get_boolean_target called on non-bool {:?}", self);
+                Err(Plonky2GenError::ICE { message })
+            }
+        }
+    }
+
+    fn get_array_target(&self) -> Result<Vec<Target>, Plonky2GenError> {
+        match self.target {
+            P2Target::ArrayTarget(ref targets) => Ok(targets.clone()),
+            _ => {
+                let message = format!("get_array_target called on non-array {:?}", self);
+                Err(Plonky2GenError::ICE { message })
+            }
+        }
     }
 
     fn make_integer(bit_size: u32, target: Target) -> P2Value {
@@ -73,9 +103,22 @@ impl P2Value {
             _ => parameters.push(self.get_target()?),
         })
     }
+
+    fn clone(&self) -> Result<P2Value, Plonky2GenError> {
+        Ok(match self.typ {
+            P2Type::Integer(bit_size) => {
+                P2Value::make_integer(bit_size, self.get_integer_target()?.clone())
+            }
+            P2Type::Boolean => P2Value::make_boolean(self.get_boolean_target()?.clone()),
+            P2Type::Field => P2Value::make_field(self.get_integer_target()?.clone()),
+            P2Type::Array(bit_size) => {
+                P2Value::make_array(bit_size, self.get_array_target()?.clone())
+            }
+        })
+    }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum P2Type {
     Boolean,
     Integer(u32),
@@ -83,7 +126,7 @@ enum P2Type {
     Field,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 enum P2Target {
     IntTarget(Target),
     BoolTarget(BoolTarget),
@@ -621,15 +664,24 @@ impl Builder {
     }
 
     fn get_array(&mut self, value_id: ValueId) -> Result<(u32, Vec<Target>), Plonky2GenError> {
-        let p2value = self.get(value_id).unwrap();
-        let bit_size = match p2value.typ {
+        let p2value: P2Value;
+        let p2value_ref = match self.get(value_id) {
+            Some(p2value) => p2value,
+            None => {
+                let value_id = self.dfg.resolve(value_id);
+                let value = self.dfg[value_id].clone();
+                p2value = self.create_p2value(value)?;
+                &p2value
+            }
+        };
+        let bit_size = match p2value_ref.typ {
             P2Type::Array(bit_size) => bit_size,
             _ => {
-                let message = format!("argument to get_array is of type {:?}", p2value.typ);
+                let message = format!("argument to get_array is of type {:?}", p2value_ref.typ);
                 return Err(Plonky2GenError::ICE { message });
             }
         };
-        let targets = match p2value.target {
+        let targets = match p2value_ref.target {
             P2Target::ArrayTarget(ref targets) => targets.clone(),
             _ => {
                 return Err(Plonky2GenError::ICE {
@@ -676,29 +728,78 @@ impl Builder {
     }
 
     fn create_p2value(&mut self, value: Value) -> Result<P2Value, Plonky2GenError> {
-        let (target, typ) = match value {
-            Value::Param { block: _, position: _, typ } => (self.builder.add_virtual_target(), typ),
-            Value::NumericConstant { constant, typ } => {
-                (self.builder.constant(noir_to_plonky2_field(constant)), typ)
+        fn create_numeric_value(target: Target, typ: Type) -> Result<P2Value, Plonky2GenError> {
+            match typ {
+                Type::Numeric(numeric_type) => match numeric_type {
+                    NumericType::NativeField => Ok(P2Value::make_field(target)),
+                    NumericType::Unsigned { bit_size } => {
+                        Ok(P2Value::make_integer(bit_size, target))
+                    }
+                    _ => {
+                        let feature_name = format!("parameters of type {numeric_type}");
+                        Err(Plonky2GenError::UnsupportedFeature { name: feature_name })
+                    }
+                },
+                _ => Err(Plonky2GenError::UnsupportedFeature {
+                    name: "parameters that are not numeric".to_owned(),
+                }),
             }
-            _ => {
-                return Err(Plonky2GenError::ICE {
-                    message: format!("create_p2value passed a value that is {:?}", value),
-                })
-            }
-        };
+        }
 
-        match typ {
-            Type::Numeric(numeric_type) => match numeric_type {
-                NumericType::NativeField => Ok(P2Value::make_field(target)),
-                NumericType::Unsigned { bit_size } => Ok(P2Value::make_integer(bit_size, target)),
-                _ => {
-                    let feature_name = format!("parameters of type {numeric_type}");
-                    Err(Plonky2GenError::UnsupportedFeature { name: feature_name })
+        match value {
+            Value::Param { block: _, position: _, typ } => {
+                let target = self.builder.add_virtual_target();
+                create_numeric_value(target, typ)
+            }
+            Value::NumericConstant { constant, typ } => {
+                let target = self.builder.constant(noir_to_plonky2_field(constant));
+                create_numeric_value(target, typ)
+            }
+            Value::Array { array, typ } => {
+                assert!(array.len() > 0, "empty array literal");
+                let mut element_type: Option<P2Type> = None;
+                let mut targets = Vec::new();
+                for element in array {
+                    let p2value: P2Value;
+                    let p2value_ref = match self.get(element) {
+                        Some(p2value) => p2value,
+                        None => {
+                            let element = self.dfg.resolve(element);
+                            let element_value = self.dfg[element].clone();
+                            p2value = self.create_p2value(element_value)?;
+                            &p2value
+                        }
+                    };
+                    if element_type.is_none() {
+                        element_type = Some(p2value_ref.typ);
+                    } else {
+                        if element_type.unwrap() != p2value_ref.typ {
+                            let feature_name = format!(
+                                "array elements of different types ({:?} and {:?})",
+                                element_type, p2value_ref.typ
+                            );
+                            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        }
+                    }
+                    targets.push(p2value_ref.get_target()?);
                 }
-            },
-            _ => Err(Plonky2GenError::UnsupportedFeature {
-                name: "parameters that are not numeric".to_owned(),
+                match element_type.unwrap() {
+                    P2Type::Integer(bit_size) => Ok(P2Value::make_array(bit_size, targets)),
+                    _ => {
+                        let feature_name = format!("array literal with {:?} elements", typ);
+                        Err(Plonky2GenError::UnsupportedFeature { name: feature_name })
+                    }
+                }
+            }
+            Value::Instruction { instruction, .. } => {
+                let destinations: Vec<_> =
+                    self.dfg.instruction_results(instruction).iter().cloned().collect();
+                assert!(destinations.len() == 1);
+
+                self.get(destinations[0]).unwrap().clone()
+            }
+            _ => Err(Plonky2GenError::ICE {
+                message: format!("create_p2value passed a value that is {:?}", value),
             }),
         }
     }
