@@ -13,7 +13,7 @@ debounce() {
   local run_id=$(uuidgen)
   echo "$run_id" > ".debounce-$group_id"
   (
-    sleep $DEBOUNCE_DURATION; 
+    sleep $DEBOUNCE_DURATION;
     local current_id=$(cat ".debounce-$group_id");
     if [ "$run_id" = "${current_id}" ]; then
       "$@"
@@ -24,7 +24,7 @@ debounce() {
 # Start typescript watch process in the background and store process ID in a file
 start_tsc_watch() {
   local tsc_bin=$(yarn bin tsc)
-  $tsc_bin -b tsconfig.json --watch &
+  $tsc_bin -b tsconfig.json --watch --preserveWatchOutput &
   TSC_PID=$!
   echo "$TSC_PID" > .tsc.pid
 }
