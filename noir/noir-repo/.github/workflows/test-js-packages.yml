@@ -188,7 +188,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Playwright
-        run: ./.github/scripts/playwright-install.sh
+        uses: ./.github/actions/install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser

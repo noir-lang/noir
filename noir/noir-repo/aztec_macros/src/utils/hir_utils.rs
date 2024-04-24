@@ -1,6 +1,8 @@
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast;
+use noirc_frontend::macros_api::{HirExpression, HirLiteral};
+use noirc_frontend::node_interner::{NodeInterner, TraitImplKind};
 use noirc_frontend::{
     graph::CrateId,
     hir::{
@@ -8,11 +10,8 @@ use noirc_frontend::{
         resolution::{path_resolver::StandardPathResolver, resolver::Resolver},
         type_check::type_check_func,
     },
-    macros_api::{
-        FileId, HirContext, HirExpression, HirLiteral, MacroError, ModuleDefId, NodeInterner,
-        StructId,
-    },
-    node_interner::{FuncId, TraitId, TraitImplKind},
+    macros_api::{FileId, HirContext, MacroError, ModuleDefId, StructId},
+    node_interner::{FuncId, TraitId},
     Shared, StructType, Type,
 };
 

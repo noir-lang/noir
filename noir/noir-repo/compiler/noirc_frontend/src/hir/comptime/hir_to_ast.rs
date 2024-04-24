@@ -9,7 +9,7 @@ use crate::ast::{
     UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirExpression, HirIdent};
+use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::Type;
 use crate::macros_api::HirLiteral;
@@ -26,7 +26,7 @@ impl StmtId {
     #[allow(unused)]
     fn to_ast(self, interner: &NodeInterner) -> Statement {
         let statement = interner.statement(&self);
-        let span = interner.statement_span(&self);
+        let span = interner.statement_span(self);
 
         let kind = match statement {
             HirStatement::Let(let_stmt) => {
@@ -108,10 +108,7 @@ impl ExprId {
                 ExpressionKind::Literal(Literal::FmtStr(string))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
-            HirExpression::Block(expr) => {
-                let statements = vecmap(expr.statements, |statement| statement.to_ast(interner));
-                ExpressionKind::Block(BlockExpression { statements })
-            }
+            HirExpression::Block(expr) => ExpressionKind::Block(expr.into_ast(interner)),
             HirExpression::Prefix(prefix) => ExpressionKind::Prefix(Box::new(PrefixExpression {
                 operator: prefix.operator,
                 rhs: prefix.rhs.to_ast(interner),
@@ -172,8 +169,12 @@ impl ExprId {
                 let body = lambda.body.to_ast(interner);
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
-            HirExpression::Quote(block) => ExpressionKind::Quote(block),
             HirExpression::Error => ExpressionKind::Error,
+            HirExpression::Comptime(block) => ExpressionKind::Comptime(block.into_ast(interner)),
+            HirExpression::Quote(block) => ExpressionKind::Quote(block),
+
+            // A macro was evaluated here!
+            HirExpression::Unquote(block) => ExpressionKind::Block(block),
         };
 
         Expression::new(kind, span)
@@ -351,5 +352,12 @@ impl HirArrayLiteral {
                 ArrayLiteral::Repeated { repeated_element, length }
             }
         }
+    }
+}
+
+impl HirBlockExpression {
+    fn into_ast(self, interner: &NodeInterner) -> BlockExpression {
+        let statements = vecmap(self.statements, |statement| statement.to_ast(interner));
+        BlockExpression { statements }
     }
 }
