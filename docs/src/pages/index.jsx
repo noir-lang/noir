@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 
