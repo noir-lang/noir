@@ -30,7 +30,7 @@ on:
         default: sg-0ccd4e5df0dcca0c9
         type: string
       ec2_spot_instance_strategy:
-        default: BestEffort
+        default: None
         type: string
       aws_region:
         default: "us-east-2"
