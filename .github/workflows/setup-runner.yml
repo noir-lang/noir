@@ -105,7 +105,7 @@ jobs:
             echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json
             sudo service docker restart
             # helps to not overuse space
-            docker system prune -f || true
+            docker system prune -f -a || true
             echo "Configured docker daemon for making many networks."
             # Run maybe_exit_spot.sh every minute
             cp scripts/ci/spot_runner_graceful_exit.sh /run/spot_runner_graceful_exit.sh
