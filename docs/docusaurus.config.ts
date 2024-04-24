@@ -48,7 +48,7 @@ export default {
     ],
   ],
   customFields: {
-    MATOMO_CONTAINER: process.env.MATOMO_CONTAINER, // not really a secret, it's in the footer anyway
+    MATOMO_ENV: process.env.MATOMO_ENV,
   },
   themeConfig: {
     colorMode: {
