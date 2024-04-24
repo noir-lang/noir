@@ -1189,6 +1189,7 @@ impl<'a> Resolver<'a> {
             r#type: self.resolve_type(let_stmt.r#type),
             expression,
             attributes: let_stmt.attributes,
+            comptime: let_stmt.comptime,
         })
     }
 
@@ -1202,6 +1203,7 @@ impl<'a> Resolver<'a> {
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
                     attributes: let_stmt.attributes,
+                    comptime: let_stmt.comptime,
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {

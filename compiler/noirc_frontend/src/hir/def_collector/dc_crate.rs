@@ -503,6 +503,10 @@ impl ResolvedModule {
     fn evaluate_comptime(&self, interner: &mut NodeInterner) {
         let mut interpreter = Interpreter::new(interner);
 
+        for (_file, global) in &self.globals {
+            interpreter.scan_global(*global).unwrap();
+        }
+
         for (_file, function) in &self.functions {
             // .unwrap() is temporary here until we can convert
             // from InterpreterError to (CompilationError, FileId)

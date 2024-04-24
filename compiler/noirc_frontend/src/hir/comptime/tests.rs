@@ -166,3 +166,15 @@ fn non_deterministic_recursion() {
     let result = interpret(program, vec!["main".into(), "fib".into()]);
     assert_eq!(result, Value::U64(55));
 }
+
+#[test]
+fn globals() {
+    let program = "
+    comptime global FOO: Field = 3;
+
+    fn main() -> pub u8 {
+        FOO + 1
+    }";
+    let result = interpret(program, vec!["main".into()]);
+    assert!(matches!(result, Value::U8(4)));
+}

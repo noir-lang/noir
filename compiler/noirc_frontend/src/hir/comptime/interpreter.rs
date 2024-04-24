@@ -159,7 +159,7 @@ impl<'a> Interpreter<'a> {
         self.scopes.last_mut().unwrap()
     }
 
-    fn define_pattern(
+    pub(super) fn define_pattern(
         &mut self,
         pattern: &HirPattern,
         typ: &Type,
@@ -290,7 +290,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Evaluate an expression and return the result
-    fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
@@ -331,6 +331,7 @@ impl<'a> Interpreter<'a> {
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
+                // Don't need to check let_.comptime, we can evaluate non-comptime globals too.
                 let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
                 self.evaluate_let(let_)?;
                 self.lookup(&ident)

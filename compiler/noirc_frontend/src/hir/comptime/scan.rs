@@ -20,7 +20,7 @@ use crate::{
         stmt::HirForStatement,
     },
     macros_api::{HirExpression, HirLiteral, HirStatement},
-    node_interner::{ExprId, FuncId, StmtId},
+    node_interner::{ExprId, FuncId, StmtId, GlobalId},
 };
 
 use super::{
@@ -45,6 +45,31 @@ impl<'interner> Interpreter<'interner> {
         let state = self.enter_function();
         self.scan_expression(function.as_expr())?;
         self.exit_function(state);
+        Ok(())
+    }
+
+    /// Evaluate this global if it is a comptime global.
+    /// Otherwise, scan through its expression for any comptime blocks to evaluate.
+    pub fn scan_global(&mut self, global: GlobalId) -> IResult<()> {
+        if let Some(let_) = self.interner.get_global_let_statement(global) {
+            if let_.comptime {
+                // Evaluate and define the global
+                let rhs = self.evaluate(let_.expression)?;
+                let location = self.interner.expr_location(&let_.expression);
+                self.define_pattern(&let_.pattern, &let_.r#type, rhs.clone(), location)?;
+
+                // And replace it's rhs with the new value so that monomorphization
+                // will use that value
+                let location = self.interner.expr_location(&let_.expression);
+                let new_expr =
+                    rhs.into_expression(self.interner, location)?;
+                let new_expr = self.interner.expression(&new_expr);
+                self.interner.replace_expr(&let_.expression, new_expr);
+            } else {
+                self.scan_expression(let_.expression)?;
+            }
+        }
+
         Ok(())
     }
 
