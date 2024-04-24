@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       username:
-        description: 'Defaults to GitHub Actor'
+        description: "Defaults to GitHub Actor"
         required: false
       runner_action:
         description: "The action to take with the self-hosted runner (start, stop, restart)."
@@ -34,7 +34,10 @@ jobs:
     outputs:
       e2e_list: ${{ steps.e2e_list.outputs.list }}
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
@@ -47,7 +50,7 @@ jobs:
       # (Note ARM uses just 2 tests as a smoketest)
       - name: Create list of end-to-end jobs
         id: e2e_list
-        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep -v '+base' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep -v -E '(\+base)|(\+e2e-test-single)' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
 
   # all the end-to-end integration tests for aztec
   e2e:
@@ -58,7 +61,10 @@ jobs:
       matrix:
         test: ${{ fromJson( needs.build.outputs.e2e_list )}}
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
@@ -78,7 +84,10 @@ jobs:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       # Only allow one memory-hunger prover test to use this runner
       - uses: ./.github/ci-setup-action
         with:
@@ -95,7 +104,10 @@ jobs:
     needs: setup
     runs-on: ${{ github.actor }}-x86
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       # Only allow one memory-hunger prover test to use this runner
       - uses: ./.github/ci-setup-action
         with:
@@ -109,7 +121,10 @@ jobs:
     needs: setup
     runs-on: ${{ github.actor }}-x86
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       # Only allow one memory-hunger prover test to use this runner
       - uses: ./.github/ci-setup-action
         with:
@@ -124,7 +139,10 @@ jobs:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
@@ -151,7 +169,10 @@ jobs:
     runs-on: ${{ inputs.username || github.actor }}-bench-x86
     needs: setup-bench
     steps:
-      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
@@ -169,12 +190,26 @@ jobs:
 
   merge-check:
     runs-on: ubuntu-latest
-    needs: [e2e, bb-native-tests, bb-bench, yarn-project-formatting, yarn-project-test]
+    needs:
+      [
+        e2e,
+        bb-native-tests,
+        bb-bench,
+        yarn-project-formatting,
+        yarn-project-test,
+      ]
     steps:
       - run: echo Pull request merging now allowed.
 
   notify:
-    needs: [e2e, bb-native-tests, bb-bench, yarn-project-formatting, yarn-project-test]
+    needs:
+      [
+        e2e,
+        bb-native-tests,
+        bb-bench,
+        yarn-project-formatting,
+        yarn-project-test,
+      ]
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/master' && failure() }}
     steps:

@@ -86,6 +86,11 @@ e2e-tests:
   FROM ../+end-to-end
   RUN yarn test ./src/e2e
 
+e2e-test-single:
+  ARG test
+  FROM ../+end-to-end
+  RUN yarn test $test
+
 flakey-e2e-tests:
   FROM ../+end-to-end
   RUN yarn test --passWithNoTests ./src/flakey || true
