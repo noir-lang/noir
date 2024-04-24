@@ -27,7 +27,6 @@ use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
-// use crate::ssa::ir::function::InlineType;
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -3205,8 +3204,10 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
+        // Build a Brillig function
         build_basic_foo_with_return(&mut builder, foo_id, None);
-        build_basic_foo_with_return(&mut builder, bar_id, None);
+        // Build an ACIR function which has the same logic as the Brillig function above
+        build_basic_foo_with_return(&mut builder, bar_id, Some(InlineType::default()));
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
