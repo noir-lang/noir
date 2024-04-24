@@ -16,6 +16,7 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
+use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
@@ -28,8 +29,7 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    BinaryOpKind, FunctionDefinition, Generics, ItemVisibility, Shared, TypeAlias, TypeBindings,
-    TypeVariable, TypeVariableId, TypeVariableKind,
+    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -242,6 +242,8 @@ pub struct FunctionModifiers {
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
+
+    pub is_comptime: bool,
 }
 
 impl FunctionModifiers {
@@ -254,6 +256,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            is_comptime: false,
         }
     }
 }
@@ -759,6 +762,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
     }
@@ -818,10 +822,10 @@ impl NodeInterner {
         self.func_meta.get(func_id)
     }
 
-    pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
+    pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
         let name = self.function_name(func_id).to_owned();
         let span = self.function_meta(func_id).name.location.span;
-        crate::Ident(Spanned::from(span, name))
+        crate::ast::Ident(Spanned::from(span, name))
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
@@ -917,8 +921,16 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
-    pub fn statement_span(&self, stmt_id: &StmtId) -> Span {
+    pub fn statement_span(&self, stmt_id: StmtId) -> Span {
         self.id_location(stmt_id).span
+    }
+
+    pub fn statement_location(&self, stmt_id: StmtId) -> Location {
+        self.id_location(stmt_id)
+    }
+
+    pub fn push_statement_location(&mut self, id: StmtId, span: Span, file: FileId) {
+        self.id_to_location.insert(id.into(), Location::new(span, file));
     }
 
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {

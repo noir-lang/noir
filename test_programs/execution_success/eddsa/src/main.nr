@@ -4,7 +4,6 @@ use dep::std::ec::tecurve::affine::Point as TEPoint;
 use dep::std::hash;
 use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};
 use dep::std::hash::poseidon2::Poseidon2Hasher;
-use dep::std::hash::pedersen::PedersenHasher;
 
 fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
     // Skip this test for non-bn254 backends
@@ -52,9 +51,6 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
         assert(!eddsa_poseidon_verify(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg + 1));
         // Using a different hash should fail
         let mut hasher = Poseidon2Hasher::default();
-        assert(!eddsa_verify_with_hasher(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg, &mut hasher));
-        // Using a different hash should fail
-        let mut hasher = PedersenHasher::default();
         assert(!eddsa_verify_with_hasher(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg, &mut hasher));
     }
 }

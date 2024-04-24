@@ -1,18 +1,19 @@
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
-use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
-use crate::hir_def::expr::{HirArrayLiteral, HirExpression, HirIdent};
-use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
-use crate::macros_api::HirLiteral;
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
-use crate::{
+use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression,
     IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-    MemberAccessExpression, MethodCallExpression, Path, Pattern, PrefixExpression, Type,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    MemberAccessExpression, MethodCallExpression, Path, Pattern, PrefixExpression, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression,
 };
+use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
+use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
+use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
+use crate::hir_def::types::Type;
+use crate::macros_api::HirLiteral;
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
 // TODO:
 // - Full path for idents & types
@@ -25,7 +26,7 @@ impl StmtId {
     #[allow(unused)]
     fn to_ast(self, interner: &NodeInterner) -> Statement {
         let statement = interner.statement(&self);
-        let span = interner.statement_span(&self);
+        let span = interner.statement_span(self);
 
         let kind = match statement {
             HirStatement::Let(let_stmt) => {
@@ -36,6 +37,7 @@ impl StmtId {
                     pattern,
                     r#type,
                     expression,
+                    comptime: false,
                     attributes: Vec::new(),
                 })
             }
@@ -64,6 +66,9 @@ impl StmtId {
             HirStatement::Expression(expr) => StatementKind::Expression(expr.to_ast(interner)),
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_ast(interner)),
             HirStatement::Error => StatementKind::Error,
+            HirStatement::Comptime(statement) => {
+                StatementKind::Comptime(Box::new(statement.to_ast(interner).kind))
+            }
         };
 
         Statement { kind, span }
@@ -103,10 +108,7 @@ impl ExprId {
                 ExpressionKind::Literal(Literal::FmtStr(string))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
-            HirExpression::Block(expr) => {
-                let statements = vecmap(expr.statements, |statement| statement.to_ast(interner));
-                ExpressionKind::Block(BlockExpression { statements })
-            }
+            HirExpression::Block(expr) => ExpressionKind::Block(expr.into_ast(interner)),
             HirExpression::Prefix(prefix) => ExpressionKind::Prefix(Box::new(PrefixExpression {
                 operator: prefix.operator,
                 rhs: prefix.rhs.to_ast(interner),
@@ -167,8 +169,12 @@ impl ExprId {
                 let body = lambda.body.to_ast(interner);
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
-            HirExpression::Quote(block) => ExpressionKind::Quote(block),
             HirExpression::Error => ExpressionKind::Error,
+            HirExpression::Comptime(block) => ExpressionKind::Comptime(block.into_ast(interner)),
+            HirExpression::Quote(block) => ExpressionKind::Quote(block),
+
+            // A macro was evaluated here!
+            HirExpression::Unquote(block) => ExpressionKind::Block(block),
         };
 
         Expression::new(kind, span)
@@ -346,5 +352,12 @@ impl HirArrayLiteral {
                 ArrayLiteral::Repeated { repeated_element, length }
             }
         }
+    }
+}
+
+impl HirBlockExpression {
+    fn into_ast(self, interner: &NodeInterner) -> BlockExpression {
+        let statements = vecmap(self.statements, |statement| statement.to_ast(interner));
+        BlockExpression { statements }
     }
 }

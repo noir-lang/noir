@@ -6,15 +6,18 @@ use std::{
 };
 
 use crate::{
+    ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
-    IntegerBitSize,
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use noirc_printable_type::PrintableType;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{
+    ast::{Ident, Signedness},
+    node_interner::StructId,
+};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -723,6 +726,54 @@ impl Type {
                 .get_fields(generics)
                 .into_iter()
                 .all(|(_, field)| field.is_valid_for_program_input()),
+        }
+    }
+
+    /// True if this type can be used as a parameter to an ACIR function that is not `main` or a contract function.
+    /// This encapsulates functions for which we may not want to inline during compilation.
+    ///
+    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
+    /// certain types which through compilation we know what their size should be.
+    /// This includes types such as numeric generics.
+    pub(crate) fn is_valid_non_inlined_function_input(&self) -> bool {
+        match self {
+            // Type::Error is allowed as usual since it indicates an error was already issued and
+            // we don't need to issue further errors about this likely unresolved type
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Error => true,
+
+            Type::FmtString(_, _)
+            // To enable this we would need to determine the size of the closure outputs at compile-time.
+            // This is possible as long as the output size is not dependent upon a witness condition.
+            | Type::Function(_, _, _)
+            | Type::Slice(_)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            // TODO: probably can allow code as it is all compile time
+            | Type::Code
+            | Type::TraitAsType(..) => false,
+
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_non_inlined_function_input()
+            }
+
+            Type::Array(length, element) => {
+                length.is_valid_non_inlined_function_input() && element.is_valid_non_inlined_function_input()
+            }
+            Type::String(length) => length.is_valid_non_inlined_function_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_non_inlined_function_input()),
         }
     }
 
