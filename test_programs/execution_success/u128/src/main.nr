@@ -34,11 +34,11 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     let mut small_int = U128::from_integer(x);
     assert(small_int.lo == x as Field);
     assert(x == small_int.to_integer());
-    let shift = small_int << small_int;
-    assert(shift == U128::from_integer(x << x));
-    assert(shift >> small_int == small_int);
-    assert(shift >> U128::from_integer(127) == U128::from_integer(0));
-    assert(shift << U128::from_integer(127) == U128::from_integer(0));
+    let shift = small_int << (x as u8);
+    assert(shift == U128::from_integer(x << (x as u8)));
+    assert(shift >> (x as u8) == small_int);
+    assert(shift >> 127 == U128::from_integer(0));
+    assert(shift << 127 == U128::from_integer(0));
     assert(U128::from_integer(3).to_integer() == 3);
 }
 

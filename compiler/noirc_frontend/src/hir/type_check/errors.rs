@@ -80,6 +80,8 @@ pub enum TypeCheckError {
     FieldModulo { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
+    #[error("The number of bits for bit-shift operations must be a 8-bits unsigned integer, try converting the right hand side into a u8 first")]
+    InvalidShiftSize { span: Span },
     #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
     AmbiguousBitWidth { span: Span },
     #[error("Error with additional context")]
@@ -234,7 +236,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
             | TypeCheckError::NonConstantSliceLength { span }
-            | TypeCheckError::StringIndexAssign { span } => {
+            | TypeCheckError::StringIndexAssign { span }
+            | TypeCheckError::InvalidShiftSize { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
