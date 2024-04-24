@@ -10,10 +10,6 @@ fn foo() -> Field {
     if three == 3 { 5 } else { 6 }
 }
 
-fn main() {
-    assert_constant(FOO);
-}
-
 #[test]
 fn foo_global_constant() {
     assert_constant(FOO);

@@ -14,18 +14,19 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirConstructorExpression,
-            HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda,
+            HirIdent, HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda,
             HirMethodCallExpression,
         },
         stmt::HirForStatement,
     },
     macros_api::{HirExpression, HirLiteral, HirStatement},
-    node_interner::{ExprId, FuncId, StmtId, GlobalId},
+    node_interner::{ExprId, FuncId, GlobalId, StmtId},
 };
 
 use super::{
     errors::{IResult, InterpreterError},
     interpreter::Interpreter,
+    Value,
 };
 
 #[allow(dead_code)]
@@ -53,18 +54,7 @@ impl<'interner> Interpreter<'interner> {
     pub fn scan_global(&mut self, global: GlobalId) -> IResult<()> {
         if let Some(let_) = self.interner.get_global_let_statement(global) {
             if let_.comptime {
-                // Evaluate and define the global
-                let rhs = self.evaluate(let_.expression)?;
-                let location = self.interner.expr_location(&let_.expression);
-                self.define_pattern(&let_.pattern, &let_.r#type, rhs.clone(), location)?;
-
-                // And replace it's rhs with the new value so that monomorphization
-                // will use that value
-                let location = self.interner.expr_location(&let_.expression);
-                let new_expr =
-                    rhs.into_expression(self.interner, location)?;
-                let new_expr = self.interner.expression(&new_expr);
-                self.interner.replace_expr(&let_.expression, new_expr);
+                self.evaluate_let(let_)?;
             } else {
                 self.scan_expression(let_.expression)?;
             }
@@ -75,7 +65,7 @@ impl<'interner> Interpreter<'interner> {
 
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
         match self.interner.expression(&expr) {
-            HirExpression::Ident(_) => Ok(()),
+            HirExpression::Ident(ident) => self.scan_ident(ident, expr),
             HirExpression::Literal(literal) => self.scan_literal(literal),
             HirExpression::Block(block) => self.scan_block(block),
             HirExpression::Prefix(prefix) => self.scan_expression(prefix.rhs),
@@ -114,6 +104,17 @@ impl<'interner> Interpreter<'interner> {
                 unreachable!("Found unquote block while scanning: {block}")
             }
         }
+    }
+
+    // Identifiers have no code to execute but we may need to inline any values
+    // of comptime variables into runtime code.
+    fn scan_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<()> {
+        // Opportunistically evaluate this identifier to see if it is compile-time known.
+        // If so, inline its value.
+        if let Ok(value) = self.evaluate_ident(ident, id) {
+            self.inline_expression(value, id)?;
+        }
+        Ok(())
     }
 
     fn scan_literal(&mut self, literal: HirLiteral) -> IResult<()> {
@@ -233,6 +234,14 @@ impl<'interner> Interpreter<'interner> {
         self.push_scope();
         self.scan_expression(for_.block)?;
         self.pop_scope();
+        Ok(())
+    }
+
+    fn inline_expression(&mut self, value: Value, expr: ExprId) -> IResult<()> {
+        let location = self.interner.expr_location(&expr);
+        let new_expr = value.into_expression(self.interner, location)?;
+        let new_expr = self.interner.expression(&new_expr);
+        self.interner.replace_expr(&expr, new_expr);
         Ok(())
     }
 }

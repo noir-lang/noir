@@ -321,7 +321,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
         let definition = self.interner.definition(ident.id);
 
         match &definition.kind {
@@ -1030,7 +1030,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub(super) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
