@@ -885,16 +885,6 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
-            (String(x_size), String(y_size)) => {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: *x_size.clone(),
-                    actual: *y_size.clone(),
-                    span: op.location.span,
-                    source: Source::StringLen,
-                });
-
-                Ok((Bool, false))
-            }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
