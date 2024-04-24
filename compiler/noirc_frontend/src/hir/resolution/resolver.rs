@@ -97,7 +97,7 @@ pub struct Resolver<'a> {
     current_item: Option<DependencyId>,
 
     /// In-resolution names
-    resolving_names: BTreeSet<Ident>,
+    resolving_names: BTreeSet<StructId>,
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
@@ -620,7 +620,7 @@ impl<'a> Resolver<'a> {
 
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
-                if self.resolving_names.contains(&struct_type.borrow().name) {
+                if self.resolving_names.contains(&struct_type.borrow().id) {
                     self.push_err(ResolverError::SelfReferentialStruct {
                         span: struct_type.borrow().name.span(),
                     });
@@ -899,9 +899,9 @@ impl<'a> Resolver<'a> {
 
         self.current_item = Some(DependencyId::Struct(struct_id));
 
-        self.resolving_names.insert(unresolved.name.clone());
+        self.resolving_names.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
-        self.resolving_names.remove(&unresolved.name);
+        self.resolving_names.remove(&struct_id);
 
         (generics, fields, self.errors)
     }
