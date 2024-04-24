@@ -335,7 +335,7 @@ describe('ACIR public execution simulator', () => {
       expect(result.newNoteHashes.length).toEqual(1);
 
       const expectedNoteHash = computeNoteContentHash([amount, secretHash]);
-      const storageSlot = new Fr(5); // for pending_shields
+      const storageSlot = TokenContractArtifact.storageLayout['pending_shields'].slot;
       const expectedInnerNoteHash = computeInnerNoteHash(storageSlot, expectedNoteHash);
       expect(result.newNoteHashes[0].value).toEqual(expectedInnerNoteHash);
     });

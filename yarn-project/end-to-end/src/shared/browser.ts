@@ -227,11 +227,11 @@ export const browserTestSuite = (
             INITIAL_TEST_SIGNING_KEYS,
             INITIAL_TEST_ACCOUNT_SALTS,
             Buffer,
+            contractArtifactFromBuffer,
           } = window.AztecJs;
           // We serialize the artifact since buffers (used for bytecode) do not cross well from one realm to another
-          const TokenContractArtifact = JSON.parse(
-            Buffer.from(serializedTokenContractArtifact, 'base64').toString('utf-8'),
-            (key, value) => (key === 'bytecode' && typeof value === 'string' ? Buffer.from(value, 'base64') : value),
+          const TokenContractArtifact = contractArtifactFromBuffer(
+            Buffer.from(serializedTokenContractArtifact, 'base64'),
           );
           const pxe = createPXEClient(rpcUrl!);
 
@@ -264,9 +264,9 @@ export const browserTestSuite = (
           const secretHash = computeSecretHash(secret);
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 
-          const storageSlot = new Fr(5);
+          const storageSlot = token.artifact.storageLayout['pending_shields'].slot;
 
-          const noteTypeId = new Fr(84114971101151129711410111011678111116101n);
+          const noteTypeId = token.artifact.notes['TransparentNote'].id;
           const note = new Note([new Fr(initialBalance), secretHash]);
           const extendedNote = new ExtendedNote(
             note,

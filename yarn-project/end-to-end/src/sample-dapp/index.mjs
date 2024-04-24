@@ -37,8 +37,8 @@ async function mintPrivateFunds(pxe) {
   const secretHash = await computeSecretHash(secret);
   const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
-  const storageSlot = new Fr(5);
-  const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+  const storageSlot = token.artifact.storageLayout['pending_shields'].slot;
+  const noteTypeId = token.artifact.notes['TransparentNote'].id;
 
   const note = new Note([new Fr(mintAmount), secretHash]);
   const extendedNote = new ExtendedNote(

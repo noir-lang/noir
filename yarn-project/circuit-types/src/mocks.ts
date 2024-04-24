@@ -125,6 +125,8 @@ export const randomContractArtifact = (): ContractArtifact => ({
     globals: {},
   },
   fileMap: {},
+  storageLayout: {},
+  notes: {},
 });
 
 export const randomContractInstanceWithAddress = (opts: { contractClassId?: Fr } = {}): ContractInstanceWithAddress =>

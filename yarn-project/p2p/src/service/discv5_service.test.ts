@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { PeerId } from '@libp2p/interface';
 
 import { BootstrapNode } from '../bootstrap/bootstrap.js';
@@ -21,6 +22,8 @@ const waitForPeers = (node: DiscV5Service, expectedCount: number): Promise<void>
 };
 
 describe('Discv5Service', () => {
+  jest.setTimeout(10_000);
+
   let bootNode: BootstrapNode;
   let bootNodePeerId: PeerId;
   let port = 1234;

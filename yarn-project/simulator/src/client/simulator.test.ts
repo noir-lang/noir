@@ -59,8 +59,8 @@ describe('Simulator', () => {
   describe('computeNoteHashAndNullifier', () => {
     const artifact = getFunctionArtifact(TokenContractArtifact, 'compute_note_hash_and_nullifier');
     const nonce = Fr.random();
-    const storageSlot = Fr.random();
-    const noteTypeId = new Fr(8411110710111078111116101n); // TODO(#5833): This can be imported from artifact now
+    const storageSlot = TokenContractArtifact.storageLayout['balances'].slot;
+    const noteTypeId = TokenContractArtifact.notes['TokenNote'].id;
 
     const createNote = (amount = 123n) => new Note([new Fr(amount), owner.toField(), Fr.random()]);
 

@@ -4,7 +4,6 @@ import { contractArtifactFromBuffer, contractArtifactToBuffer } from './contract
 describe('contract_artifact', () => {
   it('serializes and deserializes an instance', () => {
     const artifact = getSampleContractArtifact();
-    delete artifact.aztecNrVersion;
     const serialized = contractArtifactToBuffer(artifact);
     const deserialized = contractArtifactFromBuffer(serialized);
     expect(deserialized).toEqual(artifact);

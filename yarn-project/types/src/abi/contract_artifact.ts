@@ -2,10 +2,17 @@ import {
   type ABIParameter,
   type ABIParameterVisibility,
   type AbiType,
+  type BasicValue,
   type ContractArtifact,
+  type ContractNote,
+  type FieldLayout,
   type FunctionArtifact,
   FunctionType,
+  type IntegerValue,
+  type StructValue,
+  type TypedStructFieldValue,
 } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
 
 import {
   AZTEC_INITIALIZER_ATTRIBUTE,
@@ -49,6 +56,9 @@ export function contractArtifactFromBuffer(buffer: Buffer): ContractArtifact {
   return JSON.parse(buffer.toString('utf-8'), (key, value) => {
     if (key === 'bytecode' && typeof value === 'string') {
       return Buffer.from(value, 'base64');
+    }
+    if (typeof value === 'object' && value !== null && value.type === 'Fr') {
+      return new Fr(BigInt(value.value));
     }
     return value;
   });
@@ -199,6 +209,59 @@ function hasKernelFunctionInputs(params: ABIParameter[]): boolean {
 }
 
 /**
+ * Generates a storage layout for the contract artifact.
+ * @param input - The compiled noir contract to get storage layout for
+ * @returns A storage layout for the contract.
+ */
+function getStorageLayout(input: NoirCompiledContract) {
+  const storage = input.outputs.globals.storage ? (input.outputs.globals.storage[0] as StructValue) : { fields: [] };
+  const storageFields = storage.fields as TypedStructFieldValue<StructValue>[];
+
+  if (!storageFields) {
+    return {};
+  }
+
+  return storageFields.reduce((acc: Record<string, FieldLayout>, field) => {
+    const name = field.name;
+    const slot = field.value.fields[0].value as IntegerValue;
+    const typ = field.value.fields[1].value as BasicValue<'string', string>;
+    acc[name] = {
+      slot: new Fr(BigInt(slot.value)),
+      typ: typ.value,
+    };
+    return acc;
+  }, {});
+}
+
+/**
+ * Generates records of the notes with note type ids of the artifact.
+ * @param input - The compiled noir contract to get note types for
+ * @return A record of the note types and their ids
+ */
+function getNoteTypes(input: NoirCompiledContract) {
+  type t = {
+    kind: string;
+    fields: [{ kind: string; sign: boolean; value: string }, { kind: string; value: string }];
+  };
+
+  const notes = input.outputs.globals.notes as t[];
+
+  if (!notes) {
+    return {};
+  }
+
+  return notes.reduce((acc: Record<string, ContractNote>, note) => {
+    const name = note.fields[1].value as string;
+    const id = new Fr(BigInt(note.fields[0].value));
+    acc[name] = {
+      id,
+      typ: name,
+    };
+    return acc;
+  }, {});
+}
+
+/**
  * Given a Nargo output generates an Aztec-compatible contract artifact.
  * @param compiled - Noir build output.
  * @returns Aztec contract build artifact.
@@ -208,6 +271,8 @@ function generateContractArtifact(contract: NoirCompiledContract, aztecNrVersion
     name: contract.name,
     functions: contract.functions.map(f => generateFunctionArtifact(f, contract)),
     outputs: contract.outputs,
+    storageLayout: getStorageLayout(contract),
+    notes: getNoteTypes(contract),
     fileMap: contract.file_map,
     aztecNrVersion,
   };

@@ -333,8 +333,8 @@ describe('e2e_fees_account_init', () => {
   });
 
   async function addTransparentNoteToPxe(owner: AztecAddress, amount: bigint, secretHash: Fr, txHash: TxHash) {
-    const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+    const storageSlot = bananaCoin.artifact.storageLayout['pending_shields'].slot;
+    const noteTypeId = bananaCoin.artifact.notes['TransparentNote'].id;
 
     const note = new Note([new Fr(amount), secretHash]);
     // this note isn't encrypted but we need to provide a registered public key
