@@ -33,17 +33,17 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
-    Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
-};
-use crate::lexer::{lexer::from_spanned_token_result, Lexer};
-use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Keyword, Token, TokenKind};
-use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
     NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
     UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
+use crate::ast::{
+    Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
+};
+use crate::lexer::{lexer::from_spanned_token_result, Lexer};
+use crate::parser::{force, ignore_then_commit, statement_recovery};
+use crate::token::{Keyword, Token, TokenKind};
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
@@ -532,7 +532,7 @@ where
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::CompTime)
+    keyword(Keyword::Comptime)
         .ignore_then(choice((
             declaration(expr),
             for_loop(expr_no_constructors, statement.clone()),
@@ -548,7 +548,7 @@ fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::CompTime).ignore_then(block(statement)).map(ExpressionKind::Block)
+    keyword(Keyword::Comptime).ignore_then(block(statement)).map(ExpressionKind::Comptime)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -733,7 +733,7 @@ fn optional_distinctness() -> impl NoirParser<Distinctness> {
 }
 
 fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
             emit(ParserError::with_reason(
                 ParserErrorReason::ExperimentalFeature("comptime"),
@@ -1353,7 +1353,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::ArrayLiteral;
+    use crate::ast::ArrayLiteral;
 
     #[test]
     fn parse_infix() {

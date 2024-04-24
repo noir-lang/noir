@@ -1,7 +1,7 @@
 [package]
 name = "backend-interface"
 description = "The definition of the backend CLI interface which Nargo uses for proving/verifying ACIR circuits."
-version = "0.11.0"
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true

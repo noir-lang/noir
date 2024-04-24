@@ -412,8 +412,8 @@ impl Token {
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
     }
 
-    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
-        use crate::BinaryOpKind::*;
+    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::ast::BinaryOpKind>> {
+        use crate::ast::BinaryOpKind::*;
         let binary_op = match self {
             Token::Plus => Add,
             Token::Ampersand => And,
@@ -659,7 +659,6 @@ impl Attribute {
             ["contract_library_method"] => {
                 Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
             }
-            ["event"] => Attribute::Secondary(SecondaryAttribute::Event),
             ["abi", tag] => Attribute::Secondary(SecondaryAttribute::Abi(tag.to_string())),
             ["export"] => Attribute::Secondary(SecondaryAttribute::Export),
             ["deprecated", name] => {
@@ -751,7 +750,6 @@ pub enum SecondaryAttribute {
     // is a helper method for a contract and should not be seen as
     // the entry point.
     ContractLibraryMethod,
-    Event,
     Export,
     Field(String),
     Custom(String),
@@ -767,7 +765,6 @@ impl fmt::Display for SecondaryAttribute {
             }
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
-            SecondaryAttribute::Event => write!(f, "#[event]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
@@ -797,7 +794,7 @@ impl AsRef<str> for SecondaryAttribute {
             | SecondaryAttribute::Field(string)
             | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
-            SecondaryAttribute::Event | SecondaryAttribute::Export => "",
+            SecondaryAttribute::Export => "",
         }
     }
 }
@@ -814,7 +811,7 @@ pub enum Keyword {
     Break,
     CallData,
     Char,
-    CompTime,
+    Comptime,
     Constrain,
     Continue,
     Contract,
@@ -859,7 +856,7 @@ impl fmt::Display for Keyword {
             Keyword::Break => write!(f, "break"),
             Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
-            Keyword::CompTime => write!(f, "comptime"),
+            Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
@@ -907,7 +904,7 @@ impl Keyword {
             "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
             "char" => Keyword::Char,
-            "comptime" => Keyword::CompTime,
+            "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,

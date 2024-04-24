@@ -1,8 +1,9 @@
 use noirc_errors::{Location, Span};
+use noirc_frontend::ast::{FunctionReturnType, NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext},
-    parse_program, FunctionReturnType, NoirFunction, Type, UnresolvedTypeData,
+    parse_program, Type,
 };
 
 use crate::utils::{

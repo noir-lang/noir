@@ -1,12 +1,16 @@
 use noirc_errors::Span;
+use noirc_frontend::ast::{
+    ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, TraitImplItem, TypeImpl,
+    UnresolvedTypeData, UnresolvedTypeExpression,
+};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext, HirExpression, HirLiteral, HirStatement},
     parse_program,
     parser::SortedModule,
-    ItemVisibility, LetStatement, NoirFunction, NoirStruct, PathKind, TraitImplItem, Type,
-    TypeImpl, UnresolvedTypeData, UnresolvedTypeExpression,
+    Type,
 };
+
 use regex::Regex;
 
 use crate::{

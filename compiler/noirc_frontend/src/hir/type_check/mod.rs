@@ -433,6 +433,9 @@ pub mod test {
     use iter_extended::btree_map;
     use noirc_errors::{Location, Span};
 
+    use crate::ast::{
+        BinaryOpKind, Distinctness, FunctionKind, FunctionReturnType, Path, Visibility,
+    };
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::{
@@ -453,9 +456,8 @@ pub mod test {
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
-        parse_program, FunctionKind, Path,
+        parse_program,
     };
-    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
     #[test]
     fn basic_let() {

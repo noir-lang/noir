@@ -1,7 +1,6 @@
+use crate::ast::{Expression, IntegerBitSize};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
-use crate::Expression;
-use crate::IntegerBitSize;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 

@@ -5,10 +5,8 @@ use noirc_errors::{
     Location,
 };
 
-use crate::{
-    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, IntegerBitSize, Signedness,
-    Visibility,
-};
+use crate::ast::{BinaryOpKind, Distinctness, IntegerBitSize, Signedness, Visibility};
+use crate::hir_def::function::FunctionSignature;
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -99,7 +97,7 @@ pub enum Literal {
 
 #[derive(Debug, Clone, Hash)]
 pub struct Unary {
-    pub operator: crate::UnaryOp,
+    pub operator: crate::ast::UnaryOp,
     pub rhs: Box<Expression>,
     pub result_type: Type,
     pub location: Location,

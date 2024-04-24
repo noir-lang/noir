@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use crate::token::{Attributes, Token};
-use crate::{
+use crate::ast::{
     Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use crate::token::{Attributes, Token};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -28,6 +28,7 @@ pub enum ExpressionKind {
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
     Quote(BlockExpression),
+    Comptime(BlockExpression),
     Error,
 }
 
@@ -504,6 +505,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Quote(block) => write!(f, "quote {block}"),
+            Comptime(block) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
         }
     }

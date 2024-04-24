@@ -10,7 +10,8 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_frontend::{hir::Context, Signedness, Type, TypeBinding, TypeVariableKind, Visibility};
+use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::{collections::BTreeMap, str};

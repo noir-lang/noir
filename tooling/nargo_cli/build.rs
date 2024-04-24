@@ -1,21 +1,11 @@
-use rustc_version::{version, Version};
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-fn check_rustc_version() {
-    assert!(
-        version().unwrap() >= Version::parse("1.73.0").unwrap(),
-        "The minimal supported rustc version is 1.73.0."
-    );
-}
-
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
-    check_rustc_version();
-
     // Only use build_data if the environment variable isn't set.
     if std::env::var(GIT_COMMIT).is_err() {
         build_data::set_GIT_COMMIT();

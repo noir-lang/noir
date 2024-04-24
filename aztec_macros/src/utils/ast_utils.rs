@@ -1,10 +1,11 @@
 use noirc_errors::{Span, Spanned};
-use noirc_frontend::{
-    token::SecondaryAttribute, BinaryOpKind, CallExpression, CastExpression, Expression,
-    ExpressionKind, FunctionReturnType, Ident, IndexExpression, InfixExpression, Lambda,
-    LetStatement, MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement,
-    StatementKind, TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
+use noirc_frontend::ast::{
+    BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
+    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MethodCallExpression,
+    NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind, TraitImplItem,
+    UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
+use noirc_frontend::token::SecondaryAttribute;
 
 //
 //             Helper macros for creating noir ast nodes
