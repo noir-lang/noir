@@ -348,7 +348,7 @@ impl From<ResolverError> for Diagnostic {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[inline(tag)] attribute on unconstrained function {name} rather than on a constrained function"),
+                    format!("misplaced #[inline(tag)] attribute on unconstrained function {name}. Only allowd on constrained functions"),
                     "misplaced #[inline(tag)] attribute".to_string(),
                     ident.0.span(),
                 );
@@ -360,7 +360,7 @@ impl From<ResolverError> for Diagnostic {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[fold] attribute on unconstrained function {name} rather than on a constrained function"),
+                    format!("misplaced #[fold] attribute on unconstrained function {name}. Only allowed on constrained functions"),
                     "misplaced #[fold] attribute".to_string(),
                     ident.0.span(),
                 );
