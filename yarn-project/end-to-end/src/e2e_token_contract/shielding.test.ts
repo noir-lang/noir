@@ -1,4 +1,4 @@
-import { Fr, computeMessageSecretHash } from '@aztec/aztec.js';
+import { Fr, computeSecretHash } from '@aztec/aztec.js';
 
 import { U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
@@ -15,7 +15,7 @@ describe('e2e_token_contract shield + redeem shield', () => {
     await t.setup();
     // Have to destructure again to ensure we have latest refs.
     ({ asset, accounts, tokenSim, wallets } = t);
-    secretHash = computeMessageSecretHash(secret);
+    secretHash = computeSecretHash(secret);
   });
 
   afterAll(async () => {

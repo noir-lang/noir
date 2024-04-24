@@ -10,7 +10,7 @@ import {
   Note,
   type PXE,
   type Wallet,
-  computeMessageSecretHash,
+  computeSecretHash,
   deriveKeys,
 } from '@aztec/aztec.js';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
@@ -59,7 +59,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     logger.info(`Token deployed at ${tokenAddress}`);
 
     const secret = Fr.random();
-    const secretHash = computeMessageSecretHash(secret);
+    const secretHash = computeSecretHash(secret);
 
     const receipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 

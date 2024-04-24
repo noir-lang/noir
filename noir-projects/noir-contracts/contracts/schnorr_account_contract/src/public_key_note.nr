@@ -1,7 +1,8 @@
 use dep::aztec::prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext, emit_encrypted_log};
 use dep::aztec::{
-    note::utils::compute_note_hash_for_consumption, hash::pedersen_hash,
-    oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key}
+    note::utils::compute_note_hash_for_consumption, hash::poseidon2_hash,
+    oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
+    protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
 };
 
 global PUBLIC_KEY_NOTE_LEN: Field = 3;
@@ -17,23 +18,23 @@ struct PublicKeyNote {
 
 impl NoteInterface<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
-        let unique_siloed_note_hash = compute_note_hash_for_consumption(self);
+        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_app_nullifier_secret_key(self.owner);
-        // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([
-            unique_siloed_note_hash,
+        poseidon2_hash([
+            note_hash_for_nullify,
             secret,
-        ],0)
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        ])
     }
 
     fn compute_nullifier_without_context(self) -> Field {
-        let unique_siloed_note_hash = compute_note_hash_for_consumption(self);
+        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_app_nullifier_secret_key(self.owner);
-        // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([
-            unique_siloed_note_hash,
+        poseidon2_hash([
+            note_hash_for_nullify,
             secret,
-        ],0)
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        ])
     }
 
     // Broadcasts the note as an encrypted log on L1.

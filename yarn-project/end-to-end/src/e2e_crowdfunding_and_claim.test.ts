@@ -8,7 +8,7 @@ import {
   Note,
   type PXE,
   type TxHash,
-  computeMessageSecretHash,
+  computeSecretHash,
   deriveKeys,
 } from '@aztec/aztec.js';
 import { computePartialAddress } from '@aztec/circuits.js';
@@ -134,7 +134,7 @@ describe('e2e_crowdfunding_and_claim', () => {
 
   const mintDNTToDonors = async () => {
     const secret = Fr.random();
-    const secretHash = computeMessageSecretHash(secret);
+    const secretHash = computeSecretHash(secret);
 
     const [txReceipt1, txReceipt2] = await Promise.all([
       donationToken.withWallet(operatorWallet).methods.mint_private(1234n, secretHash).send().wait(),

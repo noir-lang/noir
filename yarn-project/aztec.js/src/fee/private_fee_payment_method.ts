@@ -1,6 +1,6 @@
 import { type FunctionCall } from '@aztec/circuit-types';
 import { FunctionData, type GasSettings } from '@aztec/circuits.js';
-import { computeMessageSecretHash } from '@aztec/circuits.js/hash';
+import { computeSecretHash } from '@aztec/circuits.js/hash';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -71,7 +71,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
     );
     await this.wallet.createAuthWit(messageHash);
 
-    const secretHashForRebate = computeMessageSecretHash(this.rebateSecret);
+    const secretHashForRebate = computeSecretHash(this.rebateSecret);
 
     return [
       {

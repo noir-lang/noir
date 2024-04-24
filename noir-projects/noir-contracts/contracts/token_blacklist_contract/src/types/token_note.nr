@@ -1,6 +1,9 @@
-use dep::aztec::prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext, emit_encrypted_log};
-use dep::aztec::{note::utils::compute_note_hash_for_consumption, hash::pedersen_hash};
-use dep::aztec::oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key};
+use dep::aztec::{
+    prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext, emit_encrypted_log},
+    protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
+    note::utils::compute_note_hash_for_consumption, hash::poseidon2_hash,
+    oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key}
+};
 
 trait OwnedNote {
     fn new(amount: U128, owner: AztecAddress) -> Self;
@@ -27,22 +30,22 @@ impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_app_nullifier_secret_key(self.owner);
-        // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([
+        poseidon2_hash([
             note_hash_for_nullify,
             secret,
-        ],0)
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        ])
     }
     // docs:end:nullifier
 
     fn compute_nullifier_without_context(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_app_nullifier_secret_key(self.owner);
-        // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([
+        poseidon2_hash([
             note_hash_for_nullify,
             secret,
-        ],0)
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        ])
     }
 
     // Broadcasts the note as an encrypted log on L1.
@@ -79,5 +82,4 @@ impl OwnedNote for TokenNote {
     fn get_owner(self) -> AztecAddress {
         self.owner
     }
-   
 }

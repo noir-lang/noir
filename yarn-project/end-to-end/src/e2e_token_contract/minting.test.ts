@@ -1,4 +1,4 @@
-import { Fr, type TxHash, computeMessageSecretHash } from '@aztec/aztec.js';
+import { Fr, type TxHash, computeSecretHash } from '@aztec/aztec.js';
 
 import { BITSIZE_TOO_BIG_ERROR, U128_OVERFLOW_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
@@ -71,7 +71,7 @@ describe('e2e_token_contract minting', () => {
     let txHash: TxHash;
 
     beforeAll(() => {
-      secretHash = computeMessageSecretHash(secret);
+      secretHash = computeSecretHash(secret);
     });
 
     describe('Mint flow', () => {

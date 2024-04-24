@@ -12,7 +12,7 @@ import {
   NullifierLeaf,
   NullifierLeafPreimage,
 } from '@aztec/circuits.js';
-import { siloNullifier } from '@aztec/circuits.js/hash';
+import { computeInnerNoteHash, computeNoteContentHash, siloNullifier } from '@aztec/circuits.js/hash';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { type FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -334,9 +334,9 @@ describe('ACIR public execution simulator', () => {
       // Assert the note hash was created
       expect(result.newNoteHashes.length).toEqual(1);
 
-      const expectedNoteHash = pedersenHash([amount, secretHash]);
+      const expectedNoteHash = computeNoteContentHash([amount, secretHash]);
       const storageSlot = new Fr(5); // for pending_shields
-      const expectedInnerNoteHash = pedersenHash([storageSlot, expectedNoteHash]);
+      const expectedInnerNoteHash = computeInnerNoteHash(storageSlot, expectedNoteHash);
       expect(result.newNoteHashes[0].value).toEqual(expectedInnerNoteHash);
     });
 

@@ -7,7 +7,7 @@ import {
   GrumpkinScalar,
   Note,
   type PXE,
-  computeMessageSecretHash,
+  computeSecretHash,
   createDebugLogger,
   createPXEClient,
   waitForPXE,
@@ -69,7 +69,7 @@ describe('e2e_sandbox_example', () => {
 
     // Create a secret and a corresponding hash that will be used to mint funds privately
     const aliceSecret = Fr.random();
-    const aliceSecretHash = computeMessageSecretHash(aliceSecret);
+    const aliceSecretHash = computeSecretHash(aliceSecret);
 
     logger.info(`Minting tokens to Alice...`);
     // Mint the initial supply privately "to secret hash"
@@ -144,7 +144,7 @@ describe('e2e_sandbox_example', () => {
     await tokenContractAlice.methods.set_minter(bob, true).send().wait();
 
     const bobSecret = Fr.random();
-    const bobSecretHash = computeMessageSecretHash(bobSecret);
+    const bobSecretHash = computeSecretHash(bobSecret);
     // Bob now has a secret 🥷
 
     const mintQuantity = 10_000n;

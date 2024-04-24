@@ -26,7 +26,7 @@ import {
   ExtendedNote,
   Fr,
   Note,
-  computeMessageSecretHash,
+  computeSecretHash,
   createPXEClient,
   waitForPXE,
 } from "@aztec/aztec.js";

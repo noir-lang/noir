@@ -13,7 +13,7 @@ import {
   type TxHash,
   type TxReceipt,
   type Wallet,
-  computeMessageSecretHash,
+  computeSecretHash,
   deployL1Contract,
   retryUntil,
 } from '@aztec/aztec.js';
@@ -223,10 +223,15 @@ export class CrossChainTestHarness {
     public ownerAddress: AztecAddress,
   ) {}
 
+  /**
+   * Used to generate a claim secret using pedersen's hash function.
+   * @dev Used for both L1 to L2 messages and transparent note (pending shields) secrets.
+   * @returns A tuple of the secret and its hash.
+   */
   generateClaimSecret(): [Fr, Fr] {
     this.logger.debug("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
-    const secretHash = computeMessageSecretHash(secret);
+    const secretHash = computeSecretHash(secret);
     this.logger.info('Generated claim secret: ' + secretHash.toString());
     return [secret, secretHash];
   }

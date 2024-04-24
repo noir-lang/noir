@@ -1,5 +1,5 @@
 import { getSingleKeyAccount } from '@aztec/accounts/single_key';
-import { type AccountWallet, Fr, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
+import { type AccountWallet, Fr, Note, computeSecretHash, createPXEClient } from '@aztec/aztec.js';
 import { ExtendedNote } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
@@ -45,7 +45,7 @@ async function main() {
 
   // Create a secret and a corresponding hash that will be used to mint funds privately
   const aliceSecret = Fr.random();
-  const aliceSecretHash = computeMessageSecretHash(aliceSecret);
+  const aliceSecretHash = computeSecretHash(aliceSecret);
   const receipt = await tokenAlice.methods.mint_private(ALICE_MINT_BALANCE, aliceSecretHash).send().wait();
 
   // Add the newly created "pending shield" note to PXE

@@ -2,7 +2,10 @@ use crate::{context::PrivateContext, note::{note_header::NoteHeader, note_interf
 
 use dep::protocol_types::{
     address::AztecAddress,
-    constants::{GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__SILOED_NOTE_HASH},
+    constants::{
+    GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__UNIQUE_NOTE_HASH,
+    GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__INNER_NOTE_HASH
+},
     hash::pedersen_hash, utils::arr_copy_slice
 };
 
@@ -20,8 +23,10 @@ fn compute_inner_note_hash<Note, N>(note: Note) -> Field where Note: NoteInterfa
     let header = note.get_header();
     let note_hash = note.compute_note_content_hash();
 
-    // TODO(#1205) Do we need a generator index here?
-    pedersen_hash([header.storage_slot, note_hash], 0)
+    pedersen_hash(
+        [header.storage_slot, note_hash],
+        GENERATOR_INDEX__INNER_NOTE_HASH
+    )
 }
 
 fn compute_siloed_note_hash<Note, N>(note_with_header: Note) -> Field where Note: NoteInterface<N> {

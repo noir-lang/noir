@@ -6,7 +6,7 @@ import {
   Fr,
   type PXE,
   type Wallet,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { GasPortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
 import { GasTokenContract } from '@aztec/noir-contracts.js';
@@ -153,7 +153,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   generateClaimSecret(): [Fr, Fr] {
     this.logger.debug("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
-    const secretHash = computeMessageSecretHash(secret);
+    const secretHash = computeSecretHash(secret);
     this.logger.info('Generated claim secret: ' + secretHash.toString());
     return [secret, secretHash];
   }

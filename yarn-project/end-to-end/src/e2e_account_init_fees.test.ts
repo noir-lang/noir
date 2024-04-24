@@ -12,7 +12,7 @@ import {
   type TxHash,
   TxStatus,
   type Wallet,
-  computeMessageSecretHash,
+  computeSecretHash,
   deriveKeys,
 } from '@aztec/aztec.js';
 import { type AztecAddress, CompleteAddress, Fq, GasSettings } from '@aztec/circuits.js';
@@ -173,7 +173,7 @@ describe('e2e_fees_account_init', () => {
         await bobsAccountManager.register();
 
         const secret = Fr.random();
-        const secretHash = computeMessageSecretHash(secret);
+        const secretHash = computeSecretHash(secret);
         const mintTx = await bananaCoin.methods.mint_private(mintedPrivateBananas, secretHash).send().wait();
         await addTransparentNoteToPxe(sequencersAddress, mintedPrivateBananas, secretHash, mintTx.txHash);
 
@@ -219,7 +219,7 @@ describe('e2e_fees_account_init', () => {
         // the new account should have received a refund
         await expect(
           // this rejects if note can't be added
-          addTransparentNoteToPxe(bobsAddress, maxFee - actualFee, computeMessageSecretHash(rebateSecret), tx.txHash),
+          addTransparentNoteToPxe(bobsAddress, maxFee - actualFee, computeSecretHash(rebateSecret), tx.txHash),
         ).resolves.toBeUndefined();
 
         // and it can redeem the refund

@@ -40,7 +40,7 @@ A message that is sent from L1 to L2.
 | `sender`          | `L1Actor` | The actor on L1 that is sending the message. |
 | `recipient`        | `L2Actor` | The actor on L2 that is to receive the message. |
 | `content`        | `field (~254 bits)` | The field element containing the content to be sent to L2. |
-| `secretHash`        | `field (~254 bits)` | The hash of a secret pre-image that must be known to consume the message on L2. Use the [`computeMessageSecretHash`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/utils/secrets.ts) to compute it from a secret. |
+| `secretHash`        | `field (~254 bits)` | The hash of a secret pre-image that must be known to consume the message on L2. Use [`computeSecretHash`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/utils/secrets.ts) to compute it from a secret. |
 
 ## `L2ToL1Message`
 

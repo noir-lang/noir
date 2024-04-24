@@ -7,7 +7,7 @@ import {
   Fr,
   Note,
   type TxHash,
-  computeMessageSecretHash,
+  computeSecretHash,
   createDebugLogger,
 } from '@aztec/aztec.js';
 import { DocsExampleContract, TokenContract } from '@aztec/noir-contracts.js';
@@ -141,7 +141,7 @@ export class TokenContractTest {
 
         this.logger.verbose(`Minting ${amount} privately...`);
         const secret = Fr.random();
-        const secretHash = computeMessageSecretHash(secret);
+        const secretHash = computeSecretHash(secret);
         const receipt = await asset.methods.mint_private(amount, secretHash).send().wait();
 
         await this.addPendingShieldNoteToPXE(0, amount, secretHash, receipt.txHash);

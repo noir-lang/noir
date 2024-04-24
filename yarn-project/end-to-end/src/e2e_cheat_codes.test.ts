@@ -7,7 +7,7 @@ import {
   Note,
   type PXE,
   type Wallet,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { TestContract, TokenContract } from '@aztec/noir-contracts.js';
@@ -218,7 +218,7 @@ describe('e2e_cheat_codes', () => {
       // docs:start:load_private_cheatcode
       const mintAmount = 100n;
       const secret = Fr.random();
-      const secretHash = computeMessageSecretHash(secret);
+      const secretHash = computeSecretHash(secret);
       const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
       // docs:start:pxe_add_note

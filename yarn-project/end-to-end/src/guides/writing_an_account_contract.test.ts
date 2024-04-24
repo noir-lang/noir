@@ -10,7 +10,7 @@ import {
   GrumpkinScalar,
   Note,
   Schnorr,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { SchnorrHardcodedAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrHardcodedAccount';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
@@ -68,7 +68,7 @@ describe('guides/writing_an_account_contract', () => {
     logger.info(`Deployed token contract at ${token.address}`);
 
     const secret = Fr.random();
-    const secretHash = computeMessageSecretHash(secret);
+    const secretHash = computeSecretHash(secret);
 
     const mintAmount = 50n;
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();

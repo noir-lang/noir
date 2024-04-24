@@ -14,7 +14,7 @@ import {
   TxStatus,
   type Wallet,
   computeAuthWitMessageHash,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { FunctionData, GasSettings } from '@aztec/circuits.js';
 import { type ContractArtifact, decodeFunctionSignature } from '@aztec/foundation/abi';
@@ -298,7 +298,7 @@ describe('e2e_fees', () => {
 
       await expect(
         // this rejects if note can't be added
-        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+        addPendingShieldNoteToPXE(0, RefundAmount, computeSecretHash(RefundSecret), tx.txHash),
       ).resolves.toBeUndefined();
     });
 
@@ -361,7 +361,7 @@ describe('e2e_fees', () => {
 
       await expect(
         // this rejects if note can't be added
-        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+        addPendingShieldNoteToPXE(0, RefundAmount, computeSecretHash(RefundSecret), tx.txHash),
       ).resolves.toBeUndefined();
     });
 
@@ -393,7 +393,7 @@ describe('e2e_fees', () => {
        */
       const shieldedBananas = 1n;
       const shieldSecret = Fr.random();
-      const shieldSecretHash = computeMessageSecretHash(shieldSecret);
+      const shieldSecretHash = computeSecretHash(shieldSecret);
       const tx = await bananaCoin.methods
         .shield(aliceAddress, shieldedBananas, shieldSecretHash, 0n)
         .send({
@@ -428,7 +428,7 @@ describe('e2e_fees', () => {
       await expect(addPendingShieldNoteToPXE(0, shieldedBananas, shieldSecretHash, tx.txHash)).resolves.toBeUndefined();
 
       await expect(
-        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+        addPendingShieldNoteToPXE(0, RefundAmount, computeSecretHash(RefundSecret), tx.txHash),
       ).resolves.toBeUndefined();
     });
 
@@ -436,7 +436,7 @@ describe('e2e_fees', () => {
       const privateTransfer = 1n;
       const shieldedBananas = 1n;
       const shieldSecret = Fr.random();
-      const shieldSecretHash = computeMessageSecretHash(shieldSecret);
+      const shieldSecretHash = computeSecretHash(shieldSecret);
 
       /**
        * PRIVATE SETUP
@@ -505,7 +505,7 @@ describe('e2e_fees', () => {
       await expect(addPendingShieldNoteToPXE(0, shieldedBananas, shieldSecretHash, tx.txHash)).resolves.toBeUndefined();
 
       await expect(
-        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+        addPendingShieldNoteToPXE(0, RefundAmount, computeSecretHash(RefundSecret), tx.txHash),
       ).resolves.toBeUndefined();
     });
 
@@ -646,7 +646,7 @@ describe('e2e_fees', () => {
   const mintPrivate = async (amount: bigint, address: AztecAddress) => {
     // Mint bananas privately
     const secret = Fr.random();
-    const secretHash = computeMessageSecretHash(secret);
+    const secretHash = computeSecretHash(secret);
     logger.debug(`Minting ${amount} bananas privately for ${address} with secret ${secretHash.toString()}`);
     const receipt = await bananaCoin.methods.mint_private(amount, secretHash).send().wait();
 

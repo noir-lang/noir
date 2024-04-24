@@ -13,7 +13,7 @@ import {
   L2Actor,
   type PXE,
   computeAuthWitMessageHash,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import { InboxAbi, OutboxAbi } from '@aztec/l1-artifacts';
@@ -341,7 +341,7 @@ describe('e2e_public_cross_chain_messaging', () => {
         new L1Actor(crossChainTestHarness.ethAccount, crossChainTestHarness.publicClient.chain.id),
         new L2Actor(testContract.address, 1),
         Fr.random(), // content
-        computeMessageSecretHash(secret), // secretHash
+        computeSecretHash(secret), // secretHash
       );
 
       await sendL2Message(message);

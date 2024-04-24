@@ -76,13 +76,33 @@ export function siloNoteHash(contract: AztecAddress, innerNoteHash: Fr): Fr {
 }
 
 /**
- * Computes a unique commitment. It includes a nonce which contains data that guarantees the commitment will be unique.
- * @param nonce - The contract address.
- * @param siloedCommitment - An siloed commitment.
- * @returns A unique commitment.
+ * Computes a note content hash.
+ * @param noteContent - The note content (e.g. note.items).
+ * @returns A note content hash.
  */
-export function computeUniqueCommitment(nonce: Fr, siloedCommitment: Fr): Fr {
-  return pedersenHash([nonce, siloedCommitment], GeneratorIndex.UNIQUE_NOTE_HASH);
+export function computeNoteContentHash(noteContent: Fr[]): Fr {
+  return pedersenHash(noteContent, GeneratorIndex.NOTE_CONTENT_HASH);
+}
+
+/**
+ * Computes an inner note hash, given a storage slot and a note hash.
+ * @param storageSlot - The storage slot.
+ * @param noteHash - The note hash.
+ * @returns An inner note hash.
+ */
+export function computeInnerNoteHash(storageSlot: Fr, noteHash: Fr): Fr {
+  return pedersenHash([storageSlot, noteHash], GeneratorIndex.INNER_NOTE_HASH);
+}
+
+/**
+ * Computes a unique note hash.
+ * @dev Includes a nonce which contains data that guarantees the resulting note hash will be unique.
+ * @param nonce - The contract address.
+ * @param siloedNoteHash - An siloed note hash.
+ * @returns A unique note hash.
+ */
+export function computeUniqueNoteHash(nonce: Fr, siloedNoteHash: Fr): Fr {
+  return pedersenHash([nonce, siloedNoteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
 }
 
 /**
@@ -157,12 +177,13 @@ export function computeNullifierHash(input: SideEffectLinkedToNoteHash) {
 }
 
 /**
- * Given a secret, it computes its pedersen hash - used to send l1 to l2 messages
- * @param secret - the secret to hash - secret could be generated however you want e.g. `Fr.random()`
- * @returns the hash
+ * Computes a hash of a secret.
+ * @dev This function is used to generate secrets for the L1 to L2 message flow and for the TransparentNote.
+ * @param secret - The secret to hash (could be generated however you want e.g. `Fr.random()`)
+ * @returns The hash
  */
-export function computeMessageSecretHash(secretMessage: Fr) {
-  return pedersenHash([secretMessage], GeneratorIndex.L1_TO_L2_MESSAGE_SECRET);
+export function computeSecretHash(secret: Fr) {
+  return pedersenHash([secret], GeneratorIndex.SECRET_HASH);
 }
 
 export function computeL1ToL2MessageNullifier(
@@ -171,6 +192,6 @@ export function computeL1ToL2MessageNullifier(
   secret: Fr,
   messageIndex: bigint,
 ) {
-  const innerMessageNullifier = pedersenHash([messageHash, secret, messageIndex], GeneratorIndex.NULLIFIER);
+  const innerMessageNullifier = pedersenHash([messageHash, secret, messageIndex], GeneratorIndex.MESSAGE_NULLIFIER);
   return siloNullifier(contract, innerMessageNullifier);
 }

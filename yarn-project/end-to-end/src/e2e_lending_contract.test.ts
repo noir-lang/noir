@@ -6,7 +6,7 @@ import {
   Fr,
   Note,
   computeAuthWitMessageHash,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts.js';
 
@@ -96,7 +96,7 @@ describe('e2e_lending_contract', () => {
       const mintAmount = 10000n;
       for (const asset of assets) {
         const secret = Fr.random();
-        const secretHash = computeMessageSecretHash(secret);
+        const secretHash = computeSecretHash(secret);
 
         const a = asset.methods.mint_public(lendingAccount.address, mintAmount).send();
         const b = asset.methods.mint_private(mintAmount, secretHash).send();

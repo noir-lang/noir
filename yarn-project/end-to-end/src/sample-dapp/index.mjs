@@ -1,5 +1,5 @@
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
-import { ExtendedNote, Fr, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
+import { ExtendedNote, Fr, Note, computeSecretHash, createPXEClient } from '@aztec/aztec.js';
 import { fileURLToPath } from '@aztec/foundation/url';
 
 import { getToken } from './contracts.mjs';
@@ -34,7 +34,7 @@ async function mintPrivateFunds(pxe) {
 
   const mintAmount = 20n;
   const secret = Fr.random();
-  const secretHash = await computeMessageSecretHash(secret);
+  const secretHash = await computeSecretHash(secret);
   const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
   const storageSlot = new Fr(5);

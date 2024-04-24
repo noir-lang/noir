@@ -2,7 +2,7 @@ use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContex
 use dep::aztec::{
     note::{utils::compute_note_hash_for_consumption},
     oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
-    hash::pedersen_hash, protocol_types::traits::Empty
+    hash::poseidon2_hash, protocol_types::{traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER},
 };
 
 // Shows how to create a custom note
@@ -28,19 +28,21 @@ impl NoteInterface<CARD_NOTE_LEN> for CardNote {
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_app_nullifier_secret_key(self.owner);
-        pedersen_hash([
+        poseidon2_hash([
             note_hash_for_nullify,
             secret,
-        ],0)
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        ])
     }
 
     fn compute_nullifier_without_context(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_app_nullifier_secret_key(self.owner);
-        pedersen_hash([
+        poseidon2_hash([
             note_hash_for_nullify,
             secret,
-        ],0)
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        ])
     }
 
     // Broadcasts the note as an encrypted log on L1.

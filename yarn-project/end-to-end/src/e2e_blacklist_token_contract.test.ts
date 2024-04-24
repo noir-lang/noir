@@ -9,7 +9,7 @@ import {
   type TxHash,
   type Wallet,
   computeAuthWitMessageHash,
-  computeMessageSecretHash,
+  computeSecretHash,
 } from '@aztec/aztec.js';
 import { TokenBlacklistContract, type TokenContract } from '@aztec/noir-contracts.js';
 
@@ -246,7 +246,7 @@ describe('e2e_blacklist_token_contract', () => {
       let txHash: TxHash;
 
       beforeAll(() => {
-        secretHash = computeMessageSecretHash(secret);
+        secretHash = computeSecretHash(secret);
       });
 
       describe('Mint flow', () => {
@@ -641,7 +641,7 @@ describe('e2e_blacklist_token_contract', () => {
     let secretHash: Fr;
 
     beforeAll(() => {
-      secretHash = computeMessageSecretHash(secret);
+      secretHash = computeSecretHash(secret);
     });
 
     it('on behalf of self', async () => {

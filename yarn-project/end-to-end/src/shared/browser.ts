@@ -221,7 +221,7 @@ export const browserTestSuite = (
             Fr,
             ExtendedNote,
             Note,
-            computeMessageSecretHash,
+            computeSecretHash,
             getDeployedTestAccountsWallets,
             INITIAL_TEST_SECRET_KEYS,
             INITIAL_TEST_SIGNING_KEYS,
@@ -261,7 +261,7 @@ export const browserTestSuite = (
 
           console.log(`Contract Deployed: ${token.address}`);
           const secret = Fr.random();
-          const secretHash = computeMessageSecretHash(secret);
+          const secretHash = computeSecretHash(secret);
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 
           const storageSlot = new Fr(5);

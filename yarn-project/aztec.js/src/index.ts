@@ -75,7 +75,7 @@ export {
   INITIAL_L2_BLOCK_NUM,
 } from '@aztec/circuits.js';
 
-export { computeMessageSecretHash } from '@aztec/circuits.js/hash';
+export { computeSecretHash } from '@aztec/circuits.js/hash';
 
 export {
   computeAppNullifierSecretKey,

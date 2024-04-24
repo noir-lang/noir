@@ -10,12 +10,9 @@ mod types;
 
 contract TokenBlacklist {
     // Libs
-
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
     use dep::aztec::{
-        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         hash::compute_secret_hash,
-        state_vars::{Map, PublicMutable, PrivateSet, SharedMutable, SharedImmutable}
+        prelude::{AztecAddress, FunctionSelector, Map, NoteGetterOptions, PrivateSet, PublicMutable, SharedMutable}
     };
 
     use dep::authwit::{auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public}};
