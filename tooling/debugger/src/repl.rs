@@ -81,7 +81,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
                         let brillig_bytecode = match opcodes[acir_index] {
-                            Opcode::Brillig(ref brillig) => &brillig.bytecode,
                             Opcode::BrilligCall { id, .. } => {
                                 &self.unconstrained_functions[id as usize].bytecode
                             }
@@ -110,7 +109,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 let brillig_bytecode = match opcodes[*acir_index] {
-                    Opcode::Brillig(ref brillig) => &brillig.bytecode,
                     Opcode::BrilligCall { id, .. } => {
                         &self.unconstrained_functions[id as usize].bytecode
                     }
@@ -185,11 +183,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         for (acir_index, opcode) in opcodes.iter().enumerate() {
             let marker = outer_marker(acir_index);
             match &opcode {
-                Opcode::Brillig(brillig) => {
-                    println!("{:>3} {:2} BRILLIG inputs={:?}", acir_index, marker, brillig.inputs);
-                    println!("       |       outputs={:?}", brillig.outputs);
-                    print_brillig_bytecode(acir_index, &brillig.bytecode);
-                }
                 Opcode::BrilligCall { id, inputs, outputs, .. } => {
                     println!(
                         "{:>3} {:2} BRILLIG CALL id={} inputs={:?}",

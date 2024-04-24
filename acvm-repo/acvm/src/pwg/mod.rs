@@ -470,7 +470,6 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
 
     pub fn step_into_brillig(&mut self) -> StepResult<'a, B> {
         match &self.opcodes[self.instruction_pointer] {
-            Opcode::Brillig(_) => self.step_into_brillig_opcode(),
             Opcode::BrilligCall { .. } => self.step_into_brillig_call_opcode(),
             _ => StepResult::Status(self.solve_opcode()),
         }
@@ -540,7 +539,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
     pub fn finish_brillig_with_solver(&mut self, solver: BrilligSolver<'a, B>) -> ACVMStatus {
         if !matches!(
             self.opcodes[self.instruction_pointer],
-            Opcode::Brillig(..) | Opcode::BrilligCall { .. }
+            Opcode::BrilligCall { .. }
         ) {
             unreachable!("Not executing a Brillig/BrilligCall opcode");
         }

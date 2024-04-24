@@ -217,7 +217,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.get_opcodes()
             .iter()
             .map(|opcode| match opcode {
-                Opcode::Brillig(brillig_block) => brillig_block.bytecode.len(),
                 Opcode::BrilligCall { id, .. } => {
                     self.unconstrained_functions[*id as usize].bytecode.len()
                 }
@@ -302,10 +301,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             Some(OpcodeLocation::Acir(acir_index)) => {
                 let opcode = &opcodes[*acir_index];
                 match opcode {
-                    Opcode::Brillig(brillig) => {
-                        let first_opcode = &brillig.bytecode[0];
-                        format!("BRILLIG {first_opcode:?}")
-                    }
                     Opcode::BrilligCall { id, .. } => {
                         let first_opcode = &self.unconstrained_functions[*id as usize].bytecode[0];
                         format!("BRILLIG CALL {first_opcode:?}")
@@ -315,10 +310,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             }
             Some(OpcodeLocation::Brillig { acir_index, brillig_index }) => {
                 match &opcodes[*acir_index] {
-                    Opcode::Brillig(brillig) => {
-                        let opcode = &brillig.bytecode[*brillig_index];
-                        format!("      | {opcode:?}")
-                    }
                     Opcode::BrilligCall { id, .. } => {
                         let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
                         let opcode = &bytecode[*brillig_index];
@@ -458,7 +449,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             Some(OpcodeLocation::Acir(acir_index)) => {
                 matches!(
                     self.get_opcodes()[acir_index],
-                    Opcode::Brillig(_) | Opcode::BrilligCall { .. }
+                    Opcode::BrilligCall { .. }
                 )
             }
             _ => false,
@@ -567,7 +558,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 if acir_index < opcodes.len() {
                     match &opcodes[acir_index] {
-                        Opcode::Brillig(brillig) => brillig_index < brillig.bytecode.len(),
                         Opcode::BrilligCall { id, .. } => {
                             let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
                             brillig_index < bytecode.len()
