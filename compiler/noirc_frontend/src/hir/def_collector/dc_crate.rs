@@ -506,7 +506,9 @@ impl ResolvedModule {
         let mut interpreter = Interpreter::new(interner);
 
         for (_file, global) in &self.globals {
-            interpreter.scan_global(*global).unwrap();
+            if let Err(error) = interpreter.scan_global(*global) {
+                self.errors.push(error.into_compilation_error_pair());
+            }
         }
 
         for (_file, function) in &self.functions {
