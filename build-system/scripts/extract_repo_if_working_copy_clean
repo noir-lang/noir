@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Given a repository, extracts the builds entire /usr/src dir to the current path if the working copy is clean.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+REPOSITORY=$1
+
+if ! check_working_copy_clean $REPOSITORY; then 
+  echo "Aborting extraction of $REPOSITORY since the working copy one for it or one of its dependencies is not clean."
+  exit 1
+fi
+
+extract_repo $@
