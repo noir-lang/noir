@@ -160,10 +160,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arena"
-version = "0.28.0"
-
-[[package]]
 name = "ark-bn254"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1211,6 +1207,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "noirc_arena"
+version = "0.28.0"
+
+[[package]]
 name = "noirc_driver"
 version = "0.28.0"
 dependencies = [
@@ -1271,13 +1271,13 @@ name = "noirc_frontend"
 version = "0.28.0"
 dependencies = [
  "acvm",
- "arena",
  "chumsky",
  "fm",
  "im",
  "iter-extended",
  "lalrpop",
  "lalrpop-util",
+ "noirc_arena",
  "noirc_errors",
  "noirc_printable_type",
  "petgraph",

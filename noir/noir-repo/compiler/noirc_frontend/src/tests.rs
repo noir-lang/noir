@@ -31,8 +31,8 @@ mod test {
         hir::def_map::{CrateDefMap, LocalModuleId},
         parse_program,
     };
-    use arena::Arena;
     use fm::FileManager;
+    use noirc_arena::Arena;
 
     pub(crate) fn has_parser_error(errors: &[(CompilationError, FileId)]) -> bool {
         errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
