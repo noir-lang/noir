@@ -162,7 +162,7 @@ impl<'a> Resolver<'a> {
             lambda_stack: Vec::new(),
             current_trait_impl: None,
             current_item: None,
-            resolving_names: BTreeSet::new(),
+            resolving_ids: BTreeSet::new(),
             file,
             in_contract,
             in_unconstrained_fn: false,
