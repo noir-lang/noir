@@ -97,7 +97,7 @@ pub struct Resolver<'a> {
     current_item: Option<DependencyId>,
 
     /// In-resolution names
-    resolving_names: BTreeSet<StructId>,
+    resolving_ids: BTreeSet<StructId>,
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
