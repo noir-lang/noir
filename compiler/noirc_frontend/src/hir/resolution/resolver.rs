@@ -620,7 +620,7 @@ impl<'a> Resolver<'a> {
 
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
-                if self.resolving_names.contains(&struct_type.borrow().id) {
+                if self.resolving_ids.contains(&struct_type.borrow().id) {
                     self.push_err(ResolverError::SelfReferentialStruct {
                         span: struct_type.borrow().name.span(),
                     });
