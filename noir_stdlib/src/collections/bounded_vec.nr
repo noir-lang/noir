@@ -143,11 +143,12 @@ mod bounded_vec_tests {
 
         #[test]
         fn empty() {
+            let empty_array: [Field; 0] = [];
             let bounded_vec = BoundedVec::from([]);
 
             assert_eq(bounded_vec.max_len(), 0);
             assert_eq(bounded_vec.len(), 0);
-            assert_eq(bounded_vec.storage().len(), 0);
+            assert_eq(bounded_vec.storage(), empty_array);
         }
 
         #[test]
