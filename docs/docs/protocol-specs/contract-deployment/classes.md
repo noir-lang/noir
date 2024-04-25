@@ -12,6 +12,7 @@ Read the following discussions for additional context:
 - [Abstracting contract deployment](https://forum.aztec.network/t/proposal-abstracting-contract-deployment/2576)
 - [Implementing contract upgrades](https://forum.aztec.network/t/implementing-contract-upgrades/2570)
 - [Contract classes, upgrades, and default accounts](https://forum.aztec.network/t/contract-classes-upgrades-and-default-accounts/433)
+  
 :::
 
 ## `ContractClass`
