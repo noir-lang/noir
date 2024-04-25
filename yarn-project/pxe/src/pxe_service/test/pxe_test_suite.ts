@@ -125,10 +125,10 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
       functionData.isPrivate = false;
       const txExecutionRequest = TxExecutionRequest.from({
         origin: AztecAddress.random(),
-        argsHash: new Fr(0),
+        firstCallArgsHash: new Fr(0),
         functionData,
         txContext: TxContext.empty(),
-        packedArguments: [],
+        argsOfCalls: [],
         authWitnesses: [],
       });
 

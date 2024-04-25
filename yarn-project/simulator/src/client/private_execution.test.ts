@@ -113,10 +113,10 @@ describe('Private Execution test suite', () => {
     const functionData = FunctionData.fromAbi(artifact);
     const txRequest = TxExecutionRequest.from({
       origin: contractAddress,
-      argsHash: packedArguments.hash,
+      firstCallArgsHash: packedArguments.hash,
       functionData,
       txContext: TxContext.from({ ...txContextFields, ...txContext }),
-      packedArguments: [packedArguments],
+      argsOfCalls: [packedArguments],
       authWitnesses: [],
     });
 

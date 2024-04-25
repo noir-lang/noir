@@ -44,11 +44,11 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     const authWitness = await this.userAuthWitnessProvider.createAuthWit(outerHash);
 
     const txRequest = TxExecutionRequest.from({
-      argsHash: entrypointPackedArgs.hash,
+      firstCallArgsHash: entrypointPackedArgs.hash,
       origin: this.dappEntrypointAddress,
       functionData,
       txContext: new TxContext(this.chainId, this.version, gasSettings),
-      packedArguments: [...payload.packedArguments, entrypointPackedArgs],
+      argsOfCalls: [...payload.packedArguments, entrypointPackedArgs],
       authWitnesses: [authWitness],
     });
 

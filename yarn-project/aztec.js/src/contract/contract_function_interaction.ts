@@ -91,11 +91,11 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
       const gasSettings = options.gasSettings ?? GasSettings.simulation();
 
       const txRequest = TxExecutionRequest.from({
-        argsHash: packedArgs.hash,
+        firstCallArgsHash: packedArgs.hash,
         origin: this.contractAddress,
         functionData: FunctionData.fromAbi(this.functionDao),
         txContext: new TxContext(nodeInfo.chainId, nodeInfo.protocolVersion, gasSettings),
-        packedArguments: [packedArgs],
+        argsOfCalls: [packedArgs],
         authWitnesses: [],
       });
       const simulatedTx = await this.pxe.simulateTx(txRequest, true, options.from ?? this.wallet.getAddress());

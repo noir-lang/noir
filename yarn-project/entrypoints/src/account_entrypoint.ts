@@ -31,11 +31,11 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
     const feeAuthWitness = await this.auth.createAuthWit(feePayload.hash());
 
     const txRequest = TxExecutionRequest.from({
-      argsHash: entrypointPackedArgs.hash,
+      firstCallArgsHash: entrypointPackedArgs.hash,
       origin: this.address,
       functionData: FunctionData.fromAbi(abi),
       txContext: new TxContext(this.chainId, this.version, gasSettings),
-      packedArguments: [...appPayload.packedArguments, ...feePayload.packedArguments, entrypointPackedArgs],
+      argsOfCalls: [...appPayload.packedArguments, ...feePayload.packedArguments, entrypointPackedArgs],
       authWitnesses: [appAuthWitness, feeAuthWitness],
     });
 

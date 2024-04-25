@@ -96,12 +96,12 @@ export class AcirSimulator {
     );
     const context = new ClientExecutionContext(
       contractAddress,
-      request.argsHash,
+      request.firstCallArgsHash,
       request.txContext,
       callContext,
       header,
       request.authWitnesses,
-      PackedValuesCache.create(request.packedArguments),
+      PackedValuesCache.create(request.argsOfCalls),
       new ExecutionNoteCache(),
       this.db,
       curve,
