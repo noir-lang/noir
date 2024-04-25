@@ -23,8 +23,11 @@ jobs:
       ebs_cache_size_gb: 256
       runner_concurrency: 20
       subaction: ${{ inputs.runner_action || 'start' }}
-      ec2_instance_type: m6a.32xlarge
+      # This instance list has a spot placement score of 9/10. Note we used to just use m6a.32xlarge, which had a score of 1!
+      # https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#SpotPlacementScore:
+      ec2_instance_type: i4i.32xlarge m6a.32xlarge m6i.32xlarge m6id.32xlarge m6idn.32xlarge m6in.32xlarge m7a.32xlarge r6a.32xlarge r6i.32xlarge r6id.32xlarge
       ec2_ami_id: ami-04d8422a9ba4de80f
+      ec2_spot_instance_strategy: BestEffort
       ec2_instance_ttl: 40 # refreshed by jobs
     secrets: inherit
 

@@ -1,0 +1,75 @@
+name: 'Deploy self-hosted runners to EC2 (Spot/On-Demand)'
+description: 'Automatically deploy self-hosted runners to AWS EC2 using Spot/On-Demand instances and optimize for best performance/cost.'
+branding:
+  icon: 'server'
+  color: 'orange'
+inputs:
+  aws_access_key_id:
+    description: 'AWS access key ID'
+    required: true
+  aws_secret_access_key:
+    description: 'AWS secret access key'
+    required: true
+  aws_region:
+    description: 'AWS Region'
+    required: true
+  aws_iam_role_arn:
+    description: 'ARN of IAM role to assume'
+    required: false
+    default: ''
+  github_token:
+    description: 'GitHub token'
+    required: true
+  runner_label:
+    description: 'Key for when to recreate spot, use as runs-on'
+    required: true
+  runner_concurrency:
+    description: 'How many runners to create'
+    type: number
+    required: true
+  subaction:
+    description: 'One of: start (default), stop, restart'
+    required: false
+    default: 'start'
+  github_action_runner_version:
+    description: 'GitHub action runner version'
+    required: false
+  ec2_instance_type:
+    description: 'Ec2 instance type'
+    required: true
+  ec2_ami_id:
+    description: 'Ec2 ami ID'
+    required: true
+  ec2_instance_iam_role:
+    description: 'IAM role for to associate with ec2 instance'
+    required: false
+    default: ''
+  ec2_instance_tags:
+    description: 'List of extra aws resource tags for ec2 instance'
+    required: false
+    default: '{}'
+  ec2_instance_ttl:
+    description: 'Maximum duration an EC2 instance is allowed to live in minute'
+    required: false
+    default: '60'
+  ec2_security_group_id:
+    description: 'Security group id'
+    required: true
+  ec2_subnet_id:
+    description: 'Subnet id'
+    required: true
+  ec2_key_name:
+    description: 'EC2 keypair name'
+    required: true
+  ec2_spot_instance_strategy:
+    description: >
+      Spot instance scheduling modes:
+        None -> (default) no spot instances, use on-demand
+        SpotOnly -> Strictly spot instances only
+        BestEffort -> Use spot instances whenever they are cheaper than on-demand
+
+    required: false
+    default: "none"
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
