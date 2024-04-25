@@ -43,7 +43,7 @@ async function start() {
     // then we make a fresh instance
   } else if (config.subaction === "start") {
     // We need to terminate
-    await terminate("stopped");
+    await terminate("stopped", false);
   } else {
     throw new Error("Unexpected subaction: " + config.subaction);
   }
@@ -139,7 +139,7 @@ async function start() {
   }
 }
 
-async function terminate(instanceStatus?: string) {
+async function terminate(instanceStatus?: string, cleanupRunners = true) {
   try {
     core.info("Starting instance cleanup");
     const config = new ActionConfig();
@@ -147,14 +147,18 @@ async function terminate(instanceStatus?: string) {
     const ghClient = new GithubClient(config);
     const instances = await ec2Client.getInstancesForTags(instanceStatus);
     await ec2Client.terminateInstances(instances.map((i) => i.InstanceId!));
-    core.info("Clearing previously installed runners");
-    const result = await ghClient.removeRunnersWithLabels([config.githubJobId]);
-    if (result) {
-      core.info("Finished runner cleanup");
-    } else {
-      throw Error(
-        "Failed to cleanup runners. Continuing, but failure expected!"
-      );
+    if (cleanupRunners) {
+      core.info("Clearing previously installed runners");
+      const result = await ghClient.removeRunnersWithLabels([
+        config.githubJobId,
+      ]);
+      if (result) {
+        core.info("Finished runner cleanup");
+      } else {
+        throw Error(
+          "Failed to cleanup runners. Continuing, but failure expected!"
+        );
+      }
     }
   } catch (error) {
     core.info(error);
