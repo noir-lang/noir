@@ -99,6 +99,11 @@ impl Plonky2Circuit {
                 InputValue::Field(field) => {
                     self.set_parameter(j, *field, pw);
                 }
+
+                InputValue::Vec(input_values) => {
+                    let _ = self.set_array_parameter(j, input_values, pw)?;
+                }
+
                 _ => {
                     let feature_name = format!("array parameter with non-field elements");
                     return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
