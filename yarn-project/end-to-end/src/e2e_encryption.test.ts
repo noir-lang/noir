@@ -21,21 +21,35 @@ describe('e2e_encryption', () => {
 
   afterAll(() => teardown());
 
-  it('encrypts', async () => {
+  it('encrypts 🔒📄🔑💻', async () => {
     const input = randomBytes(64);
     const iv = randomBytes(16);
     const key = randomBytes(16);
 
     const expectedCiphertext = aes128.encryptBufferCBC(input, iv, key);
 
-    const logs = await contract.methods
+    const ciphertextAsBigInts = await contract.methods
       .encrypt(Array.from(input), Array.from(iv), Array.from(key))
-      .send()
-      .getUnencryptedLogs();
-    // Each byte of encrypted data is in its own field and it's all serialized into a long buffer so we simply extract
-    // each 32nd byte from the buffer to get the encrypted data
-    const recoveredCiphertext = logs.logs[0].log.data.filter((_, i) => (i + 1) % 32 === 0);
+      .simulate();
+    const ciphertext = Buffer.from(ciphertextAsBigInts.map((x: bigint) => Number(x)));
 
-    expect(recoveredCiphertext).toEqual(expectedCiphertext);
+    expect(ciphertext).toEqual(expectedCiphertext);
+  });
+
+  it('encrypts with padding 🔒📄🔑💻 ➕ 📦', async () => {
+    const input = randomBytes(65);
+    const iv = randomBytes(16);
+    const key = randomBytes(16);
+
+    const expectedCiphertext = aes128.encryptBufferCBC(input, iv, key);
+    // AES 128 CBC with PKCS7 is padding to multiples of 16 bytes so from 65 bytes long input we get 80 bytes long output
+    expect(expectedCiphertext.length).toBe(80);
+
+    const ciphertextAsBigInts = await contract.methods
+      .encrypt_with_padding(Array.from(input), Array.from(iv), Array.from(key))
+      .simulate();
+    const ciphertext = Buffer.from(ciphertextAsBigInts.map((x: bigint) => Number(x)));
+
+    expect(ciphertext).toEqual(expectedCiphertext);
   });
 });
