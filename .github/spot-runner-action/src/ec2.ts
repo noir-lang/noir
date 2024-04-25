@@ -117,17 +117,6 @@ export class Ec2Instance {
     }
   }
 
-  // async runInstances(params: RunInstancesRequest) {
-  //   const client = await this.getEc2Client();
-
-  //   try {
-  //     return (await client.runInstances(params).promise()).Instances;
-  //   } catch (error) {
-  //     core.error(`Failed to create instance(s)`);
-  //     throw error;
-  //   }
-  // }
-
   async getSubnetAzId() {
     const client = await this.getEc2Client();
     try {
@@ -252,85 +241,11 @@ export class Ec2Instance {
         DefaultTargetCapacityType: useOnDemand ? "on-demand" : "spot",
       },
     };
-    // const config: SpotFleetRequestConfigData = {
-    //   IamFleetRole:
-    //     "arn:aws:iam::278380418400:role/aws-ec2-spot-fleet-tagging-role",
-    //   TargetCapacity: 1,
-    //   // We always ask for 1 instance, but might ask for 100% on demand or spot
-    //   OnDemandTargetCapacity: useOnDemand ? 1 : 0,
-    //   TerminateInstancesWithExpiration: true,
-    //   Type: "request",
-    //   LaunchSpecifications:
-    // };
-    // const params: RequestSpotFleetRequest = {
-    //   SpotFleetRequestConfig: config,
-    // };
     const client = await this.getEc2Client();
     const fleet = await client.createFleet(createFleetRequest).promise();
     const instances: CreateFleetInstance = (fleet?.Instances || [])[0] || {};
     return (instances.InstanceIds || [])[0];
   }
-
-  // async getOnDemandInstanceConfiguration(
-  //   ec2SpotInstanceStrategy: string
-  // ): Promise<RunInstancesRequest> {
-  //   const userData = new UserData(this.config);
-
-  //   const params: RunInstancesRequest = {
-  //     ImageId: this.config.ec2AmiId,
-  //     InstanceInitiatedShutdownBehavior: "terminate",
-  //     InstanceMarketOptions: {},
-  //     InstanceType: "",
-  //     MaxCount: 1,
-  //     MinCount: 1,
-  //     SecurityGroupIds: [this.config.ec2SecurityGroupId],
-  //     SubnetId: this.config.ec2SubnetId,
-  //     KeyName: this.config.ec2KeyName,
-  //     Placement: {
-  //       AvailabilityZone: await this.getSubnetAz(),
-  //     },
-  //     TagSpecifications: [
-  //       {
-  //         ResourceType: "instance",
-  //         Tags: this.tags,
-  //       },
-  //     ],
-  //     // <aztec>parity with build-system
-  //     BlockDeviceMappings: [
-  //       {
-  //         DeviceName: "/dev/sda1",
-  //         Ebs: {
-  //           VolumeSize: 32,
-  //         },
-  //       },
-  //     ],
-  //     // parity with build-system</aztec>
-  //     UserData: await userData.getUserData(),
-  //   };
-
-  //   switch (ec2SpotInstanceStrategy.toLowerCase()) {
-  //     case "besteffort":
-  //     case "spotonly": {
-  //       params.InstanceMarketOptions = {
-  //         MarketType: "spot",
-  //         SpotOptions: {
-  //           InstanceInterruptionBehavior: "terminate",
-  //           SpotInstanceType: "one-time",
-  //         },
-  //       };
-  //       break;
-  //     }
-  //     case "none": {
-  //       params.InstanceMarketOptions = {};
-  //       break;
-  //     }
-  //     default: {
-  //       throw new TypeError("Invalid value for ec2_spot_instance_strategy");
-  //     }
-  //   }
-
-  //   return params;
-  // }
 
   async getInstanceStatus(instanceId: string) {
     const client = await this.getEc2Client();
@@ -347,7 +262,7 @@ export class Ec2Instance {
     }
   }
 
-  async getInstancesForTags(): Promise<AWS.EC2.Instance[]> {
+  async getInstancesForTags(instanceStatus?: string): Promise<AWS.EC2.Instance[]> {
     const client = await this.getEc2Client();
     const filters: FilterInterface[] = [
       {
@@ -366,6 +281,12 @@ export class Ec2Instance {
         await client.describeInstances(params).promise()
       ).Reservations || []) {
         instances = instances.concat(reservation.Instances || []);
+      }
+      if (instanceStatus) {
+        // Filter instances that are stopped
+        instances = instances.filter(
+          (instance) => instance?.State?.Name === instanceStatus
+        );
       }
       return instances;
     } catch (error) {
