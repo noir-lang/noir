@@ -20,7 +20,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
     sha256_var(msg, N)
 }
 
-pub fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
+fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
     let mut out_h: [u8; 32] = [0; 32]; // Digest as sequence of bytes
 
     // Hash final padded block
