@@ -20,7 +20,7 @@ use crate::{
         stmt::HirForStatement,
     },
     macros_api::{HirExpression, HirLiteral, HirStatement},
-    node_interner::{ExprId, FuncId, GlobalId, StmtId},
+    node_interner::{DefinitionKind, ExprId, FuncId, GlobalId, StmtId},
 };
 
 use super::{
@@ -109,12 +109,22 @@ impl<'interner> Interpreter<'interner> {
     // Identifiers have no code to execute but we may need to inline any values
     // of comptime variables into runtime code.
     fn scan_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<()> {
-        // Opportunistically evaluate this identifier to see if it is compile-time known.
-        // If so, inline its value.
-        if let Ok(value) = self.evaluate_ident(ident, id) {
-            self.inline_expression(value, id)?;
+        let definition = self.interner.definition(ident.id);
+
+        match &definition.kind {
+            DefinitionKind::Function(_) => Ok(()),
+            _ => {
+                // Opportunistically evaluate this identifier to see if it is compile-time known.
+                // If so, inline its value.
+                if let Ok(value) = self.evaluate_ident(ident, id) {
+                    // TODO(#4922): Inlining closures is currently unimplemented
+                    if !matches!(value, Value::Closure(..)) {
+                        self.inline_expression(value, id)?;
+                    }
+                }
+                Ok(())
+            }
         }
-        Ok(())
     }
 
     fn scan_literal(&mut self, literal: HirLiteral) -> IResult<()> {

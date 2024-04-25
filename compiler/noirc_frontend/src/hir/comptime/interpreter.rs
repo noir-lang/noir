@@ -261,7 +261,7 @@ impl<'a> Interpreter<'a> {
         Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
-    fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
+    pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
         self.lookup_id(ident.id, ident.location)
     }
 

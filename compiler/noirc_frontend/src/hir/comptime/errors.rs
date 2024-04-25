@@ -98,13 +98,13 @@ impl InterpreterError {
     }
 }
 
-impl From<InterpreterError> for CustomDiagnostic {
-    fn from(error: InterpreterError) -> Self {
+impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
+    fn from(error: &'a InterpreterError) -> Self {
         match error {
             InterpreterError::ArgumentCountMismatch { expected, actual, call_location } => {
                 let only = if expected > actual { "only " } else { "" };
-                let plural = if expected == 1 { "" } else { "s" };
-                let was_were = if actual == 1 { "was" } else { "were" };
+                let plural = if *expected == 1 { "" } else { "s" };
+                let was_were = if *actual == 1 { "was" } else { "were" };
                 let msg = format!(
                     "Expected {expected} argument{plural}, but {only}{actual} {was_were} provided"
                 );
