@@ -17,4 +17,4 @@ fold_basic_nested_call
 fold_call_witness_condition
 fold_after_inlined_calls
 fold_numeric_generic_poseidon
-
+inline_never_basic
