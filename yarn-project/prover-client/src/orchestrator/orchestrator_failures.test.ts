@@ -6,7 +6,8 @@ import { jest } from '@jest/globals';
 
 import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
-import { CircuitProverAgent } from '../prover-pool/circuit-prover-agent.js';
+import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
+import { ProverAgent } from '../prover-pool/prover-agent.js';
 import { ProverPool } from '../prover-pool/prover-pool.js';
 import { type CircuitProver } from '../prover/index.js';
 import { TestCircuitProver } from '../prover/test_circuit_prover.js';
@@ -29,12 +30,14 @@ describe('prover/orchestrator/failures', () => {
 
   describe('error handling', () => {
     let mockProver: CircuitProver;
+    let queue: MemoryProvingQueue;
 
     beforeEach(async () => {
       mockProver = new TestCircuitProver(new WASMSimulator());
-      proverPool = new ProverPool(1, i => new CircuitProverAgent(mockProver, 10, `${i}`));
-      orchestrator = new ProvingOrchestrator(context.actualDb, proverPool.queue);
-      await proverPool.start();
+      proverPool = new ProverPool(1, i => new ProverAgent(mockProver, 10, `${i}`));
+      queue = new MemoryProvingQueue();
+      orchestrator = new ProvingOrchestrator(context.actualDb, queue);
+      await proverPool.start(queue);
     });
 
     afterEach(async () => {

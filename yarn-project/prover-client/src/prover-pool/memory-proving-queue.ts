@@ -1,17 +1,38 @@
+import {
+  type ProvingJob,
+  type ProvingJobSource,
+  type ProvingRequest,
+  type ProvingRequestResult,
+  ProvingRequestType,
+  type PublicKernelNonTailRequest,
+  type PublicKernelTailRequest,
+} from '@aztec/circuit-types';
+import type {
+  BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
+  BaseRollupInputs,
+  KernelCircuitPublicInputs,
+  MergeRollupInputs,
+  ParityPublicInputs,
+  Proof,
+  PublicKernelCircuitPublicInputs,
+  RootParityInputs,
+  RootRollupInputs,
+  RootRollupPublicInputs,
+} from '@aztec/circuits.js';
 import { TimeoutError } from '@aztec/foundation/error';
 import { MemoryFifo } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type PromiseWithResolvers, promiseWithResolvers } from '@aztec/foundation/promise';
 
-import { type ProvingJob, type ProvingQueue } from './proving-queue.js';
-import { type ProvingRequest, type ProvingRequestResult, ProvingRequestType } from './proving-request.js';
+import { type CircuitProver } from '../prover/interface.js';
 
 type ProvingJobWithResolvers<T extends ProvingRequest = ProvingRequest> = {
   id: string;
   request: T;
 } & PromiseWithResolvers<ProvingRequestResult<T['type']>>;
 
-export class MemoryProvingQueue implements ProvingQueue {
+export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
   private jobId = 0;
   private log = createDebugLogger('aztec:prover-client:prover-pool:queue');
   private queue = new MemoryFifo<ProvingJobWithResolvers>();
@@ -60,7 +81,7 @@ export class MemoryProvingQueue implements ProvingQueue {
     return Promise.resolve();
   }
 
-  prove<T extends ProvingRequest>(request: T): Promise<ProvingRequestResult<T['type']>> {
+  private enqueue<T extends ProvingRequest>(request: T): Promise<ProvingRequestResult<T['type']>> {
     const { promise, resolve, reject } = promiseWithResolvers<ProvingRequestResult<T['type']>>();
     const item: ProvingJobWithResolvers<T> = {
       id: String(this.jobId++),
@@ -79,8 +100,90 @@ export class MemoryProvingQueue implements ProvingQueue {
     return promise;
   }
 
-  cancelAll(): void {
-    this.queue.cancel();
-    this.queue = new MemoryFifo();
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   */
+  getBaseParityProof(inputs: BaseParityInputs): Promise<[ParityPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.BASE_PARITY,
+      inputs,
+    });
+  }
+
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   */
+  getRootParityProof(inputs: RootParityInputs): Promise<[ParityPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.ROOT_PARITY,
+      inputs,
+    });
+  }
+
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   */
+  getBaseRollupProof(input: BaseRollupInputs): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.BASE_ROLLUP,
+      inputs: input,
+    });
+  }
+
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   */
+  getMergeRollupProof(input: MergeRollupInputs): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.MERGE_ROLLUP,
+      inputs: input,
+    });
+  }
+
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   */
+  getRootRollupProof(input: RootRollupInputs): Promise<[RootRollupPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.ROOT_ROLLUP,
+      inputs: input,
+    });
+  }
+
+  /**
+   * Create a public kernel proof.
+   * @param kernelRequest - Object containing the details of the proof required
+   */
+  getPublicKernelProof(kernelRequest: PublicKernelNonTailRequest): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.PUBLIC_KERNEL_NON_TAIL,
+      kernelType: kernelRequest.type,
+      inputs: kernelRequest.inputs,
+    });
+  }
+
+  /**
+   * Create a public kernel tail proof.
+   * @param kernelRequest - Object containing the details of the proof required
+   */
+  getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<[KernelCircuitPublicInputs, Proof]> {
+    return this.enqueue({
+      type: ProvingRequestType.PUBLIC_KERNEL_TAIL,
+      kernelType: kernelRequest.type,
+      inputs: kernelRequest.inputs,
+    });
+  }
+
+  /**
+   * Verifies a circuit proof
+   */
+  verifyProof(): Promise<void> {
+    // no-op
+    return Promise.resolve();
   }
 }

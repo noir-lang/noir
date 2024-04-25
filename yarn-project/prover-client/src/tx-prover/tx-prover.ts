@@ -7,7 +7,8 @@ import { type WorldStateSynchronizer } from '@aztec/world-state';
 import { type ProverConfig } from '../config.js';
 import { type VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
-import { CircuitProverAgent } from '../prover-pool/circuit-prover-agent.js';
+import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
+import { ProverAgent } from '../prover-pool/prover-agent.js';
 import { ProverPool } from '../prover-pool/prover-pool.js';
 import { TestCircuitProver } from '../prover/test_circuit_prover.js';
 
@@ -17,6 +18,7 @@ import { TestCircuitProver } from '../prover/test_circuit_prover.js';
 export class TxProver implements ProverClient {
   private orchestrator: ProvingOrchestrator;
   private proverPool: ProverPool;
+  private queue = new MemoryProvingQueue();
 
   constructor(
     private worldStateSynchronizer: WorldStateSynchronizer,
@@ -27,17 +29,17 @@ export class TxProver implements ProverClient {
   ) {
     this.proverPool = new ProverPool(
       agentCount,
-      i => new CircuitProverAgent(new TestCircuitProver(simulationProvider), agentPollIntervalMS, `${i}`),
+      i => new ProverAgent(new TestCircuitProver(simulationProvider), agentPollIntervalMS, `${i}`),
     );
 
-    this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.proverPool.queue);
+    this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.queue);
   }
 
   /**
    * Starts the prover instance
    */
   public async start() {
-    await this.proverPool.start();
+    await this.proverPool.start(this.queue);
   }
 
   /**

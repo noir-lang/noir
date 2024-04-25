@@ -1,4 +1,3 @@
-import { type PublicKernelNonTailRequest, type PublicKernelTailRequest } from '@aztec/circuit-types';
 import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
@@ -12,6 +11,13 @@ import {
   type RootRollupInputs,
   type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
+
+import type { PublicKernelNonTailRequest, PublicKernelTailRequest } from '../tx/processed_tx.js';
+
+export type ProvingJob<T extends ProvingRequest> = {
+  id: string;
+  request: T;
+};
 
 export enum ProvingRequestType {
   PUBLIC_VM,
@@ -79,3 +85,11 @@ export type ProvingRequestPublicInputs = {
 };
 
 export type ProvingRequestResult<T extends ProvingRequestType> = [ProvingRequestPublicInputs[T], Proof];
+
+export interface ProvingJobSource {
+  getProvingJob(): Promise<ProvingJob<ProvingRequest> | null>;
+
+  resolveProvingJob<T extends ProvingRequestType>(jobId: string, result: ProvingRequestResult<T>): Promise<void>;
+
+  rejectProvingJob(jobId: string, reason: Error): Promise<void>;
+}

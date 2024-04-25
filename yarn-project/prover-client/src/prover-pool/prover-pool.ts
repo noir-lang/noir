@@ -1,21 +1,19 @@
-import { MemoryProvingQueue } from './memory-proving-queue.js';
-import { type ProvingAgent } from './prover-agent.js';
-import { type ProvingQueue } from './proving-queue.js';
+import { type ProvingJobSource } from '@aztec/circuit-types';
+import { type SimulationProvider } from '@aztec/simulator';
+
+import { TestCircuitProver } from '../prover/test_circuit_prover.js';
+import { ProverAgent } from './prover-agent.js';
 
 /**
  * Utility class that spawns N prover agents all connected to the same queue
  */
 export class ProverPool {
-  private agents: ProvingAgent[] = [];
+  private agents: ProverAgent[] = [];
   private running = false;
 
-  constructor(
-    private size: number,
-    private agentFactory: (i: number) => ProvingAgent | Promise<ProvingAgent>,
-    public readonly queue: ProvingQueue = new MemoryProvingQueue(),
-  ) {}
+  constructor(private size: number, private agentFactory: (i: number) => ProverAgent | Promise<ProverAgent>) {}
 
-  async start(): Promise<void> {
+  async start(source: ProvingJobSource): Promise<void> {
     if (this.running) {
       throw new Error('Prover pool is already running');
     }
@@ -29,7 +27,7 @@ export class ProverPool {
     }
 
     for (const agent of this.agents) {
-      agent.start(this.queue);
+      agent.start(source);
     }
   }
 
@@ -43,5 +41,12 @@ export class ProverPool {
     }
 
     this.running = false;
+  }
+
+  static testPool(simulationProvider: SimulationProvider, size = 1, agentPollIntervalMS = 10): ProverPool {
+    return new ProverPool(
+      size,
+      i => new ProverAgent(new TestCircuitProver(simulationProvider), agentPollIntervalMS, `${i}`),
+    );
   }
 }

@@ -21,7 +21,8 @@ import * as fs from 'fs/promises';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
-import { CircuitProverAgent } from '../prover-pool/circuit-prover-agent.js';
+import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
+import { ProverAgent } from '../prover-pool/prover-agent.js';
 import { ProverPool } from '../prover-pool/prover-pool.js';
 import { type BBProverConfig } from '../prover/bb_prover.js';
 import { type CircuitProver } from '../prover/interface.js';
@@ -87,10 +88,11 @@ export class TestContext {
       localProver = await createProver(bbConfig);
     }
 
-    const proverPool = new ProverPool(proverCount, i => new CircuitProverAgent(localProver, 10, `${i}`));
-    const orchestrator = new ProvingOrchestrator(actualDb, proverPool.queue);
+    const queue = new MemoryProvingQueue();
+    const proverPool = new ProverPool(proverCount, i => new ProverAgent(localProver, 10, `${i}`));
+    const orchestrator = new ProvingOrchestrator(actualDb, queue);
 
-    await proverPool.start();
+    await proverPool.start(queue);
 
     return new this(
       publicExecutor,

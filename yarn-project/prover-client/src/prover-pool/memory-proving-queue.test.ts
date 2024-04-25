@@ -1,3 +1,4 @@
+import { ProvingRequestType } from '@aztec/circuit-types';
 import {
   makeBaseParityInputs,
   makeBaseRollupInputs,
@@ -6,26 +7,17 @@ import {
 } from '@aztec/circuits.js/testing';
 
 import { MemoryProvingQueue } from './memory-proving-queue.js';
-import { type ProvingQueue } from './proving-queue.js';
-import { ProvingRequestType } from './proving-request.js';
 
 describe('MemoryProvingQueue', () => {
-  let queue: ProvingQueue;
+  let queue: MemoryProvingQueue;
 
   beforeEach(() => {
     queue = new MemoryProvingQueue();
   });
 
   it('returns jobs in order', async () => {
-    void queue.prove({
-      type: ProvingRequestType.BASE_PARITY,
-      inputs: makeBaseParityInputs(),
-    });
-
-    void queue.prove({
-      type: ProvingRequestType.BASE_ROLLUP,
-      inputs: makeBaseRollupInputs(),
-    });
+    void queue.getBaseParityProof(makeBaseParityInputs());
+    void queue.getBaseRollupProof(makeBaseRollupInputs());
 
     const job1 = await queue.getProvingJob();
     expect(job1?.request.type).toEqual(ProvingRequestType.BASE_PARITY);
@@ -40,10 +32,7 @@ describe('MemoryProvingQueue', () => {
 
   it('notifies of completion', async () => {
     const inputs = makeBaseParityInputs();
-    const promise = queue.prove({
-      inputs,
-      type: ProvingRequestType.BASE_PARITY,
-    });
+    const promise = queue.getBaseParityProof(inputs);
 
     const job = await queue.getProvingJob();
     expect(job?.request.inputs).toEqual(inputs);
@@ -56,10 +45,7 @@ describe('MemoryProvingQueue', () => {
 
   it('notifies of errors', async () => {
     const inputs = makeBaseParityInputs();
-    const promise = queue.prove({
-      inputs,
-      type: ProvingRequestType.BASE_PARITY,
-    });
+    const promise = queue.getBaseParityProof(inputs);
     const job = await queue.getProvingJob();
     expect(job?.request.inputs).toEqual(inputs);
 

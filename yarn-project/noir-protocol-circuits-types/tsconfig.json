@@ -7,13 +7,13 @@
   },
   "references": [
     {
+      "path": "../builder"
+    },
+    {
       "path": "../circuits.js"
     },
     {
       "path": "../foundation"
-    },
-    {
-      "path": "../builder"
     },
     {
       "path": "../types"

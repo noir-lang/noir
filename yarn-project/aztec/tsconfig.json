@@ -19,6 +19,9 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../builder"
+    },
+    {
       "path": "../circuit-types"
     },
     {
@@ -38,9 +41,6 @@
     },
     {
       "path": "../l1-artifacts"
-    },
-    {
-      "path": "../builder"
     },
     {
       "path": "../noir-contracts.js"

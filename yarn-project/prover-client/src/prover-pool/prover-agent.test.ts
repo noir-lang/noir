@@ -3,21 +3,18 @@ import { makeBaseParityInputs, makeParityPublicInputs, makeProof } from '@aztec/
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { type CircuitProver } from '../prover/interface.js';
-import { CircuitProverAgent } from './circuit-prover-agent.js';
 import { MemoryProvingQueue } from './memory-proving-queue.js';
-import { type ProvingAgent } from './prover-agent.js';
-import { type ProvingQueue } from './proving-queue.js';
-import { ProvingRequestType } from './proving-request.js';
+import { ProverAgent } from './prover-agent.js';
 
-describe('LocalProvingAgent', () => {
-  let queue: ProvingQueue;
-  let agent: ProvingAgent;
+describe('ProverAgent', () => {
+  let queue: MemoryProvingQueue;
+  let agent: ProverAgent;
   let prover: MockProxy<CircuitProver>;
 
   beforeEach(() => {
     prover = mock<CircuitProver>();
     queue = new MemoryProvingQueue();
-    agent = new CircuitProverAgent(prover);
+    agent = new ProverAgent(prover);
   });
 
   beforeEach(() => {
@@ -34,11 +31,7 @@ describe('LocalProvingAgent', () => {
     prover.getBaseParityProof.mockResolvedValue([publicInputs, proof]);
 
     const inputs = makeBaseParityInputs();
-    const promise = queue.prove({
-      type: ProvingRequestType.BASE_PARITY,
-      inputs,
-    });
-
+    const promise = queue.getBaseParityProof(inputs);
     await expect(promise).resolves.toEqual([publicInputs, proof]);
     expect(prover.getBaseParityProof).toHaveBeenCalledWith(inputs);
   });
@@ -48,10 +41,7 @@ describe('LocalProvingAgent', () => {
     prover.getBaseParityProof.mockRejectedValue(error);
 
     const inputs = makeBaseParityInputs();
-    const promise = queue.prove({
-      type: ProvingRequestType.BASE_PARITY,
-      inputs,
-    });
+    const promise = queue.getBaseParityProof(inputs);
 
     await expect(promise).rejects.toEqual(error);
     expect(prover.getBaseParityProof).toHaveBeenCalledWith(inputs);
@@ -63,18 +53,12 @@ describe('LocalProvingAgent', () => {
     prover.getBaseParityProof.mockResolvedValue([publicInputs, proof]);
 
     const inputs = makeBaseParityInputs();
-    const promise1 = queue.prove({
-      type: ProvingRequestType.BASE_PARITY,
-      inputs,
-    });
+    const promise1 = queue.getBaseParityProof(inputs);
 
     await expect(promise1).resolves.toEqual([publicInputs, proof]);
 
     const inputs2 = makeBaseParityInputs();
-    const promise2 = queue.prove({
-      type: ProvingRequestType.BASE_PARITY,
-      inputs: inputs2,
-    });
+    const promise2 = queue.getBaseParityProof(inputs2);
 
     await expect(promise2).resolves.toEqual([publicInputs, proof]);
 
