@@ -1,5 +1,5 @@
 [package]
-name = "arena"
+name = "noirc_arena"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
