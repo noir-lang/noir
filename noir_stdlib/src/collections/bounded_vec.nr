@@ -1,4 +1,4 @@
-use crate::cmp::Eq;
+use crate::{cmp::Eq, convert::From};
 
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
@@ -107,6 +107,15 @@ impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     }
 }
 
+impl<T, MaxLen, ArrayLen> From<[T; ArrayLen]> for BoundedVec<T, MaxLen> { 
+    fn from(value: [T; ArrayLen]) -> BoundedVec<T, MaxLen>  {
+        assert(ArrayLen <= MaxLen, "from array out of bounds");
+        let mut vec: BoundedVec<T, MaxLen> = BoundedVec::new();
+        vec.extend_from_array(value);
+        vec
+    } 
+}
+
 mod bounded_vec_tests {
     // TODO: Allow imports from "super"
     use crate::collections::bounded_vec::BoundedVec;
@@ -127,5 +136,45 @@ mod bounded_vec_tests {
         bounded_vec2.push(2);
 
         assert(bounded_vec1 != bounded_vec2);
+    }
+
+    mod from_array {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn empty() {
+            let bounded_vec = BoundedVec::from([]);
+
+            assert_eq(bounded_vec.max_len(), 0);
+            assert_eq(bounded_vec.len(), 0);
+            assert_eq(bounded_vec.storage().len(), 0);
+        }
+
+        #[test]
+        fn equal_len() {
+            let array = [1, 2, 3];
+            let bounded_vec = BoundedVec::from(array);
+
+            assert_eq(bounded_vec.max_len(), 3);
+            assert_eq(bounded_vec.len(), 3);
+            assert_eq(bounded_vec.storage(), array);
+        }
+
+        #[test]
+        fn max_len_greater_then_array_len() {
+            let array = [1, 2, 3];
+            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from(array);
+
+            assert_eq(bounded_vec.max_len(), 10);
+            assert_eq(bounded_vec.len(), 3);
+            assert_eq(bounded_vec.storage()[0], 1);
+            assert_eq(bounded_vec.storage()[1], 2);
+            assert_eq(bounded_vec.storage()[2], 3);
+        }
+
+        #[test(should_fail_with="from array out of bounds")]
+        fn max_len_lower_then_array_len() {
+            let _: BoundedVec<Field, 2> = BoundedVec::from([0; 3]);
+        }
     }
 }
