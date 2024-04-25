@@ -11,8 +11,8 @@ use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
+use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::function::{FunctionId as IrFunctionId, InlineType};
 use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
@@ -125,8 +125,7 @@ impl<'a> FunctionContext<'a> {
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
-            let inline_type = if func.should_fold { InlineType::Fold } else { InlineType::Inline };
-            self.builder.new_function(func.name.clone(), id, inline_type);
+            self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
         self.add_parameters_to_scope(&func.parameters);
     }

@@ -126,8 +126,8 @@ pub struct FuncMeta {
     pub is_entry_point: bool,
 
     /// True if this function is marked with an attribute
-    /// that indicates it should not be inlined, such as for folding.
-    pub should_fold: bool,
+    /// that indicates it should not be inlined, such as `fold` or `inline(never)`
+    pub has_inline_or_fold_attribute: bool,
 }
 
 impl FuncMeta {

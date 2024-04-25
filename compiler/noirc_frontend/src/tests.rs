@@ -1346,4 +1346,36 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
     }
+
+    #[test]
+    fn deny_inline_attribute_on_unconstrained() {
+        let src = r#"
+            #[inline(never)]
+            unconstrained fn foo(x: Field, y: Field) {
+                assert(x != y);
+            }
+        "#;
+        let errors = get_program_errors(src);
+        assert_eq!(errors.len(), 1);
+        assert!(matches!(
+            errors[0].0,
+            CompilationError::ResolverError(ResolverError::InlineAttributeOnUnconstrained { .. })
+        ));
+    }
+
+    #[test]
+    fn deny_fold_attribute_on_unconstrained() {
+        let src = r#"
+            #[fold]
+            unconstrained fn foo(x: Field, y: Field) {
+                assert(x != y);
+            }
+        "#;
+        let errors = get_program_errors(src);
+        assert_eq!(errors.len(), 1);
+        assert!(matches!(
+            errors[0].0,
+            CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
+        ));
+    }
 }
