@@ -7,11 +7,17 @@ comptime fn get_unique_id() -> Field {
 }
 
 fn id1() -> Field {
-    comptime { get_unique_id() }
+    comptime
+    {
+        get_unique_id()
+    }
 }
 
 fn id2() -> Field {
-    comptime { get_unique_id() }
+    comptime
+    {
+        get_unique_id()
+    }
 }
 
 fn main() {
