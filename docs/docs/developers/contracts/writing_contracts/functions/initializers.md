@@ -10,8 +10,7 @@ Initializers are regular functions that set an "initialized" flag (a nullifier) 
 
 ## Annotate with `#[aztec(private)]` and `#[aztec(initializer)]`
 
-
-Define your initiaizer like so:
+Define your initializer like so:
 
 ```rust
 #[aztec(private)]

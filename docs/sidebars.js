@@ -228,7 +228,7 @@ const sidebars = {
       items: [
         "developers/tutorials/writing_token_contract",
         "developers/tutorials/writing_private_voting_contract",
-
+        "developers/tutorials/crowdfunding/donations",
         {
           label: "Writing a DApp",
           type: "category",
