@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use acir::{
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
-        brillig::{Brillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
         OpcodeLocation,
     },
@@ -48,26 +48,6 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
             }
         }
         Ok(())
-    }
-
-    // TODO: Delete this old method once `Brillig` is deleted
-    /// Constructs a solver for a Brillig block given the bytecode and initial
-    /// witness.
-    pub(crate) fn new(
-        initial_witness: &WitnessMap,
-        memory: &HashMap<BlockId, MemoryOpSolver>,
-        brillig: &'b Brillig,
-        bb_solver: &'b B,
-        acir_index: usize,
-    ) -> Result<Self, OpcodeResolutionError> {
-        let vm = Self::setup_brillig_vm(
-            initial_witness,
-            memory,
-            &brillig.inputs,
-            &brillig.bytecode,
-            bb_solver,
-        )?;
-        Ok(Self { vm, acir_index })
     }
 
     /// Constructs a solver for a Brillig block given the bytecode and initial
