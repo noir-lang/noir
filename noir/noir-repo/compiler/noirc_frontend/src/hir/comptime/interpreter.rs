@@ -506,8 +506,11 @@ impl<'a> Interpreter<'a> {
                 Value::U64(value) => Ok(Value::U64(0 - value)),
                 value => {
                     let location = self.interner.expr_location(&id);
-                    let operator = "minus";
-                    Err(InterpreterError::InvalidValueForUnary { value, location, operator })
+                    Err(InterpreterError::InvalidValueForUnary {
+                        value,
+                        location,
+                        operator: "minus",
+                    })
                 }
             },
             crate::ast::UnaryOp::Not => match rhs {
@@ -877,7 +880,7 @@ impl<'a> Interpreter<'a> {
         if let Some(method) = method {
             self.call_function(method, arguments, location)
         } else {
-            Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
+            Err(InterpreterError::NoMethodFound { object, typ, location })
         }
     }
 

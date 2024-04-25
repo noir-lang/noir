@@ -13,20 +13,17 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 ## sha256
 
 Given an array of bytes, returns the resulting sha256 hash.
-Specify a message_size to hash only the first `message_size` bytes of the input.
 
 #include_code sha256 noir_stdlib/src/hash.nr rust
 
 example:
-#include_code sha256_var test_programs/execution_success/sha256/src/main.nr rust
 
 ```rust
 fn main() {
     let x = [163, 117, 178, 149]; // some random bytes
-    let hash = std::sha256::sha256_var(x, 4);
+    let hash = std::hash::sha256(x);
 }
 ```
-
 
 <BlackBoxInfo />
 

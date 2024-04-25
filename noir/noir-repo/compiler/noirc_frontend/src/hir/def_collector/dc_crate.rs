@@ -1,7 +1,7 @@
 use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
-use crate::hir::comptime::{Interpreter, InterpreterError};
+use crate::hir::comptime::Interpreter;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
@@ -155,7 +155,6 @@ pub enum CompilationError {
     DefinitionError(DefCollectorErrorKind),
     ResolverError(ResolverError),
     TypeError(TypeCheckError),
-    InterpreterError(InterpreterError),
 }
 
 impl From<CompilationError> for CustomDiagnostic {
@@ -165,7 +164,6 @@ impl From<CompilationError> for CustomDiagnostic {
             CompilationError::DefinitionError(error) => error.into(),
             CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
-            CompilationError::InterpreterError(error) => error.into(),
         }
     }
 }
@@ -502,15 +500,13 @@ impl ResolvedModule {
     }
 
     /// Evaluate all `comptime` expressions in this module
-    fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
+    fn evaluate_comptime(&self, interner: &mut NodeInterner) {
         let mut interpreter = Interpreter::new(interner);
 
         for (_file, function) in &self.functions {
-            // The file returned by the error may be different than the file the
-            // function is in so only use the error's file id.
-            if let Err(error) = interpreter.scan_function(*function) {
-                self.errors.push(error.into_compilation_error_pair());
-            }
+            // .unwrap() is temporary here until we can convert
+            // from InterpreterError to (CompilationError, FileId)
+            interpreter.scan_function(*function).unwrap();
         }
     }
 

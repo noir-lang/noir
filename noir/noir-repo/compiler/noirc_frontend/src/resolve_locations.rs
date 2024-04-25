@@ -1,4 +1,4 @@
-use noirc_arena::Index;
+use arena::Index;
 use noirc_errors::Location;
 
 use crate::hir_def::expr::HirExpression;

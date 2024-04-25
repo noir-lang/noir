@@ -4,7 +4,6 @@ members = [
     # Aztec Macro crate for metaprogramming
     "aztec_macros",
     # Compiler crates
-    "compiler/noirc_arena",
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
@@ -12,7 +11,10 @@ members = [
     "compiler/noirc_printable_type",
     "compiler/fm",
     "compiler/wasm",
-    # Crates related to tooling built on top of the Noir compiler
+    # Utility crates used by the Noir compiler
+    "compiler/utils/arena",
+    "compiler/utils/iter-extended",
+    # Crates related to tooling built ontop of the Noir compiler
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
     "tooling/lsp",
@@ -33,8 +35,6 @@ members = [
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
-    # Utility crates
-    "utils/iter-extended",
 ]
 default-members = ["tooling/nargo_cli", "tooling/acvm_cli"]
 resolver = "2"
@@ -61,8 +61,9 @@ acvm_blackbox_solver = { version = "0.44.0", path = "acvm-repo/blackbox_solver",
 bn254_blackbox_solver = { version = "0.44.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
+arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
-noirc_arena = { path = "compiler/noirc_arena" }
+iter-extended = { path = "compiler/utils/iter-extended" }
 noirc_driver = { path = "compiler/noirc_driver" }
 noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
@@ -78,9 +79,6 @@ noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
-
-# Misc utils crates
-iter-extended = { path = "utils/iter-extended" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }

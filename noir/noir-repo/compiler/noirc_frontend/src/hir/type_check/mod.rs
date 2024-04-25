@@ -672,7 +672,7 @@ pub mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(noirc_arena::Index::unsafe_zeroed())
+            LocalModuleId(arena::Index::unsafe_zeroed())
         }
 
         fn module_id(&self) -> ModuleId {
@@ -724,7 +724,7 @@ pub mod test {
         let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
-        let mut modules = noirc_arena::Arena::default();
+        let mut modules = arena::Arena::default();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 
