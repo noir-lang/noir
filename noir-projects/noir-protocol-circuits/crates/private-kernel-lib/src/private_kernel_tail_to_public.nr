@@ -465,7 +465,7 @@ mod tests {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         // expect 3 non-revertible nullifiers: the tx nullifier + 2 new ones
         builder.previous_kernel.append_new_nullifiers(2);
-        builder.previous_kernel.capture_min_revertible_side_effect_counter();
+        builder.previous_kernel.end_setup();
 
         // expect 2 revertible nullifiers
         builder.previous_kernel.append_new_nullifiers(2);
@@ -494,7 +494,7 @@ mod tests {
 
         // expect 2 non-revertible commitments
         builder.previous_kernel.append_new_note_hashes(2);
-        builder.previous_kernel.capture_min_revertible_side_effect_counter();
+        builder.previous_kernel.end_setup();
 
         // expect 2 revertible commitments
         builder.previous_kernel.append_new_note_hashes(2);
@@ -525,7 +525,7 @@ mod tests {
 
         // add one hash in non-revertible part
         builder.previous_kernel.append_new_note_hashes(1);
-        builder.previous_kernel.capture_min_revertible_side_effect_counter();
+        builder.previous_kernel.end_setup();
 
         // nullify it in revertible part
         builder.previous_kernel.append_new_nullifiers(1);

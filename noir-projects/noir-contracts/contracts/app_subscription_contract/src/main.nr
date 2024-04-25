@@ -49,7 +49,7 @@ contract AppSubscription {
 
         GasToken::at(storage.gas_token_address.read_private()).pay_fee(42).enqueue(&mut context);
 
-        context.capture_min_revertible_side_effect_counter();
+        context.end_setup();
 
         AppSubscription::at(context.this_address()).assert_not_expired(note.expiry_block_number).enqueue(&mut context);
 

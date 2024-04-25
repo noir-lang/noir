@@ -377,7 +377,7 @@ impl FixtureBuilder {
         self.public_call_stack.push(call_stack_item);
     }
 
-    pub fn capture_min_revertible_side_effect_counter(&mut self) {
+    pub fn end_setup(&mut self) {
         self.min_revertible_side_effect_counter = self.counter;
     }
 
