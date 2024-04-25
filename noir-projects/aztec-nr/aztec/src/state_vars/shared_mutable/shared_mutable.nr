@@ -129,14 +129,16 @@ mod test {
 
     global TEST_DELAY = 20;
 
+    global pre = 13;
+    global post = 42;
+
     #[test]
     fn test_get_current_value_in_public_before_change() {
         let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
-        let (pre, post) = (13, 17);
 
-        // Change in the future
+        // Change in the future, current value is pre
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number + 1]);
         assert_eq(state_var.get_current_value_in_public(), pre);
     }
@@ -146,9 +148,8 @@ mod test {
         let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
-        let (pre, post) = (13, 17);
 
-        // Change in the current block
+        // Change in the current block, current value is post
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number]);
         assert_eq(state_var.get_current_value_in_public(), post);
     }
@@ -158,11 +159,43 @@ mod test {
         let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
-        let (pre, post) = (13, 17);
 
-        // Change in the past
+        // Change in the past, current value is post
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number - 1]);
         assert_eq(state_var.get_current_value_in_public(), post);
+    }
+
+    #[test]
+    fn test_get_scheduled_value_in_public_before_change() {
+        let (state_var, block_number) = setup(false);
+
+        let slot = state_var.get_derived_storage_slot();
+
+        // Change in the future, scheduled is post (always is)
+        OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number + 1]);
+        assert_eq(state_var.get_scheduled_value_in_public(), (post, (block_number + 1) as u32));
+    }
+
+    #[test]
+    fn test_get_scheduled_value_in_public_at_change() {
+        let (state_var, block_number) = setup(false);
+
+        let slot = state_var.get_derived_storage_slot();
+
+        // Change in the current block, scheduled is post (always is)
+        OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number]);
+        assert_eq(state_var.get_scheduled_value_in_public(), (post, block_number as u32));
+    }
+
+    #[test]
+    fn test_get_scheduled_value_in_public_after_change() {
+        let (state_var, block_number) = setup(false);
+
+        let slot = state_var.get_derived_storage_slot();
+
+        // Change in the past, scheduled is post (always is)
+        OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number - 1]);
+        assert_eq(state_var.get_scheduled_value_in_public(), (post, (block_number - 1) as u32));
     }
 
     #[test]
@@ -170,7 +203,6 @@ mod test {
         let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
-        let (pre, post) = (13, 17);
 
         // Change in the future
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number + 1]);
@@ -189,7 +221,6 @@ mod test {
         let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
-        let (pre, post) = (13, 17);
 
         // Change in the current block
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number]);
@@ -208,7 +239,6 @@ mod test {
         let (state_var, block_number) = setup(false);
 
         let slot = state_var.get_derived_storage_slot();
-        let (pre, post) = (13, 17);
 
         // Change in the past
         OracleMock::mock("storageRead").with_params((slot, 3)).returns([pre, post, block_number - 1]);
