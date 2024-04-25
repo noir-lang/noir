@@ -547,8 +547,6 @@ impl ResolvedModule {
 
     /// Counts the number of errors (minus warnings) this program currently has
     fn count_errors(&self) -> usize {
-        self.errors.iter()
-            .filter(|(error, _)| error.is_error())
-            .count()
+        self.errors.iter().filter(|(error, _)| error.is_error()).count()
     }
 }
