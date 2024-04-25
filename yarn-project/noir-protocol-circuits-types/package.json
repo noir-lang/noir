@@ -34,7 +34,15 @@
       "^.+\\.tsx?$": [
         "@swc/jest"
       ]
-    }
+    },
+    "reporters": [
+      [
+        "default",
+        {
+          "summaryThreshold": 9999
+        }
+      ]
+    ]
   },
   "dependencies": {
     "@aztec/builder": "workspace:^",

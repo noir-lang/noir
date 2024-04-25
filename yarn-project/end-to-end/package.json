@@ -110,6 +110,7 @@
         "@swc/jest"
       ]
     },
+    "reporters": [["default", {"summaryThreshold": 9999}]],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
     },

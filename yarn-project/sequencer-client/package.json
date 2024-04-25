@@ -85,6 +85,14 @@
       "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
     },
     "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "reporters": [
+      [
+        "default",
+        {
+          "summaryThreshold": 9999
+        }
+      ]
+    ]
   }
 }
