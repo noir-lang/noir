@@ -1275,8 +1275,10 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Error => HirStatement::Error,
             StatementKind::Comptime(statement) => {
-                let statement = self.resolve_stmt(*statement, span);
-                HirStatement::Comptime(self.interner.push_stmt(statement))
+                let hir_statement = self.resolve_stmt(statement.kind, statement.span);
+                let statement_id = self.interner.push_stmt(hir_statement);
+                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                HirStatement::Comptime(statement_id)
             }
         }
     }

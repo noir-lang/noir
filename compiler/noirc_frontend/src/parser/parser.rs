@@ -532,15 +532,16 @@ where
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::Comptime)
-        .ignore_then(choice((
-            declaration(expr),
-            for_loop(expr_no_constructors, statement.clone()),
-            block(statement).map_with_span(|block, span| {
-                StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
-            }),
-        )))
-        .map(|statement| StatementKind::Comptime(Box::new(statement)))
+    let comptime_statement = choice((
+        declaration(expr),
+        for_loop(expr_no_constructors, statement.clone()),
+        block(statement).map_with_span(|block, span| {
+            StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
+        }),
+    ))
+    .map_with_span(|kind, span| Box::new(Statement { kind, span }));
+
+    keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
 }
 
 /// Comptime in an expression position only accepts entire blocks
