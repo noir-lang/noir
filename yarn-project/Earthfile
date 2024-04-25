@@ -101,3 +101,8 @@ format-check:
 test:
     FROM +build
     RUN yarn test
+
+run-e2e:
+    ARG test
+    FROM +end-to-end
+    RUN DEBUG=aztec:* yarn test $test
