@@ -80,7 +80,7 @@ pub enum TypeCheckError {
     FieldModulo { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
-    #[error("The number of bits for bit-shift operations must be a 8-bits unsigned integer, try converting the right hand side into a u8 first")]
+    #[error("The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first")]
     InvalidShiftSize { span: Span },
     #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
     AmbiguousBitWidth { span: Span },

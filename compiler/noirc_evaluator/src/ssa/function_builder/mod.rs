@@ -235,7 +235,6 @@ impl FunctionBuilder {
                 "ICE - Binary instruction operands must have the same type"
             );
         }
-        //     assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
