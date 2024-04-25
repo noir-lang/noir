@@ -901,7 +901,7 @@ impl<'a> Resolver<'a> {
 
         self.resolving_ids.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
-        self.resolving_names.remove(&struct_id);
+        self.resolving_ids.remove(&struct_id);
 
         (generics, fields, self.errors)
     }
