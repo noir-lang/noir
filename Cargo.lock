@@ -234,10 +234,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
-name = "arena"
-version = "0.28.0"
-
-[[package]]
 name = "ark-bls12-381"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3100,6 +3096,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "noirc_arena"
+version = "0.28.0"
+
+[[package]]
 name = "noirc_driver"
 version = "0.28.0"
 dependencies = [
@@ -3160,7 +3160,6 @@ name = "noirc_frontend"
 version = "0.28.0"
 dependencies = [
  "acvm",
- "arena",
  "base64 0.21.2",
  "chumsky",
  "fm",
@@ -3168,6 +3167,7 @@ dependencies = [
  "iter-extended",
  "lalrpop",
  "lalrpop-util",
+ "noirc_arena",
  "noirc_errors",
  "noirc_printable_type",
  "petgraph",
