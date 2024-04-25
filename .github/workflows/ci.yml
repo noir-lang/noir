@@ -100,6 +100,22 @@ jobs:
         # limit our parallelism to half our cores
         run: earthly --no-output +test --hardware_concurrency=64
 
+  noir-projects:
+    needs: setup
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: noir-projects-${{ inputs.username || github.actor }}-x86
+      - name: "Noir Projects"
+        timeout-minutes: 25
+        run: earthly --no-output ./noir-projects/+test
+
   yarn-project-formatting:
     needs: setup
     runs-on: ${{ github.actor }}-x86
@@ -118,7 +134,7 @@ jobs:
         run: earthly --no-output ./yarn-project/+format-check
 
   yarn-project-test:
-    needs: setup
+    needs: noir-projects
     runs-on: ${{ github.actor }}-x86
     steps:
       - {
