@@ -1134,12 +1134,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.unify(
                         rhs_type,
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-                        || TypeCheckError::TypeMismatchWithSource {
-                            expected: Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-                            actual: rhs_type.clone(),
-                            source: Source::Binary,
-                            span,
-                        },
+                        || TypeCheckError::InvalidShiftSize { span },
                     );
                     return Ok((lhs_type.clone(), true));
                 }
