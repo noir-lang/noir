@@ -107,13 +107,13 @@ impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     }
 }
 
-impl<T, MaxLen, ArrayLen> From<[T; ArrayLen]> for BoundedVec<T, MaxLen> { 
+impl<T, MaxLen, ArrayLen> From<[T; ArrayLen]> for BoundedVec<T, MaxLen> {
     fn from(value: [T; ArrayLen]) -> BoundedVec<T, MaxLen>  {
         assert(ArrayLen <= MaxLen, "from array out of bounds");
         let mut vec: BoundedVec<T, MaxLen> = BoundedVec::new();
         vec.extend_from_array(value);
         vec
-    } 
+    }
 }
 
 mod bounded_vec_tests {
