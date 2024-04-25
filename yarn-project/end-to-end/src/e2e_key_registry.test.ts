@@ -2,6 +2,7 @@ import { type AccountWallet, AztecAddress, Fr, type PXE } from '@aztec/aztec.js'
 import { GeneratorIndex } from '@aztec/circuits.js';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { KeyRegistryContract, TestContract } from '@aztec/noir-contracts.js';
+import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 
 import { jest } from '@jest/globals';
 
@@ -11,6 +12,7 @@ const TIMEOUT = 100_000;
 
 describe('SharedMutablePrivateGetter', () => {
   let keyRegistry: KeyRegistryContract;
+
   let testContract: TestContract;
   let pxe: PXE;
   jest.setTimeout(TIMEOUT);
@@ -21,8 +23,9 @@ describe('SharedMutablePrivateGetter', () => {
 
   beforeAll(async () => {
     ({ teardown, pxe, wallets } = await setup(2));
+    keyRegistry = await KeyRegistryContract.at(getCanonicalKeyRegistryAddress(), wallets[0]);
+
     testContract = await TestContract.deploy(wallets[0]).send().deployed();
-    keyRegistry = await KeyRegistryContract.deploy(wallets[0]).send().deployed();
 
     await publicDeployAccounts(wallets[0], wallets.slice(0, 2));
   }, 120_000);

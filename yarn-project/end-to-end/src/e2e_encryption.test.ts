@@ -17,7 +17,7 @@ describe('e2e_encryption', () => {
   beforeAll(async () => {
     ({ teardown, wallet } = await setup());
     contract = await TestContract.deploy(wallet).send().deployed();
-  }, 25_000);
+  }, 45_000);
 
   afterAll(() => teardown());
 

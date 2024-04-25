@@ -13,7 +13,7 @@ describe('e2e_max_block_number', () => {
   beforeAll(async () => {
     ({ teardown, wallet, pxe } = await setup());
     contract = await TestContract.deploy(wallet).send().deployed();
-  }, 25_000);
+  }, 45_000);
 
   afterAll(() => teardown());
 

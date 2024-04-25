@@ -1,8 +1,9 @@
 #!/usr/bin/env -S node --no-warnings
 import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { type AztecAddress, SignerlessWallet, type Wallet } from '@aztec/aztec.js';
+import { AztecAddress, SignerlessWallet, type Wallet } from '@aztec/aztec.js';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type AztecNode } from '@aztec/circuit-types';
+import { CANONICAL_KEY_REGISTRY_ADDRESS } from '@aztec/circuits.js';
 import {
   type DeployL1Contracts,
   type L1ContractAddresses,
@@ -30,7 +31,9 @@ import {
   RollupBytecode,
 } from '@aztec/l1-artifacts';
 import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
+import { KeyRegistryContract } from '@aztec/noir-contracts.js/KeyRegistry';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 
 import {
@@ -185,6 +188,39 @@ async function deployCanonicalL2GasToken(deployer: Wallet, l1ContractAddresses: 
   logger.info(`Deployed Gas Token on L2 at ${canonicalGasToken.address}`);
 }
 
+/**
+ * Deploys the key registry on L2.
+ */
+async function deployCanonicalKeyRegistry(deployer: Wallet) {
+  const canonicalKeyRegistry = getCanonicalKeyRegistry();
+
+  // We check to see if there exists a contract at the canonical Key Registry address with the same contract class id as we expect. This means that
+  // the key registry has already been deployed to the correct address.
+  if (
+    (await deployer.getContractInstance(canonicalKeyRegistry.address))?.contractClassId.equals(
+      canonicalKeyRegistry.contractClass.id,
+    ) &&
+    (await deployer.isContractClassPubliclyRegistered(canonicalKeyRegistry.contractClass.id))
+  ) {
+    return;
+  }
+
+  const keyRegistry = await KeyRegistryContract.deploy(deployer)
+    .send({ contractAddressSalt: canonicalKeyRegistry.instance.salt, universalDeploy: true })
+    .deployed();
+
+  if (
+    !keyRegistry.address.equals(canonicalKeyRegistry.address) ||
+    !keyRegistry.address.equals(AztecAddress.fromBigInt(CANONICAL_KEY_REGISTRY_ADDRESS))
+  ) {
+    throw new Error(
+      `Deployed Key Registry address ${keyRegistry.address} does not match expected address ${canonicalKeyRegistry.address}, or they both do not equal CANONICAL_KEY_REGISTRY_ADDRESS`,
+    );
+  }
+
+  logger.info(`Deployed Key Registry on L2 at ${canonicalKeyRegistry.address}`);
+}
+
 /** Sandbox settings. */
 export type SandboxConfig = AztecNodeConfig & {
   /** Mnemonic used to derive the L1 deployer private key.*/
@@ -212,6 +248,10 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
 
   const node = await createAztecNode(aztecNodeConfig);
   const pxe = await createAztecPXE(node);
+
+  await deployCanonicalKeyRegistry(
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
+  );
 
   if (config.enableGas) {
     await deployCanonicalL2GasToken(

@@ -6,6 +6,7 @@ import { initStoreForRollup } from '@aztec/kv-store/utils';
 import { getCanonicalClassRegisterer } from '@aztec/protocol-contracts/class-registerer';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
+import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { getCanonicalMultiCallEntrypointContract } from '@aztec/protocol-contracts/multi-call-entrypoint';
 
 import { join } from 'path';
@@ -47,6 +48,7 @@ export async function createPXEService(
     getCanonicalInstanceDeployer(),
     getCanonicalMultiCallEntrypointContract(),
     getCanonicalGasToken(l1Contracts.gasPortalAddress),
+    getCanonicalKeyRegistry(),
   ]) {
     await server.registerContract(contract);
   }

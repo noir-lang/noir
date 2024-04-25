@@ -25,7 +25,7 @@ describe('ContractClass', () => {
       };
 
       expect(computeContractClassId(contractClass).toString()).toMatchInlineSnapshot(
-        `"0x2f4c56801b35e01081aeb1b2bd07eba0f8d55de625ec1e957347eedaea1669bb"`,
+        `"0x0fd34f4f2d6d6a7fc61d8fb8e0c9a411354856fa86c568e4c9e0935b367dc69d"`,
       );
     });
   });
