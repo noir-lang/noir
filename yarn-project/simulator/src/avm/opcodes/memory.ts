@@ -1,5 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { getBaseGasCost, getMemoryGasCost, mulGas, sumGas } from '../avm_gas.js';
+import { getBaseGasCost, getMemoryGasCost, sumGas } from '../avm_gas.js';
 import { Field, type MemoryOperations, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
@@ -218,7 +218,7 @@ export class CalldataCopy extends Instruction {
   }
 
   protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }> = {}) {
-    const baseGasCost = mulGas(getBaseGasCost(this.opcode), this.copySize);
+    const baseGasCost = getBaseGasCost(this.opcode);
     const memoryGasCost = getMemoryGasCost(memoryOps);
     return sumGas(baseGasCost, memoryGasCost);
   }

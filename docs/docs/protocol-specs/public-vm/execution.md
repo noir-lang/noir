@@ -115,11 +115,13 @@ machineState.daGasLeft = 0
 ### Gas cost notes and examples
 
 An instruction's gas cost is meant to reflect the computational cost of generating a proof of its correct execution. For some instructions, this computational cost changes based on inputs. Here are some examples and important notes:
-- [`JUMP`](./instruction-set/#isa-section-jump) is an example of an instruction with constant gas cost. Regardless of its inputs, the instruction always incurs the same `l1GasCost`, `l2GasCost`, and `daGasCost`.
+
+- All instructions have a base cost. [`JUMP`](./instruction-set/#isa-section-jump) is an example of an instruction with constant gas cost. Regardless of its inputs, the instruction always incurs the same `l1GasCost`, `l2GasCost`, and `daGasCost`.
 - The [`SET`](./instruction-set/#isa-section-set) instruction operates on a different sized constant (based on its `dstTag`). Therefore, this instruction's gas cost increases with the size of its input.
-- Instructions that operate on a data range of a specified "size" scale in cost with that size. An example of this is the [`CALLDATACOPY`](./instruction-set/#isa-section-calldatacopy) argument which copies `copySize` words from `environment.calldata` to `machineState.memory`.
+- In addition to the base cost, the cost of an instruction increases with the number of reads and writes to memory. This is affected by the total number of input and outputs: the gas cost for [`AND`](./instruction-set/#isa-section-and) should be greater than that of [`NOT`](./instruction-set/#isa-section-not) since it takes one more input.
+- Input parameters flagged as "indirect" as they require an extra memory access, so these should further increase the gas cost of the instruction.
+- The base cost for instructions that operate on a data range of a specified "size" scale in cost with that size, but only if they perform an operation on the data other than copying. For example, [`CALLDATACOPY`](./instruction-set/#isa-section-calldatacopy) copies `copySize` words from `environment.calldata` to `machineState.memory`, so its increased cost is captured by the extra memory accesses. On the other hand, [`SSTORE`](./instruction-set#isa-section-sstore) requires accesses to persistent storage proportional to `srcSize`, so its base cost should also increase.
 - The [`CALL`](./instruction-set#isa-section-call)/[`STATICCALL`](./instruction-set#isa-section-staticcall)/[`DELEGATECALL`](./instruction-set#isa-section-delegatecall) instruction's gas cost is determined by its `*Gas` arguments, but any gas unused by the nested contract call's execution is refunded after its completion ([more on this later](./nested-calls#updating-the-calling-context-after-nested-call-halts)).
-- An instruction with "offset" arguments (like [`ADD`](./instruction-set/#isa-section-add) and many others), has increased cost for each offset argument that is flagged as "indirect".
 
 > An instruction's gas cost will roughly align with the number of rows it corresponds to in the SNARK execution trace including rows in the sub-operation table, memory table, chiplet tables, etc.
 

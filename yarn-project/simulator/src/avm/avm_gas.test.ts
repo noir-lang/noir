@@ -13,7 +13,7 @@ describe('AVM simulator: dynamic gas costs per instruction', () => {
     // BASE_GAS(10) * 1 + MEMORY_WRITE(100) = 110
     [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 1, /*dstOffset=*/ 0), [110]],
     // BASE_GAS(10) * 5 + MEMORY_WRITE(100) * 5 = 550
-    [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 5, /*dstOffset=*/ 0), [550]],
+    [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 5, /*dstOffset=*/ 0), [510]],
     // BASE_GAS(10) * 1 + MEMORY_READ(10) * 2 + MEMORY_WRITE(100) = 130
     [new Add(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [130]],
     // BASE_GAS(10) * 4 + MEMORY_READ(10) * 2 + MEMORY_WRITE(100) = 160
