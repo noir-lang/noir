@@ -899,7 +899,7 @@ impl<'a> Resolver<'a> {
 
         self.current_item = Some(DependencyId::Struct(struct_id));
 
-        self.resolving_names.insert(struct_id);
+        self.resolving_ids.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
         self.resolving_names.remove(&struct_id);
 
