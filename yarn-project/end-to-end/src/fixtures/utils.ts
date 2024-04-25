@@ -196,16 +196,25 @@ export async function setupPXEService(
    * Logger instance named as the current test.
    */
   logger: DebugLogger;
+  /**
+   * Teardown function
+   */
+  teardown: () => Promise<void>;
 }> {
   const pxeServiceConfig = { ...getPXEServiceConfig(), ...opts };
   const pxe = await createPXEService(aztecNode, pxeServiceConfig, useLogSuffix);
 
   const wallets = await createAccounts(pxe, numberOfAccounts);
 
+  const teardown = async () => {
+    await pxe.stop();
+  };
+
   return {
     pxe,
     wallets,
     logger,
+    teardown,
   };
 }
 

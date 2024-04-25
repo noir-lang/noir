@@ -189,7 +189,7 @@ export class KVPxeDatabase implements PxeDatabase {
   removeDeferredNotesByContract(contractAddress: AztecAddress): Promise<DeferredNoteDao[]> {
     return this.#db.transaction(() => {
       const deferredNotes: DeferredNoteDao[] = [];
-      const indices = this.#deferredNotesByContract.getValues(contractAddress.toString());
+      const indices = Array.from(this.#deferredNotesByContract.getValues(contractAddress.toString()));
 
       for (const index of indices) {
         const deferredNoteBuffer = this.#deferredNotes.at(index);
