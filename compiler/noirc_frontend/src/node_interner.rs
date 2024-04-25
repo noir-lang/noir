@@ -653,11 +653,13 @@ impl NodeInterner {
         let_statement: StmtId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
+        mutable: bool,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
-        let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+        let definition_id =
+            self.push_definition(name, mutable, DefinitionKind::Global(id), location);
 
         self.globals.push(GlobalInfo {
             id,
@@ -682,9 +684,13 @@ impl NodeInterner {
         local_id: LocalModuleId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
+        mutable: bool,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        self.push_global(name, local_id, statement, file, attributes)
+        let span = name.span();
+        let id = self.push_global(name, local_id, statement, file, attributes, mutable);
+        self.push_statement_location(statement, span, file);
+        id
     }
 
     /// Intern an empty function.

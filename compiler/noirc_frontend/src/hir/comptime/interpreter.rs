@@ -332,9 +332,14 @@ impl<'a> Interpreter<'a> {
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
                 // Don't need to check let_.comptime, we can evaluate non-comptime globals too.
-                let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
-                self.evaluate_let(let_)?;
-                self.lookup(&ident)
+                // Avoid resetting the value if it is already known
+                if let Ok(value) = self.lookup(&ident) {
+                    Ok(value)
+                } else {
+                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
+                    self.evaluate_let(let_)?;
+                    self.lookup(&ident)
+                }
             }
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
