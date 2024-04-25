@@ -134,8 +134,11 @@ impl<'a> Interpreter<'a> {
     /// `exit_function` is called.
     pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
-        let scope = self.scopes.drain(1..).collect();
-        self.push_scope();
+        let mut scope = Vec::new();
+        if self.scopes.len() > 1 {
+            scope = self.scopes.drain(1..).collect();
+            self.push_scope();
+        }
         (std::mem::take(&mut self.in_loop), scope)
     }
 
