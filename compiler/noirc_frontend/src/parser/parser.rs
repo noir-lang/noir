@@ -1840,4 +1840,15 @@ mod test {
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
+
+    #[test]
+    fn parse_function_impl_parameter() {
+        parse_all(
+            program(),
+            vec![
+                "fn func_name(x: impl Eq) {}",
+                "fn func_name<T>(x: impl Eq, y : T) where T: SomeTrait + Eq {}",
+            ],
+        );
+    }
 }

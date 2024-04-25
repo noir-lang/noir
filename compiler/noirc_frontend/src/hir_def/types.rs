@@ -643,9 +643,11 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
-            | Type::Code
-            | Type::TraitAsType(..) => false,
+            | Type::Code => false,
 
+            Type::TraitAsType(_, _, args) => {
+                args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+            }
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
@@ -756,9 +758,12 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
-            | Type::Code
-            | Type::TraitAsType(..) => false,
+            | Type::Code => false,
 
+            | Type::TraitAsType(s, name, generics) => {
+                panic!("is_valid_non_inlined_function_input: {:?}, {:?}, {:?}", *s, name.clone(), generics.clone())
+
+            },
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
                 alias.get_type(generics).is_valid_non_inlined_function_input()
@@ -1591,11 +1596,17 @@ impl Type {
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
             )),
 
+            Type::TraitAsType(s, name, args) => {
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                Type::TraitAsType(*s, name.clone(), args)
+            }
+
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
-            | Type::TraitAsType(..)
             | Type::Error
             | Type::Code
             | Type::Unit => self.clone(),
@@ -1613,7 +1624,9 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
+            Type::Struct(_, generic_args)
+            | Type::Alias(_, generic_args)
+            | Type::TraitAsType(_, _, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
@@ -1637,7 +1650,6 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
-            | Type::TraitAsType(..)
             | Type::Error
             | Type::Code
             | Type::Unit => false,
@@ -1689,16 +1701,14 @@ impl Type {
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
+            TraitAsType(s, name, args) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                TraitAsType(*s, name.clone(), args)
+            }
+
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(..)
-            | FieldElement
-            | Integer(_, _)
-            | Bool
-            | Constant(_)
-            | Unit
-            | Code
-            | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => self.clone(),
         }
     }
 
