@@ -62,6 +62,30 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Checkout Merge Pipeline Files
+        uses: actions/checkout@v4
+        # Only check PRs for consistency (not master)
+        if: ${{ github.event.pull_request.head.sha != '' }}
+        with:
+          path: merge-commit-pipeline-files
+          sparse-checkout: |
+            .github/workflows/ci.yml
+            .github/workflows/setup-runner.yml
+
+      - name: Ensure CI Consistency
+        # Only check PRs for consistency (not master)
+        if: ${{ github.event.pull_request.head.sha != '' }}
+        run: |
+          # Compare the checked-out CI configuration files with the reference files
+          if ! git diff --no-index .github/workflows/ci.yml merge-commit-pipeline-files/.github/workflows/ci.yml; then
+            echo "Error: ci.yml changes in master (or PR base). Please merge these changes."
+            exit 1
+          fi
+          if ! git diff --no-index .github/workflows/setup-runner.yml merge-commit-pipeline-files/.github/workflows/setup-runner.yml; then
+            echo "Error: setup-runner.yml changes in master (or PR base). Please merge these changes."
+            exit 1
+          fi
+
       - name: Start EC2 runner
         uses: ./.github/spot-runner-action
         with:
