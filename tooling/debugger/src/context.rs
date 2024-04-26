@@ -260,16 +260,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     _ => format!("{opcode:?}"),
                 }
             }
-            OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                match &opcodes[*acir_index] {
-                    Opcode::BrilligCall { id, .. } => {
-                        let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
-                        let opcode = &bytecode[*brillig_index];
-                        format!("      | {opcode:?}")
-                    }
-                    _ => String::from("      | invalid"),
+            OpcodeLocation::Brillig { acir_index, brillig_index } => match &opcodes[*acir_index] {
+                Opcode::BrilligCall { id, .. } => {
+                    let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                    let opcode = &bytecode[*brillig_index];
+                    format!("      | {opcode:?}")
                 }
-            }
+                _ => String::from("      | invalid"),
+            },
         }
     }
 
@@ -603,10 +601,13 @@ fn build_acir_opcode_offsets(
     // address of the first opcode is always 0
     result.push(0);
     circuit.opcodes.iter().fold(0, |acc, opcode| {
-        let acc = acc + match opcode {
-            Opcode::BrilligCall { id, .. } => unconstrained_functions[*id as usize].bytecode.len(),
-            _ => 1,
-        };
+        let acc = acc
+            + match opcode {
+                Opcode::BrilligCall { id, .. } => {
+                    unconstrained_functions[*id as usize].bytecode.len()
+                }
+                _ => 1,
+            };
         // push the starting address of the next opcode
         result.push(acc);
         acc
@@ -825,7 +826,7 @@ mod tests {
     }
 
     #[test]
-    fn test_offset_opcode_location() {
+    fn test_address_opcode_location_mapping() {
         let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
@@ -853,85 +854,48 @@ mod tests {
             brillig_funcs,
         );
 
-        assert_eq!(context.offset_opcode_location(&None, 0), (None, 0));
-        assert_eq!(context.offset_opcode_location(&None, 2), (None, 2));
-        assert_eq!(context.offset_opcode_location(&None, -2), (None, -2));
+        let locations =
+            (0..=7).map(|address| context.address_to_opcode_location(address)).collect::<Vec<_>>();
+
+        // mapping from addresses to opcode locations
         assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 0),
-            (Some(OpcodeLocation::Acir(0)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 1),
-            (Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 }), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 2),
-            (Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 3),
-            (Some(OpcodeLocation::Acir(1)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 4),
-            (Some(OpcodeLocation::Acir(2)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 5),
-            (Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 1 }), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 7),
-            (Some(OpcodeLocation::Acir(3)), 0)
-        );
-        assert_eq!(context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 8), (None, 0));
-        assert_eq!(context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), 20), (None, 12));
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(1)), 2),
-            (Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 1 }), 0)
-        );
-        assert_eq!(context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), -1), (None, -1));
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(0)), -10),
-            (None, -10)
+            locations,
+            vec![
+                Some(OpcodeLocation::Acir(0)),
+                Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 }),
+                Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }),
+                Some(OpcodeLocation::Acir(1)),
+                Some(OpcodeLocation::Acir(2)),
+                Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 1 }),
+                Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 2 }),
+                Some(OpcodeLocation::Acir(3)),
+            ]
         );
 
+        let addresses = locations
+            .iter()
+            .flatten()
+            .map(|location| context.opcode_location_to_address(location))
+            .collect::<Vec<_>>();
+
+        // and vice-versa
+        assert_eq!(addresses, (0..=7).collect::<Vec<_>>());
+
+        // check edge cases
+        assert_eq!(None, context.address_to_opcode_location(8));
         assert_eq!(
-            context.offset_opcode_location(
-                &Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 }),
-                -1
-            ),
-            (Some(OpcodeLocation::Acir(0)), 0)
+            0,
+            context.opcode_location_to_address(&OpcodeLocation::Brillig {
+                acir_index: 0,
+                brillig_index: 0
+            })
         );
         assert_eq!(
-            context.offset_opcode_location(
-                &Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }),
-                -2
-            ),
-            (Some(OpcodeLocation::Acir(0)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(1)), -3),
-            (Some(OpcodeLocation::Acir(0)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(2)), -4),
-            (Some(OpcodeLocation::Acir(0)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(
-                &Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 1 }),
-                -5
-            ),
-            (Some(OpcodeLocation::Acir(0)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(3)), -7),
-            (Some(OpcodeLocation::Acir(0)), 0)
-        );
-        assert_eq!(
-            context.offset_opcode_location(&Some(OpcodeLocation::Acir(2)), -2),
-            (Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }), 0)
+            4,
+            context.opcode_location_to_address(&OpcodeLocation::Brillig {
+                acir_index: 2,
+                brillig_index: 0
+            })
         );
     }
 }
