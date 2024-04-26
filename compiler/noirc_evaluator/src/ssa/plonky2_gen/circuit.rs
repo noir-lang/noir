@@ -104,6 +104,14 @@ impl Plonky2Circuit {
                     let _ = self.set_array_parameter(j, input_values, pw)?;
                 }
 
+                InputValue::Struct(fields) => {
+                    let mut input_values = Vec::new();
+                    for value in fields.values() {
+                        input_values.push(value.clone());
+                    }
+                    let _ = self.set_array_parameter(j, &input_values, pw)?;
+                }
+
                 _ => {
                     let feature_name = format!("array parameter with non-field elements");
                     return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });

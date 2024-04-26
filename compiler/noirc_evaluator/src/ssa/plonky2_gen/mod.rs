@@ -64,15 +64,19 @@ impl P2Value {
 
     fn get_array_targets(&self) -> Result<Vec<P2Target>, Plonky2GenError> {
         match self.target {
-            P2Target::ArrayTarget(ref targets) => {
-                let mut new_targets = Vec::new();
-                for target in targets {
-                    new_targets.push(target.clone());
-                }
-                Ok(new_targets)
-            }
+            P2Target::ArrayTarget(ref targets) => Ok(targets.clone()),
             _ => {
                 let message = format!("get_array_targets called on non-array {:?}", self);
+                Err(Plonky2GenError::ICE { message })
+            }
+        }
+    }
+
+    fn get_struct_targets(&self) -> Result<Vec<P2Target>, Plonky2GenError> {
+        match self.target {
+            P2Target::StructTarget(ref targets) => Ok(targets.clone()),
+            _ => {
+                let message = format!("get_struct_targets called on non-struct {:?}", self);
                 Err(Plonky2GenError::ICE { message })
             }
         }
@@ -104,6 +108,13 @@ impl P2Value {
         }
     }
 
+    fn make_struct(field_types: Vec<P2Type>, targets: Vec<P2Target>) -> P2Value {
+        P2Value {
+            target: P2Target::StructTarget(targets.clone()),
+            typ: P2Type::Struct(field_types),
+        }
+    }
+
     /// Creates an undefined PLONKY2 value of the given type, which includes adding targets to the given
     /// builder.
     fn create_empty(builder: &mut P2Builder, p2type: P2Type) -> P2Value {
@@ -124,6 +135,13 @@ impl P2Value {
                     p2targets.push(P2Value::create_empty(builder, *element_type.clone()).target);
                 }
                 P2Value { target: P2Target::ArrayTarget(p2targets), typ: p2type }
+            }
+            P2Type::Struct(field_types) => {
+                let mut p2targets = Vec::new();
+                for field_type in field_types {
+                    p2targets.push(P2Value::create_empty(builder, field_type.clone()).target);
+                }
+                P2Value { target: P2Target::StructTarget(p2targets), typ: p2type }
             }
         }
     }
@@ -146,9 +164,11 @@ impl P2Value {
                 let target = builder.constant_bool(constant.to_u128() != 0);
                 Ok(P2Value { target: P2Target::BoolTarget(target), typ: p2type })
             }
-            P2Type::Array(..) => Err(Plonky2GenError::ICE {
-                message: "create_simple_constant called with an array argument".to_owned(),
-            }),
+            _ => {
+                let message =
+                    format!("create_simple_constant called with an argument of type {:?}", p2type);
+                Err(Plonky2GenError::ICE { message })
+            }
         }
     }
 
@@ -160,6 +180,7 @@ impl P2Value {
             P2Type::Boolean => P2Value::make_boolean(self.get_boolean_target()?.clone()),
             P2Type::Field => P2Value::make_field(self.get_integer_target()?.clone()),
             P2Type::Array(typ, _) => P2Value::make_array(*typ, self.get_array_targets()?),
+            P2Type::Struct(types) => P2Value::make_struct(types, self.get_struct_targets()?),
         })
     }
 }
@@ -172,6 +193,7 @@ enum P2Type {
     Boolean,
     Integer(u32),
     Array(Box<P2Type>, usize),
+    Struct(Vec<P2Type>),
     Field,
 }
 
@@ -193,24 +215,32 @@ impl P2Type {
                 }
             },
             Type::Array(composite_type, array_size) => {
-                if composite_type.len() != 1 {
-                    let feature_name = format!("composite array type {:?}", composite_type);
-                    return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
-                }
                 if array_size == 1 {
-                    P2Type::from_noir_type(composite_type[0].clone())?
+                    P2Type::from_noir_types((*composite_type).clone())?
                 } else {
                     P2Type::Array(
-                        Box::new(P2Type::from_noir_type(composite_type[0].clone())?),
+                        Box::new(P2Type::from_noir_types((*composite_type).clone())?),
                         array_size,
                     )
                 }
             }
             _ => {
-                let feature_name = format!("parameters of type {typ}");
+                let feature_name = format!("the {typ} type");
                 return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
             }
         })
+    }
+
+    fn from_noir_types(types: Vec<Type>) -> Result<P2Type, Plonky2GenError> {
+        if types.len() == 1 {
+            P2Type::from_noir_type(types[0].clone())
+        } else {
+            let mut field_types = Vec::new();
+            for typ in types {
+                field_types.push(P2Type::from_noir_type(typ)?);
+            }
+            Ok(P2Type::Struct(field_types))
+        }
     }
 }
 
@@ -219,6 +249,7 @@ enum P2Target {
     IntTarget(Target),
     BoolTarget(BoolTarget),
     ArrayTarget(Vec<P2Target>),
+    StructTarget(Vec<P2Target>),
 }
 
 impl P2Target {
@@ -243,6 +274,11 @@ impl P2Target {
                     let _ = target.extend_parameter_list(parameters)?;
                 }
             }
+            P2Target::StructTarget(ref targets) => {
+                for target in targets {
+                    let _ = target.extend_parameter_list(parameters)?;
+                }
+            }
             _ => parameters.push(self.get_target()?),
         })
     }
@@ -251,13 +287,8 @@ impl P2Target {
         match &self {
             P2Target::IntTarget(target) => P2Target::IntTarget(target.clone()),
             P2Target::BoolTarget(bool_target) => P2Target::BoolTarget(bool_target.clone()),
-            P2Target::ArrayTarget(targets) => {
-                let mut new_targets = Vec::new();
-                for target in targets {
-                    new_targets.push(target.clone());
-                }
-                P2Target::ArrayTarget(new_targets)
-            }
+            P2Target::ArrayTarget(targets) => P2Target::ArrayTarget(targets.clone()),
+            P2Target::StructTarget(targets) => P2Target::StructTarget(targets.clone()),
         }
     }
 }
@@ -881,22 +912,43 @@ impl Builder {
         index: usize,
     ) -> Result<(P2Type, P2Target), Plonky2GenError> {
         let p2value = self.get(value_id).unwrap();
-        let p2type = match p2value.typ.clone() {
+        let element_type = match p2value.typ.clone() {
             P2Type::Array(p2type, _) => *p2type,
             _ => {
                 let message = format!("argument to get_array_element is of type {:?}", p2value.typ);
                 return Err(Plonky2GenError::ICE { message });
             }
         };
-        let p2target = match p2value.target {
-            P2Target::ArrayTarget(ref targets) => targets[index].clone(),
+        let result = match p2value.target {
+            P2Target::ArrayTarget(ref targets) => {
+                match element_type.clone() {
+                    P2Type::Struct(field_types) => {
+                        let array_index = index / field_types.len();
+                        let field_index = index % field_types.len();
+                        match targets[array_index].clone() {
+                            P2Target::StructTarget(fields) => {
+                                (field_types[field_index].clone(), fields[field_index].clone())
+                            }
+                            _ => {
+                                let message = format!(
+                                    "Array element {:?} does not match type {:?}",
+                                    targets[array_index], element_type
+                                );
+                                return Err(Plonky2GenError::ICE { message });
+                            }
+                        }
+                    }
+                    // TODO(stanm): arrays too like structs
+                    _ => (element_type, targets[index].clone()),
+                }
+            }
             _ => {
                 return Err(Plonky2GenError::ICE {
                     message: "argument to get_array_element is not an array".to_owned(),
                 })
             }
         };
-        Ok((p2type, p2target))
+        Ok(result)
     }
 
     /// Get the PLONKY2 target of a value, regardless of whether its type is Integer or Boolean.
