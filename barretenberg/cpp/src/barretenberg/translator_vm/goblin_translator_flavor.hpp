@@ -131,24 +131,14 @@ class GoblinTranslatorFlavor {
 
         inline void compute_lagrange_polynomials(const CircuitBuilder& builder)
         {
-            const size_t circuit_size = compute_dyadic_circuit_size(builder);
             const size_t mini_circuit_dyadic_size = compute_mini_circuit_dyadic_size(builder);
 
-            Polynomial lagrange_polynomial_odd_in_minicircuit(circuit_size);
-            Polynomial lagrange_polynomial_even_in_minicircut(circuit_size);
-            Polynomial lagrange_polynomial_second(circuit_size);
-            Polynomial lagrange_polynomial_second_to_last_in_minicircuit(circuit_size);
-
             for (size_t i = 1; i < mini_circuit_dyadic_size - 1; i += 2) {
-                lagrange_polynomial_odd_in_minicircuit[i] = 1;
-                lagrange_polynomial_even_in_minicircut[i + 1] = 1;
+                this->lagrange_odd_in_minicircuit[i] = 1;
+                this->lagrange_even_in_minicircuit[i + 1] = 1;
             }
-            this->lagrange_odd_in_minicircuit = lagrange_polynomial_odd_in_minicircuit.share();
-            this->lagrange_even_in_minicircuit = lagrange_polynomial_even_in_minicircut.share();
-            lagrange_polynomial_second[1] = 1;
-            lagrange_polynomial_second_to_last_in_minicircuit[mini_circuit_dyadic_size - 2] = 1;
-            this->lagrange_second_to_last_in_minicircuit = lagrange_polynomial_second_to_last_in_minicircuit.share();
-            this->lagrange_second = lagrange_polynomial_second.share();
+            this->lagrange_second[1] = 1;
+            this->lagrange_second_to_last_in_minicircuit[mini_circuit_dyadic_size - 2] = 1;
         }
 
         /**
@@ -287,13 +277,22 @@ class GoblinTranslatorFlavor {
                               relation_wide_limbs_range_constraint_0,       // column 76
                               relation_wide_limbs_range_constraint_1,       // column 77
                               relation_wide_limbs_range_constraint_2,       // column 78
-                              relation_wide_limbs_range_constraint_3,       // column 79
-                              ordered_range_constraints_0,                  // column 80
-                              ordered_range_constraints_1,                  // column 81
-                              ordered_range_constraints_2,                  // column 82
-                              ordered_range_constraints_3,                  // column 83
-                              ordered_range_constraints_4);                 // column 84
+                              relation_wide_limbs_range_constraint_3);      // column 79
     };
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/907)
+    // Note: These are technically derived from wires but do not depend on challenges (like z_perm). They are committed
+    // to in the wires commitment round.
+    template <typename DataType> class OrderedRangeConstraints {
+      public:
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              ordered_range_constraints_0,  // column 0
+                              ordered_range_constraints_1,  // column 1
+                              ordered_range_constraints_2,  // column 2
+                              ordered_range_constraints_3,  // column 3
+                              ordered_range_constraints_4); // column 4
+    };
+
     template <typename DataType> class WireNonshiftedEntities {
       public:
         DEFINE_FLAVOR_MEMBERS(DataType,
@@ -311,18 +310,29 @@ class GoblinTranslatorFlavor {
     template <typename DataType>
     class WitnessEntities : public WireNonshiftedEntities<DataType>,
                             public WireToBeShiftedEntities<DataType>,
+                            public OrderedRangeConstraints<DataType>,
                             public DerivedWitnessEntities<DataType>,
                             public ConcatenatedRangeConstraints<DataType> {
       public:
         DEFINE_COMPOUND_GET_ALL(WireNonshiftedEntities<DataType>,
                                 WireToBeShiftedEntities<DataType>,
+                                OrderedRangeConstraints<DataType>,
                                 DerivedWitnessEntities<DataType>,
                                 ConcatenatedRangeConstraints<DataType>)
 
+        // Used when populating wire polynomials directly from circuit data
         auto get_wires()
         {
             return concatenate(WireNonshiftedEntities<DataType>::get_all(),
                                WireToBeShiftedEntities<DataType>::get_all());
+        };
+
+        // Used when computing commitments to wires + ordered range constraints during proof consrtuction
+        auto get_wires_and_ordered_range_constraints()
+        {
+            return concatenate(WireNonshiftedEntities<DataType>::get_all(),
+                               WireToBeShiftedEntities<DataType>::get_all(),
+                               OrderedRangeConstraints<DataType>::get_all());
         };
 
         // everything but ConcatenatedRangeConstraints (used for ZeroMorph input since concatenated handled separately)
@@ -331,6 +341,7 @@ class GoblinTranslatorFlavor {
         {
             return concatenate(WireNonshiftedEntities<DataType>::get_all(),
                                WireToBeShiftedEntities<DataType>::get_all(),
+                               OrderedRangeConstraints<DataType>::get_all(),
                                DerivedWitnessEntities<DataType>::get_all());
         }
 
@@ -338,6 +349,7 @@ class GoblinTranslatorFlavor {
         {
             return concatenate(WireNonshiftedEntities<DataType>::get_all(),
                                WireToBeShiftedEntities<DataType>::get_all(),
+                               OrderedRangeConstraints<DataType>::get_all(),
                                DerivedWitnessEntities<DataType>::get_all(),
                                ConcatenatedRangeConstraints<DataType>::get_all());
         }
@@ -345,12 +357,14 @@ class GoblinTranslatorFlavor {
         {
             return concatenate(WireNonshiftedEntities<DataType>::get_labels(),
                                WireToBeShiftedEntities<DataType>::get_labels(),
+                               OrderedRangeConstraints<DataType>::get_labels(),
                                DerivedWitnessEntities<DataType>::get_labels(),
                                ConcatenatedRangeConstraints<DataType>::get_labels());
         }
         auto get_to_be_shifted()
         {
             return concatenate(WireToBeShiftedEntities<DataType>::get_all(),
+                               OrderedRangeConstraints<DataType>::get_all(),
                                DerivedWitnessEntities<DataType>::get_all());
         };
 
@@ -559,6 +573,9 @@ class GoblinTranslatorFlavor {
         {}
 
         DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
+
+        auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); };
+
         /**
          * @brief Get the polynomials that are concatenated for the permutation relation
          *
@@ -722,8 +739,8 @@ class GoblinTranslatorFlavor {
         // Next power of 2
         const size_t mini_circuit_dyadic_size = builder.get_circuit_subgroup_size(total_num_gates);
 
-        // The actual circuit size is several times bigger than the trace in the builder, because we use
-        // concatenation to bring the degree of relations down, while extending the length.
+        // The actual circuit size is several times bigger than the trace in the builder, because we use concatenation
+        // to bring the degree of relations down, while extending the length.
         return mini_circuit_dyadic_size * CONCATENATION_GROUP_SIZE;
     }
 
@@ -733,52 +750,88 @@ class GoblinTranslatorFlavor {
     }
 
     /**
-     * @brief The proving key is responsible for storing the polynomials used by the prover.
-     * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve
-     * inherit from ProvingKey.
+     * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials
+     * evaluated at one point.
      */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
+    class AllValues : public AllEntities<FF> {
+      public:
+        using Base = AllEntities<FF>;
+        using Base::Base;
+    };
+    /**
+     * @brief A container for the prover polynomials handles.
+     */
+    class ProverPolynomials : public AllEntities<Polynomial> {
+      public:
+        // Define all operations as default, except copy construction/assignment
+        ProverPolynomials() = default;
+        // Constructor to init all unshifted polys to the zero polynomial and set the shifted poly data
+        ProverPolynomials(size_t circuit_size)
+        {
+            for (auto& poly : get_unshifted()) {
+                poly = Polynomial{ circuit_size };
+            }
+            set_shifted();
+        }
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
+        [[nodiscard]] size_t get_polynomial_size() const { return this->op.size(); }
+        /**
+         * @brief Returns the evaluations of all prover polynomials at one point on the boolean
+         * hypercube, which represents one row in the execution trace.
+         */
+        [[nodiscard]] AllValues get_row(size_t row_idx) const
+        {
+            AllValues result;
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
+            }
+            return result;
+        }
+        // Set all shifted polynomials based on their to-be-shifted counterpart
+        void set_shifted()
+        {
+            for (auto [shifted, to_be_shifted] : zip_view(get_shifted(), get_to_be_shifted())) {
+                shifted = to_be_shifted.shifted();
+            }
+        }
+    };
+
+    /**
+     * @brief The proving key is responsible for storing the polynomials used by the prover.
+     *
+     */
+    class ProvingKey : public ProvingKey_<FF, CommitmentKey> {
       public:
         BF batching_challenge_v = { 0 };
         BF evaluation_input_x = { 0 };
+        ProverPolynomials polynomials; // storage for all polynomials evaluated by the prover
 
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
+        using Base = ProvingKey_<FF, CommitmentKey>;
         using Base::Base;
 
         ProvingKey() = default;
         ProvingKey(const CircuitBuilder& builder)
-            : ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>(
-                  compute_dyadic_circuit_size(builder), 0)
+            : Base(compute_dyadic_circuit_size(builder), 0)
             , batching_challenge_v(builder.batching_challenge_v)
             , evaluation_input_x(builder.evaluation_input_x)
+            , polynomials(this->circuit_size)
         {
             // First and last lagrange polynomials (in the full circuit size)
-            const auto [lagrange_first, lagrange_last] =
-                compute_first_and_last_lagrange_polynomials<FF>(compute_dyadic_circuit_size(builder));
-            this->lagrange_first = lagrange_first;
-            this->lagrange_last = lagrange_last;
+            polynomials.lagrange_first[0] = 1;
+            polynomials.lagrange_last[circuit_size - 1] = 1;
 
             // Compute polynomials with odd and even indices set to 1 up to the minicircuit margin + lagrange
             // polynomials at second and second to last indices in the minicircuit
-            compute_lagrange_polynomials(builder);
+            polynomials.compute_lagrange_polynomials(builder);
 
             // Compute the numerator for the permutation argument with several repetitions of steps bridging 0 and
-            // maximum range constraint
-            compute_extra_range_constraint_numerator();
-        }
-
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/810): get around this by properly having
-        // concatenated range be a concept outside of witnessentities
-        std::vector<std::string> get_labels()
-        {
-            return concatenate(PrecomputedEntities<Polynomial>::get_labels(),
-                               WitnessEntities<Polynomial>::get_unshifted_labels());
-        }
-        auto get_all()
-        {
-            return concatenate(PrecomputedEntities<Polynomial>::get_all(),
-                               WitnessEntities<Polynomial>::get_unshifted());
+            // maximum range constraint compute_extra_range_constraint_numerator();
+            polynomials.compute_extra_range_constraint_numerator();
         }
     };
 
@@ -807,44 +860,9 @@ class GoblinTranslatorFlavor {
             this->pub_inputs_offset = proving_key->pub_inputs_offset;
 
             for (auto [polynomial, commitment] :
-                 zip_view(proving_key->get_precomputed_polynomials(), this->get_all())) {
+                 zip_view(proving_key->polynomials.get_precomputed(), this->get_all())) {
                 commitment = proving_key->commitment_key->commit(polynomial);
             }
-        }
-    };
-    /**
-     * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials
-     * evaluated at one point.
-     */
-    class AllValues : public AllEntities<FF> {
-      public:
-        using Base = AllEntities<FF>;
-        using Base::Base;
-    };
-    /**
-     * @brief A container for the prover polynomials handles.
-     */
-    class ProverPolynomials : public AllEntities<Polynomial> {
-      public:
-        // Define all operations as default, except copy construction/assignment
-        ProverPolynomials() = default;
-        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
-        ProverPolynomials(const ProverPolynomials& o) = delete;
-        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
-        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
-        ~ProverPolynomials() = default;
-        [[nodiscard]] size_t get_polynomial_size() const { return this->op.size(); }
-        /**
-         * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
-         * represents one row in the execution trace.
-         */
-        [[nodiscard]] AllValues get_row(size_t row_idx) const
-        {
-            AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
-                result_field = polynomial[row_idx];
-            }
-            return result;
         }
     };
 

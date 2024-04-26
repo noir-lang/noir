@@ -31,9 +31,9 @@
 
 #define SUMCHECK_PERMUTATION_CLASS(...) _SUMCHECK_PERMUTATION_CLASS(__VA_ARGS__)
 #define DEFINE_SUMCHECK_PERMUTATION_CLASS(RelationImpl, Flavor)                                                        \
-    PERMUTATION_METHOD(compute_permutation_numerator, RelationImpl, Flavor, UnivariateAccumulator0, ExtendedEdge)      \
-    PERMUTATION_METHOD(compute_permutation_numerator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)         \
-    PERMUTATION_METHOD(compute_permutation_numerator, RelationImpl, Flavor, ValueAccumulator0, EntityEdge)             \
-    PERMUTATION_METHOD(compute_permutation_denominator, RelationImpl, Flavor, UnivariateAccumulator0, ExtendedEdge)    \
-    PERMUTATION_METHOD(compute_permutation_denominator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)       \
-    PERMUTATION_METHOD(compute_permutation_denominator, RelationImpl, Flavor, ValueAccumulator0, EntityEdge)
+    PERMUTATION_METHOD(compute_grand_product_numerator, RelationImpl, Flavor, UnivariateAccumulator0, ExtendedEdge)    \
+    PERMUTATION_METHOD(compute_grand_product_numerator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)       \
+    PERMUTATION_METHOD(compute_grand_product_numerator, RelationImpl, Flavor, ValueAccumulator0, EntityEdge)           \
+    PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, UnivariateAccumulator0, ExtendedEdge)  \
+    PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)     \
+    PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, ValueAccumulator0, EntityEdge)

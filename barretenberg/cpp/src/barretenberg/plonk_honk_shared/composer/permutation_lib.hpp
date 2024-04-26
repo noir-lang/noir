@@ -180,7 +180,7 @@ PermutationMapping<Flavor::NUM_WIRES, generalized> compute_permutation_mapping(
 template <typename Flavor>
 void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
     const RefSpan<typename Flavor::Polynomial>& permutation_polynomials, // sigma or ID poly
-    std::array<std::vector<permutation_subgroup_element>, Flavor::NUM_WIRES>& permutation_mappings,
+    const std::array<std::vector<permutation_subgroup_element>, Flavor::NUM_WIRES>& permutation_mappings,
     typename Flavor::ProvingKey* proving_key)
 {
     using FF = typename Flavor::FF;
@@ -384,9 +384,9 @@ void compute_permutation_argument_polynomials(const typename Flavor::CircuitBuil
     } else if constexpr (IsUltraFlavor<Flavor>) { // any UltraHonk flavor
         // Compute Honk-style sigma and ID polynomials from the corresponding mappings
         compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
-            key->get_sigma_polynomials(), mapping.sigmas, key);
+            key->polynomials.get_sigmas(), mapping.sigmas, key);
         compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
-            key->get_id_polynomials(), mapping.ids, key);
+            key->polynomials.get_ids(), mapping.ids, key);
     }
 }
 

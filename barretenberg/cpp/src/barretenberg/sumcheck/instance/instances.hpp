@@ -76,9 +76,9 @@ template <typename Flavor_, size_t NUM_ = 2> struct ProverInstances_ {
     auto get_polynomials_views() const
     {
         // As a practical measure, get the first instance's view to deduce the array type
-        std::array<decltype(_data[0]->prover_polynomials.get_all()), NUM> views;
+        std::array<decltype(_data[0]->proving_key.polynomials.get_all()), NUM> views;
         for (size_t i = 0; i < NUM; i++) {
-            views[i] = _data[i]->prover_polynomials.get_all();
+            views[i] = _data[i]->proving_key.polynomials.get_all();
         }
         return views;
     }

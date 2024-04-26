@@ -11,7 +11,6 @@ void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared
     auto [proving_key, relation_params, alphas] = oink_prover.prove();
     instance->proving_key = std::move(proving_key);
     instance->relation_parameters = std::move(relation_params);
-    instance->prover_polynomials = ProverPolynomials(instance->proving_key);
     instance->alphas = std::move(alphas);
 }
 
@@ -80,7 +79,7 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     next_accumulator->gate_challenges = instances.next_gate_challenges;
 
     // Initialize accumulator proving key polynomials
-    auto accumulator_polys = next_accumulator->proving_key.get_all();
+    auto accumulator_polys = next_accumulator->proving_key.polynomials.get_all();
     run_loop_in_parallel(Flavor::NUM_FOLDED_ENTITIES, [&](size_t start_idx, size_t end_idx) {
         for (size_t poly_idx = start_idx; poly_idx < end_idx; poly_idx++) {
             auto& acc_poly = accumulator_polys[poly_idx];
@@ -92,7 +91,7 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
 
     // Fold the proving key polynomials
     for (size_t inst_idx = 1; inst_idx < ProverInstances::NUM; inst_idx++) {
-        auto input_polys = instances[inst_idx]->proving_key.get_all();
+        auto input_polys = instances[inst_idx]->proving_key.polynomials.get_all();
         run_loop_in_parallel(Flavor::NUM_FOLDED_ENTITIES, [&](size_t start_idx, size_t end_idx) {
             for (size_t poly_idx = start_idx; poly_idx < end_idx; poly_idx++) {
                 auto& acc_poly = accumulator_polys[poly_idx];
@@ -141,10 +140,6 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     };
     next_accumulator->relation_parameters = folded_relation_parameters;
     next_accumulator->proving_key = std::move(instances[0]->proving_key);
-    // Derive the prover polynomials from the proving key polynomials since we only fold the unshifted polynomials. This
-    // is extremely cheap since we only call .share() and .shifted() polynomial functions. We need the folded prover
-    // polynomials for the decider.
-    next_accumulator->prover_polynomials = ProverPolynomials(next_accumulator->proving_key);
     return next_accumulator;
 }
 

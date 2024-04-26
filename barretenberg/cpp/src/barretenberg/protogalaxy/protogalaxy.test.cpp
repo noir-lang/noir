@@ -77,15 +77,6 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         return instances;
     }
 
-    static ProverPolynomials construct_full_prover_polynomials(auto& input_polynomials)
-    {
-        ProverPolynomials full_polynomials;
-        for (auto [prover_poly, input_poly] : zip_view(full_polynomials.get_all(), input_polynomials)) {
-            prover_poly = input_poly.share();
-        }
-        return full_polynomials;
-    }
-
     static std::tuple<std::shared_ptr<ProverInstance>, std::shared_ptr<VerifierInstance>> fold_and_verify(
         const std::vector<std::shared_ptr<ProverInstance>>& prover_instances,
         const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances)
@@ -102,7 +93,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     {
         auto instance_size = accumulator->proving_key.circuit_size;
         auto expected_honk_evals = ProtoGalaxyProver::compute_full_honk_evaluations(
-            accumulator->prover_polynomials, accumulator->alphas, accumulator->relation_parameters);
+            accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
         // Construct pow(\vec{betas*}) as in the paper
         auto expected_pows = PowPolynomial(accumulator->gate_challenges);
         expected_pows.compute_values();
@@ -152,13 +143,12 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
             instance->proving_key.compute_logderivative_inverse(instance->relation_parameters);
         }
         instance->proving_key.compute_grand_product_polynomials(instance->relation_parameters);
-        instance->prover_polynomials = ProverPolynomials(instance->proving_key);
 
         for (auto& alpha : instance->alphas) {
             alpha = FF::random_element();
         }
         auto full_honk_evals = ProtoGalaxyProver::compute_full_honk_evaluations(
-            instance->prover_polynomials, instance->alphas, instance->relation_parameters);
+            instance->proving_key.polynomials, instance->alphas, instance->relation_parameters);
 
         // Evaluations should be 0 for valid circuit
         for (const auto& eval : full_honk_evals) {
@@ -194,11 +184,12 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         using RelationSeparator = typename Flavor::RelationSeparator;
         const size_t log_instance_size(3);
         const size_t instance_size(1 << log_instance_size);
-        std::array<bb::Polynomial<FF>, Flavor::NUM_ALL_ENTITIES> random_polynomials;
-        for (auto& poly : random_polynomials) {
+        // Construct fully random prover polynomials
+        ProverPolynomials full_polynomials;
+        for (auto& poly : full_polynomials.get_all()) {
             poly = bb::Polynomial<FF>::random(instance_size);
         }
-        auto full_polynomials = construct_full_prover_polynomials(random_polynomials);
+
         auto relation_parameters = bb::RelationParameters<FF>::get_random();
         RelationSeparator alphas;
         for (auto& alpha : alphas) {
@@ -223,7 +214,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         }
 
         auto accumulator = std::make_shared<ProverInstance>();
-        accumulator->prover_polynomials = std::move(full_polynomials);
+        accumulator->proving_key.polynomials = std::move(full_polynomials);
         accumulator->gate_challenges = betas;
         accumulator->target_sum = target_sum;
         accumulator->relation_parameters = relation_parameters;
@@ -432,7 +423,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         check_accumulator_target_sum_manual(prover_accumulator, true);
 
         // Tamper with an accumulator polynomial
-        prover_accumulator->prover_polynomials.w_l[1] = FF::random_element();
+        prover_accumulator->proving_key.polynomials.w_l[1] = FF::random_element();
         check_accumulator_target_sum_manual(prover_accumulator, false);
 
         TupleOfInstances insts_2 = construct_instances(1); // just one set of prover/verifier instances

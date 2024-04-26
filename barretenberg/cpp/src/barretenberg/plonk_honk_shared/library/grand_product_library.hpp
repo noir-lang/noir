@@ -48,8 +48,7 @@ namespace bb {
  * Note: Step (3) utilizes Montgomery batch inversion to replace n-many inversions with
  */
 template <typename Flavor, typename GrandProdRelation>
-void compute_grand_product(const size_t circuit_size,
-                           typename Flavor::ProverPolynomials& full_polynomials,
+void compute_grand_product(typename Flavor::ProverPolynomials& full_polynomials,
                            bb::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using FF = typename Flavor::FF;
@@ -58,6 +57,7 @@ void compute_grand_product(const size_t circuit_size,
 
     // Allocate numerator/denominator polynomials that will serve as scratch space
     // TODO(zac) we can re-use the permutation polynomial as the numerator polynomial. Reduces readability
+    size_t circuit_size = full_polynomials.get_polynomial_size();
     Polynomial numerator{ circuit_size };
     Polynomial denominator{ circuit_size };
 
@@ -65,16 +65,14 @@ void compute_grand_product(const size_t circuit_size,
     // Populate `numerator` and `denominator` with the algebra described by Relation
     const size_t num_threads = circuit_size >= get_num_cpus_pow2() ? get_num_cpus_pow2() : 1;
     const size_t block_size = circuit_size / num_threads;
-    auto full_polynomials_view = full_polynomials.get_all();
     parallel_for(num_threads, [&](size_t thread_idx) {
         const size_t start = thread_idx * block_size;
         const size_t end = (thread_idx + 1) * block_size;
         typename Flavor::AllValues evaluations;
-        auto evaluations_view = evaluations.get_all();
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/940): construction of evaluations is equivalent to
         // calling get_row which creates full copies. avoid?
         for (size_t i = start; i < end; ++i) {
-            for (auto [eval, full_poly] : zip_view(evaluations_view, full_polynomials_view)) {
+            for (auto [eval, full_poly] : zip_view(evaluations.get_all(), full_polynomials.get_all())) {
                 eval = full_poly.size() > i ? full_poly[i] : 0;
             }
             numerator[i] = GrandProdRelation::template compute_grand_product_numerator<Accumulator>(
@@ -143,29 +141,21 @@ void compute_grand_product(const size_t circuit_size,
     });
 }
 
+/**
+ * @brief Compute the grand product corresponding to each grand-product relation defined in the Flavor
+ *
+ */
 template <typename Flavor>
-void compute_grand_products(const typename Flavor::ProvingKey& key,
-                            typename Flavor::ProverPolynomials& full_polynomials,
+void compute_grand_products(typename Flavor::ProverPolynomials& full_polynomials,
                             bb::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using GrandProductRelations = typename Flavor::GrandProductRelations;
-    using FF = typename Flavor::FF;
 
     constexpr size_t NUM_RELATIONS = std::tuple_size<GrandProductRelations>{};
     bb::constexpr_for<0, NUM_RELATIONS, 1>([&]<size_t i>() {
         using GrandProdRelation = typename std::tuple_element<i, GrandProductRelations>::type;
 
-        // Assign the grand product polynomial to the relevant std::span member of `full_polynomials` (and its shift)
-        // For example, for UltraPermutationRelation, this will be `full_polynomials.z_perm`
-        // For example, for LookupRelation, this will be `full_polynomials.z_lookup`
-        bb::Polynomial<FF>& full_polynomial = GrandProdRelation::get_grand_product_polynomial(full_polynomials);
-        auto& key_polynomial = GrandProdRelation::get_grand_product_polynomial(key);
-        full_polynomial = key_polynomial.share();
-
-        compute_grand_product<Flavor, GrandProdRelation>(key.circuit_size, full_polynomials, relation_parameters);
-        bb::Polynomial<FF>& full_polynomial_shift =
-            GrandProdRelation::get_shifted_grand_product_polynomial(full_polynomials);
-        full_polynomial_shift = key_polynomial.shifted();
+        compute_grand_product<Flavor, GrandProdRelation>(full_polynomials, relation_parameters);
     });
 }
 

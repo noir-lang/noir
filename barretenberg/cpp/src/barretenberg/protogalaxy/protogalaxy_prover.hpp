@@ -255,7 +255,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     {
         BB_OP_COUNT_TIME();
         auto full_honk_evaluations = compute_full_honk_evaluations(
-            accumulator->prover_polynomials, accumulator->alphas, accumulator->relation_parameters);
+            accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
         const auto betas = accumulator->gate_challenges;
         assert(betas.size() == deltas.size());
         auto coeffs = construct_perturbator_coefficients(betas, deltas, full_honk_evaluations);

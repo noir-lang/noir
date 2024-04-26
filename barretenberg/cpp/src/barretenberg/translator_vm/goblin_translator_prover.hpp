@@ -18,7 +18,6 @@ class GoblinTranslatorProver {
     using CommitmentKey = typename Flavor::CommitmentKey;
     using ProvingKey = typename Flavor::ProvingKey;
     using Polynomial = typename Flavor::Polynomial;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using PCS = typename Flavor::PCS;
     using Transcript = typename Flavor::Transcript;
@@ -46,9 +45,6 @@ class GoblinTranslatorProver {
     bb::RelationParameters<FF> relation_parameters;
 
     std::shared_ptr<ProvingKey> key;
-
-    // Container for spans of all polynomials required by the prover (i.e. all multivariates evaluated by Sumcheck).
-    ProverPolynomials prover_polynomials;
 
     CommitmentLabels commitment_labels;
 

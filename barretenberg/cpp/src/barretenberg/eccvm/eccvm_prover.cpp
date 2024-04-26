@@ -14,7 +14,6 @@ namespace bb {
 
 ECCVMProver::ECCVMProver(CircuitBuilder& builder, const std::shared_ptr<Transcript>& transcript)
     : transcript(transcript)
-    , prover_polynomials(builder)
 {
     BB_OP_COUNT_TIME_NAME("ECCVMProver(CircuitBuilder&)");
 
@@ -23,13 +22,6 @@ ECCVMProver::ECCVMProver(CircuitBuilder& builder, const std::shared_ptr<Transcri
 
     // Construct the proving key; populates all polynomials except for witness polys
     key = std::make_shared<ProvingKey>(builder);
-
-    // Share all unshifted polys from the prover polynomials to the proving key. Note: this means that updating a
-    // polynomial in one container automatically updates it in the other via the shared memory.
-    for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
-        ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly));
-        key_poly = prover_poly.share();
-    }
 
     commitment_key = std::make_shared<CommitmentKey>(key->circuit_size);
 }
@@ -51,7 +43,7 @@ void ECCVMProver::execute_preamble_round()
  */
 void ECCVMProver::execute_wire_commitments_round()
 {
-    auto wire_polys = key->get_wires();
+    auto wire_polys = key->polynomials.get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < wire_polys.size(); ++idx) {
         transcript->send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
@@ -78,8 +70,9 @@ void ECCVMProver::execute_log_derivative_commitments_round()
     relation_parameters.eccvm_set_permutation_delta = relation_parameters.eccvm_set_permutation_delta.invert();
     // Compute inverse polynomial for our logarithmic-derivative lookup method
     compute_logderivative_inverse<Flavor, typename Flavor::LookupRelation>(
-        prover_polynomials, relation_parameters, key->circuit_size);
-    transcript->send_to_verifier(commitment_labels.lookup_inverses, commitment_key->commit(key->lookup_inverses));
+        key->polynomials, relation_parameters, key->circuit_size);
+    transcript->send_to_verifier(commitment_labels.lookup_inverses,
+                                 commitment_key->commit(key->polynomials.lookup_inverses));
 }
 
 /**
@@ -89,9 +82,9 @@ void ECCVMProver::execute_log_derivative_commitments_round()
 void ECCVMProver::execute_grand_product_computation_round()
 {
     // Compute permutation grand product and their commitments
-    compute_permutation_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
+    compute_grand_products<Flavor>(key->polynomials, relation_parameters);
 
-    transcript->send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->z_perm));
+    transcript->send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->polynomials.z_perm));
 }
 
 /**
@@ -108,7 +101,7 @@ void ECCVMProver::execute_relation_check_rounds()
     for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
         gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
-    sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters, alpha, gate_challenges);
+    sumcheck_output = sumcheck.prove(key->polynomials, relation_parameters, alpha, gate_challenges);
 }
 
 /**
@@ -118,8 +111,8 @@ void ECCVMProver::execute_relation_check_rounds()
  * */
 void ECCVMProver::execute_zeromorph_rounds()
 {
-    ZeroMorph::prove(prover_polynomials.get_unshifted(),
-                     prover_polynomials.get_to_be_shifted(),
+    ZeroMorph::prove(key->polynomials.get_unshifted(),
+                     key->polynomials.get_to_be_shifted(),
                      sumcheck_output.claimed_evaluations.get_unshifted(),
                      sumcheck_output.claimed_evaluations.get_shifted(),
                      sumcheck_output.challenge,
@@ -146,11 +139,11 @@ void ECCVMProver::execute_transcript_consistency_univariate_opening_round()
     // Get the challenge at which we evaluate the polynomials as univariates
     evaluation_challenge_x = transcript->template get_challenge<FF>("Translation:evaluation_challenge_x");
 
-    translation_evaluations.op = key->transcript_op.evaluate(evaluation_challenge_x);
-    translation_evaluations.Px = key->transcript_Px.evaluate(evaluation_challenge_x);
-    translation_evaluations.Py = key->transcript_Py.evaluate(evaluation_challenge_x);
-    translation_evaluations.z1 = key->transcript_z1.evaluate(evaluation_challenge_x);
-    translation_evaluations.z2 = key->transcript_z2.evaluate(evaluation_challenge_x);
+    translation_evaluations.op = key->polynomials.transcript_op.evaluate(evaluation_challenge_x);
+    translation_evaluations.Px = key->polynomials.transcript_Px.evaluate(evaluation_challenge_x);
+    translation_evaluations.Py = key->polynomials.transcript_Py.evaluate(evaluation_challenge_x);
+    translation_evaluations.z1 = key->polynomials.transcript_z1.evaluate(evaluation_challenge_x);
+    translation_evaluations.z2 = key->polynomials.transcript_z2.evaluate(evaluation_challenge_x);
 
     // Add the univariate evaluations to the transcript
     transcript->send_to_verifier("Translation:op", translation_evaluations.op);
@@ -164,8 +157,9 @@ void ECCVMProver::execute_transcript_consistency_univariate_opening_round()
     FF ipa_batching_challenge = transcript->template get_challenge<FF>("Translation:ipa_batching_challenge");
 
     // Collect the polynomials and evaluations to be batched
-    RefArray univariate_polynomials{ key->transcript_op, key->transcript_Px, key->transcript_Py,
-                                     key->transcript_z1, key->transcript_z2, hack };
+    RefArray univariate_polynomials{ key->polynomials.transcript_op, key->polynomials.transcript_Px,
+                                     key->polynomials.transcript_Py, key->polynomials.transcript_z1,
+                                     key->polynomials.transcript_z2, hack };
     std::array<FF, univariate_polynomials.size()> univariate_evaluations;
     for (auto [eval, polynomial] : zip_view(univariate_evaluations, univariate_polynomials)) {
         eval = polynomial.evaluate(evaluation_challenge_x);

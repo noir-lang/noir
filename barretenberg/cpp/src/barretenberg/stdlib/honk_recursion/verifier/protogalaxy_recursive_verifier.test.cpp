@@ -346,7 +346,7 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
         auto verification_key = std::make_shared<VerificationKey>(prover_inst->proving_key);
         auto verifier_inst = std::make_shared<VerifierInstance>(verification_key);
 
-        prover_accumulator->prover_polynomials.w_l[1] = FF::random_element();
+        prover_accumulator->proving_key.polynomials.w_l[1] = FF::random_element();
 
         // Generate a folding proof with the incorrect polynomials which would result in the prover having the wrong
         // target sum

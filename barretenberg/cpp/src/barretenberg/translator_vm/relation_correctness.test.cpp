@@ -137,17 +137,16 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, Permutation)
     fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_3);
 
     // Compute ordered range constraint polynomials that go in the denominator of the grand product polynomial
-    compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(&prover_polynomials, mini_circuit_size);
+    compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(prover_polynomials, mini_circuit_size);
 
     // Compute the fixed numerator (part of verification key)
     prover_polynomials.compute_extra_range_constraint_numerator();
 
     // Compute concatenated polynomials (4 polynomials produced from other constraint polynomials by concatenation)
-    compute_concatenated_polynomials<Flavor>(&prover_polynomials);
+    compute_concatenated_polynomials<Flavor>(prover_polynomials);
 
     // Compute the grand product polynomial
-    compute_grand_product<Flavor, bb::GoblinTranslatorPermutationRelation<FF>>(
-        full_circuit_size, prover_polynomials, params);
+    compute_grand_product<Flavor, bb::GoblinTranslatorPermutationRelation<FF>>(prover_polynomials, params);
     prover_polynomials.z_perm_shift = prover_polynomials.z_perm.shifted();
 
     using Relations = typename Flavor::Relations;

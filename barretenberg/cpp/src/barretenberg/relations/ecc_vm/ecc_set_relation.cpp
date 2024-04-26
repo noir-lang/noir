@@ -34,7 +34,7 @@ namespace bb {
  */
 template <typename FF>
 template <typename Accumulator, typename AllEntities, typename Parameters>
-Accumulator ECCVMSetRelationImpl<FF>::compute_permutation_numerator(const AllEntities& in, const Parameters& params)
+Accumulator ECCVMSetRelationImpl<FF>::compute_grand_product_numerator(const AllEntities& in, const Parameters& params)
 {
     using View = typename Accumulator::View;
 
@@ -227,7 +227,7 @@ Accumulator ECCVMSetRelationImpl<FF>::compute_permutation_numerator(const AllEnt
 
 template <typename FF>
 template <typename Accumulator, typename AllEntities, typename Parameters>
-Accumulator ECCVMSetRelationImpl<FF>::compute_permutation_denominator(const AllEntities& in, const Parameters& params)
+Accumulator ECCVMSetRelationImpl<FF>::compute_grand_product_denominator(const AllEntities& in, const Parameters& params)
 {
     using View = typename Accumulator::View;
 
@@ -244,7 +244,7 @@ Accumulator ECCVMSetRelationImpl<FF>::compute_permutation_denominator(const AllE
     /**
      * @brief First term: tuple of (pc, round, wnaf_slice), used to determine which points we extract from lookup tables
      * when evaluaing MSMs in ECCVMMsmRelation.
-     * These values must be equivalent to the values computed in the 1st term of `compute_permutation_numerator`
+     * These values must be equivalent to the values computed in the 1st term of `compute_grand_product_numerator`
      */
     Accumulator denominator(1); // degree-0
     {
@@ -283,7 +283,7 @@ Accumulator ECCVMSetRelationImpl<FF>::compute_permutation_denominator(const AllE
      * @brief Second term: tuple of (transcript_pc, transcript_Px, transcript_Py, z1) OR (transcript_pc, \lambda *
      * transcript_Px, -transcript_Py, z2) for each scalar multiplication in ECCVMTranscriptRelation columns. (the latter
      * term uses the curve endomorphism: \lambda = cube root of unity). These values must be equivalent to the second
-     * term values in `compute_permutation_numerator`
+     * term values in `compute_grand_product_numerator`
      */
     {
         const auto& transcript_pc = View(in.transcript_pc);
@@ -373,10 +373,10 @@ void ECCVMSetRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
     using View = typename Accumulator::View;
 
     // degree-11
-    Accumulator numerator_evaluation = compute_permutation_numerator<Accumulator>(in, params);
+    Accumulator numerator_evaluation = compute_grand_product_numerator<Accumulator>(in, params);
 
     // degree-17
-    Accumulator denominator_evaluation = compute_permutation_denominator<Accumulator>(in, params);
+    Accumulator denominator_evaluation = compute_grand_product_denominator<Accumulator>(in, params);
 
     const auto& lagrange_first = View(in.lagrange_first);
     const auto& lagrange_last = View(in.lagrange_last);

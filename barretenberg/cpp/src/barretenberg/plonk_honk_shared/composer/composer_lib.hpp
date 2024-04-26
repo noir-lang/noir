@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/ref_array.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/polynomials/polynomial_store.hpp"
 
@@ -7,15 +8,11 @@
 namespace bb {
 
 template <typename Flavor>
-std::array<typename Flavor::Polynomial, 4> construct_lookup_table_polynomials(
-    const typename Flavor::CircuitBuilder& circuit, size_t dyadic_circuit_size, size_t additional_offset = 0)
+void construct_lookup_table_polynomials(RefArray<typename Flavor::Polynomial, 4> table_polynomials,
+                                        const typename Flavor::CircuitBuilder& circuit,
+                                        size_t dyadic_circuit_size,
+                                        size_t additional_offset = 0)
 {
-    using Polynomial = typename Flavor::Polynomial;
-    std::array<Polynomial, 4> table_polynomials;
-    for (auto& poly : table_polynomials) {
-        poly = Polynomial(dyadic_circuit_size);
-    }
-
     // Create lookup selector polynomials which interpolate each table column.
     // Our selector polys always need to interpolate the full subgroup size, so here we offset so as to
     // put the table column's values at the end. (The first gates are for non-lookup constraints).
@@ -23,6 +20,7 @@ std::array<typename Flavor::Polynomial, 4> construct_lookup_table_polynomials(
     //  ^^^^^^^^^  ^^^^^^^^  ^^^^^^^  ^nonzero to ensure uniqueness and to avoid infinity commitments
     //  |          table     randomness
     //  ignored, as used for regular constraints and padding to the next power of 2.
+    ASSERT(dyadic_circuit_size > circuit.get_tables_size() + additional_offset);
     size_t offset = dyadic_circuit_size - circuit.get_tables_size() - additional_offset;
 
     for (const auto& table : circuit.lookup_tables) {
@@ -36,7 +34,6 @@ std::array<typename Flavor::Polynomial, 4> construct_lookup_table_polynomials(
             ++offset;
         }
     }
-    return table_polynomials;
 }
 
 /**

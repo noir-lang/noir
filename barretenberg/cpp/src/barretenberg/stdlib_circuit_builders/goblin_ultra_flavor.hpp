@@ -240,6 +240,10 @@ class GoblinUltraFlavor {
         DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
         auto get_wires() { return RefArray{ this->w_l, this->w_r, this->w_o, this->w_4 }; };
+        auto get_selectors() { return PrecomputedEntities<DataType>::get_selectors(); }
+        auto get_sigmas() { return RefArray{ this->sigma_1, this->sigma_2, this->sigma_3, this->sigma_4 }; };
+        auto get_ids() { return RefArray{ this->id_1, this->id_2, this->id_3, this->id_4 }; };
+        auto get_tables() { return RefArray{ this->table_1, this->table_2, this->table_3, this->table_4 }; };
         auto get_ecc_op_wires()
         {
             return RefArray{ this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
@@ -261,27 +265,70 @@ class GoblinUltraFlavor {
     };
 
     /**
-     * @brief The proving key is responsible for storing the polynomials used by the prover.
-     * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve inherit
-     * from ProvingKey.
+     * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
+     * at one point.
      */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
+    class AllValues : public AllEntities<FF> {
+      public:
+        using Base = AllEntities<FF>;
+        using Base::Base;
+    };
+
+    /**
+     * @brief A container for the prover polynomials handles.
+     */
+    class ProverPolynomials : public AllEntities<Polynomial> {
+      public:
+        // Define all operations as default, except copy construction/assignment
+        ProverPolynomials() = default;
+        ProverPolynomials(size_t circuit_size)
+        { // Initialize all unshifted polynomials to the zero polynomial and initialize the shifted polys
+            for (auto& poly : get_unshifted()) {
+                poly = Polynomial{ circuit_size };
+            }
+            set_shifted();
+        }
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
+        [[nodiscard]] size_t get_polynomial_size() const { return q_c.size(); }
+        [[nodiscard]] AllValues get_row(size_t row_idx) const
+        {
+            AllValues result;
+            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
+                result_field = polynomial[row_idx];
+            }
+            return result;
+        }
+
+        void set_shifted()
+        {
+            for (auto [shifted, to_be_shifted] : zip_view(get_shifted(), get_to_be_shifted())) {
+                shifted = to_be_shifted.shifted();
+            }
+        }
+    };
+
+    /**
+     * @brief The proving key is responsible for storing the polynomials used by the prover.
+     *
+     */
+    class ProvingKey : public ProvingKey_<FF, CommitmentKey> {
       public:
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
+        using Base = ProvingKey_<FF, CommitmentKey>;
         using Base::Base;
+
+        ProvingKey(const size_t circuit_size, const size_t num_public_inputs)
+            : Base(circuit_size, num_public_inputs)
+            , polynomials(circuit_size){};
 
         std::vector<uint32_t> memory_read_records;
         std::vector<uint32_t> memory_write_records;
         std::array<Polynomial, 4> sorted_polynomials;
-
-        auto get_to_be_shifted()
-        {
-            return RefArray{ this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
-                             this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
-        };
-        // The plookup wires that store plookup read data.
-        auto get_table_column_wires() { return RefArray{ w_l, w_r, w_o }; };
+        ProverPolynomials polynomials; // storage for all polynomials evaluated by the prover
 
         void compute_sorted_accumulator_polynomials(const FF& eta, const FF& eta_two, const FF& eta_three)
         {
@@ -306,7 +353,7 @@ class GoblinUltraFlavor {
         void compute_sorted_list_accumulator(const FF& eta, const FF& eta_two, const FF& eta_three)
         {
 
-            auto sorted_list_accumulator = Polynomial{ this->circuit_size };
+            auto& sorted_list_accumulator = polynomials.sorted_accum;
 
             // Construct s via Horner, i.e. s = s_1 + η(s_2 + η(s_3 + η*s_4))
             for (size_t i = 0; i < this->circuit_size; ++i) {
@@ -316,7 +363,6 @@ class GoblinUltraFlavor {
                 T0 += sorted_polynomials[0][i];
                 sorted_list_accumulator[i] = T0;
             }
-            sorted_accum = sorted_list_accumulator.share();
         }
 
         /**
@@ -333,7 +379,7 @@ class GoblinUltraFlavor {
             // The plookup memory record values are computed at the indicated indices as
             // w4 = w3 * eta^3 + w2 * eta^2 + w1 * eta + read_write_flag;
             // (See plookup_auxiliary_widget.hpp for details)
-            auto wires = get_wires();
+            auto wires = polynomials.get_wires();
 
             // Compute read record values
             for (const auto& gate_idx : memory_read_records) {
@@ -360,17 +406,13 @@ class GoblinUltraFlavor {
          */
         void compute_logderivative_inverse(const RelationParameters<FF>& relation_parameters)
         {
-            auto prover_polynomials = ProverPolynomials(*this);
-
             // Compute inverses for calldata reads
             DatabusLookupRelation<FF>::compute_logderivative_inverse</*bus_idx=*/0>(
-                prover_polynomials, relation_parameters, this->circuit_size);
-            this->calldata_inverses = prover_polynomials.calldata_inverses;
+                this->polynomials, relation_parameters, this->circuit_size);
 
             // Compute inverses for return data reads
             DatabusLookupRelation<FF>::compute_logderivative_inverse</*bus_idx=*/1>(
-                prover_polynomials, relation_parameters, this->circuit_size);
-            this->return_data_inverses = prover_polynomials.return_data_inverses;
+                this->polynomials, relation_parameters, this->circuit_size);
         }
 
         /**
@@ -391,10 +433,7 @@ class GoblinUltraFlavor {
             relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
 
             // Compute permutation and lookup grand product polynomials
-            auto prover_polynomials = ProverPolynomials(*this);
-            compute_grand_products<GoblinUltraFlavor>(*this, prover_polynomials, relation_parameters);
-            this->z_perm = prover_polynomials.z_perm;
-            this->z_lookup = prover_polynomials.z_lookup;
+            compute_grand_products<GoblinUltraFlavor>(this->polynomials, relation_parameters);
         }
     };
 
@@ -423,7 +462,7 @@ class GoblinUltraFlavor {
             this->num_public_inputs = proving_key.num_public_inputs;
             this->pub_inputs_offset = proving_key.pub_inputs_offset;
 
-            for (auto [polynomial, commitment] : zip_view(proving_key.get_precomputed_polynomials(), this->get_all())) {
+            for (auto [polynomial, commitment] : zip_view(proving_key.polynomials.get_precomputed(), this->get_all())) {
                 commitment = proving_key.commitment_key->commit(polynomial);
             }
         }
@@ -557,51 +596,6 @@ class GoblinUltraFlavor {
      * @brief A container for univariates produced during the hot loop in sumcheck.
      */
     using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
-
-    /**
-     * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
-     * at one point.
-     */
-    class AllValues : public AllEntities<FF> {
-      public:
-        using Base = AllEntities<FF>;
-        using Base::Base;
-    };
-
-    /**
-     * @brief A container for the prover polynomials handles.
-     */
-    class ProverPolynomials : public AllEntities<Polynomial> {
-      public:
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/925), proving_key could be const ref
-        ProverPolynomials(ProvingKey& proving_key)
-        {
-            for (auto [prover_poly, key_poly] : zip_view(this->get_unshifted(), proving_key.get_all())) {
-                ASSERT(flavor_get_label(*this, prover_poly) == flavor_get_label(proving_key, key_poly));
-                prover_poly = key_poly.share();
-            }
-            for (auto [prover_poly, key_poly] : zip_view(this->get_shifted(), proving_key.get_to_be_shifted())) {
-                ASSERT(flavor_get_label(*this, prover_poly) == (flavor_get_label(proving_key, key_poly) + "_shift"));
-                prover_poly = key_poly.shifted();
-            }
-        }
-        // Define all operations as default, except copy construction/assignment
-        ProverPolynomials() = default;
-        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
-        ProverPolynomials(const ProverPolynomials& o) = delete;
-        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
-        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
-        ~ProverPolynomials() = default;
-        [[nodiscard]] size_t get_polynomial_size() const { return q_c.size(); }
-        [[nodiscard]] AllValues get_row(size_t row_idx) const
-        {
-            AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
-                result_field = polynomial[row_idx];
-            }
-            return result;
-        }
-    };
 
     /**
      * @brief A container for the witness commitments.

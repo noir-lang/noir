@@ -17,7 +17,7 @@ TEST(Flavor, Getters)
 
     // set
     size_t coset_idx = 0;
-    for (auto& id_poly : proving_key.get_id_polynomials()) {
+    for (auto& id_poly : proving_key.polynomials.get_ids()) {
         typename Flavor::Polynomial new_poly(proving_key.circuit_size);
         for (size_t i = 0; i < proving_key.circuit_size; ++i) {
             id_poly[i] = coset_idx * proving_key.circuit_size + i;
@@ -26,9 +26,9 @@ TEST(Flavor, Getters)
     }
 
     // Polynomials in the proving key can be set through loops over subsets produced by the getters
-    EXPECT_EQ(proving_key.id_1[0], FF(0));
-    EXPECT_EQ(proving_key.id_2[0], FF(4));
-    EXPECT_EQ(proving_key.id_3[0], FF(8));
+    EXPECT_EQ(proving_key.polynomials.id_1[0], FF(0));
+    EXPECT_EQ(proving_key.polynomials.id_2[0], FF(4));
+    EXPECT_EQ(proving_key.polynomials.id_3[0], FF(8));
 
     Flavor::ProverPolynomials prover_polynomials;
     Flavor::CommitmentLabels commitment_labels;

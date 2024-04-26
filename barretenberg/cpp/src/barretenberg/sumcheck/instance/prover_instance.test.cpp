@@ -66,7 +66,7 @@ template <class Flavor> class InstanceTests : public testing::Test {
 
         // Method 1: computed sorted list accumulator polynomial using prover library method
         instance.proving_key.compute_sorted_list_accumulator(eta, eta_two, eta_three);
-        auto sorted_list_accumulator = instance.proving_key.sorted_accum;
+        auto sorted_list_accumulator = instance.proving_key.polynomials.sorted_accum;
 
         // Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4
         Polynomial sorted_list_accumulator_expected{ sorted_list_polynomials[0] };

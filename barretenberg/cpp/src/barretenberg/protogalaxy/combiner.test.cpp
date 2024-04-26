@@ -44,8 +44,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
                 auto prover_polynomials = get_sequential_prover_polynomials<Flavor>(
                     /*log_circuit_size=*/1, idx * 128);
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
-                instance->prover_polynomials = std::move(prover_polynomials);
-                instance->proving_key = Flavor::ProvingKey();
+                instance->proving_key.polynomials = std::move(prover_polynomials);
                 instance->proving_key.circuit_size = 2;
                 instance_data[idx] = instance;
             }
@@ -78,8 +77,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
                 auto prover_polynomials = get_zero_prover_polynomials<Flavor>(
                     /*log_circuit_size=*/1);
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
-                instance->prover_polynomials = std::move(prover_polynomials);
-                instance->proving_key = Flavor::ProvingKey();
+                instance->proving_key.polynomials = std::move(prover_polynomials);
                 instance->proving_key.circuit_size = 2;
                 instance_data[idx] = instance;
             }
@@ -104,13 +102,13 @@ TEST(Protogalaxy, CombinerOn2Instances)
                 polys.q_o[idx] = -1;
             };
 
-            create_add_gate(instances[0]->prover_polynomials, 0, 1, 2);
-            create_add_gate(instances[0]->prover_polynomials, 1, 0, 4);
-            create_add_gate(instances[1]->prover_polynomials, 0, 3, 4);
-            create_mul_gate(instances[1]->prover_polynomials, 1, 1, 4);
+            create_add_gate(instances[0]->proving_key.polynomials, 0, 1, 2);
+            create_add_gate(instances[0]->proving_key.polynomials, 1, 0, 4);
+            create_add_gate(instances[1]->proving_key.polynomials, 0, 3, 4);
+            create_mul_gate(instances[1]->proving_key.polynomials, 1, 1, 4);
 
-            restrict_to_standard_arithmetic_relation(instances[0]->prover_polynomials);
-            restrict_to_standard_arithmetic_relation(instances[1]->prover_polynomials);
+            restrict_to_standard_arithmetic_relation(instances[0]->proving_key.polynomials);
+            restrict_to_standard_arithmetic_relation(instances[1]->proving_key.polynomials);
 
             /* Instance 0                                    Instance 1
                 w_l w_r w_o q_m q_l q_r q_o q_c               w_l w_r w_o q_m q_l q_r q_o q_c
@@ -169,8 +167,7 @@ TEST(Protogalaxy, CombinerOn4Instances)
             auto instance = std::make_shared<ProverInstance>();
             auto prover_polynomials = get_zero_prover_polynomials<Flavor>(
                 /*log_circuit_size=*/1);
-            instance->prover_polynomials = std::move(prover_polynomials);
-            instance->proving_key = Flavor::ProvingKey();
+            instance->proving_key.polynomials = std::move(prover_polynomials);
             instance->proving_key.circuit_size = 2;
             instance_data[idx] = instance;
         }
@@ -178,10 +175,10 @@ TEST(Protogalaxy, CombinerOn4Instances)
         ProverInstances instances{ instance_data };
         instances.alphas.fill(bb::Univariate<FF, 40>(FF(0))); // focus on the arithmetic relation only
 
-        zero_all_selectors(instances[0]->prover_polynomials);
-        zero_all_selectors(instances[1]->prover_polynomials);
-        zero_all_selectors(instances[2]->prover_polynomials);
-        zero_all_selectors(instances[3]->prover_polynomials);
+        zero_all_selectors(instances[0]->proving_key.polynomials);
+        zero_all_selectors(instances[1]->proving_key.polynomials);
+        zero_all_selectors(instances[2]->proving_key.polynomials);
+        zero_all_selectors(instances[3]->proving_key.polynomials);
 
         auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
         auto result = prover.compute_combiner(instances, pow_polynomial);

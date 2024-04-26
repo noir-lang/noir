@@ -31,7 +31,6 @@ template <class Flavor> class ProverInstance_ {
 
   public:
     ProvingKey proving_key;
-    ProverPolynomials prover_polynomials;
 
     RelationSeparator alphas;
     bb::RelationParameters<FF> relation_parameters;
@@ -67,7 +66,7 @@ template <class Flavor> class ProverInstance_ {
             dyadic_circuit_size = compute_dyadic_size(circuit);
         }
 
-        proving_key = std::move(ProvingKey(dyadic_circuit_size, circuit.public_inputs.size()));
+        proving_key = ProvingKey(dyadic_circuit_size, circuit.public_inputs.size());
 
         // Construct and add to proving key the wire, selector and copy constraint polynomials
         Trace::populate(circuit, proving_key, is_structured);
@@ -78,16 +77,14 @@ template <class Flavor> class ProverInstance_ {
         }
 
         // First and last lagrange polynomials (in the full circuit size)
-        const auto [lagrange_first, lagrange_last] =
-            compute_first_and_last_lagrange_polynomials<FF>(dyadic_circuit_size);
-        proving_key.lagrange_first = lagrange_first;
-        proving_key.lagrange_last = lagrange_last;
+        proving_key.polynomials.lagrange_first[0] = 1;
+        proving_key.polynomials.lagrange_last[dyadic_circuit_size - 1] = 1;
 
-        construct_table_polynomials(circuit, dyadic_circuit_size);
+        construct_lookup_table_polynomials<Flavor>(proving_key.polynomials.get_tables(), circuit, dyadic_circuit_size);
 
         proving_key.sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
 
-        std::span<FF> public_wires_source = proving_key.w_r;
+        std::span<FF> public_wires_source = proving_key.polynomials.w_r;
 
         // Construct the public inputs array
         for (size_t i = 0; i < proving_key.num_public_inputs; ++i) {
@@ -98,9 +95,6 @@ template <class Flavor> class ProverInstance_ {
 
     ProverInstance_() = default;
     ~ProverInstance_() = default;
-
-    void compute_databus_id()
-        requires IsGoblinFlavor<Flavor>;
 
   private:
     static constexpr size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
@@ -122,8 +116,6 @@ template <class Flavor> class ProverInstance_ {
 
     void construct_databus_polynomials(Circuit&)
         requires IsGoblinFlavor<Flavor>;
-
-    void construct_table_polynomials(Circuit&, size_t);
 };
 
 } // namespace bb

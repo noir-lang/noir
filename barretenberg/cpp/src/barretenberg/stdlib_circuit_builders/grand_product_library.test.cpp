@@ -47,33 +47,15 @@ template <class FF> class GrandProductTests : public testing::Test {
      */
     template <typename Flavor> static void test_permutation_grand_product_construction()
     {
-        // Define some mock inputs for proving key constructor
-        static const size_t num_gates = 8;
-        static const size_t num_public_inputs = 0;
+        using ProverPolynomials = typename Flavor::ProverPolynomials;
 
-        // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
-        auto proving_key = std::make_shared<typename Flavor::ProvingKey>(num_gates, num_public_inputs);
+        // Set a mock circuit size
+        static const size_t circuit_size = 8;
 
-        // static const size_t program_width = StandardProver::settings_::program_width;
-
-        // Construct mock wire and permutation polynomials.
-        // Note: for the purpose of checking the consistency between two methods of computing z_perm, these polynomials
-        // can simply be random. We're not interested in the particular properties of the result.
-        std::vector<Polynomial> wires;
-        std::vector<Polynomial> sigmas;
-        std::vector<Polynomial> ids;
-
-        auto wire_polynomials = proving_key->get_wires();
-        auto sigma_polynomials = proving_key->get_sigma_polynomials();
-        auto id_polynomials = proving_key->get_id_polynomials();
-        for (size_t i = 0; i < Flavor::NUM_WIRES; ++i) {
-            wires.emplace_back(get_random_polynomial(num_gates));
-            sigmas.emplace_back(get_random_polynomial(num_gates));
-            ids.emplace_back(get_random_polynomial(num_gates));
-
-            populate_span(wire_polynomials[i], wires[i]);
-            populate_span(sigma_polynomials[i], sigmas[i]);
-            populate_span(id_polynomials[i], ids[i]);
+        // Construct a ProverPolynomials object with completely random polynomials
+        ProverPolynomials prover_polynomials;
+        for (auto& poly : prover_polynomials.get_all()) {
+            poly = get_random_polynomial(circuit_size);
         }
 
         // Get random challenges
@@ -88,12 +70,6 @@ template <class FF> class GrandProductTests : public testing::Test {
             .lookup_grand_product_delta = 1,
         };
 
-        typename Flavor::ProverPolynomials prover_polynomials;
-        for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), proving_key->get_all())) {
-            ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*proving_key, key_poly));
-            prover_poly = key_poly.share();
-        }
-
         // Method 1: Compute z_perm using 'compute_grand_product_polynomial' as the prover would in practice
         constexpr size_t PERMUTATION_RELATION_INDEX = 0;
         using LHS =
@@ -101,7 +77,7 @@ template <class FF> class GrandProductTests : public testing::Test {
         ASSERT(Flavor::NUM_WIRES == 4);
         using RHS = typename bb::UltraPermutationRelation<FF>;
         static_assert(std::same_as<LHS, RHS>);
-        compute_grand_product<Flavor, RHS>(proving_key->circuit_size, prover_polynomials, params);
+        compute_grand_product<Flavor, RHS>(prover_polynomials, params);
 
         // Method 2: Compute z_perm locally using the simplest non-optimized syntax possible. The comment below,
         // which describes the computation in 4 steps, is adapted from a similar comment in
@@ -129,11 +105,14 @@ template <class FF> class GrandProductTests : public testing::Test {
          */
 
         // Make scratch space for the numerator and denominator accumulators.
-        std::array<std::array<FF, num_gates>, Flavor::NUM_WIRES> numerator_accum;
-        std::array<std::array<FF, num_gates>, Flavor::NUM_WIRES> denominator_accum;
+        std::array<std::array<FF, circuit_size>, Flavor::NUM_WIRES> numerator_accum;
+        std::array<std::array<FF, circuit_size>, Flavor::NUM_WIRES> denominator_accum;
 
+        auto wires = prover_polynomials.get_wires();
+        auto sigmas = prover_polynomials.get_sigmas();
+        auto ids = prover_polynomials.get_ids();
         // Step (1)
-        for (size_t i = 0; i < proving_key->circuit_size; ++i) {
+        for (size_t i = 0; i < circuit_size; ++i) {
             for (size_t k = 0; k < Flavor::NUM_WIRES; ++k) {
                 numerator_accum[k][i] = wires[k][i] + (ids[k][i] * beta) + gamma;      // w_k(i) + β.id_k(i) + γ
                 denominator_accum[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
@@ -142,14 +121,14 @@ template <class FF> class GrandProductTests : public testing::Test {
 
         // Step (2)
         for (size_t k = 0; k < Flavor::NUM_WIRES; ++k) {
-            for (size_t i = 0; i < proving_key->circuit_size - 1; ++i) {
+            for (size_t i = 0; i < circuit_size - 1; ++i) {
                 numerator_accum[k][i + 1] *= numerator_accum[k][i];
                 denominator_accum[k][i + 1] *= denominator_accum[k][i];
             }
         }
 
         // Step (3)
-        for (size_t i = 0; i < proving_key->circuit_size; ++i) {
+        for (size_t i = 0; i < circuit_size; ++i) {
             for (size_t k = 1; k < Flavor::NUM_WIRES; ++k) {
                 numerator_accum[0][i] *= numerator_accum[k][i];
                 denominator_accum[0][i] *= denominator_accum[k][i];
@@ -157,15 +136,15 @@ template <class FF> class GrandProductTests : public testing::Test {
         }
 
         // Step (4)
-        Polynomial z_permutation_expected(proving_key->circuit_size);
+        Polynomial z_permutation_expected(circuit_size);
         z_permutation_expected[0] = FF::zero(); // Z_0 = 1
         // Note: in practice, we replace this expensive element-wise division with Montgomery batch inversion
-        for (size_t i = 0; i < proving_key->circuit_size - 1; ++i) {
+        for (size_t i = 0; i < circuit_size - 1; ++i) {
             z_permutation_expected[i + 1] = numerator_accum[0][i] / denominator_accum[0][i];
         }
 
         // Check consistency between locally computed z_perm and the one computed by the prover library
-        EXPECT_EQ(proving_key->z_perm, z_permutation_expected);
+        EXPECT_EQ(prover_polynomials.z_perm, z_permutation_expected);
     };
 
     /**
@@ -178,51 +157,19 @@ template <class FF> class GrandProductTests : public testing::Test {
      */
     static void test_lookup_grand_product_construction()
     {
-        // Define some mock inputs for proving key constructor
-        static const size_t circuit_size = 8;
-        static const size_t num_public_inputs = 0;
-
-        // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
         using Flavor = UltraFlavor;
-        auto proving_key = std::make_shared<typename Flavor::ProvingKey>(circuit_size, num_public_inputs);
+        using ProverPolynomials = typename Flavor::ProverPolynomials;
 
-        // Construct mock wire and permutation polynomials.
-        // Note: for the purpose of checking the consistency between two methods of computing z_lookup, these
-        // polynomials can simply be random. We're not interested in the particular properties of the result.
-        std::vector<Polynomial> wires;
-        auto wire_polynomials = proving_key->get_wires();
-        // Note(luke): Use of 3 wires is fundamental to the structure of the tables and should not be tied to NUM_WIRES
-        // for now
-        for (size_t i = 0; i < 3; ++i) { // TODO(Cody): will this test ever generalize?
-            Polynomial random_polynomial = get_random_polynomial(circuit_size);
-            random_polynomial[0] = 0; // when computing shifts, 1st element needs to be 0
-            wires.emplace_back(random_polynomial);
-            populate_span(wire_polynomials[i], random_polynomial);
+        // Set a mock circuit size
+        static const size_t circuit_size = 8;
+
+        // Construct a ProverPolynomials object with completely random polynomials
+        ProverPolynomials prover_polynomials;
+        for (auto& poly : prover_polynomials.get_unshifted()) {
+            poly = get_random_polynomial(circuit_size);
+            poly[0] = 0; // for shiftability
         }
-
-        std::vector<Polynomial> tables;
-        auto table_polynomials = proving_key->get_table_polynomials();
-        for (auto& table_polynomial : table_polynomials) {
-            Polynomial random_polynomial = get_random_polynomial(circuit_size);
-            random_polynomial[0] = 0; // when computing shifts, 1st element needs to be 0
-            tables.emplace_back(random_polynomial);
-            populate_span(table_polynomial, random_polynomial);
-        }
-
-        auto sorted_batched = get_random_polynomial(circuit_size);
-        sorted_batched[0] = 0; // when computing shifts, 1st element needs to be 0
-        auto column_1_step_size = get_random_polynomial(circuit_size);
-        auto column_2_step_size = get_random_polynomial(circuit_size);
-        auto column_3_step_size = get_random_polynomial(circuit_size);
-        auto lookup_index_selector = get_random_polynomial(circuit_size);
-        auto lookup_selector = get_random_polynomial(circuit_size);
-
-        proving_key->sorted_accum = sorted_batched.share();
-        populate_span(proving_key->q_r, column_1_step_size);
-        populate_span(proving_key->q_m, column_2_step_size);
-        populate_span(proving_key->q_c, column_3_step_size);
-        populate_span(proving_key->q_o, lookup_index_selector);
-        populate_span(proving_key->q_lookup, lookup_selector);
+        prover_polynomials.set_shifted();
 
         // Get random challenges
         auto beta = FF::random_element();
@@ -241,28 +188,12 @@ template <class FF> class GrandProductTests : public testing::Test {
             .lookup_grand_product_delta = 1,
         };
 
-        typename Flavor::ProverPolynomials prover_polynomials;
-        for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), proving_key->get_all())) {
-            ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*proving_key, key_poly));
-            prover_poly = key_poly.share();
-        }
-        for (auto [prover_poly, key_poly] :
-             zip_view(prover_polynomials.get_shifted(), proving_key->get_to_be_shifted())) {
-            ASSERT(flavor_get_label(prover_polynomials, prover_poly) ==
-                   flavor_get_label(*proving_key, key_poly) + "_shift");
-            prover_poly = key_poly.shifted();
-        }
-        // Test a few assignments
-        EXPECT_EQ(&proving_key->z_lookup[0], &prover_polynomials.z_lookup[0]);
-        EXPECT_EQ(&proving_key->sigma_1[0], &prover_polynomials.sigma_1[0]);
-        EXPECT_EQ(&proving_key->lagrange_last[0], &prover_polynomials.lagrange_last[0]);
-
         // Method 1: Compute z_lookup using the prover library method
         constexpr size_t LOOKUP_RELATION_INDEX = 1;
         using LHS = typename std::tuple_element<LOOKUP_RELATION_INDEX, typename Flavor::GrandProductRelations>::type;
         using RHS = LookupRelation<FF>;
         static_assert(std::same_as<LHS, RHS>);
-        compute_grand_product<Flavor, RHS>(proving_key->circuit_size, prover_polynomials, params);
+        compute_grand_product<Flavor, RHS>(prover_polynomials, params);
 
         // Method 2: Compute the lookup grand product polynomial Z_lookup:
         //
@@ -278,6 +209,15 @@ template <class FF> class GrandProductTests : public testing::Test {
         }
 
         // Step (1)
+
+        auto wires = prover_polynomials.get_wires();
+        auto tables = prover_polynomials.get_tables();
+        auto sorted_batched = prover_polynomials.sorted_accum;
+        auto column_1_step_size = prover_polynomials.q_r;
+        auto column_2_step_size = prover_polynomials.q_m;
+        auto column_3_step_size = prover_polynomials.q_c;
+        auto lookup_index_selector = prover_polynomials.q_o;
+        auto lookup_selector = prover_polynomials.q_lookup;
 
         // Note: block_mask is used for efficient modulus, i.e. i % N := i & (N-1), for N = 2^k
         const size_t block_mask = circuit_size - 1;
@@ -332,7 +272,7 @@ template <class FF> class GrandProductTests : public testing::Test {
             z_lookup_expected[i + 1] = accumulators[0][i] / accumulators[3][i];
         }
 
-        EXPECT_EQ(proving_key->z_lookup, z_lookup_expected);
+        EXPECT_EQ(prover_polynomials.z_lookup, z_lookup_expected);
     };
 };
 

@@ -71,17 +71,17 @@ TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
     auto instance = std::make_shared<ProverInstance>(circuit_builder);
     UltraProver prover(instance);
     auto proof = prover.construct_proof();
-    auto& proving_key = instance->proving_key;
+    auto& polynomials = instance->proving_key.polynomials;
 
-    for (auto& poly : proving_key.get_selectors()) {
+    for (auto& poly : polynomials.get_selectors()) {
         ensure_non_zero(poly);
     }
 
-    for (auto& poly : proving_key.get_table_polynomials()) {
+    for (auto& poly : polynomials.get_tables()) {
         ensure_non_zero(poly);
     }
 
-    for (auto& poly : proving_key.get_wires()) {
+    for (auto& poly : polynomials.get_wires()) {
         ensure_non_zero(poly);
     }
 }
@@ -207,15 +207,8 @@ TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
             expected_scalar >>= table_bits;
         }
     }
-    auto instance = std::make_shared<ProverInstance>(circuit_builder);
-    UltraProver prover(instance);
-    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
-    UltraVerifier verifier(verification_key);
-    auto proof = prover.construct_proof();
 
-    bool result = verifier.verify_proof(proof);
-
-    EXPECT_EQ(result, true);
+    prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
 TEST_F(UltraHonkComposerTests, test_no_lookup_proof)

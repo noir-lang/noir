@@ -242,7 +242,18 @@ void UltraComposer::add_table_column_selector_poly_to_proving_key(polynomial& se
 void UltraComposer::construct_table_polynomials(CircuitBuilder& circuit, size_t subgroup_size)
 {
     size_t additional_offset = s_randomness + 1;
-    auto table_polynomials = construct_lookup_table_polynomials<Flavor>(circuit, subgroup_size, additional_offset);
+
+    using Polynomial = typename Flavor::Polynomial;
+    std::array<Polynomial, 4> table_polynomials;
+    for (auto& poly : table_polynomials) {
+        poly = Polynomial(subgroup_size);
+    }
+
+    construct_lookup_table_polynomials<Flavor>(
+        { table_polynomials[0], table_polynomials[1], table_polynomials[2], table_polynomials[3] },
+        circuit,
+        subgroup_size,
+        additional_offset);
 
     // // In the case of using UltraPlonkComposer for a circuit which does _not_ make use of any lookup tables, all four
     // // table columns would be all zeros. This would result in these polys' commitments all being the point at

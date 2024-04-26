@@ -40,8 +40,8 @@ template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_ch
  * */
 template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_zeromorph_rounds()
 {
-    ZeroMorph::prove(accumulator->prover_polynomials.get_unshifted(),
-                     accumulator->prover_polynomials.get_to_be_shifted(),
+    ZeroMorph::prove(accumulator->proving_key.polynomials.get_unshifted(),
+                     accumulator->proving_key.polynomials.get_to_be_shifted(),
                      sumcheck_output.claimed_evaluations.get_unshifted(),
                      sumcheck_output.claimed_evaluations.get_shifted(),
                      sumcheck_output.challenge,

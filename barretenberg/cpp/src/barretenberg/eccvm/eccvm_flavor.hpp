@@ -234,32 +234,32 @@ class ECCVMFlavor {
     static auto get_to_be_shifted(PrecomputedAndWitnessEntitiesSuperset& entities)
     {
         // NOTE: must match order of ShiftedEntities above!
-        return RefArray{ entities.transcript_mul,
-                         entities.transcript_msm_count,
-                         entities.transcript_accumulator_x,
-                         entities.transcript_accumulator_y,
-                         entities.precompute_scalar_sum,
-                         entities.precompute_s1hi,
-                         entities.precompute_dx,
-                         entities.precompute_dy,
-                         entities.precompute_tx,
-                         entities.precompute_ty,
-                         entities.msm_transition,
-                         entities.msm_add,
-                         entities.msm_double,
-                         entities.msm_skew,
-                         entities.msm_accumulator_x,
-                         entities.msm_accumulator_y,
-                         entities.msm_count,
-                         entities.msm_round,
-                         entities.msm_add1,
-                         entities.msm_pc,
-                         entities.precompute_pc,
-                         entities.transcript_pc,
-                         entities.precompute_round,
-                         entities.transcript_accumulator_empty,
-                         entities.precompute_select,
-                         entities.z_perm };
+        return RefArray{ entities.transcript_mul,               // column 0
+                         entities.transcript_msm_count,         // column 1
+                         entities.transcript_accumulator_x,     // column 2
+                         entities.transcript_accumulator_y,     // column 3
+                         entities.precompute_scalar_sum,        // column 4
+                         entities.precompute_s1hi,              // column 5
+                         entities.precompute_dx,                // column 6
+                         entities.precompute_dy,                // column 7
+                         entities.precompute_tx,                // column 8
+                         entities.precompute_ty,                // column 9
+                         entities.msm_transition,               // column 10
+                         entities.msm_add,                      // column 11
+                         entities.msm_double,                   // column 12
+                         entities.msm_skew,                     // column 13
+                         entities.msm_accumulator_x,            // column 14
+                         entities.msm_accumulator_y,            // column 15
+                         entities.msm_count,                    // column 16
+                         entities.msm_round,                    // column 17
+                         entities.msm_add1,                     // column 18
+                         entities.msm_pc,                       // column 19
+                         entities.precompute_pc,                // column 20
+                         entities.transcript_pc,                // column 21
+                         entities.precompute_round,             // column 22
+                         entities.transcript_accumulator_empty, // column 23
+                         entities.precompute_select,            // column 24
+                         entities.z_perm };                     // column 25
     }
     /**
      * @brief A base class labelling all entities (for instance, all of the polynomials used by the prover during
@@ -293,72 +293,10 @@ class ECCVMFlavor {
 
         auto get_to_be_shifted() { return ECCVMFlavor::get_to_be_shifted<DataType>(*this); }
         auto get_shifted() { return ShiftedEntities<DataType>::get_all(); };
+        auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); };
     };
 
   public:
-    /**
-     * @brief The proving key is responsible for storing the polynomials used by the prover.
-     * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve
-     * inherit from ProvingKey.
-     */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
-      public:
-        // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
-        using Base::Base;
-
-        ProvingKey(const CircuitBuilder& builder)
-            : ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>(
-                  builder.get_circuit_subgroup_size(builder.get_num_gates()), 0)
-        {
-            const auto [_lagrange_first, _lagrange_last] =
-                compute_first_and_last_lagrange_polynomials<FF>(circuit_size);
-            lagrange_first = _lagrange_first;
-            lagrange_last = _lagrange_last;
-            {
-                Polynomial _lagrange_second(circuit_size);
-                _lagrange_second[1] = 1;
-                lagrange_second = _lagrange_second.share();
-            }
-        }
-
-        auto get_to_be_shifted() { return ECCVMFlavor::get_to_be_shifted<Polynomial>(*this); }
-        // The plookup wires that store plookup read data.
-        RefArray<Polynomial, 0> get_table_column_wires() { return {}; };
-    };
-
-    /**
-     * @brief The verification key is responsible for storing the the commitments to the precomputed (non-witnessk)
-     * polynomials used by the verifier.
-     *
-     * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to
-     * resolve that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for
-     * portability of our circuits.
-     */
-    class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
-      public:
-        std::vector<FF> public_inputs;
-
-        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
-            : VerificationKey_(circuit_size, num_public_inputs)
-        {}
-
-        VerificationKey(const std::shared_ptr<ProvingKey>& proving_key)
-            : public_inputs(proving_key->public_inputs)
-        {
-            this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>(proving_key->circuit_size);
-            this->circuit_size = proving_key->circuit_size;
-            this->log_circuit_size = numeric::get_msb(this->circuit_size);
-            this->num_public_inputs = proving_key->num_public_inputs;
-            this->pub_inputs_offset = proving_key->pub_inputs_offset;
-
-            for (auto [polynomial, commitment] :
-                 zip_view(proving_key->get_precomputed_polynomials(), this->get_all())) {
-                commitment = proving_key->commitment_key->commit(polynomial);
-            }
-        }
-    };
-
     /**
      * @brief A container for polynomials produced after the first round of sumcheck.
      * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.
@@ -431,6 +369,13 @@ class ECCVMFlavor {
                 result_field = polynomial[row_idx];
             }
             return result;
+        }
+        // Set all shifted polynomials based on their to-be-shifted counterpart
+        void set_shifted()
+        {
+            for (auto [shifted, to_be_shifted] : zip_view(get_shifted(), get_to_be_shifted())) {
+                shifted = to_be_shifted.shifted();
+            }
         }
 
         /**
@@ -513,7 +458,7 @@ class ECCVMFlavor {
          table (reads come from msm_x/y3, msm_x/y4)
          * @return ProverPolynomials
          */
-        ProverPolynomials(CircuitBuilder& builder)
+        ProverPolynomials(const CircuitBuilder& builder)
         {
             const auto msms = builder.get_msms();
             const auto flattened_muls = builder.get_flattened_scalar_muls(msms);
@@ -652,31 +597,57 @@ class ECCVMFlavor {
                     msm_slice4[i] = msm_state[i].add_state[3].slice;
                 }
             });
-            transcript_mul_shift = transcript_mul.shifted();
-            transcript_msm_count_shift = transcript_msm_count.shifted();
-            transcript_accumulator_x_shift = transcript_accumulator_x.shifted();
-            transcript_accumulator_y_shift = transcript_accumulator_y.shifted();
-            precompute_scalar_sum_shift = precompute_scalar_sum.shifted();
-            precompute_s1hi_shift = precompute_s1hi.shifted();
-            precompute_dx_shift = precompute_dx.shifted();
-            precompute_dy_shift = precompute_dy.shifted();
-            precompute_tx_shift = precompute_tx.shifted();
-            precompute_ty_shift = precompute_ty.shifted();
-            msm_transition_shift = msm_transition.shifted();
-            msm_add_shift = msm_add.shifted();
-            msm_double_shift = msm_double.shifted();
-            msm_skew_shift = msm_skew.shifted();
-            msm_accumulator_x_shift = msm_accumulator_x.shifted();
-            msm_accumulator_y_shift = msm_accumulator_y.shifted();
-            msm_count_shift = msm_count.shifted();
-            msm_round_shift = msm_round.shifted();
-            msm_add1_shift = msm_add1.shifted();
-            msm_pc_shift = msm_pc.shifted();
-            precompute_pc_shift = precompute_pc.shifted();
-            transcript_pc_shift = transcript_pc.shifted();
-            precompute_round_shift = precompute_round.shifted();
-            transcript_accumulator_empty_shift = transcript_accumulator_empty.shifted();
-            precompute_select_shift = precompute_select.shifted();
+            this->set_shifted();
+        }
+    };
+
+    /**
+     * @brief The proving key is responsible for storing the polynomials used by the prover.
+     *
+     */
+    class ProvingKey : public ProvingKey_<FF, CommitmentKey> {
+      public:
+        // Expose constructors on the base class
+        using Base = ProvingKey_<FF, CommitmentKey>;
+        using Base::Base;
+
+        ProverPolynomials polynomials; // storage for all polynomials evaluated by the prover
+
+        ProvingKey(const CircuitBuilder& builder)
+            : Base(builder.get_circuit_subgroup_size(builder.get_num_gates()), 0)
+            , polynomials(builder)
+        {}
+    };
+
+    /**
+     * @brief The verification key is responsible for storing the the commitments to the precomputed (non-witnessk)
+     * polynomials used by the verifier.
+     *
+     * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to
+     * resolve that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for
+     * portability of our circuits.
+     */
+    class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
+      public:
+        std::vector<FF> public_inputs;
+
+        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
+            : VerificationKey_(circuit_size, num_public_inputs)
+        {}
+
+        VerificationKey(const std::shared_ptr<ProvingKey>& proving_key)
+            : public_inputs(proving_key->public_inputs)
+        {
+            this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>(proving_key->circuit_size);
+            this->circuit_size = proving_key->circuit_size;
+            this->log_circuit_size = numeric::get_msb(this->circuit_size);
+            this->num_public_inputs = proving_key->num_public_inputs;
+            this->pub_inputs_offset = proving_key->pub_inputs_offset;
+
+            for (auto [polynomial, commitment] :
+                 zip_view(proving_key->polynomials.get_precomputed(), this->get_all())) {
+                commitment = proving_key->commitment_key->commit(polynomial);
+            }
         }
     };
 

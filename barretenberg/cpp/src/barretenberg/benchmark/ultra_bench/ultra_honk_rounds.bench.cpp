@@ -55,7 +55,6 @@ BB_PROFILE static void test_round_inner(State& state, GoblinUltraProver& prover,
     // we need to get the relation_parameters and prover_polynomials from the oink_prover
     prover.instance->proving_key = std::move(oink_prover.proving_key);
     prover.instance->relation_parameters = oink_prover.relation_parameters;
-    prover.instance->prover_polynomials = GoblinUltraFlavor::ProverPolynomials(prover.instance->proving_key);
     time_if_index(RELATION_CHECK, [&] { prover.execute_relation_check_rounds(); });
     time_if_index(ZEROMORPH, [&] { prover.execute_zeromorph_rounds(); });
 }

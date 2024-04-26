@@ -1,5 +1,6 @@
 #include "eccvm_trace_checker.hpp"
 #include "barretenberg/eccvm/eccvm_flavor.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
 
 using namespace bb;
 
@@ -31,7 +32,7 @@ bool ECCVMTraceChecker::check(Builder& builder)
     ProverPolynomials polynomials(builder);
     const size_t num_rows = polynomials.get_polynomial_size();
     compute_logderivative_inverse<Flavor, ECCVMLookupRelation<FF>>(polynomials, params, num_rows);
-    compute_permutation_grand_product<Flavor, ECCVMSetRelation<FF>>(num_rows, polynomials, params);
+    compute_grand_product<Flavor, ECCVMSetRelation<FF>>(polynomials, params);
 
     polynomials.z_perm_shift = Polynomial(polynomials.z_perm.shifted());
 
