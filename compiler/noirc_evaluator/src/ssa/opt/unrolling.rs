@@ -13,7 +13,7 @@
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify cfg pass.
 //! Note also that unrolling is skipped for Brillig runtime and as a result
-//! we do not unroll reference count instructions because they are only used by Brillig bytecode
+//! we remove reference count instructions because they are only used by Brillig bytecode
 use std::collections::HashSet;
 
 use crate::{
