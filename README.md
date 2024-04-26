@@ -1,3 +1,52 @@
+# blocksense.network
+
+## Overview
+
+The [blocksense.network](https://blocksense.network) team is working (as of
+April 2024) towards contributing a PLONKY2 backend to Noir. This backend can be
+used in place of brillig for proving and verifying circuits. We have reached
+the milestone where a fairly non-trivial program can be compiled and proved
+with the new PLONKY2 backend.
+
+In order to check this for yourself follow these steps:
+
+1. Checkout this repo and the `plonky2` branch
+2. Make sure you have `rustup` installed
+3. Select the `nightly` version of Rust as the default one
+  - `rustup default nightly`
+4. Run `cargo test zk_dungeon`
+
+If the test passes then you just confirmed that the PLONKY2 backend for Noir
+works for you too!
+
+## Run manually
+
+To run the PLONKY2 backend manually, pass the
+`--use-plonky2-backend-experimental` flag to `nargo prove` when using it to
+construct proofs for ZK circuits written in Noir.
+
+## More details
+
+To have a look at the ZK program that is the subject of the test look at the
+directory `test_programs/plonky2_prove_success/zk_dungeon` and in particular at
+`src/dungeon.nr`. This program is a solution to the second part of the
+"Discovering Noir" campaign at https://nodeguardians.io/. The task is to verify
+that the prover knows an eight-step path of a knight on a chess board that
+starts from a given location, reaches another location, and avoids being
+attacked by a set of opposing bishops.
+
+Another proof-of-concept feature is the fact that the sha256 hashing algorithm
+is implemented by the PLONKY2 backend as an intrinsic function, as demonstrated
+by the `test_programs/plonky2_prove_success/sha256` test (as well as the
+`test_programs/plonky2_prove_failure/sha256` test).
+
+The next steps for this project are to add verification, more intrinsics,
+better debugging capabilities and more. Investigating the potential support for
+recursion is particularly interesting.
+
+| Original README follows. |
+|--------------------------|
+
 <div align="center">
   <picture>
     <img src="./noir-logo.png" alt="The Noir Programming Language" width="35%">
@@ -6,12 +55,7 @@
 [Website][Noir] | [Getting started] | [Documentation] | [Contributing]
 </div>
 
-# Blocksense.network
 
-Blocksense.network intends to contribute a PLONKY2 backend to Noir. It could be used in place of brillig for proving and verifying circuits. Watch this space for more updates.
-
-| Original README follows. |
-|--------------------------|
 
 # The Noir Programming Language
 

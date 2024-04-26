@@ -346,7 +346,7 @@ impl Builder {
             }
         }
         let data = self.builder.build::<P2Config>();
-        println!("stanm: data={:?}", data);
+        // println!("stanm: data={:?}", data);
         Ok(Plonky2Circuit { data, parameters, parameter_names })
     }
 
@@ -386,6 +386,45 @@ impl Builder {
         let target = p2builder_op(&mut self.builder, target_a, target_b);
 
         P2Value::make_integer(type_a, target)
+    }
+
+    fn multi_convert_boolean_op(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        p2builder_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        opname: &str,
+    ) -> Result<P2Value, Plonky2GenError> {
+        let typ = self.get_type(lhs)?;
+        match typ {
+            P2Type::Boolean => self.convert_boolean_op(lhs, rhs, p2builder_op),
+            P2Type::Integer(_) => self.convert_bitwise_logical_op(lhs, rhs, p2builder_op),
+            P2Type::Field => self.convert_bitwise_logical_op(lhs, rhs, p2builder_op),
+            _ => {
+                let feature_name = format!("{:?} instruction on {:?}", opname, typ);
+                return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+            }
+        }
+    }
+
+    fn multi_convert_integer_op(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        normal_op: fn(&mut P2Builder, Target, Target) -> Target,
+        boolean_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        opname: &str,
+    ) -> Result<P2Value, Plonky2GenError> {
+        let typ = self.get_type(lhs)?;
+        match typ {
+            P2Type::Boolean => self.convert_boolean_op(lhs, rhs, boolean_op),
+            P2Type::Integer(_) => self.convert_integer_op(lhs, rhs, normal_op),
+            P2Type::Field => self.convert_integer_op(lhs, rhs, normal_op),
+            _ => {
+                let feature_name = format!("{:?} instruction on {:?}", opname, typ);
+                return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+            }
+        }
     }
 
     /// Converts from ssa::ir::instruction::BinaryOp to the equivalent P2Builder instruction, when
@@ -491,20 +530,13 @@ impl Builder {
         match instruction {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let p2value = match operator {
-                    super::ir::instruction::BinaryOp::Mul => {
-                        let typ = self.get_type(lhs)?;
-                        match typ {
-                            P2Type::Boolean => self.convert_boolean_op(lhs, rhs, P2Builder::and),
-                            P2Type::Integer(_) => self.convert_integer_op(lhs, rhs, P2Builder::mul),
-                            P2Type::Field => self.convert_integer_op(lhs, rhs, P2Builder::mul),
-                            _ => {
-                                let feature_name = format!("Mul instruction on {:?}", typ);
-                                return Err(Plonky2GenError::UnsupportedFeature {
-                                    name: feature_name,
-                                });
-                            }
-                        }
-                    }
+                    super::ir::instruction::BinaryOp::Mul => self.multi_convert_integer_op(
+                        lhs,
+                        rhs,
+                        P2Builder::mul,
+                        P2Builder::and,
+                        "Mul",
+                    ),
 
                     super::ir::instruction::BinaryOp::Div => {
                         self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
@@ -518,9 +550,13 @@ impl Builder {
                         })
                     }
 
-                    super::ir::instruction::BinaryOp::Add => {
-                        self.convert_integer_op(lhs, rhs, P2Builder::add)
-                    }
+                    super::ir::instruction::BinaryOp::Add => self.multi_convert_integer_op(
+                        lhs,
+                        rhs,
+                        P2Builder::add,
+                        P2Builder::or,
+                        "Add",
+                    ),
 
                     super::ir::instruction::BinaryOp::Sub => {
                         self.convert_integer_op(lhs, rhs, P2Builder::sub)
@@ -556,15 +592,16 @@ impl Builder {
                             let d = builder.and(not_lhs, rhs);
                             builder.or(c, d)
                         }
-                        self.convert_bitwise_logical_op(lhs, rhs, one_bit_xor)
+
+                        self.multi_convert_boolean_op(lhs, rhs, one_bit_xor, "Xor")
                     }
 
                     super::ir::instruction::BinaryOp::And => {
-                        self.convert_bitwise_logical_op(lhs, rhs, P2Builder::and)
+                        self.multi_convert_boolean_op(lhs, rhs, P2Builder::and, "And")
                     }
 
                     super::ir::instruction::BinaryOp::Or => {
-                        self.convert_bitwise_logical_op(lhs, rhs, P2Builder::or)
+                        self.multi_convert_boolean_op(lhs, rhs, P2Builder::or, "Or")
                     }
 
                     _ => {
@@ -577,6 +614,26 @@ impl Builder {
                     self.dfg.instruction_results(instruction_id).iter().cloned().collect();
                 assert!(destinations.len() == 1);
                 self.set(destinations[0], p2value?);
+            }
+
+            Instruction::Not(argument) => {
+                let typ = self.get_type(argument)?;
+                match typ {
+                    P2Type::Boolean => {
+                        let target = self.get_boolean(argument)?;
+                        let target = self.builder.not(target);
+                        let p2value = P2Value::make_boolean(target);
+
+                        let destinations: Vec<_> =
+                            self.dfg.instruction_results(instruction_id).iter().cloned().collect();
+                        assert!(destinations.len() == 1);
+                        self.set(destinations[0], p2value);
+                    }
+                    _ => {
+                        let feature_name = format!("Not instruction on {:?}", typ);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                }
             }
 
             Instruction::Constrain(lhs, rhs, _) => {
@@ -848,9 +905,11 @@ impl Builder {
         let target = match p2value_ref.target {
             P2Target::IntTarget(target) => target,
             _ => {
-                return Err(Plonky2GenError::ICE {
-                    message: "argument to get_integer has non-integer target".to_owned(),
-                })
+                let message = format!(
+                    "argument to get_integer has non-integer target {:?}",
+                    p2value_ref.target
+                );
+                return Err(Plonky2GenError::ICE { message });
             }
         };
         Ok((p2value_ref.typ.clone(), target))
