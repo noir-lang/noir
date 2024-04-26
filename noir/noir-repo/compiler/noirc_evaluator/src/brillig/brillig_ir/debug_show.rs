@@ -114,13 +114,8 @@ impl DebugShow {
     }
 
     /// Emits a `trap` instruction.
-    pub(crate) fn trap_instruction(&self, revert_data_offset: usize, revert_data_size: usize) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  TRAP {}..{}",
-            revert_data_offset,
-            revert_data_offset + revert_data_size
-        );
+    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+        debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 
     /// Emits a `mov` instruction.

@@ -311,6 +311,7 @@ describe('External Calls', () => {
 
     it('Should return data and revert from the revert opcode', async () => {
       const returnData = [...'assert message'].flatMap(c => new Field(c.charCodeAt(0)));
+      returnData.unshift(new Field(0n)); // Prepend an error selector
 
       context.machineState.memory.setSlice(0, returnData);
 

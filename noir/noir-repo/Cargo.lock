@@ -3072,6 +3072,7 @@ dependencies = [
  "acvm",
  "iter-extended",
  "noirc_frontend",
+ "noirc_printable_type",
  "num-bigint",
  "num-traits",
  "serde",

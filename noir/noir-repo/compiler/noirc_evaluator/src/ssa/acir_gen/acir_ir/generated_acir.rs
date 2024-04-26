@@ -7,12 +7,11 @@ use crate::{
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
-
 use acvm::acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        OpcodeLocation,
+        AssertionPayload, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -61,7 +60,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload>,
 
     pub(crate) warnings: Vec<SsaReport>,
 
@@ -652,12 +651,12 @@ impl GeneratedAcir {
             );
         }
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
-            self.assert_messages.insert(
+            self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
                     acir_index: self.opcodes.len() - 1,
                     brillig_index: *brillig_index,
                 },
-                message.clone(),
+                AssertionPayload::StaticString(message.clone()),
             );
         }
     }

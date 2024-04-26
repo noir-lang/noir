@@ -6,7 +6,7 @@ use noirc_errors::{
 };
 
 use crate::ast::{BinaryOpKind, Distinctness, IntegerBitSize, Signedness, Visibility};
-use crate::hir_def::function::FunctionSignature;
+use crate::hir_def::{function::FunctionSignature, types::Type as HirType};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -33,7 +33,7 @@ pub enum Expression {
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
     Let(Let),
-    Constrain(Box<Expression>, Location, Option<Box<Expression>>),
+    Constrain(Box<Expression>, Location, Option<Box<(Expression, HirType)>>),
     Assign(Assign),
     Semi(Box<Expression>),
     Break,

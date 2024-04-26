@@ -143,7 +143,7 @@ export class AvmMachineState {
       try {
         // Try to interpret the output as a text string.
         revertReason = new Error(
-          'Reverted with output: ' + String.fromCharCode(...this.output.map(fr => fr.toNumber())),
+          'Reverted with output: ' + String.fromCharCode(...this.output.slice(1).map(fr => fr.toNumber())),
         );
       } catch (e) {
         revertReason = new Error('Reverted with non-string output');

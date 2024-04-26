@@ -7,7 +7,7 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     brillig::Brillig,
@@ -23,10 +23,16 @@ use acvm::acir::{
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
 use noirc_frontend::ast::Visibility;
-use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+use noirc_frontend::{
+    hir_def::{function::FunctionSignature, types::Type as HirType},
+    monomorphization::ast::Program,
+};
 use tracing::{span, Level};
 
-use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
+use self::{
+    acir_gen::{Artifacts, GeneratedAcir},
+    ssa_gen::Ssa,
+};
 
 mod acir_gen;
 pub(super) mod function_builder;
@@ -45,7 +51,7 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
     force_brillig_output: bool,
     print_timings: bool,
-) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
+) -> Result<Artifacts, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
@@ -99,10 +105,14 @@ pub struct SsaProgramArtifact {
     pub main_input_witnesses: Vec<Witness>,
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
+    pub error_types: BTreeMap<u64, HirType>,
 }
 
 impl SsaProgramArtifact {
-    fn new(unconstrained_functions: Vec<BrilligBytecode>) -> Self {
+    fn new(
+        unconstrained_functions: Vec<BrilligBytecode>,
+        error_types: BTreeMap<u64, HirType>,
+    ) -> Self {
         let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
         Self {
             program,
@@ -111,6 +121,7 @@ impl SsaProgramArtifact {
             main_input_witnesses: Vec::default(),
             main_return_witnesses: Vec::default(),
             names: Vec::default(),
+            error_types,
         }
     }
 
@@ -145,7 +156,7 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let (generated_acirs, generated_brillig) = optimize_into_acir(
+    let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(
         program,
         enable_ssa_logging,
         enable_brillig_logging,
@@ -158,7 +169,12 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let mut program_artifact = SsaProgramArtifact::new(generated_brillig);
+    let error_types = error_types
+        .into_iter()
+        .map(|(error_typ_id, error_typ)| (error_typ_id.to_u64(), error_typ))
+        .collect();
+
+    let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
@@ -201,7 +217,7 @@ fn convert_generated_acir_into_circuit(
         return_witnesses,
         locations,
         input_witnesses,
-        assert_messages,
+        assertion_payloads: assert_messages,
         warnings,
         name,
         ..

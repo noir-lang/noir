@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use acir::{
-    brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
+    brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
         opcodes::{BlockId, MemOp},
@@ -107,8 +107,13 @@ fn inversion_brillig_oracle_equivalence() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
+    let mut acvm = ACVM::new(
+        &StubbedBlackBoxSolver,
+        &opcodes,
+        witness_assignments,
+        &unconstrained_functions,
+        &[],
+    );
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
 
@@ -247,8 +252,13 @@ fn double_inversion_brillig_oracle() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
+    let mut acvm = ACVM::new(
+        &StubbedBlackBoxSolver,
+        &opcodes,
+        witness_assignments,
+        &unconstrained_functions,
+        &[],
+    );
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -379,8 +389,13 @@ fn oracle_dependent_execution() {
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
+    let mut acvm = ACVM::new(
+        &StubbedBlackBoxSolver,
+        &opcodes,
+        witness_assignments,
+        &unconstrained_functions,
+        &[],
+    );
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -486,8 +501,13 @@ fn brillig_oracle_predicate() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
+    let mut acvm = ACVM::new(
+        &StubbedBlackBoxSolver,
+        &opcodes,
+        witness_assignments,
+        &unconstrained_functions,
+        &[],
+    );
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
@@ -522,12 +542,14 @@ fn unsatisfied_opcode_resolved() {
 
     let opcodes = vec![Opcode::AssertZero(opcode_a)];
     let unconstrained_functions = vec![];
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions);
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(0)),
+            payload: None
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
     );
@@ -562,7 +584,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     let jmp_if_opcode =
         BrilligOpcode::JumpIf { condition: MemoryAddress::from(2), location: location_of_stop };
 
-    let trap_opcode = BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 };
+    let trap_opcode = BrilligOpcode::Trap { revert_data: HeapArray::default() };
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_bytecode = BrilligBytecode {
@@ -610,12 +632,13 @@ fn unsatisfied_opcode_resolved_brillig() {
         Opcode::AssertZero(opcode_a),
     ];
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions);
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
-            message: None,
+            payload: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
@@ -655,7 +678,7 @@ fn memory_operations() {
     let opcodes = vec![init, read_op, expression];
     let unconstrained_functions = vec![];
     let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions);
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();

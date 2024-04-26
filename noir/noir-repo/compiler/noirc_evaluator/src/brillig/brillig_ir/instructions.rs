@@ -1,6 +1,6 @@
 use acvm::{
     acir::brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapValueType, MemoryAddress,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapValueType, MemoryAddress,
         Opcode as BrilligOpcode, ValueOrArray,
     },
     FieldElement,
@@ -466,10 +466,10 @@ impl BrilligContext {
         });
     }
 
-    pub(super) fn trap_instruction(&mut self, revert_data_offset: usize, revert_data_size: usize) {
-        self.debug_show.trap_instruction(revert_data_offset, revert_data_size);
+    pub(super) fn trap_instruction(&mut self, revert_data: HeapArray) {
+        self.debug_show.trap_instruction(revert_data);
 
-        self.push_opcode(BrilligOpcode::Trap { revert_data_offset, revert_data_size });
+        self.push_opcode(BrilligOpcode::Trap { revert_data });
     }
 }
 

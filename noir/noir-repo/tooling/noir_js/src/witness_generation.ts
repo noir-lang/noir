@@ -26,12 +26,6 @@ const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args:
     //
     // If a user needs to print values then they should provide a custom foreign call handler.
     return [];
-  } else if (name == 'assert_message') {
-    // By default we do not do anything for `assert_message` foreign calls due to a need for formatting,
-    // however we provide an empty response in order to not halt execution.
-    //
-    // If a user needs to use dynamic assertion messages then they should provide a custom foreign call handler.
-    return [];
   }
   throw Error(`Unexpected oracle during execution: ${name}(${args.join(', ')})`);
 };
