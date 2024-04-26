@@ -78,8 +78,15 @@ impl P2Value {
         }
     }
 
-    fn make_integer(bit_size: u32, target: Target) -> P2Value {
-        P2Value { target: P2Target::IntTarget(target), typ: P2Type::Integer(bit_size) }
+    fn make_integer(p2type: P2Type, target: Target) -> Result<P2Value, Plonky2GenError> {
+        match p2type {
+            P2Type::Integer(_) => Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type }),
+            P2Type::Field => Ok(P2Value::make_field(target)),
+            _ => {
+                let message = format!("make_integer called for type {:?}", p2type);
+                Err(Plonky2GenError::ICE { message })
+            }
+        }
     }
 
     fn make_boolean(target: BoolTarget) -> P2Value {
@@ -147,8 +154,8 @@ impl P2Value {
 
     fn clone(&self) -> Result<P2Value, Plonky2GenError> {
         Ok(match self.typ.clone() {
-            P2Type::Integer(bit_size) => {
-                P2Value::make_integer(bit_size, self.get_integer_target()?.clone())
+            P2Type::Integer(_) => {
+                P2Value::make_integer(self.typ.clone(), self.get_integer_target()?.clone())?
             }
             P2Type::Boolean => P2Value::make_boolean(self.get_boolean_target()?.clone()),
             P2Type::Field => P2Value::make_field(self.get_integer_target()?.clone()),
@@ -156,6 +163,9 @@ impl P2Value {
         })
     }
 }
+
+// TODO(stanm): be more precise here.
+const FIELD_BIT_SIZE: u32 = 254;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum P2Type {
@@ -286,14 +296,20 @@ impl Builder {
             match p2value.target.extend_parameter_list(&mut parameters) {
                 Ok(_) => {}
                 Err(error) => {
-                    return Err(error.into_runtime_error(CallStack::new()));
+                    return Err(
+                        error.into_runtime_error("parameter list".to_owned(), CallStack::new())
+                    );
                 }
             }
         }
         for instruction_id in entry_block.instructions() {
             match self.add_instruction(*instruction_id) {
                 Err(error) => {
-                    return Err(error.into_runtime_error(self.dfg.get_call_stack(*instruction_id)))
+                    let instruction = format!("{:?}", self.dfg[*instruction_id].clone());
+                    return Err(error.into_runtime_error(
+                        instruction,
+                        self.dfg.get_call_stack(*instruction_id),
+                    ));
                 }
                 Ok(_) => (),
             }
@@ -329,12 +345,16 @@ impl Builder {
         rhs: ValueId,
         p2builder_op: fn(&mut P2Builder, Target, Target) -> Target,
     ) -> Result<P2Value, Plonky2GenError> {
-        let (bit_size_a, target_a) = self.get_integer(lhs)?;
-        let (bit_size_b, target_b) = self.get_integer(rhs)?;
-        assert!(bit_size_a == bit_size_b);
+        let (type_a, target_a) = self.get_integer(lhs)?;
+        let (type_b, target_b) = self.get_integer(rhs)?;
+        if type_a != type_b {
+            let message = format!("mismatching arg types: {:?} and {:?}", type_a, type_b);
+            return Err(Plonky2GenError::ICE { message });
+        }
 
         let target = p2builder_op(&mut self.builder, target_a, target_b);
-        Ok(P2Value::make_integer(bit_size_a, target))
+
+        P2Value::make_integer(type_a, target)
     }
 
     /// Converts from ssa::ir::instruction::BinaryOp to the equivalent P2Builder instruction, when
@@ -358,10 +378,19 @@ impl Builder {
         rhs: ValueId,
         single_bit_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
     ) -> Result<P2Value, Plonky2GenError> {
-        let (bit_size_a, target_a) = self.get_integer(lhs)?;
-        let (bit_size_b, target_b) = self.get_integer(rhs)?;
-        assert!(bit_size_a == bit_size_b);
-        let bit_size = usize::try_from(bit_size_a).unwrap();
+        let (type_a, target_a) = self.get_integer(lhs)?;
+        let (type_b, target_b) = self.get_integer(rhs)?;
+        assert!(type_a == type_b);
+        let bit_size = usize::try_from(match type_a {
+            P2Type::Integer(bit_size) => bit_size,
+            P2Type::Field => FIELD_BIT_SIZE,
+            _ => {
+                let message =
+                    format!("bitwise logical op invoked on arguments of type {:?}", type_a);
+                return Err(Plonky2GenError::ICE { message });
+            }
+        })
+        .unwrap();
 
         let a_bits = self.builder.split_le(target_a, bit_size);
         let b_bits = self.builder.split_le(target_b, bit_size);
@@ -384,7 +413,7 @@ impl Builder {
 
         let target = self.builder.add_many(result_bits);
 
-        Ok(P2Value::make_integer(bit_size_a, target))
+        P2Value::make_integer(type_a, target)
     }
 
     fn perform_sha256(
@@ -436,6 +465,7 @@ impl Builder {
                         match typ {
                             P2Type::Boolean => self.convert_boolean_op(lhs, rhs, P2Builder::and),
                             P2Type::Integer(_) => self.convert_integer_op(lhs, rhs, P2Builder::mul),
+                            P2Type::Field => self.convert_integer_op(lhs, rhs, P2Builder::mul),
                             _ => {
                                 let feature_name = format!("Mul instruction on {:?}", typ);
                                 return Err(Plonky2GenError::UnsupportedFeature {
@@ -595,9 +625,6 @@ impl Builder {
             Instruction::Call { func, arguments } => {
                 let func = self.dfg[func].clone();
 
-                assert!(arguments.len() == 1);
-                let argument = self.get_array(arguments[0])?;
-
                 match func {
                     Value::Intrinsic(intrinsic) => match intrinsic {
                         Intrinsic::BlackBox(bb_func) => match bb_func {
@@ -609,6 +636,9 @@ impl Builder {
                                     .cloned()
                                     .collect();
                                 assert!(destinations.len() == 1);
+
+                                assert!(arguments.len() == 1);
+                                let argument = self.get_array(arguments[0])?;
                                 let _ = self.perform_sha256(argument, destinations[0])?;
                             }
                             _ => {
@@ -644,35 +674,15 @@ impl Builder {
 
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 let p2value = self.get(value).unwrap();
-                let target = match p2value.typ {
-                    P2Type::Field => match p2value.target {
-                        P2Target::IntTarget(target) => target,
-                        _ => {
-                            let message =
-                                format!("value of type Field, but target is {:?}", p2value.target);
-                            return Err(Plonky2GenError::ICE { message });
-                        }
-                    },
-                    P2Type::Integer(..) => match p2value.target {
-                        P2Target::IntTarget(target) => target,
-                        _ => {
-                            let message = format!(
-                                "value of type Integer, but target is {:?}",
-                                p2value.target
-                            );
-                            return Err(Plonky2GenError::ICE { message });
-                        }
-                    },
-                    _ => {
-                        let feature_name = format!("truncating a {:?}", p2value.typ);
-                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
-                    }
-                };
+                let target = p2value.get_target()?;
+                let typ = p2value.typ.clone();
                 let mut bits =
                     self.builder.split_le(target, usize::try_from(max_bit_size).unwrap());
                 bits.truncate(usize::try_from(bit_size).unwrap());
                 let result = self.builder.le_sum(bits.iter());
-                let p2value = P2Value::make_integer(bit_size, result);
+                // Note(stanm): truncate does not change the type of the input; it creates a value of the
+                // same type, that should then be passed to Cast.
+                let p2value = P2Value::make_integer(typ, result)?;
 
                 let destinations: Vec<_> =
                     self.dfg.instruction_results(instruction_id).iter().cloned().collect();
@@ -681,14 +691,12 @@ impl Builder {
             }
 
             Instruction::Cast(value_id, typ) => {
-                // Just checking that the value is already of the right bit size.
-                let (old_bit_size, target) = self.get_integer(value_id).unwrap();
+                // TODO(stanm): Add check that value is already truncated (if bit_size <
+                // old_bit_size) for added safety.
+                let (_, target) = self.get_integer(value_id).unwrap();
                 let bit_size = match typ {
                     Type::Numeric(numeric_type) => match numeric_type {
-                        NumericType::Unsigned { bit_size } => {
-                            assert!(old_bit_size == bit_size);
-                            bit_size
-                        }
+                        NumericType::Unsigned { bit_size } => bit_size,
                         _ => {
                             let feature_name = format!("cast to {numeric_type}");
                             return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
@@ -702,7 +710,7 @@ impl Builder {
                 let new_target = self.builder.add_virtual_target();
                 self.builder.connect(target, new_target);
 
-                let p2value = P2Value::make_integer(bit_size, new_target);
+                let p2value = P2Value::make_integer(P2Type::Integer(bit_size), new_target)?;
 
                 let destinations: Vec<_> =
                     self.dfg.instruction_results(instruction_id).iter().cloned().collect();
@@ -795,7 +803,7 @@ impl Builder {
         Ok(p2value_ref.typ.clone())
     }
 
-    fn get_integer(&mut self, value_id: ValueId) -> Result<(u32, Target), Plonky2GenError> {
+    fn get_integer(&mut self, value_id: ValueId) -> Result<(P2Type, Target), Plonky2GenError> {
         let p2value: P2Value;
         let p2value_ref = match self.get(value_id) {
             Some(p2value) => p2value,
@@ -806,13 +814,6 @@ impl Builder {
             }
         };
 
-        let bit_size = match p2value_ref.typ {
-            P2Type::Integer(bit_size) => bit_size,
-            _ => {
-                let message = format!("argument to get_integer is of type {:?}", p2value_ref.typ);
-                return Err(Plonky2GenError::ICE { message });
-            }
-        };
         let target = match p2value_ref.target {
             P2Target::IntTarget(target) => target,
             _ => {
@@ -821,7 +822,7 @@ impl Builder {
                 })
             }
         };
-        Ok((bit_size, target))
+        Ok((p2value_ref.typ.clone(), target))
     }
 
     fn get_boolean(&mut self, value_id: ValueId) -> Result<BoolTarget, Plonky2GenError> {
