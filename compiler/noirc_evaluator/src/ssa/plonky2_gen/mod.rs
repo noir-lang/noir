@@ -22,8 +22,9 @@ use std::collections::HashMap;
 use self::config::{P2Builder, P2Config, P2Field};
 use self::intrinsics::make_sha256_circuit;
 
-use crate::errors::Plonky2GenError;
+use crate::errors::{Plonky2GenError, RuntimeError};
 use crate::ssa::ir::{
+    dfg::CallStack,
     instruction::Instruction,
     types::NumericType,
     types::Type,
@@ -182,7 +183,6 @@ impl P2Type {
                 }
             },
             Type::Array(composite_type, array_size) => {
-                // TODO(stanm): How is this not a bug? assert!(array_size > 1, "empty or singleton array");
                 if composite_type.len() != 1 {
                     let feature_name = format!("composite array type {:?}", composite_type);
                     return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
@@ -272,7 +272,7 @@ impl Builder {
         mut self,
         ssa: Ssa,
         parameter_names: Vec<String>,
-    ) -> Result<Plonky2Circuit, Plonky2GenError> {
+    ) -> Result<Plonky2Circuit, RuntimeError> {
         let main_function =
             ssa.functions.into_values().find(|value| value.name() == "main").unwrap();
         let entry_block_id = main_function.entry_block();
@@ -283,15 +283,23 @@ impl Builder {
         for value_id in entry_block.parameters().iter() {
             self.add_parameter(*value_id)?;
             let p2value = self.get(*value_id).unwrap();
-            let _ = p2value.target.extend_parameter_list(&mut parameters)?;
+            match p2value.target.extend_parameter_list(&mut parameters) {
+                Ok(_) => {}
+                Err(error) => {
+                    return Err(error.into_runtime_error(CallStack::new()));
+                }
+            }
         }
         for instruction_id in entry_block.instructions() {
             match self.add_instruction(*instruction_id) {
-                Err(error) => return Err(error),
+                Err(error) => {
+                    return Err(error.into_runtime_error(self.dfg.get_call_stack(*instruction_id)))
+                }
                 Ok(_) => (),
             }
         }
         let data = self.builder.build::<P2Config>();
+        println!("stanm: data={:?}", data);
         Ok(Plonky2Circuit { data, parameters, parameter_names })
     }
 
@@ -620,6 +628,10 @@ impl Builder {
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 }
+            }
+
+            Instruction::EnableSideEffects { .. } => {
+                // ignore
             }
 
             Instruction::IncrementRc { .. } => {

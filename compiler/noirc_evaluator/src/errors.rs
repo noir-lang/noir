@@ -54,6 +54,15 @@ pub enum Plonky2GenError {
     ICE { message: String },
 }
 
+impl Plonky2GenError {
+    pub fn into_runtime_error(&self, call_stack: CallStack) -> RuntimeError {
+        RuntimeError::InternalError(InternalError::General {
+            message: self.to_string(),
+            call_stack,
+        })
+    }
+}
+
 impl From<Plonky2GenError> for RuntimeError {
     fn from(error: Plonky2GenError) -> RuntimeError {
         RuntimeError::InternalError(InternalError::General {
