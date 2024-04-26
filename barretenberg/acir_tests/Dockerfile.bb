@@ -10,8 +10,12 @@ COPY . .
 # Run every acir test through native bb build prove_then_verify flow for UltraPlonk.
 # This ensures we test independent pk construction through real/garbage witness data paths.
 RUN FLOW=prove_then_verify ./run_acir_tests.sh
-# Construct and verify a UltraHonk proof for all acir programs
-RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh
+# Construct and separately verify a UltraHonk proof for a single program
+RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+# Construct and separately verify a GoblinUltraHonk proof for all acir programs
+RUN FLOW=prove_then_verify_goblin_ultra_honk ./run_acir_tests.sh
+# Construct and verify a UltraHonk proof for a single program
+RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
 # Construct and verify a Goblin UltraHonk (GUH) proof for a single arbitrary program
 RUN FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
 # Construct and verify a UltraHonk proof for all ACIR programs using the new witness stack workflow

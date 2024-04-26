@@ -580,6 +580,116 @@ bool avm_verify(const std::filesystem::path& proof_path)
 }
 
 /**
+ * @brief Creates a proof for an ACIR circuit
+ *
+ * Communication:
+ * - stdout: The proof is written to stdout as a byte array
+ * - Filesystem: The proof is written to the path specified by outputPath
+ *
+ * @param bytecodePath Path to the file containing the serialized circuit
+ * @param witnessPath Path to the file containing the serialized witness
+ * @param outputPath Path to write the proof to
+ */
+template <IsUltraFlavor Flavor>
+void prove_honk(const std::string& bytecodePath, const std::string& witnessPath, const std::string& outputPath)
+{
+    using Builder = Flavor::CircuitBuilder;
+    using Prover = UltraProver_<Flavor>;
+
+    auto constraint_system = get_constraint_system(bytecodePath);
+    auto witness = get_witness(witnessPath);
+
+    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
+
+    const size_t additional_gates_buffer = 15; // conservatively large to be safe
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + additional_gates_buffer);
+    init_bn254_crs(srs_size);
+
+    // Construct Honk proof
+    Prover prover{ builder };
+    auto proof = prover.construct_proof();
+
+    if (outputPath == "-") {
+        writeRawBytesToStdout(to_buffer</*include_size=*/true>(proof));
+        vinfo("proof written to stdout");
+    } else {
+        write_file(outputPath, to_buffer</*include_size=*/true>(proof));
+        vinfo("proof written to: ", outputPath);
+    }
+}
+
+/**
+ * @brief Verifies a proof for an ACIR circuit
+ *
+ * Note: The fact that the proof was computed originally by parsing an ACIR circuit is not of importance
+ * because this method uses the verification key to verify the proof.
+ *
+ * Communication:
+ * - proc_exit: A boolean value is returned indicating whether the proof is valid.
+ *   an exit code of 0 will be returned for success and 1 for failure.
+ *
+ * @param proof_path Path to the file containing the serialized proof
+ * @param vk_path Path to the file containing the serialized verification key
+ * @return true If the proof is valid
+ * @return false If the proof is invalid
+ */
+template <IsUltraFlavor Flavor> bool verify_honk(const std::string& proof_path, const std::string& vk_path)
+{
+    using VerificationKey = Flavor::VerificationKey;
+    using Verifier = UltraVerifier_<Flavor>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<curve::BN254>;
+
+    auto g2_data = get_bn254_g2_data(CRS_PATH);
+    srs::init_crs_factory({}, g2_data);
+    auto proof = from_buffer<std::vector<bb::fr>>(read_file(proof_path));
+    auto verification_key = std::make_shared<VerificationKey>(from_buffer<VerificationKey>(read_file(vk_path)));
+    verification_key->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
+
+    Verifier verifier{ verification_key };
+
+    bool verified = verifier.verify_proof(proof);
+
+    vinfo("verified: ", verified);
+    return verified;
+}
+
+/**
+ * @brief Writes a verification key for an ACIR circuit to a file
+ *
+ * Communication:
+ * - stdout: The verification key is written to stdout as a byte array
+ * - Filesystem: The verification key is written to the path specified by outputPath
+ *
+ * @param bytecodePath Path to the file containing the serialized circuit
+ * @param outputPath Path to write the verification key to
+ */
+template <IsUltraFlavor Flavor> void write_vk_honk(const std::string& bytecodePath, const std::string& outputPath)
+{
+    using Builder = Flavor::CircuitBuilder;
+    using ProverInstance = ProverInstance_<Flavor>;
+    using VerificationKey = Flavor::VerificationKey;
+
+    auto constraint_system = get_constraint_system(bytecodePath);
+    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, {});
+
+    const size_t additional_gates_buffer = 15; // conservatively large to be safe
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + additional_gates_buffer);
+    init_bn254_crs(srs_size);
+
+    ProverInstance prover_inst(builder);
+    VerificationKey vk(
+        prover_inst.proving_key); // uses a partial form of the proving key which only has precomputed entities
+
+    auto serialized_vk = to_buffer(vk);
+    if (outputPath == "-") {
+        writeRawBytesToStdout(serialized_vk);
+        vinfo("vk written to stdout");
+    } else {
+        write_file(outputPath, serialized_vk);
+        vinfo("vk written to: ", outputPath);
+    }
+}
+/**
  * @brief Creates a proof for an ACIR circuit, outputs the proof and verification key in binary and 'field' format
  *
  * Communication:
@@ -721,6 +831,22 @@ int main(int argc, char* argv[])
         } else if (command == "avm_verify") {
             std::filesystem::path proof_path = get_option(args, "-p", "./proofs/avm_proof");
             return avm_verify(proof_path) ? 0 : 1;
+        } else if (command == "prove_ultra_honk") {
+            std::string output_path = get_option(args, "-o", "./proofs/proof");
+            prove_honk<UltraFlavor>(bytecode_path, witness_path, output_path);
+        } else if (command == "verify_ultra_honk") {
+            return verify_honk<UltraFlavor>(proof_path, vk_path) ? 0 : 1;
+        } else if (command == "write_vk_ultra_honk") {
+            std::string output_path = get_option(args, "-o", "./target/vk");
+            write_vk_honk<UltraFlavor>(bytecode_path, output_path);
+        } else if (command == "prove_goblin_ultra_honk") {
+            std::string output_path = get_option(args, "-o", "./proofs/proof");
+            prove_honk<GoblinUltraFlavor>(bytecode_path, witness_path, output_path);
+        } else if (command == "verify_goblin_ultra_honk") {
+            return verify_honk<GoblinUltraFlavor>(proof_path, vk_path) ? 0 : 1;
+        } else if (command == "write_vk_goblin_ultra_honk") {
+            std::string output_path = get_option(args, "-o", "./target/vk");
+            write_vk_honk<GoblinUltraFlavor>(bytecode_path, output_path);
         } else {
             std::cerr << "Unknown command: " << command << "\n";
             return 1;
