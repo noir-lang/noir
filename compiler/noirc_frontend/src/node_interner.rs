@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::ops::Deref;
 
 use fm::FileId;
@@ -311,6 +312,12 @@ impl FuncId {
     // after resolution
     pub fn dummy_id() -> FuncId {
         FuncId(Index::dummy())
+    }
+}
+
+impl fmt::Display for FuncId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 

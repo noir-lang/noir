@@ -202,35 +202,24 @@ impl<'a> Resolver<'a> {
         self.errors.push(err);
     }
 
-    /// Resolving a function involves interning the metadata
-    /// interning any statements inside of the function
-    /// and interning the function itself
-    /// We resolve and lower the function at the same time
-    /// Since lowering would require scope data, unless we add an extra resolution field to the AST
-    pub fn resolve_function(
-        mut self,
-        mut func: NoirFunction,
-        func_id: FuncId,
-    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
-        self.scopes.start_function();
-        self.current_item = Some(DependencyId::Function(func_id));
-
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
-        self.add_generics(&func.def.generics);
-
-        // TODO: better way to get a unique generic/global ident?
-        // e.g. split ident into (current | internal_counter)
+    /// This turns function parameters of the form:
+    /// fn foo(x: impl Bar)
+    ///
+    /// into
+    /// fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar
+    fn desugar_impl_trait_args(&mut self, func: &mut NoirFunction, func_id: FuncId) {
         let mut impl_trait_generics = HashSet::new();
         let mut counter: usize = 0;
         for parameter in func.def.parameters.iter_mut() {
             if let UnresolvedTypeData::TraitAsType(path, args) = &parameter.typ.typ {
-                let mut new_generic_ident: Ident = "T_impl_trait".into();
+                let mut new_generic_ident: Ident =
+                    format!("T{}_impl_{}", func_id, path.as_string()).into();
                 let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
                 while impl_trait_generics.contains(&new_generic_ident)
                     || self.lookup_generic_or_global_type(&new_generic_path).is_some()
                 {
-                    new_generic_ident = format!("T_impl_trait_{}", counter).into();
+                    new_generic_ident =
+                        format!("T{}_impl_{}_{}", func_id, path.as_string(), counter).into();
                     new_generic_path = Path::from_ident(new_generic_ident.clone());
                     counter += 1;
                 }
@@ -257,7 +246,26 @@ impl<'a> Resolver<'a> {
             }
         }
         self.add_generics(&impl_trait_generics.into_iter().collect());
+    }
 
+    /// Resolving a function involves interning the metadata
+    /// interning any statements inside of the function
+    /// and interning the function itself
+    /// We resolve and lower the function at the same time
+    /// Since lowering would require scope data, unless we add an extra resolution field to the AST
+    pub fn resolve_function(
+        mut self,
+        mut func: NoirFunction,
+        func_id: FuncId,
+    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+        self.scopes.start_function();
+        self.current_item = Some(DependencyId::Function(func_id));
+
+        // Check whether the function has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+        self.add_generics(&func.def.generics);
+
+        self.desugar_impl_trait_args(&mut func, func_id);
         self.trait_bounds = func.def.where_clause.clone();
 
         let is_low_level_or_oracle = func
