@@ -5,8 +5,10 @@ import {
   type Fr,
   type GlobalVariables,
   type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  type NESTED_RECURSIVE_PROOF_LENGTH,
   type NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   type Proof,
+  type RECURSIVE_PROOF_LENGTH,
   type RootParityInput,
   type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -36,8 +38,8 @@ enum PROVING_STATE_LIFECYCLE {
 export class ProvingState {
   private provingStateLifecycle = PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
   private mergeRollupInputs: MergeRollupInputData[] = [];
-  private rootParityInputs: Array<RootParityInput | undefined> = [];
-  private finalRootParityInputs: RootParityInput | undefined;
+  private rootParityInputs: Array<RootParityInput<typeof RECURSIVE_PROOF_LENGTH> | undefined> = [];
+  private finalRootParityInputs: RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH> | undefined;
   public rootRollupPublicInputs: RootRollupPublicInputs | undefined;
   public finalProof: Proof | undefined;
   public block: L2Block | undefined;
@@ -82,7 +84,7 @@ export class ProvingState {
   }
 
   // Sets the final set of root parity inputs
-  public set finalRootParityInput(input: RootParityInput | undefined) {
+  public set finalRootParityInput(input: RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH> | undefined) {
     this.finalRootParityInputs = input;
   }
 
@@ -157,7 +159,7 @@ export class ProvingState {
   }
 
   // Stores a set of root parity inputs at the given index
-  public setRootParityInputs(inputs: RootParityInput, index: number) {
+  public setRootParityInputs(inputs: RootParityInput<typeof RECURSIVE_PROOF_LENGTH>, index: number) {
     this.rootParityInputs[index] = inputs;
   }
 

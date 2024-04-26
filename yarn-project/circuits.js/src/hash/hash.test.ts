@@ -2,7 +2,7 @@ import { times } from '@aztec/foundation/collection';
 import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { AztecAddress, Fr, SideEffect, SideEffectLinkedToNoteHash } from '../index.js';
-import { makeAztecAddress, makeVerificationKey } from '../tests/factories.js';
+import { makeAztecAddress } from '../tests/factories.js';
 import {
   computeCommitmentNonce,
   computeCommitmentsHash,
@@ -12,18 +12,12 @@ import {
   computeSecretHash,
   computeUniqueNoteHash,
   computeVarArgsHash,
-  hashVK,
   siloNoteHash,
   siloNullifier,
 } from './hash.js';
 
 describe('hash', () => {
   setupCustomSnapshotSerializers(expect);
-  it('hashes VK', () => {
-    const vk = makeVerificationKey();
-    const res = hashVK(vk.toBuffer());
-    expect(res).toMatchSnapshot();
-  });
 
   it('computes commitment nonce', () => {
     const nullifierZero = new Fr(123n);

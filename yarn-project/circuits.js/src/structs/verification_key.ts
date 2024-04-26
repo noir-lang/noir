@@ -1,7 +1,9 @@
+import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
-import { Fq } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { Fq, Fr } from '@aztec/foundation/fields';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { VERIFICATION_KEY_LENGTH_IN_FIELDS } from '../constants.gen.js';
 import { CircuitType } from './shared.js';
 
 /**
@@ -73,9 +75,41 @@ export class CommitmentMap {
 }
 
 /**
- * Kate commitment key object for verifying pairing equations.
- * @see proof_system/verification_key/verification_key.hpp
+ * Provides a 'fields' representation of a circuit's verification key
  */
+export class VerificationKeyAsFields {
+  constructor(public key: Tuple<Fr, typeof VERIFICATION_KEY_LENGTH_IN_FIELDS>, public hash: Fr) {}
+
+  /**
+   * Serialize as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(this.key, this.hash);
+  }
+  toFields() {
+    return [...this.key, this.hash];
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   * @returns The VerificationKeyAsFields.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): VerificationKeyAsFields {
+    const reader = BufferReader.asReader(buffer);
+    return new VerificationKeyAsFields(reader.readArray(VERIFICATION_KEY_LENGTH_IN_FIELDS, Fr), reader.readObject(Fr));
+  }
+
+  /**
+   * Builds a fake verification key that should be accepted by circuits.
+   * @returns A fake verification key.
+   */
+  static makeFake(seed = 1): VerificationKeyAsFields {
+    return new VerificationKeyAsFields(makeTuple(VERIFICATION_KEY_LENGTH_IN_FIELDS, Fr.random, seed), Fr.random());
+  }
+}
+
 export class VerificationKey {
   constructor(
     /**
@@ -120,9 +154,7 @@ export class VerificationKey {
   }
 
   /**
-   * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer to read from.
-   * @returns The VerificationKey.
+	@@ -126,28 +97,14 @@ export class VerificationKeyAsFields {
    */
   static fromBuffer(buffer: Buffer | BufferReader): VerificationKey {
     const reader = BufferReader.asReader(buffer);

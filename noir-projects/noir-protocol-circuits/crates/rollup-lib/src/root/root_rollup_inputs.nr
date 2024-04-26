@@ -3,7 +3,7 @@ use crate::{
     components, root::{root_rollup_public_inputs::RootRollupPublicInputs}
 };
 use dep::{
-    parity_lib::RootParityInput,
+    std, parity_lib::{root::root_rollup_parity_input::RootRollupParityInput, ParityPublicInputs},
     types::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
@@ -12,8 +12,7 @@ use dep::{
 },
     header::Header, content_commitment::ContentCommitment,
     merkle_tree::{append_only_tree, calculate_subtree_root, calculate_empty_tree_root},
-    state_reference::StateReference,
-    traits::Empty,
+    state_reference::StateReference, traits::Empty
 }
 };
 
@@ -21,7 +20,7 @@ struct RootRollupInputs {
     // All below are shared between the base and merge rollups
     previous_rollup_data : [PreviousRollupData; 2],
 
-    l1_to_l2_roots: RootParityInput,
+    l1_to_l2_roots: RootRollupParityInput,
 
     // inputs required to process l1 to l2 messages
     new_l1_to_l2_messages : [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
@@ -85,7 +84,20 @@ impl RootRollupInputs {
             0
         );
 
+        self.verify_root_parity();
+
         RootRollupPublicInputs { aggregation_object, archive, header }
+    }
+
+    fn verify_root_parity(self) {
+        // TODO: Verify that self.l1_to_l2_roots.verification_key.hash is the hash of the RootParityCircuit
+        //assert(self.l1_to_l2_roots.verification_key.hash == ROOT_PARITY_CIRCUIT_HASH) 
+        std::verify_proof(
+            self.l1_to_l2_roots.verification_key.key.as_slice(),
+            self.l1_to_l2_roots.proof.fields.as_slice(),
+            ParityPublicInputs::serialize(self.l1_to_l2_roots.public_inputs).as_slice(),
+            self.l1_to_l2_roots.verification_key.hash
+        );
     }
 }
 
@@ -93,7 +105,7 @@ impl Empty for RootRollupInputs {
     fn empty() -> Self {
         RootRollupInputs {
             previous_rollup_data : [PreviousRollupData::empty(); 2],
-            l1_to_l2_roots: RootParityInput::empty(),
+            l1_to_l2_roots: RootRollupParityInput::empty(),
             new_l1_to_l2_messages : [0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
             new_l1_to_l2_message_tree_root_sibling_path : [0; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH],
             start_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot::zero(),

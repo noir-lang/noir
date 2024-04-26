@@ -31,3 +31,5 @@ mod public_data_tree_leaf;
 mod public_data_tree_leaf_preimage;
 
 use abis::kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs};
+
+mod recursion;

@@ -4,6 +4,7 @@ import {
   type ProvingRequest,
   type ProvingRequestResult,
   ProvingRequestType,
+  type PublicInputsAndProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
 } from '@aztec/circuit-types';
@@ -13,9 +14,10 @@ import type {
   BaseRollupInputs,
   KernelCircuitPublicInputs,
   MergeRollupInputs,
-  ParityPublicInputs,
-  Proof,
+  NESTED_RECURSIVE_PROOF_LENGTH,
   PublicKernelCircuitPublicInputs,
+  RECURSIVE_PROOF_LENGTH,
+  RootParityInput,
   RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
@@ -104,7 +106,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getBaseParityProof(inputs: BaseParityInputs): Promise<[ParityPublicInputs, Proof]> {
+  getBaseParityProof(inputs: BaseParityInputs): Promise<RootParityInput<typeof RECURSIVE_PROOF_LENGTH>> {
     return this.enqueue({
       type: ProvingRequestType.BASE_PARITY,
       inputs,
@@ -115,7 +117,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getRootParityProof(inputs: RootParityInputs): Promise<[ParityPublicInputs, Proof]> {
+  getRootParityProof(inputs: RootParityInputs): Promise<RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>> {
     return this.enqueue({
       type: ProvingRequestType.ROOT_PARITY,
       inputs,
@@ -126,7 +128,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getBaseRollupProof(input: BaseRollupInputs): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+  getBaseRollupProof(input: BaseRollupInputs): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>> {
     return this.enqueue({
       type: ProvingRequestType.BASE_ROLLUP,
       inputs: input,
@@ -137,7 +139,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getMergeRollupProof(input: MergeRollupInputs): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+  getMergeRollupProof(input: MergeRollupInputs): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>> {
     return this.enqueue({
       type: ProvingRequestType.MERGE_ROLLUP,
       inputs: input,
@@ -148,7 +150,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getRootRollupProof(input: RootRollupInputs): Promise<[RootRollupPublicInputs, Proof]> {
+  getRootRollupProof(input: RootRollupInputs): Promise<PublicInputsAndProof<RootRollupPublicInputs>> {
     return this.enqueue({
       type: ProvingRequestType.ROOT_ROLLUP,
       inputs: input,
@@ -159,7 +161,9 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Create a public kernel proof.
    * @param kernelRequest - Object containing the details of the proof required
    */
-  getPublicKernelProof(kernelRequest: PublicKernelNonTailRequest): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
+  getPublicKernelProof(
+    kernelRequest: PublicKernelNonTailRequest,
+  ): Promise<PublicInputsAndProof<PublicKernelCircuitPublicInputs>> {
     return this.enqueue({
       type: ProvingRequestType.PUBLIC_KERNEL_NON_TAIL,
       kernelType: kernelRequest.type,
@@ -171,7 +175,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
    * Create a public kernel tail proof.
    * @param kernelRequest - Object containing the details of the proof required
    */
-  getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<[KernelCircuitPublicInputs, Proof]> {
+  getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
     return this.enqueue({
       type: ProvingRequestType.PUBLIC_KERNEL_TAIL,
       kernelType: kernelRequest.type,

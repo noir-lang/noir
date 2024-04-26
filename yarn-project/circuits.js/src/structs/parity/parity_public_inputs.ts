@@ -2,12 +2,8 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { AggregationObject } from '../aggregation_object.js';
-
 export class ParityPublicInputs {
   constructor(
-    /** Aggregated proof of all the parity circuit iterations. */
-    public aggregationObject: AggregationObject,
     /** Root of the SHA256 tree. */
     public shaRoot: Fr,
     /** Root of the converted tree. */
@@ -49,7 +45,7 @@ export class ParityPublicInputs {
    * @returns The instance fields.
    */
   static getFields(fields: FieldsOf<ParityPublicInputs>) {
-    return [fields.aggregationObject, fields.shaRoot, fields.convertedRoot] as const;
+    return [fields.shaRoot, fields.convertedRoot] as const;
   }
 
   /**
@@ -59,7 +55,7 @@ export class ParityPublicInputs {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ParityPublicInputs(reader.readObject(AggregationObject), reader.readObject(Fr), reader.readObject(Fr));
+    return new ParityPublicInputs(reader.readObject(Fr), reader.readObject(Fr));
   }
 
   /**

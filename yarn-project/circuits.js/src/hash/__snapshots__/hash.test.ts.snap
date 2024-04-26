@@ -20,8 +20,6 @@ exports[`hash computes siloed nullifier 1`] = `Fr<0x1743145fde103eaa88af576e0562
 
 exports[`hash computes unique commitment 1`] = `Fr<0x1cbdcecec4fe92f6638eb6a8dade96ca358ecba4954cf597c363199fae3d47e8>`;
 
-exports[`hash hashes VK 1`] = `Buffer<0x048110667f80b02f77b7d744976657cea9a7c5f1dd2340ea1c579a7ebfd54e55>`;
-
 exports[`hash hashes empty function args 1`] = `Fr<0x0000000000000000000000000000000000000000000000000000000000000000>`;
 
 exports[`hash hashes function args 1`] = `Fr<0x1a76e9750a1493d95ce48be1fa31831fc370d7e68f563fe5c781c6f58e1f1eac>`;

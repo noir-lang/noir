@@ -161,4 +161,7 @@ library Constants {
   uint256 internal constant LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP = 64;
   uint256 internal constant NUM_MSGS_PER_BASE_PARITY = 4;
   uint256 internal constant NUM_BASE_PARITY_PER_ROOT_PARITY = 4;
+  uint256 internal constant RECURSIVE_PROOF_LENGTH = 93;
+  uint256 internal constant NESTED_RECURSIVE_PROOF_LENGTH = 109;
+  uint256 internal constant VERIFICATION_KEY_LENGTH_IN_FIELDS = 114;
 }

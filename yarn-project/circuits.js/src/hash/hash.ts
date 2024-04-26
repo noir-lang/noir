@@ -5,12 +5,10 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
 
-import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
 
 import { ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, GeneratorIndex } from '../constants.gen.js';
-import type { SideEffect, SideEffectLinkedToNoteHash } from '../structs/index.js';
-import { VerificationKey } from '../structs/verification_key.js';
+import { type SideEffect, type SideEffectLinkedToNoteHash, VerificationKey } from '../structs/index.js';
 
 /**
  * Computes a hash of a given verification key.
@@ -31,27 +29,6 @@ export function hashVK(vkBuf: Buffer) {
     Buffer.from('1418144d5b080fcac24cdb7649bdadf246a6cb2426e324bedb94fb05118f023a', 'hex'),
   ]);
   return pedersenHashBuffer(toHash);
-  // barretenberg::evaluation_domain eval_domain = barretenberg::evaluation_domain(circuit_size);
-
-  // std::vector<uint8_t> preimage_data;
-
-  // preimage_data.push_back(static_cast<uint8_t>(proof_system::CircuitType(circuit_type)));
-
-  // const uint256_t domain = eval_domain.domain; // montgomery form of circuit_size
-  // const uint256_t generator = eval_domain.generator; //coset_generator(0)
-  // const uint256_t public_inputs = num_public_inputs;
-
-  // write(preimage_data, static_cast<uint16_t>(uint256_t(generator))); // maybe 1?
-  // write(preimage_data, static_cast<uint32_t>(uint256_t(domain))); // try circuit_size
-  // write(preimage_data, static_cast<uint32_t>(public_inputs));
-  // for (const auto& [tag, selector] : commitments) {
-  //     write(preimage_data, selector.y);
-  //     write(preimage_data, selector.x);
-  // }
-
-  // write(preimage_data, eval_domain.root);  // fr::one()
-
-  // return crypto::pedersen_hash::hash_buffer(preimage_data, hash_index);
 }
 
 /**

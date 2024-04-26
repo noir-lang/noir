@@ -5,6 +5,7 @@ import { type FieldsOf } from '@aztec/foundation/types';
 import {
   ARCHIVE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  NESTED_RECURSIVE_PROOF_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '../../constants.gen.js';
 import { AggregationObject } from '../aggregation_object.js';
@@ -27,7 +28,7 @@ export class RootRollupInputs {
     /**
      * The original and converted roots of the L1 to L2 messages subtrees.
      */
-    public l1ToL2Roots: RootParityInput,
+    public l1ToL2Roots: RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
     /**
      * New L1 to L2 messages.
      */
@@ -101,7 +102,7 @@ export class RootRollupInputs {
     const reader = BufferReader.asReader(buffer);
     return new RootRollupInputs(
       [reader.readObject(PreviousRollupData), reader.readObject(PreviousRollupData)],
-      reader.readObject(RootParityInput),
+      RootParityInput.fromBuffer(reader, NESTED_RECURSIVE_PROOF_LENGTH),
       reader.readArray(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr),
       reader.readArray(L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, Fr),
       reader.readObject(AppendOnlyTreeSnapshot),

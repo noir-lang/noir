@@ -96,6 +96,19 @@ std::vector<acir_format::AcirFormat> get_constraint_systems(std::string const& b
     return acir_format::program_buf_to_acir_format(bytecode);
 }
 
+std::string proof_to_json(std::vector<bb::fr>& proof)
+{
+    return format("[", join(map(proof, [](auto fr) { return format("\"", fr, "\""); })), "]");
+}
+
+std::string vk_to_json(std::vector<bb::fr>& data)
+{
+    // We need to move vk_hash to the front...
+    std::rotate(data.begin(), data.end() - 1, data.end());
+
+    return format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
+}
+
 /**
  * @brief Proves and Verifies an ACIR circuit
  *
@@ -433,7 +446,7 @@ void proof_as_fields(const std::string& proof_path, std::string const& vk_path, 
     auto acir_composer = verifier_init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     auto data = acir_composer.serialize_proof_into_fields(read_file(proof_path), vk_data.num_public_inputs);
-    auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
+    auto json = proof_to_json(data);
 
     if (output_path == "-") {
         writeStringToStdout(json);
@@ -464,10 +477,7 @@ void vk_as_fields(const std::string& vk_path, const std::string& output_path)
     acir_composer.load_verification_key(std::move(vk_data));
     auto data = acir_composer.serialize_verification_key_into_fields();
 
-    // We need to move vk_hash to the front...
-    std::rotate(data.begin(), data.end() - 1, data.end());
-
-    auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
+    auto json = vk_to_json(data);
     if (output_path == "-") {
         writeStringToStdout(json);
         vinfo("vk as fields written to stdout");
@@ -569,6 +579,58 @@ bool avm_verify(const std::filesystem::path& proof_path)
     return true;
 }
 
+/**
+ * @brief Creates a proof for an ACIR circuit, outputs the proof and verification key in binary and 'field' format
+ *
+ * Communication:
+ * - Filesystem: The proof is written to the path specified by outputPath
+ *
+ * @param bytecodePath Path to the file containing the serialized circuit
+ * @param witnessPath Path to the file containing the serialized witness
+ * @param outputPath Directory into which we write the proof and verification key data
+ */
+void prove_output_all(const std::string& bytecodePath, const std::string& witnessPath, const std::string& outputPath)
+{
+    auto constraint_system = get_constraint_system(bytecodePath);
+    auto witness = get_witness(witnessPath);
+
+    acir_proofs::AcirComposer acir_composer{ 0, verbose };
+    acir_composer.create_circuit(constraint_system, witness);
+    init_bn254_crs(acir_composer.get_dyadic_circuit_size());
+    acir_composer.init_proving_key();
+    auto proof = acir_composer.create_proof();
+
+    // We have been given a directory, we will write the proof and verification key
+    // into the directory in both 'binary' and 'fields' formats
+    std::string vkOutputPath = outputPath + "/vk";
+    std::string proofPath = outputPath + "/proof";
+    std::string vkFieldsOutputPath = outputPath + "/vk_fields.json";
+    std::string proofFieldsPath = outputPath + "/proof_fields.json";
+
+    std::shared_ptr<bb::plonk::verification_key> vk = acir_composer.init_verification_key();
+
+    // Write the 'binary' proof
+    write_file(proofPath, proof);
+    vinfo("proof written to: ", proofPath);
+
+    // Write the proof as fields
+    auto proofAsFields = acir_composer.serialize_proof_into_fields(proof, vk->as_data().num_public_inputs);
+    std::string proofJson = proof_to_json(proofAsFields);
+    write_file(proofFieldsPath, { proofJson.begin(), proofJson.end() });
+    vinfo("proof as fields written to: ", proofFieldsPath);
+
+    // Write the vk as binary
+    auto serialized_vk = to_buffer(*vk);
+    write_file(vkOutputPath, serialized_vk);
+    vinfo("vk written to: ", vkOutputPath);
+
+    // Write the vk as fields
+    auto data = acir_composer.serialize_verification_key_into_fields();
+    std::string vk_json = vk_to_json(data);
+    write_file(vkFieldsOutputPath, { vk_json.begin(), vk_json.end() });
+    vinfo("vk as fields written to: ", vkFieldsOutputPath);
+}
+
 bool flag_present(std::vector<std::string>& args, const std::string& flag)
 {
     return std::find(args.begin(), args.end(), flag) != args.end();
@@ -629,6 +691,9 @@ int main(int argc, char* argv[])
         if (command == "prove") {
             std::string output_path = get_option(args, "-o", "./proofs/proof");
             prove(bytecode_path, witness_path, output_path);
+        } else if (command == "prove_output_all") {
+            std::string output_path = get_option(args, "-o", "./proofs");
+            prove_output_all(bytecode_path, witness_path, output_path);
         } else if (command == "gates") {
             gateCount(bytecode_path);
         } else if (command == "verify") {

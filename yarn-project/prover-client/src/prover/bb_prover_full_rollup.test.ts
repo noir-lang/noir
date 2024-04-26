@@ -1,5 +1,6 @@
 import { PROVING_STATUS, makeEmptyProcessedTx, mockTx } from '@aztec/circuit-types';
-import { Fr, Header } from '@aztec/circuits.js';
+import { Fr, Header, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -31,10 +32,15 @@ describe('prover/bb_prover/full-rollup', () => {
       tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
     }
 
+    const l1ToL2Messages = makeTuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>(
+      NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+      Fr.random,
+    );
+
     const provingTicket = await context.orchestrator.startNewBlock(
       numTransactions,
       context.globalVariables,
-      [],
+      l1ToL2Messages,
       makeEmptyProcessedTx(Header.empty(), new Fr(1234), new Fr(1)),
     );
 

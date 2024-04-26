@@ -1,10 +1,11 @@
 import { ProvingRequestType } from '@aztec/circuit-types';
 import {
-  makeBaseParityInputs,
-  makeBaseRollupInputs,
-  makeParityPublicInputs,
-  makeProof,
-} from '@aztec/circuits.js/testing';
+  RECURSIVE_PROOF_LENGTH,
+  RootParityInput,
+  VerificationKeyAsFields,
+  makeRecursiveProof,
+} from '@aztec/circuits.js';
+import { makeBaseParityInputs, makeBaseRollupInputs, makeParityPublicInputs } from '@aztec/circuits.js/testing';
 
 import { MemoryProvingQueue } from './memory-proving-queue.js';
 
@@ -38,9 +39,10 @@ describe('MemoryProvingQueue', () => {
     expect(job?.request.inputs).toEqual(inputs);
 
     const publicInputs = makeParityPublicInputs();
-    const proof = makeProof();
-    await queue.resolveProvingJob(job!.id, [publicInputs, proof]);
-    await expect(promise).resolves.toEqual([publicInputs, proof]);
+    const proof = makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH);
+    const vk = VerificationKeyAsFields.makeFake();
+    await queue.resolveProvingJob(job!.id, new RootParityInput(proof, vk, publicInputs));
+    await expect(promise).resolves.toEqual(new RootParityInput(proof, vk, publicInputs));
   });
 
   it('notifies of errors', async () => {

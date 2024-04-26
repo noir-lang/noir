@@ -3,6 +3,7 @@ import {
   type ProvingRequest,
   type ProvingRequestResult,
   ProvingRequestType,
+  makePublicInputsAndProof,
 } from '@aztec/circuit-types';
 import { makeEmptyProof } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -65,7 +66,7 @@ export class ProverAgent {
     const { type, inputs } = request;
     switch (type) {
       case ProvingRequestType.PUBLIC_VM: {
-        return Promise.resolve([{}, makeEmptyProof()] as const);
+        return Promise.resolve(makePublicInputsAndProof<object>({}, makeEmptyProof()));
       }
 
       case ProvingRequestType.PUBLIC_KERNEL_NON_TAIL: {

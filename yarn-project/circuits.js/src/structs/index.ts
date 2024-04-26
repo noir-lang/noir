@@ -55,6 +55,7 @@ export * from './public_data_read_request_hints.js';
 export * from './public_data_update_request.js';
 export * from './read_request.js';
 export * from './read_request_hints.js';
+export * from './recursive_proof.js';
 export * from './revert_code.js';
 export * from './rollup/append_only_tree_snapshot.js';
 export * from './rollup/base_or_merge_rollup_public_inputs.js';

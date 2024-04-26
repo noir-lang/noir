@@ -1,13 +1,16 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { Proof } from '../proof.js';
+import { RecursiveProof } from '../recursive_proof.js';
+import { VerificationKeyAsFields } from '../verification_key.js';
 import { ParityPublicInputs } from './parity_public_inputs.js';
 
-export class RootParityInput {
+export class RootParityInput<PROOF_LENGTH extends number> {
   constructor(
     /** The proof of the execution of the parity circuit. */
-    public readonly proof: Proof,
+    public readonly proof: RecursiveProof<PROOF_LENGTH>,
+    /** The circuit's verification key */
+    public readonly verificationKey: VerificationKeyAsFields,
     /** The public inputs of the parity circuit. */
     public readonly publicInputs: ParityPublicInputs,
   ) {}
@@ -16,16 +19,22 @@ export class RootParityInput {
     return serializeToBuffer(...RootParityInput.getFields(this));
   }
 
-  static from(fields: FieldsOf<RootParityInput>): RootParityInput {
+  static from<PROOF_LENGTH extends number>(
+    fields: FieldsOf<RootParityInput<PROOF_LENGTH>>,
+  ): RootParityInput<PROOF_LENGTH> {
     return new RootParityInput(...RootParityInput.getFields(fields));
   }
 
-  static getFields(fields: FieldsOf<RootParityInput>) {
-    return [fields.proof, fields.publicInputs] as const;
+  static getFields<PROOF_LENGTH extends number>(fields: FieldsOf<RootParityInput<PROOF_LENGTH>>) {
+    return [fields.proof, fields.verificationKey, fields.publicInputs] as const;
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader) {
+  static fromBuffer<PROOF_LENGTH extends number>(buffer: Buffer | BufferReader, size: PROOF_LENGTH) {
     const reader = BufferReader.asReader(buffer);
-    return new RootParityInput(reader.readObject(Proof), reader.readObject(ParityPublicInputs));
+    return new RootParityInput(
+      RecursiveProof.fromBuffer<PROOF_LENGTH>(reader, size),
+      reader.readObject(VerificationKeyAsFields),
+      reader.readObject(ParityPublicInputs),
+    );
   }
 }

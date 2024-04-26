@@ -6,7 +6,10 @@ import { type NoirCompiledCircuit } from '@aztec/types/noir';
 import * as proc from 'child_process';
 import * as fs from 'fs/promises';
 
-import { BBNativeRollupProver, type BBProverConfig } from '../prover/bb_prover.js';
+export const VK_FILENAME = 'vk';
+export const VK_FIELDS_FILENAME = 'vk_fields.json';
+export const PROOF_FILENAME = 'proof';
+export const PROOF_FIELDS_FILENAME = 'proof_fields.json';
 
 export enum BB_RESULT {
   SUCCESS,
@@ -17,7 +20,9 @@ export enum BB_RESULT {
 export type BBSuccess = {
   status: BB_RESULT.SUCCESS | BB_RESULT.ALREADY_PRESENT;
   duration: number;
-  path?: string;
+  pkPath?: string;
+  vkPath?: string;
+  proofPath?: string;
 };
 
 export type BBFailure = {
@@ -66,7 +71,6 @@ export function executeBB(
 
 const bytecodeHashFilename = 'bytecode_hash';
 const bytecodeFilename = 'bytecode';
-const proofFileName = 'proof';
 
 /**
  * Used for generating either a proving or verification key, will exit early if the key already exists
@@ -101,7 +105,7 @@ export async function generateKeyForNoirCircuit(
   const bytecodePath = `${circuitOutputDirectory}/${bytecodeFilename}`;
   const bytecodeHash = sha256(bytecode);
 
-  const outputPath = `${circuitOutputDirectory}/${key}`;
+  const outputPath = `${circuitOutputDirectory}`;
 
   // ensure the directory exists
   await fs.mkdir(circuitOutputDirectory, { recursive: true });
@@ -122,7 +126,13 @@ export async function generateKeyForNoirCircuit(
 
   if (!mustRegenerate) {
     // No need to generate, early out
-    return { status: BB_RESULT.ALREADY_PRESENT, duration: 0, path: outputPath };
+    return {
+      status: BB_RESULT.ALREADY_PRESENT,
+      duration: 0,
+      pkPath: key === 'pk' ? outputPath : undefined,
+      vkPath: key === 'vk' ? outputPath : undefined,
+      proofPath: undefined,
+    };
   }
 
   // Check we have access to bb
@@ -142,14 +152,25 @@ export async function generateKeyForNoirCircuit(
     // args are the output path and the input bytecode path
     const args = ['-o', outputPath, '-b', bytecodePath];
     const timer = new Timer();
-    const result = await executeBB(pathToBB, `write_${key}`, args, log);
+    let result = await executeBB(pathToBB, `write_${key}`, args, log);
+    // If we succeeded and the type of key if verification, have bb write the 'fields' version too
+    if (result == BB_RESULT.SUCCESS && key === 'vk') {
+      const asFieldsArgs = ['-k', `${outputPath}/${VK_FILENAME}`, '-o', `${outputPath}/${VK_FIELDS_FILENAME}`, '-v'];
+      result = await executeBB(pathToBB, `vk_as_fields`, asFieldsArgs, log);
+    }
     const duration = timer.ms();
     // Cleanup the bytecode file
     await fs.rm(bytecodePath, { force: true });
     if (result == BB_RESULT.SUCCESS) {
       // Store the bytecode hash so we don't need to regenerate at a later time
       await fs.writeFile(bytecodeHashPath, bytecodeHash);
-      return { status: BB_RESULT.SUCCESS, duration, path: outputPath };
+      return {
+        status: BB_RESULT.SUCCESS,
+        duration,
+        pkPath: key === 'pk' ? outputPath : undefined,
+        vkPath: key === 'vk' ? outputPath : undefined,
+        proofPath: undefined,
+      };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
     return { status: BB_RESULT.FAILURE, reason: `Failed to generate key` };
@@ -189,7 +210,7 @@ export async function generateProof(
   const bytecode = Buffer.from(compiledCircuit.bytecode, 'base64');
 
   // The proof is written to e.g. /workingDirectory/proof
-  const outputPath = `${workingDirectory}/${proofFileName}`;
+  const outputPath = `${workingDirectory}`;
 
   const binaryPresent = await fs
     .access(pathToBB, fs.constants.R_OK)
@@ -202,18 +223,23 @@ export async function generateProof(
   try {
     // Write the bytecode to the working directory
     await fs.writeFile(bytecodePath, bytecode);
-    const args = ['-o', outputPath, '-b', bytecodePath, '-w', inputWitnessFile];
-    const command = 'prove';
+    const args = ['-o', outputPath, '-b', bytecodePath, '-w', inputWitnessFile, '-v'];
     const timer = new Timer();
     const logFunction = (message: string) => {
       log(`${circuitName} BB out - ${message}`);
     };
-    const result = await executeBB(pathToBB, command, args, logFunction);
+    const result = await executeBB(pathToBB, 'prove_output_all', args, logFunction);
     const duration = timer.ms();
     // cleanup the bytecode
     await fs.rm(bytecodePath, { force: true });
     if (result == BB_RESULT.SUCCESS) {
-      return { status: BB_RESULT.SUCCESS, duration, path: outputPath };
+      return {
+        status: BB_RESULT.SUCCESS,
+        duration,
+        proofPath: `${outputPath}`,
+        pkPath: undefined,
+        vkPath: `${outputPath}`,
+      };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
     return { status: BB_RESULT.FAILURE, reason: `Failed to generate proof` };
@@ -260,25 +286,75 @@ export async function verifyProof(
 }
 
 /**
- * Used for generating all verification keys required by server protocol circuits
+ * Used for verifying proofs of noir circuits
  * @param pathToBB - The full path to the bb binary
- * @param workingDirectory - The directory to be used for the keys
+ * @param verificationKeyPath - The directory containing the binary verification key
+ * @param verificationKeyFilename - The filename of the verification key
  * @param log - A logging function
+ * @returns An object containing a result indication and duration taken
  */
-export async function generateAllServerVks(pathToBB: string, workingDirectory: string, log: LogFn) {
-  const bbConfig: BBProverConfig = {
-    bbBinaryPath: pathToBB,
-    bbWorkingDirectory: workingDirectory,
+export async function writeVkAsFields(
+  pathToBB: string,
+  verificationKeyPath: string,
+  verificationKeyFilename: string,
+  log: LogFn,
+): Promise<BBFailure | BBSuccess> {
+  const binaryPresent = await fs
+    .access(pathToBB, fs.constants.R_OK)
+    .then(_ => true)
+    .catch(_ => false);
+  if (!binaryPresent) {
+    return { status: BB_RESULT.FAILURE, reason: `Failed to find bb binary at ${pathToBB}` };
+  }
 
-    // These aren't needed for this
-    acvmBinaryPath: '',
-    acvmWorkingDirectory: '',
-    circuitFilter: [],
-  };
-  // This will generate all of the server circuit verification keys for us
   try {
-    await BBNativeRollupProver.generateVerificationKeys(bbConfig);
+    const args = ['-k', `${verificationKeyPath}/${verificationKeyFilename}`, '-v'];
+    const timer = new Timer();
+    const result = await executeBB(pathToBB, 'vk_as_fields', args, log);
+    const duration = timer.ms();
+    if (result == BB_RESULT.SUCCESS) {
+      return { status: BB_RESULT.SUCCESS, duration, vkPath: verificationKeyPath };
+    }
+    // Not a great error message here but it is difficult to decipher what comes from bb
+    return { status: BB_RESULT.FAILURE, reason: `Failed to create vk as fields` };
   } catch (error) {
-    log(`Failed to generate verification keys: ${error}`);
+    return { status: BB_RESULT.FAILURE, reason: `${error}` };
+  }
+}
+
+/**
+ * Used for verifying proofs of noir circuits
+ * @param pathToBB - The full path to the bb binary
+ * @param proofPath - The directory containing the binary proof
+ * @param proofFileName - The filename of the proof
+ * @param log - A logging function
+ * @returns An object containing a result indication and duration taken
+ */
+export async function writeProofAsFields(
+  pathToBB: string,
+  proofPath: string,
+  proofFileName: string,
+  log: LogFn,
+): Promise<BBFailure | BBSuccess> {
+  const binaryPresent = await fs
+    .access(pathToBB, fs.constants.R_OK)
+    .then(_ => true)
+    .catch(_ => false);
+  if (!binaryPresent) {
+    return { status: BB_RESULT.FAILURE, reason: `Failed to find bb binary at ${pathToBB}` };
+  }
+
+  try {
+    const args = ['-p', `${proofPath}/${proofFileName}`, '-v'];
+    const timer = new Timer();
+    const result = await executeBB(pathToBB, 'proof_as_fields', args, log);
+    const duration = timer.ms();
+    if (result == BB_RESULT.SUCCESS) {
+      return { status: BB_RESULT.SUCCESS, duration, proofPath: proofPath };
+    }
+    // Not a great error message here but it is difficult to decipher what comes from bb
+    return { status: BB_RESULT.FAILURE, reason: `Failed to create proof as fields` };
+  } catch (error) {
+    return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }
 }

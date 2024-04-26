@@ -69,13 +69,13 @@ describe('prover/bb_prover/public-kernel', () => {
       if (request.type === PublicKernelType.TAIL) {
         await expect(
           context.prover.getPublicTailProof(request).then(result => {
-            proof = result[1];
+            proof = result.proof;
           }),
         ).resolves.not.toThrow();
       } else {
         await expect(
           context.prover.getPublicKernelProof(request).then(result => {
-            proof = result[1];
+            proof = result.proof;
           }),
         ).resolves.not.toThrow();
       }

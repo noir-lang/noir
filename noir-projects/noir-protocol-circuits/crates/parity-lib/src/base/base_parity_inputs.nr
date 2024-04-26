@@ -1,8 +1,5 @@
 use crate::{parity_public_inputs::ParityPublicInputs, utils::sha256_merkle_tree::Sha256MerkleTree};
-use dep::types::{
-    constants::NUM_MSGS_PER_BASE_PARITY, merkle_tree::MerkleTree, mocked::AggregationObject,
-    utils::uint256::U256
-};
+use dep::types::{constants::NUM_MSGS_PER_BASE_PARITY, merkle_tree::MerkleTree, utils::uint256::U256};
 
 struct BaseParityInputs {
     msgs: [Field; NUM_MSGS_PER_BASE_PARITY],
@@ -13,11 +10,7 @@ impl BaseParityInputs {
         let sha_tree = Sha256MerkleTree::new(self.msgs);
         let pedersen_tree = MerkleTree::new(self.msgs);
 
-        ParityPublicInputs {
-            aggregation_object: AggregationObject {},
-            sha_root: sha_tree.get_root(),
-            converted_root: pedersen_tree.get_root()
-        }
+        ParityPublicInputs { sha_root: sha_tree.get_root(), converted_root: pedersen_tree.get_root() }
     }
 }
 

@@ -13,6 +13,7 @@ import {
   PROVING_STATUS,
   type ProvingResult,
   type ProvingTicket,
+  type PublicInputsAndProof,
 } from '@aztec/circuit-types/interfaces';
 import { type CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
@@ -28,7 +29,8 @@ import {
   NUM_BASE_PARITY_PER_ROOT_PARITY,
   type Proof,
   type PublicKernelCircuitPublicInputs,
-  RootParityInput,
+  type RECURSIVE_PROOF_LENGTH,
+  type RootParityInput,
   RootParityInputs,
   makeEmptyProof,
 } from '@aztec/circuits.js';
@@ -440,17 +442,17 @@ export class ProvingOrchestrator {
     this.deferredProving(
       provingState,
       () => this.prover.getBaseRollupProof(tx.baseRollupInputs),
-      ([publicInputs, proof], duration) => {
+      (result, duration) => {
         this.emitCircuitSimulationStats(
           'base-rollup',
           tx.baseRollupInputs.toBuffer().length,
-          publicInputs.toBuffer().length,
+          result.inputs.toBuffer().length,
           duration,
         );
 
-        validatePartialState(publicInputs.end, tx.treeSnapshots);
+        validatePartialState(result.inputs.end, tx.treeSnapshots);
         const currentLevel = provingState.numMergeLevels + 1n;
-        this.storeAndExecuteNextMergeLevel(provingState, currentLevel, index, [publicInputs, proof]);
+        this.storeAndExecuteNextMergeLevel(provingState, currentLevel, index, [result.inputs, result.proof]);
       },
     );
   }
@@ -471,14 +473,14 @@ export class ProvingOrchestrator {
     this.deferredProving(
       provingState,
       () => this.prover.getMergeRollupProof(inputs),
-      ([publicInputs, proof], duration) => {
+      (result, duration) => {
         this.emitCircuitSimulationStats(
           'merge-rollup',
           inputs.toBuffer().length,
-          publicInputs.toBuffer().length,
+          result.inputs.toBuffer().length,
           duration,
         );
-        this.storeAndExecuteNextMergeLevel(provingState, level, index, [publicInputs, proof]);
+        this.storeAndExecuteNextMergeLevel(provingState, level, index, [result.inputs, result.proof]);
       },
     );
   }
@@ -507,16 +509,16 @@ export class ProvingOrchestrator {
     this.deferredProving(
       provingState,
       () => this.prover.getRootRollupProof(inputs),
-      ([publicInputs, proof], duration) => {
+      (result, duration) => {
         this.emitCircuitSimulationStats(
           'root-rollup',
           inputs.toBuffer().length,
-          publicInputs.toBuffer().length,
+          result.inputs.toBuffer().length,
           duration,
         );
 
-        provingState.rootRollupPublicInputs = publicInputs;
-        provingState.finalProof = proof;
+        provingState.rootRollupPublicInputs = result.inputs;
+        provingState.finalProof = result.proof;
 
         const provingResult: ProvingResult = {
           status: PROVING_STATUS.SUCCESS,
@@ -532,19 +534,23 @@ export class ProvingOrchestrator {
     this.deferredProving(
       provingState,
       () => this.prover.getBaseParityProof(inputs),
-      ([publicInputs, proof], duration) => {
+      (rootInput, duration) => {
         this.emitCircuitSimulationStats(
           'base-parity',
           inputs.toBuffer().length,
-          publicInputs.toBuffer().length,
+          rootInput.publicInputs.toBuffer().length,
           duration,
         );
-        const rootInput = new RootParityInput(proof, publicInputs);
         provingState.setRootParityInputs(rootInput, index);
-        const rootParityInputs = new RootParityInputs(
-          provingState.rootParityInput as Tuple<RootParityInput, typeof NUM_BASE_PARITY_PER_ROOT_PARITY>,
-        );
-        this.enqueueRootParityCircuit(provingState, rootParityInputs);
+        if (provingState.areRootParityInputsReady()) {
+          const rootParityInputs = new RootParityInputs(
+            provingState.rootParityInput as Tuple<
+              RootParityInput<typeof RECURSIVE_PROOF_LENGTH>,
+              typeof NUM_BASE_PARITY_PER_ROOT_PARITY
+            >,
+          );
+          this.enqueueRootParityCircuit(provingState, rootParityInputs);
+        }
       },
     );
   }
@@ -555,14 +561,13 @@ export class ProvingOrchestrator {
     this.deferredProving(
       provingState,
       () => this.prover.getRootParityProof(inputs),
-      async ([publicInputs, proof], duration) => {
+      async (rootInput, duration) => {
         this.emitCircuitSimulationStats(
           'root-parity',
           inputs.toBuffer().length,
-          publicInputs.toBuffer().length,
+          rootInput.publicInputs.toBuffer().length,
           duration,
         );
-        const rootInput = new RootParityInput(proof, publicInputs);
         provingState!.finalRootParityInput = rootInput;
         await this.checkAndEnqueueRootRollup(provingState);
       },
@@ -669,14 +674,14 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      (): Promise<[KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs, Proof]> => {
+      (): Promise<PublicInputsAndProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
         if (request.type === PublicKernelType.TAIL) {
           return this.prover.getPublicTailProof(request);
         } else {
           return this.prover.getPublicKernelProof(request);
         }
       },
-      ([_, proof], duration) => {
+      (result, duration) => {
         this.emitCircuitSimulationStats(
           this.getPublicKernelCircuitName(request),
           request.inputs.toBuffer().length,
@@ -684,7 +689,7 @@ export class ProvingOrchestrator {
           duration,
         );
 
-        const nextKernelRequest = txProvingState.getNextPublicKernelFromKernelProof(functionIndex, proof);
+        const nextKernelRequest = txProvingState.getNextPublicKernelFromKernelProof(functionIndex, result.proof);
         // What's the status of the next kernel?
         if (nextKernelRequest.code === TX_PROVING_CODE.NOT_READY) {
           // Must be waiting on a VM proof

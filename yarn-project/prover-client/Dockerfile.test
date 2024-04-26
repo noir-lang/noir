@@ -41,7 +41,7 @@ RUN cd prover-client && \
     BB_BINARY_PATH='/usr/src/barretenberg/cpp/build/bin/bb' \
     ACVM_BINARY_PATH='/usr/src/noir/noir-repo/target/release/acvm' \
     LOG_LEVEL=info \
-    yarn generate-and-test
+    yarn test
 
 # Avoid pushing some huge container back to ecr.
 FROM scratch

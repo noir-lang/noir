@@ -1,4 +1,10 @@
-import { makeBaseParityInputs, makeParityPublicInputs, makeProof } from '@aztec/circuits.js/testing';
+import {
+  RECURSIVE_PROOF_LENGTH,
+  RootParityInput,
+  VerificationKeyAsFields,
+  makeRecursiveProof,
+} from '@aztec/circuits.js';
+import { makeBaseParityInputs, makeParityPublicInputs } from '@aztec/circuits.js/testing';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
@@ -27,12 +33,17 @@ describe('ProverAgent', () => {
 
   it('takes jobs from the queue', async () => {
     const publicInputs = makeParityPublicInputs();
-    const proof = makeProof();
-    prover.getBaseParityProof.mockResolvedValue([publicInputs, proof]);
+    const proof = makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH);
+    const vk = VerificationKeyAsFields.makeFake();
+    prover.getBaseParityProof.mockResolvedValue(
+      new RootParityInput<typeof RECURSIVE_PROOF_LENGTH>(proof, vk, publicInputs),
+    );
 
     const inputs = makeBaseParityInputs();
+
     const promise = queue.getBaseParityProof(inputs);
-    await expect(promise).resolves.toEqual([publicInputs, proof]);
+    await expect(promise).resolves.toEqual(new RootParityInput<typeof RECURSIVE_PROOF_LENGTH>(proof, vk, publicInputs));
+
     expect(prover.getBaseParityProof).toHaveBeenCalledWith(inputs);
   });
 
@@ -49,18 +60,25 @@ describe('ProverAgent', () => {
 
   it('continues to process jobs', async () => {
     const publicInputs = makeParityPublicInputs();
-    const proof = makeProof();
-    prover.getBaseParityProof.mockResolvedValue([publicInputs, proof]);
+    const proof = makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH);
+    const vk = VerificationKeyAsFields.makeFake();
+    prover.getBaseParityProof.mockResolvedValue(
+      new RootParityInput<typeof RECURSIVE_PROOF_LENGTH>(proof, vk, publicInputs),
+    );
 
     const inputs = makeBaseParityInputs();
     const promise1 = queue.getBaseParityProof(inputs);
 
-    await expect(promise1).resolves.toEqual([publicInputs, proof]);
+    await expect(promise1).resolves.toEqual(
+      new RootParityInput<typeof RECURSIVE_PROOF_LENGTH>(proof, vk, publicInputs),
+    );
 
     const inputs2 = makeBaseParityInputs();
     const promise2 = queue.getBaseParityProof(inputs2);
 
-    await expect(promise2).resolves.toEqual([publicInputs, proof]);
+    await expect(promise2).resolves.toEqual(
+      new RootParityInput<typeof RECURSIVE_PROOF_LENGTH>(proof, vk, publicInputs),
+    );
 
     expect(prover.getBaseParityProof).toHaveBeenCalledTimes(2);
     expect(prover.getBaseParityProof).toHaveBeenCalledWith(inputs);
