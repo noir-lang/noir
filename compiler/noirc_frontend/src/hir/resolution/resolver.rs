@@ -97,6 +97,18 @@ pub struct Resolver<'a> {
     current_item: Option<DependencyId>,
 
     /// In-resolution names
+    ///
+    /// This needs to be a set because we can have multiple in-resolution
+    /// names when resolving structs that are declared in reverse order of their
+    /// dependencies, such as in the following case:
+    ///
+    /// ```
+    /// struct Wrapper {
+    ///     value: Wrapped
+    /// }
+    /// struct Wrapped {
+    /// }
+    /// ```
     resolving_ids: BTreeSet<StructId>,
 
     /// True if the current module is a contract.
