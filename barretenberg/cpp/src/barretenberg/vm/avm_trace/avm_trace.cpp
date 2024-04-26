@@ -1505,8 +1505,8 @@ void AvmTraceBuilder::finalise_mem_trace_lookup_counts()
  */
 std::vector<Row> AvmTraceBuilder::finalize()
 {
-    bool const range_check_required = alu_trace_builder.is_range_check_required();
-
+    // bool const range_check_required = alu_trace_builder.is_range_check_required();
+    bool const range_check_required = true;
     auto mem_trace = mem_trace_builder.finalize();
     auto alu_trace = alu_trace_builder.finalize();
     auto bin_trace = bin_trace_builder.finalize();
@@ -1517,6 +1517,10 @@ std::vector<Row> AvmTraceBuilder::finalize()
 
     // Get tag_err counts from the mem_trace_builder
     finalise_mem_trace_lookup_counts();
+
+    // Data structure to collect all lookup counts pertaining to 32-bit range checks in memory trace
+    std::unordered_map<uint16_t, uint32_t> mem_rng_check_lo_counts;
+    std::unordered_map<uint16_t, uint32_t> mem_rng_check_hi_counts;
 
     // Main Trace needs to be at least as big as the biggest subtrace.
     // If the bin_trace_size has entries, we need the main_trace to be as big as our byte lookup table (3 * 2**16
@@ -1537,12 +1541,20 @@ std::vector<Row> AvmTraceBuilder::finalize()
     main_trace.at(*trace_size - 1).avm_main_last = FF(1);
 
     // Memory trace inclusion
+
+    // We compute in the main loop the timestamp for next row.
+    // Perform initialization for index 0 outside of the loop provided that mem trace exists.
+    if (mem_trace_size > 0) {
+        main_trace.at(0).avm_mem_tsp =
+            FF(AvmMemTraceBuilder::NUM_SUB_CLK * mem_trace.at(0).m_clk + mem_trace.at(0).m_sub_clk);
+    }
+
     for (size_t i = 0; i < mem_trace_size; i++) {
         auto const& src = mem_trace.at(i);
         auto& dest = main_trace.at(i);
 
+        dest.avm_mem_mem_sel = FF(1);
         dest.avm_mem_clk = FF(src.m_clk);
-        dest.avm_mem_sub_clk = FF(src.m_sub_clk);
         dest.avm_mem_addr = FF(src.m_addr);
         dest.avm_mem_val = src.m_val;
         dest.avm_mem_rw = FF(static_cast<uint32_t>(src.m_rw));
@@ -1597,7 +1609,28 @@ std::vector<Row> AvmTraceBuilder::finalize()
 
         if (i + 1 < mem_trace_size) {
             auto const& next = mem_trace.at(i + 1);
-            dest.avm_mem_lastAccess = FF(static_cast<uint32_t>(src.m_addr != next.m_addr));
+            auto& dest_next = main_trace.at(i + 1);
+            dest_next.avm_mem_tsp = FF(AvmMemTraceBuilder::NUM_SUB_CLK * next.m_clk + next.m_sub_clk);
+
+            FF diff{};
+            if (src.m_addr == next.m_addr) {
+                diff = dest_next.avm_mem_tsp - dest.avm_mem_tsp;
+            } else {
+                diff = next.m_addr - src.m_addr;
+                dest.avm_mem_lastAccess = FF(1);
+            }
+            dest.avm_mem_rng_chk_sel = FF(1);
+
+            // Decomposition of diff
+            auto const diff_32 = uint32_t(diff);
+            auto const diff_hi = static_cast<uint16_t>(diff_32 >> 16);
+            auto const diff_lo = static_cast<uint16_t>(diff_32 & UINT16_MAX);
+            dest.avm_mem_diff_hi = FF(diff_hi);
+            dest.avm_mem_diff_lo = FF(diff_lo);
+
+            // Add the range checks counts
+            mem_rng_check_hi_counts[diff_hi]++;
+            mem_rng_check_lo_counts[diff_lo]++;
         } else {
             dest.avm_mem_lastAccess = FF(1);
             dest.avm_mem_last = FF(1);
@@ -1763,6 +1796,10 @@ std::vector<Row> AvmTraceBuilder::finalize()
             r.lookup_u16_12_counts = alu_trace_builder.u16_range_chk_counters[12][static_cast<uint16_t>(i)];
             r.lookup_u16_13_counts = alu_trace_builder.u16_range_chk_counters[13][static_cast<uint16_t>(i)];
             r.lookup_u16_14_counts = alu_trace_builder.u16_range_chk_counters[14][static_cast<uint16_t>(i)];
+
+            r.lookup_mem_rng_chk_hi_counts = mem_rng_check_hi_counts[static_cast<uint16_t>(i)];
+            r.lookup_mem_rng_chk_lo_counts = mem_rng_check_lo_counts[static_cast<uint16_t>(i)];
+
             r.avm_main_clk = FF(static_cast<uint32_t>(i));
             r.avm_main_sel_rng_16 = FF(1);
         }
@@ -1826,6 +1863,7 @@ std::vector<Row> AvmTraceBuilder::finalize()
                 bin_trace_builder.byte_length_counter[avm_in_tag + 1];
         }
     }
+
     // Adding extra row for the shifted values at the top of the execution trace.
     Row first_row = Row{ .avm_main_first = FF(1), .avm_mem_lastAccess = FF(1) };
     main_trace.insert(main_trace.begin(), first_row);

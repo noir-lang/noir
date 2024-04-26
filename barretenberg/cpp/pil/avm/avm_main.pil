@@ -400,6 +400,12 @@ namespace avm_main(256);
     #[PERM_MAIN_MEM_IND_D]
     ind_op_d {clk, ind_d, mem_idx_d} is avm_mem.ind_op_d {avm_mem.clk, avm_mem.addr, avm_mem.val};
 
+    #[LOOKUP_MEM_RNG_CHK_LO]
+    avm_mem.rng_chk_sel {avm_mem.diff_lo} in sel_rng_16 {clk};
+
+    #[LOOKUP_MEM_RNG_CHK_HI]
+    avm_mem.rng_chk_sel {avm_mem.diff_hi} in sel_rng_16 {clk};
+
     //====== Inter-table Shift Constraints (Lookups) ============================================
     // Currently only used for shift operations but can be generalised for other uses.
 

@@ -1,17 +1,17 @@
-
-
 include "avm_main.pil";
 
 namespace avm_mem(256);
     // ========= Table MEM-TR =================
     pol commit clk;
-    pol commit sub_clk;
+    pol commit tsp; // Timestamp derived form clk and sub-operation types (SUB_CLK)
     pol commit addr;
     pol commit tag; // Memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
     pol commit val;
+    pol commit rw; // Enum: 0 (read), 1 (write)
     pol commit lastAccess; // Boolean (1 when this row is the last of a given address)
     pol commit last; // Boolean indicating the last row of the memory trace (not execution trace)
-    pol commit rw; // Enum: 0 (read), 1 (write)
+    pol commit mem_sel; // Selector for every row pertaining to the memory trace
+    pol commit rng_chk_sel; // Selector for row on which range-checks apply.
 
     pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.r_in_tag)
     pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.w_in_tag)
@@ -41,6 +41,9 @@ namespace avm_mem(256);
 
     // Helper columns
     pol commit one_min_inv; // Extra value to prove r_in_tag != tag with error handling
+    // pol DIFF: Difference between two consecutive timestamps or two consecutive addresses
+    pol commit diff_hi; // Higher 16-bit limb of diff.
+    pol commit diff_lo; // Lower 16-bit limb of diff.
 
     // Type constraints
     lastAccess * (1 - lastAccess) = 0;
@@ -56,18 +59,43 @@ namespace avm_mem(256);
     ind_op_c * (1 - ind_op_c) = 0;
     ind_op_d * (1 - ind_op_d) = 0;
 
-    // TODO: addr is u32 and 0 <= tag <= 6
-    //       (r_in_tag, w_in_tag will be constrained through inclusion check to main trace)
+    // TODO:  1) Ensure that addr is constrained to be 32 bits by the main trace and/or bytecode decomposition
+    //        2) Ensure that tag, r_in_tag, w_in_tag are properly constrained by the main trace and/or bytecode decomposition
 
+    // Definition of mem_sel
+    mem_sel = op_a + op_b + op_c + op_d + ind_op_a + ind_op_b + ind_op_c + ind_op_d;
     // Maximum one memory operation enabled per row
-    pol MEM_SEL = op_a + op_b + op_c + op_d + ind_op_a + ind_op_b + ind_op_c + ind_op_d;
-    MEM_SEL * (MEM_SEL - 1) = 0;
+    mem_sel * (mem_sel - 1) = 0; // TODO: might be infered by the main trace
+
+    // Enforce the memory entries to be contiguous, i.e., as soon as
+    // mem_sel is disabled all subsequent rows have mem_sel disabled.
+    #[MEM_CONTIGUOUS]
+    (1 - avm_main.first) * mem_sel' * (1 - mem_sel) = 0;
+
+    // Memory trace rows cannot start at first row
+    #[MEM_FIRST_EMPTY]
+    avm_main.first * mem_sel = 0;
+
+    // Definition of rng_chk_sel. It is a boolean as mem_sel and last are booleans.
+    rng_chk_sel = mem_sel * (1 - last);
 
     // sub_clk derivation
-    pol IND_OP = ind_op_a + ind_op_b + ind_op_c + ind_op_d;
-    sub_clk = MEM_SEL * (ind_op_b + op_b + 2 * (ind_op_c + op_c) + 3 * (ind_op_d + op_d) + 4 * (1 - IND_OP + rw));
-    // We need the MEM_SEL factor as the right factor is not zero when all columns are zero.
+    // Current sub_clk range is [0,12) which is subdivided as follows:
+    // [0,4): indirect memory operations (read-only resolution of the direct address)
+    // [4,8): direct read memory operations
+    // [8, 12): direct write memory operations
+    // Each sub-range of 4 values correspond to registers ordered as a, b, c, d.
 
+    pol NUM_SUB_CLK = 12;
+    pol IND_OP = ind_op_a + ind_op_b + ind_op_c + ind_op_d;
+    pol SUB_CLK = mem_sel * (ind_op_b + op_b + 2 * (ind_op_c + op_c) + 3 * (ind_op_d + op_d) + 4 * (1 - IND_OP + rw));
+    // We need the mem_sel factor as the right factor is not zero when all columns are zero.
+
+    #[TIMESTAMP]
+    tsp = NUM_SUB_CLK * clk + SUB_CLK;
+
+    #[LAST_ACCESS_FIRST_ROW]
+    avm_main.first * (1 - lastAccess) = 0;
     // Remark: lastAccess == 1 on first row and therefore any relation with the
     //         multiplicative term (1 - lastAccess) implicitly includes (1 - avm_main.first)
     //         Similarly, this includes (1 - last) as well.
@@ -80,20 +108,21 @@ namespace avm_mem(256);
     // We need: lastAccess == 1 ==> addr' > addr
     // The above implies: addr' == addr ==> lastAccess == 0
     // This condition does not apply on the last row.
-    // clk + 1 used as an expression for positive integers
-    // TODO: Uncomment when lookups are supported
-    // (1 - first) * (1 - last) * lastAccess { (addr' - addr) } in clk + 1; // Gated inclusion check. Is it supported?
-    
-    // TODO: following constraint
-    // addr' == addr && clk == clk' ==> sub_clk' - sub_clk > 0
-    // Can be enforced with (1 - first) * (1 - lastAccess) { 6 * (clk' - clk) + sub_clk' - sub_clk } in clk + 1
-    
-    // Alternatively to the above, one could require
-    // that addr' - addr is 0 or 1 (needs to add placeholders addr values):
-    // (addr' - addr) * (addr' - addr) - (addr' - addr) = 0;
-    // if addr' - addr is 0 or 1, the following is equiv. to lastAccess
-    // (addr' - addr)
-    
+ 
+    // In addition, we need addr' == addr ==> tsp' > tsp
+    // For all rows pertaining to the memory trace (mem_sel == 1) except the last one,
+    // i.e., when rng_chk_sel == 1, we compute the difference:
+    // 1) addr' - addr if lastAccess == 1
+    // 2) tsp' - tsp   if lastAccess == 0 (i.e., whenever addr' == addr)
+    pol DIFF = lastAccess * (addr' - addr) + (1 - lastAccess) * (tsp' - tsp);
+
+    // We perform a 32-bit range check of DIFF which proves that addr' > addr if lastAccess == 1
+    // and tsp' > tsp whenever addr' == addr
+    // Therefore, we ensure proper grouping of each address and each memory access pertaining to a given
+    // address is sorted according the arrow of time.
+    #[DIFF_RNG_CHK_DEC]
+    rng_chk_sel * (DIFF - diff_hi * 2**16 - diff_lo) = 0;
+
     // lastAccess == 0 && rw' == 0 ==> val == val'
     // This condition does not apply on the last row.
     // Note: in barretenberg, a shifted polynomial will be 0 on the last row (shift is not cyclic)
@@ -110,12 +139,12 @@ namespace avm_mem(256);
 
     // Constrain that the first load from a given address has value 0. (Consistency of memory initialization.)
     // We do not constrain that the tag == 0 as the 0 value is compatible with any memory type.
-    // If we set lastAccess = 1 on the first row, we can enforce this (should be ok as long as we do not shift lastAccess):
+    // As we enforce lastAccess = 1 on the first row, the following condition applies also for the first memory entry:
     #[MEM_ZERO_INIT]
     lastAccess * (1 - rw') * val' = 0;
 
     // Skip check tag
-     #[SKIP_CHECK_TAG]
+    #[SKIP_CHECK_TAG]
     skip_check_tag = sel_cmov * (op_d + op_a * (1-sel_mov_a) + op_b * (1-sel_mov_b));
 
     // Memory tag consistency check for load operations, i.e., rw == 0.

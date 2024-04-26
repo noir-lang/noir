@@ -65,7 +65,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
 
     static std::function<bool(Row)> gen_matcher(FF clk, uint32_t sub_clk)
     {
-        return [clk, sub_clk](Row r) { return r.avm_mem_clk == clk && r.avm_mem_sub_clk == sub_clk; };
+        return [clk, sub_clk](Row r) { return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + sub_clk; };
     };
 
     void compute_index_a(FF clk, bool indirect)
