@@ -207,6 +207,8 @@ async function executePublicFunctionAcvm(
 
   const nestedExecutions = context.getNestedExecutions();
   const unencryptedLogs = context.getUnencryptedLogs();
+
+  // TODO(palla/gas): We should be loading these values from the returned PublicCircuitPublicInputs
   const startGasLeft = context.availableGas;
   const endGasLeft = context.availableGas; // No gas consumption in non-AVM
 

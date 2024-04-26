@@ -6,7 +6,7 @@ use crate::{
     CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder,
     PublicAccumulatedData, PublicAccumulatedDataBuilder
 },
-    combined_constant_data::CombinedConstantData,
+    global_variables::GlobalVariables, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
     kernel_data::{PrivateKernelData, PublicKernelData, KernelData}, max_block_number::MaxBlockNumber,
     nullifier_key_validation_request::NullifierKeyValidationRequestContext,
@@ -35,6 +35,7 @@ struct FixtureBuilder {
     // Constant data.
     historical_header: Header,
     tx_context: TxContext,
+    global_variables: GlobalVariables,
     
     // Accumulated data.
     new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_TX>,
@@ -111,12 +112,17 @@ impl FixtureBuilder {
             counter: 0,
             start_state: PartialStateReference::empty(),
             gas_used: Gas::empty(),
-            non_revertible_gas_used: Gas::empty()
+            non_revertible_gas_used: Gas::empty(),
+            global_variables: GlobalVariables::empty()
         }
     }
 
     pub fn to_constant_data(self) -> CombinedConstantData {
-        CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context }
+        CombinedConstantData {
+            historical_header: self.historical_header,
+            tx_context: self.tx_context,
+            global_variables: self.global_variables
+        }
     }
 
     pub fn to_private_accumulated_data(self) -> PrivateAccumulatedData {
@@ -427,6 +433,7 @@ impl Empty for FixtureBuilder {
             storage_contract_address: AztecAddress::zero(),
             historical_header: Header::empty(),
             tx_context: TxContext::empty(),
+            global_variables: GlobalVariables::empty(),
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),

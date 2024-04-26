@@ -1,7 +1,8 @@
 use crate::{
     abis::{
     gas::Gas, call_context::CallContext, public_circuit_public_inputs::PublicCircuitPublicInputs,
-    read_request::ReadRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    read_request::ReadRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash},
+    global_variables::GlobalVariables
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
@@ -34,6 +35,7 @@ struct PublicCircuitPublicInputsBuilder {
     unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL>,
     unencrypted_log_preimages_length: Field,
     historical_header: Header,
+    global_variables: GlobalVariables,
     prover_address: AztecAddress,
     revert_code: u8,
     start_gas_left: Gas,
@@ -67,6 +69,7 @@ impl PublicCircuitPublicInputsBuilder {
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
+            global_variables: self.global_variables,
             prover_address: self.prover_address,
             revert_code: self.revert_code,
             start_gas_left: self.start_gas_left,
@@ -95,6 +98,7 @@ impl Empty for PublicCircuitPublicInputsBuilder {
             unencrypted_logs_hashes: BoundedVec::new(),
             unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
+            global_variables: GlobalVariables::empty(),
             prover_address: AztecAddress::zero(),
             revert_code: 0 as u8,
             start_gas_left: Gas::empty(),

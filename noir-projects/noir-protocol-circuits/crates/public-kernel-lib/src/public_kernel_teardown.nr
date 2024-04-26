@@ -36,8 +36,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         let transaction_fee = self.public_call.call_stack_item.public_inputs.transaction_fee;
         // Note that teardown_gas is already included in end.gas_used as it was injected by the private kernel
         let total_gas_used = self.previous_kernel.public_inputs.end.gas_used.add(self.previous_kernel.public_inputs.end_non_revertible.gas_used);
-        // TODO(palla/gas): Load gas fees from a PublicConstantData struct that's currently missing
-        let block_gas_fees = GasFees::default();
+        let block_gas_fees = self.previous_kernel.public_inputs.constants.global_variables.gas_fees;
         let inclusion_fee = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.inclusion_fee;
         let computed_transaction_fee = total_gas_used.compute_fee(block_gas_fees) + inclusion_fee;
 
@@ -73,6 +72,9 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
         // validate the inputs common to all invocation circumstances
         common::validate_inputs(self.public_call);
+
+        // validate constants injected into the public call are correct or set them if this is the first public call
+        common::initialize_from_or_validate_public_call_variables(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // validate the inputs unique to having a previous private kernel
         self.validate_inputs();
@@ -422,6 +424,27 @@ mod tests {
     fn validates_transaction_fee() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.transaction_fee = 1234;
+
+        builder.failed();
+    }
+
+    #[test]
+    fn propagates_global_variables_if_empty() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+
+        builder.public_call.public_inputs.global_variables.block_number = 11;
+
+        let public_inputs = builder.execute();
+
+        assert_eq(public_inputs.constants.global_variables.block_number, 11);
+    }
+
+    #[test(should_fail_with="Global variables injected into the public call do not match constants")]
+    fn validates_global_variables() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+
+        builder.previous_kernel.global_variables.block_number = 10;
+        builder.public_call.public_inputs.global_variables.block_number = 11;
 
         builder.failed();
     }

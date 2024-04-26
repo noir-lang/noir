@@ -1,7 +1,7 @@
 use crate::{
     abis::{
     call_context::CallContext, read_request::ReadRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, gas::Gas
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, gas::Gas, global_variables::GlobalVariables
 },
     address::AztecAddress,
     constants::{
@@ -45,6 +45,9 @@ struct PublicCircuitPublicInputs {
     // Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
     // previous to the one in which the tx is included.
     historical_header: Header,
+
+    // Global variables injected into this circuit
+    global_variables: GlobalVariables,
 
     prover_address: AztecAddress,
 
@@ -99,6 +102,7 @@ impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInput
         }
         fields.push(self.unencrypted_log_preimages_length);
         fields.extend_from_array(self.historical_header.serialize());
+        fields.extend_from_array(self.global_variables.serialize());
         fields.push(self.prover_address.to_field());
         fields.push(self.revert_code as Field);
         fields.extend_from_array(self.start_gas_left.serialize());
@@ -129,6 +133,7 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             unencrypted_logs_hashes: reader.read_struct_array(SideEffect::deserialize, [SideEffect::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL]),
             unencrypted_log_preimages_length: reader.read(),
             historical_header: reader.read_struct(Header::deserialize),
+            global_variables: reader.read_struct(GlobalVariables::deserialize),
             prover_address: reader.read_struct(AztecAddress::deserialize),
             revert_code: reader.read() as u8,
             start_gas_left: reader.read_struct(Gas::deserialize),
@@ -166,6 +171,7 @@ impl Empty for PublicCircuitPublicInputs {
             unencrypted_logs_hashes: [SideEffect::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
             unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
+            global_variables: GlobalVariables::empty(),
             prover_address: AztecAddress::zero(),
             revert_code: 0 as u8,
             start_gas_left: Gas::empty(),
@@ -189,6 +195,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x237c89f8b29c3fb169b889940a714b3c72017cb2941d0724d4668a030794d2fb;
+    let test_data_empty_hash = 0x2d91debc43bd6354caef4fd152975e7c6dd44e8623b6b62c21b9f547f2fabd32;
     assert_eq(hash, test_data_empty_hash);
 }

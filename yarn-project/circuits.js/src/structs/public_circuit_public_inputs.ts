@@ -29,6 +29,7 @@ import { CallContext } from './call_context.js';
 import { ContractStorageRead } from './contract_storage_read.js';
 import { ContractStorageUpdateRequest } from './contract_storage_update_request.js';
 import { Gas } from './gas.js';
+import { GlobalVariables } from './global_variables.js';
 import { Header } from './header.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
 import { ReadRequest } from './read_request.js';
@@ -112,6 +113,8 @@ export class PublicCircuitPublicInputs {
      * previous to the one in which the tx is included.
      */
     public historicalHeader: Header,
+    /** Global variables for the block. */
+    public globalVariables: GlobalVariables,
     /**
      * Address of the prover.
      */
@@ -163,6 +166,7 @@ export class PublicCircuitPublicInputs {
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect.empty),
       Fr.ZERO,
       Header.empty(),
+      GlobalVariables.empty(),
       AztecAddress.ZERO,
       RevertCode.OK,
       Gas.empty(),
@@ -193,6 +197,7 @@ export class PublicCircuitPublicInputs {
       isArrayEmpty(this.unencryptedLogsHashes, item => item.isEmpty()) &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
+      this.globalVariables.isEmpty() &&
       this.proverAddress.isZero() &&
       this.revertCode.isOK() &&
       this.startGasLeft.isEmpty() &&
@@ -224,6 +229,7 @@ export class PublicCircuitPublicInputs {
       fields.unencryptedLogsHashes,
       fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
+      fields.globalVariables,
       fields.proverAddress,
       fields.revertCode,
       fields.startGasLeft,
@@ -274,6 +280,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect),
       reader.readObject(Fr),
       reader.readObject(Header),
+      reader.readObject(GlobalVariables),
       reader.readObject(AztecAddress),
       reader.readObject(RevertCode),
       reader.readObject(Gas),
@@ -302,6 +309,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect),
       reader.readField(),
       Header.fromFields(reader),
+      GlobalVariables.fromFields(reader),
       AztecAddress.fromFields(reader),
       RevertCode.fromFields(reader),
       Gas.fromFields(reader),

@@ -8,7 +8,8 @@ struct PublicKernelSetupCircuitPrivateInputs {
     // Note: One might think that our previous_kernel ought to be
     // a PrivateKernelTailData. However, we instead supply a PublicKernelData.
     // This is because PrivateKernelTailData is a subset of PublicKernelData.
-    // And we just initialize the missing values to zero in TS before passing it to the circuit.
+    // And we just initialize the missing values to zero in TS before passing it to the circuit,
+    // except for the constants.global_variables which we populate with the current block values.
     // This is a bit of a hack, but it allows us to reuse the setup circuit until
     // the setup phase of the public kernel is complete. Maybe in a perfect world we would 
     // have a SetupInit, SetupInner, etc, but this will change anyway once the public VM is able to 
@@ -35,6 +36,9 @@ impl PublicKernelSetupCircuitPrivateInputs {
 
         // validate the inputs common to all invocation circumstances
         common::validate_inputs(self.public_call);
+
+        // validate constants injected into the public call are correct or set them if this is the first public call
+        common::initialize_from_or_validate_public_call_variables(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // validate the inputs unique to having a previous private kernel
         self.validate_inputs();
@@ -537,6 +541,27 @@ mod tests {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
 
         builder.public_call.public_inputs.transaction_fee = 10;
+
+        builder.failed();
+    }
+
+    #[test]
+    fn propagates_global_variables_if_empty() {
+        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+
+        builder.public_call.public_inputs.global_variables.block_number = 11;
+
+        let public_inputs = builder.execute();
+
+        assert_eq(public_inputs.constants.global_variables.block_number, 11);
+    }
+
+    #[test(should_fail_with="Global variables injected into the public call do not match constants")]
+    fn validates_global_variables() {
+        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+
+        builder.previous_kernel.global_variables.block_number = 10;
+        builder.public_call.public_inputs.global_variables.block_number = 11;
 
         builder.failed();
     }

@@ -17,6 +17,18 @@ struct GlobalVariables {
 }
 // docs:end:global-variables
 
+impl GlobalVariables {
+    fn is_empty(self) -> bool {
+        (self.chain_id == 0)
+            & (self.version == 0)
+            & (self.block_number == 0)
+            & (self.timestamp == 0)
+            & (self.coinbase.is_zero())
+            & (self.fee_recipient.is_zero())
+            & (self.gas_fees.is_empty())
+    }
+}
+
 impl Serialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
     fn serialize(self) -> [Field; GLOBAL_VARIABLES_LENGTH] {
         let mut serialized: BoundedVec<Field, GLOBAL_VARIABLES_LENGTH> = BoundedVec::new();

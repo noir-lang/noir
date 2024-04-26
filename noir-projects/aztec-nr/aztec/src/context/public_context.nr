@@ -167,6 +167,7 @@ impl PublicContext {
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
             unencrypted_log_preimages_length,
             historical_header: self.inputs.historical_header,
+            global_variables: self.inputs.public_global_variables,
             prover_address: self.prover_address,
             revert_code: 0,
             start_gas_left: self.inputs.gas_left,

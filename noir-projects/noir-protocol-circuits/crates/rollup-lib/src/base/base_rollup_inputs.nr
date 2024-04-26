@@ -66,6 +66,14 @@ impl BaseRollupInputs {
             == self.constants.global_variables.version, "kernel version does not match the rollup version"
         );
 
+        // Verify the kernel global variables if set, note these can be empty if this is a request coming directly from the private kernel tail.
+        // TODO(@spalladino) How can we check that this is a request coming from the private kernel tail?
+        assert(
+            self.kernel_data.public_inputs.constants.global_variables.is_empty()
+            | (self.kernel_data.public_inputs.constants.global_variables
+                == self.constants.global_variables), "kernel global variables do not match the rollup global variables"
+        );
+
         self.validate_kernel_start_state();
 
         let rollup_validation_requests = self.kernel_data.public_inputs.rollup_validation_requests;
@@ -980,6 +988,14 @@ mod tests {
     unconstrained fn constants_dont_match_kernels_version() {
         let mut builder = BaseRollupInputsBuilder::new();
         builder.constants.global_variables.version = 3;
+        builder.fails();
+    }
+
+    #[test(should_fail_with = "kernel global variables do not match the rollup global variables")]
+    unconstrained fn constants_global_variables_dont_match_kernels() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.kernel_data.global_variables.block_number = 6;
+        builder.constants.global_variables.block_number = 7;
         builder.fails();
     }
 

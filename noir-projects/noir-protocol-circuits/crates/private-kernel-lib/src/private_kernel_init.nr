@@ -19,10 +19,10 @@ struct PrivateKernelInitCircuitPrivateInputs {
 
 impl PrivateKernelInitCircuitPrivateInputs {
     fn initialize_end_values(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
-        public_inputs.constants = CombinedConstantData {
-            historical_header: self.private_call.call_stack_item.public_inputs.historical_header,
-            tx_context: self.tx_request.tx_context,
-        };
+        public_inputs.constants = CombinedConstantData::private(
+            self.private_call.call_stack_item.public_inputs.historical_header,
+            self.tx_request.tx_context,
+        );
         public_inputs.min_revertible_side_effect_counter = self.private_call.call_stack_item.public_inputs.min_revertible_side_effect_counter;
     }
 

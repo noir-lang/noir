@@ -183,7 +183,7 @@ export function makeTxContext(seed: number = 1): TxContext {
  * @returns A constant data object.
  */
 export function makeConstantData(seed = 1): CombinedConstantData {
-  return new CombinedConstantData(makeHeader(seed, undefined), makeTxContext(seed + 4));
+  return new CombinedConstantData(makeHeader(seed, undefined), makeTxContext(seed + 4), makeGlobalVariables(seed + 5));
 }
 
 /**
@@ -296,7 +296,7 @@ export function makeRollupValidationRequests(seed = 1) {
 }
 
 export function makeCombinedConstantData(seed = 1): CombinedConstantData {
-  return new CombinedConstantData(makeHeader(seed), makeTxContext(seed + 0x100));
+  return new CombinedConstantData(makeHeader(seed), makeTxContext(seed + 0x100), makeGlobalVariables(seed + 0x200));
 }
 
 /**
@@ -459,6 +459,7 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0x901, SideEffect.empty),
     fr(seed + 0x902),
     makeHeader(seed + 0xa00, undefined),
+    makeGlobalVariables(seed + 0xa01),
     makeAztecAddress(seed + 0xb01),
     RevertCode.OK,
     makeGas(seed + 0xc00),

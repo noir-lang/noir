@@ -421,6 +421,7 @@ export abstract class AbstractPhaseManager {
       ),
       unencryptedLogPreimagesLength,
       historicalHeader: this.historicalHeader,
+      globalVariables: this.globalVariables,
       startGasLeft: Gas.from(result.startGasLeft),
       endGasLeft: Gas.from(result.endGasLeft),
       transactionFee: result.transactionFee,
