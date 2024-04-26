@@ -106,22 +106,11 @@ function processCircuitSimulation(entry: CircuitSimulationStats, results: Benchm
 
 /**
  * Processes an entry with event name 'note-processor-caught-up' and updates results
- * Buckets are rollup sizes for NOTE_DECRYPTING_TIME, or chain sizes for NOTE_HISTORY_DECRYPTING_TIME
  */
 function processNoteProcessorCaughtUp(entry: NoteProcessorCaughtUpStats, results: BenchmarkCollectedResults) {
-  const { seen, decrypted, blocks, duration, dbSize } = entry;
-  if (BENCHMARK_BLOCK_SIZES.includes(decrypted)) {
-    append(results, 'note_successful_decrypting_time_in_ms', decrypted, duration);
-  }
-  if (BENCHMARK_BLOCK_SIZES.includes(seen) && decrypted === 0) {
-    append(results, 'note_trial_decrypting_time_in_ms', seen, duration);
-  }
+  const { decrypted, blocks, dbSize } = entry;
   if (BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(blocks) && decrypted > 0) {
-    append(results, 'note_history_successful_decrypting_time_in_ms', blocks, duration);
     append(results, 'pxe_database_size_in_bytes', blocks, dbSize);
-  }
-  if (BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(blocks) && decrypted === 0) {
-    append(results, 'note_history_trial_decrypting_time_in_ms', blocks, duration);
   }
 }
 
