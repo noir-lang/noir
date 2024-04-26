@@ -12,19 +12,15 @@ template <typename Builder> void create_fixed_base_constraint(Builder& builder, 
     using cycle_scalar_ct = typename bb::stdlib::cycle_group<Builder>::cycle_scalar;
     using field_ct = bb::stdlib::field_t<Builder>;
 
-    // Computes low * G + high * 2^128 * G
-    //
-    // Low and high need to be less than 2^128
-    auto x = field_ct::from_witness_index(&builder, input.pub_key_x);
-    auto y = field_ct::from_witness_index(&builder, input.pub_key_y);
-    grumpkin::g1::affine_element base_point_var(x.get_value(), y.get_value());
-    cycle_group_ct base_point(base_point_var);
-
+    // We reconstruct the scalar from the low and high limbs
     field_ct low_as_field = field_ct::from_witness_index(&builder, input.low);
     field_ct high_as_field = field_ct::from_witness_index(&builder, input.high);
     cycle_scalar_ct scalar(low_as_field, high_as_field);
+
+    // We multiply the scalar with G1 to get the result
     auto result = cycle_group_ct(grumpkin::g1::affine_one) * scalar;
 
+    // Finally we add the constraints
     builder.assert_equal(result.x.get_witness_index(), input.pub_key_x);
     builder.assert_equal(result.y.get_witness_index(), input.pub_key_y);
 }
