@@ -344,7 +344,7 @@ impl<'a> FunctionContext<'a> {
                         self.insert_safe_cast(result, result_type, location)
                     }
                     BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location, true)
+                        self.check_shift_overflow(result, rhs, bit_size, location)
                     }
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
@@ -408,7 +408,7 @@ impl<'a> FunctionContext<'a> {
                             }
                         }
 
-                        self.check_shift_overflow(result, rhs, bit_size, location, false);
+                        self.check_shift_overflow(result, rhs, bit_size, location);
                     }
 
                     _ => unreachable!("operator {} should not overflow", operator),
@@ -430,32 +430,12 @@ impl<'a> FunctionContext<'a> {
         rhs: ValueId,
         bit_size: u32,
         location: Location,
-        is_signed: bool,
     ) -> ValueId {
         let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
-        let rhs = if is_signed {
-            self.insert_safe_cast(rhs, Type::unsigned(bit_size), location)
-        } else {
-            rhs
-        };
-        // Bit-shift with a negative number is an overflow
-        if is_signed {
-            // We compute the sign of rhs.
-            let half_width = self.builder.numeric_constant(
-                FieldElement::from(2_i128.pow(bit_size - 1)),
-                Type::unsigned(bit_size),
-            );
-            let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
-            self.builder.set_location(location).insert_constrain(
-                sign,
-                one,
-                Some("attempt to bit-shift with overflow".to_owned().into()),
-            );
-        }
+        assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
-        let max = self
-            .builder
-            .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
+        let max =
+            self.builder.numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(8));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
             overflow,
