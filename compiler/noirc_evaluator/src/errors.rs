@@ -55,11 +55,9 @@ pub enum Plonky2GenError {
 }
 
 impl Plonky2GenError {
-    pub fn into_runtime_error(&self, call_stack: CallStack) -> RuntimeError {
-        RuntimeError::InternalError(InternalError::General {
-            message: self.to_string(),
-            call_stack,
-        })
+    pub fn into_runtime_error(&self, instruction: String, call_stack: CallStack) -> RuntimeError {
+        let message = format!("{}; instr: {:?}", self, instruction);
+        RuntimeError::InternalError(InternalError::General { message, call_stack })
     }
 }
 
