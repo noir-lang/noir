@@ -61,12 +61,12 @@ describe('benchmarks/tx_size_fees', () => {
     await token.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait();
   });
 
-  it.each<() => Promise<FeePaymentMethod | undefined>>([
-    () => Promise.resolve(undefined),
-    () => NativeFeePaymentMethod.create(aliceWallet),
-    () => Promise.resolve(new PublicFeePaymentMethod(token.address, fpc.address, aliceWallet)),
-    () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet)),
-  ])('sends a tx with a fee', async createPaymentMethod => {
+  it.each<[string, () => Promise<FeePaymentMethod | undefined>]>([
+    ['no', () => Promise.resolve(undefined)],
+    ['native fee', () => NativeFeePaymentMethod.create(aliceWallet)],
+    ['public fee', () => Promise.resolve(new PublicFeePaymentMethod(token.address, fpc.address, aliceWallet))],
+    ['private fee', () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet))],
+  ] as const)('sends a tx with a fee with %s payment method', async (_name, createPaymentMethod) => {
     const paymentMethod = await createPaymentMethod();
     const gasSettings = GasSettings.default();
     const tx = await token.methods
