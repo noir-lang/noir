@@ -20,5 +20,6 @@ Mike review: If we have written definitions for the various kinds of "`data`" de
   - The `unencryptedLogs` should match the `unencryptedLogsHash` and `unencryptedLogPreimagesLength` in the transaction `data`.
   - Each public call stack item in the transaction `data` should have a corresponding preimage in the `enqueuedPublicFunctionCalls`.
   - Each new contract data in transaction `data` should have a corresponding preimage in the `newContracts`.
+- **Able to pay fee**: The [fee can be paid](../gas-and-fees/kernel-tracking.md#mempoolnode-validation).
 
 Note that all checks but the last one are enforced by the base rollup circuit when the transaction is included in a block.

@@ -33,7 +33,8 @@ export class TxEffect {
      */
     public nullifiers: Fr[],
     /**
-     * The L2 to L1 messages to be inserted into the messagebox on L1.
+     * The hash of L2 to L1 messages to be inserted into the messagebox on L1.
+     * TODO(just-mitch): rename to l2ToL1MsgHashes
      */
     public l2ToL1Msgs: Fr[],
     /**
