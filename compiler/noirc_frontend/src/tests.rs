@@ -1231,7 +1231,7 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     }
 
     #[test]
-    fn deny_cyclic_structs() {
+    fn deny_mutually_recursive_structs() {
         let src = r#"
             struct Foo { bar: Bar }
             struct Bar { foo: Foo }
