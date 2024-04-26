@@ -9,10 +9,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{
-    brillig::Brillig,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::errors::{RuntimeError, SsaReport};
 use acvm::acir::{
     circuit::{
         brillig::BrilligBytecode, Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs,
@@ -332,10 +329,6 @@ impl SsaBuilder {
     ) -> Result<Self, RuntimeError> {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
-    }
-
-    fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
-        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {

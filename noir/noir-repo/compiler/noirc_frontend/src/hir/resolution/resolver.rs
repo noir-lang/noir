@@ -926,7 +926,23 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let has_inline_attribute = attributes.is_inline();
         let should_fold = attributes.is_foldable();
+        if !self.inline_attribute_allowed(func) {
+            if has_inline_attribute {
+                self.push_err(ResolverError::InlineAttributeOnUnconstrained {
+                    ident: func.name_ident().clone(),
+                });
+            } else if should_fold {
+                self.push_err(ResolverError::FoldAttributeOnUnconstrained {
+                    ident: func.name_ident().clone(),
+                });
+            }
+        }
+        // Both the #[fold] and #[inline(tag)] alter a function's inline type and code generation in similar ways.
+        // In certain cases such as type checking (for which the following flag will be used) both attributes
+        // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+        let has_inline_or_fold_attribute = has_inline_attribute || should_fold;
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -1021,7 +1037,7 @@ impl<'a> Resolver<'a> {
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
-            should_fold,
+            has_inline_or_fold_attribute,
         }
     }
 
@@ -1055,6 +1071,12 @@ impl<'a> Resolver<'a> {
         } else {
             func.name() == MAIN_FUNCTION
         }
+    }
+
+    fn inline_attribute_allowed(&self, func: &NoirFunction) -> bool {
+        // Inline attributes are only relevant for constrained functions
+        // as all unconstrained functions are not inlined
+        !func.def.is_unconstrained
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {

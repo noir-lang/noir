@@ -28,8 +28,8 @@ use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
-use crate::ssa::ir::function::InlineType;
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{AssertionPayload, OpcodeLocation};
@@ -389,12 +389,12 @@ impl<'a> Context<'a> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
-                    InlineType::Fold => {}
                     InlineType::Inline => {
                         if function.id() != ssa.main_id {
                             panic!("ACIR function should have been inlined earlier if not marked otherwise");
                         }
                     }
+                    InlineType::Fold | InlineType::Never => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
@@ -2629,25 +2629,22 @@ mod test {
         },
         FieldElement,
     };
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::{
         brillig::Brillig,
         ssa::{
             acir_gen::acir_ir::generated_acir::BrilligStdlibFunc,
             function_builder::FunctionBuilder,
-            ir::{
-                function::{FunctionId, InlineType},
-                instruction::BinaryOp,
-                map::Id,
-                types::Type,
-            },
+            ir::{function::FunctionId, instruction::BinaryOp, map::Id, types::Type},
         },
     };
 
     fn build_basic_foo_with_return(
         builder: &mut FunctionBuilder,
         foo_id: FunctionId,
-        is_brillig_func: bool,
+        // `InlineType` can only exist on ACIR functions, so if the option is `None` we should generate a Brillig function
+        inline_type: Option<InlineType>,
     ) {
         // fn foo f1 {
         // b0(v0: Field, v1: Field):
@@ -2655,10 +2652,10 @@ mod test {
         //     constrain v2 == u1 0
         //     return v0
         // }
-        if is_brillig_func {
-            builder.new_brillig_function("foo".into(), foo_id);
+        if let Some(inline_type) = inline_type {
+            builder.new_function("foo".into(), foo_id, inline_type);
         } else {
-            builder.new_function("foo".into(), foo_id, InlineType::Fold);
+            builder.new_brillig_function("foo".into(), foo_id);
         }
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());
@@ -2669,8 +2666,25 @@ mod test {
         builder.terminate_with_return(vec![foo_v0]);
     }
 
+    /// Check that each `InlineType` which prevents inlining functions generates code in the same manner
     #[test]
-    fn basic_call_with_outputs_assert() {
+    fn basic_calls_fold() {
+        basic_call_with_outputs_assert(InlineType::Fold);
+        call_output_as_next_call_input(InlineType::Fold);
+        basic_nested_call(InlineType::Fold);
+
+        call_output_as_next_call_input(InlineType::Never);
+        basic_nested_call(InlineType::Never);
+        basic_call_with_outputs_assert(InlineType::Never);
+    }
+
+    #[test]
+    #[should_panic]
+    fn call_without_inline_attribute() {
+        basic_call_with_outputs_assert(InlineType::Inline);
+    }
+
+    fn basic_call_with_outputs_assert(inline_type: InlineType) {
         // acir(inline) fn main f0 {
         //     b0(v0: Field, v1: Field):
         //       v2 = call f1(v0, v1)
@@ -2698,7 +2712,7 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, false);
+        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
 
         let ssa = builder.finish();
 
@@ -2764,8 +2778,7 @@ mod test {
         }
     }
 
-    #[test]
-    fn call_output_as_next_call_input() {
+    fn call_output_as_next_call_input(inline_type: InlineType) {
         // acir(inline) fn main f0 {
         //     b0(v0: Field, v1: Field):
         //       v3 = call f1(v0, v1)
@@ -2794,7 +2807,7 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, false);
+        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
 
         let ssa = builder.finish();
 
@@ -2813,8 +2826,7 @@ mod test {
         check_call_opcode(&main_opcodes[1], 1, vec![Witness(2), Witness(1)], vec![Witness(3)]);
     }
 
-    #[test]
-    fn basic_nested_call() {
+    fn basic_nested_call(inline_type: InlineType) {
         // SSA for the following Noir program:
         // fn main(x: Field, y: pub Field) {
         //     let z = func_with_nested_foo_call(x, y);
@@ -2870,7 +2882,7 @@ mod test {
         builder.new_function(
             "func_with_nested_foo_call".into(),
             func_with_nested_foo_call_id,
-            InlineType::Fold,
+            inline_type,
         );
         let func_with_nested_call_v0 = builder.add_parameter(Type::field());
         let func_with_nested_call_v1 = builder.add_parameter(Type::field());
@@ -2885,7 +2897,7 @@ mod test {
             .to_vec();
         builder.terminate_with_return(vec![foo_call[0]]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, false);
+        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
 
         let ssa = builder.finish();
 
@@ -2996,8 +3008,8 @@ mod test {
         builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, true);
-        build_basic_foo_with_return(&mut builder, bar_id, true);
+        build_basic_foo_with_return(&mut builder, foo_id, None);
+        build_basic_foo_with_return(&mut builder, bar_id, None);
 
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
@@ -3124,7 +3136,7 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, true);
+        build_basic_foo_with_return(&mut builder, foo_id, None);
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
@@ -3210,8 +3222,10 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, true);
-        build_basic_foo_with_return(&mut builder, bar_id, false);
+        // Build a Brillig function
+        build_basic_foo_with_return(&mut builder, foo_id, None);
+        // Build an ACIR function which has the same logic as the Brillig function above
+        build_basic_foo_with_return(&mut builder, bar_id, Some(InlineType::Fold));
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
@@ -3295,18 +3309,15 @@ mod test {
         // This check right now expects to only call one Brillig function.
         let mut num_normal_brillig_calls = 0;
         for (i, opcode) in opcodes.iter().enumerate() {
-            match opcode {
-                Opcode::BrilligCall { id, .. } => {
-                    if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
-                        // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
-                        continue;
-                    }
-                    // We only generate one normal Brillig call so we should expect a function ID of `0`
-                    let expected_id = 0u32;
-                    assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
-                    num_normal_brillig_calls += 1;
+            if let Opcode::BrilligCall { id, .. } = opcode {
+                if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
+                    // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
+                    continue;
                 }
-                _ => {}
+                // We only generate one normal Brillig call so we should expect a function ID of `0`
+                let expected_id = 0u32;
+                assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
+                num_normal_brillig_calls += 1;
             }
         }
 

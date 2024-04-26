@@ -173,7 +173,7 @@ fn check_if_type_is_valid_for_program_input(
 ) {
     let meta = type_checker.interner.function_meta(&func_id);
     if (meta.is_entry_point && !param.1.is_valid_for_program_input())
-        || (meta.should_fold && !param.1.is_valid_non_inlined_function_input())
+        || (meta.has_inline_or_fold_attribute && !param.1.is_valid_non_inlined_function_input())
     {
         let span = param.0.span();
         errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
@@ -545,7 +545,7 @@ pub mod test {
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
-            should_fold: false,
+            has_inline_or_fold_attribute: false,
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -672,7 +672,7 @@ pub mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(arena::Index::unsafe_zeroed())
+            LocalModuleId(noirc_arena::Index::unsafe_zeroed())
         }
 
         fn module_id(&self) -> ModuleId {
@@ -724,7 +724,7 @@ pub mod test {
         let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
-        let mut modules = arena::Arena::default();
+        let mut modules = noirc_arena::Arena::default();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 

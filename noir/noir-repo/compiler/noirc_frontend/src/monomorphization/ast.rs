@@ -5,8 +5,11 @@ use noirc_errors::{
     Location,
 };
 
-use crate::ast::{BinaryOpKind, Distinctness, IntegerBitSize, Signedness, Visibility};
 use crate::hir_def::{function::FunctionSignature, types::Type as HirType};
+use crate::{
+    ast::{BinaryOpKind, Distinctness, IntegerBitSize, Signedness, Visibility},
+    token::{Attributes, FunctionAttribute},
+};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -200,6 +203,60 @@ pub enum LValue {
 
 pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
+/// Represents how an Acir function should be inlined.
+/// This type is only relevant for ACIR functions as we do not inline any Brillig functions
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub enum InlineType {
+    /// The most basic entry point can expect all its functions to be inlined.
+    /// All function calls are expected to be inlined into a single ACIR.
+    #[default]
+    Inline,
+    /// Functions marked as foldable will not be inlined and compiled separately into ACIR
+    Fold,
+    /// Similar to `Fold`, these functions will not be inlined and compile separately into ACIR.
+    /// They are different from `Fold` though as they are expected to be inlined into the program
+    /// entry point before being used in the backend.
+    Never,
+}
+
+impl From<&Attributes> for InlineType {
+    fn from(attributes: &Attributes) -> Self {
+        attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
+            match func_attribute {
+                FunctionAttribute::Fold => InlineType::Fold,
+                FunctionAttribute::Inline(tag) => {
+                    if tag == "never" {
+                        InlineType::Never
+                    } else {
+                        InlineType::default()
+                    }
+                }
+                _ => InlineType::default(),
+            }
+        })
+    }
+}
+
+impl InlineType {
+    pub fn is_entry_point(&self) -> bool {
+        match self {
+            InlineType::Inline => false,
+            InlineType::Fold => true,
+            InlineType::Never => true,
+        }
+    }
+}
+
+impl std::fmt::Display for InlineType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InlineType::Inline => write!(f, "inline"),
+            InlineType::Fold => write!(f, "fold"),
+            InlineType::Never => write!(f, "inline(never)"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash)]
 pub struct Function {
     pub id: FuncId,
@@ -210,7 +267,7 @@ pub struct Function {
 
     pub return_type: Type,
     pub unconstrained: bool,
-    pub should_fold: bool,
+    pub inline_type: InlineType,
     pub func_sig: FunctionSignature,
 }
 
