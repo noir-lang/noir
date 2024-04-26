@@ -1,7 +1,8 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::ast::{BinaryOpKind, UnaryOp};
+use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
+use crate::macros_api::Signedness;
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
@@ -1129,11 +1130,30 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    self.unify(
+                        rhs_type,
+                        &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+                        || TypeCheckError::InvalidShiftSize { span },
+                    );
+                    let use_impl = if lhs_type.is_numeric() {
+                        let integer_type = Type::polymorphic_integer(self.interner);
+                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
+                    } else {
+                        true
+                    };
+                    return Ok((lhs_type.clone(), use_impl));
+                }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
+                        return Err(TypeCheckError::InvalidShiftSize { span });
+                    }
+                    return Ok((Integer(*sign_x, *bit_width_x), false));
+                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -1165,6 +1185,12 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if rhs == &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
+                        return Ok((lhs.clone(), true));
+                    }
+                    return Err(TypeCheckError::InvalidShiftSize { span });
+                }
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),

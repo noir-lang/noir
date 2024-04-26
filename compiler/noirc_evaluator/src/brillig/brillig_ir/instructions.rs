@@ -75,12 +75,6 @@ impl BrilligContext {
         result: SingleAddrVariable,
         operation: BrilligBinaryOp,
     ) {
-        assert!(
-            lhs.bit_size == rhs.bit_size,
-            "Not equal bit size for lhs and rhs: lhs {}, rhs {}",
-            lhs.bit_size,
-            rhs.bit_size
-        );
         let is_field_op = lhs.bit_size == FieldElement::max_num_bits();
         let expected_result_bit_size =
             BrilligContext::binary_result_bit_size(operation, lhs.bit_size);
