@@ -35,6 +35,10 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     breakpoints: HashSet<OpcodeLocation>,
     source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
     unconstrained_functions: &'a [BrilligBytecode],
+
+    // Absolute (in terms of all the opcodes ACIR+Brillig) addresses of the ACIR
+    // opcodes with one additional entry for to indicate the last valid address.
+    acir_opcode_addresses: Vec<usize>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
@@ -47,6 +51,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         unconstrained_functions: &'a [BrilligBytecode],
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
+        let acir_opcode_addresses = build_acir_opcode_offsets(circuit, unconstrained_functions);
         Self {
             // TODO: need to handle brillig pointer in the debugger
             acvm: ACVM::new(
@@ -61,6 +66,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             breakpoints: HashSet::new(),
             source_to_opcodes,
             unconstrained_functions,
+            acir_opcode_addresses,
         }
     }
 
@@ -213,102 +219,48 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             .collect()
     }
 
-    fn get_opcodes_sizes(&self) -> Vec<usize> {
-        self.get_opcodes()
-            .iter()
-            .map(|opcode| match opcode {
-                Opcode::BrilligCall { id, .. } => {
-                    self.unconstrained_functions[*id as usize].bytecode.len()
-                }
-                _ => 1,
-            })
-            .collect()
-    }
-
-    /// Offsets the given location by the given number of opcodes (including
-    /// Brillig opcodes). If the offset would move the location outside of a
-    /// valid circuit location, returns None and the number of remaining
-    /// opcodes/instructions left which span outside the valid range in the
-    /// second element of the returned tuple.
-    pub(super) fn offset_opcode_location(
-        &self,
-        location: &Option<OpcodeLocation>,
-        mut offset: i64,
-    ) -> (Option<OpcodeLocation>, i64) {
-        if offset == 0 {
-            return (*location, 0);
-        }
-        let Some(location) = location else {
-            return (None, offset);
-        };
-
-        let (mut acir_index, mut brillig_index) = match location {
-            OpcodeLocation::Acir(acir_index) => (*acir_index, 0),
-            OpcodeLocation::Brillig { acir_index, brillig_index } => (*acir_index, *brillig_index),
-        };
-        let opcode_sizes = self.get_opcodes_sizes();
-        if offset > 0 {
-            while offset > 0 {
-                let opcode_size = opcode_sizes[acir_index] as i64 - brillig_index as i64;
-                if offset >= opcode_size {
-                    acir_index += 1;
-                    offset -= opcode_size;
-                    brillig_index = 0;
-                } else {
-                    brillig_index += offset as usize;
-                    offset = 0;
-                }
-                if acir_index >= opcode_sizes.len() {
-                    return (None, offset);
-                }
+    /// Returns the absolute address of the opcode at the given location.
+    /// Absolute here means accounting for nested Brillig opcodes in BrilligCall
+    /// opcodes.
+    pub fn opcode_location_to_address(&self, location: &OpcodeLocation) -> usize {
+        match location {
+            OpcodeLocation::Acir(acir_index) => self.acir_opcode_addresses[*acir_index],
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                self.acir_opcode_addresses[*acir_index] + *brillig_index
             }
-        } else {
-            while offset < 0 {
-                if brillig_index > 0 {
-                    if brillig_index > (-offset) as usize {
-                        brillig_index -= (-offset) as usize;
-                        offset = 0;
-                    } else {
-                        offset += brillig_index as i64;
-                        brillig_index = 0;
-                    }
-                } else {
-                    if acir_index == 0 {
-                        return (None, offset);
-                    }
-                    acir_index -= 1;
-                    let opcode_size = opcode_sizes[acir_index] as i64;
-                    if opcode_size <= -offset {
-                        offset += opcode_size;
-                    } else {
-                        brillig_index = (opcode_size + offset) as usize;
-                        offset = 0;
-                    }
-                }
-            }
-        }
-        if brillig_index > 0 {
-            (Some(OpcodeLocation::Brillig { acir_index, brillig_index }), 0)
-        } else {
-            (Some(OpcodeLocation::Acir(acir_index)), 0)
         }
     }
 
-    pub(super) fn render_opcode_at_location(&self, location: &Option<OpcodeLocation>) -> String {
+    pub fn address_to_opcode_location(&self, address: usize) -> Option<OpcodeLocation> {
+        if address >= *self.acir_opcode_addresses.last().unwrap_or(&0) {
+            return None;
+        }
+        let location = match self.acir_opcode_addresses.binary_search(&address) {
+            Ok(found_index) => OpcodeLocation::Acir(found_index),
+            Err(insert_index) => {
+                let acir_index = insert_index - 1;
+                let base_offset = self.acir_opcode_addresses[acir_index];
+                let brillig_index = address - base_offset;
+                OpcodeLocation::Brillig { acir_index, brillig_index }
+            }
+        };
+        Some(location)
+    }
+
+    pub(super) fn render_opcode_at_location(&self, location: &OpcodeLocation) -> String {
         let opcodes = self.get_opcodes();
         match location {
-            None => String::from("invalid"),
-            Some(OpcodeLocation::Acir(acir_index)) => {
+            OpcodeLocation::Acir(acir_index) => {
                 let opcode = &opcodes[*acir_index];
                 match opcode {
                     Opcode::BrilligCall { id, .. } => {
                         let first_opcode = &self.unconstrained_functions[*id as usize].bytecode[0];
-                        format!("BRILLIG CALL {first_opcode:?}")
+                        format!("BRILLIG {first_opcode:?}")
                     }
                     _ => format!("{opcode:?}"),
                 }
             }
-            Some(OpcodeLocation::Brillig { acir_index, brillig_index }) => {
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 match &opcodes[*acir_index] {
                     Opcode::BrilligCall { id, .. } => {
                         let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
@@ -640,6 +592,25 @@ fn build_source_to_opcode_debug_mappings(
     });
     result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| (x.0, x.1)));
 
+    result
+}
+
+fn build_acir_opcode_offsets(
+    circuit: &Circuit,
+    unconstrained_functions: &[BrilligBytecode],
+) -> Vec<usize> {
+    let mut result = Vec::with_capacity(circuit.opcodes.len() + 1);
+    // address of the first opcode is always 0
+    result.push(0);
+    circuit.opcodes.iter().fold(0, |acc, opcode| {
+        let acc = acc + match opcode {
+            Opcode::BrilligCall { id, .. } => unconstrained_functions[*id as usize].bytecode.len(),
+            _ => 1,
+        };
+        // push the starting address of the next opcode
+        result.push(acc);
+        acc
+    });
     result
 }
 

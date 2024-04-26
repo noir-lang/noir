@@ -205,6 +205,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     Some(frame) => format!("{} {}", frame.function_name, index),
                     None => format!("frame #{index}"),
                 };
+                let address = self.context.opcode_location_to_address(opcode_location);
 
                 StackFrame {
                     id: index as i64,
@@ -218,7 +219,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     }),
                     line: line_number as i64,
                     column: column_number as i64,
-                    instruction_pointer_reference: Some(opcode_location.to_string()),
+                    instruction_pointer_reference: Some(address.to_string()),
                     ..StackFrame::default()
                 }
             })
@@ -240,50 +241,38 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         let Command::Disassemble(ref args) = req.command else {
             unreachable!("handle_disassemble called on a non disassemble request");
         };
-        let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
+
+        // we assume memory references are unsigned integers
+        let starting_address = args.memory_reference.parse::<i64>().unwrap_or(0);
         let instruction_offset = args.instruction_offset.unwrap_or(0);
-        let (mut opcode_location, mut invalid_count) =
-            self.context.offset_opcode_location(&starting_ip, instruction_offset);
+
+        let mut address = starting_address + instruction_offset;
         let mut count = args.instruction_count;
 
         let mut instructions: Vec<DisassembledInstruction> = vec![];
 
-        // leading invalid locations (when the request goes back
-        // beyond the start of the program)
-        if invalid_count < 0 {
-            while invalid_count < 0 {
+        while count > 0 {
+            let opcode_location =
+                if address >= 0 { self.context.address_to_opcode_location(address as usize) } else { None };
+
+            if let Some(opcode_location) = opcode_location {
                 instructions.push(DisassembledInstruction {
-                    address: String::from("---"),
-                    instruction: String::from("---"),
+                    address: address.to_string(),
+                    // we'll use the instruction_bytes field to render the OpcodeLocation
+                    instruction_bytes: Some(opcode_location.to_string()),
+                    instruction: self.context.render_opcode_at_location(&opcode_location),
                     ..DisassembledInstruction::default()
                 });
-                invalid_count += 1;
-                count -= 1;
+            } else {
+                // entry for invalid location to fill up the request
+                instructions.push(DisassembledInstruction {
+                    address: "---".to_owned(),
+                    instruction: "---".to_owned(),
+                    ..DisassembledInstruction::default()
+                });
             }
-            if count > 0 {
-                opcode_location = Some(OpcodeLocation::Acir(0));
-            }
-        }
-        // the actual opcodes
-        while count > 0 && opcode_location.is_some() {
-            instructions.push(DisassembledInstruction {
-                address: format!("{}", opcode_location.unwrap()),
-                instruction: self.context.render_opcode_at_location(&opcode_location),
-                ..DisassembledInstruction::default()
-            });
-            (opcode_location, _) = self.context.offset_opcode_location(&opcode_location, 1);
             count -= 1;
-        }
-        // any remaining instruction count is beyond the valid opcode
-        // vector so return invalid placeholders
-        while count > 0 {
-            instructions.push(DisassembledInstruction {
-                address: String::from("---"),
-                instruction: String::from("---"),
-                ..DisassembledInstruction::default()
-            });
-            invalid_count -= 1;
-            count -= 1;
+            address += 1;
         }
 
         self.server.respond(
