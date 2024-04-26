@@ -1136,7 +1136,13 @@ impl<'interner> TypeChecker<'interner> {
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
                         || TypeCheckError::InvalidShiftSize { span },
                     );
-                    return Ok((lhs_type.clone(), true));
+                    let use_impl = if lhs_type.is_numeric() {
+                        let integer_type = Type::polymorphic_integer(self.interner);
+                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
+                    } else {
+                        true
+                    };
+                    return Ok((lhs_type.clone(), use_impl));
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
                 Ok((other.clone(), use_impl))
