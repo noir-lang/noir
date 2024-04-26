@@ -122,7 +122,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Ok(Builder::new().build(ssa, parameter_names)?)
+    Builder::new().build(ssa, parameter_names)
 }
 
 // Helper to time SSA passes
