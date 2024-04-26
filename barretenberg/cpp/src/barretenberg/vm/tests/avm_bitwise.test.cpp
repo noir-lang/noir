@@ -500,7 +500,7 @@ TEST_P(AvmBitwiseTestsAnd, AllAndTest)
     FF ff_b = FF(uint256_t::from_uint128(b));
     FF ff_output = FF(uint256_t::from_uint128(output));
     common_validate_bit_op(trace, 0, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), true);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
                          AvmBitwiseTestsAnd,

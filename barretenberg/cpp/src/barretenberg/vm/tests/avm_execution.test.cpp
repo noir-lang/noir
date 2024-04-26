@@ -4,11 +4,6 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
-#include <cstdint>
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-#include <string>
-#include <utility>
 
 namespace tests_avm {
 
@@ -16,26 +11,6 @@ using namespace bb::avm_trace;
 using namespace testing;
 
 using bb::utils::hex_to_bytes;
-
-namespace {
-
-void gen_proof_and_validate(std::vector<uint8_t> const& bytecode,
-                            std::vector<Row>&& trace,
-                            std::vector<FF> const& calldata)
-{
-    auto circuit_builder = AvmCircuitBuilder();
-    circuit_builder.set_trace(std::move(trace));
-    EXPECT_TRUE(circuit_builder.check_circuit());
-
-    auto composer = AvmComposer();
-    auto verifier = composer.create_verifier(circuit_builder);
-
-    auto proof = avm_trace::Execution::run_and_prove(bytecode, calldata);
-
-    // TODO(#4944): uncomment the following line to revive full verification
-    // EXPECT_TRUE(verifier.verify_proof(proof));
-}
-} // namespace
 
 class AvmExecutionTests : public ::testing::Test {
   public:
@@ -84,7 +59,7 @@ TEST_F(AvmExecutionTests, basicAddReturn)
                             ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(0), VariantWith<uint32_t>(0)))));
 
     auto trace = Execution::gen_trace(instructions);
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace), true);
 }
 
 // Positive test for SET and SUB opcodes
@@ -149,8 +124,7 @@ TEST_F(AvmExecutionTests, setAndSubOpcodes)
     // Find the first row enabling the subtraction selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sub == 1; });
     EXPECT_EQ(row->avm_main_ic, 10000); // 47123 - 37123 = 10000
-
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace), true);
 }
 
 // Positive test for multiple MUL opcodes
@@ -230,7 +204,7 @@ TEST_F(AvmExecutionTests, powerWithMulOpcodes)
         trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_mul == 1 && r.avm_main_pc == 13; });
     EXPECT_EQ(row->avm_main_ic, 244140625); // 5^12 = 244140625
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Positive test about a single internal_call and internal_return
@@ -297,7 +271,7 @@ TEST_F(AvmExecutionTests, simpleInternalCall)
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_add == 1; });
     EXPECT_EQ(row->avm_main_ic, 345567789);
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Positive test with some nested internall calls
@@ -377,7 +351,7 @@ TEST_F(AvmExecutionTests, nestedInternalCalls)
     EXPECT_EQ(row->avm_main_ic, 187);
     EXPECT_EQ(row->avm_main_pc, 4);
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Positive test with JUMP and CALLDATACOPY
@@ -451,7 +425,7 @@ TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
     // It must have failed as subtraction was "jumped over".
     EXPECT_EQ(row, trace.end());
 
-    gen_proof_and_validate(bytecode, std::move(trace), std::vector<FF>{ 13, 156 });
+    validate_trace(std::move(trace));
 }
 
 // Positive test with MOV.
@@ -499,7 +473,7 @@ TEST_F(AvmExecutionTests, movOpcode)
     EXPECT_EQ(row->avm_main_ia, 19);
     EXPECT_EQ(row->avm_main_ic, 19);
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Positive test with CMOV.
@@ -555,7 +529,7 @@ TEST_F(AvmExecutionTests, cmovOpcode)
     EXPECT_EQ(row->avm_main_ic, 3);
     EXPECT_EQ(row->avm_main_id, 5);
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Positive test with indirect MOV.
@@ -603,7 +577,7 @@ TEST_F(AvmExecutionTests, indMovOpcode)
     EXPECT_EQ(row->avm_main_ia, 255);
     EXPECT_EQ(row->avm_main_ic, 255);
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Positive test for SET and CAST opcodes
@@ -644,7 +618,7 @@ TEST_F(AvmExecutionTests, setAndCastOpcodes)
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_cast == 1; });
     EXPECT_EQ(row->avm_main_ic, 19); // 0XB813 --> 0X13 = 19
 
-    gen_proof_and_validate(bytecode, std::move(trace), {});
+    validate_trace(std::move(trace));
 }
 
 // Negative test detecting an invalid opcode byte.

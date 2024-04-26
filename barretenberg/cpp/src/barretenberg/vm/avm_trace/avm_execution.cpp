@@ -27,22 +27,8 @@ namespace bb::avm_trace {
  * @param bytecode A vector of bytes representing the bytecode to execute.
  * @param calldata expressed as a vector of finite field elements.
  * @throws runtime_error exception when the bytecode is invalid.
- * @return A zk proof of the execution.
+ * @return The verifier key and zk proof of the execution.
  */
-HonkProof Execution::run_and_prove(std::vector<uint8_t> const& bytecode, std::vector<FF> const& calldata)
-{
-    auto instructions = Deserialization::parse(bytecode);
-    auto trace = gen_trace(instructions, calldata);
-    auto circuit_builder = bb::AvmCircuitBuilder();
-    circuit_builder.set_trace(std::move(trace));
-
-    auto composer = AvmComposer();
-    auto prover = composer.create_prover(circuit_builder);
-    auto verifier = composer.create_verifier(circuit_builder);
-    auto proof = prover.construct_proof();
-    return proof;
-}
-
 std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<uint8_t> const& bytecode,
                                                                    std::vector<FF> const& calldata)
 {
@@ -50,9 +36,6 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     auto trace = gen_trace(instructions, calldata);
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
-
-    // Temporarily use this until #4954 is resolved
-    assert(circuit_builder.check_circuit());
 
     auto composer = AvmComposer();
     auto prover = composer.create_prover(circuit_builder);

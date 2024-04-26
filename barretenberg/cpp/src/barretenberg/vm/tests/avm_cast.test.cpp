@@ -55,7 +55,8 @@ class AvmCastTests : public ::testing::Test {
                              uint32_t src_address,
                              uint32_t dst_address,
                              AvmMemoryTag src_tag,
-                             AvmMemoryTag dst_tag
+                             AvmMemoryTag dst_tag,
+                             bool force_proof = true
 
     )
     {
@@ -102,7 +103,13 @@ class AvmCastTests : public ::testing::Test {
             alu_row_next,
             AllOf(Field("op_cast", &Row::avm_alu_op_cast, 0), Field("op_cast_prev", &Row::avm_alu_op_cast_prev, 1)));
 
-        validate_trace(std::move(trace));
+        // We still want the ability to enable proving through the environment variable and therefore we do not pass
+        // the boolean variable force_proof to validate_trace second argument.
+        if (force_proof) {
+            validate_trace(std::move(trace), true);
+        } else {
+            validate_trace(std::move(trace));
+        }
     }
 };
 
@@ -190,7 +197,7 @@ TEST_F(AvmCastTests, indirectAddrTruncationU64ToU8)
     trace = trace_builder.finalize();
     gen_indices();
 
-    validate_cast_trace(256'000'000'203UL, 203, 10, 11, AvmMemoryTag::U64, AvmMemoryTag::U8);
+    validate_cast_trace(256'000'000'203UL, 203, 10, 11, AvmMemoryTag::U64, AvmMemoryTag::U8, true);
 }
 
 TEST_F(AvmCastTests, indirectAddrWrongResolutionU64ToU8)

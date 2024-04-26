@@ -556,17 +556,14 @@ void avm_prove(const std::filesystem::path& bytecode_path,
 bool avm_verify(const std::filesystem::path& proof_path)
 {
     std::filesystem::path vk_path = proof_path.parent_path() / "vk";
+    std::vector<fr> const proof = many_from_buffer<fr>(read_file(proof_path));
+    std::vector<uint8_t> vk_bytes = read_file(vk_path);
+    auto circuit_size = from_buffer<size_t>(vk_bytes, 0);
+    auto num_public_inputs = from_buffer<size_t>(vk_bytes, sizeof(size_t));
+    auto vk = AvmFlavor::VerificationKey(circuit_size, num_public_inputs);
 
-    // Actual verification temporarily stopped (#4954)
-    // std::vector<fr> const proof = many_from_buffer<fr>(read_file(proof_path));
-    //
-    // std::vector<uint8_t> vk_bytes = read_file(vk_path);
-    // auto circuit_size = from_buffer<size_t>(vk_bytes, 0);
-    // auto _num_public_inputs = from_buffer<size_t>(vk_bytes, sizeof(size_t));
-    // auto vk = AvmFlavor::VerificationKey(circuit_size, num_public_inputs);
-    //
-    // std::cout << avm_trace::Execution::verify(vk, proof);
-    // return avm_trace::Execution::verify(vk, proof);
+    std::cout << avm_trace::Execution::verify(vk, proof);
+    return avm_trace::Execution::verify(vk, proof);
 
     std::cout << 1;
     return true;

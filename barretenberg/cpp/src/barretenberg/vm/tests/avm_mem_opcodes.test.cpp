@@ -391,7 +391,7 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
                       Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                       Field(&Row::avm_mem_ind_op_c, 1)));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), true);
 }
 
 /******************************************************************************

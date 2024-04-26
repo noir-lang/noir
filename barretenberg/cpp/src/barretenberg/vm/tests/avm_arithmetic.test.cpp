@@ -511,7 +511,7 @@ TEST_F(AvmArithmeticTestsFF, mixedOperationsWithError)
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), true);
 }
 
 // Test of equality on FF elements
