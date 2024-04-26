@@ -4,6 +4,7 @@ use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -17,7 +18,7 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
-        function::{InlineType, RuntimeType},
+        function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,

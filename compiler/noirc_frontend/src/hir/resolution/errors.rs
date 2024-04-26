@@ -86,6 +86,10 @@ pub enum ResolverError {
     JumpInConstrainedFn { is_break: bool, span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
+    #[error("#[inline(tag)] attribute is only allowed on constrained functions")]
+    InlineAttributeOnUnconstrained { ident: Ident },
+    #[error("#[fold] attribute is only allowed on constrained functions")]
+    FoldAttributeOnUnconstrained { ident: Ident },
 }
 
 impl ResolverError {
@@ -340,6 +344,30 @@ impl From<ResolverError> for Diagnostic {
                     span,
                 )
             },
+            ResolverError::InlineAttributeOnUnconstrained { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[inline(tag)] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    "misplaced #[inline(tag)] attribute".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `#[inline(tag)]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
+                diag
+            }
+            ResolverError::FoldAttributeOnUnconstrained { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[fold] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    "misplaced #[fold] attribute".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
+                diag
+            }
         }
     }
 }
