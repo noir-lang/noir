@@ -6,10 +6,10 @@
 namespace bb {
 
 template <class Flavor>
-void ExecutionTrace_<Flavor>::populate(Builder& builder, typename Flavor::ProvingKey& proving_key)
+void ExecutionTrace_<Flavor>::populate(Builder& builder, typename Flavor::ProvingKey& proving_key, bool is_structured)
 {
     // Construct wire polynomials, selector polynomials, and copy cycles from raw circuit data
-    auto trace_data = construct_trace_data(builder, proving_key.circuit_size);
+    auto trace_data = construct_trace_data(builder, proving_key.circuit_size, is_structured);
 
     add_wires_and_selectors_to_proving_key(trace_data, builder, proving_key);
 
@@ -69,7 +69,8 @@ void ExecutionTrace_<Flavor>::add_memory_records_to_proving_key(TraceData& trace
 
 template <class Flavor>
 typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_trace_data(Builder& builder,
-                                                                                          size_t dyadic_circuit_size)
+                                                                                          size_t dyadic_circuit_size,
+                                                                                          bool is_structured)
 {
     TraceData trace_data{ dyadic_circuit_size, builder };
 
@@ -113,7 +114,12 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
             trace_data.pub_inputs_offset = offset;
         }
 
-        offset += block_size;
+        // If the trace is structured, we populate the data from the next block at a fixed block size offset
+        if (is_structured) {
+            offset += builder.FIXED_BLOCK_SIZE;
+        } else { // otherwise, the next block starts immediately following the previous one
+            offset += block_size;
+        }
     }
     return trace_data;
 }

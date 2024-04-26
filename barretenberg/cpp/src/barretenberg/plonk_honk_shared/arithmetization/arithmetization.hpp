@@ -119,6 +119,7 @@ template <typename FF_> class UltraArith {
   public:
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 11;
+    static constexpr size_t FIXED_BLOCK_SIZE = 1 << 10; // Size of each block in a structured trace (arbitrary for now)
     using FF = FF_;
 
     class UltraTraceBlock : public ExecutionTraceBlock<FF, NUM_WIRES, NUM_SELECTORS> {
@@ -165,7 +166,7 @@ template <typename FF_> class UltraArith {
 
         auto get() { return RefArray{ pub_inputs, arithmetic, delta_range, elliptic, aux, lookup }; }
 
-        void summarize()
+        void summarize() const
         {
             info("Gate blocks summary:");
             info("pub inputs:\t", pub_inputs.size());
@@ -196,6 +197,8 @@ template <typename FF_> class UltraHonkArith {
   public:
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 14;
+    static constexpr size_t FIXED_BLOCK_SIZE = 1 << 10; // Size of each block in a structured trace (arbitrary for now)
+
     using FF = FF_;
 
     class UltraHonkTraceBlock : public ExecutionTraceBlock<FF, NUM_WIRES, NUM_SELECTORS> {
@@ -279,7 +282,7 @@ template <typename FF_> class UltraHonkArith {
                              aux,    lookup,     busread,    poseidon_external, poseidon_internal };
         }
 
-        void summarize()
+        void summarize() const
         {
             info("Gate blocks summary:");
             info("goblin ecc op:\t", ecc_op.size());

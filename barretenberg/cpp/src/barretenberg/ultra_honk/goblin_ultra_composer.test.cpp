@@ -62,6 +62,43 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
 /**
  * @brief Test proof construction/verification for a circuit with ECC op gates, public inputs, and basic arithmetic
  * gates
+ *
+ */
+TEST_F(GoblinUltraHonkComposerTests, Basic)
+{
+    GoblinUltraCircuitBuilder builder;
+
+    GoblinMockCircuits::construct_simple_circuit(builder);
+
+    // Construct and verify Honk proof
+    bool honk_verified = construct_and_verify_honk_proof(builder);
+    EXPECT_TRUE(honk_verified);
+}
+
+/**
+ * @brief Test proof construction/verification for a structured execution trace
+ *
+ */
+TEST_F(GoblinUltraHonkComposerTests, BasicStructured)
+{
+    GoblinUltraCircuitBuilder builder;
+
+    GoblinMockCircuits::construct_simple_circuit(builder);
+
+    // Construct and verify Honk proof using a structured trace
+    bool structured = true;
+    auto instance = std::make_shared<ProverInstance_<GoblinUltraFlavor>>(builder, structured);
+    builder.blocks.summarize();
+    GoblinUltraProver prover(instance);
+    auto verification_key = std::make_shared<GoblinUltraFlavor::VerificationKey>(instance->proving_key);
+    GoblinUltraVerifier verifier(verification_key);
+    auto proof = prover.construct_proof();
+    EXPECT_TRUE(verifier.verify_proof(proof));
+}
+
+/**
+ * @brief Test proof construction/verification for a circuit with ECC op gates, public inputs, and basic arithmetic
+ * gates
  * @note We simulate op queue interactions with a previous circuit so the actual circuit under test utilizes an op queue
  * with non-empty 'previous' data. This avoid complications with zero-commitments etc.
  *

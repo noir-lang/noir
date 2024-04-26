@@ -33,6 +33,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
 
     using FF = typename Arithmetization::FF;
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
+    static constexpr size_t FIXED_BLOCK_SIZE = Arithmetization::FIXED_BLOCK_SIZE;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;
     static constexpr size_t num_selectors = Arithmetization::NUM_SELECTORS;

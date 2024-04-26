@@ -116,7 +116,7 @@ class GoblinMockCircuits {
      *
      * @param builder
      */
-    static void construct_simple_circuit(GoblinUltraBuilder& builder)
+    static void add_some_ecc_op_gates(GoblinUltraBuilder& builder)
     {
         // Add some arbitrary ecc op gates
         for (size_t i = 0; i < 3; ++i) {
@@ -127,7 +127,16 @@ class GoblinMockCircuits {
         }
         // queues the result of the preceding ECC
         builder.queue_ecc_eq(); // should be eq and reset
+    }
 
+    /**
+     * @brief Generate a simple test circuit with some ECC op gates and conventional arithmetic gates
+     *
+     * @param builder
+     */
+    static void construct_simple_circuit(GoblinUltraBuilder& builder)
+    {
+        add_some_ecc_op_gates(builder);
         MockCircuits::construct_arithmetic_circuit(builder);
     }
 

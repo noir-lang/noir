@@ -42,21 +42,35 @@ template <class Flavor> class ProverInstance_ {
     std::vector<FF> gate_challenges;
     FF target_sum;
 
-    ProverInstance_(Circuit& circuit)
+    ProverInstance_(Circuit& circuit, bool is_structured = false)
     {
         BB_OP_COUNT_TIME_NAME("ProverInstance(Circuit&)");
         circuit.add_gates_to_ensure_all_polys_are_non_zero();
         circuit.finalize_circuit();
+        // If using a structured trace, ensure that no block exceeds the fixed size
+        if (is_structured) {
+            for (auto& block : circuit.blocks.get()) {
+                ASSERT(block.size() <= circuit.FIXED_BLOCK_SIZE);
+            }
+        }
+
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/905): This is adding ops to the op queue but NOT to
+        // the circuit, meaning the ECCVM/Translator will use different ops than the main circuit. This will lead to
+        // failure once https://github.com/AztecProtocol/barretenberg/issues/746 is resolved.
         if constexpr (IsGoblinFlavor<Flavor>) {
             circuit.op_queue->append_nonzero_ops();
         }
 
-        dyadic_circuit_size = compute_dyadic_size(circuit);
+        if (is_structured) { // Compute dyadic size based on a structured trace with fixed block size
+            dyadic_circuit_size = compute_structured_dyadic_size(circuit);
+        } else { // Otherwise, compute conventional dyadic circuit size
+            dyadic_circuit_size = compute_dyadic_size(circuit);
+        }
 
         proving_key = std::move(ProvingKey(dyadic_circuit_size, circuit.public_inputs.size()));
 
         // Construct and add to proving key the wire, selector and copy constraint polynomials
-        Trace::populate(circuit, proving_key);
+        Trace::populate(circuit, proving_key, is_structured);
 
         // If Goblin, construct the databus polynomials
         if constexpr (IsGoblinFlavor<Flavor>) {
@@ -94,6 +108,17 @@ template <class Flavor> class ProverInstance_ {
     size_t dyadic_circuit_size = 0; // final power-of-2 circuit size
 
     size_t compute_dyadic_size(Circuit&);
+
+    /**
+     * @brief Compute dyadic size based on a structured trace with fixed block size
+     *
+     */
+    size_t compute_structured_dyadic_size(Circuit& builder)
+    {
+        size_t num_blocks = builder.blocks.get().size();
+        size_t minimum_size = num_blocks * builder.FIXED_BLOCK_SIZE;
+        return builder.get_circuit_subgroup_size(minimum_size);
+    }
 
     void construct_databus_polynomials(Circuit&)
         requires IsGoblinFlavor<Flavor>;
