@@ -20,7 +20,7 @@ contract TokenBlacklist {
     use crate::types::{transparent_note::TransparentNote, token_note::TokenNote, balances_map::BalancesMap, roles::UserFlags};
 
     // Changing an address' roles has a certain block delay before it goes into effect.
-    global CHANGE_ROLES_DELAY_BLOCKS = 5;
+    global CHANGE_ROLES_DELAY_BLOCKS = 2;
 
     #[aztec(storage)]
     struct Storage {
