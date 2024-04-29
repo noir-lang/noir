@@ -150,7 +150,7 @@ impl Value {
                     try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
-            Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
+            Value::Code(block) => HirExpression::Quote(unwrap_rc(block)),
             Value::Pointer(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }

@@ -50,7 +50,7 @@ pub enum InterpreterError {
 }
 
 #[allow(unused)]
-pub(super) type IResult<T> = std::result::Result<T, InterpreterError>;
+pub type IResult<T> = std::result::Result<T, InterpreterError>;
 
 impl InterpreterError {
     pub fn into_compilation_error_pair(self) -> (CompilationError, fm::FileId) {

@@ -1,3 +1,4 @@
+use crate::composer::Composable;
 // Fix usage of intern and resolve
 // In some places, we do intern, however in others we are resolving and interning
 // Ideally, I want to separate the interning and resolving abstractly
@@ -149,6 +150,47 @@ struct ResolverMeta {
 pub enum ResolvePathError {
     WrongKind,
     NotFound,
+}
+
+impl<'a> Composable for Resolver<'a> {
+    type FunctionResult = FuncId;
+    type BlockResult = ExprId;
+    type StatementResult = StmtId;
+
+    type FunctionState = ();
+
+    type FunctionInput = NoirFunction;
+    type BlockInput<'local> = &'local [StmtId];
+    type StatementInput = Statement;
+
+    fn enter_function(&mut self, function: Self::FunctionInput) -> Self::FunctionState {
+        todo!()
+    }
+
+    fn exit_function(
+        &mut self,
+        body: Self::BlockResult,
+        state: Self::FunctionState,
+    ) -> Self::FunctionResult {
+        todo!()
+    }
+
+    fn enter_block(&mut self) {
+        self.scopes.start_scope();
+    }
+
+    fn exit_block<'local>(&mut self, statements: Self::BlockInput<'local>) -> Self::BlockResult {
+        let scope = self.scopes.end_scope();
+        self.check_for_unused_variables_in_scope_tree(scope.into());
+
+        let statements = statements.to_vec();
+        let hir_block = HirExpression::Block(HirBlockExpression { statements });
+        self.interner.push_expr(hir_block)
+    }
+
+    fn do_statement(&mut self, statement: Self::StatementInput) -> Self::StatementResult {
+        self.intern_stmt(statement)
+    }
 }
 
 impl<'a> Resolver<'a> {
@@ -1297,7 +1339,19 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn resolve_stmt(&mut self, stmt: StatementKind, span: Span) -> HirStatement {
+    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+        let result = self.intern_stmt_inner(stmt);
+        result
+    }
+
+    fn intern_stmt_inner(&mut self, stmt: Statement) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
+        let id = self.interner.push_stmt(hir_stmt);
+        self.interner.push_statement_location(id, stmt.span, self.file);
+        id
+    }
+
+    fn resolve_stmt(&mut self, stmt: StatementKind, span: Span) -> HirStatement {
         match stmt {
             StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
@@ -1427,13 +1481,6 @@ impl<'a> Resolver<'a> {
             span,
         );
         Some(self.resolve_expression(assert_msg_call_expr))
-    }
-
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
-        let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
-        let id = self.interner.push_stmt(hir_stmt);
-        self.interner.push_statement_location(id, stmt.span, self.file);
-        id
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {

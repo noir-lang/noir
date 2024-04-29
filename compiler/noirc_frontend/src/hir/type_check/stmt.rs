@@ -102,7 +102,7 @@ impl<'interner> TypeChecker<'interner> {
                     let expected =
                         Type::Tuple(vecmap(fields, |_| self.interner.next_type_variable()));
 
-                    self.errors.push(TypeCheckError::TypeMismatchWithSource {
+                    self.state.errors.push(TypeCheckError::TypeMismatchWithSource {
                         expected,
                         actual: other,
                         span: location.span,
@@ -140,7 +140,7 @@ impl<'interner> TypeChecker<'interner> {
 
         if !mutable {
             let (name, span) = self.get_lvalue_name_and_span(&assign_stmt.lvalue);
-            self.errors.push(TypeCheckError::VariableMustBeMutable { name, span });
+            self.state.errors.push(TypeCheckError::VariableMustBeMutable { name, span });
         }
 
         // Must push new lvalue to the interner, we've resolved any field indices
@@ -234,12 +234,11 @@ impl<'interner> TypeChecker<'interner> {
                 let expr_span = self.interner.expr_span(index);
                 let location = *location;
 
-                index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "an integer".to_owned(),
-                        expr_typ: index_type.to_string(),
-                        expr_span,
-                    }
+                let int_or_field = self.polymorphic_integer_or_field();
+                self.unify(&index_type, &int_or_field, || TypeCheckError::TypeMismatch {
+                    expected_typ: "an integer".to_owned(),
+                    expr_typ: index_type.to_string(),
+                    expr_span,
                 });
 
                 let (mut lvalue_type, mut lvalue, mut mutable) =
@@ -261,13 +260,13 @@ impl<'interner> TypeChecker<'interner> {
                     Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
-                        let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
-                        self.errors.push(TypeCheckError::StringIndexAssign { span: lvalue_span });
+                        let (_lvalue_name, span) = self.get_lvalue_name_and_span(&lvalue);
+                        self.state.errors.push(TypeCheckError::StringIndexAssign { span });
                         Type::Error
                     }
                     other => {
                         // TODO: Need a better span here
-                        self.errors.push(TypeCheckError::TypeMismatch {
+                        self.state.errors.push(TypeCheckError::TypeMismatch {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
                             expr_span: assign_span,
@@ -364,7 +363,7 @@ impl<'interner> TypeChecker<'interner> {
                     let bit_count: u32 = (*bit_count).into();
                     let max = 1 << bit_count;
                     if v >= max {
-                        self.errors.push(TypeCheckError::OverflowingAssignment {
+                        self.state.errors.push(TypeCheckError::OverflowingAssignment {
                             expr: value,
                             ty: annotated_type.clone(),
                             range: format!("0..={}", max - 1),
@@ -376,7 +375,7 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Prefix(expr) => {
                 self.lint_overflowing_uint(&expr.rhs, annotated_type);
                 if matches!(expr.operator, UnaryOp::Minus) {
-                    self.errors.push(TypeCheckError::InvalidUnaryOp {
+                    self.state.errors.push(TypeCheckError::InvalidUnaryOp {
                         kind: "annotated_type".to_string(),
                         span,
                     });

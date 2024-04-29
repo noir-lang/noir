@@ -11,6 +11,7 @@
 //! so that any variables defined within e.g. an `if` statement containing
 //! a `Comptime` block aren't accessible outside of the `if`.
 use crate::{
+    composer::Composable,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirConstructorExpression,
@@ -25,9 +26,51 @@ use crate::{
 
 use super::{
     errors::{IResult, InterpreterError},
-    interpreter::Interpreter,
+    interpreter::{Interpreter, InterpreterFunctionState},
     Value,
 };
+
+impl<'a> Composable for Interpreter<'a> {
+    type FunctionResult = IResult<()>;
+    type BlockResult = IResult<()>;
+    type StatementResult = IResult<()>;
+
+    type FunctionState = InterpreterFunctionState;
+
+    type FunctionInput = FuncId;
+    type BlockInput<'local> = Vec<IResult<()>>;
+    type StatementInput = StmtId;
+
+    fn enter_function(&mut self, function: Self::FunctionInput) -> Self::FunctionState {
+        let function = self.interner.function(&function);
+        self.enter_function()
+    }
+
+    fn exit_function(
+        &mut self,
+        result: Self::BlockResult,
+        state: Self::FunctionState,
+    ) -> Self::FunctionResult {
+        self.exit_function(state);
+        result
+    }
+
+    fn enter_block(&mut self) {
+        self.push_scope();
+    }
+
+    fn exit_block<'local>(&mut self, results: Self::BlockInput<'local>) -> Self::BlockResult {
+        self.pop_scope();
+        for result in results {
+            result?;
+        }
+        Ok(())
+    }
+
+    fn do_statement(&mut self, statement: Self::StatementInput) -> Self::StatementResult {
+        self.scan_statement(statement)
+    }
+}
 
 #[allow(dead_code)]
 impl<'interner> Interpreter<'interner> {
@@ -216,7 +259,7 @@ impl<'interner> Interpreter<'interner> {
         self.scan_expression(lambda.body)
     }
 
-    fn scan_statement(&mut self, statement: StmtId) -> IResult<()> {
+    pub fn scan_statement(&mut self, statement: StmtId) -> IResult<()> {
         match self.interner.statement(&statement) {
             HirStatement::Let(let_) => self.scan_expression(let_.expression),
             HirStatement::Constrain(constrain) => self.scan_expression(constrain.0),

@@ -5,6 +5,6 @@ mod scan;
 mod tests;
 mod value;
 
-pub use errors::InterpreterError;
-pub use interpreter::Interpreter;
+pub use errors::{IResult, InterpreterError};
+pub use interpreter::{Interpreter, InterpreterState};
 pub use value::Value;

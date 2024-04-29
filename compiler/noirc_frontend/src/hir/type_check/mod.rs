@@ -15,13 +15,14 @@ pub use errors::TypeCheckError;
 use noirc_errors::Span;
 
 use crate::{
+    composer::Composable,
     hir_def::{
         expr::HirExpression,
         function::{Param, Parameters},
         stmt::HirStatement,
         traits::TraitConstraint,
     },
-    node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
+    node_interner::{ExprId, FuncId, GlobalId, NodeInterner, StmtId},
     Type, TypeBindings,
 };
 
@@ -29,6 +30,11 @@ use self::errors::Source;
 
 pub struct TypeChecker<'interner> {
     interner: &'interner mut NodeInterner,
+    state: TypeCheckState,
+}
+
+#[derive(Default)]
+pub struct TypeCheckState {
     errors: Vec<TypeCheckError>,
     current_function: Option<FuncId>,
 
@@ -54,7 +60,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_body_id = &interner.function(&func_id).as_expr();
 
     let mut type_checker = TypeChecker::new(interner);
-    type_checker.current_function = Some(func_id);
+    type_checker.state.current_function = Some(func_id);
 
     let meta = type_checker.interner.function_meta(&func_id);
     let parameters = meta.parameters.clone();
@@ -134,7 +140,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Default any type variables that still need defaulting.
     // This is done before trait impl search since leaving them bindable can lead to errors
     // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
-    for typ in &type_checker.type_variables {
+    for typ in &type_checker.state.type_variables {
         if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
             let msg = "TypeChecker should only track defaultable type vars";
             variable.bind(kind.default_type().expect(msg));
@@ -142,7 +148,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+    for (constraint, expr_id) in std::mem::take(&mut type_checker.state.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
         type_checker.verify_trait_constraint(
             &constraint.typ,
@@ -158,8 +164,60 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
     }
 
-    errors.append(&mut type_checker.errors);
+    errors.append(&mut type_checker.state.errors);
     errors
+}
+
+impl<'a> Composable for TypeChecker<'a> {
+    type FunctionResult = ();
+    type BlockResult = Type;
+    type StatementResult = Type;
+
+    type FunctionState = ();
+    type FunctionInput = FuncId;
+    type BlockInput<'local> = (&'local [StmtId], Vec<Type>);
+    type StatementInput = StmtId;
+
+    fn enter_function(&mut self, function: Self::FunctionInput) -> Self::FunctionState {
+        todo!()
+    }
+
+    fn exit_function(
+        &mut self,
+        body: Self::BlockResult,
+        state: Self::FunctionState,
+    ) -> Self::FunctionResult {
+        todo!()
+    }
+
+    fn enter_block(&mut self) {}
+
+    fn exit_block<'local>(&mut self, input: Self::BlockInput<'local>) -> Self::BlockResult {
+        let (statements, types) = input;
+        let mut block_type = Type::Unit;
+
+        for ((i, stmt), expr_type) in statements.iter().enumerate().zip(types) {
+            if let crate::hir_def::stmt::HirStatement::Semi(expr) = self.interner.statement(stmt) {
+                let inner_expr_type = self.interner.id_type(expr);
+                let span = self.interner.expr_span(&expr);
+
+                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
+                    expr_type: inner_expr_type.clone(),
+                    expr_span: span,
+                });
+            }
+
+            if i + 1 == statements.len() {
+                block_type = expr_type;
+            }
+        }
+
+        block_type
+    }
+
+    fn do_statement(&mut self, statement: Self::StatementInput) -> Self::StatementResult {
+        self.check_statement(&statement)
+    }
 }
 
 /// Only sized types are valid to be used as main's parameters or the parameters to a contract
@@ -349,13 +407,11 @@ fn check_function_type_matches_expected_type(
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self {
-            interner,
-            errors: Vec::new(),
-            trait_constraints: Vec::new(),
-            type_variables: Vec::new(),
-            current_function: None,
-        }
+        Self::with_state(interner, Default::default())
+    }
+
+    pub(crate) fn with_state(interner: &'interner mut NodeInterner, state: TypeCheckState) -> Self {
+        Self { interner, state }
     }
 
     fn check_function_body(&mut self, body: &ExprId) -> Type {
@@ -366,16 +422,10 @@ impl<'interner> TypeChecker<'interner> {
         id: GlobalId,
         interner: &'interner mut NodeInterner,
     ) -> Vec<TypeCheckError> {
-        let mut this = Self {
-            interner,
-            errors: Vec::new(),
-            trait_constraints: Vec::new(),
-            type_variables: Vec::new(),
-            current_function: None,
-        };
+        let mut this = Self::new(interner);
         let statement = this.interner.get_global(id).let_statement;
         this.check_statement(&statement);
-        this.errors
+        this.state.errors
     }
 
     /// Wrapper of Type::unify using self.errors
@@ -385,7 +435,7 @@ impl<'interner> TypeChecker<'interner> {
         expected: &Type,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.unify(expected, &mut self.errors, make_error);
+        actual.unify(expected, &mut self.state.errors, make_error);
     }
 
     /// Wrapper of Type::unify_with_coercions using self.errors
@@ -400,7 +450,7 @@ impl<'interner> TypeChecker<'interner> {
             expected,
             expression,
             self.interner,
-            &mut self.errors,
+            &mut self.state.errors,
             make_error,
         );
     }
@@ -409,7 +459,7 @@ impl<'interner> TypeChecker<'interner> {
     /// in self.type_variables to default it later.
     fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
-        self.type_variables.push(typ.clone());
+        self.state.type_variables.push(typ.clone());
         typ
     }
 
@@ -417,7 +467,7 @@ impl<'interner> TypeChecker<'interner> {
     /// in self.type_variables to default it later.
     fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
-        self.type_variables.push(typ.clone());
+        self.state.type_variables.push(typ.clone());
         typ
     }
 }

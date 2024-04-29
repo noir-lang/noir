@@ -28,11 +28,17 @@ use crate::{
 use super::errors::{IResult, InterpreterError};
 use super::value::Value;
 
-#[allow(unused)]
 pub struct Interpreter<'interner> {
     /// To expand macros the Interpreter may mutate hir nodes within the NodeInterner
     pub(super) interner: &'interner mut NodeInterner,
 
+    /// The interpreter state is stored separately to allow it to be paused and resumed
+    /// without holding on to the NodeInterner reference.
+    state: InterpreterState,
+}
+
+#[derive(Default)]
+pub struct InterpreterState {
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions.
@@ -53,17 +59,16 @@ pub struct Interpreter<'interner> {
     in_comptime_context: bool,
 }
 
-#[allow(unused)]
+/// This is the state the interpreter needs to save and restore across function calls
+pub(super) type InterpreterFunctionState = (bool, Vec<HashMap<DefinitionId, Value>>);
+
 impl<'a> Interpreter<'a> {
     pub(crate) fn new(interner: &'a mut NodeInterner) -> Self {
-        Self {
-            interner,
-            scopes: vec![HashMap::default()],
-            changed_functions: HashSet::default(),
-            changed_globally: false,
-            in_loop: false,
-            in_comptime_context: false,
-        }
+        Self::with_state(interner, Default::default())
+    }
+
+    pub(crate) fn with_state(interner: &'a mut NodeInterner, state: InterpreterState) -> Self {
+        Self { interner, state }
     }
 
     pub(crate) fn call_function(
@@ -132,35 +137,35 @@ impl<'a> Interpreter<'a> {
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
     /// `exit_function` is called.
-    pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
+    pub(super) fn enter_function(&mut self) -> InterpreterFunctionState {
         // Drain every scope except the global scope
         let mut scope = Vec::new();
-        if self.scopes.len() > 1 {
-            scope = self.scopes.drain(1..).collect();
+        if self.state.scopes.len() > 1 {
+            scope = self.state.scopes.drain(1..).collect();
             self.push_scope();
         }
-        (std::mem::take(&mut self.in_loop), scope)
+        (std::mem::take(&mut self.state.in_loop), scope)
     }
 
-    pub(super) fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
-        self.in_loop = state.0;
+    pub(super) fn exit_function(&mut self, mut state: InterpreterFunctionState) {
+        self.state.in_loop = state.0;
 
         // Keep only the global scope
-        self.scopes.truncate(1);
-        self.scopes.append(&mut state.1);
+        self.state.scopes.truncate(1);
+        self.state.scopes.append(&mut state.1);
     }
 
     pub(super) fn push_scope(&mut self) {
-        self.scopes.push(HashMap::default());
+        self.state.scopes.push(HashMap::default());
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.scopes.pop();
+        self.state.scopes.pop();
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
-        self.scopes.last_mut().unwrap()
+        self.state.scopes.last_mut().unwrap()
     }
 
     pub(super) fn define_pattern(
@@ -255,7 +260,7 @@ impl<'a> Interpreter<'a> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        for scope in self.scopes.iter_mut().rev() {
+        for scope in self.state.scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 entry.insert(argument);
                 return Ok(());
@@ -270,7 +275,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        for scope in self.scopes.iter().rev() {
+        for scope in self.state.scopes.iter().rev() {
             if let Some(value) = scope.get(&id) {
                 return Ok(value.clone());
             }
@@ -1163,7 +1168,7 @@ impl<'a> Interpreter<'a> {
 
         let (start, make_value) = get_index(self, for_.start_range)?;
         let (end, _) = get_index(self, for_.end_range)?;
-        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let was_in_loop = std::mem::replace(&mut self.state.in_loop, true);
 
         for i in start..end {
             self.push_scope();
@@ -1178,12 +1183,12 @@ impl<'a> Interpreter<'a> {
             self.pop_scope();
         }
 
-        self.in_loop = was_in_loop;
+        self.state.in_loop = was_in_loop;
         Ok(Value::Unit)
     }
 
     fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
-        if self.in_loop {
+        if self.state.in_loop {
             Err(InterpreterError::Break)
         } else {
             let location = self.interner.statement_location(id);
@@ -1192,7 +1197,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
-        if self.in_loop {
+        if self.state.in_loop {
             Err(InterpreterError::Continue)
         } else {
             let location = self.interner.statement_location(id);
@@ -1201,9 +1206,9 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
-        let was_in_comptime = std::mem::replace(&mut self.in_comptime_context, true);
+        let was_in_comptime = std::mem::replace(&mut self.state.in_comptime_context, true);
         let result = self.evaluate_statement(statement);
-        self.in_comptime_context = was_in_comptime;
+        self.state.in_comptime_context = was_in_comptime;
         result
     }
 }

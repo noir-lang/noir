@@ -28,7 +28,7 @@ impl<'interner> TypeChecker<'interner> {
             {
                 let attributes = self.interner.function_attributes(func_id);
                 if let Some(note) = attributes.get_deprecated_note() {
-                    self.errors.push(TypeCheckError::CallDeprecated {
+                    self.state.errors.push(TypeCheckError::CallDeprecated {
                         name: self.interner.definition_name(id).to_string(),
                         note,
                         span: location.span,
@@ -65,11 +65,12 @@ impl<'interner> TypeChecker<'interner> {
 
                 // Check if the array is homogeneous
                 for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
+                    let first_location = self.interner.expr_location(&arr[0]);
                     let location = self.interner.expr_location(&arr[index]);
 
-                    elem_type.unify(&first_elem_type, &mut self.errors, || {
+                    self.unify(elem_type, &first_elem_type, || {
                         TypeCheckError::NonHomogeneousArray {
-                            first_span: self.interner.expr_location(&arr[0]).span,
+                            first_span: first_location.span,
                             first_type: first_elem_type.to_string(),
                             first_index: index,
                             second_span: location.span,
@@ -120,7 +121,7 @@ impl<'interner> TypeChecker<'interner> {
                     match length_type {
                         Ok(_length) => Type::Slice(elem_type),
                         Err(_non_constant) => {
-                            self.errors.push(TypeCheckError::NonConstantSliceLength {
+                            self.state.errors.push(TypeCheckError::NonConstantSliceLength {
                                 span: self.interner.expr_span(expr_id),
                             });
                             Type::Error
@@ -163,13 +164,13 @@ impl<'interner> TypeChecker<'interner> {
                                 trait_id: id.trait_id,
                                 trait_generics: Vec::new(),
                             };
-                            self.trait_constraints.push((constraint, *expr_id));
+                            self.state.trait_constraints.push((constraint, *expr_id));
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
                     }
                     Err(error) => {
-                        self.errors.push(error);
+                        self.state.errors.push(error);
                         Type::Error
                     }
                 }
@@ -178,7 +179,7 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Call(call_expr) => {
                 // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
                 // These flags are later used to type check calls to unconstrained functions from constrained functions
-                let current_func = self.current_function;
+                let current_func = self.state.current_function;
                 let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
                 let is_current_func_constrained =
                     func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
@@ -197,9 +198,11 @@ impl<'interner> TypeChecker<'interner> {
                 if is_current_func_constrained && is_unconstrained_call {
                     for (typ, _, _) in args.iter() {
                         if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
-                            self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
-                                span: self.interner.expr_span(expr_id),
-                            });
+                            self.state.errors.push(
+                                TypeCheckError::ConstrainedReferenceToUnconstrained {
+                                    span: self.interner.expr_span(expr_id),
+                                },
+                            );
                             return Type::Error;
                         }
                     }
@@ -211,14 +214,18 @@ impl<'interner> TypeChecker<'interner> {
                 // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
                 if is_current_func_constrained && is_unconstrained_call {
                     if return_type.contains_slice() {
-                        self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
-                            span: self.interner.expr_span(expr_id),
-                        });
+                        self.state.errors.push(
+                            TypeCheckError::UnconstrainedSliceReturnToConstrained {
+                                span: self.interner.expr_span(expr_id),
+                            },
+                        );
                         return Type::Error;
                     } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
-                        self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained {
-                            span: self.interner.expr_span(expr_id),
-                        });
+                        self.state.errors.push(
+                            TypeCheckError::UnconstrainedReferenceToConstrained {
+                                span: self.interner.expr_span(expr_id),
+                            },
+                        );
                         return Type::Error;
                     }
                 };
@@ -387,7 +394,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
-                    self.trait_constraints.push((constraint, *expr_id));
+                    self.state.trait_constraints.push((constraint, *expr_id));
                 }
             }
         }
@@ -404,7 +411,7 @@ impl<'interner> TypeChecker<'interner> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.trait_constraints.push((constraint, *expr_id));
+                self.state.trait_constraints.push((constraint, *expr_id));
             }
         }
 
@@ -426,7 +433,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             Err(erroring_constraints) => {
                 if erroring_constraints.is_empty() {
-                    self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                    self.state.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 } else {
                     // Don't show any errors where try_get_trait returns None.
                     // This can happen if a trait is used that was never declared.
@@ -445,7 +452,9 @@ impl<'interner> TypeChecker<'interner> {
                         .collect::<Option<Vec<_>>>();
 
                     if let Some(constraints) = constraints {
-                        self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                        self.state
+                            .errors
+                            .push(TypeCheckError::NoMatchingImplFound { constraints, span });
                     }
                 }
             }
@@ -484,7 +493,7 @@ impl<'interner> TypeChecker<'interner> {
                 if !matches!(actual_type, Type::MutableReference(_)) {
                     if let Err(error) = verify_mutable_reference(self.interner, method_call.object)
                     {
-                        self.errors.push(TypeCheckError::ResolverError(error));
+                        self.state.errors.push(TypeCheckError::ResolverError(error));
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
@@ -572,12 +581,11 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: "an integer".to_owned(),
-                expr_typ: index_type.to_string(),
-                expr_span: span,
-            }
+        let int_or_field = self.polymorphic_integer_or_field();
+        self.unify(&index_type, &int_or_field, || TypeCheckError::TypeMismatch {
+            expected_typ: "an integer".to_owned(),
+            expr_typ: index_type.to_string(),
+            expr_span: span,
         });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
@@ -595,7 +603,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&new_lhs);
-                self.errors.push(TypeCheckError::TypeMismatch {
+                self.state.errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
                     expr_span: span,
@@ -614,12 +622,12 @@ impl<'interner> TypeChecker<'interner> {
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {
-                self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                self.state.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 return Type::Error;
             }
             Type::Error => return Type::Error,
             from => {
-                self.errors.push(TypeCheckError::InvalidCast { from, span });
+                self.state.errors.push(TypeCheckError::InvalidCast { from, span });
                 return Type::Error;
             }
         }
@@ -630,7 +638,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
             _ => {
-                self.errors.push(TypeCheckError::UnsupportedCast { span });
+                self.state.errors.push(TypeCheckError::UnsupportedCast { span });
                 Type::Error
             }
         }
@@ -787,7 +795,7 @@ impl<'interner> TypeChecker<'interner> {
                     if index < length {
                         return Some((elements[index].clone(), index));
                     } else {
-                        self.errors.push(TypeCheckError::TupleIndexOutOfBounds {
+                        self.state.errors.push(TypeCheckError::TupleIndexOutOfBounds {
                             index,
                             lhs_type,
                             length,
@@ -820,9 +828,9 @@ impl<'interner> TypeChecker<'interner> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+            self.state.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
         } else if lhs_type != Type::Error {
-            self.errors.push(TypeCheckError::AccessUnknownMember {
+            self.state.errors.push(TypeCheckError::AccessUnknownMember {
                 lhs_type,
                 field_name: field_name.to_string(),
                 span,
@@ -915,7 +923,7 @@ impl<'interner> TypeChecker<'interner> {
                 match self.interner.lookup_method(object_type, id, method_name, false) {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
-                        self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                        self.state.errors.push(TypeCheckError::UnresolvedMethodCall {
                             method_name: method_name.to_string(),
                             object_type: object_type.clone(),
                             span: self.interner.expr_span(expr_id),
@@ -927,7 +935,7 @@ impl<'interner> TypeChecker<'interner> {
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
-                self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                self.state.errors.push(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),
                     span: self.interner.expr_span(expr_id),
@@ -936,7 +944,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             Type::NamedGeneric(_, _) => {
                 let func_meta = self.interner.function_meta(
-                    &self.current_function.expect("unexpected method outside a function"),
+                    &self.state.current_function.expect("unexpected method outside a function"),
                 );
 
                 for constraint in &func_meta.trait_constraints {
@@ -958,7 +966,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
 
-                self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                self.state.errors.push(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),
                     span: self.interner.expr_span(expr_id),
@@ -980,14 +988,14 @@ impl<'interner> TypeChecker<'interner> {
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(_, TypeVariableKind::Normal) => {
                 let span = self.interner.expr_span(expr_id);
-                self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                self.state.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 None
             }
 
             other => match self.interner.lookup_primitive_method(&other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
-                    self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                    self.state.errors.push(TypeCheckError::UnresolvedMethodCall {
                         method_name: method_name.to_string(),
                         object_type: object_type.clone(),
                         span: self.interner.expr_span(expr_id),
@@ -1006,7 +1014,7 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
-            self.errors.push(TypeCheckError::ParameterCountMismatch {
+            self.state.errors.push(TypeCheckError::ParameterCountMismatch {
                 expected: fn_params.len(),
                 found: callsite_args.len(),
                 span,
@@ -1045,7 +1053,7 @@ impl<'interner> TypeChecker<'interner> {
                 let expected = Type::Function(args, Box::new(ret.clone()), Box::new(env_type));
 
                 if let Err(error) = binding.try_bind(expected, span) {
-                    self.errors.push(error);
+                    self.state.errors.push(error);
                 }
                 ret
             }
@@ -1055,7 +1063,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             Type::Error => Type::Error,
             found => {
-                self.errors.push(TypeCheckError::ExpectedFunction { found, span });
+                self.state.errors.push(TypeCheckError::ExpectedFunction { found, span });
                 Type::Error
             }
         }
@@ -1209,7 +1217,7 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
     ) -> Type {
         let mut unify = |expected| {
-            rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::TypeMismatch {
+            rhs_type.unify(&expected, &mut self.state.errors, || TypeCheckError::TypeMismatch {
                 expr_typ: rhs_type.to_string(),
                 expected_typ: expected.to_string(),
                 expr_span: span,
@@ -1220,11 +1228,12 @@ impl<'interner> TypeChecker<'interner> {
         match op {
             crate::ast::UnaryOp::Minus => {
                 if rhs_type.is_unsigned() {
-                    self.errors
+                    self.state
+                        .errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
                 let expected = self.polymorphic_integer_or_field();
-                rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
+                self.unify(rhs_type, &expected, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,
                 });
