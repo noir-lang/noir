@@ -51,7 +51,7 @@ pub(crate) fn derive_generators<E: SWCurveConfig>(
     starting_index: u32,
 ) -> Vec<Affine<E>> {
     let mut generator_preimage = [0u8; 64];
-    let domain_hash = blake3(&domain_separator_bytes).expect("hash should succeed");
+    let domain_hash = blake3(domain_separator_bytes).expect("hash should succeed");
     //1st 32 bytes are blake3 domain_hash
     generator_preimage[..32].copy_from_slice(&domain_hash);
 
@@ -88,8 +88,8 @@ mod test {
         };
 
         for (i, res) in res.iter().enumerate() {
-            assert_eq!(is_unique(*res, i), true);
-            assert_eq!(res.is_on_curve(), true);
+            assert!(is_unique(*res, i));
+            assert!(res.is_on_curve());
         }
     }
 }

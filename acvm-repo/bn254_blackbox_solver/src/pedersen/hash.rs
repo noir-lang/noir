@@ -46,8 +46,6 @@ fn length_generator<E: SWCurveConfig>(starting_index: u32) -> Affine<E> {
     derive_generators::<E>("pedersen_hash_length".as_bytes(), 1, starting_index)[0]
 }
 
-
-
 #[cfg(test)]
 pub(crate) mod test {
     use crate::generator::GENERATOR_CONTEXT;
