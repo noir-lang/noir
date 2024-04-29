@@ -86,6 +86,8 @@ pub enum ResolverError {
     JumpInConstrainedFn { is_break: bool, span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
+    #[error("Self-referential structs are not supported")]
+    SelfReferentialStruct { span: Span },
     #[error("#[inline(tag)] attribute is only allowed on constrained functions")]
     InlineAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
@@ -342,6 +344,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("{item} is only allowed within loops"),
                     "".into(),
                     *span,
+                )
+            },
+            ResolverError::SelfReferentialStruct { span } => {
+                Diagnostic::simple_error(
+                    "Self-referential structs are not supported".into(),
+                    "".into(),
+                    span,
                 )
             },
             ResolverError::InlineAttributeOnUnconstrained { ident } => {
