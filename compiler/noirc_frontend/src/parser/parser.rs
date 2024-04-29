@@ -248,6 +248,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
                 attributes::validate_secondary_attributes(attributes, span, emit);
 
             // Only comptime globals are allowed to be mutable, but we always parse the `mut`
+            // and throw the error in name resolution.
             if let Some((_, mut_span)) = mutable {
                 let span = mut_span.merge(pattern.span());
                 pattern = Pattern::Mutable(Box::new(pattern), span, false);
