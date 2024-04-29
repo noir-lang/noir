@@ -80,11 +80,6 @@ impl DefCollectorErrorKind {
     pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
         Diagnostic::from(self).in_file(file)
     }
-
-    pub fn is_error(&self) -> bool {
-        // All errors are warnings currently
-        true
-    }
 }
 
 impl fmt::Display for DuplicateType {
