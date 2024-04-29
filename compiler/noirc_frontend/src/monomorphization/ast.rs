@@ -242,7 +242,7 @@ impl InlineType {
         match self {
             InlineType::Inline => false,
             InlineType::Fold => true,
-            InlineType::Never => true,
+            InlineType::Never => false,
         }
     }
 }

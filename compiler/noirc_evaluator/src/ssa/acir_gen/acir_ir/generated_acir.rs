@@ -22,6 +22,7 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
+use noirc_frontend::monomorphization::ast::InlineType;
 use num_bigint::BigUint;
 
 /// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
@@ -73,6 +74,8 @@ pub(crate) struct GeneratedAcir {
     /// As to avoid passing the ACIR gen shared context into each individual ACIR
     /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
     pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
+
+    pub(crate) inline_type: InlineType,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

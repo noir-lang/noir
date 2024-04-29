@@ -170,6 +170,9 @@ impl Ssa {
         for function in self.functions.values_mut() {
             flatten_function_cfg(function);
         }
+        // Now that flattening has been completed we can have SSA generation inline any
+        // calls to functions marked with `#[inline(never)]`
+        self.use_inline_never = false;
         self
     }
 }

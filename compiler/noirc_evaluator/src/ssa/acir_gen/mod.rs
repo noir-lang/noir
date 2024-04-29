@@ -320,6 +320,11 @@ impl Ssa {
                     }
                 }
 
+                generated_acir.inline_type = match function.runtime() {
+                    RuntimeType::Acir(inline_type) => inline_type,
+                    // TODO: switch to real error
+                    _ => panic!("unexpected brillig runtime for a generated acir"),
+                };
                 generated_acir.name = function.name().to_owned();
                 acirs.push(generated_acir);
             }
@@ -390,7 +395,10 @@ impl<'a> Context<'a> {
                             panic!("ACIR function should have been inlined earlier if not marked otherwise");
                         }
                     }
-                    InlineType::Fold | InlineType::Never => {}
+                    InlineType::Never => {
+                        panic!("All ACIR functions marked with #[inline(never)] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute");
+                    }
+                    InlineType::Fold => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
@@ -2653,7 +2661,11 @@ mod test {
         basic_call_with_outputs_assert(InlineType::Fold);
         call_output_as_next_call_input(InlineType::Fold);
         basic_nested_call(InlineType::Fold);
+    }
 
+    #[test]
+    #[should_panic]
+    fn basic_calls_inline_never() {
         call_output_as_next_call_input(InlineType::Never);
         basic_nested_call(InlineType::Never);
         basic_call_with_outputs_assert(InlineType::Never);

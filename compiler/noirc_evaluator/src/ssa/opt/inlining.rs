@@ -5,6 +5,7 @@
 use std::collections::{BTreeSet, HashSet};
 
 use iter_extended::{btree_map, vecmap};
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -38,10 +39,11 @@ impl Ssa {
     /// as well save the work for later instead of performing it twice.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(mut self) -> Ssa {
-        self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
-            let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
-            (entry_point, new_function)
-        });
+        self.functions =
+            btree_map(get_entry_point_functions(&self, self.use_inline_never), |entry_point| {
+                let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
+                (entry_point, new_function)
+            });
 
         self
     }
@@ -97,10 +99,13 @@ struct PerFunctionContext<'function> {
 /// should be left in the final program.
 /// This is the `main` function, any Acir functions with a [fold inline type][InlineType::Fold],
 /// and any brillig functions used.
-fn get_entry_point_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
+fn get_entry_point_functions(ssa: &Ssa, use_inline_never: bool) -> BTreeSet<FunctionId> {
     let functions = ssa.functions.iter();
     let mut entry_points = functions
-        .filter(|(_, function)| function.runtime().is_entry_point())
+        .filter(|(_, function)| {
+            let inline_never = if use_inline_never { function.is_inline_never() } else { false };
+            function.runtime().is_entry_point() || inline_never
+        })
         .map(|(id, _)| *id)
         .collect::<BTreeSet<_>>();
 
@@ -351,11 +356,14 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => {
-                        if ssa.functions[&function].runtime().is_entry_point() {
+                    Some(func_id) => {
+                        let function = &ssa.functions[&func_id];
+                        let inline_never =
+                            if ssa.use_inline_never { function.is_inline_never() } else { false };
+                        if function.runtime().is_entry_point() || inline_never {
                             self.push_instruction(*id);
                         } else {
-                            self.inline_function(ssa, *id, function, arguments);
+                            self.inline_function(ssa, *id, func_id, arguments);
                         }
                     }
                     None => self.push_instruction(*id),

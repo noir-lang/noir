@@ -58,6 +58,9 @@ pub(crate) fn optimize_into_acir(
         .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
+        // Run the inlining pass again as certain codegen attributes will now be disabled after flattening,
+        // such as treating functions marked with the `InlineType::Never` as an entry point.
+        .run_pass(Ssa::inline_functions, "After Inlining:")
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
@@ -159,7 +162,7 @@ pub fn create_program(
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
-        let circuit_artifact = convert_generated_acir_into_circuit(
+        let mut circuit_artifact = convert_generated_acir_into_circuit(
             acir,
             func_sig,
             recursive,

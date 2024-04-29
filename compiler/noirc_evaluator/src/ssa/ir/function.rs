@@ -85,6 +85,16 @@ impl Function {
         self.runtime = runtime;
     }
 
+    pub(crate) fn is_inline_never(&self) -> bool {
+        match self.runtime() {
+            RuntimeType::Acir(inline_type) => match inline_type {
+                InlineType::Never => true,
+                _ => false,
+            },
+            RuntimeType::Brillig => false,
+        }
+    }
+
     /// Retrieves the entry block of a function.
     ///
     /// A function's entry block contains the instructions
