@@ -360,4 +360,4 @@ That's it! We have successfully deployed a token contract to an instance of the 
 
 ## Next Steps
 
-Learn more about writing Aztec.nr contracts on the [next page](./aztecnr-getting-started.md).
+Write your first smart contract on the [next page](./aztecnr-getting-started.md).

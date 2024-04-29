@@ -16,7 +16,7 @@ To keep things simple, we won't create ballots or allow for delegate voting.
 
 ## Prerequisites
 
-- You have followed the [quickstart](../getting_started/quickstart.md) to install `aztec-nargo`, `aztec-cli` and `aztec-sandbox`.
+- You have followed the [quickstart](../getting_started/quickstart.md) to install `aztec-nargo` and `aztec-sandbox`.
 - Running Aztec Sandbox
 
 ## Set up a project
@@ -158,40 +158,10 @@ aztec-nargo compile
 This will create a new directory called `target` and a JSON artifact inside it. To optionally create a typescript interface, run:
 
 ```bash
-aztec-cli codegen target -o src/artifacts
+aztec-builder target -o src/artifacts
 ```
 
-Once it is compiled you can [deploy](../contracts/deploying_contracts/how_to_deploy_contract.md) it to the sandbox. Ensure your [sandbox is running](../sandbox/references/sandbox-reference.md) and run this in the same dir as before:
-
-```bash
-aztec-cli deploy ./target/private_voting-Voting.json --args $ADMIN_ADDRESS
-```
-
-The constructor takes an address as an argument to set the admin, so you can use an address that is deployed with the sandbox - check the sandbox terminal or run `aztec-cli get-accounts`.
-
-You should see a success message with the contract address. Now we can start calling functions!
-
-Cast a vote like this:
-
-```bash
-aztec-cli send cast_vote --contract-artifact ./target/private_voting-Voting.json --contract-address $CONTRACT_ADDRESS --args 1 --private-key $PRIVATE_KEY
-```
-
-You can get the contract address from the sandbox terminal or the message printed when you deployed the contract. You can also get a private key from the sandbox terminal, or generate one with `aztec-cli generate-private-key`.
-
-This should return a `mined` success message.
-
-You can now try running this command again to ensure our nullifier works.
-
-Get the number of votes like this:
-
-```bash
-aztec-cli call get_vote --contract-artifact ./target/private_voting-Voting.json --contract-address $CONTRACT_ADDRESS --args 1
-```
-
-This should return `1n`.
-
-You can follow this pattern to test `end_vote()` and access control of other functions.
+Once it is compiled you can [deploy](../contracts/deploying_contracts/how_to_deploy_contract.md) it to the sandbox. This is out of scope for this tutorial but you can learn how to do this in the [Aztec.js getting-started guide](../getting_started/aztecjs-getting-started.md).
 
 ## Next steps
 

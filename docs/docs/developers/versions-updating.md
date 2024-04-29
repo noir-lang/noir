@@ -4,11 +4,10 @@ title: Versions and Updating
 
 
 ## Versions
-Aztec tools (sandbox, cli, nargo), dependencies (aztec-nr), and sample contracts are constantly being improved.
+Aztec tools (sandbox, nargo), dependencies (aztec-nr), and sample contracts are constantly being improved.
 When developing and referring to example .nr files/snippets, it is helpful to verify the versions of different components (below), and if required keep them in lock-step by [updating](#updating).
 
 ### Checking tool versions
-To check your version of Aztec tools, you can use `aztec-cli -V`
 
 :::note
 The `aztec-nargo` versions follow `nargo` versions, which is different to the Aztec tool versions.
@@ -59,9 +58,9 @@ This can present confusion when opening older contracts (and dependencies) writt
 The second point requires a restart of the extension, which you can trigger with the command palette (Ctrl + Shift + P) and typing "Reload Window".
 
 ## Updating
-### TL;DR
+### Steps to keep up to date
 
-1. Updating Aztec sandbox to the latest version (includes `aztec-nargo`, `aztec-cli`, etc):
+1. Update the Aztec sandbox to the latest version (includes `aztec-nargo`, pxe, etc):
 
 ```shell
 aztec-up
@@ -73,34 +72,35 @@ To set `VERSION` for a particular git tag, eg for [aztec-package-v**0.35.0**](ht
 VERSION=0.35.0 aztec-up
 ```
 
-2. Updating aztec-nr and individual @aztec dependencies:
+2. Update aztec-nr and individual @aztec dependencies:
 
-Inside your project run:
+<!-- Inside your project run:
 
 ```shell
 cd your/aztec/project
 aztec-cli update . --contract src/contract1 --contract src/contract2
 ```
 
-The sandbox must be running for the update command to work. Make sure it is [installed and running](../developers/sandbox/references/sandbox-reference.md).
+The sandbox must be running for the update command to work. Make sure it is [installed and running](../developers/sandbox/references/sandbox-reference.md). -->
 
-3. Refer [Migration Notes](../misc/migration_notes.md) on any breaking changes that might affect your dapp
+Follow [updating Aztec.nr packages](#updating-aztecnr-packages) and [updating JavaScript packages](#updating-aztecjs-packages) guides.
+
+3. Refer to [Migration Notes](../misc/migration_notes.md) on any breaking changes that might affect your dapp
 
 ---
 
 There are four components whose versions need to be kept compatible:
 
 1. Aztec Sandbox
-2. Aztec CLI
-3. aztec-nargo
-4. `Aztec.nr`, the Noir framework for writing Aztec contracts
+2. aztec-nargo
+3. `Aztec.nr`, the Noir framework for writing Aztec contracts
 
 First three are packaged together in docker and are kept compatible by running `aztec-up`.
 But you need to update your Aztec.nr version manually or using `aztec-cli update`.
 
 ## Updating Aztec.nr packages
 
-### Automatic update
+<!-- ### Automatic update
 
 `aztec-cli` will update your Aztec.nr packages to the appropriate version with the `aztec-cli update` command. Run this command from the root of your project and pass the paths to the folders containing the Nargo.toml files for your projects like so:
 
@@ -108,7 +108,7 @@ But you need to update your Aztec.nr version manually or using `aztec-cli update
 aztec-cli update . --contract src/contract1 --contract src/contract2
 ```
 
-### Manual update
+### Manual update -->
 
 To update the aztec.nr packages manually, update the tags of the `aztec.nr` dependencies in the `Nargo.toml` file.
 
@@ -128,6 +128,18 @@ aztec-nargo compile
 ```
 
 If the dependencies fail to resolve ensure that the tag matches a tag in the [aztec-packages repository](https://github.com/AztecProtocol/aztec-packages/tags).
+
+## Updating Aztec.js packages
+
+To update Aztec.js packages, go to your `package.json` and replace the versions in the dependencies.
+
+```diff
+[dependencies]
+-"@aztec/accounts": "0.7.5",
++"@aztec/accounts": "#include_aztec_short_version",
+-"@aztec/noir-contracts.js": "0.35.1",
++"@aztec/accounts": "#include_aztec_short_version",
+```
 
 ## Updating `aztec-nargo`
 

@@ -18,20 +18,7 @@ Unlike on Ethereum, there are 2 types of events supported by Aztec: [encrypted](
 
 Encrypted events can only be emitted by private functions and are encrypted using a public key of a recipient.
 For this reason it is necessary to register a recipient in the Private Execution Environment (PXE) before encrypting the events for them.
-Recipients can be registered using the Aztec CLI or Aztec.js:
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-<Tabs groupId="events">
-<TabItem value="cli" label="Aztec CLI">
-
-```bash
-aztec-cli register-recipient --address 0x147392a39e593189902458f4303bc6e0a39128c5a1c1612f76527a162d36d529 --public-key 0x26e193aef4f83c70651485b5526c6d01a36d763223ab24efd1f9ff91b394ac0c20ad99d0ef669dc0dde8d5f5996c63105de8e15c2c87d8260b9e6f02f72af622 --partial-address 0x200e9a6c2d2e8352012e51c6637659713d336405c29386c7c4ac56779ab54fa7
-```
-
-</TabItem>
-<TabItem value="js" label="Aztec.js">
+Recipients can be registered using Aztec.js:
 
 ```ts
 const aztecAddress = AztecAddress.fromString(
@@ -51,9 +38,6 @@ const completeAddress = CompleteAddress.create(
 );
 await pxe.registerRecipient(completeAddress);
 ```
-
-</TabItem>
-</Tabs>
 
 :::info
 If a note recipient is one of the accounts inside the PXE, we don't need to register it as a recipient because we already have the public key available. You can register a recipient as shown [here](../../deploying_contracts/how_to_deploy_contract.md)
@@ -105,27 +89,8 @@ To emit unencrypted logs you don't need to import any library. You call the cont
 ### Querying the unencrypted event
 
 Once emitted, unencrypted events are stored in AztecNode and can be queried by anyone:
-<Tabs groupId="events">
-<TabItem value="cli" label="Aztec CLI">
-
-```bash
-aztec-cli get-logs --fromBlock 5
-```
-
-</TabItem>
-<TabItem value="js" label="Aztec.js">
 
 #include_code get_logs /yarn-project/end-to-end/src/fixtures/utils.ts typescript
-
-</TabItem>
-</Tabs>
-
-Get logs functionality provides a variety of filtering options.
-To display them run:
-
-```bash
-aztec-cli get-logs --help
-```
 
 ## Costs
 

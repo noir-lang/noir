@@ -4,32 +4,17 @@ title: How to deploy a contract
 
 # Deploying contracts
 
-Once you have [compiled](../compiling_contracts/how_to_compile_contract.md) your contracts you can proceed to deploying them using the aztec-cli or using aztec.js which is a Typescript client to interact with the sandbox.
+Once you have [compiled](../compiling_contracts/how_to_compile_contract.md) your contracts you can proceed to deploying them using aztec.js which is a Typescript client to interact with the sandbox.
 
 ## Prerequisites
 
-- `aztec-cli` and `aztec-nargo` installed (go to [Sandbox and CLI section](../../sandbox/main.md) for installation instructions)
+- `aztec-nargo` installed (go to [Sandbox and CLI section](../../sandbox/main.md) for installation instructions)
 - contract artifacts ready (go to [How to Compile Contract](../compiling_contracts/how_to_compile_contract.md) for instructions on how to compile contracts)
 - Aztec Sandbox running (go to [Sandbox section](../../getting_started/quickstart.md) for instructions on how to install and run the sandbox)
 
 ## Deploy
 
-Contracts can be deployed using the `aztec-cli` or using the `aztec.js` library.
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-<Tabs groupId="deployment-methods">
-<TabItem value="cli" label="Aztec CLI">
-
-```bash
-aztec-cli deploy /path/to/contract/artifact.json
-```
-
-</TabItem>
-<TabItem value="js" label="Aztec.js">
-
-Pre-requisite - Compile the contract and generate a type-safe typescript class for it.
+Contracts can be deployed using the `aztec.js` library.
 
 Compile the contract:
 
@@ -40,7 +25,7 @@ aztec-nargo compile
 Generate the typescript class:
 
 ```bash
-aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts
+aztec-builder ./aztec-nargo/output/target/path -o src/artifacts
 ```
 
 This would create a typescript file like `Example.ts` in `./src/artifacts`. Read more on the [compiling page](../compiling_contracts/how_to_compile_contract.md).
@@ -58,30 +43,9 @@ const exampleContract = await ExampleContract.at(
   myWallet
 );
 ```
-
-</TabItem>
-</Tabs>
-
 ### Deploy Arguments
 
 There are several optional arguments that can be passed:
-<Tabs groupId="deployment-methods">
-<TabItem value="cli" label="Aztec CLI">
-
-`aztec-cli deploy` takes 1 mandatory argument which is the path to the contract artifact file in a JSON format (e.g. `contracts/target/PrivateToken.json`). Alternatively you can pass the name of an example contract as exported by `@aztec/noir-contracts.js` (run `aztec-cli example-contracts` to see the full list of contracts available).
-
-The command also takes the following optional arguments:
-
-- `-args <constructorArgs...>` (default: `[]`): Arguments to pass to the contract constructor.
-- `--rpc-url <string>` (default: `http://localhost:8080`): URL of the PXE to connect to.
-- `--public-key <string>` (default: `undefined`): Optional encryption public key for this contract.
-  Set this only if this contract is expected to receive private notes (in such a case the public key is used during the note encryption).
-- `--salt <string>` (default: random value): Hexadecimal string used when computing the contract address of the contract being deployed.
-  By default is set to a random value.
-  Set it, if you need a deterministic contract address (same functionality as Ethereum's `CREATE2` opcode).
-
-</TabItem>
-<TabItem value="js" label="Aztec.js">
 
 The `deploy(...)` method is generated automatically with the typescript class representing your contract.
 Its arguments are `PXE` client and contract constructor arguments.
@@ -98,25 +62,12 @@ const tx = ExampleContract.deploy(pxe).send({
 });
 ```
 
-</TabItem>
-</Tabs>
-
 ### Deploying token contract
 
 To give you a more complete example we will deploy a `Token` contract whose artifacts are included in the `@aztec/noir-contracts.js` package.
 
 The contract has `admin` as a constructor argument.
-We will deploy the contract with the `aztec-cli` and pass the `admin` address as an argument.
-
-<Tabs groupId="deployment-methods">
-<TabItem value="cli" label="Aztec CLI">
-
-```bash
-aztec-cli deploy TokenContractArtifact --args 0x147392a39e593189902458f4303bc6e0a39128c5a1c1612f76527a162d36d529
-```
-
-</TabItem>
-<TabItem value="js" label="Aztec.js">
+We will deploy the contract and pass the `admin` address as an argument.
 
 ```ts
 const admin = AztecAddress.from(
@@ -127,33 +78,17 @@ const contract = await TokenContract.deploy(wallet, admin).send().deployed();
 logger(`Contract deployed at ${contract.address}`);
 ```
 
-</TabItem>
-</Tabs>
-
 If everything went as expected you should see the following output (with a different address):
 
 > Contract deployed at `0x151de6120ae6628129ee852c5fc7bcbc8531055f76d4347cdc86003bbea96906`
 
 If we pass the salt as an argument:
 
-<Tabs groupId="deployment-methods">
-<TabItem value="cli" label="Aztec CLI">
-
-```bash
-aztec-cli deploy TokenContractArtifact --args 0x147392a39e593189902458f4303bc6e0a39128c5a1c1612f76527a162d36d529 --salt 0x123
-```
-
-</TabItem>
-<TabItem value="js" label="Aztec.js">
-
 ```ts
 const contract = await TokenContract.deploy(wallet, admin)
   .send({ contractAddressSalt: Fr.fromString("0x123") })
   .deployed();
 ```
-
-</TabItem>
-</Tabs>
 
 the resulting address will be deterministic.
 

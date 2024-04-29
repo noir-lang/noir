@@ -17,7 +17,6 @@ bash -i <(curl -s install.aztec.network)
 This will install the following:
 
 - **aztec** - launches various infrastructure subsystems (sequencer, prover, pxe, etc).
-- **aztec-cli** - a command line tool for interfacing and experimenting with infrastructure.
 - **aztec-nargo** - aztec's build of nargo, the noir compiler toolchain.
 - **aztec-sandbox** - a wrapper around docker-compose that launches services needed for sandbox testing.
 - **aztec-up** - a tool to upgrade the aztec toolchain to the latest, or specific versions.
@@ -175,10 +174,9 @@ You can find the cheat code reference [here](../../sandbox/references/cheat_code
 
 ## Contracts
 
-We have shipped a number of example contracts in the `@aztec/noir-contracts.js` [npm package](https://www.npmjs.com/package/@aztec/noir-contracts.js). This is included with the cli by default so you are able to use these contracts to test with. To get a list of the names of the contracts run:
+We have shipped a number of example contracts in the `@aztec/noir-contracts.js` [npm package](https://www.npmjs.com/package/@aztec/noir-contracts.js). This is included with the sandbox by default so you are able to use these contracts to test with. 
 
-```bash title="example-contracts" showLineNumbers
-% aztec-cli example-contracts
+```bash
 BenchmarkingContractArtifact
 CardGameContractArtifact
 ChildContractArtifact

@@ -2,7 +2,7 @@
 title: Sandbox and CLI
 ---
 
-The Aztec Sandbox is an environment for local development on the Aztec Network. It's easy to get setup with just a single, simple command, and contains all the components needed to develop and test Aztec contracts and applications. The Aztec CLI will allow you to interact with the sandbox.
+The Aztec Sandbox is an environment for local development on the Aztec Network. It's easy to get setup with just a single, simple command, and contains all the components needed to develop and test Aztec contracts and applications.
 
 ## Components of the Aztec network
 
@@ -32,10 +32,6 @@ These provide a self contained environment which deploys Aztec on a local (empty
 
 The current sandbox does not generate or verify proofs, but provides a working end to end developer flow for writing and interacting with Aztec.nr smart contracts.
 
-## Aztec CLI and aztec-nargo
+## Command line tools
 
-The Aztec CLI is a command-line tool allowing you to interact directly with the Aztec network and sandbox.
-
-It aims to provide all of the functionality required to deploy, and invoke contracts and query system state such as contract data, transactions and emitted logs.
-
-Use `aztec-nargo` for compiling contracts. See the [compiling contracts](../contracts/compiling_contracts/how_to_compile_contract.md) page for more information.
+Aztec-nargo and aztec-builder are command-line tool allowing you to compile smart contracts. See the [compiling contracts](../contracts/compiling_contracts/how_to_compile_contract.md) page for more information.

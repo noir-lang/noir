@@ -130,9 +130,9 @@ The last thing we need to implement is the function in order to retrieve a count
 
 This function is `unconstrained` which allows us to fetch data from storage without a transaction. We retrieve a reference to the `owner`'s `counter` from the `counters` Map. The `get_balance` function then operates on the owner's counter. This yields a private counter that only the private key owner can decrypt.
 
-## Test with the CLI
+## Compile
 
-Now we've written a simple Aztec.nr smart contract, it's time to ensure everything works by testing with the CLI.
+Now we've written a simple Aztec.nr smart contract, we can compile it with `aztec-nargo`.
 
 ### Compile the smart contract
 
@@ -147,63 +147,10 @@ This will compile the smart contract and create a `target` folder with a `.json`
 After compiling, you can generate a typescript class. In the same directory, run this:
 
 ```bash
-aztec-cli codegen target -o src/artifacts
+aztec-builder target -o src/artifacts
 ```
 
-### Deploy
-
-You can use the previously generated artifact to deploy the smart contract. Our constructor takes two arguments - `initial_counter` and `owner` so let's make sure to pass those in.
-
-`initial_counter` can be any uint. In this guide we'll pick 100, but you can pick anything.
-
-For the `owner` you can get the account addresses in your sandbox by running:
-
-```bash
-aztec-cli get-accounts
-```
-
-This will return something like this:
-
-```bash
-➜ counter aztec-cli get-accounts
-Accounts found:
-
-Address: 0x2fd4503a9b855a852272945df53d7173297c1469cceda31048b85118364b09a3
-Public Key: 0x27c20118733174347b8082f578a7d8fb84b3ad38be293715eee8119ee5cd8a6d0d6b7d8124b37359663e75bcd2756f544a93b821a06f8e33fba68cc8029794d9
-Partial Address: 0x11ee4cb5330545b3e82ace531526bc1995501a5596a85f90e5e60f4c1ad204dc
-
-Address: 0x054ae9af363c6388cc6242c6eb0ed8a5860c15290744c81ecd5109434f9bb8b1
-Public Key: 0x08145e8e8d46f51cda8d4c9cad81920236366abeafb8d387002bad879a3e87a81570b04ac829e4c007141d856d5a36d3b9c464e0f3c1c99cdbadaa6bb93f3257
-Partial Address: 0x23ae266d9f8905bc4ef42e1435560ac78f3b5b55eb99b85398eb7011cd38fd8c
-
-Address: 0x0d919c38d75484f8dd410cebaf0e17ccd196901d554d88f81b7e079375a4335d
-Public Key: 0x13e6151ea8e7386a5e7c4c5221047bf73d0b1b7a2ad14d22b7f73e57c1fa00c614bc6da69da1b581b09ee6cdc195e5d58ae4dce01b63bbb744e58f03855a94dd
-Partial Address: 0x2cf8f09aef15e219bf782049a3183a8adfd1fa254bf62bea050dc9a28fc979a7
-```
-
-Use one of these `address`es as the `owner`. You can either copy it or export.
-
-To deploy the counter contract, [ensure the sandbox is running](../sandbox/references/sandbox-reference.md) and run this in the root of your Noir project:
-
-```bash
-aztec-cli deploy contracts/counter/target/counter-Counter.json --args 100 0x0a0ab6320e2981cc543fedb9ad0f524c0a750397ca3372508d14af5b3c3c7cf0 --private-key 0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281
-```
-
-You can also test the functions by applying what you learned in the [quickstart](./quickstart.md).
-
-Congratulations, you have now written, compiled, and deployed your first Aztec.nr smart contract!
-
-Deploying your contract via the CLI will not register the deployed contract with the [PXE](../../learn/concepts/pxe/main.md). To do so, use `aztec-cli add-contract`.
-
-```bash
-aztec-cli add-contract --contract-artifact contracts/counter/target/counter-Counter.json --contract-address <contract-address>
-```
-
-:::note
-
-You can also deploy contracts using Aztec.js. See [the next page](./aztecjs-getting-started.md) for details.
-
-:::
+You can now use the artifact and/or the TS class in your Aztec.js! If you skipped the Aztec.js getting-started guide, you can follow it [here](aztecjs-getting-started.md). This will teach you about deploying and calling contracts in Aztec.js.
 
 ## Install Noir LSP (recommended)
 
@@ -222,16 +169,9 @@ Update the `Noir: Nargo Path` field to point to your desired `aztec-nargo` execu
 
 ## What's next?
 
-Now you can explore.
+The next recommmended steps are follow the tutorials in order. They will teach you more about contracts, Aztec.js, and how Aztec works in general.
 
-**Interested in learning more about how Aztec works under the hood?**
+To follow the series of tutorials, start with the private voting contract [here](../tutorials/writing_private_voting_contract.md).
 
-Understand the high level architecture on the [Core Components page](../../learn/about_aztec/technical_overview.md). You can also explore Aztec's [hybrid state model](../../learn/concepts/hybrid_state/main.md) and [the lifecycle of a transaction](../../learn/concepts/transactions.md).
+Alternatively, you can read about the high level architecture on the [Core Components page](../../learn/about_aztec/technical_overview.md). You can also explore Aztec's [hybrid state model](../../learn/concepts/hybrid_state/main.md) and [the lifecycle of a transaction](../../learn/concepts/transactions.md).
 
-**Want to write more contracts?**
-
-Follow the series of tutorials, starting with the private voting contract [here](../tutorials/writing_private_voting_contract.md).
-
-**Ready to dive into Aztec and Ethereum cross-chain communication?**
-
-Read the [Portals page](../../learn/concepts/communication/cross_chain_calls.md) and learn how to practically implement portals in the [token bridge tutorial](../tutorials/token_portal/main.md).
