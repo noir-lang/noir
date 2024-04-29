@@ -228,6 +228,7 @@ pub fn inject_global(
         module_id,
         file_id,
         global.attributes.clone(),
+        false,
     );
 
     // Add the statement to the scope so its path can be looked up later

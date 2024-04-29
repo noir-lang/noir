@@ -29,7 +29,7 @@ use crate::ast::{
     ArrayLiteral, BinaryOpKind, BlockExpression, Distinctness, Expression, ExpressionKind,
     ForRange, FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
     LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Statement, StatementKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
+    Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use crate::graph::CrateId;
@@ -202,6 +202,52 @@ impl<'a> Resolver<'a> {
         self.errors.push(err);
     }
 
+    /// This turns function parameters of the form:
+    /// fn foo(x: impl Bar)
+    ///
+    /// into
+    /// fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar
+    fn desugar_impl_trait_args(&mut self, func: &mut NoirFunction, func_id: FuncId) {
+        let mut impl_trait_generics = HashSet::new();
+        let mut counter: usize = 0;
+        for parameter in func.def.parameters.iter_mut() {
+            if let UnresolvedTypeData::TraitAsType(path, args) = &parameter.typ.typ {
+                let mut new_generic_ident: Ident =
+                    format!("T{}_impl_{}", func_id, path.as_string()).into();
+                let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
+                while impl_trait_generics.contains(&new_generic_ident)
+                    || self.lookup_generic_or_global_type(&new_generic_path).is_some()
+                {
+                    new_generic_ident =
+                        format!("T{}_impl_{}_{}", func_id, path.as_string(), counter).into();
+                    new_generic_path = Path::from_ident(new_generic_ident.clone());
+                    counter += 1;
+                }
+                impl_trait_generics.insert(new_generic_ident.clone());
+
+                let is_synthesized = true;
+                let new_generic_type_data =
+                    UnresolvedTypeData::Named(new_generic_path, vec![], is_synthesized);
+                let new_generic_type =
+                    UnresolvedType { typ: new_generic_type_data.clone(), span: None };
+                let new_trait_bound = TraitBound {
+                    trait_path: path.clone(),
+                    trait_id: None,
+                    trait_generics: args.to_vec(),
+                };
+                let new_trait_constraint = UnresolvedTraitConstraint {
+                    typ: new_generic_type,
+                    trait_bound: new_trait_bound,
+                };
+
+                parameter.typ.typ = new_generic_type_data;
+                func.def.generics.push(new_generic_ident);
+                func.def.where_clause.push(new_trait_constraint);
+            }
+        }
+        self.add_generics(&impl_trait_generics.into_iter().collect());
+    }
+
     /// Resolving a function involves interning the metadata
     /// interning any statements inside of the function
     /// and interning the function itself
@@ -209,7 +255,7 @@ impl<'a> Resolver<'a> {
     /// Since lowering would require scope data, unless we add an extra resolution field to the AST
     pub fn resolve_function(
         mut self,
-        func: NoirFunction,
+        mut func: NoirFunction,
         func_id: FuncId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
@@ -217,8 +263,9 @@ impl<'a> Resolver<'a> {
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
-
         self.add_generics(&func.def.generics);
+
+        self.desugar_impl_trait_args(&mut func, func_id);
         self.trait_bounds = func.def.where_clause.clone();
 
         let is_low_level_or_oracle = func
@@ -1150,9 +1197,14 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::TraitAsType(..)
             | Type::Code
             | Type::Forall(_, _) => (),
+
+            Type::TraitAsType(_, _, args) => {
+                for arg in args {
+                    Self::find_numeric_generics_in_type(arg, found);
+                }
+            }
 
             Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
@@ -1222,15 +1274,18 @@ impl<'a> Resolver<'a> {
     ) -> HirStatement {
         self.current_item = Some(DependencyId::Global(global_id));
         let expression = self.resolve_expression(let_stmt.expression);
-        let global_id = self.interner.next_global_id();
         let definition = DefinitionKind::Global(global_id);
 
         if !self.in_contract
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            self.push_err(ResolverError::AbiAttributeOutsideContract {
-                span: let_stmt.pattern.span(),
-            });
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
+        }
+
+        if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::MutableGlobal { span });
         }
 
         HirStatement::Let(HirLetStatement {
@@ -1238,6 +1293,7 @@ impl<'a> Resolver<'a> {
             r#type: self.resolve_type(let_stmt.r#type),
             expression,
             attributes: let_stmt.attributes,
+            comptime: let_stmt.comptime,
         })
     }
 
@@ -1251,6 +1307,7 @@ impl<'a> Resolver<'a> {
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
                     attributes: let_stmt.attributes,
+                    comptime: let_stmt.comptime,
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {
@@ -1322,8 +1379,10 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Error => HirStatement::Error,
             StatementKind::Comptime(statement) => {
-                let statement = self.resolve_stmt(*statement, span);
-                HirStatement::Comptime(self.interner.push_stmt(statement))
+                let hir_statement = self.resolve_stmt(statement.kind, statement.span);
+                let statement_id = self.interner.push_stmt(hir_statement);
+                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                HirStatement::Comptime(statement_id)
             }
         }
     }
