@@ -51,7 +51,8 @@ pub fn method_call(
 }
 
 pub fn call(func: Expression, arguments: Vec<Expression>) -> Expression {
-    expression(ExpressionKind::Call(Box::new(CallExpression { func: Box::new(func), arguments })))
+    let call = CallExpression { func: Box::new(func), arguments, is_macro: false };
+    expression(ExpressionKind::Call(Box::new(call)))
 }
 
 pub fn pattern(name: &str) -> Pattern {

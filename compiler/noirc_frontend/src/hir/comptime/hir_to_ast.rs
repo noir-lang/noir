@@ -139,7 +139,8 @@ impl ExprId {
             HirExpression::Call(call) => {
                 let func = Box::new(call.func.to_ast(interner));
                 let arguments = vecmap(call.arguments, |arg| arg.to_ast(interner));
-                ExpressionKind::Call(Box::new(CallExpression { func, arguments }))
+                let is_macro = call.is_macro;
+                ExpressionKind::Call(Box::new(CallExpression { func, arguments, is_macro }))
             }
             HirExpression::MethodCall(method_call) => {
                 ExpressionKind::MethodCall(Box::new(MethodCallExpression {

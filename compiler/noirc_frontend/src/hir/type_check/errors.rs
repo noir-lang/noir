@@ -137,6 +137,9 @@ pub enum TypeCheckError {
     },
     #[error("Strings do not support indexed assignment")]
     StringIndexAssign { span: Span },
+
+    #[error("Expected this macro call to return a `Code` value but found `{typ}` instead")]
+    ExpectedMacro { typ: Type, span: Span },
 }
 
 impl TypeCheckError {
@@ -322,6 +325,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
                 Diagnostic::simple_error(primary_message, "".to_string(), *span)
             }
+            TypeCheckError::ExpectedMacro { typ, span } => {
+                let primary_message = format!("Expected macro call to return a `Code` value, but this returns `{typ}` instead");
+                Diagnostic::simple_error(primary_message, "Macro calls using `!` need to return a `Code` value".to_string(), *span)
+            },
         }
     }
 }

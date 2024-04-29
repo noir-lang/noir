@@ -222,7 +222,16 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 };
 
-                return_type
+                if call_expr.is_macro {
+                    let span = self.interner.expr_span(expr_id);
+                    self.unify(&return_type, &Type::Code, || TypeCheckError::ExpectedMacro {
+                        typ: return_type.clone(),
+                        span,
+                    });
+                    self.interner.next_type_variable()
+                } else {
+                    return_type
+                }
             }
             HirExpression::MethodCall(mut method_call) => {
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();

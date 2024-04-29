@@ -188,7 +188,12 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
+    pub fn call(
+        lhs: Expression,
+        arguments: Vec<Expression>,
+        is_macro: bool,
+        span: Span,
+    ) -> Expression {
         // Need to check if lhs is an if expression since users can sequence if expressions
         // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
@@ -206,7 +211,8 @@ impl Expression {
                 ],
             })
         } else {
-            ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
+            let func = Box::new(lhs);
+            ExpressionKind::Call(Box::new(CallExpression { func, arguments, is_macro }))
         };
         Expression::new(kind, span)
     }
@@ -430,6 +436,7 @@ pub enum ArrayLiteral {
 pub struct CallExpression {
     pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
+    pub is_macro: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

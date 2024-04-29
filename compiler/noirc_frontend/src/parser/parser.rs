@@ -1085,14 +1085,18 @@ where
     S: NoirParser<StatementKind> + 'a,
 {
     enum UnaryRhs {
-        Call(Vec<Expression>),
+        Call((Option<Token>, Vec<Expression>)),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
         MemberAccess((Ident, Option<Vec<Expression>>)),
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
-    let call_rhs = parenthesized(expression_list(expr_parser.clone())).map(UnaryRhs::Call);
+    // The optional `!` is for macro calls
+    let call_rhs = just(Token::Bang)
+        .or_not()
+        .then(parenthesized(expression_list(expr_parser.clone())))
+        .map(UnaryRhs::Call);
 
     // `[expr]` in `arr[expr]`
     let array_rhs = expr_parser
@@ -1119,7 +1123,9 @@ where
         atom(expr_parser, expr_no_constructors, statement, allow_constructors),
         rhs,
         |lhs, rhs, span| match rhs {
-            UnaryRhs::Call(args) => Expression::call(lhs, args, span),
+            UnaryRhs::Call((is_macro, args)) => {
+                Expression::call(lhs, args, is_macro.is_some(), span)
+            }
             UnaryRhs::ArrayIndex(index) => Expression::index(lhs, index, span),
             UnaryRhs::Cast(r#type) => Expression::cast(lhs, r#type, span),
             UnaryRhs::MemberAccess(field) => {

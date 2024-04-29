@@ -87,12 +87,7 @@ impl<'interner> Interpreter<'interner> {
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
             }
-            HirExpression::Quote(_) => {
-                // This error could be detected much earlier in the compiler pipeline but
-                // it just makes sense for the comptime code to handle comptime things.
-                let location = self.interner.expr_location(&expr);
-                Err(InterpreterError::QuoteInRuntimeCode { location })
-            }
+            HirExpression::Quote(_) => Ok(()),
             HirExpression::Error => Ok(()),
 
             // Unquote should only be inserted by the comptime interpreter while expanding macros

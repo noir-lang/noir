@@ -171,6 +171,7 @@ pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
     pub location: Location,
+    pub is_macro: bool,
 }
 
 /// These nodes are temporary, they're
@@ -227,7 +228,7 @@ impl HirMethodCallExpression {
         let func = HirExpression::Ident(HirIdent { location, id, impl_kind });
         let func = interner.push_expr(func);
         interner.push_expr_location(func, location.span, location.file);
-        HirExpression::Call(HirCallExpression { func, arguments, location })
+        HirExpression::Call(HirCallExpression { func, arguments, location, is_macro: false })
     }
 }
 

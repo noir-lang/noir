@@ -1320,11 +1320,8 @@ impl<'a> Resolver<'a> {
             })
         };
         let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
-        let assert_msg_call_expr = Expression::call(
-            Expression { kind: assert_msg_call_path, span },
-            assert_msg_call_args,
-            span,
-        );
+        let func = Expression { kind: assert_msg_call_path, span };
+        let assert_msg_call_expr = Expression::call(func, assert_msg_call_args, false, span);
         Some(self.resolve_expression(assert_msg_call_expr))
     }
 
@@ -1513,7 +1510,8 @@ impl<'a> Resolver<'a> {
 
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
-                HirExpression::Call(HirCallExpression { func, arguments, location })
+                let is_macro = call_expr.is_macro;
+                HirExpression::Call(HirCallExpression { func, arguments, location, is_macro })
             }
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
