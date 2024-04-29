@@ -1,4 +1,5 @@
 mod kernel_circuit_public_inputs_composer;
+mod private_kernel_circuit_public_inputs_composer;
 mod private_kernel_init;
 mod private_kernel_inner;
 mod private_kernel_tail;

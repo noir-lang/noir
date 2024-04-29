@@ -12,8 +12,7 @@ use dep::types::{
     append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
     nullifier_leaf_preimage::NullifierLeafPreimage, public_data_update_request::PublicDataUpdateRequest,
-    public_data_read::PublicDataRead, kernel_data::KernelData,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    public_data_read::PublicDataRead, kernel_data::KernelData
 },
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
@@ -727,11 +726,9 @@ mod tests {
         let mut builder = BaseRollupInputsBuilder::new();
 
         let new_note_hashes = [27, 28, 29, 30, 31, 32];
-        let mut new_note_hashes_vec = builder.kernel_data.new_note_hashes;
         for i in 0..new_note_hashes.len() {
-            new_note_hashes_vec.push(SideEffect { value: new_note_hashes[i], counter: 0 });
+            builder.kernel_data.add_new_note_hash(new_note_hashes[i]);
         }
-        builder.kernel_data.new_note_hashes = new_note_hashes_vec;
         let mut expected_commitments_tree = NonEmptyMerkleTree::new(
             [0; MAX_NEW_NOTE_HASHES_PER_TX * 2],
             [0; NOTE_HASH_TREE_HEIGHT],

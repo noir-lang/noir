@@ -2,29 +2,18 @@ use dep::std;
 use dep::types::{
     abis::{
     call_request::CallRequest, accumulated_data::PrivateAccumulatedData,
-    kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
-    max_block_number::MaxBlockNumber, membership_witness::NoteHashReadRequestMembershipWitness,
+    membership_witness::NoteHashReadRequestMembershipWitness,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    private_kernel::private_call_data::PrivateCallData, kernel_data::PrivateKernelData,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect
 },
-    address::{AztecAddress, EthAddress, PartialAddress, compute_initialization_hash},
-    contract_class_id::ContractClassId,
-    constants::{
-    MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
-},
-    hash::{
-    compute_l2_to_l1_hash, pedersen_hash, private_functions_root_from_siblings, silo_note_hash,
-    silo_nullifier, stdlib_recursion_verification_key_compress_native_vk
-},
-    merkle_tree::check_membership,
-    utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
+    address::{AztecAddress, PartialAddress}, contract_class_id::ContractClassId,
+    constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+    hash::{private_functions_root_from_siblings, stdlib_recursion_verification_key_compress_native_vk},
+    merkle_tree::check_membership, utils::{arrays::{array_length, validate_array}},
     traits::{is_empty, is_empty_array}
 };
 
-pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
+fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
     // Each of the following arrays is expected to be zero-padded.
     // In addition, some of the following arrays (new_note_hashes, etc...) are passed
     // to extend_from_array_to_array() routines which rely on the passed arrays to be well-formed.
@@ -83,37 +72,6 @@ pub fn validate_note_hash_read_requests(
     }
 }
 
-pub fn initialize_end_values(
-    previous_kernel: PrivateKernelData,
-    public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder
-) {
-    public_inputs.constants = previous_kernel.public_inputs.constants;
-    public_inputs.min_revertible_side_effect_counter = previous_kernel.public_inputs.min_revertible_side_effect_counter;
-
-    let start = previous_kernel.public_inputs.validation_requests;
-    public_inputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
-    public_inputs.validation_requests.note_hash_read_requests = array_to_bounded_vec(start.note_hash_read_requests);
-    public_inputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
-    public_inputs.validation_requests.nullifier_key_validation_requests = array_to_bounded_vec(start.nullifier_key_validation_requests);
-
-    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
-    // functions within this circuit:
-    let start = previous_kernel.public_inputs.end;
-
-    public_inputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
-    public_inputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
-
-    public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
-    public_inputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
-    public_inputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
-
-    public_inputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
-    public_inputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
-
-    public_inputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
-    public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
-}
-
 fn perform_static_call_checks(private_call: PrivateCallData) {
     let public_inputs = private_call.call_stack_item.public_inputs;
     let is_static_call = public_inputs.call_context.is_static_call;
@@ -151,158 +109,45 @@ fn is_valid_caller(request_from_stack: CallRequest, fn_being_verified: PrivateCa
         & (request_from_stack.caller_context.is_empty() | valid_caller_context)
 }
 
-fn validate_call_requests<N>(
-    call_requests: BoundedVec<CallRequest, N>,
-    hashes: [Field; N],
-    private_call: PrivateCallData
-) {
-    assert_eq(
-        array_length(hashes), call_requests.len(), "call requests length does not match the expected length"
-    );
+fn validate_call_requests<N>(call_requests: [CallRequest; N], hashes: [Field; N], private_call: PrivateCallData) {
     for i in 0..N {
         let hash = hashes[i];
+        let request = call_requests[i];
         if hash != 0 {
-            let request = call_requests.get_unchecked(i);
             assert_eq(request.hash, hash, "call stack hash does not match call request hash");
             assert(is_valid_caller(request, private_call), "invalid caller");
+        } else {
+            assert(is_empty(request), "call requests length does not match the expected length");
         }
     }
 }
 
-pub fn update_end_values(
-    private_call: PrivateCallData,
-    public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder
-) {
-    // If this call is a static call, certain operations are disallowed, such as creating new state.
-    perform_static_call_checks(private_call);
-
+// TODO: Move to a seperate file.
+pub fn validate_private_call_data(private_call: PrivateCallData) {
     let private_call_public_inputs = private_call.call_stack_item.public_inputs;
 
-    let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
+    validate_arrays(private_call_public_inputs);
 
-    // Update the max block number if the private call requested a lower one.
-    public_inputs.validation_requests.max_block_number = MaxBlockNumber::min(public_inputs.validation_requests.max_block_number, private_call_public_inputs.max_block_number);
+    contract_logic(private_call);
 
-    // Transient read requests and witnesses are accumulated in public_inputs.end
-    // We silo the read requests (domain separation per contract address)
-    let read_requests = private_call_public_inputs.note_hash_read_requests;
-    let read_request_membership_witnesses = private_call.note_hash_read_request_membership_witnesses;
-    let mut siloed_read_requests: BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NOTE_HASH_READ_REQUESTS_PER_CALL {
-        let read_request = read_requests[i].value;
-        let witness = read_request_membership_witnesses[i];
-        if witness.is_transient & (read_request != 0) { // only forward transient to public inputs
-            siloed_read_requests.push(
-                SideEffect { counter: read_requests[i].counter, value: silo_note_hash(storage_contract_address, read_request) }
-            )
-        }
-    }
-    public_inputs.validation_requests.note_hash_read_requests.extend_from_bounded_vec(siloed_read_requests);
+    perform_static_call_checks(private_call);
 
-    // Nullifier read request.
-    let nullifier_read_requests = private_call_public_inputs.nullifier_read_requests;
-    for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL {
-        let request = nullifier_read_requests[i];
-        if !is_empty(request) {
-            public_inputs.validation_requests.nullifier_read_requests.push(request.to_context(storage_contract_address));
-        }
-    }
-
-    // Nullifier key validation requests.
-    let nullifier_key_validation_requests = private_call_public_inputs.nullifier_key_validation_requests;
-    for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL {
-        let request = nullifier_key_validation_requests[i];
-        if !is_empty(request) {
-            public_inputs.validation_requests.nullifier_key_validation_requests.push(request.to_context(storage_contract_address));
-        }
-    }
-
-    // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    //
-    // nullifiers
-    let new_nullifiers = private_call_public_inputs.new_nullifiers;
-    let mut siloed_new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
-        let new_nullifier = new_nullifiers[i];
-        if new_nullifier.value != 0 {
-            let siloed_note_hash = if new_nullifier.note_hash == 0 {
-                0
-            } else {
-                silo_note_hash(storage_contract_address, new_nullifier.note_hash)
-            };
-            siloed_new_nullifiers.push(
-                SideEffectLinkedToNoteHash {
-                value: silo_nullifier(storage_contract_address, new_nullifier.value),
-                counter: new_nullifier.counter,
-                note_hash: siloed_note_hash
-            }
-            );
-        }
-    }
-    public_inputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
-
-    // note hashes
-    let new_note_hashes = private_call_public_inputs.new_note_hashes;
-    let mut siloed_new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
-        let new_note_hash = new_note_hashes[i].value;
-        if new_note_hash != 0 {
-            siloed_new_note_hashes.push(
-                SideEffect { value: silo_note_hash(storage_contract_address, new_note_hash), counter: new_note_hashes[i].counter }
-            );
-        }
-    }
-    public_inputs.end.new_note_hashes.extend_from_bounded_vec(siloed_new_note_hashes);
-
-    // Call stacks
     // Private call stack.
-    let private_call_stack = array_to_bounded_vec(private_call.private_call_stack);
     validate_call_requests(
-        private_call_stack,
+        private_call.private_call_stack,
         private_call_public_inputs.private_call_stack_hashes,
         private_call
     );
-    public_inputs.end.private_call_stack.extend_from_bounded_vec(private_call_stack);
+
     // Public call stack.
-    let public_call_stack = array_to_bounded_vec(private_call.public_call_stack);
     validate_call_requests(
-        public_call_stack,
+        private_call.public_call_stack,
         private_call_public_inputs.public_call_stack_hashes,
         private_call
     );
-    public_inputs.end.public_call_stack.extend_from_bounded_vec(public_call_stack);
-
-    // new l2 to l1 messages
-    let new_l2_to_l1_msgs = private_call_public_inputs.new_l2_to_l1_msgs;
-    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
-        let msg = new_l2_to_l1_msgs[i];
-        if !is_empty(msg) {
-            let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
-                storage_contract_address,
-                private_call_public_inputs.tx_context.version,
-                private_call_public_inputs.tx_context.chain_id,
-                msg
-            );
-            new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
-        }
-    }
-    public_inputs.end.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
-
-    // logs hashes
-    // See the following thread if not clear:
-    // https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426
-
-    public_inputs.end.encrypted_logs_hashes.extend_from_bounded_vec(array_to_bounded_vec(private_call_public_inputs.encrypted_logs_hashes));
-    public_inputs.end.unencrypted_logs_hashes.extend_from_bounded_vec(array_to_bounded_vec(private_call_public_inputs.unencrypted_logs_hashes));
-
-    // Add log preimages lengths from current iteration to accumulated lengths
-    public_inputs.end.encrypted_log_preimages_length = public_inputs.end.encrypted_log_preimages_length +
-                                                           private_call_public_inputs.encrypted_log_preimages_length;
-    public_inputs.end.unencrypted_log_preimages_length = public_inputs.end.unencrypted_log_preimages_length + private_call_public_inputs.unencrypted_log_preimages_length;
 }
 
-pub fn contract_logic(private_call: PrivateCallData) {
+fn contract_logic(private_call: PrivateCallData) {
     let contract_address = private_call.call_stack_item.contract_address;
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3062): Why is this using a hash function from the stdlib::recursion namespace

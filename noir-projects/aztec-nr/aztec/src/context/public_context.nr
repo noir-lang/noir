@@ -13,7 +13,7 @@ use dep::protocol_types::{
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem,
     public_circuit_public_inputs::PublicCircuitPublicInputs, read_request::ReadRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    note_hash::NoteHash, nullifier::Nullifier, side_effect::SideEffect
 },
     hash::silo_nullifier, address::{AztecAddress, EthAddress},
     constants::{
@@ -40,8 +40,8 @@ struct PublicContext {
     contract_storage_reads: BoundedVec<StorageRead, MAX_PUBLIC_DATA_READS_PER_CALL>,
     public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
 
-    new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL>,
-    new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL>,
+    new_note_hashes: BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL>,
+    new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL>,
 
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
@@ -204,18 +204,16 @@ impl ContextInterface for PublicContext {
     }
 
     fn push_new_note_hash(&mut self, note_hash: Field) {
-        let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
-        self.new_note_hashes.push(side_effect);
+        self.new_note_hashes.push(NoteHash { value: note_hash, counter: self.side_effect_counter });
         self.side_effect_counter = self.side_effect_counter + 1;
     }
 
-    fn push_new_nullifier(&mut self, nullifier: Field, _nullified_commitment: Field) {
-        let side_effect = SideEffectLinkedToNoteHash {
+    fn push_new_nullifier(&mut self, nullifier: Field, _nullified_note_hash: Field) {
+        self.new_nullifiers.push(Nullifier {
             value: nullifier,
             note_hash: 0, // cannot nullify pending notes in public context
             counter: self.side_effect_counter
-        };
-        self.new_nullifiers.push(side_effect);
+        });
         self.side_effect_counter = self.side_effect_counter + 1;
     }
 }

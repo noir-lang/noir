@@ -20,6 +20,11 @@ export interface NoteAndSlot {
   noteTypeId: Fr;
 }
 
+export interface NullifiedNoteHashCounter {
+  noteHashCounter: number;
+  nullifierCounter: number;
+}
+
 /**
  * The result of executing a private function.
  */
@@ -36,9 +41,9 @@ export interface ExecutionResult {
   callStackItem: PrivateCallStackItem;
   /** The partially filled-in read request membership witnesses for commitments being read. */
   noteHashReadRequestPartialWitnesses: NoteHashReadRequestMembershipWitness[];
-  // Needed when we enable chained txs. The new notes can be cached and used in a later transaction.
   /** The notes created in the executed function. */
   newNotes: NoteAndSlot[];
+  nullifiedNoteHashCounters: NullifiedNoteHashCounter[];
   /** The raw return values of the executed function. */
   returnValues: Fr[];
   /** The nested executions. */
@@ -55,6 +60,13 @@ export interface ExecutionResult {
    * Note: These are preimages to `unencryptedLogsHashes`.
    */
   unencryptedLogs: UnencryptedFunctionL2Logs;
+}
+
+export function collectNullifiedNoteHashCounters(execResult: ExecutionResult): NullifiedNoteHashCounter[] {
+  return [
+    execResult.nullifiedNoteHashCounters,
+    ...execResult.nestedExecutions.flatMap(collectNullifiedNoteHashCounters),
+  ].flat();
 }
 
 /**

@@ -10,9 +10,10 @@ import {
   type GlobalVariables,
   type Header,
   L2ToL1Message,
+  NoteHash,
+  Nullifier,
   ReadRequest,
   SideEffect,
-  SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -124,7 +125,7 @@ export async function convertAvmResults(
   }
 
   const newNoteHashes = newWorldState.newNoteHashes.map(
-    noteHash => new SideEffect(noteHash.noteHash, noteHash.counter),
+    noteHash => new NoteHash(noteHash.noteHash, noteHash.counter.toNumber()),
   );
   const nullifierReadRequests: ReadRequest[] = newWorldState.nullifierChecks
     .filter(nullifierCheck => nullifierCheck.exists)
@@ -132,12 +133,12 @@ export async function convertAvmResults(
   const nullifierNonExistentReadRequests: ReadRequest[] = newWorldState.nullifierChecks
     .filter(nullifierCheck => !nullifierCheck.exists)
     .map(nullifierCheck => new ReadRequest(nullifierCheck.nullifier, nullifierCheck.counter.toNumber()));
-  const newNullifiers: SideEffectLinkedToNoteHash[] = newWorldState.newNullifiers.map(
+  const newNullifiers: Nullifier[] = newWorldState.newNullifiers.map(
     tracedNullifier =>
-      new SideEffectLinkedToNoteHash(
+      new Nullifier(
         /*value=*/ tracedNullifier.nullifier,
+        tracedNullifier.counter.toNumber(),
         /*noteHash=*/ Fr.ZERO, // NEEDED?
-        tracedNullifier.counter,
       ),
   );
   const unencryptedLogs: UnencryptedFunctionL2Logs = new UnencryptedFunctionL2Logs(
@@ -216,7 +217,7 @@ export function updateAvmContextFromPublicExecutionResult(ctx: AvmContext, resul
     ctx.persistableState.trace.newNullifiers.push({
       storageAddress: ctx.environment.storageAddress,
       nullifier: nullifier.value,
-      counter: nullifier.counter,
+      counter: new Fr(nullifier.counter),
     });
   }
 
@@ -224,7 +225,7 @@ export function updateAvmContextFromPublicExecutionResult(ctx: AvmContext, resul
     ctx.persistableState.trace.newNoteHashes.push({
       storageAddress: ctx.environment.storageAddress,
       noteHash: noteHash.value,
-      counter: noteHash.counter,
+      counter: new Fr(noteHash.counter),
     });
   }
 

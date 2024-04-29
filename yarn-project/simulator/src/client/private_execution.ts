@@ -57,6 +57,7 @@ export async function executePrivateFunction(
     publicInputs.noteHashReadRequests,
   );
   const newNotes = context.getNewNotes();
+  const nullifiedNoteHashCounters = context.getNullifiedNoteHashCounters();
   const nestedExecutions = context.getNestedExecutions();
   const enqueuedPublicFunctionCalls = context.getEnqueuedPublicFunctionCalls();
 
@@ -69,6 +70,7 @@ export async function executePrivateFunction(
     returnValues: rawReturnValues,
     noteHashReadRequestPartialWitnesses,
     newNotes,
+    nullifiedNoteHashCounters,
     vk: Buffer.from(artifact.verificationKey!, 'hex'),
     nestedExecutions,
     enqueuedPublicFunctionCalls,

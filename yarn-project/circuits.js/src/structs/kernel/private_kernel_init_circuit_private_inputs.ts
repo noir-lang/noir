@@ -2,6 +2,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { TxRequest } from '../tx_request.js';
 import { PrivateCallData } from './private_call_data.js';
+import { PrivateKernelInnerHints } from './private_kernel_inner_circuit_private_inputs.js';
 
 /**
  * Input to the private kernel circuit - initial call.
@@ -16,6 +17,7 @@ export class PrivateKernelInitCircuitPrivateInputs {
      * Private calldata corresponding to this iteration of the kernel.
      */
     public privateCall: PrivateCallData,
+    public hints: PrivateKernelInnerHints,
   ) {}
 
   /**
@@ -23,7 +25,7 @@ export class PrivateKernelInitCircuitPrivateInputs {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.txRequest, this.privateCall);
+    return serializeToBuffer(this.txRequest, this.privateCall, this.hints);
   }
 
   /**
@@ -33,6 +35,10 @@ export class PrivateKernelInitCircuitPrivateInputs {
    */
   static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelInitCircuitPrivateInputs {
     const reader = BufferReader.asReader(buffer);
-    return new PrivateKernelInitCircuitPrivateInputs(reader.readObject(TxRequest), reader.readObject(PrivateCallData));
+    return new PrivateKernelInitCircuitPrivateInputs(
+      reader.readObject(TxRequest),
+      reader.readObject(PrivateCallData),
+      reader.readObject(PrivateKernelInnerHints),
+    );
   }
 }

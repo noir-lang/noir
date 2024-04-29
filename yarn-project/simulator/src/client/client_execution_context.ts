@@ -32,7 +32,7 @@ import { type NoteData, toACVMWitness } from '../acvm/index.js';
 import { type PackedValuesCache } from '../common/packed_values_cache.js';
 import { type DBOracle } from './db_oracle.js';
 import { type ExecutionNoteCache } from './execution_note_cache.js';
-import { type ExecutionResult, type NoteAndSlot } from './execution_result.js';
+import { type ExecutionResult, type NoteAndSlot, type NullifiedNoteHashCounter } from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -59,6 +59,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * They should act as references for the read requests output by an app circuit via public inputs.
    */
   private gotNotes: Map<bigint, bigint> = new Map();
+  private nullifiedNoteHashCounters: NullifiedNoteHashCounter[] = [];
   private encryptedLogs: EncryptedL2Log[] = [];
   private unencryptedLogs: UnencryptedL2Log[] = [];
   private nestedExecutions: ExecutionResult[] = [];
@@ -137,6 +138,10 @@ export class ClientExecutionContext extends ViewDataOracle {
    */
   public getNewNotes(): NoteAndSlot[] {
     return this.newNotes;
+  }
+
+  public getNullifiedNoteHashCounters() {
+    return this.nullifiedNoteHashCounters;
   }
 
   /**
@@ -278,16 +283,25 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param innerNoteHash - The inner note hash of the new note.
    * @returns
    */
-  public override notifyCreatedNote(storageSlot: Fr, noteTypeId: Fr, noteItems: Fr[], innerNoteHash: Fr) {
+  public override notifyCreatedNote(
+    storageSlot: Fr,
+    noteTypeId: Fr,
+    noteItems: Fr[],
+    innerNoteHash: Fr,
+    counter: number,
+  ) {
     const note = new Note(noteItems);
-    this.noteCache.addNewNote({
-      contractAddress: this.callContext.storageContractAddress,
-      storageSlot,
-      nonce: Fr.ZERO, // Nonce cannot be known during private execution.
-      note,
-      siloedNullifier: undefined, // Siloed nullifier cannot be known for newly created note.
-      innerNoteHash,
-    });
+    this.noteCache.addNewNote(
+      {
+        contractAddress: this.callContext.storageContractAddress,
+        storageSlot,
+        nonce: Fr.ZERO, // Nonce cannot be known during private execution.
+        note,
+        siloedNullifier: undefined, // Siloed nullifier cannot be known for newly created note.
+        innerNoteHash,
+      },
+      counter,
+    );
     this.newNotes.push({
       storageSlot,
       noteTypeId,
@@ -301,8 +315,15 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param innerNullifier - The pending nullifier to add in the list (not yet siloed by contract address).
    * @param innerNoteHash - The inner note hash of the new note.
    */
-  public override notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr) {
-    this.noteCache.nullifyNote(this.callContext.storageContractAddress, innerNullifier, innerNoteHash);
+  public override notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr, counter: number) {
+    const nullifiedNoteHashCounter = this.noteCache.nullifyNote(
+      this.callContext.storageContractAddress,
+      innerNullifier,
+      innerNoteHash,
+    );
+    if (nullifiedNoteHashCounter !== undefined) {
+      this.nullifiedNoteHashCounters.push({ noteHashCounter: nullifiedNoteHashCounter, nullifierCounter: counter });
+    }
     return Promise.resolve();
   }
 

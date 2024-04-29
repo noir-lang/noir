@@ -21,12 +21,14 @@ pub fn create_note<Note, N>(
 
     // TODO: Strong typing required because of https://github.com/noir-lang/noir/issues/4088
     let serialized_note: [Field; N] = Note::serialize_content(*note);
+    let note_hash_counter = context.side_effect_counter;
     assert(
         notify_created_note(
         storage_slot,
         Note::get_note_type_id(),
         serialized_note,
-        inner_note_hash
+        inner_note_hash,
+        note_hash_counter
     )
         == 0
     );
@@ -69,7 +71,9 @@ pub fn destroy_note<Note, N>(context: &mut PrivateContext, note: Note) where Not
         // TODO(1718): Can we reuse the note hash computed in `compute_nullifier`?
         consumed_note_hash = compute_note_hash_for_consumption(note);
     }
-    assert(notify_nullified_note(nullifier, consumed_note_hash) == 0);
+
+    let nullifier_counter = context.side_effect_counter;
+    assert(notify_nullified_note(nullifier, consumed_note_hash, nullifier_counter) == 0);
 
     context.push_new_nullifier(nullifier, consumed_note_hash)
 }

@@ -75,7 +75,10 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_BASE_PARITY_PER_ROOT_PARITY,
   NUM_MSGS_PER_BASE_PARITY,
+  NoteHash,
+  NoteHashContext,
   NoteHashReadRequestMembershipWitness,
+  Nullifier,
   NullifierKeyValidationRequest,
   NullifierKeyValidationRequestContext,
   NullifierLeafPreimage,
@@ -123,7 +126,6 @@ import {
   RootRollupInputs,
   RootRollupPublicInputs,
   SideEffect,
-  SideEffectLinkedToNoteHash,
   StateDiffHints,
   StateReference,
   TxContext,
@@ -144,8 +146,6 @@ import { GlobalVariables } from '../structs/global_variables.js';
 import { Header } from '../structs/header.js';
 import { KernelCircuitPublicInputs } from '../structs/kernel/kernel_circuit_public_inputs.js';
 import { KernelData } from '../structs/kernel/kernel_data.js';
-import { PrivateKernelInitCircuitPrivateInputs } from '../structs/kernel/private_kernel_init_circuit_private_inputs.js';
-import { PrivateKernelInnerCircuitPrivateInputs } from '../structs/kernel/private_kernel_inner_circuit_private_inputs.js';
 import { RollupValidationRequests } from '../structs/rollup_validation_requests.js';
 import { ValidationRequests } from '../structs/validation_requests.js';
 
@@ -158,13 +158,16 @@ export function makeNewSideEffect(seed: number): SideEffect {
   return new SideEffect(fr(seed), fr(seed + 1));
 }
 
-/**
- * Creates an arbitrary side effect object (linked to a note hash) with the given seed.
- * @param seed - The seed to use for generating the object.
- * @returns A side effect object.
- */
-export function makeNewSideEffectLinkedToNoteHash(seed: number): SideEffectLinkedToNoteHash {
-  return new SideEffectLinkedToNoteHash(fr(seed), fr(seed + 1), fr(seed + 2));
+function makeNoteHash(seed: number) {
+  return new NoteHash(fr(seed), seed + 1);
+}
+
+function makeNoteHashContext(seed: number) {
+  return new NoteHashContext(fr(seed), seed + 1, seed + 2);
+}
+
+function makeNullifier(seed: number) {
+  return new Nullifier(fr(seed), seed + 1, fr(seed + 2));
 }
 
 /**
@@ -283,7 +286,7 @@ export function makeContractStorageRead(seed = 1): ContractStorageRead {
 export function makeValidationRequests(seed = 1) {
   return new ValidationRequests(
     makeRollupValidationRequests(seed),
-    makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, sideEffectFromNumber, seed + 0x80),
+    makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, makeNewSideEffect, seed + 0x80),
     makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, makeReadRequestContext, seed + 0x90),
     makeTuple(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, makeReadRequestContext, seed + 0x95),
     makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, makeNullifierKeyValidationRequestContext, seed + 0x100),
@@ -338,16 +341,11 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new PublicAccumulatedData(
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, sideEffectFromNumber, seed + 0x120, SideEffect.empty),
-    tupleGenerator(
-      MAX_NEW_NULLIFIERS_PER_TX,
-      sideEffectLinkedFromNumber,
-      seed + 0x200,
-      SideEffectLinkedToNoteHash.empty,
-    ),
+    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x120, NoteHash.empty),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, makeNullifier, seed + 0x200, Nullifier.empty),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
-    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x700, SideEffect.empty), // encrypted logs hashes
-    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x800, SideEffect.empty), // unencrypted logs hashes
+    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeNewSideEffect, seed + 0x700, SideEffect.empty), // encrypted logs hashes
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeNewSideEffect, seed + 0x800, SideEffect.empty), // unencrypted logs hashes
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(
@@ -370,16 +368,11 @@ export function makePrivateAccumulatedData(seed = 1, full = false) {
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new PrivateAccumulatedData(
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, sideEffectFromNumber, seed + 0x120, SideEffect.empty),
-    tupleGenerator(
-      MAX_NEW_NULLIFIERS_PER_TX,
-      sideEffectLinkedFromNumber,
-      seed + 0x200,
-      SideEffectLinkedToNoteHash.empty,
-    ),
+    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, makeNoteHashContext, seed + 0x120, NoteHashContext.empty),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, makeNullifier, seed + 0x200, Nullifier.empty),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
-    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x700, SideEffect.empty), // encrypted logs hashes
-    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, sideEffectFromNumber, seed + 0x800, SideEffect.empty), // unencrypted logs hashes
+    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeNewSideEffect, seed + 0x700, SideEffect.empty), // encrypted logs hashes
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeNewSideEffect, seed + 0x800, SideEffect.empty), // unencrypted logs hashes
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400, CallRequest.empty),
@@ -446,17 +439,12 @@ export function makePublicCircuitPublicInputs(
     ),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_CALL, makeContractStorageRead, seed + 0x500, ContractStorageRead.empty),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600, Fr.zero),
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_CALL, makeNewSideEffect, seed + 0x700, SideEffect.empty),
-    tupleGenerator(
-      MAX_NEW_NULLIFIERS_PER_CALL,
-      makeNewSideEffectLinkedToNoteHash,
-      seed + 0x800,
-      SideEffectLinkedToNoteHash.empty,
-    ),
+    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x700, NoteHash.empty),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x800, Nullifier.empty),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900, L2ToL1Message.empty),
     fr(seed + 0xa00),
     fr(seed + 0xa01),
-    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0x901, SideEffect.empty),
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_CALL, makeNewSideEffect, seed + 0x901, SideEffect.empty),
     fr(seed + 0x902),
     makeHeader(seed + 0xa00, undefined),
     makeGlobalVariables(seed + 0xa01),
@@ -707,27 +695,6 @@ export function makeProof(seed = 1) {
 }
 
 /**
- * Makes arbitrary private kernel init private inputs
- * @param seed - The seed to use for generating the private kernel inputs.
- * @returns Private kernel init private inputs.
- */
-export function makePrivateKernelInitCircuitPrivateInputs(seed = 1): PrivateKernelInitCircuitPrivateInputs {
-  return new PrivateKernelInitCircuitPrivateInputs(makeTxRequest(seed), makePrivateCallData(seed + 0x1000));
-}
-
-/**
- * Makes arbitrary private kernel inner private inputs
- * @param seed - The seed to use for generating the private kernel inputs.
- * @returns Private kernel inner private inputs.
- */
-export function makePrivateKernelInnerCircuitPrivateInputs(seed = 1): PrivateKernelInnerCircuitPrivateInputs {
-  return new PrivateKernelInnerCircuitPrivateInputs(
-    makePrivateKernelInnerData(seed),
-    makePrivateCallData(seed + 0x1000),
-  );
-}
-
-/**
  * Makes arbitrary call stack item.
  * @param seed - The seed to use for generating the call stack item.
  * @returns A call stack item.
@@ -897,22 +864,22 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     argsHash: fr(seed + 0x100),
     returnsHash: fr(seed + 0x200),
     minRevertibleSideEffectCounter: fr(0),
-    noteHashReadRequests: makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, sideEffectFromNumber, seed + 0x300),
+    noteHashReadRequests: makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, makeNewSideEffect, seed + 0x300),
     nullifierReadRequests: makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x310),
     nullifierKeyValidationRequests: makeTuple(
       MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
       makeNullifierKeyValidationRequest,
       seed + 0x320,
     ),
-    newNoteHashes: makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, sideEffectFromNumber, seed + 0x400),
-    newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, sideEffectLinkedFromNumber, seed + 0x500),
+    newNoteHashes: makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x400),
+    newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x500),
     privateCallStackHashes: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),
     publicCallStackHashes: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x700),
     newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
     startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),
-    encryptedLogsHashes: makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0x900),
-    unencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, sideEffectFromNumber, seed + 0xa00),
+    encryptedLogsHashes: makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, makeNewSideEffect, seed + 0x900),
+    unencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, makeNewSideEffect, seed + 0xa00),
     encryptedLogPreimagesLength: fr(seed + 0xb00),
     unencryptedLogPreimagesLength: fr(seed + 0xc00),
     historicalHeader: makeHeader(seed + 0xd00, undefined),
@@ -1373,22 +1340,4 @@ function makeContractClassPrivateFunction(seed = 0): PrivateFunction {
  */
 export function fr(n: number): Fr {
   return new Fr(BigInt(n));
-}
-
-/**
- * Test only. Easy to identify big endian side-effect serialize.
- * @param n - The number.
- * @returns The SideEffect instance.
- */
-export function sideEffectFromNumber(n: number): SideEffect {
-  return new SideEffect(new Fr(BigInt(n)), Fr.zero());
-}
-
-/**
- * Test only. Easy to identify big endian side-effect serialize.
- * @param n - The number.
- * @returns The SideEffect instance.
- */
-export function sideEffectLinkedFromNumber(n: number): SideEffectLinkedToNoteHash {
-  return new SideEffectLinkedToNoteHash(new Fr(BigInt(n)), Fr.zero(), Fr.zero());
 }

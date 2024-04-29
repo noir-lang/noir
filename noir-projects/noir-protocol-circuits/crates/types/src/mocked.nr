@@ -2,7 +2,6 @@
 // they need the proof system.
 use crate::traits::Empty;
 
-
 struct AggregationObject{}
 
 struct Proof{}
@@ -34,4 +33,9 @@ pub fn verify_previous_kernel_state(
     _proof: Proof
 ) -> (bool, AggregationObject) {
     (true, AggregationObject {})
+}
+
+// Called by private kernel init circuit which has no previous kernel proof.
+pub fn verify_private_function_proof(_proof: Proof) -> bool {
+    true
 }

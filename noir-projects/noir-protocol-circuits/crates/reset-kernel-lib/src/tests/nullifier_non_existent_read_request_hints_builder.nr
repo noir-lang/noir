@@ -1,6 +1,6 @@
 use crate::nullifier_non_existent_read_request_reset::{NullifierNonMembershipHint, NullifierNonExistentReadRequestHints};
 use dep::types::{
-    abis::{nullifier_leaf_preimage::NullifierLeafPreimage, side_effect::SideEffectLinkedToNoteHash},
+    abis::{nullifier::Nullifier, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
     MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
     NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT
@@ -14,7 +14,7 @@ struct NullifierNonExistentReadRequestHintsBuilder {
     nullifier_tree: NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
     non_membership_hints: BoundedVec<NullifierNonMembershipHint, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
     read_values: BoundedVec<Field, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    pending_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
+    pending_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
 }
 
 impl NullifierNonExistentReadRequestHintsBuilder {
@@ -23,7 +23,7 @@ impl NullifierNonExistentReadRequestHintsBuilder {
             nullifier_tree: NonEmptyMerkleTree::empty(),
             non_membership_hints: BoundedVec::new(),
             read_values: BoundedVec::new(),
-            pending_nullifiers: [SideEffectLinkedToNoteHash::empty(); MAX_NEW_NULLIFIERS_PER_TX]
+            pending_nullifiers: [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_TX]
         }
     }
 
@@ -34,10 +34,7 @@ impl NullifierNonExistentReadRequestHintsBuilder {
         self.nullifier_tree = tree;
     }
 
-    pub fn set_nullifiers(
-        &mut self,
-        nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX]
-    ) {
+    pub fn set_nullifiers(&mut self, nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX]) {
         self.pending_nullifiers = nullifiers;
     }
 
@@ -56,7 +53,7 @@ impl NullifierNonExistentReadRequestHintsBuilder {
     pub fn to_hints(self) -> NullifierNonExistentReadRequestHints {
         let sorted_result = sort_get_sorted_hints(
             self.pending_nullifiers,
-            |a: SideEffectLinkedToNoteHash, b: SideEffectLinkedToNoteHash| a.value.lt(b.value)
+            |a: Nullifier, b: Nullifier| a.value.lt(b.value)
         );
         let sorted_pending_values = sorted_result.sorted_array;
         let sorted_pending_value_index_hints = sorted_result.sorted_index_hints;
@@ -65,7 +62,7 @@ impl NullifierNonExistentReadRequestHintsBuilder {
         for i in 0..MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX {
             if i < self.read_values.len() {
                 let value = self.read_values.get_unchecked(i);
-                next_pending_value_indices[i] = find_index(sorted_pending_values, |v: SideEffectLinkedToNoteHash| !v.value.lt(value));
+                next_pending_value_indices[i] = find_index(sorted_pending_values, |v: Nullifier| !v.value.lt(value));
             }
         }
 

@@ -2,9 +2,9 @@ use dep::types::{
     abis::{
     call_request::CallRequest, public_call_stack_item::PublicCallStackItem,
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder, kernel_data::PublicKernelData,
-    public_call_data::PublicCallData, public_data_read::PublicDataRead,
-    public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequestContext,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, global_variables::GlobalVariables,
+    note_hash::NoteHash, nullifier::Nullifier, public_call_data::PublicCallData,
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    read_request::ReadRequestContext, side_effect::SideEffect, global_variables::GlobalVariables,
     combined_constant_data::CombinedConstantData
 },
     address::AztecAddress,
@@ -416,12 +416,12 @@ fn propagate_new_note_hashes_non_revertible(
     let new_note_hashes = public_call.call_stack_item.public_inputs.new_note_hashes;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let mut siloed_new_note_hashes : BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
+    let mut siloed_new_note_hashes : BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
             let siloed_new_note_hash = silo_note_hash(storage_contract_address, new_note_hash);
-            siloed_new_note_hashes.push(SideEffect { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
+            siloed_new_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
         }
     }
     circuit_outputs.end_non_revertible.new_note_hashes.extend_from_bounded_vec(siloed_new_note_hashes);
@@ -436,12 +436,12 @@ fn propagate_new_note_hashes(
     let new_note_hashes = public_call.call_stack_item.public_inputs.new_note_hashes;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let mut siloed_new_note_hashes : BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
+    let mut siloed_new_note_hashes : BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
             let siloed_new_note_hash = silo_note_hash(storage_contract_address, new_note_hash);
-            siloed_new_note_hashes.push(SideEffect { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
+            siloed_new_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
         }
     }
     circuit_outputs.end.new_note_hashes.extend_from_bounded_vec(siloed_new_note_hashes);
@@ -455,13 +455,13 @@ fn propagate_new_nullifiers_non_revertible(
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    let mut siloed_new_nullifiers : BoundedVec<SideEffectLinkedToNoteHash,MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
+    let mut siloed_new_nullifiers : BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i].value;
         if new_nullifier != 0 {
             let siloed_new_nullifier = silo_nullifier(storage_contract_address, new_nullifier);
             siloed_new_nullifiers.push(
-                SideEffectLinkedToNoteHash {
+                Nullifier {
                 value: siloed_new_nullifier,
                 counter: new_nullifiers[i].counter,
                 note_hash: new_nullifiers[i].note_hash
@@ -481,13 +481,13 @@ fn propagate_new_nullifiers(
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    let mut siloed_new_nullifiers : BoundedVec<SideEffectLinkedToNoteHash,MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
+    let mut siloed_new_nullifiers : BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i].value;
         if new_nullifier != 0 {
             let siloed_new_nullifier = silo_nullifier(storage_contract_address, new_nullifier);
             siloed_new_nullifiers.push(
-                SideEffectLinkedToNoteHash {
+                Nullifier {
                 value: siloed_new_nullifier,
                 counter: new_nullifiers[i].counter,
                 note_hash: new_nullifiers[i].note_hash

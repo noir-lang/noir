@@ -6,12 +6,13 @@ import {
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
   MembershipWitness,
+  NoteHash,
+  NoteHashContext,
   NoteHashReadRequestMembershipWitness,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PrivateKernelCircuitPublicInputs,
   PrivateKernelTailCircuitPublicInputs,
-  SideEffect,
   type TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -55,8 +56,8 @@ describe('Kernel Prover', () => {
       MAX_NEW_NOTE_HASHES_PER_CALL,
       i =>
         i < newNoteIndices.length
-          ? new SideEffect(generateFakeCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO)
-          : SideEffect.empty(),
+          ? new NoteHash(generateFakeCommitment(notesAndSlots[newNoteIndices[i]]), 0)
+          : NoteHash.empty(),
       0,
     );
     const functionData = FunctionData.empty();
@@ -66,6 +67,7 @@ describe('Kernel Prover', () => {
       nestedExecutions: (dependencies[fnName] || []).map(name => createExecutionResult(name)),
       vk: VerificationKey.makeFake().toBuffer(),
       newNotes: newNoteIndices.map(idx => notesAndSlots[idx]),
+      nullifiedNoteHashCounters: [],
       // TODO(dbanks12): should test kernel prover with non-transient reads.
       // This will be necessary once kernel actually checks (attempts to match) transient reads.
       noteHashReadRequestPartialWitnesses: Array.from({ length: MAX_NOTE_HASH_READ_REQUESTS_PER_CALL }, () =>
@@ -82,12 +84,12 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelCircuitPublicInputs.empty();
-    const commitments = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, () => SideEffect.empty());
+    const noteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, NoteHashContext.empty);
     for (let i = 0; i < newNoteIndices.length; i++) {
-      commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
+      noteHashes[i] = new NoteHashContext(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), 0, 0);
     }
 
-    publicInputs.end.newNoteHashes = commitments;
+    publicInputs.end.newNoteHashes = noteHashes;
     return {
       publicInputs,
       proof: makeEmptyProof(),

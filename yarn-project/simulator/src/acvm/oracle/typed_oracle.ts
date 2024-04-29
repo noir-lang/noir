@@ -159,11 +159,11 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('getNotes');
   }
 
-  notifyCreatedNote(_storageSlot: Fr, _noteTypeId: Fr, _note: Fr[], _innerNoteHash: Fr): void {
+  notifyCreatedNote(_storageSlot: Fr, _noteTypeId: Fr, _note: Fr[], _innerNoteHash: Fr, _counter: number): void {
     throw new OracleMethodNotAvailableError('notifyCreatedNote');
   }
 
-  notifyNullifiedNote(_innerNullifier: Fr, _innerNoteHash: Fr): Promise<void> {
+  notifyNullifiedNote(_innerNullifier: Fr, _innerNoteHash: Fr, _counter: number): Promise<void> {
     throw new OracleMethodNotAvailableError('notifyNullifiedNote');
   }
 

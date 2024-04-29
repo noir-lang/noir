@@ -1,31 +1,25 @@
-use crate::common;
+use crate::{common, private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer};
 use dep::types::{
     abis::{
-    gas_settings::GasSettings, combined_constant_data::CombinedConstantData,
     private_kernel::private_call_data::PrivateCallData,
-    kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs
 },
-    address::{AztecAddress, PublicKeysHash, compute_initialization_hash},
-    mocked::{Proof, verify_previous_kernel_state}, transaction::tx_request::TxRequest,
-    traits::is_empty_array
+    constants::MAX_NEW_NOTE_HASHES_PER_CALL, mocked::verify_private_function_proof,
+    transaction::tx_request::TxRequest
 };
+
+struct PrivateKernelInitHints {
+    note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+}
 
 // Initialization struct for private inputs to the private kernel
 struct PrivateKernelInitCircuitPrivateInputs {
     tx_request: TxRequest,
     private_call: PrivateCallData,
+    hints: PrivateKernelInitHints,
 }
 
 impl PrivateKernelInitCircuitPrivateInputs {
-    fn initialize_end_values(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
-        public_inputs.constants = CombinedConstantData::private(
-            self.private_call.call_stack_item.public_inputs.historical_header,
-            self.tx_request.tx_context,
-        );
-        public_inputs.min_revertible_side_effect_counter = self.private_call.call_stack_item.public_inputs.min_revertible_side_effect_counter;
-    }
-
     // Confirm that the TxRequest (user's intent) 
     // matches the private call being executed
     fn validate_this_private_call_against_tx_request(self) {
@@ -71,61 +65,46 @@ impl PrivateKernelInitCircuitPrivateInputs {
         );
     }
 
-    fn update_end_values(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
-        // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
-        public_inputs.end.new_nullifiers.push(SideEffectLinkedToNoteHash { value: self.tx_request.hash(), note_hash: 0, counter: 0 });
-        // Note that we do not need to nullify the transaction request nonce anymore.
-        // Should an account want to additionally use nonces for replay protection or handling cancellations,
-        // they will be able to do so in the account contract logic:
-        // https://github.com/AztecProtocol/aztec-packages/issues/660
-    }
-
     pub fn native_private_kernel_circuit_initial(self) -> PrivateKernelCircuitPublicInputs {
-        let mut public_inputs = PrivateKernelCircuitPublicInputsBuilder::empty();
-
-        self.initialize_end_values(&mut public_inputs);
+        let private_call_public_inputs = self.private_call.call_stack_item.public_inputs;
 
         self.validate_inputs();
 
-        common::validate_arrays(self.private_call.call_stack_item.public_inputs);
+        common::validate_private_call_data(self.private_call);
 
         self.validate_this_private_call_against_tx_request();
 
         // TODO: Do this in a reset circuit.
         common::validate_note_hash_read_requests(
-            public_inputs.constants.historical_header.state.partial.note_hash_tree.root,
+            private_call_public_inputs.historical_header.state.partial.note_hash_tree.root,
             self.private_call.call_stack_item.public_inputs.note_hash_read_requests,
             self.private_call.note_hash_read_request_membership_witnesses
         );
 
-        // TODO(dbanks12): feels like update_end_values should happen after contract logic
-        self.update_end_values(&mut public_inputs);
-        common::update_end_values(self.private_call, &mut public_inputs);
+        assert(verify_private_function_proof(self.private_call.proof), "Invalid private function proof.");
 
-        common::contract_logic(self.private_call);
-
-        // TODO(David): What previous kernel proof are we talking about, since this is private-kernel-init
-        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.aggregation_object, self.private_call.proof);
-        assert(is_previous_state_valid);
-
-        public_inputs.aggregation_object = updated_aggregation_object;
-
-        public_inputs.finish()
+        PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).compose(
+            private_call_public_inputs,
+            self.hints.note_hash_nullifier_counters,
+            self.private_call.note_hash_read_request_membership_witnesses,
+            self.private_call.private_call_stack,
+            self.private_call.public_call_stack
+        ).finish()
     }
 }
 
 mod tests {
-    use crate::private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
+    use crate::private_kernel_init::{PrivateKernelInitHints, PrivateKernelInitCircuitPrivateInputs};
     use dep::types::{
         abis::{
-        kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
+        kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, note_hash::NoteHash,
         nullifier_key_validation_request::NullifierKeyValidationRequest,
         private_kernel::private_call_data::PrivateCallData, read_request::ReadRequest,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+        nullifier::Nullifier, side_effect::SideEffect
     },
-        address::{AztecAddress, EthAddress, compute_initialization_hash},
-        constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, grumpkin_point::GrumpkinPoint,
-        grumpkin_private_key::GrumpkinPrivateKey,
+        address::{AztecAddress, EthAddress},
+        constants::{MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
+        grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey,
         hash::stdlib_recursion_verification_key_compress_native_vk,
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::private_call_data_builder::PrivateCallDataBuilder, transaction::tx_request::TxRequest,
@@ -135,18 +114,20 @@ mod tests {
     struct PrivateKernelInitInputsBuilder {
         tx_request: TxRequest,
         private_call: PrivateCallDataBuilder,
+        hints: PrivateKernelInitHints,
     }
 
     impl PrivateKernelInitInputsBuilder {
         pub fn new() -> Self {
             let private_call = PrivateCallDataBuilder::new();
             let tx_request = private_call.build_tx_request();
+            let hints = PrivateKernelInitHints { note_hash_nullifier_counters: [0; MAX_NEW_NOTE_HASHES_PER_CALL] };
 
-            PrivateKernelInitInputsBuilder { tx_request, private_call }
+            PrivateKernelInitInputsBuilder { tx_request, private_call, hints }
         }
 
         pub fn execute(self) -> PrivateKernelCircuitPublicInputs {
-            let kernel = PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call: self.private_call.finish() };
+            let kernel = PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call: self.private_call.finish(), hints: self.hints };
 
             kernel.native_private_kernel_circuit_initial()
         }
@@ -210,13 +191,13 @@ mod tests {
     }
 
     #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_commitments() {
+    fn input_validation_malformed_arrays_note_hashes() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
         builder.private_call.public_inputs.new_note_hashes.extend_from_array(
             [
-            SideEffect { value: 0, counter: 0 },
-            SideEffect { value: 9123, counter: 1 }
+            NoteHash { value: 0, counter: 0 },
+            NoteHash { value: 9123, counter: 1 }
         ]
         );
 
@@ -229,8 +210,8 @@ mod tests {
 
         builder.private_call.public_inputs.new_nullifiers.extend_from_array(
             [
-            SideEffectLinkedToNoteHash { value: 0, note_hash: 0, counter: 0 },
-            SideEffectLinkedToNoteHash { value: 9123, note_hash: 0, counter: 1 }
+            Nullifier { value: 0, note_hash: 0, counter: 0 },
+            Nullifier { value: 9123, note_hash: 0, counter: 1 }
         ]
         );
 

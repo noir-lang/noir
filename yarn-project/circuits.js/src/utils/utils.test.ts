@@ -2,7 +2,14 @@ import { makeTuple } from '@aztec/foundation/array';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import { type IsEmpty } from '../interfaces/index.js';
-import { countAccumulatedItems, mergeAccumulatedData, sortByCounter } from './index.js';
+import {
+  countAccumulatedItems,
+  getNonEmptyItems,
+  isEmptyArray,
+  mergeAccumulatedData,
+  sortByCounter,
+  sortByCounterGetSortedHints,
+} from './index.js';
 
 class TestItem {
   constructor(public value: number, public counter = 0) {}
@@ -16,7 +23,7 @@ class TestItem {
   }
 }
 
-describe('hints utils', () => {
+describe('utils', () => {
   const expectEmptyArrays = (arr: IsEmpty[]) => {
     arr.forEach(item => expect(item.isEmpty()).toBe(true));
   };
@@ -51,7 +58,7 @@ describe('hints utils', () => {
     it('propagates items from arr0', () => {
       arr0[0] = new TestItem(12);
       arr0[1] = new TestItem(34);
-      const res = mergeAccumulatedData(length, arr0, arr1);
+      const res = mergeAccumulatedData(arr0, arr1);
       expect(res.slice(0, 2)).toEqual([arr0[0], arr0[1]]);
       expectEmptyArrays(res.slice(2));
     });
@@ -59,7 +66,7 @@ describe('hints utils', () => {
     it('propagates items from arr1', () => {
       arr1[0] = new TestItem(1);
       arr1[1] = new TestItem(2);
-      const res = mergeAccumulatedData(length, arr0, arr1);
+      const res = mergeAccumulatedData(arr0, arr1);
       expect(res.slice(0, 2)).toEqual([arr1[0], arr1[1]]);
       expectEmptyArrays(res.slice(2));
     });
@@ -69,7 +76,7 @@ describe('hints utils', () => {
       arr0[1] = new TestItem(34);
       arr1[0] = new TestItem(1);
       arr1[1] = new TestItem(2);
-      const res = mergeAccumulatedData(length, arr0, arr1);
+      const res = mergeAccumulatedData(arr0, arr1);
       expect(res.slice(0, 4)).toEqual([arr0[0], arr0[1], arr1[0], arr1[1]]);
       expectEmptyArrays(res.slice(4));
     });
@@ -77,7 +84,7 @@ describe('hints utils', () => {
     it('throws if arr0 contains non-continuous items', () => {
       arr0[0] = new TestItem(12);
       arr0[2] = new TestItem(34);
-      expect(() => mergeAccumulatedData(length, arr0, arr1)).toThrow(
+      expect(() => mergeAccumulatedData(arr0, arr1)).toThrow(
         'Non-empty items must be placed continuously from index 0.',
       );
     });
@@ -85,7 +92,7 @@ describe('hints utils', () => {
     it('throws if arr1 contains non-continuous items', () => {
       arr1[0] = new TestItem(12);
       arr1[2] = new TestItem(34);
-      expect(() => mergeAccumulatedData(length, arr0, arr1)).toThrow(
+      expect(() => mergeAccumulatedData(arr0, arr1)).toThrow(
         'Non-empty items must be placed continuously from index 0.',
       );
     });
@@ -94,12 +101,10 @@ describe('hints utils', () => {
       for (let i = 0; i < length; ++i) {
         arr0[i] = new TestItem(i + 1);
       }
-      expect(mergeAccumulatedData(length, arr0, arr1)).toBeDefined();
+      expect(mergeAccumulatedData(arr0, arr1)).toBeDefined();
 
       arr1[0] = new TestItem(1234);
-      expect(() => mergeAccumulatedData(length, arr0, arr1)).toThrow(
-        'Combined non-empty items exceeded the maximum allowed.',
-      );
+      expect(() => mergeAccumulatedData(arr0, arr1)).toThrow('Combined non-empty items exceeded the maximum allowed.');
     });
   });
 
@@ -199,6 +204,140 @@ describe('hints utils', () => {
         TestItem.empty(),
         TestItem.empty(),
       ]);
+    });
+  });
+
+  describe('sortByCounterGetSortedHints', () => {
+    it('sorts descending items in ascending order', () => {
+      // Original array is in descending order.
+      const arr: TestItem[] = [];
+      for (let i = 0; i < 6; ++i) {
+        arr[i] = new TestItem(i, 100 - i);
+      }
+
+      const [sorted, hints] = sortByCounterGetSortedHints(arr);
+
+      for (let i = 1; i < arr.length; ++i) {
+        expect(sorted[i].counter).toBeGreaterThan(sorted[i - 1].counter);
+        expect(hints[i]).toBe(arr.length - i - 1); // Index is reversed.
+      }
+      expect(sorted).toEqual(arr.slice().reverse());
+    });
+
+    it('sorts ascending items in ascending order', () => {
+      const arr: TestItem[] = [];
+      for (let i = 0; i < 6; ++i) {
+        arr[i] = new TestItem(i, i + 1);
+      }
+
+      const [sorted, hints] = sortByCounterGetSortedHints(arr);
+
+      for (let i = 1; i < arr.length; ++i) {
+        expect(sorted[i].counter).toBeGreaterThan(sorted[i - 1].counter);
+        expect(hints[i]).toBe(i); // Index is preserved.
+      }
+      expect(sorted).toEqual(arr);
+    });
+
+    it('sorts random items in ascending order', () => {
+      const arr: TestItem[] = [
+        new TestItem(2, 13),
+        new TestItem(3, 328),
+        new TestItem(4, 4),
+        new TestItem(5, 59),
+        new TestItem(6, 1),
+      ];
+
+      const [sorted, hints] = sortByCounterGetSortedHints(arr);
+
+      expect(sorted).toEqual([
+        new TestItem(6, 1),
+        new TestItem(4, 4),
+        new TestItem(2, 13),
+        new TestItem(5, 59),
+        new TestItem(3, 328),
+      ]);
+
+      expect(hints).toEqual([2, 4, 1, 3, 0]);
+    });
+
+    it('sorts random items and keep empty items to the right', () => {
+      const arr: TestItem[] = [
+        new TestItem(2, 13),
+        new TestItem(3, 328),
+        new TestItem(4, 4),
+        new TestItem(5, 59),
+        new TestItem(6, 27),
+        TestItem.empty(),
+        TestItem.empty(),
+      ];
+
+      const [sorted, hints] = sortByCounterGetSortedHints(arr);
+
+      expect(sorted).toEqual([
+        new TestItem(4, 4),
+        new TestItem(2, 13),
+        new TestItem(6, 27),
+        new TestItem(5, 59),
+        new TestItem(3, 328),
+        TestItem.empty(),
+        TestItem.empty(),
+      ]);
+
+      expect(hints).toEqual([1, 4, 0, 3, 2, 0, 0]);
+    });
+
+    it('does not mix 0 counter with empty items', () => {
+      const arr: TestItem[] = [
+        new TestItem(3, 328),
+        new TestItem(2, 0),
+        new TestItem(6, 27),
+        TestItem.empty(),
+        TestItem.empty(),
+      ];
+
+      const [sorted, hints] = sortByCounterGetSortedHints(arr);
+
+      expect(sorted).toEqual([
+        new TestItem(2, 0),
+        new TestItem(6, 27),
+        new TestItem(3, 328),
+        TestItem.empty(),
+        TestItem.empty(),
+      ]);
+
+      expect(hints).toEqual([2, 0, 1, 0, 0]);
+    });
+  });
+
+  describe('isEmptyArray', () => {
+    it('returns true if all items in an array are empty', () => {
+      const arr = [TestItem.empty(), TestItem.empty(), TestItem.empty()];
+      expect(isEmptyArray(arr)).toBe(true);
+    });
+
+    it('returns false if at least one item in an array is not empty', () => {
+      {
+        const arr = [new TestItem(0, 1), TestItem.empty(), TestItem.empty()];
+        expect(isEmptyArray(arr)).toBe(false);
+      }
+
+      {
+        const arr = [TestItem.empty(), TestItem.empty(), new TestItem(1, 0)];
+        expect(isEmptyArray(arr)).toBe(false);
+      }
+    });
+  });
+
+  describe('getNonEmptyItems', () => {
+    it('returns non empty items in an array', () => {
+      const arr = [new TestItem(0, 1), TestItem.empty(), new TestItem(2, 0), TestItem.empty()];
+      expect(getNonEmptyItems(arr)).toEqual([new TestItem(0, 1), new TestItem(2, 0)]);
+    });
+
+    it('returns empty array if all items are empty', () => {
+      const arr = [TestItem.empty(), TestItem.empty(), TestItem.empty()];
+      expect(getNonEmptyItems(arr)).toEqual([]);
     });
   });
 });

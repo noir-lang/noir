@@ -3,6 +3,7 @@ use nullifier_read_request_reset::NullifierReadRequestHints;
 use private_validation_request_processor::PrivateValidationRequestProcessor;
 use public_data_read_request_reset::PublicDataReadRequestHints;
 use public_validation_request_processor::PublicValidationRequestProcessor;
+use reset::transient_data::verify_squashed_transient_note_hashes_and_nullifiers;
 use types::public_data_hint::PublicDataHint;
 
 mod nullifier_non_existent_read_request_reset;

@@ -17,6 +17,7 @@ function emptyExecutionResult(): ExecutionResult {
     callStackItem: PrivateCallStackItem.empty(),
     noteHashReadRequestPartialWitnesses: [],
     newNotes: [],
+    nullifiedNoteHashCounters: [],
     returnValues: [],
     nestedExecutions: [],
     enqueuedPublicFunctionCalls: [],

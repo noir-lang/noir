@@ -1,8 +1,8 @@
 use crate::{
     abis::{
-    gas::Gas, call_context::CallContext, public_circuit_public_inputs::PublicCircuitPublicInputs,
-    read_request::ReadRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    global_variables::GlobalVariables
+    gas::Gas, call_context::CallContext, note_hash::NoteHash, nullifier::Nullifier,
+    public_circuit_public_inputs::PublicCircuitPublicInputs, read_request::ReadRequest,
+    side_effect::SideEffect, global_variables::GlobalVariables
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
@@ -27,8 +27,8 @@ struct PublicCircuitPublicInputsBuilder {
     contract_storage_update_requests: BoundedVec<StorageUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL>,
     contract_storage_reads: BoundedVec<StorageRead, MAX_PUBLIC_DATA_READS_PER_CALL>,
     public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
-    new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL>,
-    new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL>,
+    new_note_hashes: BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL>,
+    new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL>,
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     start_side_effect_counter: u32,
     end_side_effect_counter: u32,

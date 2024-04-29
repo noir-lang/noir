@@ -1,11 +1,14 @@
 use crate::common;
 use dep::std::{cmp::Eq, option::Option};
-use dep::reset_kernel_lib::{NullifierReadRequestHints, PrivateValidationRequestProcessor};
+use dep::reset_kernel_lib::{
+    NullifierReadRequestHints, PrivateValidationRequestProcessor,
+    verify_squashed_transient_note_hashes_and_nullifiers
+};
 use dep::types::{
     abis::{
     kernel_data::PrivateKernelData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder, PublicKernelCircuitPublicInputs},
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered}
+    note_hash::NoteHashContext, nullifier::Nullifier, side_effect::{SideEffect, Ordered}
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
@@ -28,11 +31,16 @@ fn asc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {
 struct KernelCircuitPublicInputsComposer {
     public_inputs: PrivateKernelCircuitPublicInputsBuilder,
     previous_kernel: PrivateKernelData,
-    sorted_note_hashes: [SideEffect; MAX_NEW_NOTE_HASHES_PER_TX],
+    // Final data
+    note_hashes: [NoteHashContext; MAX_NEW_NOTE_HASHES_PER_TX],
+    nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
+    // Hints
+    transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
+    transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_note_hashes: [NoteHashContext; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
-    sorted_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
-    transient_note_hash_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
@@ -42,11 +50,14 @@ struct KernelCircuitPublicInputsComposer {
 impl KernelCircuitPublicInputsComposer {
     pub fn new(
         previous_kernel: PrivateKernelData,
-        sorted_note_hashes: [SideEffect; MAX_NEW_NOTE_HASHES_PER_TX],
+        note_hashes: [NoteHashContext; MAX_NEW_NOTE_HASHES_PER_TX],
+        nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
+        transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
+        transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+        sorted_note_hashes: [NoteHashContext; MAX_NEW_NOTE_HASHES_PER_TX],
         sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
-        sorted_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
+        sorted_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
         sorted_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
-        transient_note_hash_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
         sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
         sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
         sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
@@ -57,11 +68,14 @@ impl KernelCircuitPublicInputsComposer {
         KernelCircuitPublicInputsComposer {
             public_inputs,
             previous_kernel,
+            note_hashes,
+            nullifiers,
+            transient_nullifier_indexes_for_note_hashes,
+            transient_note_hash_indexes_for_nullifiers,
             sorted_note_hashes,
             sorted_note_hashes_indexes,
             sorted_nullifiers,
             sorted_nullifiers_indexes,
-            transient_note_hash_index_hints,
             sorted_encrypted_log_hashes,
             sorted_encrypted_log_hashes_indexes,
             sorted_unencrypted_log_hashes,
@@ -81,7 +95,7 @@ impl KernelCircuitPublicInputsComposer {
         self.propagate_sorted_arrays();
 
         // TODO: Should be done in a reset circuit.
-        self.squash_transient_note_hashes_and_nullifiers();
+        self.squash_transient_data();
 
         self.silo_values();
 
@@ -186,62 +200,26 @@ impl KernelCircuitPublicInputsComposer {
         self.public_inputs.end.public_call_stack = array_to_bounded_vec(accumulated_data.public_call_stack);
     }
 
-    fn squash_transient_note_hashes_and_nullifiers(&mut self) {
-        // Remark: The commitments in public_inputs.end have already been siloed by contract address!
-        // Match nullifiers/nullified_commitments to commitments from the previous call(s)
-        let mut new_note_hashes = self.public_inputs.end.new_note_hashes.storage;
-        let mut new_nullifiers = self.public_inputs.end.new_nullifiers.storage;
+    fn squash_transient_data(&mut self) {
+        verify_squashed_transient_note_hashes_and_nullifiers(
+            self.public_inputs.end.new_note_hashes.storage,
+            self.public_inputs.end.new_nullifiers.storage,
+            self.note_hashes,
+            self.nullifiers,
+            self.transient_nullifier_indexes_for_note_hashes,
+            self.transient_note_hash_indexes_for_nullifiers
+        );
 
-        // Should start from 1 to skip the first nullifier?
-        for n_idx in 0..MAX_NEW_NULLIFIERS_PER_TX {
-            let nullifier = new_nullifiers[n_idx];
-            // TODO - should not be able to squash the first nullifier.
-            let nullified_note_hash = nullifier.note_hash;
-            let hint_pos = self.transient_note_hash_index_hints[n_idx];
-
-            // Nullified_commitment of value `0` implies non-transient (persistable)
-            // nullifier in which case no attempt will be made to match it to a hash.
-            // Non-empty nullified_note_hash implies transient nullifier which MUST be matched to a hash below!
-            // 0-valued nullified_note_hash is empty and will be ignored
-            if nullified_note_hash != 0 {
-                assert(
-                    hint_pos < MAX_NEW_NOTE_HASHES_PER_TX, "New nullifier is transient but hint is invalid"
-                );
-                let hash = new_note_hashes[hint_pos];
-                assert_eq(nullified_note_hash, hash.value, "Hinted hash does not match");
-                assert(
-                    nullifier.counter > hash.counter, "Nullifier counter must be greater than hash counter"
-                );
-                // match found!
-                // squash both the nullifier and the hash
-                // (set to 0 here and then rearrange array after loop)
-                new_note_hashes[hint_pos] = SideEffect::empty();
-                new_nullifiers[n_idx] = SideEffectLinkedToNoteHash::empty();
-            }
-            // non-transient (persistable) nullifiers are just kept in new_nullifiers array and forwarded
-            // to public inputs (used later by base rollup circuit)
+        // Currently all the transient note hashes and nullifiers must be cleared in the tail circuits.
+        // Check that the propagated note hashes don't link to a nullifier, and vice versa.
+        for i in 0..self.note_hashes.len() {
+            assert(self.note_hashes[i].nullifier_counter == 0, "Unresolved transient note hash");
+        }
+        for i in 0..self.nullifiers.len() {
+            assert(self.nullifiers[i].note_hash == 0, "Unresolved transient nullifier");
         }
 
-        // Move all zero-ed (removed) entries of these arrays to the end and preserve ordering of other entries
-
-        let mut new_note_hashes_vec = BoundedVec::new();
-
-        for c_idx in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-            if new_note_hashes[c_idx].value != 0 {
-                new_note_hashes_vec.push(new_note_hashes[c_idx]);
-            }
-        }
-
-        self.public_inputs.end.new_note_hashes = new_note_hashes_vec;
-
-        let mut new_nullifiers_vec = BoundedVec::new();
-
-        for n_idx in 0..MAX_NEW_NULLIFIERS_PER_TX {
-            if new_nullifiers[n_idx].value != 0 {
-                new_nullifiers_vec.push(new_nullifiers[n_idx]);
-            }
-        }
-
-        self.public_inputs.end.new_nullifiers = new_nullifiers_vec;
+        self.public_inputs.end.new_note_hashes = array_to_bounded_vec(self.note_hashes);
+        self.public_inputs.end.new_nullifiers = array_to_bounded_vec(self.nullifiers);
     }
 }

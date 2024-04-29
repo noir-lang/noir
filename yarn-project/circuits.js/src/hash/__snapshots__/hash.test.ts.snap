@@ -1,9 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`hash Computes an empty nullifier hash  1`] = `"0x066e6cdc4a6ba5e4781deda650b0be6c12f975f064fc38df72c1060716759b17"`;
-
-exports[`hash Computes an empty sideeffect hash  1`] = `"0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed"`;
-
 exports[`hash Var args hash matches noir 1`] = `Fr<0x05a1023fef839ac88731f49ae983e172c1b600a3c8f3393ad0ac25d819ac0f0f>`;
 
 exports[`hash compute secret message hash 1`] = `Fr<0x0dc06f2167e2cd19adf738d1f38469d7f8bff1e26b029816e8230bcd6ab6332e>`;

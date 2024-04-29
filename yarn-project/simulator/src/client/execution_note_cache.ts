@@ -4,6 +4,11 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { type NoteData } from '../acvm/index.js';
 
+export interface PendingNote {
+  note: NoteData;
+  counter: number;
+}
+
 /**
  * Data that's accessible by all the function calls in an execution.
  */
@@ -12,7 +17,7 @@ export class ExecutionNoteCache {
    * New notes created in this transaction.
    * This mapping maps from a contract address to the notes in the contract.
    */
-  private newNotes: Map<bigint, NoteData[]> = new Map();
+  private newNotes: Map<bigint, PendingNote[]> = new Map();
 
   /**
    * The list of nullifiers created in this transaction.
@@ -26,9 +31,9 @@ export class ExecutionNoteCache {
    * Add a new note to cache.
    * @param note - New note created during execution.
    */
-  public addNewNote(note: NoteData) {
+  public addNewNote(note: NoteData, counter: number) {
     const notes = this.newNotes.get(note.contractAddress.toBigInt()) ?? [];
-    notes.push(note);
+    notes.push({ note, counter });
     this.newNotes.set(note.contractAddress.toBigInt(), notes);
   }
 
@@ -46,16 +51,20 @@ export class ExecutionNoteCache {
     nullifiers.add(siloedNullifier.value);
     this.nullifiers.set(contractAddress.toBigInt(), nullifiers);
 
+    let nullifiedNoteHashCounter: number | undefined = undefined;
     // Find and remove the matching new note if the emitted innerNoteHash is not empty.
     if (!innerNoteHash.equals(Fr.ZERO)) {
       const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
-      const noteIndexToRemove = notes.findIndex(n => n.innerNoteHash.equals(innerNoteHash));
+      const noteIndexToRemove = notes.findIndex(n => n.note.innerNoteHash.equals(innerNoteHash));
       if (noteIndexToRemove === -1) {
         throw new Error('Attempt to remove a pending note that does not exist.');
       }
-      notes.splice(noteIndexToRemove, 1);
+      const note = notes.splice(noteIndexToRemove, 1)[0];
+      nullifiedNoteHashCounter = note.counter;
       this.newNotes.set(contractAddress.toBigInt(), notes);
     }
+
+    return nullifiedNoteHashCounter;
   }
 
   /**
@@ -66,7 +75,7 @@ export class ExecutionNoteCache {
    **/
   public getNotes(contractAddress: AztecAddress, storageSlot: Fr) {
     const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
-    return notes.filter(n => n.storageSlot.equals(storageSlot));
+    return notes.filter(n => n.note.storageSlot.equals(storageSlot)).map(n => n.note);
   }
 
   /**
@@ -77,7 +86,7 @@ export class ExecutionNoteCache {
    **/
   public checkNoteExists(contractAddress: AztecAddress, innerNoteHash: Fr) {
     const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
-    return notes.some(n => n.innerNoteHash.equals(innerNoteHash));
+    return notes.some(n => n.note.innerNoteHash.equals(innerNoteHash));
   }
 
   /**

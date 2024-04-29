@@ -9,13 +9,13 @@ import {
   type MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
+  type Nullifier,
   PUBLIC_DATA_TREE_HEIGHT,
   type PublicDataHint,
   type PublicDataRead,
   type PublicDataTreeLeafPreimage,
   type PublicDataUpdateRequest,
   type ReadRequestContext,
-  type SideEffectLinkedToNoteHash,
   buildNullifierNonExistentReadRequestHints,
   buildNullifierReadRequestHints,
   buildPublicDataHints,
@@ -29,14 +29,14 @@ export class HintsBuilder {
 
   getNullifierReadRequestHints(
     nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-    pendingNullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    pendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
     return buildNullifierReadRequestHints(this, nullifierReadRequests, pendingNullifiers);
   }
 
   getNullifierNonExistentReadRequestHints(
     nullifierNonExistentReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    pendingNullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    pendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
     return buildNullifierNonExistentReadRequestHints(this, nullifierNonExistentReadRequests, pendingNullifiers);
   }

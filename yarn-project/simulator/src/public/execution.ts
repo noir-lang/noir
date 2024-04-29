@@ -4,12 +4,13 @@ import {
   type ContractStorageUpdateRequest,
   type Fr,
   type L2ToL1Message,
+  type NoteHash,
+  type Nullifier,
   type PublicCallRequest,
   PublicDataRead,
   PublicDataUpdateRequest,
   type ReadRequest,
   type SideEffect,
-  type SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot, computePublicDataTreeValue } from '@aztec/circuits.js/hash';
 
@@ -24,7 +25,7 @@ export interface PublicExecutionResult {
   /** The return values of the function. */
   returnValues: Fr[];
   /** The new note hashes to be inserted into the note hashes tree. */
-  newNoteHashes: SideEffect[];
+  newNoteHashes: NoteHash[];
   /** The new l2 to l1 messages generated in this call. */
   newL2ToL1Messages: L2ToL1Message[];
   /** The side effect counter at the start of the function call. */
@@ -32,7 +33,7 @@ export interface PublicExecutionResult {
   /** The side effect counter after executing this function call */
   endSideEffectCounter: Fr;
   /** The new nullifiers to be inserted into the nullifier tree. */
-  newNullifiers: SideEffectLinkedToNoteHash[];
+  newNullifiers: Nullifier[];
   /** The nullifier read requests emitted in this call. */
   nullifierReadRequests: ReadRequest[];
   /** The nullifier non existent read requests emitted in this call. */
@@ -157,8 +158,8 @@ function contractStorageUpdateRequestToPublicDataUpdateRequest(
  */
 
 export function checkValidStaticCall(
-  newNoteHashes: SideEffect[],
-  newNullifiers: SideEffectLinkedToNoteHash[],
+  newNoteHashes: NoteHash[],
+  newNullifiers: Nullifier[],
   contractStorageUpdateRequests: ContractStorageUpdateRequest[],
   newL2ToL1Messages: L2ToL1Message[],
   unencryptedLogs: UnencryptedFunctionL2Logs,

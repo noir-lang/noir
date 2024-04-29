@@ -8,8 +8,12 @@ import {
   NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';
+import { Nullifier } from './nullifier.js';
 import { NullifierLeafPreimage } from './rollup/nullifier_leaf/index.js';
-import { SideEffectLinkedToNoteHash, type SideEffectType } from './side_effects.js';
+
+interface PendingValue {
+  toBuffer(): Buffer;
+}
 
 export class NonMembershipHint<TREE_HEIGHT extends number, LEAF_PREIMAGE extends IndexedTreeLeafPreimage> {
   constructor(public membershipWitness: MembershipWitness<TREE_HEIGHT>, public leafPreimage: LEAF_PREIMAGE) {}
@@ -43,7 +47,7 @@ export class NonExistentReadRequestHints<
   TREE_HEIGHT extends number,
   LEAF_PREIMAGE extends IndexedTreeLeafPreimage,
   PENDING_VALUE_LEN extends number,
-  PENDING_VALUE extends SideEffectType,
+  PENDING_VALUE extends PendingValue,
 > {
   constructor(
     /**
@@ -63,7 +67,7 @@ export class NonExistentReadRequestHints<
     TREE_HEIGHT extends number,
     LEAF_PREIMAGE extends IndexedTreeLeafPreimage,
     PENDING_VALUE_LEN extends number,
-    PENDING_VALUE extends SideEffectType,
+    PENDING_VALUE extends PendingValue,
   >(
     buffer: Buffer | BufferReader,
     readRequestLen: READ_REQUEST_LEN,
@@ -98,7 +102,7 @@ export type NullifierNonExistentReadRequestHints = NonExistentReadRequestHints<
   typeof NULLIFIER_TREE_HEIGHT,
   IndexedTreeLeafPreimage,
   typeof MAX_NEW_NULLIFIERS_PER_TX,
-  SideEffectLinkedToNoteHash
+  Nullifier
 >;
 
 export function nullifierNonExistentReadRequestHintsFromBuffer(
@@ -110,7 +114,7 @@ export function nullifierNonExistentReadRequestHintsFromBuffer(
     NULLIFIER_TREE_HEIGHT,
     NullifierLeafPreimage,
     MAX_NEW_NULLIFIERS_PER_TX,
-    SideEffectLinkedToNoteHash,
+    Nullifier,
   );
 }
 
@@ -119,7 +123,7 @@ export class NullifierNonExistentReadRequestHintsBuilder {
   private readRequestIndex = 0;
 
   constructor(
-    sortedPendingNullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    sortedPendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     sortedPendingNullifierIndexHints: Tuple<number, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
     this.hints = new NonExistentReadRequestHints(
@@ -133,7 +137,7 @@ export class NullifierNonExistentReadRequestHintsBuilder {
   }
 
   static empty() {
-    const emptySortedPendingNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty);
+    const emptySortedPendingNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Nullifier.empty);
     const emptySortedPendingNullifierIndexHints = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => 0);
     return new NullifierNonExistentReadRequestHintsBuilder(
       emptySortedPendingNullifiers,

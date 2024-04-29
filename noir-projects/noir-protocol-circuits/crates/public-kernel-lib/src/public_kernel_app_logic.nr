@@ -78,8 +78,8 @@ mod tests {
     use dep::types::{
         abis::{
         gas::Gas, kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-        public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-        read_request::ReadRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+        note_hash::{NoteHash, NoteHashContext}, nullifier::Nullifier, public_data_read::PublicDataRead,
+        public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequest
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         hash::{compute_l2_to_l1_hash, silo_note_hash, silo_nullifier},
@@ -186,16 +186,16 @@ mod tests {
         let contract_address = builder.public_call.contract_address;
         // Setup 2 new note hashes on the previous kernel.
         builder.previous_kernel.append_new_note_hashes(2);
-        let previous = builder.previous_kernel.new_note_hashes.storage;
+        let previous = builder.previous_kernel.new_note_hashes.storage.map(|n: NoteHashContext| n.to_note_hash());
         // Setup 2 new note hashes on the current public inputs.
         let current = [
-            SideEffect { value: previous[1].value + 1, counter: 3 },
-            SideEffect { value: previous[1].value + 2, counter: 4 }
+            NoteHash { value: previous[1].value + 1, counter: 3 },
+            NoteHash { value: previous[1].value + 2, counter: 4 }
         ];
         builder.public_call.public_inputs.new_note_hashes.extend_from_array(current);
-        let siloed = current.map(|c: SideEffect| silo_note_hash(contract_address, c.value));
+        let siloed = current.map(|c: NoteHash| silo_note_hash(contract_address, c.value));
         let new_note_hashes = [
-            previous[0], previous[1], SideEffect { value: siloed[0], counter: 3 }, SideEffect { value: siloed[1], counter: 4 }
+            previous[0], previous[1], NoteHash { value: siloed[0], counter: 3 }, NoteHash { value: siloed[1], counter: 4 }
         ];
 
         let public_inputs = builder.execute();
@@ -251,12 +251,12 @@ mod tests {
         // Setup 2 new note hashes on the current public inputs.
 
         let current = [
-            SideEffectLinkedToNoteHash { value: previous[1].value + 1, note_hash: 0, counter: 4 }, SideEffectLinkedToNoteHash { value: previous[1].value + 2, note_hash: 0, counter: 5 }
+            Nullifier { value: previous[1].value + 1, note_hash: 0, counter: 4 }, Nullifier { value: previous[1].value + 2, note_hash: 0, counter: 5 }
         ];
 
         let siloed = current.map(
-            |current: SideEffectLinkedToNoteHash| 
-        SideEffectLinkedToNoteHash { value: silo_nullifier(contract_address, current.value), note_hash: current.note_hash, counter: current.counter }
+            |current: Nullifier| 
+        Nullifier { value: silo_nullifier(contract_address, current.value), note_hash: current.note_hash, counter: current.counter }
         );
 
         builder.public_call.public_inputs.new_nullifiers.extend_from_array(current);
@@ -344,7 +344,7 @@ mod tests {
     fn public_kernel_fails_creating_new_note_hashes_on_static_call() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_note_hashes.push(SideEffect { value: 1, counter: 0 });
+        builder.public_call.public_inputs.new_note_hashes.push(NoteHash { value: 1, counter: 0 });
 
         builder.failed();
     }
@@ -353,7 +353,7 @@ mod tests {
     fn public_kernel_fails_creating_new_nullifiers_on_static_call() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_nullifiers.push(SideEffectLinkedToNoteHash { value: 1, note_hash: 0, counter: 0 });
+        builder.public_call.public_inputs.new_nullifiers.push(Nullifier { value: 1, note_hash: 0, counter: 0 });
 
         builder.failed();
     }

@@ -14,6 +14,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   type MAX_UNENCRYPTED_LOGS_PER_TX,
+  type NoteHash,
   type Proof,
   type PublicKernelCircuitPublicInputs,
   PublicKernelTailCircuitPrivateInputs,
@@ -89,9 +90,9 @@ export class TailPhaseManager extends AbstractPhaseManager {
 
     // Temporary hack. Should sort them in the tail circuit.
     const noteHashes = mergeAccumulatedData(
-      MAX_NEW_NOTE_HASHES_PER_TX,
       previousOutput.endNonRevertibleData.newNoteHashes,
       previousOutput.end.newNoteHashes,
+      MAX_NEW_NOTE_HASHES_PER_TX,
     );
     output.end.newNoteHashes = this.sortNoteHashes<typeof MAX_NEW_NOTE_HASHES_PER_TX>(noteHashes);
 
@@ -113,9 +114,9 @@ export class TailPhaseManager extends AbstractPhaseManager {
     const { validationRequests, endNonRevertibleData, end } = previousOutput;
 
     const pendingNullifiers = mergeAccumulatedData(
-      MAX_NEW_NULLIFIERS_PER_TX,
       endNonRevertibleData.newNullifiers,
       end.newNullifiers,
+      MAX_NEW_NULLIFIERS_PER_TX,
     );
 
     const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
@@ -129,9 +130,9 @@ export class TailPhaseManager extends AbstractPhaseManager {
     );
 
     const pendingPublicDataWrites = mergeAccumulatedData(
-      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       endNonRevertibleData.publicDataUpdateRequests,
       end.publicDataUpdateRequests,
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     );
 
     const publicDataHints = await this.hintsBuilder.getPublicDataHints(
@@ -157,17 +158,14 @@ export class TailPhaseManager extends AbstractPhaseManager {
     );
   }
 
-  private sortNoteHashes<N extends number>(noteHashes: Tuple<SideEffect, N>): Tuple<Fr, N> {
-    return sortByCounter(noteHashes.map(n => ({ ...n, counter: n.counter.toNumber() }))).map(n => n.value) as Tuple<
-      Fr,
-      N
-    >;
+  private sortNoteHashes<N extends number>(noteHashes: Tuple<NoteHash, N>): Tuple<Fr, N> {
+    return sortByCounter(noteHashes).map(n => n.value) as Tuple<Fr, N>;
   }
 
   private sortLogsHashes<N extends number>(unencryptedLogsHashes: Tuple<SideEffect, N>): Tuple<SideEffect, N> {
-    return sortByCounter(unencryptedLogsHashes.map(n => ({ ...n, counter: n.counter.toNumber() }))).map(
-      h => new SideEffect(h.value, new Fr(h.counter)),
-    ) as Tuple<SideEffect, N>;
+    return sortByCounter(
+      unencryptedLogsHashes.map(n => ({ ...n, counter: n.counter.toNumber(), isEmpty: () => n.isEmpty() })),
+    ).map(h => new SideEffect(h.value, new Fr(h.counter))) as Tuple<SideEffect, N>;
   }
 
   // As above, this is a hack for unencrypted logs ordering, now they are sorted. Since the public kernel

@@ -7,8 +7,8 @@ use crate::{
     private_accumulated_data::PrivateAccumulatedData, public_accumulated_data::PublicAccumulatedData,
     public_accumulated_data_builder::PublicAccumulatedDataBuilder
 },
-    call_request::CallRequest, public_data_update_request::PublicDataUpdateRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    call_request::CallRequest, note_hash::{NoteHash, NoteHashContext}, nullifier::Nullifier,
+    public_data_update_request::PublicDataUpdateRequest, side_effect::SideEffect
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
@@ -23,8 +23,8 @@ use crate::{
 // .to_combined: KernelCircuitPublicInputs.end
 // .split_to_public: PublicKernelCircuitPublicInputs.(end,end_non_revertible)
 struct PrivateAccumulatedDataBuilder {
-    new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_TX>,
-    new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_TX>,
+    new_note_hashes: BoundedVec<NoteHashContext, MAX_NEW_NOTE_HASHES_PER_TX>,
+    new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_TX>,
     new_l2_to_l1_msgs: BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
 
     encrypted_logs_hashes: BoundedVec<SideEffect, MAX_ENCRYPTED_LOGS_PER_TX>,
@@ -66,8 +66,8 @@ impl PrivateAccumulatedDataBuilder {
         let unencrypted_logs_hash = compute_tx_logs_hash(self.unencrypted_logs_hashes.storage);
 
         CombinedAccumulatedData {
-            new_note_hashes: self.new_note_hashes.storage.map(|n: SideEffect| n.value),
-            new_nullifiers: self.new_nullifiers.storage.map(|n: SideEffectLinkedToNoteHash| n.value),
+            new_note_hashes: self.new_note_hashes.storage.map(|n: NoteHashContext| n.value),
+            new_nullifiers: self.new_nullifiers.storage.map(|n: Nullifier| n.value),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             encrypted_logs_hash,
             unencrypted_logs_hash,
@@ -87,10 +87,11 @@ impl PrivateAccumulatedDataBuilder {
 
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             let note_hash = self.new_note_hashes.storage[i];
+            let public_note_hash = note_hash.expose_to_public();
             if note_hash.counter < min_revertible_side_effect_counter {
-                non_revertible_builder.new_note_hashes.push(note_hash);
+                non_revertible_builder.new_note_hashes.push(public_note_hash);
             } else {
-                revertible_builder.new_note_hashes.push(note_hash);
+                revertible_builder.new_note_hashes.push(public_note_hash);
             }
         }
 
@@ -146,8 +147,8 @@ mod tests {
         abis::{
         accumulated_data::private_accumulated_data_builder::PrivateAccumulatedDataBuilder, gas::Gas,
         call_request::CallRequest, caller_context::CallerContext,
-        public_data_update_request::PublicDataUpdateRequest,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+        note_hash::{NoteHash, NoteHashContext}, nullifier::Nullifier,
+        public_data_update_request::PublicDataUpdateRequest, side_effect::SideEffect
     },
         address::AztecAddress, utils::arrays::array_eq
     };
@@ -156,14 +157,14 @@ mod tests {
     unconstrained fn splits_revertible_and_non_revertible() {
         let mut builder = PrivateAccumulatedDataBuilder::empty();
 
-        let non_revertible_commitments = [
-            SideEffect { value: 1, counter: 1 },
-            SideEffect { value: 2, counter: 3 }
+        let non_revertible_note_hashes = [
+            NoteHashContext { value: 1, counter: 1, nullifier_counter: 20 },
+            NoteHashContext { value: 2, counter: 3, nullifier_counter: 5 }
         ];
 
         let non_revertible_nullifiers = [
-            SideEffectLinkedToNoteHash { value: 10, note_hash: 1, counter: 2 },
-            SideEffectLinkedToNoteHash { value: 20, note_hash: 2, counter: 4 }
+            Nullifier { value: 10, note_hash: 1, counter: 2 },
+            Nullifier { value: 20, note_hash: 2, counter: 4 }
         ];
 
         let non_revertible_public_stack = [
@@ -183,14 +184,14 @@ mod tests {
             }
         ];
 
-        let revertible_commitments = [
-            SideEffect { value: 3, counter: 7 },
-            SideEffect { value: 4, counter: 10 }
+        let revertible_note_hashes = [
+            NoteHashContext { value: 3, counter: 7, nullifier_counter: 15 },
+            NoteHashContext { value: 4, counter: 10, nullifier_counter: 0 }
         ];
 
         let revertible_nullifiers = [
-            SideEffectLinkedToNoteHash { value: 30, note_hash: 3, counter: 8 },
-            SideEffectLinkedToNoteHash { value: 40, note_hash: 4, counter: 11 }
+            Nullifier { value: 30, note_hash: 3, counter: 8 },
+            Nullifier { value: 40, note_hash: 4, counter: 11 }
         ];
 
         let revertible_public_call_stack = [
@@ -203,8 +204,8 @@ mod tests {
             }
         ];
 
-        builder.new_note_hashes.extend_from_array(non_revertible_commitments);
-        builder.new_note_hashes.extend_from_array(revertible_commitments);
+        builder.new_note_hashes.extend_from_array(non_revertible_note_hashes);
+        builder.new_note_hashes.extend_from_array(revertible_note_hashes);
 
         builder.new_nullifiers.extend_from_array(non_revertible_nullifiers);
         builder.new_nullifiers.extend_from_array(revertible_nullifiers);
@@ -217,11 +218,27 @@ mod tests {
 
         let (non_revertible, revertible) = builder.split_to_public(7);
 
-        assert(array_eq(non_revertible.new_note_hashes, non_revertible_commitments));
+        assert(
+            array_eq(
+                non_revertible.new_note_hashes,
+                [
+            NoteHash { value: 1, counter: 0 },
+            NoteHash { value: 2, counter: 0 }
+        ]
+            )
+        );
         assert(array_eq(non_revertible.new_nullifiers, non_revertible_nullifiers));
         assert(array_eq(non_revertible.public_call_stack, non_revertible_public_stack));
 
-        assert(array_eq(revertible.new_note_hashes, revertible_commitments));
+        assert(
+            array_eq(
+                revertible.new_note_hashes,
+                [
+            NoteHash { value: 3, counter: 0 },
+            NoteHash { value: 4, counter: 0 }
+        ]
+            )
+        );
         assert(array_eq(revertible.new_nullifiers, revertible_nullifiers));
         assert(array_eq(revertible.public_call_stack, revertible_public_call_stack));
 

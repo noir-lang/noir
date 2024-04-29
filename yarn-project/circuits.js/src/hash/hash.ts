@@ -8,7 +8,7 @@ import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/seri
 import chunk from 'lodash.chunk';
 
 import { ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, GeneratorIndex } from '../constants.gen.js';
-import { type SideEffect, type SideEffectLinkedToNoteHash, VerificationKey } from '../structs/index.js';
+import { VerificationKey } from '../structs/index.js';
 
 /**
  * Computes a hash of a given verification key.
@@ -143,14 +143,6 @@ export function computeVarArgsHash(args: Fr[]) {
   }
 
   return pedersenHash(chunksHashes, GeneratorIndex.FUNCTION_ARGS);
-}
-
-export function computeCommitmentsHash(input: SideEffect) {
-  return pedersenHash([input.value, input.counter], GeneratorIndex.SIDE_EFFECT);
-}
-
-export function computeNullifierHash(input: SideEffectLinkedToNoteHash) {
-  return pedersenHash([input.value, input.noteHash, input.counter], GeneratorIndex.SIDE_EFFECT);
 }
 
 /**

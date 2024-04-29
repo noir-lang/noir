@@ -48,7 +48,7 @@ impl PublicCallStackItem {
 mod tests {
     use crate::{
         abis::{
-        function_data::FunctionData, function_selector::FunctionSelector,
+        function_data::FunctionData, function_selector::FunctionSelector, note_hash::NoteHash,
         public_circuit_public_inputs::PublicCircuitPublicInputs,
         public_call_stack_item::PublicCallStackItem, side_effect::SideEffect
     },
@@ -61,7 +61,7 @@ mod tests {
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
         let mut public_inputs = PublicCircuitPublicInputs::empty();
-        public_inputs.new_note_hashes[0] = SideEffect{
+        public_inputs.new_note_hashes[0] = NoteHash {
             value: 1,
             counter: 0,
         };
@@ -79,7 +79,7 @@ mod tests {
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
         let mut public_inputs = PublicCircuitPublicInputs::empty();
-        public_inputs.new_note_hashes[0] = SideEffect{
+        public_inputs.new_note_hashes[0] = NoteHash {
             value: 1,
             counter: 0,
         };

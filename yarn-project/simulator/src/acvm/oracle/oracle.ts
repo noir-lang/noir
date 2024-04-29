@@ -238,18 +238,24 @@ export class Oracle {
     [noteTypeId]: ACVMField[],
     note: ACVMField[],
     [innerNoteHash]: ACVMField[],
+    [counter]: ACVMField[],
   ): ACVMField {
     this.typedOracle.notifyCreatedNote(
       fromACVMField(storageSlot),
       fromACVMField(noteTypeId),
       note.map(fromACVMField),
       fromACVMField(innerNoteHash),
+      +counter,
     );
     return toACVMField(0);
   }
 
-  async notifyNullifiedNote([innerNullifier]: ACVMField[], [innerNoteHash]: ACVMField[]): Promise<ACVMField> {
-    await this.typedOracle.notifyNullifiedNote(fromACVMField(innerNullifier), fromACVMField(innerNoteHash));
+  async notifyNullifiedNote(
+    [innerNullifier]: ACVMField[],
+    [innerNoteHash]: ACVMField[],
+    [counter]: ACVMField[],
+  ): Promise<ACVMField> {
+    await this.typedOracle.notifyNullifiedNote(fromACVMField(innerNullifier), fromACVMField(innerNoteHash), +counter);
     return toACVMField(0);
   }
 
