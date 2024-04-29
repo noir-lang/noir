@@ -83,7 +83,8 @@ impl Backend {
 
         let proof = bb_abstraction_leaks::remove_public_inputs(
             // TODO(https://github.com/noir-lang/noir/issues/4428)
-            program.functions[0].public_inputs().0.len(),
+            program.functions[0].public_parameters.0.len()
+                + program.functions[0].return_values.0.len(),
             &proof_with_public_inputs,
         );
         Ok(proof)
@@ -93,8 +94,9 @@ impl Backend {
     pub fn verify(
         &self,
         proof: &[u8],
-        public_inputs: WitnessMap,
         program: &Program,
+        public_inputs: WitnessMap,
+        public_outputs: WitnessMap,
     ) -> Result<bool, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
@@ -104,7 +106,11 @@ impl Backend {
 
         // Create a temporary file for the proof
         let proof_with_public_inputs =
-            bb_abstraction_leaks::prepend_public_inputs(proof.to_vec(), public_inputs);
+            bb_abstraction_leaks::prepend_public_inputs(proof.to_vec(), public_outputs);
+        let proof_with_public_inputs = bb_abstraction_leaks::prepend_public_inputs(
+            proof_with_public_inputs.to_vec(),
+            public_inputs,
+        );
         let proof_path = temp_directory.join("proof").with_extension("proof");
         write_to_file(&proof_with_public_inputs, &proof_path);
 

@@ -15,6 +15,7 @@ use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     proof::save_proof_to_dir,
 };
+use super::verify_cmd::extract_public_inputs_and_outputs;
 use super::NargoConfig;
 use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliError};
 
@@ -144,7 +145,8 @@ pub(crate) fn prove_package(
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
+        let (inputs, outputs) = extract_public_inputs_and_outputs(&public_inputs, public_abi);
+        let valid_proof = backend.verify(&proof, &compiled_program.program, inputs, outputs)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

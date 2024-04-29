@@ -2,6 +2,7 @@ use super::fs::{inputs::read_inputs_from_file, load_hex_data};
 use super::NargoConfig;
 use crate::{backends::Backend, errors::CliError};
 
+use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
 use nargo::ops::{compile_program, report_errors};
@@ -10,6 +11,7 @@ use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
+use noirc_abi::Abi;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
@@ -94,19 +96,36 @@ fn verify_package(
     let public_abi = compiled_program.abi.public_abi();
     let (public_inputs_map, return_value) =
         read_inputs_from_file(&package.root_dir, verifier_name, Format::Toml, &public_abi)?;
-
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
-
+    let (inputs, outputs) = extract_public_inputs_and_outputs(&public_inputs, public_abi);
     let proof_path =
         workspace.proofs_directory_path().join(package.name.to_string()).with_extension(PROOF_EXT);
 
     let proof = load_hex_data(&proof_path)?;
 
-    let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
+    let valid_proof = backend.verify(&proof, &compiled_program.program, inputs, outputs)?;
 
     if valid_proof {
         Ok(())
     } else {
         Err(CliError::InvalidProof(proof_path))
     }
+}
+
+pub(crate) fn extract_public_inputs_and_outputs(
+    public_inputs: &WitnessMap,
+    public_abi: Abi,
+) -> (WitnessMap, WitnessMap) {
+    let inputs = public_inputs.extract_if(|k, _| {
+        for ranges in public_abi.param_witnesses.values() {
+            for range in ranges {
+                if range.contains(k) {
+                    return true;
+                }
+            }
+        }
+        false
+    });
+    let outputs = public_inputs.extract_if(|k, _| public_abi.return_witnesses.contains(k));
+    (inputs, outputs)
 }

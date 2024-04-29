@@ -43,6 +43,19 @@ impl WitnessMap {
     pub fn insert(&mut self, key: Witness, value: FieldElement) -> Option<FieldElement> {
         self.0.insert(key, value)
     }
+    pub fn extract_if<F>(&self, mut f: F) -> WitnessMap
+    where
+        F: FnMut(&Witness, &FieldElement) -> bool,
+    {
+        let mut result = BTreeMap::new();
+        for (k, v) in &self.0 {
+            if f(k, v) {
+                result.insert(*k, *v);
+            }
+        }
+
+        WitnessMap(result)
+    }
 }
 
 impl Index<&Witness> for WitnessMap {
