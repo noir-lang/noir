@@ -235,16 +235,27 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = attributes::attributes()
         .then(maybe_comp_time())
+        .then(spanned(keyword(Keyword::Mut)).or_not())
         .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
         .then(ident().map(Pattern::Identifier));
 
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
-    p.validate(|((((attributes, comptime), pattern), r#type), expression), span, emit| {
-        let global_attributes = attributes::validate_secondary_attributes(attributes, span, emit);
-        LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
-    })
+    p.validate(
+        |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
+            let global_attributes =
+                attributes::validate_secondary_attributes(attributes, span, emit);
+
+            // Only comptime globals are allowed to be mutable, but we always parse the `mut`
+            // and throw the error in name resolution.
+            if let Some((_, mut_span)) = mutable {
+                let span = mut_span.merge(pattern.span());
+                pattern = Pattern::Mutable(Box::new(pattern), span, false);
+            }
+            LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
+        },
+    )
     .map(TopLevelStatement::Global)
 }
 
