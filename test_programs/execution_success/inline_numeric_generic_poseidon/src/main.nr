@@ -21,7 +21,7 @@ fn main(
         }
     }
 
-    // We want to make sure that the foldable function with a numeric generic
+    // We want to make sure that the function marked with `#[inline(never)]` with a numeric generic
     // is monomorphized correctly.
     let mut double_preimage = [0; 20];
     for i in 0..HASH_LENGTH * 2 {
