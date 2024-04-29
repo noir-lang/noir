@@ -86,6 +86,8 @@ pub enum ResolverError {
     JumpInConstrainedFn { is_break: bool, span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
+    #[error("Only `comptime` globals can be mutable")]
+    MutableGlobal { span: Span },
     #[error("Self-referential structs are not supported")]
     SelfReferentialStruct { span: Span },
     #[error("#[inline(tag)] attribute is only allowed on constrained functions")]
@@ -343,6 +345,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("{item} is only allowed within loops"),
                     "".into(),
+                    *span,
+                )
+            },
+            ResolverError::MutableGlobal { span } => {
+                Diagnostic::simple_error(
+                    "Only `comptime` globals may be mutable".into(),
+                    String::new(),
                     *span,
                 )
             },
