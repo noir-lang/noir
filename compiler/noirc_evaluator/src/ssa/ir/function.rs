@@ -87,10 +87,7 @@ impl Function {
 
     pub(crate) fn is_inline_never(&self) -> bool {
         match self.runtime() {
-            RuntimeType::Acir(inline_type) => match inline_type {
-                InlineType::Never => true,
-                _ => false,
-            },
+            RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::Never),
             RuntimeType::Brillig => false,
         }
     }

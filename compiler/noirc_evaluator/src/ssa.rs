@@ -162,7 +162,7 @@ pub fn create_program(
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
-        let mut circuit_artifact = convert_generated_acir_into_circuit(
+        let circuit_artifact = convert_generated_acir_into_circuit(
             acir,
             func_sig,
             recursive,

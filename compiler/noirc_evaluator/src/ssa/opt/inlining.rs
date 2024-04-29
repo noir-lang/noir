@@ -5,7 +5,6 @@
 use std::collections::{BTreeSet, HashSet};
 
 use iter_extended::{btree_map, vecmap};
-use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
