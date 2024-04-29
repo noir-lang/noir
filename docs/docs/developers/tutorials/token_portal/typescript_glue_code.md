@@ -109,7 +109,7 @@ This fetches the wallets from the sandbox and deploys our cross chain harness on
 
 ## Public flow test
 
-#include_code e2e_public_cross_chain /yarn-project/end-to-end/src/e2e_public_cross_chain_messaging.test.ts typescript
+#include_code e2e_public_cross_chain /yarn-project/end-to-end/src/e2e_public_cross_chain_messaging/deposits.test.ts typescript
 
 ## Running the test
 

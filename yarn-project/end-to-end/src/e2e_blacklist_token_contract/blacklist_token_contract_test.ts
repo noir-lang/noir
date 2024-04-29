@@ -89,10 +89,8 @@ export class BlacklistTokenContractTest {
       this.admin = this.wallets[0];
       this.other = this.wallets[1];
       this.blacklisted = this.wallets[2];
-      // this.accounts = this.wallets.map(a => a.getCompleteAddress());
       this.accounts = await pxe.getRegisteredAccounts();
       this.wallets.forEach((w, i) => this.logger.verbose(`Wallet ${i} address: ${w.getAddress()}`));
-      this.accounts.forEach((w, i) => this.logger.verbose(`Account ${i} address: ${w.address}`));
     });
 
     await this.snapshotManager.snapshot(
