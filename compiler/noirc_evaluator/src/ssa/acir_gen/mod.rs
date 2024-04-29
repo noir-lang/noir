@@ -2802,7 +2802,7 @@ mod test {
         let (acir_functions, _) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
-        // The expected result should look very similar to the abvoe test expect that the input witnesses of the `Call`
+        // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
 
         let main_acir = &acir_functions[0];
