@@ -5,40 +5,40 @@
 #include "barretenberg/stdlib/honk_recursion/verifier/ultra_recursive_verifier.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_recursive_flavor.hpp"
-
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 namespace bb::stdlib::recursion::honk {
 
 /**
- * @brief Test suite for recursive verification of conventional Ultra Honk proofs
- * @details The recursive verification circuit is arithmetized in two different ways: 1) using the conventional Ultra
- * arithmetization (UltraCircuitBuilder), or 2) a Goblin-style Ultra arithmetization (GoblinUltraCircuitBuilder).
+ * @brief Test suite for recursive verification of  Honk proofs for both Ultra and GoblinUltra arithmetisation.
+ * @details `Inner*` types describe the type of circuits (and everything else required to generate a proof) that we aim
+ * to recursively verify. `Outer*` describes the arithmetisation of the recursive verifier circuit and the types
+ * required to ensure the recursive verifier circuit is correct (i.e. by producing a proof and verifying it).
  *
- * @tparam Builder
+ * @tparam RecursiveFlavor defines the recursive verifier, what the arithmetisation of its circuit should be and what
+ * types of proofs it recursively verifies.
  */
-template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing::Test {
+template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing::Test {
 
-    // Define types relevant for testing
-
-    using InnerFlavor = UltraFlavor;
-    using InnerProverInstance = ProverInstance_<InnerFlavor>;
-    using InnerProver = UltraProver;
-    using InnerVerifier = UltraVerifier;
+    // Define types for the inner circuit, i.e. the circuit whose proof will be recursively verified
+    using InnerFlavor = typename RecursiveFlavor::NativeFlavor;
+    using InnerProver = UltraProver_<InnerFlavor>;
+    using InnerVerifier = UltraVerifier_<InnerFlavor>;
     using InnerBuilder = typename InnerFlavor::CircuitBuilder;
+    using InnerProverInstance = ProverInstance_<InnerFlavor>;
     using InnerCurve = bn254<InnerBuilder>;
-    using Commitment = InnerFlavor::Commitment;
-    using FF = InnerFlavor::FF;
+    using InnerCommitment = InnerFlavor::Commitment;
+    using InnerFF = InnerFlavor::FF;
 
-    // Types for recursive verifier circuit
-    using OuterBuilder = typename OuterFlavor::CircuitBuilder;
-    using RecursiveFlavor = UltraRecursiveFlavor_<OuterBuilder>;
-    using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
+    // Defines types for the outer circuit, i.e. the circuit of the recursive verifier
+    using OuterBuilder = typename RecursiveFlavor::CircuitBuilder;
+    using OuterFlavor = std::conditional_t<IsGoblinBuilder<OuterBuilder>, GoblinUltraFlavor, UltraFlavor>;
     using OuterProver = UltraProver_<OuterFlavor>;
     using OuterVerifier = UltraVerifier_<OuterFlavor>;
     using OuterProverInstance = ProverInstance_<OuterFlavor>;
 
+    using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
     using VerificationKey = typename RecursiveVerifier::VerificationKey;
 
     /**
@@ -48,14 +48,18 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
      * @param public_inputs
      * @param log_num_gates
      */
-    static void create_inner_circuit(InnerBuilder& builder, size_t log_num_gates = 10)
+    static InnerBuilder create_inner_circuit(size_t log_num_gates = 10)
     {
         using fr_ct = InnerCurve::ScalarField;
         using fq_ct = InnerCurve::BaseField;
+        using point_ct = InnerCurve::AffineElement;
         using public_witness_ct = InnerCurve::public_witness_ct;
         using witness_ct = InnerCurve::witness_ct;
         using byte_array_ct = InnerCurve::byte_array_ct;
         using fr = typename InnerCurve::ScalarFieldNative;
+        using point = typename InnerCurve::GroupNative::affine_element;
+
+        InnerBuilder builder;
 
         // Create 2^log_n many add gates based on input log num gates
         const size_t num_gates = 1 << log_num_gates;
@@ -73,7 +77,18 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
             builder.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
         }
 
-        // Define some additional non-trivial but arbitrary circuit logic
+        // Perform a batch mul which will add some arbitrary goblin-style ECC op gates if the circuit arithmetic is
+        // goblinisied otherwise it will add the conventional nonnative gates
+        size_t num_points = 5;
+        std::vector<point_ct> circuit_points;
+        std::vector<fr_ct> circuit_scalars;
+        for (size_t i = 0; i < num_points; ++i) {
+            circuit_points.push_back(point_ct::from_witness(&builder, point::random_element()));
+            circuit_scalars.push_back(fr_ct::from_witness(&builder, fr::random_element()));
+        }
+        point_ct::batch_mul(circuit_points, circuit_scalars);
+
+        // Define some additional arbitrary convetional circuit logic
         fr_ct a(public_witness_ct(&builder, fr::random_element()));
         fr_ct b(public_witness_ct(&builder, fr::random_element()));
         fr_ct c(public_witness_ct(&builder, fr::random_element()));
@@ -94,6 +109,8 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
         fq_ct big_b(fr_ct(witness_ct(&builder, bigfield_data_b.to_montgomery_form())), fr_ct(witness_ct(&builder, 0)));
 
         big_a* big_b;
+
+        return builder;
     };
 
   public:
@@ -105,11 +122,10 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
      */
     static void test_inner_circuit()
     {
-        InnerBuilder builder;
+        auto inner_circuit = create_inner_circuit();
 
-        create_inner_circuit(builder);
+        bool result = CircuitChecker::check(inner_circuit);
 
-        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -120,11 +136,9 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
      */
     static void test_recursive_verification_key_creation()
     {
-        InnerBuilder inner_circuit;
-        OuterBuilder outer_circuit;
-
         // Create an arbitrary inner circuit
-        create_inner_circuit(inner_circuit);
+        auto inner_circuit = create_inner_circuit();
+        OuterBuilder outer_circuit;
 
         // Compute native verification key
         auto instance = std::make_shared<InnerProverInstance>(inner_circuit);
@@ -137,34 +151,31 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
         EXPECT_EQ(verifier.key->circuit_size, verification_key->circuit_size);
         EXPECT_EQ(verifier.key->log_circuit_size, verification_key->log_circuit_size);
         EXPECT_EQ(verifier.key->num_public_inputs, verification_key->num_public_inputs);
-        EXPECT_EQ(verifier.key->q_m.get_value(), verification_key->q_m);
-        EXPECT_EQ(verifier.key->q_r.get_value(), verification_key->q_r);
-        EXPECT_EQ(verifier.key->sigma_1.get_value(), verification_key->sigma_1);
-        EXPECT_EQ(verifier.key->id_3.get_value(), verification_key->id_3);
+        for (auto [vk_poly, native_vk_poly] : zip_view(verifier.key->get_all(), verification_key->get_all())) {
+            EXPECT_EQ(vk_poly.get_value(), native_vk_poly);
+        }
     }
 
     /**
-     * @brief Construct a recursive verification circuit for the proof of an inner circuit then call check_circuit on it
-     *
+     * @brief Construct a recursive verification circuit for the proof of an inner circuit then call check_circuit on
+     * it.
      */
     static void test_recursive_verification()
     {
         // Create an arbitrary inner circuit
-        InnerBuilder inner_circuit;
-        create_inner_circuit(inner_circuit);
+        auto inner_circuit = create_inner_circuit();
 
         // Generate a proof over the inner circuit
         auto instance = std::make_shared<InnerProverInstance>(inner_circuit);
         InnerProver inner_prover(instance);
-        auto inner_proof = inner_prover.construct_proof();
-
         auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
+        auto inner_proof = inner_prover.construct_proof();
 
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
         RecursiveVerifier verifier{ &outer_circuit, verification_key };
         auto pairing_points = verifier.verify_proof(inner_proof);
-        info("Recursive Verifier Ultra: num gates = ", outer_circuit.num_gates);
+        info("Recursive Verifier: num gates = ", outer_circuit.num_gates);
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();
@@ -207,8 +218,7 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
     static void test_recursive_verification_fails()
     {
         // Create an arbitrary inner circuit
-        InnerBuilder inner_circuit;
-        create_inner_circuit(inner_circuit);
+        auto inner_circuit = create_inner_circuit();
 
         // Generate a proof over the inner circuit
         auto instance = std::make_shared<InnerProverInstance>(inner_circuit);
@@ -217,15 +227,16 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
 
         // Arbitrarily tamper with the proof to be verified
         inner_prover.transcript->deserialize_full_transcript();
-        inner_prover.transcript->sorted_accum_comm = Commitment::one() * FF::random_element();
+        inner_prover.transcript->sorted_accum_comm = InnerCommitment::one() * InnerFF::random_element();
         inner_prover.transcript->serialize_full_transcript();
         inner_proof = inner_prover.export_proof();
 
-        auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
+        // Generate the corresponding inner verification key
+        auto inner_verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
 
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
-        RecursiveVerifier verifier{ &outer_circuit, verification_key };
+        RecursiveVerifier verifier{ &outer_circuit, inner_verification_key };
         verifier.verify_proof(inner_proof);
 
         // We expect the circuit check to fail due to the bad proof
@@ -234,26 +245,29 @@ template <typename OuterFlavor> class HonkRecursiveVerifierTest : public testing
 };
 
 // Run the recursive verifier tests with conventional Ultra builder and Goblin builder
-using Flavors = testing::Types<UltraFlavor, GoblinUltraFlavor>;
+using Flavors = testing::Types<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
+                               GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>,
+                               UltraRecursiveFlavor_<UltraCircuitBuilder>,
+                               UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
 
-TYPED_TEST_SUITE(HonkRecursiveVerifierTest, Flavors);
+TYPED_TEST_SUITE(RecursiveVerifierTest, Flavors);
 
-HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, InnerCircuit)
+HEAVY_TYPED_TEST(RecursiveVerifierTest, InnerCircuit)
 {
     TestFixture::test_inner_circuit();
 }
 
-HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, RecursiveVerificationKey)
+HEAVY_TYPED_TEST(RecursiveVerifierTest, RecursiveVerificationKey)
 {
     TestFixture::test_recursive_verification_key_creation();
 }
 
-HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, DISABLED_SingleRecursiveVerification)
+HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerification)
 {
     TestFixture::test_recursive_verification();
 };
 
-HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, DISABLED_SingleRecursiveVerificationFailure)
+HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerificationFailure)
 {
     TestFixture::test_recursive_verification_fails();
 };
