@@ -1,32 +1,27 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from '@esm-bundle/chai';
-import { TEST_LOG_LEVEL } from '../environment.js';
+import { expect } from 'chai';
 import { Logger } from 'tslog';
-import { acvm, abi, Noir } from '@noir-lang/noir_js';
+import { Noir } from '@noir-lang/noir_js';
 
-import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
-import { getFile } from './utils.js';
+import { resolve, join } from 'path';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
 import { createFileManager, compile } from '@noir-lang/noir_wasm';
 
-const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
+const logger = new Logger({ name: 'test' });
 
-const { default: initACVM } = acvm;
-const { default: newABICoder } = abi;
-
-await newABICoder();
-await initACVM();
-
-const base_relative_path = '../../../../..';
-const circuit_main = 'test_programs/execution_success/assert_statement_recursive';
-const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
-const circuit_double_verify = 'test_programs/execution_success/double_verify_proof';
+const base_relative_path = '../../../../';
+const circuit_main = './test_programs/execution_success/assert_statement_recursive';
+const circuit_recursion = './compiler/integration-tests/circuits/recursion';
+const circuit_double_verify = './test_programs/execution_success/double_verify_proof';
 
 async function getCircuit(projectPath: string) {
-  const fm = createFileManager('/');
-  await fm.writeFile('./src/main.nr', await getFile(`${projectPath}/src/main.nr`));
-  await fm.writeFile('./Nargo.toml', await getFile(`${projectPath}/Nargo.toml`));
+  console.log(__dirname);
+  const basePath = resolve(join(__dirname, base_relative_path));
+  console.log(basePath);
+  const absProjectPath = join(basePath, projectPath);
+  console.log(absProjectPath);
+  const fm = createFileManager(absProjectPath);
   const result = await compile(fm);
   if (!('program' in result)) {
     throw new Error('Compilation failed');
@@ -35,15 +30,12 @@ async function getCircuit(projectPath: string) {
 }
 
 describe('It compiles noir program code, receiving circuit bytes and abi object.', () => {
-  let circuit_main_toml;
-
-  before(async () => {
-    circuit_main_toml = await new Response(await getFile(`${base_relative_path}/${circuit_main}/Prover.toml`)).text();
-  });
-
   it('Should generate two valid inner proofs for correct input, then verify proofs within a proof', async () => {
-    const main_program = await getCircuit(`${base_relative_path}/${circuit_main}`);
-    const main_inputs: InputMap = TOML.parse(circuit_main_toml) as InputMap;
+    const main_program = await getCircuit(circuit_main);
+    const main_inputs: InputMap = {
+      x: '3',
+      y: '3',
+    };
 
     const main_backend = new BarretenbergBackend(main_program);
 
@@ -75,7 +67,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     logger.debug('recursion_inputs', recursion_inputs);
 
-    const recursion_program = await getCircuit(`${base_relative_path}/${circuit_double_verify}`);
+    const recursion_program = await getCircuit(circuit_double_verify);
 
     const recursion_backend = new BarretenbergBackend(recursion_program);
 
