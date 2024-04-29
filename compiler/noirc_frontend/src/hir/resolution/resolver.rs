@@ -1222,15 +1222,18 @@ impl<'a> Resolver<'a> {
     ) -> HirStatement {
         self.current_item = Some(DependencyId::Global(global_id));
         let expression = self.resolve_expression(let_stmt.expression);
-        let global_id = self.interner.next_global_id();
         let definition = DefinitionKind::Global(global_id);
 
         if !self.in_contract
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            self.push_err(ResolverError::AbiAttributeOusideContract {
-                span: let_stmt.pattern.span(),
-            });
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::AbiAttributeOusideContract { span });
+        }
+
+        if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::MutableGlobal { span });
         }
 
         HirStatement::Let(HirLetStatement {
@@ -1238,6 +1241,7 @@ impl<'a> Resolver<'a> {
             r#type: self.resolve_type(let_stmt.r#type),
             expression,
             attributes: let_stmt.attributes,
+            comptime: let_stmt.comptime,
         })
     }
 
@@ -1251,6 +1255,7 @@ impl<'a> Resolver<'a> {
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
                     attributes: let_stmt.attributes,
+                    comptime: let_stmt.comptime,
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {
@@ -1322,8 +1327,10 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Error => HirStatement::Error,
             StatementKind::Comptime(statement) => {
-                let statement = self.resolve_stmt(*statement, span);
-                HirStatement::Comptime(self.interner.push_stmt(statement))
+                let hir_statement = self.resolve_stmt(statement.kind, statement.span);
+                let statement_id = self.interner.push_stmt(hir_statement);
+                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                HirStatement::Comptime(statement_id)
             }
         }
     }

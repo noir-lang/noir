@@ -1284,6 +1284,15 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     }
 
     #[test]
+    fn ban_mutable_globals() {
+        // Mutable globals are only allowed in a comptime context
+        let src = r#"
+            mut global FOO: Field = 0;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
     fn deny_inline_attribute_on_unconstrained() {
         let src = r#"
             #[inline(never)]
