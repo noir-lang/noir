@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   build-apple-darwin:
-    runs-on: macos-latest
+    runs-on: macos-12
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
       NIGHTLY_RELEASE: ${{ inputs.tag == '' }}

@@ -24,7 +24,7 @@ use crate::{
 };
 
 use super::{
-    errors::{IResult, InterpreterError},
+    errors::IResult,
     interpreter::Interpreter,
     Value,
 };

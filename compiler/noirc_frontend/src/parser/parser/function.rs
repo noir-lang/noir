@@ -193,6 +193,11 @@ mod test {
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
                 // The following should produce compile error on later stage. From the parser's perspective it's fine
                 "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
+                // TODO: this fails with known EOF != EOF error
+                // https://github.com/noir-lang/noir/issues/4763
+                // fn func_name(x: impl Eq) {} with error Expected an end of input but found end of input
+                // "fn func_name(x: impl Eq) {}",
+                "fn func_name<T>(x: impl Eq, y : T) where T: SomeTrait + Eq {}",
             ],
         );
 
