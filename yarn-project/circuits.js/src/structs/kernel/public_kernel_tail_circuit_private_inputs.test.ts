@@ -14,4 +14,11 @@ describe('PublicKernelTailCircuitPrivateInputs', () => {
     expect(original).toEqual(serialized);
     expect(original).not.toBe(serialized);
   });
+
+  it('serializes to string and back', () => {
+    const original = makePublicKernelTailCircuitPrivateInputs(123);
+    const str = original.toString();
+    const deserialized = PublicKernelTailCircuitPrivateInputs.fromString(str);
+    expect(original).toEqual(deserialized);
+  });
 });

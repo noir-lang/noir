@@ -143,7 +143,7 @@ describe('L1Publisher integration', () => {
     };
     const worldStateSynchronizer = new ServerWorldStateSynchronizer(tmpStore, builderDb, blockSource, worldStateConfig);
     await worldStateSynchronizer.start();
-    builder = await TxProver.new({}, worldStateSynchronizer, new WASMSimulator());
+    builder = await TxProver.new(config, new WASMSimulator(), worldStateSynchronizer);
     l2Proof = Buffer.alloc(0);
 
     publisher = getL1Publisher({

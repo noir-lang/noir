@@ -6,6 +6,7 @@ import {
 import { NULL_KEY } from '@aztec/ethereum';
 import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn } from '@aztec/foundation/log';
+import { createProvingJobSourceServer } from '@aztec/prover-client/prover-pool';
 import { type PXEServiceConfig, createPXERpcServer, getPXEServiceConfig } from '@aztec/pxe';
 
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
@@ -64,7 +65,10 @@ export const startNode = async (
   }
 
   if (!options.prover) {
+    userLog(`Prover is disabled, using mocked proofs`);
     nodeConfig.disableProver = true;
+  } else {
+    nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(nodeConfig, parseModuleOptions(options.prover));
   }
 
   if (!nodeConfig.disableSequencer && nodeConfig.disableProver) {
@@ -77,6 +81,11 @@ export const startNode = async (
 
   // Add node to services list
   services.push({ node: nodeServer });
+
+  if (!nodeConfig.disableProver) {
+    const provingJobSource = createProvingJobSourceServer(node.getProver().getProvingJobSource());
+    services.push({ provingJobSource });
+  }
 
   // Add node stop function to signal handlers
   signalHandlers.push(node.stop);

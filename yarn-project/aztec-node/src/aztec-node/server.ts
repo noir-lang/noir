@@ -151,7 +151,7 @@ export class AztecNodeService implements AztecNode {
     const simulationProvider = await getSimulationProvider(config, log);
     const prover = config.disableProver
       ? await DummyProver.new()
-      : await TxProver.new(config, worldStateSynchronizer, simulationProvider);
+      : await TxProver.new(config, simulationProvider, worldStateSynchronizer);
 
     // now create the sequencer
     const sequencer = config.disableSequencer
@@ -192,6 +192,10 @@ export class AztecNodeService implements AztecNode {
    */
   public getSequencer(): SequencerClient | undefined {
     return this.sequencer;
+  }
+
+  public getProver(): ProverClient {
+    return this.prover;
   }
 
   /**

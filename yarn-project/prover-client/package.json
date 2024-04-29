@@ -2,7 +2,10 @@
   "name": "@aztec/prover-client",
   "version": "0.1.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "exports": {
+    ".": "./dest/index.js",
+    "./prover-pool": "./dest/prover-pool/index.js"
+  },
   "bin": {
     "bb-cli": "./dest/bb/index.js"
   },

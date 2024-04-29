@@ -4,6 +4,9 @@ import {
   PROVING_STATUS,
   type ProcessedTx,
   type ProverClient,
+  type ProvingJob,
+  type ProvingJobSource,
+  type ProvingRequest,
   type ProvingSuccess,
   type ProvingTicket,
 } from '@aztec/circuit-types';
@@ -11,6 +14,8 @@ import { type GlobalVariables, makeEmptyProof } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
 
 export class DummyProver implements ProverClient {
+  jobs = new DummyProvingJobSource();
+
   public start(): Promise<void> {
     return Promise.resolve();
   }
@@ -52,6 +57,24 @@ export class DummyProver implements ProverClient {
   }
 
   setBlockCompleted(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  getProvingJobSource(): ProvingJobSource {
+    return this.jobs;
+  }
+}
+
+class DummyProvingJobSource implements ProvingJobSource {
+  getProvingJob(): Promise<ProvingJob<ProvingRequest> | null> {
+    return Promise.resolve(null);
+  }
+
+  rejectProvingJob(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  resolveProvingJob(): Promise<void> {
     return Promise.resolve();
   }
 }

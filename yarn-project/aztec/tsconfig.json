@@ -52,6 +52,9 @@
       "path": "../protocol-contracts"
     },
     {
+      "path": "../prover-client"
+    },
+    {
       "path": "../pxe"
     }
   ],

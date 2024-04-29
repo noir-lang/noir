@@ -71,7 +71,7 @@ export class TestCircuitProver implements CircuitProver {
   private wasmSimulator = new WASMSimulator();
 
   constructor(
-    private simulationProvider: SimulationProvider,
+    private simulationProvider?: SimulationProvider,
     private logger = createDebugLogger('aztec:test-prover'),
   ) {}
 
@@ -131,7 +131,8 @@ export class TestCircuitProver implements CircuitProver {
   ): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>> {
     const witnessMap = convertSimulatedBaseRollupInputsToWitnessMap(input);
 
-    const witness = await this.simulationProvider.simulateCircuit(witnessMap, SimulatedBaseRollupArtifact);
+    const simulationProvider = this.simulationProvider ?? this.wasmSimulator;
+    const witness = await simulationProvider.simulateCircuit(witnessMap, SimulatedBaseRollupArtifact);
 
     const result = convertSimulatedBaseRollupOutputsFromWitnessMap(witness);
 

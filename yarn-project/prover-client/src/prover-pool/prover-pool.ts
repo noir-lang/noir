@@ -1,6 +1,11 @@
 import { type ProvingJobSource } from '@aztec/circuit-types';
 import { type SimulationProvider } from '@aztec/simulator';
 
+import { mkdtemp } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
+import { BBNativeRollupProver, type BBProverConfig } from '../prover/bb_prover.js';
 import { TestCircuitProver } from '../prover/test_circuit_prover.js';
 import { ProverAgent } from './prover-agent.js';
 
@@ -43,10 +48,34 @@ export class ProverPool {
     this.running = false;
   }
 
-  static testPool(simulationProvider: SimulationProvider, size = 1, agentPollIntervalMS = 10): ProverPool {
+  static testPool(simulationProvider?: SimulationProvider, size = 1, agentPollIntervalMS = 10): ProverPool {
     return new ProverPool(
       size,
-      i => new ProverAgent(new TestCircuitProver(simulationProvider), agentPollIntervalMS, `${i}`),
+      i => new ProverAgent(new TestCircuitProver(simulationProvider), agentPollIntervalMS, `test-prover-${i}`),
     );
+  }
+
+  static nativePool(
+    { acvmBinaryPath, bbBinaryPath }: Pick<BBProverConfig, 'acvmBinaryPath' | 'bbBinaryPath'>,
+    size: number,
+    agentPollIntervalMS = 10,
+  ): ProverPool {
+    // TODO generate keys ahead of time so that each agent doesn't have to do it
+    return new ProverPool(size, async i => {
+      const [acvmWorkingDirectory, bbWorkingDirectory] = await Promise.all([
+        mkdtemp(join(tmpdir(), 'acvm-')),
+        mkdtemp(join(tmpdir(), 'bb-')),
+      ]);
+      return new ProverAgent(
+        await BBNativeRollupProver.new({
+          acvmBinaryPath,
+          acvmWorkingDirectory,
+          bbBinaryPath,
+          bbWorkingDirectory,
+        }),
+        agentPollIntervalMS,
+        `bb-prover-${i}`,
+      );
+    });
   }
 }

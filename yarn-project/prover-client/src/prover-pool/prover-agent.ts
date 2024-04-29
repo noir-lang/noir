@@ -11,6 +11,7 @@ import { RunningPromise } from '@aztec/foundation/running-promise';
 import { elapsed } from '@aztec/foundation/timer';
 
 import { type CircuitProver } from '../prover/interface.js';
+import { ProvingError } from './proving-error.js';
 
 export class ProverAgent {
   private runningPromise?: RunningPromise;
@@ -46,7 +47,7 @@ export class ProverAgent {
         this.log.error(
           `Error processing proving job id=${job.id} type=${ProvingRequestType[job.request.type]}: ${err}`,
         );
-        await queue.rejectProvingJob(job.id, err as Error);
+        await queue.rejectProvingJob(job.id, new ProvingError((err as any)?.message ?? String(err)));
       }
     }, this.intervalMs);
 

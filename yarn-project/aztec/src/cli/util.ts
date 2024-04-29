@@ -3,9 +3,14 @@ import { type AztecNodeConfig } from '@aztec/aztec-node';
 import { type AccountManager, type Fr } from '@aztec/aztec.js';
 import { type L1ContractAddresses, l1ContractsNames } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn, createConsoleLogger } from '@aztec/foundation/log';
 import { type P2PConfig } from '@aztec/p2p';
 import { type PXEService, type PXEServiceConfig } from '@aztec/pxe';
+
+export interface ServiceStarter<T = any> {
+  (options: T, signalHandlers: (() => Promise<void>)[], logger: LogFn): Promise<ServerList>;
+}
 
 /**
  * Checks if the object has l1Contracts property

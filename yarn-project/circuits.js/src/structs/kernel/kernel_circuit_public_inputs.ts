@@ -78,4 +78,12 @@ export class KernelCircuitPublicInputs {
       RevertCode.OK,
     );
   }
+
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  static fromString(str: string) {
+    return KernelCircuitPublicInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
 }

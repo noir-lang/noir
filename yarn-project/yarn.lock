@@ -207,6 +207,7 @@ __metadata:
     "@aztec/noir-contracts.js": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/protocol-contracts": "workspace:^"
+    "@aztec/prover-client": "workspace:^"
     "@aztec/pxe": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0

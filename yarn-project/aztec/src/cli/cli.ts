@@ -56,6 +56,9 @@ export function getProgram(userLog: LogFn, debugLogger: DebugLogger): Command {
       } else if (options.p2pBootstrap) {
         const { startP2PBootstrap } = await import('./cmds/start_p2p_bootstrap.js');
         await startP2PBootstrap(options, signalHandlers, userLog, debugLogger);
+      } else if (options.prover) {
+        const { startProver } = await import('./cmds/start_prover.js');
+        services = await startProver(options, signalHandlers, userLog);
       }
       if (services.length) {
         const rpcServer = createNamespacedJsonRpcServer(services, debugLogger);

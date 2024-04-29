@@ -41,6 +41,14 @@ export class PublicKernelTailCircuitPrivateInputs {
     );
   }
 
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  static fromString(str: string) {
+    return PublicKernelTailCircuitPrivateInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new PublicKernelTailCircuitPrivateInputs(

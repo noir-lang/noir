@@ -51,6 +51,14 @@ export class PublicKernelCircuitPublicInputs {
     );
   }
 
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  static fromString(str: string) {
+    return PublicKernelCircuitPublicInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
+
   get needsSetup() {
     return !this.endNonRevertibleData.publicCallStack[1].isEmpty();
   }
