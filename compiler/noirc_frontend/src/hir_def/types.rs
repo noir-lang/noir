@@ -758,12 +758,9 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
-            | Type::Code => false,
+            | Type::Code
+            | Type::TraitAsType(..) => false,
 
-            | Type::TraitAsType(s, name, generics) => {
-                panic!("is_valid_non_inlined_function_input: {:?}, {:?}, {:?}", *s, name.clone(), generics.clone())
-
-            },
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
                 alias.get_type(generics).is_valid_non_inlined_function_input()
