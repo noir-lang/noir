@@ -210,7 +210,7 @@ fn collect_trait_impl_methods(
             if let Some(default_impl) = &method.default_impl {
                 // copy 'where' clause from unresolved trait impl
                 let mut default_impl_clone = default_impl.clone();
-                default_impl_clone.def.where_clause = trait_impl.where_clause.clone();
+                default_impl_clone.def.where_clause.extend(trait_impl.where_clause.clone());
 
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
