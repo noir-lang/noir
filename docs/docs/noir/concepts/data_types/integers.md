@@ -51,11 +51,11 @@ The built-in structure `U128` allows you to use 128-bit unsigned integers almost
 - You cannot cast between a native integer and `U128`
 - There is a higher performance cost when using `U128`, compared to a native type.
 
-Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions. `from_integer` also accepts the `Field` type as input.
+Conversion between unsigned integer types and U128 are done through the use of the `From` trait and `to_integer` method. There also exists a `from_field` method which accepts a `Field` type as input (which is asserted to fit within a `U128`).
 
 ```rust
 fn main() {
-    let x = U128::from_integer(23);
+    let x = U128::from(23);
     let y = U128::from_hex("0x7");
     let z = x + y;
     assert(z.to_integer() == 30);

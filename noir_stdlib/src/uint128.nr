@@ -1,7 +1,8 @@
 use crate::ops::{Add, Sub, Mul, Div, Rem, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
+use crate::convert::From;
 
-global pow64 : Field = 18446744073709551616; //2^64;
+global POW_64 : Field = 18446744073709551616; //2^64;
 
 struct U128 {
     lo: Field,
@@ -112,23 +113,22 @@ impl U128 {
         }
     }
 
-    pub fn from_integer<T>(i: T) -> U128 {
-        let f = crate::as_field(i);
+    pub fn from_field(f: Field) -> U128 {
         // Reject values which would overflow a u128
         f.assert_max_bit_size(128);
         let lo = f as u64 as Field;
-        let hi = (f - lo) / pow64;
+        let hi = (f - lo) / POW_64;
         U128 { lo, hi }
     }
 
     pub fn to_integer<T>(self) -> T {
-        crate::from_field(self.lo + self.hi * pow64)
+        crate::from_field(self.lo + self.hi * POW_64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
         let low = self.lo * b.lo;
         let lo = low as u64 as Field;
-        let carry = (low - lo) / pow64;
+        let carry = (low - lo) / POW_64;
         let high = if crate::field::modulus_num_bits() as u32 > 196 {
             (self.lo + self.hi) * (b.lo + b.hi) - low + carry
         } else {
@@ -139,11 +139,35 @@ impl U128 {
     }
 }
 
+impl From<u64> for U128 {
+    fn from(value: u64) -> U128 {
+       U128::from_u64s_le(value, 0)
+    }
+}
+
+impl From<u32> for U128 {
+    fn from(value: u32) -> U128 {
+       U128::from_u64s_le(value as u64, 0)
+    }
+}
+
+impl From<u8> for U128 {
+    fn from(value: u8) -> U128 {
+       U128::from_u64s_le(value as u64, 0)
+    }
+}
+
+impl From<u1> for U128 {
+    fn from(value: u1) -> U128 {
+       U128::from_u64s_le(value as u64, 0)
+    }
+}
+
 impl Add for U128 {
     fn add(self: Self, b: U128) -> U128 {
         let low = self.lo + b.lo;
         let lo = low as u64 as Field;
-        let carry = (low - lo) / pow64;  
+        let carry = (low - lo) / POW_64;  
         let high = self.hi + b.hi + carry;
         let hi = high as u64 as Field;
         assert(hi == high, "attempt to add with overflow");
@@ -156,7 +180,7 @@ impl Add for U128 {
 
 impl Sub for U128 {
     fn sub(self: Self, b: U128) -> U128 {
-        let low = pow64 + self.lo - b.lo;
+        let low = POW_64 + self.lo - b.lo;
         let lo = low as u64 as Field;
         let borrow = (low == lo) as Field;
         let high = self.hi - b.hi - borrow;
@@ -174,7 +198,7 @@ impl Mul for U128 {
         assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
         let low = self.lo*b.lo;
         let lo = low as u64 as Field;
-        let carry = (low - lo) / pow64;
+        let carry = (low - lo) / POW_64;
         let high = if crate::field::modulus_num_bits() as u32 > 196 {
             (self.lo+self.hi)*(b.lo+b.hi) - low + carry
         } else {
@@ -232,7 +256,7 @@ impl BitOr for U128 {
     fn bitor(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) | (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) | (other.hi as u64))as Field
+            hi: ((self.hi as u64) | (other.hi as u64)) as Field
         }
     }
 }
@@ -266,7 +290,8 @@ impl Shl for U128 {
             y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
             r *= r;
         }
-        self.wrapping_mul(U128::from_integer(y))
+        // TODO: Switch with `::from()` once https://github.com/noir-lang/noir/issues/4943 is fixed
+        self.wrapping_mul(U128::from_u64s_le(y as u64, 0))
     } 
 }
 
@@ -281,6 +306,7 @@ impl Shr for U128 {
             y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
             r *= r;
         }
-        self / U128::from_integer(y)
+        // TODO: Switch with `::from()` once https://github.com/noir-lang/noir/issues/4943 is fixed
+        self / U128::from_u64s_le(y as u64, 0)
     } 
 }
