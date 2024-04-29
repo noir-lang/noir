@@ -8,13 +8,13 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.36.0
 
-## `FieldNote` removed
+### `FieldNote` removed
 
 `FieldNote` only existed for testing purposes, and was not a note type that should be used in any real application. Its name unfortunately led users to think that it was a note type suitable to store a `Field` value, which it wasn't.
 
 If using `FieldNote`, you most likely want to use `ValueNote` instead, which has both randomness for privacy and an owner for proper nullification.
 
-## `SlowUpdatesTree` replaced for `SharedMutable`
+### `SlowUpdatesTree` replaced for `SharedMutable`
 
 The old `SlowUpdatesTree` contract and libraries have been removed from the codebase, use the new `SharedMutable` library instead. This will require that you add a global variable specifying a delay in blocks for updates, and replace the slow updates tree state variable with `SharedMutable` variables.
 
@@ -36,7 +36,7 @@ Reading from `SharedMutable` is much simpler, all that's required is to call `ge
 
 Finally, you can remove all capsule usage on the client code or tests, since those are no longer required when working with `SharedMutable`.
 
-## [Aztec.nr & js] Portal addresses
+### [Aztec.nr & js] Portal addresses
 
 Deployments have been modified. No longer are portal addresses treated as a special class, being immutably set on creation of a contract. They are no longer passed in differently compared to the other variables and instead should be implemented using usual storage by those who require it. One should use the storage that matches the usecase - likely shared storage to support private and public.
 
