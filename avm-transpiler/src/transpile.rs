@@ -387,10 +387,10 @@ fn handle_external_call(
     let gas = inputs[0];
     let gas_offset = match gas {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => {
-            assert!(size == 3, "Call instruction's gas input should be a HeapArray of size 3 (`[l1Gas, l2Gas, daGas]`)");
+            assert!(size == 2, "Call instruction's gas input should be a HeapArray of size 2 (`[l2Gas, daGas]`)");
             pointer.0 as u32
         }
-        ValueOrArray::HeapVector(_) => panic!("Call instruction's gas input must be a HeapArray, not a HeapVector. Make sure you are explicitly defining its size as 3 (`[l1Gas, l2Gas, daGas]`)!"),
+        ValueOrArray::HeapVector(_) => panic!("Call instruction's gas input must be a HeapArray, not a HeapVector. Make sure you are explicitly defining its size as 2 (`[l2Gas, daGas]`)!"),
         _ => panic!("Call instruction's gas input should be a HeapArray"),
     };
     let address_offset = match &inputs[1] {
@@ -741,14 +741,12 @@ fn handle_getter_instruction(
         "avmOpcodeAddress" => AvmOpcode::ADDRESS,
         "avmOpcodeStorageAddress" => AvmOpcode::STORAGEADDRESS,
         "avmOpcodeSender" => AvmOpcode::SENDER,
-        "avmOpcodeFeePerL1Gas" => AvmOpcode::FEEPERL1GAS,
         "avmOpcodeFeePerL2Gas" => AvmOpcode::FEEPERL2GAS,
         "avmOpcodeFeePerDaGas" => AvmOpcode::FEEPERDAGAS,
         "avmOpcodeChainId" => AvmOpcode::CHAINID,
         "avmOpcodeVersion" => AvmOpcode::VERSION,
         "avmOpcodeBlockNumber" => AvmOpcode::BLOCKNUMBER,
         "avmOpcodeTimestamp" => AvmOpcode::TIMESTAMP,
-        "avmOpcodeL1GasLeft" => AvmOpcode::L1GASLEFT,
         "avmOpcodeL2GasLeft" => AvmOpcode::L2GASLEFT,
         "avmOpcodeDaGasLeft" => AvmOpcode::DAGASLEFT,
         // "callStackDepth" => AvmOpcode::CallStackDepth,

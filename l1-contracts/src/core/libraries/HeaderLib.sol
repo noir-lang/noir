@@ -49,8 +49,7 @@ import {Hash} from "./Hash.sol";
  *  | 0x01b4                                                                           | 0x14         |     coinbase
  *  | 0x01c8                                                                           | 0x20         |     feeRecipient
  *  | 0x01e8                                                                           | 0x20         |     gasFees.feePerDaGas
- *  | 0x0208                                                                           | 0x20         |     gasFees.feePerL1Gas
- *  | 0x0228                                                                           | 0x20         |     gasFees.feePerL2Gas
+ *  | 0x0208                                                                           | 0x20         |     gasFees.feePerL2Gas
  *  |                                                                                  |              |   }
  *  |                                                                                  |              | }
  *  | ---                                                                              | ---          | ---
@@ -76,7 +75,6 @@ library HeaderLib {
 
   struct GasFees {
     uint256 feePerDaGas;
-    uint256 feePerL1Gas;
     uint256 feePerL2Gas;
   }
 
@@ -104,7 +102,7 @@ library HeaderLib {
     GlobalVariables globalVariables;
   }
 
-  uint256 private constant HEADER_LENGTH = 0x248; // Header byte length
+  uint256 private constant HEADER_LENGTH = 0x228; // Header byte length
 
   /**
    * @notice Validates the header
@@ -190,8 +188,7 @@ library HeaderLib {
     header.globalVariables.coinbase = address(bytes20(_header[0x01b4:0x01c8]));
     header.globalVariables.feeRecipient = bytes32(_header[0x01c8:0x01e8]);
     header.globalVariables.gasFees.feePerDaGas = uint256(bytes32(_header[0x01e8:0x0208]));
-    header.globalVariables.gasFees.feePerL1Gas = uint256(bytes32(_header[0x0208:0x0228]));
-    header.globalVariables.gasFees.feePerL2Gas = uint256(bytes32(_header[0x0228:0x0248]));
+    header.globalVariables.gasFees.feePerL2Gas = uint256(bytes32(_header[0x0208:0x0228]));
 
     return header;
   }

@@ -271,7 +271,6 @@ describe('L1Publisher integration', () => {
             feeRecipient: `0x${block.header.globalVariables.feeRecipient.toBuffer().toString('hex').padStart(64, '0')}`,
             gasFees: {
               feePerDaGas: block.header.globalVariables.gasFees.feePerDaGas.toNumber(),
-              feePerL1Gas: block.header.globalVariables.gasFees.feePerL1Gas.toNumber(),
               feePerL2Gas: block.header.globalVariables.gasFees.feePerL2Gas.toNumber(),
             },
           },

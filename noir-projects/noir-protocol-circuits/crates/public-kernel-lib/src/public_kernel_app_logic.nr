@@ -454,28 +454,28 @@ mod tests {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
 
         // Transaction gas limit is 1k
-        builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1000, 1000, 1000);
+        builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1000, 1000);
 
         // Revertible has already used 300
-        builder.previous_kernel.gas_used = Gas::new(300, 300, 300);
+        builder.previous_kernel.gas_used = Gas::new(300, 300);
 
         // This call starts with 700 gas left
-        builder.public_call.public_inputs.start_gas_left = Gas::new(700, 700, 700);
+        builder.public_call.public_inputs.start_gas_left = Gas::new(700, 700);
 
         // And uses 200, ending with 500 left
-        builder.public_call.public_inputs.end_gas_left = Gas::new(500, 500, 500);
+        builder.public_call.public_inputs.end_gas_left = Gas::new(500, 500);
 
         // So the updated gas used by revertible must go up by 200, and non-revertible must stay the same
         let output = builder.execute();
-        assert_eq(output.end.gas_used, Gas::new(500, 500, 500));
-        assert_eq(output.end_non_revertible.gas_used, Gas::new(0, 0, 0));
+        assert_eq(output.end.gas_used, Gas::new(500, 500));
+        assert_eq(output.end_non_revertible.gas_used, Gas::new(0, 0));
     }
 
     #[test(should_fail_with="Start gas for public phase does not match transaction gas left")]
     fn validates_start_gas() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
 
-        builder.public_call.public_inputs.start_gas_left = Gas::new(200, 100, 100);
+        builder.public_call.public_inputs.start_gas_left = Gas::new(100, 100);
 
         builder.failed();
     }

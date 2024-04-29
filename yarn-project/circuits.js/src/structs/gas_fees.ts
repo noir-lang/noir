@@ -9,90 +9,81 @@ import { type GasDimensions } from './gas.js';
 /** Gas prices for each dimension. */
 export class GasFees {
   public readonly feePerDaGas: Fr;
-  public readonly feePerL1Gas: Fr;
   public readonly feePerL2Gas: Fr;
 
-  constructor(feePerDaGas: Fr | number | bigint, feePerL1Gas: Fr | number | bigint, feePerL2Gas: Fr | number | bigint) {
+  constructor(feePerDaGas: Fr | number | bigint, feePerL2Gas: Fr | number | bigint) {
     this.feePerDaGas = new Fr(feePerDaGas);
-    this.feePerL1Gas = new Fr(feePerL1Gas);
     this.feePerL2Gas = new Fr(feePerL2Gas);
   }
 
   clone(): GasFees {
-    return new GasFees(this.feePerDaGas, this.feePerL1Gas, this.feePerL2Gas);
+    return new GasFees(this.feePerDaGas, this.feePerL2Gas);
   }
 
   equals(other: GasFees) {
-    return (
-      this.feePerDaGas.equals(other.feePerDaGas) &&
-      this.feePerL1Gas.equals(other.feePerL1Gas) &&
-      this.feePerL2Gas.equals(other.feePerL2Gas)
-    );
+    return this.feePerDaGas.equals(other.feePerDaGas) && this.feePerL2Gas.equals(other.feePerL2Gas);
   }
 
   get(dimension: GasDimensions) {
     switch (dimension) {
       case 'da':
         return this.feePerDaGas;
-      case 'l1':
-        return this.feePerL1Gas;
       case 'l2':
         return this.feePerL2Gas;
     }
   }
 
   static from(fields: FieldsOf<GasFees>) {
-    return new GasFees(fields.feePerDaGas, fields.feePerL1Gas, fields.feePerL2Gas);
+    return new GasFees(fields.feePerDaGas, fields.feePerL2Gas);
   }
 
   static random() {
-    return new GasFees(Fr.random(), Fr.random(), Fr.random());
+    return new GasFees(Fr.random(), Fr.random());
   }
 
   static empty() {
-    return new GasFees(Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new GasFees(Fr.ZERO, Fr.ZERO);
   }
 
   /** Fixed gas fee values used until we define how gas fees in the protocol are computed. */
   static default() {
-    return new GasFees(Fr.ONE, Fr.ONE, Fr.ONE);
+    return new GasFees(Fr.ONE, Fr.ONE);
   }
 
   isEmpty() {
-    return this.feePerDaGas.isZero() && this.feePerL1Gas.isZero() && this.feePerL2Gas.isZero();
+    return this.feePerDaGas.isZero() && this.feePerL2Gas.isZero();
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): GasFees {
     const reader = BufferReader.asReader(buffer);
-    return new GasFees(reader.readObject(Fr), reader.readObject(Fr), reader.readObject(Fr));
+    return new GasFees(reader.readObject(Fr), reader.readObject(Fr));
   }
 
   toBuffer() {
-    return serializeToBuffer(this.feePerDaGas, this.feePerL1Gas, this.feePerL2Gas);
+    return serializeToBuffer(this.feePerDaGas, this.feePerL2Gas);
   }
 
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
-    return new GasFees(reader.readField(), reader.readField(), reader.readField());
+    return new GasFees(reader.readField(), reader.readField());
   }
 
   toFields() {
-    return serializeToFields(this.feePerDaGas, this.feePerL1Gas, this.feePerL2Gas);
+    return serializeToFields(this.feePerDaGas, this.feePerL2Gas);
   }
 
   static fromJSON(obj: any) {
-    return new GasFees(Fr.fromString(obj.feePerDaGas), Fr.fromString(obj.feePerL1Gas), Fr.fromString(obj.feePerL2Gas));
+    return new GasFees(Fr.fromString(obj.feePerDaGas), Fr.fromString(obj.feePerL2Gas));
   }
 
   toJSON() {
     return {
       feePerDaGas: this.feePerDaGas.toString(),
-      feePerL1Gas: this.feePerL1Gas.toString(),
       feePerL2Gas: this.feePerL2Gas.toString(),
     };
   }
 
   [inspect.custom]() {
-    return `GasFees { feePerDaGas=${this.feePerDaGas} feePerL1Gas=${this.feePerL1Gas} feePerL2Gas=${this.feePerL2Gas} }`;
+    return `GasFees { feePerDaGas=${this.feePerDaGas} feePerL2Gas=${this.feePerL2Gas} }`;
   }
 }

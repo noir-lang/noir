@@ -56,7 +56,6 @@ export function initExecutionEnvironment(overrides?: Partial<AvmExecutionEnviron
     overrides?.address ?? AztecAddress.zero(),
     overrides?.storageAddress ?? AztecAddress.zero(),
     overrides?.sender ?? AztecAddress.zero(),
-    overrides?.feePerL1Gas ?? Fr.zero(),
     overrides?.feePerL2Gas ?? Fr.zero(),
     overrides?.feePerDaGas ?? Fr.zero(),
     overrides?.contractCallDepth ?? Fr.zero(),
@@ -91,7 +90,6 @@ export function initGlobalVariables(overrides?: Partial<GlobalVariables>): Globa
  */
 export function initMachineState(overrides?: Partial<AvmMachineState>): AvmMachineState {
   return AvmMachineState.fromState({
-    l1GasLeft: overrides?.l1GasLeft ?? 100e6,
     l2GasLeft: overrides?.l2GasLeft ?? 100e6,
     daGasLeft: overrides?.daGasLeft ?? 100e6,
   });

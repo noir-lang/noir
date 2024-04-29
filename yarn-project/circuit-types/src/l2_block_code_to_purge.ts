@@ -93,7 +93,7 @@ export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = 
       new Fr(seed + 3),
       EthAddress.fromField(new Fr(seed + 4)),
       AztecAddress.fromField(new Fr(seed + 5)),
-      new GasFees(new Fr(seed + 6), new Fr(seed + 7), new Fr(seed + 8)),
+      new GasFees(new Fr(seed + 6), new Fr(seed + 7)),
     );
   }
   return new GlobalVariables(
@@ -103,6 +103,6 @@ export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = 
     new Fr(seed + 3),
     EthAddress.fromField(new Fr(seed + 4)),
     AztecAddress.fromField(new Fr(seed + 5)),
-    new GasFees(new Fr(seed + 6), new Fr(seed + 7), new Fr(seed + 8)),
+    new GasFees(new Fr(seed + 6), new Fr(seed + 7)),
   );
 }

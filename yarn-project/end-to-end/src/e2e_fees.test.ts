@@ -219,7 +219,7 @@ describe('e2e_fees', () => {
 
     beforeEach(async () => {
       FeeAmount = 1n;
-      MaxFee = BigInt(30e9);
+      MaxFee = BigInt(20e9);
       RefundAmount = MaxFee - FeeAmount;
       RefundSecret = Fr.random();
 

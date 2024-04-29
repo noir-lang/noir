@@ -37,11 +37,10 @@ contract AvmNestedCallsTest {
     fn nested_call_to_add_with_gas(
         arg_a: Field,
         arg_b: Field,
-        l1_gas: Field,
         l2_gas: Field,
         da_gas: Field
     ) -> pub Field {
-        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).call(&mut context, GasOpts::new(l1_gas, l2_gas, da_gas))
+        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).call(&mut context, GasOpts::new(l2_gas, da_gas))
     }
 
     // Use the `call_public_function` wrapper to initiate a nested call to the add function

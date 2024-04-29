@@ -53,7 +53,7 @@ describe('e2e_dapp_subscription', () => {
   const PRIVATELY_MINTED_BANANAS = BigInt(600e9);
 
   const FEE_AMOUNT = 1n;
-  const MAX_FEE = BigInt(30e9);
+  const MAX_FEE = BigInt(20e9);
 
   const GAS_SETTINGS = GasSettings.default();
 

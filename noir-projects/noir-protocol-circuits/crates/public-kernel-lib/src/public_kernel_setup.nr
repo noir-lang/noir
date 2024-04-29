@@ -507,31 +507,31 @@ mod tests {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
 
         // Transaction gas limit is 1k
-        builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1000, 1000, 1000);
+        builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1000, 1000);
 
         // Revertible has already used 100
-        builder.previous_revertible.gas_used = Gas::new(100, 100, 100);
+        builder.previous_revertible.gas_used = Gas::new(100, 100);
 
         // And non-revertible has used another 200
-        builder.previous_kernel.gas_used = Gas::new(200, 200, 200);
+        builder.previous_kernel.gas_used = Gas::new(200, 200);
 
         // So this call starts with 700 gas left
-        builder.public_call.public_inputs.start_gas_left = Gas::new(700, 700, 700);
+        builder.public_call.public_inputs.start_gas_left = Gas::new(700, 700);
 
         // And uses 300, ending with 400 left
-        builder.public_call.public_inputs.end_gas_left = Gas::new(400, 400, 400);
+        builder.public_call.public_inputs.end_gas_left = Gas::new(400, 400);
 
         // So the updated gas used by non-revertible must go up by 300, and revertible must stay the same
         let output = builder.execute();
-        assert_eq(output.end_non_revertible.gas_used, Gas::new(500, 500, 500));
-        assert_eq(output.end.gas_used, Gas::new(100, 100, 100));
+        assert_eq(output.end_non_revertible.gas_used, Gas::new(500, 500));
+        assert_eq(output.end.gas_used, Gas::new(100, 100));
     }
 
     #[test(should_fail_with="Start gas for public phase does not match transaction gas left")]
     fn validates_start_gas() {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
 
-        builder.public_call.public_inputs.start_gas_left = Gas::new(200, 100, 100);
+        builder.public_call.public_inputs.start_gas_left = Gas::new(100, 100);
 
         builder.failed();
     }

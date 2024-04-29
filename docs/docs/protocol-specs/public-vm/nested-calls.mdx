@@ -17,9 +17,8 @@ isStaticCall = instr.opcode == STATICCALL
 isDelegateCall = instr.opcode == DELEGATECALL
 
 chargeGas(context,
-          l1GasCost=M[instr.args.gasOffset],
-          l2GasCost=M[instr.args.gasOffset+1],
-          daGasCost=M[instr.args.gasOffset+2])
+          l2GasCost=M[instr.args.gasOffset],
+          daGasCost=M[instr.args.gasOffset+1])
 traceNestedCall(context, instr.args.addrOffset)
 nestedContext = deriveContext(context, instr.args, isStaticCall, isDelegateCall)
 execute(nestedContext)
@@ -59,19 +58,16 @@ A call instruction's gas cost is derived from its `gasOffset` argument. In other
 As with all instructions, gas is checked and cost is deducted _prior_ to the instruction's execution.
 ```jsx
 chargeGas(context,
-          l1GasCost=M[gasOffset],
-          l2GasCost=M[gasOffset+1],
-          daGasCost=M[gasOffset+2])
+          l2GasCost=M[gasOffset],
+          daGasCost=M[gasOffset+1])
 ```
 
 > The shorthand `chargeGas` is defined in ["Gas checks and tracking"](./execution#gas-checks-and-tracking).
 
 As with all instructions, gas is checked and cost is deducted _prior_ to the instruction's execution.
 ```jsx
-assert context.machineState.l1GasLeft - l1GasCost >= 0
 assert context.machineState.l2GasLeft - l2GasCost >= 0
 assert context.machineState.daGasLeft - daGasCost >= 0
-context.l1GasLeft -= l1GasCost
 context.l2GasLeft -= l2GasCost
 context.daGasLeft -= daGasCost
 ```
@@ -102,7 +98,6 @@ context.machineState.memory[instr.args.successOffset] = !nestedContext.results.r
 
 Any unused gas is refunded to the caller.
 ```jsx
-context.l1GasLeft += nestedContext.machineState.l1GasLeft
 context.l2GasLeft += nestedContext.machineState.l2GasLeft
 context.daGasLeft += nestedContext.machineState.daGasLeft
 ```

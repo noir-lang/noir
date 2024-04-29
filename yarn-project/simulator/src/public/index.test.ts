@@ -290,7 +290,7 @@ describe('ACIR public execution simulator', () => {
         new Fr(7),
         EthAddress.fromField(new Fr(8)),
         AztecAddress.fromField(new Fr(9)),
-        new GasFees(new Fr(10), new Fr(11), new Fr(12)),
+        new GasFees(new Fr(10), new Fr(11)),
       );
 
       const result = await simulate(execution, globalVariables);
@@ -644,7 +644,6 @@ describe('ACIR public execution simulator', () => {
         description: 'Fee recipient',
       },
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per DA gas' },
-      { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per L1 gas' },
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per L2 gas' },
     ];
 

@@ -45,7 +45,6 @@ export function createAvmExecutionEnvironment(
     current.contractAddress,
     current.callContext.storageContractAddress,
     current.callContext.msgSender,
-    globalVariables.gasFees.feePerL1Gas,
     globalVariables.gasFees.feePerL2Gas,
     globalVariables.gasFees.feePerDaGas,
     /*contractCallDepth=*/ Fr.zero(),

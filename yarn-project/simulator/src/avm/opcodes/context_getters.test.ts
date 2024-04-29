@@ -1,8 +1,7 @@
 import { initContext, initMachineState } from '../fixtures/index.js';
-import { DAGasLeft, L1GasLeft, L2GasLeft } from './context_getters.js';
+import { DAGasLeft, L2GasLeft } from './context_getters.js';
 
 describe.each([
-  [L1GasLeft, 'l1GasLeft'],
   [L2GasLeft, 'l2GasLeft'],
   [DAGasLeft, 'daGasLeft'],
 ] as const)('Context getter instructions for machine state', (clsValue, key) => {

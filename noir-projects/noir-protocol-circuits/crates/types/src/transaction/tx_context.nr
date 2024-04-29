@@ -86,6 +86,6 @@ fn empty_hash() {
     let hash = context.hash();
 
     // Value from tx_context.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x1acd086cc3b911cd49713c263bf4af6032a567fa1e79fe7ef77c063565d3ead3;
+    let test_data_empty_hash = 0x17e4357684c5a4349b4587c95b0b6161dcb4a3c5b02d4eb2ecc3b02c80193261;
     assert_eq(hash, test_data_empty_hash);
 }

@@ -23,19 +23,14 @@ describe('AVM simulator: dynamic gas costs per instruction', () => {
     [new Sub(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
     [new Mul(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
     [new Div(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
-  ] as const)('computes gas cost for %s', async (instruction, [l2GasCost, l1GasCost, daGasCost]) => {
+  ] as const)('computes gas cost for %s', async (instruction, [l2GasCost, daGasCost]) => {
     const bytecode = encodeToBytecode([instruction]);
     const context = initContext();
-    const {
-      l2GasLeft: initialL2GasLeft,
-      daGasLeft: initialDaGasLeft,
-      l1GasLeft: initialL1GasLeft,
-    } = context.machineState;
+    const { l2GasLeft: initialL2GasLeft, daGasLeft: initialDaGasLeft } = context.machineState;
 
     await new AvmSimulator(context).executeBytecode(bytecode);
 
     expect(initialL2GasLeft - context.machineState.l2GasLeft).toEqual(l2GasCost ?? 0);
-    expect(initialL1GasLeft - context.machineState.l1GasLeft).toEqual(l1GasCost ?? 0);
     expect(initialDaGasLeft - context.machineState.daGasLeft).toEqual(daGasCost ?? 0);
   });
 });

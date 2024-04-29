@@ -60,13 +60,12 @@ abstract class ExternalCall extends Instruction {
     const callAddress = memory.getAs<Field>(addrOffset);
     const calldataSize = memory.get(argsSizeOffset).toNumber();
     const calldata = memory.getSlice(argsOffset, calldataSize).map(f => f.toFr());
-    const l1Gas = memory.get(gasOffset).toNumber();
-    const l2Gas = memory.getAs<Field>(gasOffset + 1).toNumber();
-    const daGas = memory.getAs<Field>(gasOffset + 2).toNumber();
+    const l2Gas = memory.get(gasOffset).toNumber();
+    const daGas = memory.getAs<Field>(gasOffset + 1).toNumber();
     const functionSelector = memory.getAs<Field>(this.temporaryFunctionSelectorOffset).toFr();
 
-    const allocatedGas = { l1Gas, l2Gas, daGas };
-    const memoryOperations = { reads: calldataSize + 6, writes: 1 + this.retSize, indirect: this.indirect };
+    const allocatedGas = { l2Gas, daGas };
+    const memoryOperations = { reads: calldataSize + 5, writes: 1 + this.retSize, indirect: this.indirect };
     const totalGas = sumGas(this.gasCost(memoryOperations), allocatedGas);
     context.machineState.consumeGas(totalGas);
 

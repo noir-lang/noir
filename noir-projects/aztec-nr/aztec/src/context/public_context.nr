@@ -241,10 +241,6 @@ impl PublicContextInterface for PublicContext {
         self.inputs.public_global_variables.gas_fees.fee_per_da_gas
     }
 
-    fn fee_per_l1_gas(self) -> Field {
-        self.inputs.public_global_variables.gas_fees.fee_per_l1_gas
-    }
-
     fn fee_per_l2_gas(self) -> Field {
         self.inputs.public_global_variables.gas_fees.fee_per_l2_gas
     }

@@ -5,19 +5,18 @@ import { Opcode } from './serialization/instruction_serialization.js';
 
 /** Gas counters in L1, L2, and DA. */
 export type Gas = {
-  l1Gas: number;
   l2Gas: number;
   daGas: number;
 };
 
 /** Maps a Gas struct to gasLeft properties. */
 export function gasToGasLeft(gas: Gas) {
-  return { l1GasLeft: gas.l1Gas, l2GasLeft: gas.l2Gas, daGasLeft: gas.daGas };
+  return { l2GasLeft: gas.l2Gas, daGasLeft: gas.daGas };
 }
 
 /** Maps gasLeft properties to a gas struct. */
-export function gasLeftToGas(gasLeft: { l1GasLeft: number; l2GasLeft: number; daGasLeft: number }) {
-  return { l1Gas: gasLeft.l1GasLeft, l2Gas: gasLeft.l2GasLeft, daGas: gasLeft.daGasLeft };
+export function gasLeftToGas(gasLeft: { l2GasLeft: number; daGasLeft: number }) {
+  return { l2Gas: gasLeft.l2GasLeft, daGas: gasLeft.daGasLeft };
 }
 
 /** Creates a new instance with all values set to zero except the ones set. */
@@ -29,7 +28,6 @@ export function makeGas(gasCost: Partial<Gas>) {
 export function sumGas(...gases: Partial<Gas>[]) {
   return gases.reduce(
     (acc: Gas, gas) => ({
-      l1Gas: acc.l1Gas + (gas.l1Gas ?? 0),
       l2Gas: acc.l2Gas + (gas.l2Gas ?? 0),
       daGas: acc.daGas + (gas.daGas ?? 0),
     }),
@@ -39,24 +37,23 @@ export function sumGas(...gases: Partial<Gas>[]) {
 
 /** Multiplies a gas instance by a scalar. */
 export function mulGas(gas: Partial<Gas>, scalar: number) {
-  return { l1Gas: (gas.l1Gas ?? 0) * scalar, l2Gas: (gas.l2Gas ?? 0) * scalar, daGas: (gas.daGas ?? 0) * scalar };
+  return { l2Gas: (gas.l2Gas ?? 0) * scalar, daGas: (gas.daGas ?? 0) * scalar };
 }
 
 /** Zero gas across all gas dimensions. */
 export const EmptyGas: Gas = {
-  l1Gas: 0,
   l2Gas: 0,
   daGas: 0,
 };
 
 /** Dimensions of gas usage: L1, L2, and DA. */
-export const GasDimensions = ['l1Gas', 'l2Gas', 'daGas'] as const;
+export const GasDimensions = ['l2Gas', 'daGas'] as const;
 
 /** Null object to represent a gas cost that's dynamic instead of fixed for a given instruction. */
 export const DynamicGasCost = Symbol('DynamicGasCost');
 
 /** Temporary default gas cost. We should eventually remove all usage of this variable in favor of actual gas for each opcode. */
-const TemporaryDefaultGasCost = { l1Gas: 0, l2Gas: 10, daGas: 0 };
+const TemporaryDefaultGasCost = { l2Gas: 10, daGas: 0 };
 
 /** Base gas costs for each instruction. Additional gas cost may be added on top due to memory or storage accesses, etc. */
 export const GasCosts: Record<Opcode, Gas | typeof DynamicGasCost> = {
@@ -79,7 +76,6 @@ export const GasCosts: Record<Opcode, Gas | typeof DynamicGasCost> = {
   [Opcode.ADDRESS]: TemporaryDefaultGasCost,
   [Opcode.STORAGEADDRESS]: TemporaryDefaultGasCost,
   [Opcode.SENDER]: TemporaryDefaultGasCost,
-  [Opcode.FEEPERL1GAS]: TemporaryDefaultGasCost,
   [Opcode.FEEPERL2GAS]: TemporaryDefaultGasCost,
   [Opcode.FEEPERDAGAS]: TemporaryDefaultGasCost,
   [Opcode.CONTRACTCALLDEPTH]: TemporaryDefaultGasCost,
@@ -88,12 +84,10 @@ export const GasCosts: Record<Opcode, Gas | typeof DynamicGasCost> = {
   [Opcode.BLOCKNUMBER]: TemporaryDefaultGasCost,
   [Opcode.TIMESTAMP]: TemporaryDefaultGasCost,
   [Opcode.COINBASE]: TemporaryDefaultGasCost,
-  [Opcode.BLOCKL1GASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.BLOCKL2GASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.BLOCKDAGASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.CALLDATACOPY]: TemporaryDefaultGasCost,
   // Gas
-  [Opcode.L1GASLEFT]: TemporaryDefaultGasCost,
   [Opcode.L2GASLEFT]: TemporaryDefaultGasCost,
   [Opcode.DAGASLEFT]: TemporaryDefaultGasCost,
   // Control flow

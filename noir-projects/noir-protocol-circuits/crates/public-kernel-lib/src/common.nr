@@ -209,13 +209,10 @@ pub fn update_revertible_gas_used(public_call: PublicCallData, circuit_outputs: 
     //     "Updating revertible gas: limit.da={0} limit.l1={1} limit.l2={2} left.da={3} left.l1={4} left.l2={5} used.da={6} used.l1={7} used.l2={8}",
     //     [
     //     tx_gas_limits.da_gas as Field,
-    //     tx_gas_limits.l1_gas as Field,
     //     tx_gas_limits.l2_gas as Field,
     //     call_gas_left.da_gas as Field,
-    //     call_gas_left.l1_gas as Field,
     //     call_gas_left.l2_gas as Field,
     //     accum_end_non_revertible_gas_used.da_gas as Field,
-    //     accum_end_non_revertible_gas_used.l1_gas as Field,
     //     accum_end_non_revertible_gas_used.l2_gas as Field
     // ]
     // );
@@ -238,13 +235,10 @@ pub fn update_non_revertible_gas_used(public_call: PublicCallData, circuit_outpu
     //     "Updating non-revertible gas: limit.da={0} limit.l1={1} limit.l2={2} left.da={3} left.l1={4} left.l2={5} used.da={6} used.l1={7} used.l2={8}",
     //     [
     //     tx_gas_limits.da_gas as Field,
-    //     tx_gas_limits.l1_gas as Field,
     //     tx_gas_limits.l2_gas as Field,
     //     call_gas_left.da_gas as Field,
-    //     call_gas_left.l1_gas as Field,
     //     call_gas_left.l2_gas as Field,
     //     accum_end_gas_used.da_gas as Field,
-    //     accum_end_gas_used.l1_gas as Field,
     //     accum_end_gas_used.l2_gas as Field
     // ]
     // );

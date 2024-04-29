@@ -25,7 +25,10 @@ contract Test {
         note_getter_options::NoteStatus
     },
         deploy::deploy_contract as aztec_deploy_contract,
-        oracle::{encryption::aes128_encrypt, get_public_key::get_public_key as get_public_key_oracle, unsafe_rand::unsafe_rand}
+        oracle::{
+        encryption::aes128_encrypt, get_public_key::get_public_key as get_public_key_oracle,
+        unsafe_rand::unsafe_rand
+    }
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::value_note::value_note::ValueNote;
@@ -328,7 +331,6 @@ contract Test {
         coinbase: EthAddress,
         fee_recipient: AztecAddress,
         fee_per_da_gas: Field,
-        fee_per_l1_gas: Field,
         fee_per_l2_gas: Field
     ) {
         assert(context.chain_id() == chain_id, "Invalid chain id");
@@ -338,7 +340,6 @@ contract Test {
         assert(context.coinbase() == coinbase, "Invalid coinbase");
         assert(context.fee_recipient() == fee_recipient, "Invalid fee recipient");
         assert(context.fee_per_da_gas() == fee_per_da_gas, "Invalid fee per da gas");
-        assert(context.fee_per_l1_gas() == fee_per_l1_gas, "Invalid fee per l1 gas");
         assert(context.fee_per_l2_gas() == fee_per_l2_gas, "Invalid fee per l2 gas");
     }
 

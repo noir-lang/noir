@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn compute_hash() {
-        let gas_settings = GasSettings::new(Gas::new(2, 2, 2), Gas::new(1, 1, 1), GasFees::new(3, 3, 3), 10);
+        let gas_settings = GasSettings::new(Gas::new(2, 2), Gas::new(1, 1), GasFees::new(3, 3), 10);
         let tx_request = TxRequest {
             origin: AztecAddress::from_field(1),
             args_hash: 3,
@@ -98,7 +98,7 @@ mod tests {
             function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_private: true }
         };
         // Value from tx_request.test.ts "compute hash" test
-        let test_data_tx_request_hash = 0x00b8affaf5ca65d647756e359ce0b2c5fa5c2c03f219189e28db323f22975706;
+        let test_data_tx_request_hash = 0x0d982a1c7a65919b2bcacbf5660f5b861132072a8190d97c82b1591da402f5ea;
         assert(tx_request.hash() == test_data_tx_request_hash);
     }
 }

@@ -64,7 +64,6 @@ describe('AVM simulator: injected bytecode', () => {
     expect(results.output).toEqual([]);
     expect(results.revertReason?.name).toEqual('OutOfGasError');
     expect(context.machineState.l2GasLeft).toEqual(0);
-    expect(context.machineState.l1GasLeft).toEqual(0);
     expect(context.machineState.daGasLeft).toEqual(0);
   });
 });
@@ -188,11 +187,6 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     it('sender', async () => {
       const sender = AztecAddress.fromField(new Fr(1));
       await testEnvGetter('sender', sender, 'get_sender');
-    });
-
-    it('getFeePerL1Gas', async () => {
-      const fee = new Fr(1);
-      await testEnvGetter('feePerL1Gas', fee, 'get_fee_per_l1_gas');
     });
 
     it('getFeePerL2Gas', async () => {

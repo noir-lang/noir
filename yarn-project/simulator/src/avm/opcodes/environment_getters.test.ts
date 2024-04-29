@@ -6,7 +6,6 @@ import {
   BlockNumber,
   ChainId,
   FeePerDAGas,
-  FeePerL1Gas,
   FeePerL2Gas,
   Sender,
   StorageAddress,
@@ -14,15 +13,8 @@ import {
   Version,
 } from './environment_getters.js';
 
-type EnvInstruction =
-  | typeof FeePerL1Gas
-  | typeof FeePerL2Gas
-  | typeof FeePerDAGas
-  | typeof Sender
-  | typeof StorageAddress
-  | typeof Address;
+type EnvInstruction = typeof FeePerL2Gas | typeof FeePerDAGas | typeof Sender | typeof StorageAddress | typeof Address;
 describe.each([
-  [FeePerL1Gas, 'feePerL1Gas'],
   [FeePerL2Gas, 'feePerL2Gas'],
   [FeePerDAGas, 'feePerDaGas'],
   [Sender, 'sender'],

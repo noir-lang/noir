@@ -28,17 +28,9 @@ impl GasSettings {
 
     pub fn default() -> Self {
         GasSettings::new(
-            Gas::new(DEFAULT_GAS_LIMIT, DEFAULT_GAS_LIMIT, DEFAULT_GAS_LIMIT),
-            Gas::new(
-                DEFAULT_TEARDOWN_GAS_LIMIT,
-                DEFAULT_TEARDOWN_GAS_LIMIT,
-                DEFAULT_TEARDOWN_GAS_LIMIT
-            ),
-            GasFees::new(
-                DEFAULT_MAX_FEE_PER_GAS,
-                DEFAULT_MAX_FEE_PER_GAS,
-                DEFAULT_MAX_FEE_PER_GAS
-            ),
+            Gas::new(DEFAULT_GAS_LIMIT, DEFAULT_GAS_LIMIT),
+            Gas::new(DEFAULT_TEARDOWN_GAS_LIMIT, DEFAULT_TEARDOWN_GAS_LIMIT),
+            GasFees::new(DEFAULT_MAX_FEE_PER_GAS, DEFAULT_MAX_FEE_PER_GAS),
             DEFAULT_INCLUSION_FEE
         )
     }

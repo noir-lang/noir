@@ -10,7 +10,6 @@ This section describes the types of state maintained by the AVM.
 
 | Field                 | Type            | Description |
 | ---                   | ---             | ---         |
-| `l1GasLeft`           | `field`         | Tracks the amount of L1 gas remaining at any point during execution. Initialized from contract call arguments. |
 | `l2GasLeft`           | `field`         | Tracks the amount of L2 gas remaining at any point during execution. Initialized from contract call arguments. |
 | `daGasLeft`           | `field`         | Tracks the amount of DA gas remaining at any point during execution. Initialized from contract call arguments. |
 | `pc`                  | `field`         | Index into the contract's bytecode indicating which instruction to execute. Initialized to 0 during context initialization. |

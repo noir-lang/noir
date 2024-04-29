@@ -13,15 +13,6 @@ export class L2GasLeft extends GetterInstruction {
   }
 }
 
-export class L1GasLeft extends GetterInstruction {
-  static type: string = 'L1GASLEFT';
-  static readonly opcode: Opcode = Opcode.L1GASLEFT;
-
-  protected getValue(context: AvmContext): MemoryValue {
-    return new Field(context.machineState.l1GasLeft);
-  }
-}
-
 export class DAGasLeft extends GetterInstruction {
   static type: string = 'DAGASLEFT';
   static readonly opcode: Opcode = Opcode.DAGASLEFT;

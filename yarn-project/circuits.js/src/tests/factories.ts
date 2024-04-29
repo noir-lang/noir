@@ -326,7 +326,7 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
 }
 
 export function makeGas(seed = 1) {
-  return new Gas(seed, seed + 1, seed + 2);
+  return new Gas(seed, seed + 1);
 }
 
 /**
@@ -951,7 +951,7 @@ export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = 
 }
 
 export function makeGasFees(seed = 1) {
-  return new GasFees(fr(seed), fr(seed + 1), fr(seed + 2));
+  return new GasFees(fr(seed), fr(seed + 1));
 }
 
 /**

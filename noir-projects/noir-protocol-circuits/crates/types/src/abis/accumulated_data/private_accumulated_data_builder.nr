@@ -212,8 +212,8 @@ mod tests {
         builder.public_call_stack.extend_from_array(non_revertible_public_stack);
         builder.public_call_stack.extend_from_array(revertible_public_call_stack);
 
-        builder.gas_used = Gas::new(20,20,20);
-        builder.non_revertible_gas_used = Gas::new(10,10,10);
+        builder.gas_used = Gas::new(20,20);
+        builder.non_revertible_gas_used = Gas::new(10,10);
 
         let (non_revertible, revertible) = builder.split_to_public(7);
 
@@ -225,8 +225,8 @@ mod tests {
         assert(array_eq(revertible.new_nullifiers, revertible_nullifiers));
         assert(array_eq(revertible.public_call_stack, revertible_public_call_stack));
 
-        assert_eq(revertible.gas_used, Gas::new(20, 20, 20));
-        assert_eq(non_revertible.gas_used, Gas::new(10, 10, 10));
+        assert_eq(revertible.gas_used, Gas::new(20, 20));
+        assert_eq(non_revertible.gas_used, Gas::new(10, 10));
     }
 }
 

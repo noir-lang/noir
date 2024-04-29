@@ -75,29 +75,27 @@ The `INTERNALCALL` instruction pushes `machineState.pc+1` to `machineState.inter
 ## Gas checks and tracking
 > See ["Gas and Fees"](../gas-and-fees) for a deeper dive into Aztec's gas model and for definitions of each type of gas.
 
-Each instruction has an associated `l1GasCost`, `l2GasCost`, and `daGasCost`. The AVM uses these values to enforce that sufficient gas is available before executing an instruction, and to deduct the cost from the context's remaining gas. The process of checking and charging gas is referred to in other sections using the following shorthand:
+Each instruction has an associated `l2GasCost` and `daGasCost`. The AVM uses these values to enforce that sufficient gas is available before executing an instruction, and to deduct the cost from the context's remaining gas. The process of checking and charging gas is referred to in other sections using the following shorthand:
 
 ```jsx
-chargeGas(context, l1GasCost, l2GasCost, daGasCost)
+chargeGas(context, l2GasCost, daGasCost)
 ```
 
 ### Checking gas
 
 Before an instruction is executed, the VM enforces that there is sufficient gas remaining via the following assertions:
 ```
-assert machineState.l1GasLeft - instr.l1GasCost >= 0
 assert machineState.l2GasLeft - instr.l2GasCost >= 0
 assert machineState.daGasLeft - instr.daGasCost >= 0
 ```
 
-> Many instructions (like arithmetic operations) have 0 `l1GasCost` and `daGasCost`. Instructions only incur an L1 or DA cost if they modify the [world state](./state#avm-world-state) or [accrued substate](./state#accrued-substate).
+> Many instructions (like arithmetic operations) have 0 `daGasCost`. Instructions only incur a DA cost if they modify the [world state](./state#avm-world-state) or [accrued substate](./state#accrued-substate).
 
 ### Charging gas
 
 If these assertions pass, the machine state's gas left is decreased prior to the instruction's core execution:
 
 ```
-machineState.l1GasLeft -= instr.l1GasCost
 machineState.l2GasLeft -= instr.l2GasCost
 machineState.daGasLeft -= instr.daGasCost
 ```
@@ -105,7 +103,6 @@ machineState.daGasLeft -= instr.daGasCost
 If either of these assertions _fail_ for an instruction, this triggers an exceptional halt. The gas left is set to 0 and execution reverts.
 
 ```
-machineState.l1GasLeft = 0
 machineState.l2GasLeft = 0
 machineState.daGasLeft = 0
 ```
@@ -116,7 +113,7 @@ machineState.daGasLeft = 0
 
 An instruction's gas cost is meant to reflect the computational cost of generating a proof of its correct execution. For some instructions, this computational cost changes based on inputs. Here are some examples and important notes:
 
-- All instructions have a base cost. [`JUMP`](./instruction-set/#isa-section-jump) is an example of an instruction with constant gas cost. Regardless of its inputs, the instruction always incurs the same `l1GasCost`, `l2GasCost`, and `daGasCost`.
+- All instructions have a base cost. [`JUMP`](./instruction-set/#isa-section-jump) is an example of an instruction with constant gas cost. Regardless of its inputs, the instruction always incurs the same `l2GasCost` and `daGasCost`.
 - The [`SET`](./instruction-set/#isa-section-set) instruction operates on a different sized constant (based on its `dstTag`). Therefore, this instruction's gas cost increases with the size of its input.
 - In addition to the base cost, the cost of an instruction increases with the number of reads and writes to memory. This is affected by the total number of input and outputs: the gas cost for [`AND`](./instruction-set/#isa-section-and) should be greater than that of [`NOT`](./instruction-set/#isa-section-not) since it takes one more input.
 - Input parameters flagged as "indirect" require an extra memory access, so these should further increase the gas cost of the instruction.
@@ -136,7 +133,6 @@ A context's execution can end with a **normal halt** or **exceptional halt**. A 
 A normal halt occurs when the VM encounters an explicit halting instruction ([`RETURN`](./instruction-set#isa-section-return) or [`REVERT`](./instruction-set#isa-section-revert)). Such instructions consume gas normally and optionally initialize some output data before finally halting the current context's execution.
 
 ```
-machineState.l1GasLeft -= instr.l1GasCost
 machineState.l2GasLeft -= instr.l2GasCost
 machineState.daGasLeft -= instr.daGasCost
 results.reverted = instr.opcode == REVERT
@@ -154,7 +150,6 @@ An exceptional halt is not explicitly triggered by an instruction but instead oc
 When an exceptional halt occurs, the context is flagged as consuming all of its allocated gas and is marked as `reverted` with _no output data_, and then execution within the current context ends.
 
 ```
-machineState.l1GasLeft = 0
 machineState.l2GasLeft = 0
 machineState.daGasLeft = 0
 results.reverted = true
@@ -165,7 +160,6 @@ The AVM's exceptional halting conditions area listed below:
 
 1. **Insufficient gas**
     ```
-    assert machineState.l1GasLeft - instr.l1GasCost >= 0
     assert machineState.l2GasLeft - instr.l2GasCost >= 0
     assert machineState.daGasLeft - instr.l2GasCost >= 0
     ```

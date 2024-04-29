@@ -82,9 +82,6 @@ After generating a proof for a private function circuit, that proof (and associa
 | `da.gas_limit`          | `u32`   | Total limit for DA gas for the transaction.                          |
 | `da.teardown_gas_limit` | `u32`   | Limit for DA gas specific to the teardown phase.                     |
 | `da.max_fee_per_gas`    | `field` | Maximum amount that the sender is willing to pay per unit of DA gas. |
-| `l1.gas_limit`          | `u32`   | Total limit for L1 gas for the transaction.                          |
-| `l1.teardown_gas_limit` | `u32`   | Limit for L1 gas specific to the teardown phase.                     |
-| `l1.max_fee_per_gas`    | `field` | Maximum amount that the sender is willing to pay per unit of L1 gas. |
 | `l2.gas_limit`          | `u32`   | Total limit for L2 gas for the transaction.                          |
 | `l2.teardown_gas_limit` | `u32`   | Limit for L2 gas specific to the teardown phase.                     |
 | `l2.max_fee_per_gas`    | `field` | Maximum amount that the sender is willing to pay per unit of L2 gas. |

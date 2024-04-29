@@ -27,7 +27,6 @@ A context's **execution environment** remains constant throughout a contract cal
 | storageAddress        | `AztecAddress`               |  |
 | sender                | `AztecAddress`               |  |
 | portal                | `EthAddress`                 |  |
-| feePerL1Gas           | `field`                      |  |
 | feePerL2Gas           | `field`                      |  |
 | feePerDaGas           | `field`                      |  |
 | contractCallDepth     | `field`                      | Depth of the current call (how many nested calls deep is it). |
@@ -74,7 +73,6 @@ INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
     storageAddress: PublicCallRequest.CallContext.storageContractAddress,
     sender: PublicCallRequest.CallContext.msgSender,
     portal: PublicCallRequest.CallContext.portalContractAddress,
-    feePerL1Gas: TxRequest.feePerL1Gas,
     feePerL2Gas: TxRequest.feePerL2Gas,
     feePerDaGas: TxRequest.feePerDaGas,
     contractCallDepth: 0,
@@ -86,7 +84,6 @@ INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
 }
 
 INITIAL_MACHINE_STATE = MachineState {
-    l1GasLeft: TxRequest.l1GasLimit,
     l2GasLeft: TxRequest.l2GasLimit,
     daGasLeft: TxRequest.daGasLimit,
     pc: 0,

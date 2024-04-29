@@ -543,9 +543,9 @@ mod tests {
     unconstrained fn set_teardown_gas_as_gas_used() {
         // TODO(gas): When we compute DA gas used, we'll have to include it here as well.
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
-        builder.previous_kernel.tx_context.gas_settings.teardown_gas_limits = Gas::new(300, 300, 300);
+        builder.previous_kernel.tx_context.gas_settings.teardown_gas_limits = Gas::new(300, 300);
         let public_inputs = builder.execute();
 
-        assert_eq(public_inputs.end.gas_used, Gas::new(300, 300, 300));
+        assert_eq(public_inputs.end.gas_used, Gas::new(300, 300));
     }
 }

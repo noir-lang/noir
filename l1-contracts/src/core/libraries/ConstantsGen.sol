@@ -97,8 +97,8 @@ library Constants {
   uint256 internal constant CANONICAL_KEY_REGISTRY_ADDRESS =
     0x1585e564a60e6ec974bc151b62705292ebfc75c33341986a47fd9749cedb567e;
   uint256 internal constant AZTEC_ADDRESS_LENGTH = 1;
-  uint256 internal constant GAS_FEES_LENGTH = 3;
-  uint256 internal constant GAS_LENGTH = 3;
+  uint256 internal constant GAS_FEES_LENGTH = 2;
+  uint256 internal constant GAS_LENGTH = 2;
   uint256 internal constant GAS_SETTINGS_LENGTH =
     GAS_LENGTH * 2 + GAS_FEES_LENGTH /* inclusion_fee */ + 1;
   uint256 internal constant CALL_CONTEXT_LENGTH = 6;

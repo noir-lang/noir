@@ -658,13 +658,13 @@ describe('public_processor', () => {
         publicCallRequests,
       });
 
-      const gasLimits = Gas.from({ l1Gas: 1e9, l2Gas: 1e9, daGas: 1e9 });
-      const teardownGas = Gas.from({ l1Gas: 1e7, l2Gas: 1e7, daGas: 1e7 });
+      const gasLimits = Gas.from({ l2Gas: 1e9, daGas: 1e9 });
+      const teardownGas = Gas.from({ l2Gas: 1e7, daGas: 1e7 });
       tx.data.constants.txContext.gasSettings = GasSettings.from({
         gasLimits: gasLimits,
         teardownGasLimits: teardownGas,
         inclusionFee: new Fr(1e4),
-        maxFeesPerGas: { feePerDaGas: new Fr(10), feePerL1Gas: new Fr(10), feePerL2Gas: new Fr(10) },
+        maxFeesPerGas: { feePerDaGas: new Fr(10), feePerL2Gas: new Fr(10) },
       });
 
       // Private kernel tail to public pushes teardown gas allocation into revertible gas used
@@ -684,10 +684,10 @@ describe('public_processor', () => {
 
       // Total gas used is the sum of teardown gas allocation plus all expenditures along the way,
       // without including the gas used in the teardown phase (since that's consumed entirely up front).
-      const expectedTotalGasUsed = { l2Gas: 1e7 + 1e6 + 2e6, daGas: 1e7 + 2e6, l1Gas: 1e7 };
+      const expectedTotalGasUsed = { l2Gas: 1e7 + 1e6 + 2e6, daGas: 1e7 + 2e6 };
 
       // Inclusion fee plus block gas fees times total gas used
-      const expectedTxFee = 1e4 + (1e7 + 1e6 + 2e6) * 1 + (1e7 + 2e6) * 1 + 1e7 * 1;
+      const expectedTxFee = 1e4 + (1e7 + 1e6 + 2e6) * 1 + (1e7 + 2e6) * 1;
       const transactionFee = new Fr(expectedTxFee);
 
       const simulatorResults: PublicExecutionResult[] = [

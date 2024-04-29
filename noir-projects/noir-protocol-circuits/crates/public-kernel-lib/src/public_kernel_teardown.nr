@@ -44,10 +44,8 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         //     "Validating tx fee: total_gas_used.da={0} total_gas_used.l1={1} total_gas_used.l2={2} block_fee_per_gas.da={3} block_fee_per_gas.l1={4} block_fee_per_gas.l2={5} inclusion_fee={6} computed={7} actual={8}",
         //     [
         //     total_gas_used.da_gas as Field,
-        //     total_gas_used.l1_gas as Field,
         //     total_gas_used.l2_gas as Field,
         //     block_gas_fees.fee_per_da_gas as Field,
-        //     block_gas_fees.fee_per_l1_gas as Field,
         //     block_gas_fees.fee_per_l2_gas as Field,
         //     inclusion_fee,
         //     computed_transaction_fee,
@@ -415,7 +413,7 @@ mod tests {
     #[test(should_fail_with="Start gas for teardown phase does not match teardown gas allocation")]
     fn validates_start_gas() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-        builder.public_call.public_inputs.start_gas_left = Gas::new(10, 20, 30);
+        builder.public_call.public_inputs.start_gas_left = Gas::new(10, 30);
 
         builder.failed();
     }

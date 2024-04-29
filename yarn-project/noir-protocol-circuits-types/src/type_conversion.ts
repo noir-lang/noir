@@ -1102,7 +1102,6 @@ export function mapPublicAccumulatedDataToNoir(
 export function mapGasFromNoir(gasUsed: GasNoir): Gas {
   return Gas.from({
     daGas: mapNumberFromNoir(gasUsed.da_gas),
-    l1Gas: mapNumberFromNoir(gasUsed.l1_gas),
     l2Gas: mapNumberFromNoir(gasUsed.l2_gas),
   });
 }
@@ -1110,7 +1109,6 @@ export function mapGasFromNoir(gasUsed: GasNoir): Gas {
 export function mapGasToNoir(gasUsed: Gas): GasNoir {
   return {
     da_gas: mapNumberToNoir(gasUsed.daGas),
-    l1_gas: mapNumberToNoir(gasUsed.l1Gas),
     l2_gas: mapNumberToNoir(gasUsed.l2Gas),
   };
 }
@@ -1506,17 +1504,12 @@ export function mapGlobalVariablesFromNoir(globalVariables: GlobalVariablesNoir)
 export function mapGasFeesToNoir(gasFees: GasFees): GasFeesNoir {
   return {
     fee_per_da_gas: mapFieldToNoir(gasFees.feePerDaGas),
-    fee_per_l1_gas: mapFieldToNoir(gasFees.feePerL1Gas),
     fee_per_l2_gas: mapFieldToNoir(gasFees.feePerL2Gas),
   };
 }
 
 export function mapGasFeesFromNoir(gasFees: GasFeesNoir): GasFees {
-  return new GasFees(
-    mapFieldFromNoir(gasFees.fee_per_da_gas),
-    mapFieldFromNoir(gasFees.fee_per_l1_gas),
-    mapFieldFromNoir(gasFees.fee_per_l2_gas),
-  );
+  return new GasFees(mapFieldFromNoir(gasFees.fee_per_da_gas), mapFieldFromNoir(gasFees.fee_per_l2_gas));
 }
 
 /**

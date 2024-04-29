@@ -41,7 +41,6 @@ class GlobalVariables {
     coinbase: EthAddress
     fee_recipient: Address
     gas_fees.fees_per_da_gas: Fr
-    gas_fees.fees_per_l1_gas: Fr
     gas_fees.fees_per_l2_gas: Fr
 }
 

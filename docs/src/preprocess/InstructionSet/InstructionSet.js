@@ -30,7 +30,7 @@ const CALL_INSTRUCTION_ARGS = [
   {
     name: "gasOffset",
     description:
-      "offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee",
+      "offset to two words containing `{l2GasLeft, daGasLeft}`: amount of gas to provide to the callee",
   },
   { name: "addrOffset", description: "address of the contract to call" },
   {
@@ -548,25 +548,6 @@ const INSTRUCTION_SET_RAW = [
     "Tag updates": "`T[dstOffset] = u32`",
   },
   {
-    id: "feeperl1gas",
-    Name: "`FEEPERL1GAS`",
-    Category: "Execution Environment",
-    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
-    Args: [
-      {
-        name: "dstOffset",
-        description:
-          "memory offset specifying where to store operation's result",
-      },
-    ],
-    Expression: "`M[dstOffset] = context.environment.feePerL1Gas`",
-    Summary:
-      'Get the fee to be paid per "L1 gas" - constant for entire transaction',
-    Details: "",
-    "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = u32`",
-  },
-  {
     id: "feeperl2gas",
     Name: "`FEEPERL2GAS`",
     Category: "Execution Environment",
@@ -714,24 +695,6 @@ const INSTRUCTION_SET_RAW = [
     "Tag updates": "`T[dstOffset] = u32`",
   },
   {
-    id: "blockl1gaslimit",
-    Name: "`BLOCKL1GASLIMIT`",
-    Category: "Execution Environment - Globals",
-    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
-    Args: [
-      {
-        name: "dstOffset",
-        description:
-          "memory offset specifying where to store operation's result",
-      },
-    ],
-    Expression: "`M[dstOffset] = context.environment.globals.l1GasLimit`",
-    Summary: 'Total amount of "L1 gas" that a block can consume',
-    Details: "",
-    "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = u32`",
-  },
-  {
     id: "blockl2gaslimit",
     Name: "`BLOCKL2GASLIMIT`",
     Category: "Execution Environment - Globals",
@@ -792,24 +755,6 @@ const INSTRUCTION_SET_RAW = [
       "Calldata is read-only and cannot be directly operated on by other instructions. This instruction moves words from calldata into memory so they can be operated on normally.",
     "Tag checks": "",
     "Tag updates": "`T[dstOffset:dstOffset+copySize] = field`",
-  },
-  {
-    id: "l1gasleft",
-    Name: "`L1GASLEFT`",
-    Category: "Machine State - Gas",
-    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
-    Args: [
-      {
-        name: "dstOffset",
-        description:
-          "memory offset specifying where to store operation's result",
-      },
-    ],
-    Expression: "`M[dstOffset] = context.machineState.l1GasLeft`",
-    Summary: 'Remaining "L1 gas" for this call (after this instruction)',
-    Details: "",
-    "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = u32`",
   },
   {
     id: "l2gasleft",
@@ -1439,9 +1384,8 @@ context.accruedSubstate.sentL2ToL1Messages.append(
     Expression: `
 // instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
 chargeGas(context,
-          l1GasCost=M[instr.args.gasOffset],
-          l2GasCost=M[instr.args.gasOffset+1],
-          daGasCost=M[instr.args.gasOffset+2])
+          l2GasCost=M[instr.args.gasOffset],
+          daGasCost=M[instr.args.gasOffset+1])
 traceNestedCall(context, instr.args.addrOffset)
 nestedContext = deriveContext(context, instr.args, isStaticCall=false, isDelegateCall=false)
 execute(nestedContext)
@@ -1469,9 +1413,8 @@ T[retOffset:retOffset+retSize] = field
     Expression: `
 // instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
 chargeGas(context,
-          l1GasCost=M[instr.args.gasOffset],
-          l2GasCost=M[instr.args.gasOffset+1],
-          daGasCost=M[instr.args.gasOffset+2])
+          l2GasCost=M[instr.args.gasOffset],
+          daGasCost=M[instr.args.gasOffset+1])
 traceNestedCall(context, instr.args.addrOffset)
 nestedContext = deriveContext(context, instr.args, isStaticCall=true, isDelegateCall=false)
 execute(nestedContext)
@@ -1497,9 +1440,8 @@ T[retOffset:retOffset+retSize] = field
     Expression: `
 // instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
 chargeGas(context,
-          l1GasCost=M[instr.args.gasOffset],
-          l2GasCost=M[instr.args.gasOffset+1],
-          daGasCost=M[instr.args.gasOffset+2])
+          l2GasCost=M[instr.args.gasOffset],
+          daGasCost=M[instr.args.gasOffset+1])
 traceNestedCall(context, instr.args.addrOffset)
 nestedContext = deriveContext(context, instr.args, isStaticCall=false, isDelegateCall=true)
 execute(nestedContext)

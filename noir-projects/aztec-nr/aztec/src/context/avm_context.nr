@@ -24,9 +24,6 @@ impl AvmContext {
     pub fn storage_address(self) -> AztecAddress {
         storage_address()
     }
-    pub fn fee_per_l1_gas(self) -> Field {
-        fee_per_l1_gas()
-    }
     pub fn fee_per_l2_gas(self) -> Field {
         fee_per_l2_gas()
     }
@@ -73,11 +70,6 @@ impl PublicContextInterface for AvmContext {
 
     fn fee_per_da_gas(self) -> Field {
         assert(false, "'fee_per_da_gas' not implemented!");
-        0
-    }
-
-    fn fee_per_l1_gas(self) -> Field {
-        assert(false, "'fee_per_l1_gas' not implemented!");
         0
     }
 
@@ -196,9 +188,8 @@ impl ContextInterface for AvmContext {
 }
 
 // Helper functions
-fn gas_for_call(user_gas: GasOpts) -> [Field; 3] {
+fn gas_for_call(user_gas: GasOpts) -> [Field; 2] {
     [
-        user_gas.l1_gas.unwrap_or_else(|| l1_gas_left()),
         user_gas.l2_gas.unwrap_or_else(|| l2_gas_left() - NESTED_CALL_L2_GAS_BUFFER),
         user_gas.da_gas.unwrap_or_else(|| da_gas_left())
     ]
@@ -217,9 +208,6 @@ fn sender() -> AztecAddress {}
 #[oracle(avmOpcodePortal)]
 fn portal() -> EthAddress {}
 
-#[oracle(avmOpcodeFeePerL1Gas)]
-fn fee_per_l1_gas() -> Field {}
-
 #[oracle(avmOpcodeFeePerL2Gas)]
 fn fee_per_l2_gas() -> Field {}
 
@@ -237,9 +225,6 @@ fn block_number() -> Field {}
 
 #[oracle(avmOpcodeTimestamp)]
 fn timestamp() -> u64 {}
-
-#[oracle(avmOpcodeL1GasLeft)]
-fn l1_gas_left() -> Field {}
 
 #[oracle(avmOpcodeL2GasLeft)]
 fn l2_gas_left() -> Field {}
@@ -270,7 +255,7 @@ fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {}
 
 #[oracle(avmOpcodeCall)]
 fn call<RET_SIZE>(
-    gas: [Field; 3], // gas allocation: [l1_gas, l2_gas, da_gas]
+    gas: [Field; 2], // gas allocation: [l2_gas, da_gas]
     address: AztecAddress,
     args: [Field],
     // TODO(5110): consider passing in calldata directly
@@ -280,7 +265,7 @@ fn call<RET_SIZE>(
 
 #[oracle(avmOpcodeStaticCall)]
 fn call_static<RET_SIZE>(
-    gas: [Field; 3], // gas allocation: [l1_gas, l2_gas, da_gas]
+    gas: [Field; 2], // gas allocation: [l2_gas, da_gas]
     address: AztecAddress,
     args: [Field],
     // TODO(5110): consider passing in calldata directly

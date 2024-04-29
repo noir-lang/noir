@@ -9,7 +9,6 @@ import { OutOfGasError } from './errors.js';
  * A few fields of machine state are initialized from AVM session inputs or call instruction arguments
  */
 export type InitialAvmMachineState = {
-  l1GasLeft: number;
   l2GasLeft: number;
   daGasLeft: number;
 };
@@ -18,7 +17,6 @@ export type InitialAvmMachineState = {
  * Avm state modified on an instruction-per-instruction basis.
  */
 export class AvmMachineState {
-  public l1GasLeft: number;
   /** gas remaining of the gas allocated for a contract call */
   public l2GasLeft: number;
   public daGasLeft: number;
@@ -45,23 +43,22 @@ export class AvmMachineState {
   private output: Fr[] = [];
 
   constructor(gasLeft: Gas);
-  constructor(l1GasLeft: number, l2GasLeft: number, daGasLeft: number);
-  constructor(gasLeftOrL1GasLeft: Gas | number, l2GasLeft?: number, daGasLeft?: number) {
-    if (typeof gasLeftOrL1GasLeft === 'object') {
-      ({ l1Gas: this.l1GasLeft, l2Gas: this.l2GasLeft, daGas: this.daGasLeft } = gasLeftOrL1GasLeft);
+  constructor(l2GasLeft: number, daGasLeft: number);
+  constructor(gasLeftOrL2GasLeft: Gas | number, daGasLeft?: number) {
+    if (typeof gasLeftOrL2GasLeft === 'object') {
+      ({ l2Gas: this.l2GasLeft, daGas: this.daGasLeft } = gasLeftOrL2GasLeft);
     } else {
-      this.l1GasLeft = gasLeftOrL1GasLeft;
-      this.l2GasLeft = l2GasLeft!;
+      this.l2GasLeft = gasLeftOrL2GasLeft!;
       this.daGasLeft = daGasLeft!;
     }
   }
 
   public get gasLeft(): Gas {
-    return { l1Gas: this.l1GasLeft, l2Gas: this.l2GasLeft, daGas: this.daGasLeft };
+    return { l2Gas: this.l2GasLeft, daGas: this.daGasLeft };
   }
 
   public static fromState(state: InitialAvmMachineState): AvmMachineState {
-    return new AvmMachineState(state.l1GasLeft, state.l2GasLeft, state.daGasLeft);
+    return new AvmMachineState(state.l2GasLeft, state.daGasLeft);
   }
 
   /**
