@@ -48,7 +48,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 let errors = errors
                     .into_iter()
                     .map(|error| {
-                        let error: CustomDiagnostic = error.into();
+                        let error = CustomDiagnostic::from(&error);
                         error.in_file(file_id)
                     })
                     .collect();

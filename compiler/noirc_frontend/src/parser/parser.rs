@@ -736,7 +736,7 @@ fn maybe_comp_time() -> impl NoirParser<bool> {
     keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
             emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("comptime"),
+                ParserErrorReason::ExperimentalFeature("Comptime values"),
                 span,
             ));
         }

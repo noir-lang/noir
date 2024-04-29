@@ -70,20 +70,21 @@ impl<'a> Interpreter<'a> {
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
-        call_location: Location,
+        location: Location,
     ) -> IResult<Value> {
         let previous_state = self.enter_function();
 
         let meta = self.interner.function_meta(&function);
         if meta.kind != FunctionKind::Normal {
-            todo!("Evaluation for {:?} is unimplemented", meta.kind);
+            let item = "Evaluation for builtin functions";
+            return Err(InterpreterError::Unimplemented { item, location });
         }
 
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
                 actual: arguments.len(),
-                call_location,
+                location,
             });
         }
 
@@ -113,7 +114,7 @@ impl<'a> Interpreter<'a> {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: closure.parameters.len(),
                 actual: arguments.len(),
-                call_location,
+                location: call_location,
             });
         }
 
