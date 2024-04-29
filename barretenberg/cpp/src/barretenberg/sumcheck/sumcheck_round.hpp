@@ -245,7 +245,7 @@ template <typename Flavor> class SumcheckProverRound {
                 std::get<relation_idx>(univariate_accumulators), extended_edges, relation_parameters, scaling_factor);
         } else {
             // If so, only compute the contribution if the relation is active
-            if (!Relation::skip(extended_edges, relation_parameters)) {
+            if (!Relation::skip(extended_edges)) {
                 Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
                                      extended_edges,
                                      relation_parameters,

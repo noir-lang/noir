@@ -122,7 +122,7 @@ consteval std::array<size_t, NUM_SUBRELATIONS> compute_composed_subrelation_part
 template <typename Relation, typename AllEntities>
 concept isSkippable = requires(const AllEntities& input) {
                           {
-                              Relation::is_active(input)
+                              Relation::skip(input)
                               } -> std::same_as<bool>;
                       };
 
