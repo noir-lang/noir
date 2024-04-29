@@ -58,12 +58,12 @@ pub(crate) fn optimize_into_acir(
         .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
-        // Run the inlining pass again as certain codegen attributes will now be disabled after flattening,
-        // such as treating functions marked with the `InlineType::Never` as an entry point.
-        .run_pass(Ssa::inline_functions, "After Inlining:")
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        // Run the inlining pass again as certain codegen attributes will now be disabled after flattening,
+        // such as treating functions marked with the `InlineType::Never` as an entry point.
+        .run_pass(Ssa::inline_functions, "After Inlining:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
