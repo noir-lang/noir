@@ -22,7 +22,7 @@ use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
@@ -96,6 +96,21 @@ pub struct Resolver<'a> {
     /// Used to link items to their dependencies in the dependency graph
     current_item: Option<DependencyId>,
 
+    /// In-resolution names
+    ///
+    /// This needs to be a set because we can have multiple in-resolution
+    /// names when resolving structs that are declared in reverse order of their
+    /// dependencies, such as in the following case:
+    ///
+    /// ```
+    /// struct Wrapper {
+    ///     value: Wrapped
+    /// }
+    /// struct Wrapped {
+    /// }
+    /// ```
+    resolving_ids: BTreeSet<StructId>,
+
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
     /// be overridden for impls. Impls are an odd case since the methods within resolve
@@ -159,6 +174,7 @@ impl<'a> Resolver<'a> {
             lambda_stack: Vec::new(),
             current_trait_impl: None,
             current_item: None,
+            resolving_ids: BTreeSet::new(),
             file,
             in_contract,
             in_unconstrained_fn: false,
@@ -616,6 +632,14 @@ impl<'a> Resolver<'a> {
 
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
+                if self.resolving_ids.contains(&struct_type.borrow().id) {
+                    self.push_err(ResolverError::SelfReferentialStruct {
+                        span: struct_type.borrow().name.span(),
+                    });
+
+                    return Type::Error;
+                }
+
                 let expected_generic_count = struct_type.borrow().generics.len();
                 if !self.in_contract
                     && self
@@ -886,7 +910,10 @@ impl<'a> Resolver<'a> {
         self.resolve_local_globals();
 
         self.current_item = Some(DependencyId::Struct(struct_id));
+
+        self.resolving_ids.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        self.resolving_ids.remove(&struct_id);
 
         (generics, fields, self.errors)
     }
@@ -926,7 +953,23 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let has_inline_attribute = attributes.is_inline();
         let should_fold = attributes.is_foldable();
+        if !self.inline_attribute_allowed(func) {
+            if has_inline_attribute {
+                self.push_err(ResolverError::InlineAttributeOnUnconstrained {
+                    ident: func.name_ident().clone(),
+                });
+            } else if should_fold {
+                self.push_err(ResolverError::FoldAttributeOnUnconstrained {
+                    ident: func.name_ident().clone(),
+                });
+            }
+        }
+        // Both the #[fold] and #[inline(tag)] alter a function's inline type and code generation in similar ways.
+        // In certain cases such as type checking (for which the following flag will be used) both attributes
+        // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+        let has_inline_or_fold_attribute = has_inline_attribute || should_fold;
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -1021,7 +1064,7 @@ impl<'a> Resolver<'a> {
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
-            should_fold,
+            has_inline_or_fold_attribute,
         }
     }
 
@@ -1055,6 +1098,12 @@ impl<'a> Resolver<'a> {
         } else {
             func.name() == MAIN_FUNCTION
         }
+    }
+
+    fn inline_attribute_allowed(&self, func: &NoirFunction) -> bool {
+        // Inline attributes are only relevant for constrained functions
+        // as all unconstrained functions are not inlined
+        !func.def.is_unconstrained
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {

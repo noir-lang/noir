@@ -256,9 +256,9 @@ impl BitXor for U128 {
 }
 
 impl Shl for U128 { 
-    fn shl(self, other: U128) -> U128 { 
-        assert(other < U128::from_u64s_le(128,0), "attempt to shift left with overflow");
-        let exp_bits = other.lo.to_be_bits(7);
+    fn shl(self, other: u8) -> U128 { 
+        assert(other < 128, "attempt to shift left with overflow");
+        let exp_bits = (other as Field).to_be_bits(7);
 
         let mut r: Field = 2;
         let mut y: Field = 1;
@@ -271,9 +271,9 @@ impl Shl for U128 {
 }
 
 impl Shr for U128 { 
-    fn shr(self, other: U128) -> U128 { 
-        assert(other < U128::from_u64s_le(128,0), "attempt to shift right with overflow");
-        let exp_bits = other.lo.to_be_bits(7);
+    fn shr(self, other: u8) -> U128 { 
+        assert(other < 128, "attempt to shift right with overflow");
+        let exp_bits = (other as Field).to_be_bits(7);
 
         let mut r: Field = 2;
         let mut y: Field = 1;
