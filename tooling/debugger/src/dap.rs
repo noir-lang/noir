@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::str::FromStr;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
@@ -252,8 +251,11 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         let mut instructions: Vec<DisassembledInstruction> = vec![];
 
         while count > 0 {
-            let opcode_location =
-                if address >= 0 { self.context.address_to_opcode_location(address as usize) } else { None };
+            let opcode_location = if address >= 0 {
+                self.context.address_to_opcode_location(address as usize)
+            } else {
+                None
+            };
 
             if let Some(opcode_location) = opcode_location {
                 instructions.push(DisassembledInstruction {
@@ -407,25 +409,35 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .breakpoints
             .iter()
             .map(|breakpoint| {
-                let Ok(location) =
-                    OpcodeLocation::from_str(breakpoint.instruction_reference.as_str())
-                else {
+                let offset = breakpoint.offset.unwrap_or(0);
+                let address = breakpoint.instruction_reference.parse::<i64>().unwrap_or(0) + offset;
+                let Ok(address): Result<usize, _> = address.try_into() else {
                     return Breakpoint {
                         verified: false,
-                        message: Some(String::from("Missing instruction reference")),
+                        message: Some(String::from("Invalid instruction reference/offset")),
                         ..Breakpoint::default()
                     };
                 };
-                if !self.context.is_valid_opcode_location(&location) {
+                let Some(location) = self
+                    .context
+                    .address_to_opcode_location(address)
+                    .filter(|location| self.context.is_valid_opcode_location(location))
+                else {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from("Invalid opcode location")),
                         ..Breakpoint::default()
                     };
-                }
+                };
                 let id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, id));
-                Breakpoint { id: Some(id), verified: true, ..Breakpoint::default() }
+                Breakpoint {
+                    id: Some(id),
+                    verified: true,
+                    offset: Some(0),
+                    instruction_reference: Some(address.to_string()),
+                    ..Breakpoint::default()
+                }
             })
             .collect();
 
@@ -485,15 +497,17 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         ..Breakpoint::default()
                     };
                 }
-                let instruction_reference = format!("{}", location);
+                let breakpoint_address = self.context.opcode_location_to_address(&location);
+                let instruction_reference = format!("{}", breakpoint_address);
                 let breakpoint_id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, breakpoint_id));
                 Breakpoint {
                     id: Some(breakpoint_id),
                     verified: true,
                     source: Some(args.source.clone()),
-                    instruction_reference: Some(instruction_reference),
                     line: Some(line),
+                    instruction_reference: Some(instruction_reference),
+                    offset: Some(0),
                     ..Breakpoint::default()
                 }
             })
