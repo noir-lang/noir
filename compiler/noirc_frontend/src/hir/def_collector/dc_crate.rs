@@ -158,8 +158,8 @@ pub enum CompilationError {
     InterpreterError(InterpreterError),
 }
 
-impl From<CompilationError> for CustomDiagnostic {
-    fn from(value: CompilationError) -> Self {
+impl<'a> From<&'a CompilationError> for CustomDiagnostic {
+    fn from(value: &'a CompilationError) -> Self {
         match value {
             CompilationError::ParseError(error) => error.into(),
             CompilationError::DefinitionError(error) => error.into(),

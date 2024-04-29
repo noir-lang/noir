@@ -7,7 +7,7 @@ use super::value::Value;
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone)]
 pub enum InterpreterError {
-    ArgumentCountMismatch { expected: usize, actual: usize, call_location: Location },
+    ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
     NonComptimeVarReferenced { name: String, location: Location },
     IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
@@ -60,7 +60,7 @@ impl InterpreterError {
 
     pub fn get_location(&self) -> Location {
         match self {
-            InterpreterError::ArgumentCountMismatch { call_location: location, .. }
+            InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
@@ -98,20 +98,20 @@ impl InterpreterError {
     }
 }
 
-impl From<InterpreterError> for CustomDiagnostic {
-    fn from(error: InterpreterError) -> Self {
+impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
+    fn from(error: &'a InterpreterError) -> Self {
         match error {
-            InterpreterError::ArgumentCountMismatch { expected, actual, call_location } => {
+            InterpreterError::ArgumentCountMismatch { expected, actual, location } => {
                 let only = if expected > actual { "only " } else { "" };
-                let plural = if expected == 1 { "" } else { "s" };
-                let was_were = if actual == 1 { "was" } else { "were" };
+                let plural = if *expected == 1 { "" } else { "s" };
+                let was_were = if *actual == 1 { "was" } else { "were" };
                 let msg = format!(
                     "Expected {expected} argument{plural}, but {only}{actual} {was_were} provided"
                 );
 
                 let few_many = if actual < expected { "few" } else { "many" };
                 let secondary = format!("Too {few_many} arguments");
-                CustomDiagnostic::simple_error(msg, secondary, call_location.span)
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::TypeMismatch { expected, value, location } => {
                 let typ = value.get_type();
