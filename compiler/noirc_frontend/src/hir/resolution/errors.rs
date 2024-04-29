@@ -350,7 +350,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Self-referential structs are not supported".into(),
                     "".into(),
-                    span,
+                    *span,
                 )
             },
             ResolverError::InlineAttributeOnUnconstrained { ident } => {
