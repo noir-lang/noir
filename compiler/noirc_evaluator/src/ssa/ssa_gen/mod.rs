@@ -12,10 +12,7 @@ use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use crate::{
     errors::{InternalError, RuntimeError},
-    ssa::{
-        function_builder::data_bus::DataBusBuilder,
-        ir::{function::InlineType, instruction::Intrinsic},
-    },
+    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
 };
 
 use self::{
@@ -61,9 +58,7 @@ pub(crate) fn generate_ssa(
         if force_brillig_runtime || main.unconstrained {
             RuntimeType::Brillig
         } else {
-            let main_inline_type =
-                if main.should_fold { InlineType::Fold } else { InlineType::Inline };
-            RuntimeType::Acir(main_inline_type)
+            RuntimeType::Acir(main.inline_type)
         },
         &context,
     );
