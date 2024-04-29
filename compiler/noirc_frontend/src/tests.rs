@@ -761,7 +761,13 @@ mod test {
             fn ok(self) -> Self {
                 self
             }
+        }";
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
+    }
 
+    #[test]
     fn check_trait_as_type_as_fn_parameter() {
         let src = "
         trait Eq {
