@@ -1279,8 +1279,11 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         result_variable: SingleAddrVariable,
     ) {
-        let binary_type =
-            type_of_binary_operation(dfg[binary.lhs].get_type(), dfg[binary.rhs].get_type());
+        let binary_type = type_of_binary_operation(
+            dfg[binary.lhs].get_type(),
+            dfg[binary.rhs].get_type(),
+            binary.operator,
+        );
 
         let left = self.convert_ssa_single_addr_value(binary.lhs, dfg);
         let right = self.convert_ssa_single_addr_value(binary.rhs, dfg);
@@ -1766,7 +1769,7 @@ impl<'block> BrilligBlock<'block> {
 }
 
 /// Returns the type of the operation considering the types of the operands
-pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type, op: BinaryOp) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
@@ -1782,12 +1785,15 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         }
         // If both sides are numeric type, then we expect their types to be
         // the same.
-        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
+        (Type::Numeric(lhs_type), Type::Numeric(rhs_type))
+            if op != BinaryOp::Shl && op != BinaryOp::Shr =>
+        {
             assert_eq!(
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
             );
             Type::Numeric(*lhs_type)
         }
+        _ => lhs_type.clone(),
     }
 }

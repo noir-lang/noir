@@ -517,12 +517,12 @@ impl<'function> PerFunctionContext<'function> {
 #[cfg(test)]
 mod test {
     use acvm::FieldElement;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
-            function::InlineType,
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,

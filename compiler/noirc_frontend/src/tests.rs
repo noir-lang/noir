@@ -31,8 +31,8 @@ mod test {
         hir::def_map::{CrateDefMap, LocalModuleId},
         parse_program,
     };
-    use arena::Arena;
     use fm::FileManager;
+    use noirc_arena::Arena;
 
     pub(crate) fn has_parser_error(errors: &[(CompilationError, FileId)]) -> bool {
         errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
@@ -1189,7 +1189,7 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     }
 
     #[test]
-    fn deny_cyclic_structs() {
+    fn deny_mutually_recursive_structs() {
         let src = r#"
             struct Foo { bar: Bar }
             struct Bar { foo: Foo }
@@ -1303,5 +1303,46 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
             fn main(_arg: Outer<1>) {}
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    #[test]
+    fn ban_mutable_globals() {
+        // Mutable globals are only allowed in a comptime context
+        let src = r#"
+            mut global FOO: Field = 0;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    fn deny_inline_attribute_on_unconstrained() {
+        let src = r#"
+            #[inline(never)]
+            unconstrained fn foo(x: Field, y: Field) {
+                assert(x != y);
+            }
+        "#;
+        let errors = get_program_errors(src);
+        assert_eq!(errors.len(), 1);
+        assert!(matches!(
+            errors[0].0,
+            CompilationError::ResolverError(ResolverError::InlineAttributeOnUnconstrained { .. })
+        ));
+    }
+
+    #[test]
+    fn deny_fold_attribute_on_unconstrained() {
+        let src = r#"
+            #[fold]
+            unconstrained fn foo(x: Field, y: Field) {
+                assert(x != y);
+            }
+        "#;
+        let errors = get_program_errors(src);
+        assert_eq!(errors.len(), 1);
+        assert!(matches!(
+            errors[0].0,
+            CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
+        ));
     }
 }

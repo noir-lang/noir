@@ -112,7 +112,7 @@ impl std::fmt::Display for ParserError {
         let reason_str: String = if self.reason.is_none() {
             "".to_string()
         } else {
-            format!("\nreason: {}", Diagnostic::from(self.clone()))
+            format!("\nreason: {}", Diagnostic::from(self))
         };
         let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
         expected.append(&mut vecmap(&self.expected_labels, |label| format!("{label}")));
@@ -138,9 +138,9 @@ impl std::fmt::Display for ParserError {
     }
 }
 
-impl From<ParserError> for Diagnostic {
-    fn from(error: ParserError) -> Diagnostic {
-        match error.reason {
+impl<'a> From<&'a ParserError> for Diagnostic {
+    fn from(error: &'a ParserError) -> Diagnostic {
+        match &error.reason {
             Some(reason) => {
                 match reason {
                     ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
