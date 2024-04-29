@@ -320,11 +320,6 @@ impl Ssa {
                     }
                 }
 
-                generated_acir.inline_type = match function.runtime() {
-                    RuntimeType::Acir(inline_type) => inline_type,
-                    // TODO: switch to real error
-                    _ => panic!("unexpected brillig runtime for a generated acir"),
-                };
                 generated_acir.name = function.name().to_owned();
                 acirs.push(generated_acir);
             }
