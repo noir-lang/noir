@@ -54,7 +54,7 @@ impl Ssa {
         self.functions = btree_map(
             get_entry_point_functions(&self, no_predicates_is_entry_point),
             |entry_point| {
-                let new_function = InlineContext::new(&self, entry_point, false).inline_all(&self);
+                let new_function = InlineContext::new(&self, entry_point, no_predicates_is_entry_point).inline_all(&self);
                 (entry_point, new_function)
             },
         );
