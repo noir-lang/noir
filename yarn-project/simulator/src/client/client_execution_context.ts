@@ -21,7 +21,7 @@ import {
   type SideEffect,
   type TxContext,
 } from '@aztec/circuits.js';
-import { Aes128, type Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { Aes128 } from '@aztec/circuits.js/barretenberg';
 import { computePublicDataTreeLeafSlot, computeUniqueNoteHash, siloNoteHash } from '@aztec/circuits.js/hash';
 import { type FunctionAbi, type FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
@@ -77,7 +77,6 @@ export class ClientExecutionContext extends ViewDataOracle {
     private readonly packedValuesCache: PackedValuesCache,
     private readonly noteCache: ExecutionNoteCache,
     db: DBOracle,
-    private readonly curve: Grumpkin,
     private node: AztecNode,
     protected sideEffectCounter: number = 0,
     log = createDebugLogger('aztec:simulator:client_execution_context'),
@@ -345,7 +344,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     const note = new Note(log);
     const l1NotePayload = new L1NotePayload(note, contractAddress, storageSlot, noteTypeId);
     const taggedNote = new TaggedNote(l1NotePayload);
-    const encryptedNote = taggedNote.toEncryptedBuffer(publicKey, this.curve);
+    const encryptedNote = taggedNote.toEncryptedBuffer(publicKey);
     const encryptedLog = new EncryptedL2Log(encryptedNote);
     this.encryptedLogs.push(encryptedLog);
     return Fr.fromBuffer(encryptedLog.hash());
@@ -421,7 +420,6 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.packedValuesCache,
       this.noteCache,
       this.db,
-      this.curve,
       this.node,
       sideEffectCounter,
     );

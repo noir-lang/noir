@@ -51,4 +51,15 @@ impl GrumpkinPoint {
         assert(self.x == 0);
         assert(self.y == 0);
     }
+
+    pub fn to_be_bytes(self: Self) -> [u8; 64] {
+        let mut result = [0 as u8; 64];
+        let x_bytes = self.x.to_be_bytes(32);
+        let y_bytes = self.y.to_be_bytes(32);
+        for i in 0..32 {
+            result[i] = x_bytes[i];
+            result[i + 32] = y_bytes[i];
+        }
+        result
+    }
 }

@@ -20,8 +20,8 @@ describe('L1 Note Payload', () => {
     const payload = L1NotePayload.random();
     const ownerPrivKey = GrumpkinScalar.random();
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
-    const encrypted = payload.toEncryptedBuffer(ownerPubKey, grumpkin);
-    const decrypted = L1NotePayload.fromEncryptedBuffer(encrypted, ownerPrivKey, grumpkin);
+    const encrypted = payload.toEncryptedBuffer(ownerPubKey);
+    const decrypted = L1NotePayload.fromEncryptedBuffer(encrypted, ownerPrivKey);
     expect(decrypted).not.toBeUndefined();
     expect(decrypted).toEqual(payload);
   });
@@ -29,9 +29,9 @@ describe('L1 Note Payload', () => {
   it('return undefined if unable to decrypt the encrypted buffer', () => {
     const payload = L1NotePayload.random();
     const ownerPubKey = Point.random();
-    const encrypted = payload.toEncryptedBuffer(ownerPubKey, grumpkin);
+    const encrypted = payload.toEncryptedBuffer(ownerPubKey);
     const randomPrivKey = GrumpkinScalar.random();
-    const decrypted = L1NotePayload.fromEncryptedBuffer(encrypted, randomPrivKey, grumpkin);
+    const decrypted = L1NotePayload.fromEncryptedBuffer(encrypted, randomPrivKey);
     expect(decrypted).toBeUndefined();
   });
 });

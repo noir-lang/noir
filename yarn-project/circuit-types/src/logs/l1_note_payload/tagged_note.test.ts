@@ -23,8 +23,8 @@ describe('L1 Note Payload', () => {
     const taggedNote = new TaggedNote(payload);
     const ownerPrivKey = GrumpkinScalar.random();
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
-    const encrypted = taggedNote.toEncryptedBuffer(ownerPubKey, grumpkin);
-    const decrypted = TaggedNote.fromEncryptedBuffer(encrypted, ownerPrivKey, grumpkin);
+    const encrypted = taggedNote.toEncryptedBuffer(ownerPubKey);
+    const decrypted = TaggedNote.fromEncryptedBuffer(encrypted, ownerPrivKey);
     expect(decrypted).not.toBeUndefined();
     expect(decrypted?.notePayload).toEqual(payload);
   });
@@ -33,9 +33,9 @@ describe('L1 Note Payload', () => {
     const payload = L1NotePayload.random();
     const taggedNote = new TaggedNote(payload);
     const ownerPubKey = Point.random();
-    const encrypted = taggedNote.toEncryptedBuffer(ownerPubKey, grumpkin);
+    const encrypted = taggedNote.toEncryptedBuffer(ownerPubKey);
     const randomPrivKey = GrumpkinScalar.random();
-    const decrypted = TaggedNote.fromEncryptedBuffer(encrypted, randomPrivKey, grumpkin);
+    const decrypted = TaggedNote.fromEncryptedBuffer(encrypted, randomPrivKey);
     expect(decrypted).toBeUndefined();
   });
 });

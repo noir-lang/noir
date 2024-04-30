@@ -8,7 +8,6 @@ import {
 } from '@aztec/circuit-types';
 import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
 import { INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX, type PublicKey } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
@@ -99,7 +98,6 @@ export class NoteProcessor {
       return;
     }
 
-    const curve = new Grumpkin();
     const blocksAndNotes: ProcessedData[] = [];
     // Keep track of notes that we couldn't process because the contract was not found.
     const deferredNoteDaos: DeferredNoteDao[] = [];
@@ -132,7 +130,7 @@ export class NoteProcessor {
         for (const functionLogs of txFunctionLogs) {
           for (const log of functionLogs.logs) {
             this.stats.seen++;
-            const taggedNote = TaggedNote.fromEncryptedBuffer(log.data, secretKey, curve);
+            const taggedNote = TaggedNote.fromEncryptedBuffer(log.data, secretKey);
             if (taggedNote?.notePayload) {
               const { notePayload: payload } = taggedNote;
               // We have successfully decrypted the data.

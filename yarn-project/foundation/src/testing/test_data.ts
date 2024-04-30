@@ -66,7 +66,7 @@ export function updateInlineTestData(targetFileFromRepoRoot: string, itemName: s
   const logger = createConsoleLogger('aztec:testing:test_data');
   const targetFile = getPathToFile(targetFileFromRepoRoot);
   const contents = readFileSync(targetFile, 'utf8').toString();
-  const regex = new RegExp(`let ${itemName} = .*;`, 'g');
+  const regex = new RegExp(`let ${itemName} = [\\s\\S]*?;`, 'g');
   if (!regex.exec(contents)) {
     throw new Error(`Test data marker for ${itemName} not found in ${targetFile}`);
   }

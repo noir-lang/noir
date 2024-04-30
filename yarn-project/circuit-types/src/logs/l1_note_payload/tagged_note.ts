@@ -1,5 +1,4 @@
 import { type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
-import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -37,11 +36,10 @@ export class TaggedNote {
   /**
    * Encrypt the L1NotePayload object using the owner's public key and the ephemeral private key, then attach the tag.
    * @param ownerPubKey - Public key of the owner of the TaggedNote object.
-   * @param curve - The curve instance to use.
    * @returns The encrypted TaggedNote object.
    */
-  public toEncryptedBuffer(ownerPubKey: PublicKey, curve: Grumpkin): Buffer {
-    const encryptedL1NotePayload = this.notePayload.toEncryptedBuffer(ownerPubKey, curve);
+  public toEncryptedBuffer(ownerPubKey: PublicKey): Buffer {
+    const encryptedL1NotePayload = this.notePayload.toEncryptedBuffer(ownerPubKey);
     return serializeToBuffer(this.tag, encryptedL1NotePayload);
   }
 
@@ -49,16 +47,15 @@ export class TaggedNote {
    * Decrypts the L1NotePayload object using the owner's private key.
    * @param data - Encrypted TaggedNote object.
    * @param ownerPrivKey - Private key of the owner of the TaggedNote object.
-   * @param curve - The curve instance to use.
    * @returns Instance of TaggedNote if the decryption was successful, undefined otherwise.
    */
-  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: GrumpkinPrivateKey, curve: Grumpkin): TaggedNote | undefined {
+  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: GrumpkinPrivateKey): TaggedNote | undefined {
     const reader = BufferReader.asReader(data);
     const tag = Fr.fromBuffer(reader);
 
     const encryptedL1NotePayload = reader.readToEnd();
 
-    const payload = L1NotePayload.fromEncryptedBuffer(encryptedL1NotePayload, ownerPrivKey, curve);
+    const payload = L1NotePayload.fromEncryptedBuffer(encryptedL1NotePayload, ownerPrivKey);
     if (!payload) {
       return;
     }

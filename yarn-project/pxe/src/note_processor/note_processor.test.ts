@@ -17,7 +17,6 @@ import {
   type PublicKey,
   deriveKeys,
 } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
 import { openTmpStore } from '@aztec/kv-store/utils';
@@ -34,7 +33,6 @@ import { NoteProcessor } from './note_processor.js';
 const TXS_PER_BLOCK = 4;
 
 describe('Note Processor', () => {
-  const grumpkin = new Grumpkin();
   let database: PxeDatabase;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addNotesSpy: any;
@@ -72,7 +70,7 @@ describe('Note Processor', () => {
           ownedL1NotePayloads.push(note.notePayload);
         }
         // const encryptedNote =
-        const log = note.toEncryptedBuffer(publicKey, grumpkin);
+        const log = note.toEncryptedBuffer(publicKey);
         // 1 tx containing 1 function invocation containing 1 log
         logs.push(new EncryptedFunctionL2Logs([new EncryptedL2Log(log)]));
       }
