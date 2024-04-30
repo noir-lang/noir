@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.36.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.35.1...aztec-package-v0.36.0) (2024-04-30)
+
+
+### Features
+
+* Add key registry to deployment (e2e & sandbox) ([#5875](https://github.com/AztecProtocol/aztec-packages/issues/5875)) ([0881cd3](https://github.com/AztecProtocol/aztec-packages/commit/0881cd3083af70271bceda695d0c8ad21212c172)), closes [#5611](https://github.com/AztecProtocol/aztec-packages/issues/5611)
+* Configure prover as separate process ([#5973](https://github.com/AztecProtocol/aztec-packages/issues/5973)) ([c0dd7b2](https://github.com/AztecProtocol/aztec-packages/commit/c0dd7b21779b99f1b9d3ed43623d3de25a332699))
+* **p2p:** DiscV5 Peer Discovery ([#5652](https://github.com/AztecProtocol/aztec-packages/issues/5652)) ([0e81642](https://github.com/AztecProtocol/aztec-packages/commit/0e8164239b6a1180fd292e37faf1a0e64aa9cff4))
+
+
+### Bug Fixes
+
+* Deploy L1 contracts before starting node ([#5969](https://github.com/AztecProtocol/aztec-packages/issues/5969)) ([1908139](https://github.com/AztecProtocol/aztec-packages/commit/190813911c5e4fc7533525478ceca4162170fa6b))
+* Refuse to start sequencer without a prover ([#6000](https://github.com/AztecProtocol/aztec-packages/issues/6000)) ([b30d0b6](https://github.com/AztecProtocol/aztec-packages/commit/b30d0b6481b0f0b2241f1fcc9ec9bc0f82308ce9))
+
+
+### Miscellaneous
+
+* **ci:** Prevent haywire logs ([#5966](https://github.com/AztecProtocol/aztec-packages/issues/5966)) ([b12f609](https://github.com/AztecProtocol/aztec-packages/commit/b12f60994fdd54cb4d8e18e444c207e319f9d6a6))
+* Integrate new key store ([#5731](https://github.com/AztecProtocol/aztec-packages/issues/5731)) ([ab9fe78](https://github.com/AztecProtocol/aztec-packages/commit/ab9fe780e8a9fc3187a02b37ddbefa609d3bff8f)), closes [#5720](https://github.com/AztecProtocol/aztec-packages/issues/5720)
+* Purging portal addresses ([#5842](https://github.com/AztecProtocol/aztec-packages/issues/5842)) ([4faccad](https://github.com/AztecProtocol/aztec-packages/commit/4faccad569e39228b0f3fbf741fc95e3a189e276))
+* Renaming `noir-compiler` as `builder` ([#5951](https://github.com/AztecProtocol/aztec-packages/issues/5951)) ([185e57d](https://github.com/AztecProtocol/aztec-packages/commit/185e57d51e8bbf6194628ce62db3dd44f11634a4))
+* Replace queue with facade over CircuitProver ([#5972](https://github.com/AztecProtocol/aztec-packages/issues/5972)) ([dafb3ed](https://github.com/AztecProtocol/aztec-packages/commit/dafb3edc799b2adaf285ffe57b41630040c68449))
+* Using poseidon2 when computing a nullifier ([#5906](https://github.com/AztecProtocol/aztec-packages/issues/5906)) ([3a10e5e](https://github.com/AztecProtocol/aztec-packages/commit/3a10e5e75b8053dfea13a4901873d42ca01ca7c2)), closes [#5832](https://github.com/AztecProtocol/aztec-packages/issues/5832) [#1205](https://github.com/AztecProtocol/aztec-packages/issues/1205)
+
 ## [0.35.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.35.0...aztec-package-v0.35.1) (2024-04-16)
 
 

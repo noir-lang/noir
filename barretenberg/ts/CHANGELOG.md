@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.35.1...barretenberg.js-v0.36.0) (2024-04-30)
+
+
+### Miscellaneous
+
+* Do not bootstrap cache if working copy is dirty ([#6033](https://github.com/AztecProtocol/aztec-packages/issues/6033)) ([3671932](https://github.com/AztecProtocol/aztec-packages/commit/367193253670a1d61ffa440d94dad4b9d068e72f))
+
 ## [0.35.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.35.0...barretenberg.js-v0.35.1) (2024-04-16)
 
 

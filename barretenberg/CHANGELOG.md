@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.36.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.35.1...barretenberg-v0.36.0) (2024-04-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove `Opcode::Brillig` from ACIR ([#5995](https://github.com/AztecProtocol/aztec-packages/issues/5995))
+* change backend width to 4 ([#5374](https://github.com/AztecProtocol/aztec-packages/issues/5374))
+
+### Features
+
+* `variable_base_scalar_mul` blackbox func ([#6039](https://github.com/AztecProtocol/aztec-packages/issues/6039)) ([81142fe](https://github.com/AztecProtocol/aztec-packages/commit/81142fe799338e6ed73b30eeac4468c1345f6fab))
+* Avm mem trace validation ([#6025](https://github.com/AztecProtocol/aztec-packages/issues/6025)) ([3a3afb5](https://github.com/AztecProtocol/aztec-packages/commit/3a3afb57ab8b6b3f11b7a7799d557436638c8cd3)), closes [#5950](https://github.com/AztecProtocol/aztec-packages/issues/5950)
+* **avm:** Avm circuit FDIV opcode ([#5958](https://github.com/AztecProtocol/aztec-packages/issues/5958)) ([fed5b6d](https://github.com/AztecProtocol/aztec-packages/commit/fed5b6dd1ee310fc90404a3e5ec9eb02ad7dbc10)), closes [#5953](https://github.com/AztecProtocol/aztec-packages/issues/5953)
+* **avm:** CAST opcode implementation ([#5477](https://github.com/AztecProtocol/aztec-packages/issues/5477)) ([a821bcc](https://github.com/AztecProtocol/aztec-packages/commit/a821bccef7b1894140f0495510d7c6b4eefde821)), closes [#5466](https://github.com/AztecProtocol/aztec-packages/issues/5466)
+* **avm:** Negative tests ([#5919](https://github.com/AztecProtocol/aztec-packages/issues/5919)) ([8a5ece7](https://github.com/AztecProtocol/aztec-packages/commit/8a5ece7548a86d099ac6a166f04882624b8d95fd))
+* **avm:** Shift relations ([#5716](https://github.com/AztecProtocol/aztec-packages/issues/5716)) ([a516637](https://github.com/AztecProtocol/aztec-packages/commit/a51663707b96914b0a300440611748ce44fbe933))
+* Avoiding redundant computation in PG ([#5844](https://github.com/AztecProtocol/aztec-packages/issues/5844)) ([9f57733](https://github.com/AztecProtocol/aztec-packages/commit/9f5773353aa0261fa07a81704bcadcee513d42c5))
+* Change backend width to 4 ([#5374](https://github.com/AztecProtocol/aztec-packages/issues/5374)) ([3f24fc2](https://github.com/AztecProtocol/aztec-packages/commit/3f24fc2cdb56eff6da6e47062d2a2a3dc0fa4bd2))
+* Circuit simulator for Ultra and GoblinUltra verifiers ([#1195](https://github.com/AztecProtocol/aztec-packages/issues/1195)) ([0032a3a](https://github.com/AztecProtocol/aztec-packages/commit/0032a3a55dea5e4c9051dbc36607288f8ca1be4a))
+* Dynamic assertion payloads v2 ([#5949](https://github.com/AztecProtocol/aztec-packages/issues/5949)) ([405bdf6](https://github.com/AztecProtocol/aztec-packages/commit/405bdf6a297b81e0c3fda303cf2b1480eaea69f1))
+* Implement recursive verification in the parity circuits ([#6006](https://github.com/AztecProtocol/aztec-packages/issues/6006)) ([a5b6dac](https://github.com/AztecProtocol/aztec-packages/commit/a5b6dacd5512d7a035655845381b2c720b1e550a))
+* Keshas skipping plus conditions for grand prod relations ([#5766](https://github.com/AztecProtocol/aztec-packages/issues/5766)) ([d8fcfb5](https://github.com/AztecProtocol/aztec-packages/commit/d8fcfb590f788b911111010e20458797d76f5779))
+* Naive structured execution trace ([#5853](https://github.com/AztecProtocol/aztec-packages/issues/5853)) ([23aab17](https://github.com/AztecProtocol/aztec-packages/commit/23aab171b17d0dfb840621a74266496ac270b3e8))
+* Prove then verify flow for honk ([#5957](https://github.com/AztecProtocol/aztec-packages/issues/5957)) ([099346e](https://github.com/AztecProtocol/aztec-packages/commit/099346ebbab9428f57bfffdc03e8bede5c2e2bed))
+
+
+### Bug Fixes
+
+* **avm:** Comments and assert ([#5956](https://github.com/AztecProtocol/aztec-packages/issues/5956)) ([ae50219](https://github.com/AztecProtocol/aztec-packages/commit/ae502199b84999418d461ed5d0d6fca0c60494c5))
+* Fix relation skipping for sumcheck ([#6092](https://github.com/AztecProtocol/aztec-packages/issues/6092)) ([1449c33](https://github.com/AztecProtocol/aztec-packages/commit/1449c338ca79f8d72b71484546aa46ddebb21779))
+* Remove tx.origin ([#5765](https://github.com/AztecProtocol/aztec-packages/issues/5765)) ([c8784d7](https://github.com/AztecProtocol/aztec-packages/commit/c8784d7994937bfae9d23f5d17eb914bae92d8dc)), closes [#5756](https://github.com/AztecProtocol/aztec-packages/issues/5756)
+
+
+### Miscellaneous
+
+* `create_fixed_base_constraint` cleanup ([#6047](https://github.com/AztecProtocol/aztec-packages/issues/6047)) ([e1d6526](https://github.com/AztecProtocol/aztec-packages/commit/e1d6526b34f03458f258c0f0fa6967b5f20035f4))
+* **avm:** Negative unit tests for AVM CAST opcode ([#5907](https://github.com/AztecProtocol/aztec-packages/issues/5907)) ([4465e3b](https://github.com/AztecProtocol/aztec-packages/commit/4465e3be870963ea435d9a0cd063397020442f0b)), closes [#5908](https://github.com/AztecProtocol/aztec-packages/issues/5908)
+* **avm:** Re-enable proof in some unit tests ([#6056](https://github.com/AztecProtocol/aztec-packages/issues/6056)) ([0ebee28](https://github.com/AztecProtocol/aztec-packages/commit/0ebee28b14042417956a02a3247af68f4f13dcf5)), closes [#6019](https://github.com/AztecProtocol/aztec-packages/issues/6019)
+* Clean up and clarify some translator flavor logic ([#5965](https://github.com/AztecProtocol/aztec-packages/issues/5965)) ([242b364](https://github.com/AztecProtocol/aztec-packages/commit/242b364aacdf662cd6dab6254562ab5f61a58731))
+* Do not bootstrap cache if working copy is dirty ([#6033](https://github.com/AztecProtocol/aztec-packages/issues/6033)) ([3671932](https://github.com/AztecProtocol/aztec-packages/commit/367193253670a1d61ffa440d94dad4b9d068e72f))
+* ProvingKey has ProverPolynomials ([#5940](https://github.com/AztecProtocol/aztec-packages/issues/5940)) ([0a64279](https://github.com/AztecProtocol/aztec-packages/commit/0a64279ba1b2b3bb6627c675b8a0b116be17f579))
+* Purging portal addresses ([#5842](https://github.com/AztecProtocol/aztec-packages/issues/5842)) ([4faccad](https://github.com/AztecProtocol/aztec-packages/commit/4faccad569e39228b0f3fbf741fc95e3a189e276))
+* Refactor recursive verifier tests ([#6063](https://github.com/AztecProtocol/aztec-packages/issues/6063)) ([94a2d61](https://github.com/AztecProtocol/aztec-packages/commit/94a2d61d10d8e21d0080b7ea3a8b283f8dd0162f))
+* Remove `Opcode::Brillig` from ACIR ([#5995](https://github.com/AztecProtocol/aztec-packages/issues/5995)) ([ffd5f46](https://github.com/AztecProtocol/aztec-packages/commit/ffd5f460fce8b1f12265730f97c8cfcd3a4774ca))
+* Remove l1 gas ([#6069](https://github.com/AztecProtocol/aztec-packages/issues/6069)) ([0e3705f](https://github.com/AztecProtocol/aztec-packages/commit/0e3705f2591c1da36778c316d8b7ab914f5d6757))
+* Simplify computation of pow for each sumcheck round ([#5903](https://github.com/AztecProtocol/aztec-packages/issues/5903)) ([74a9d5d](https://github.com/AztecProtocol/aztec-packages/commit/74a9d5d6736a4376e40e501765974b9686ca738e))
+
 ## [0.35.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.35.0...barretenberg-v0.35.1) (2024-04-16)
 
 
