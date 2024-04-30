@@ -78,10 +78,12 @@ Theoretically the builder has all the state trees after the public function has 
 
 From the above, we should have a decent idea about what private and public functions can do inside the L2, and how they might interact.
 
-<!-- TODO https://github.com/AztecProtocol/aztec-packages/issues/5508: mention SharedMutable
 ## A note on L2 access control
 
 Many applications rely on some form of access control to function well. USDC have a blacklist, where only parties not on the list should be able to transfer. And other systems such as Aave have limits such that only the pool contract is able to mint debt tokens and transfers held funds.
 
-Access control like this cannot easily be enforced in the private domain, as reading is also nullifying(to ensure data is up to date). However, as it is possible to read historical public state, one can combine private and public functions to get the desired effect.
--->
+Access control like this cannot easily be enforced in the private domain, as reading is also nullifying (to ensure data is up to date). However, as it is possible to read historical public state, one can combine private and public functions to get the desired effect.
+
+This concept is known as [shared state](../../../developers/contracts/references/storage/shared_state.md), and relies on using delays when changing public data so that it can also be read in private with currentness guarantees. Since values cannot be immediately modified but instead require delays to elapse, it is possible to privately prove that an application is using the current value _as long as the transaction gets included before some time in the future_, which would be the earliest the value could possibly change.
+
+If the public state is only changed infrequently, and it is acceptable to have delays when doing so, then shared state is a good solution to this problem.

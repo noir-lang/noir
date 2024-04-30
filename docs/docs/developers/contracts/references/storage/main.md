@@ -88,8 +88,9 @@ require(minters[msg.sender], "caller is not minter");
 
 ## Further Reading
 
-- Managing [Public State](./public_state.md)
-- Jump to the page on [Private State](./private_state.md)
+- [Public State](./public_state.md)
+- [Private State](./private_state.md)
+- [Shared State](./shared_state.md)
 
 ## Concepts mentioned
 

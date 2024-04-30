@@ -6,7 +6,7 @@ On this page we will look at how to manage public state in Aztec contracts. We w
 
 For a higher level overview of the state model in Aztec, see the [state model](../../../../learn/concepts/hybrid_state/main.md) page, or jump back to the previous page on [Storage](./main.md).
 
-## Overview
+## `PublicMutable`
 
 The `PublicMutable` (formerly known as `PublicState`) struct is generic over the variable type `T`. The type _must_ implement Serialize and Deserialize traits, as specified here:
 
@@ -16,6 +16,8 @@ The `PublicMutable` (formerly known as `PublicState`) struct is generic over the
 The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](../../../../learn/concepts/hybrid_state/main.md) as EVM chains it will look similar from the contract developers point of view.
 
 You can find the details of `PublicMutable` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_mutable.nr).
+
+For a version of `PublicMutable` that can also be read in private, head to [`SharedMutable`](./shared_state.md#sharedmutable).
 
 :::info
 An example using a larger struct can be found in the [lending example](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/lending_contract)'s use of an [`Asset`](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/lending_contract/src/asset.nr).
@@ -67,9 +69,9 @@ We have a `write` method on the `PublicMutable` struct that takes the value to w
 
 ---
 
-## Public Immutable
+## `PublicImmutable`
 
-`PublicImmutable` is a type that can be written once during a contract deployment and read later on from public only.
+`PublicImmutable` is a type that can be written once during a contract deployment and read later on from public only. For a version of `PublicImmutable` that can also be read in private, head to [`SharedImmutable`](./shared_state.md#sharedimmutable).
 
 Just like the `PublicMutable` it is generic over the variable type `T`. The type `MUST` implement Serialize and Deserialize traits.
 
@@ -91,48 +93,3 @@ Is done exactly like the `PublicMutable` struct, but with the `PublicImmutable` 
 
 Reading the value is just like `PublicMutable`.
 #include_code read_public_immutable /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
-
-## Shared Immutable
-
-`SharedImmutable` (formerly known as `StablePublicState`) is a type which is very similar to `PublicImmutable` but with an addition of a private getter (can be read from private).
-
-Since private execution is based on historical data, the user can pick ANY of its prior values to read from. This is why it `MUST` not be updated after the contract is deployed. The variable should be initialized at the constructor and then never changed.
-
-This makes the immutable public variables useful for stuff that you would usually have in `immutable` values in solidity. For example this can be the name of a token or its number of decimals.
-
-Just like the `PublicMutable` it is generic over the variable type `T`. The type `MUST` implement Serialize and Deserialize traits.
-
-You can find the details of `SharedImmutable` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/shared_immutable.nr).
-
-:::info
-The word `Shared` in Aztec protocol means read/write from public, read only from private.
-:::
-
-### `new`
-
-Is done exactly like the `PublicMutable` struct, but with the `SharedImmutable` struct.
-
-#include_code storage-shared-immutable-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
-
-#include_code storage-shared-immutable /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
-
-### `initialize`
-
-#include_code initialize_decimals /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
-:::warning Should only be called as part of the deployment.
-If this is called outside the deployment transaction multiple values could be used down the line, potentially breaking the contract.
-
-Currently this is not constrained as we are in the middle of changing deployments.
-:::
-
-### `read_public`
-
-Reading the value is like `PublicMutable`, simply with `read_public` instead of `read`.
-#include_code read_decimals_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
-### `read_private`
-
-Reading the value is like `PublicMutable`, simply with `read_private` instead of `read`. This part can only be executed in private.
-
-#include_code read_decimals_private /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust

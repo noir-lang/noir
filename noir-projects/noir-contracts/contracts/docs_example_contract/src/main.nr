@@ -76,9 +76,7 @@ contract DocsExample {
                 set: PrivateSet::new(context, 5),
                 // docs:end:storage-set-init
                 private_immutable: PrivateImmutable::new(context, 6),
-                // docs:start:storage-shared-immutable
                 shared_immutable: SharedImmutable::new(context, 7),
-                // docs:end:storage-shared-immutable
                 // docs:start:storage-minters-init
                 minters: Map::new(
                     context,
