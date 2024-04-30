@@ -156,6 +156,7 @@ jobs:
   docs-preview:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
+    if: github.event.number
     steps:
       - {
           uses: actions/checkout@v4,
