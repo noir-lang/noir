@@ -1000,11 +1000,11 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
-        let has_inline_attribute = attributes.is_inline();
+        let has_no_predicates_attribute = attributes.is_no_predicates();
         let should_fold = attributes.is_foldable();
         if !self.inline_attribute_allowed(func) {
-            if has_inline_attribute {
-                self.push_err(ResolverError::InlineAttributeOnUnconstrained {
+            if has_no_predicates_attribute {
+                self.push_err(ResolverError::NoPredicatesAttributeOnUnconstrained {
                     ident: func.name_ident().clone(),
                 });
             } else if should_fold {
@@ -1013,10 +1013,10 @@ impl<'a> Resolver<'a> {
                 });
             }
         }
-        // Both the #[fold] and #[inline(tag)] alter a function's inline type and code generation in similar ways.
+        // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
-        let has_inline_or_fold_attribute = has_inline_attribute || should_fold;
+        let has_inline_attribute = has_no_predicates_attribute || should_fold;
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -1111,7 +1111,7 @@ impl<'a> Resolver<'a> {
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
-            has_inline_or_fold_attribute,
+            has_inline_attribute,
         }
     }
 

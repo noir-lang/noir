@@ -582,8 +582,8 @@ impl Attributes {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_foldable())
     }
 
-    pub fn is_inline(&self) -> bool {
-        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_inline())
+    pub fn is_no_predicates(&self) -> bool {
+        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
 }
 
@@ -645,10 +645,7 @@ impl Attribute {
             ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
             ["recursive"] => Attribute::Function(FunctionAttribute::Recursive),
             ["fold"] => Attribute::Function(FunctionAttribute::Fold),
-            ["inline", tag] => {
-                validate(tag)?;
-                Attribute::Function(FunctionAttribute::Inline(tag.to_string()))
-            }
+            ["no_predicates"] => Attribute::Function(FunctionAttribute::NoPredicates),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
@@ -701,7 +698,7 @@ pub enum FunctionAttribute {
     Test(TestScope),
     Recursive,
     Fold,
-    Inline(String),
+    NoPredicates,
 }
 
 impl FunctionAttribute {
@@ -738,8 +735,8 @@ impl FunctionAttribute {
     /// Check whether we have an `inline` attribute
     /// Although we also do not want to inline foldable functions,
     /// we keep the two attributes distinct for clarity.
-    pub fn is_inline(&self) -> bool {
-        matches!(self, FunctionAttribute::Inline(_))
+    pub fn is_no_predicates(&self) -> bool {
+        matches!(self, FunctionAttribute::NoPredicates)
     }
 }
 
@@ -752,7 +749,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             FunctionAttribute::Recursive => write!(f, "#[recursive]"),
             FunctionAttribute::Fold => write!(f, "#[fold]"),
-            FunctionAttribute::Inline(ref k) => write!(f, "#[inline({k})]"),
+            FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
         }
     }
 }
@@ -798,7 +795,7 @@ impl AsRef<str> for FunctionAttribute {
             FunctionAttribute::Test { .. } => "",
             FunctionAttribute::Recursive => "",
             FunctionAttribute::Fold => "",
-            FunctionAttribute::Inline(string) => string,
+            FunctionAttribute::NoPredicates => "",
         }
     }
 }

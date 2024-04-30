@@ -213,10 +213,13 @@ pub enum InlineType {
     Inline,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
-    /// Similar to `Fold`, these functions will not be inlined and compile separately into ACIR.
-    /// They are different from `Fold` though as they are expected to be inlined into the program
+    /// Functions marked to have no predicates will not be inlined in the default inlining pass
+    /// and will be separately inlined after the flattening pass.
+    /// They are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
-    Never,
+    /// This attribute is unsafe and can cause a function whose logic relies on predicates from
+    /// the flattening pass to fail.
+    NoPredicates,
 }
 
 impl From<&Attributes> for InlineType {
@@ -224,13 +227,7 @@ impl From<&Attributes> for InlineType {
         attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
             match func_attribute {
                 FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::Inline(tag) => {
-                    if tag == "never" {
-                        InlineType::Never
-                    } else {
-                        InlineType::default()
-                    }
-                }
+                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
                 _ => InlineType::default(),
             }
         })
@@ -242,7 +239,7 @@ impl InlineType {
         match self {
             InlineType::Inline => false,
             InlineType::Fold => true,
-            InlineType::Never => true,
+            InlineType::NoPredicates => false,
         }
     }
 }
@@ -252,7 +249,7 @@ impl std::fmt::Display for InlineType {
         match self {
             InlineType::Inline => write!(f, "inline"),
             InlineType::Fold => write!(f, "fold"),
-            InlineType::Never => write!(f, "inline(never)"),
+            InlineType::NoPredicates => write!(f, "no_predicates"),
         }
     }
 }
