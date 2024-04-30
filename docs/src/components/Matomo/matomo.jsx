@@ -18,6 +18,7 @@ function pushInstruction(name, ...args) {
 export default function useMatomo() {
   const { siteConfig } = useDocusaurusContext();
   const [showBanner, setShowBanner] = useState(false);
+
   const env = siteConfig.customFields.MATOMO_ENV;
   const urlBase = 'https://noirlang.matomo.cloud/';
   const trackerUrl = `${urlBase}matomo.php`;
@@ -26,10 +27,13 @@ export default function useMatomo() {
   window._paq = window._paq || [];
 
   useEffect(() => {
-    pushInstruction(function () {
-      setShowBanner(!this.hasRememberedConsent());
-    });
+    const storedConsent = localStorage.getItem('matomoConsent');
+    if (storedConsent === null) {
+      setShowBanner(true);
+    }
+  }, []);
 
+  useEffect(() => {
     pushInstruction('setTrackerUrl', trackerUrl);
     pushInstruction('setSiteId', getSiteId(env));
     if (env !== 'prod') {
@@ -56,23 +60,26 @@ export default function useMatomo() {
 
   const optIn = () => {
     pushInstruction('rememberConsentGiven');
+    localStorage.setItem('matomoConsent', true);
     setShowBanner(false);
   };
 
   const optOut = () => {
     pushInstruction('forgetConsentGiven');
+    localStorage.setItem('matomoConsent', false);
     setShowBanner(false);
   };
 
   const debug = () => {
     pushInstruction(function () {
       console.log(this.getRememberedConsent());
+      console.log(localStorage.getItem('matomoConsent'));
     });
   };
 
   const reset = () => {
     pushInstruction('forgetConsentGiven');
-    setShowBanner(true);
+    localStorage.clear('matomoConsent');
   };
 
   if (!showBanner && env === 'dev') {
