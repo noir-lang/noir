@@ -26,7 +26,6 @@ pub(super) fn path() -> impl NoirParser<Path> {
         }
         expr
     })
-
 }
 
 fn empty_path() -> impl NoirParser<Path> {
