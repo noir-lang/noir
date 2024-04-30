@@ -171,8 +171,8 @@ impl Ssa {
             flatten_function_cfg(function);
         }
         // Now that flattening has been completed we can have SSA generation inline any
-        // calls to functions marked with `#[inline(never)]`
-        self.use_inline_never = false;
+        // calls to functions marked with `#[no_predicates]`
+        self.past_flattening_pass = true;
         self
     }
 }

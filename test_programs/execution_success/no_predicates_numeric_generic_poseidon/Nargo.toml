@@ -1,5 +1,5 @@
 [package]
-name = "inline_numeric_generic_poseidon"
+name = "no_predicates_numeric_generic_poseidon"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.28.0"

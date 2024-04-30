@@ -62,7 +62,7 @@ pub(crate) fn optimize_into_acir(
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         // Run the inlining pass again as certain codegen attributes will now be disabled after flattening,
-        // such as treating functions marked with the `InlineType::Never` as an entry point.
+        // such as treating functions marked with the `InlineType::NoPredicates` as an entry point.
         .run_pass(Ssa::inline_functions, "After Inlining:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")

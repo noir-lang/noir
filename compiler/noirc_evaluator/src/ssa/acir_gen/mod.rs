@@ -390,8 +390,8 @@ impl<'a> Context<'a> {
                             panic!("ACIR function should have been inlined earlier if not marked otherwise");
                         }
                     }
-                    InlineType::Never => {
-                        panic!("All ACIR functions marked with #[inline(never)] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute");
+                    InlineType::NoPredicates => {
+                        panic!("All ACIR functions marked with #[no_predicates] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute");
                     }
                     InlineType::Fold => {}
                 }
@@ -2660,10 +2660,10 @@ mod test {
 
     #[test]
     #[should_panic]
-    fn basic_calls_inline_never() {
-        call_output_as_next_call_input(InlineType::Never);
-        basic_nested_call(InlineType::Never);
-        basic_call_with_outputs_assert(InlineType::Never);
+    fn basic_calls_no_predicates() {
+        call_output_as_next_call_input(InlineType::NoPredicates);
+        basic_nested_call(InlineType::NoPredicates);
+        basic_call_with_outputs_assert(InlineType::NoPredicates);
     }
 
     #[test]

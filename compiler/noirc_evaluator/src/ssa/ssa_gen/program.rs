@@ -17,10 +17,10 @@ pub(crate) struct Ssa {
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
     /// as the final program artifact will be a list of only entry point functions.
     pub(crate) entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
-    /// A flag to indicate how we should perform codegen in between passes.
-    /// This is currently defaulted to `true` and should be set to false by a pass at some point
-    /// before ACIR generation.
-    pub(crate) use_inline_never: bool,
+    /// Flag that determines when to inline functions marked to not use predicates.
+    /// This is currently defaulted to `false` and should be set to true by after completion
+    /// of the flattening pass which sets side effects.
+    pub(crate) past_flattening_pass: bool,
 }
 
 impl Ssa {
@@ -54,7 +54,7 @@ impl Ssa {
             main_id,
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index,
-            use_inline_never: true,
+            past_flattening_pass: false,
         }
     }
 

@@ -39,7 +39,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(mut self) -> Ssa {
         self.functions =
-            btree_map(get_entry_point_functions(&self, self.use_inline_never), |entry_point| {
+            btree_map(get_entry_point_functions(&self, self.past_flattening_pass), |entry_point| {
                 let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
                 (entry_point, new_function)
             });
@@ -98,12 +98,14 @@ struct PerFunctionContext<'function> {
 /// should be left in the final program.
 /// This is the `main` function, any Acir functions with a [fold inline type][InlineType::Fold],
 /// and any brillig functions used.
-fn get_entry_point_functions(ssa: &Ssa, use_inline_never: bool) -> BTreeSet<FunctionId> {
+fn get_entry_point_functions(ssa: &Ssa, past_flattening_pass: bool) -> BTreeSet<FunctionId> {
     let functions = ssa.functions.iter();
     let mut entry_points = functions
         .filter(|(_, function)| {
-            let inline_never = use_inline_never && function.is_inline_never();
-            function.runtime().is_entry_point() || inline_never
+            // If we have not already finished the flattening pass, functions marked
+            // to not have predicates should be marked as entry points.
+            let no_predicates_is_entry_point = !past_flattening_pass && function.is_no_predicates();
+            function.runtime().is_entry_point() || no_predicates_is_entry_point
         })
         .map(|(id, _)| *id)
         .collect::<BTreeSet<_>>();
@@ -357,8 +359,11 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
                         let function = &ssa.functions[&func_id];
-                        let inline_never = ssa.use_inline_never && function.is_inline_never();
-                        if function.runtime().is_entry_point() || inline_never {
+                        // If we have not already finished the flattening pass, functions marked
+                        // to not have predicates should be marked as entry points.
+                        let no_predicates_is_entry_point =
+                            !ssa.past_flattening_pass && function.is_no_predicates();
+                        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
                             self.push_instruction(*id);
                         } else {
                             self.inline_function(ssa, *id, func_id, arguments);

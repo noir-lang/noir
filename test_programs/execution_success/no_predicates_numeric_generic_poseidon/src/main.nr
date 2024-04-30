@@ -3,7 +3,7 @@ use dep::std::hash::{pedersen_hash_with_separator, poseidon2::Poseidon2};
 global NUM_HASHES = 2;
 global HASH_LENGTH = 10;
 
-#[inline(never)]
+#[no_predicates]
 pub fn poseidon_hash<N>(inputs: [Field; N]) -> Field {
     Poseidon2::hash(inputs, inputs.len())
 }
@@ -21,7 +21,7 @@ fn main(
         }
     }
 
-    // We want to make sure that the function marked with `#[inline(never)]` with a numeric generic
+    // We want to make sure that the function marked with `#[no_predicates]` with a numeric generic
     // is monomorphized correctly.
     let mut double_preimage = [0; 20];
     for i in 0..HASH_LENGTH * 2 {
