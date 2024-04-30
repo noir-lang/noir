@@ -10,6 +10,9 @@ struct U128 {
 }
 
 impl U128 {
+    pub fn from_u64(value: u64) -> U128 {
+        U128::from_u64s_le(value, 0)
+    }
 
     pub fn from_u64s_le(lo: u64, hi: u64) -> U128 {
         // in order to handle multiplication, we need to represent the product of two u64 without overflow
@@ -139,27 +142,33 @@ impl U128 {
     }
 }
 
+impl From<U128> for Field {
+    fn from(value: U128) -> Field {
+       value.to_integer()
+    }
+}
+
 impl From<u64> for U128 {
     fn from(value: u64) -> U128 {
-       U128::from_u64s_le(value, 0)
+       U128::from_u64(value)
     }
 }
 
 impl From<u32> for U128 {
     fn from(value: u32) -> U128 {
-       U128::from_u64s_le(value as u64, 0)
+       U128::from_u64(value as u64)
     }
 }
 
 impl From<u8> for U128 {
     fn from(value: u8) -> U128 {
-       U128::from_u64s_le(value as u64, 0)
+       U128::from_u64(value as u64)
     }
 }
 
 impl From<u1> for U128 {
     fn from(value: u1) -> U128 {
-       U128::from_u64s_le(value as u64, 0)
+       U128::from_u64(value as u64)
     }
 }
 
@@ -291,7 +300,7 @@ impl Shl for U128 {
             r *= r;
         }
         // TODO: Switch with `::from()` once https://github.com/noir-lang/noir/issues/4943 is fixed
-        self.wrapping_mul(U128::from_u64s_le(y as u64, 0))
+        self.wrapping_mul(U128::from_u64(y as u64))
     } 
 }
 
@@ -307,7 +316,7 @@ impl Shr for U128 {
             r *= r;
         }
         // TODO: Switch with `::from()` once https://github.com/noir-lang/noir/issues/4943 is fixed
-        self / U128::from_u64s_le(y as u64, 0)
+        self / U128::from_u64(y as u64)
     } 
 }
 
@@ -316,7 +325,7 @@ mod tests {
 
     #[test]
     fn u128_from_primitive_integer() {
-        let one = U128::from(1);
+        let one = U128::from_u64(1);
         assert_eq(one.lo, 1);
         assert_eq(one.hi, 0);
     }

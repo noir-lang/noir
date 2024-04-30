@@ -22,6 +22,9 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     let t6 = U128::from_u64s_le(1, 0);
     assert((t5 - t6).hi == 0);
 
+    let t6_as_field: Field = From::from(t6);
+    assert_eq(t6_as_field, 1);
+
     assert(
         (U128::from_hex("0x71f03a23783f9d9c7a8777") * U128::from_hex("0x8BFCF39041")).hi
         == U128::from_hex("0x3e4e0471b873470e247c824e61445537").hi
@@ -31,14 +34,15 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
 
     assert(big_int.hi == 2);
 
-    let mut small_int = U128::from(x);
+    let x: u64 = x as u64;
+    let mut small_int = U128::from_u64(x);
     assert(small_int.lo == x as Field);
     assert(x == small_int.to_integer());
     let shift = small_int << (x as u8);
-    assert(shift == U128::from(x << (x as u8)));
+    assert(shift == U128::from_u64(x << (x as u8)));
     assert(shift >> (x as u8) == small_int);
-    assert(shift >> 127 == U128::from(0));
-    assert(shift << 127 == U128::from(0));
-    assert(U128::from(3).to_integer() == 3);
+    assert(shift >> 127 == U128::from_u64(0));
+    assert(shift << 127 == U128::from_u64(0));
+    assert(U128::from_u64(3).to_integer() == 3);
 }
 
