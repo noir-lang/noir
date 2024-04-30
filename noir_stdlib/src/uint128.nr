@@ -310,3 +310,14 @@ impl Shr for U128 {
         self / U128::from_u64s_le(y as u64, 0)
     } 
 }
+
+mod tests {
+    use crate::uint128::U128;
+
+    #[test]
+    fn u128_from_primitive_integer() {
+        let one = U128::from(1);
+        assert_eq(one.lo, 1);
+        assert_eq(one.hi, 0);
+    }
+}
