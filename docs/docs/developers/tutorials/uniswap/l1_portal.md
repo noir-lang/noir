@@ -13,12 +13,14 @@ cd l1-contracts/contracts && touch UniswapPortal.sol
 and paste this inside:
 
 ```solidity
-pragma solidity ^0.8.20;
+pragma solidity >=0.8.18;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IRegistry} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol";
+import {IOutbox} from  "@aztec/l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol";
 import {DataStructures} from "@aztec/l1-contracts/src/core/libraries/DataStructures.sol";
+import {DataStructures as PortalDataStructures} from "./DataStructures.sol";
 import {Hash} from "@aztec/l1-contracts/src/core/libraries/Hash.sol";
 
 #include_code setup l1-contracts/test/portals/UniswapPortal.sol raw

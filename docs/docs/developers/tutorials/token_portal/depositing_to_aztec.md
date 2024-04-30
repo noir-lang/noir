@@ -17,6 +17,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 // Messaging
 import {IRegistry} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol";
 import {IInbox} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IInbox.sol";
+import {IOutbox} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol";
 import {DataStructures} from "@aztec/l1-contracts/src/core/libraries/DataStructures.sol";
 import {Hash} from "@aztec/l1-contracts/src/core/libraries/Hash.sol";
 
@@ -34,6 +35,12 @@ Create a basic ERC20 contract that can mint tokens to anyone. We will use this t
 Create a file `PortalERC20.sol` in the same folder and add:
 
 #include_code contract /l1-contracts/test/portals/PortalERC20.sol solidity
+
+Replace the openzeppelin import with this:
+
+```solidity
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+```
 
 ## Depositing tokens to Aztec publicly
 

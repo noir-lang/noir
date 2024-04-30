@@ -94,7 +94,7 @@ aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_
 ```
 
 A word about versions:
-- Choose the aztec packages version to match your aztec tools as seen here - `aztec-cli -V`
+- Choose the aztec packages version to match your aztec sandbox version
 - Check that your `compiler_version` in Nargo.toml is satisified by your aztec compiler - `aztec-nargo -V`
 
 More about versions [here](https://docs.aztec.network/developers/versions-updating).

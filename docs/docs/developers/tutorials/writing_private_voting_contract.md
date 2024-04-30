@@ -39,15 +39,9 @@ Your file structure should look something like this:
 
 The file `main.nr` will soon turn into our smart contract!
 
-We will need the Aztec library to create this contract. Add the following content to `Nargo.toml`:
+We will need the Aztec library to create this contract. In your `Nargo.toml` you should see `[dependencies]` - paste this bellow it.
 
 ```toml
-[package]
-name = "private_voting"
-type = "contract"
-authors = [""]
-compiler_version = ">=0.18.0"
-
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
 ```
@@ -70,13 +64,11 @@ Inside this, paste these imports:
 
 We are using various utils within the Aztec library:
 
-- `context` - exposes things such as the contract address, msg_sender, etc
-- `context.request_nullifier_secret_key` - get your secret key to help us create a randomized nullifier
-- `FunctionSelector::from_signature` - compute a function selector from signature so we can call functions from other functions
-- `state_vars::{Map, PublicMutable}` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicMutable to hold our public values that we mentioned earlier
-- `types::type_serialization::{..}` - various serialization methods for defining how to use these types
-- `types::address::{AztecAddress},` - our admin will be held as an address
-- `constants::EMPTY_NULLIFIED_COMMITMENT,` - this will come in useful when creating our nullifier
+- `Context` and `PrivateContext` - exposes things such as the contract address, msg_sender, etc
+- `AztecAddress` - A type for storing an address on Aztec
+- `FunctionSelector` - Used for computing a selector to call a function
+- `Map` - A data storage type for storing candidates with the number of votes they have
+- `PublicMutable` - A type of storage, which holds a mutable public value. We'll store votes as PublicMutables
 
 ## Set up storage
 
@@ -155,7 +147,9 @@ The easiest way to compile the contract is with `aztec-nargo`. Run the following
 aztec-nargo compile
 ```
 
-This will create a new directory called `target` and a JSON artifact inside it. To optionally create a typescript interface, run:
+This will create a new directory called `target` and a JSON artifact inside it.
+
+Once it is compiled you can [deploy](../contracts/deploying_contracts/how_to_deploy_contract.md) it to the sandbox. Ensure your [sandbox is running](../sandbox/references/sandbox-reference.md). 
 
 ```bash
 aztec-builder target -o src/artifacts

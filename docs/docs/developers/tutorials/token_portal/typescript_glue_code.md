@@ -36,10 +36,11 @@ Open `cross_chain_messaging.test.ts` and paste the initial description of the te
 
 ```typescript
 import { expect, jest} from '@jest/globals'
-import { AccountWallet, AztecAddress, DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, waitForSandbox } from '@aztec/aztec.js';
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { AccountWallet, AztecAddress, DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, waitForPXE } from '@aztec/aztec.js';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
-import { TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
+import { TokenBridgeContract } from './fixtures/TokenBridge.js';
+import { createAztecNodeClient } from '@aztec/circuit-types';
 
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -49,12 +50,12 @@ import { foundry } from 'viem/chains';
 const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 const MNEMONIC = 'test test test test test test test test test test test junk';
 const hdAccount = mnemonicToAccount(MNEMONIC);
+const aztecNode = createAztecNodeClient(PXE_URL);
 
 describe('e2e_cross_chain_messaging', () => {
   jest.setTimeout(90_000);
 
   let logger: DebugLogger;
-  // include code:
   let user1Wallet: AccountWallet;
   let user2Wallet: AccountWallet;
   let ethAccount: EthAddress;
@@ -68,8 +69,8 @@ describe('e2e_cross_chain_messaging', () => {
   beforeEach(async () => {
     logger = createDebugLogger('aztec:e2e_uniswap');
     const pxe = createPXEClient(PXE_URL);
-    await waitForSandbox(pxe);
-    const wallets = await getSandboxAccountsWallets(pxe);
+    await waitForPXE(pxe);
+    const wallets = await getInitialTestAccountsWallets(pxe);
 
     const walletClient = createWalletClient({
       account: hdAccount,
@@ -82,6 +83,7 @@ describe('e2e_cross_chain_messaging', () => {
     });
 
     crossChainTestHarness = await CrossChainTestHarness.new(
+      aztecNode,
       pxe,
       publicClient,
       walletClient,

@@ -74,14 +74,14 @@ VERSION=0.35.0 aztec-up
 
 2. Update aztec-nr and individual @aztec dependencies:
 
-<!-- Inside your project run:
+Inside your project run:
 
 ```shell
 cd your/aztec/project
-aztec-cli update . --contract src/contract1 --contract src/contract2
+aztec-builder update . --contract src/contract1 --contract src/contract2
 ```
 
-The sandbox must be running for the update command to work. Make sure it is [installed and running](../developers/sandbox/references/sandbox-reference.md). -->
+The sandbox must be running for the update command to work. Make sure it is [installed and running](../developers/sandbox/references/sandbox-reference.md).
 
 Follow [updating Aztec.nr packages](#updating-aztecnr-packages) and [updating JavaScript packages](#updating-aztecjs-packages) guides.
 
@@ -96,19 +96,19 @@ There are four components whose versions need to be kept compatible:
 3. `Aztec.nr`, the Noir framework for writing Aztec contracts
 
 First three are packaged together in docker and are kept compatible by running `aztec-up`.
-But you need to update your Aztec.nr version manually or using `aztec-cli update`.
+But you need to update your Aztec.nr version manually or using `aztec-builder update`.
 
 ## Updating Aztec.nr packages
 
-<!-- ### Automatic update
+### Automatic update
 
-`aztec-cli` will update your Aztec.nr packages to the appropriate version with the `aztec-cli update` command. Run this command from the root of your project and pass the paths to the folders containing the Nargo.toml files for your projects like so:
+`aztec-builder` will update your Aztec.nr packages to the appropriate version with the `aztec-builder update` command. Run this command from the root of your project and pass the paths to the folders containing the Nargo.toml files for your projects like so:
 
 ```shell
-aztec-cli update . --contract src/contract1 --contract src/contract2
+aztec-builder update . --contract src/contract1 --contract src/contract2
 ```
 
-### Manual update -->
+### Manual update
 
 To update the aztec.nr packages manually, update the tags of the `aztec.nr` dependencies in the `Nargo.toml` file.
 

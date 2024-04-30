@@ -79,12 +79,14 @@ cd aztec-contracts/token_bridge
 aztec-nargo compile
 ```
 
-And generate the TypeScript interface for the contract and add it to the test dir:
+You may get some unused variable warnings - you can ignore these.
+
+And generate the TypeScript interface for the contract and add it to the test dir. Run this inside `aztec-contracts/token_bridge`:
 
 ```bash
 aztec-builder target -o ../../src/test/fixtures
 ```
 
-This will create a TS interface in our `src/test` folder!
+This will create a TS interface inside `fixtures` dir in our `src/test` folder!
 
 In the next step we will write the TypeScript code to deploy our contracts and call on both L1 and L2 so we can see how everything works together.

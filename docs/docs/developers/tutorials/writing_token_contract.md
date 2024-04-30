@@ -26,48 +26,41 @@ Check the [Dev Tools section](https://github.com/noir-lang/awesome-noir#dev-tool
 
 ## Project setup
 
-Create a new directory called `token_contract_tutorial`
+Create a new project with:
 
 ```bash
-mkdir token_contract_tutorial
+aztec-nargo new --contract token_contract
 ```
 
-inside that directory, create a `contracts` folder for the Aztec contracts.
-
-```bash
-cd token_contract_tutorial && mkdir contracts && cd contracts
-```
-
-Create the following file structure
+Your file structure should look something like this:
 
 ```tree
 .
-└── contracts
-    ├── Nargo.toml
-    └── src
-        └── main.nr
+|--private_voting
+|  |--src
+|  |  |--main.nr
+|  |--Nargo.toml
 ```
 
-Add the following content to Nargo.toml file:
+Inside `Nargo.toml` paste the following:
 
 ```toml
-[package]
-name = "token_contract"
-authors = [""]
-compiler_version = ">=0.18.0"
-type = "contract"
-
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
 authwit={ git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/authwit"}
 compressed_string = {git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/compressed-string"}
 ```
 
+We will be working within `main.nr` for the rest of the tutorial.
+
 ## Contract Interface
+
+Remove everything from `main.nr` and paste this:
 
 ```rust
 contract Token {
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor() {}
 
     #[aztec(public)]
@@ -111,11 +104,13 @@ contract Token {
     #[aztec(public)]
     fn _initialize(new_admin: AztecAddress) {}
 
+    #[aztec(internal)]
     #[aztec(public)]
-    internal fn _increase_public_balance(to: AztecAddress, amount: Field) {}
+    fn _increase_public_balance(to: AztecAddress, amount: Field) {}
 
+    #[aztec(internal)]
     #[aztec(public)]
-    internal fn _reduce_total_supply(amount: Field) {}
+    fn _reduce_total_supply(amount: Field) {}
 
     // Unconstrained functions (read only)
 
@@ -131,7 +126,7 @@ contract Token {
 }
 ```
 
-This specifies the interface of the `Token` contract. Go ahead and copy and paste this interface into your `main.nr` file.
+This specifies the interface of the `Token` contract. Don't worry if you get some warnings - we haven't imported our types yet.
 
 Before we through the interface and implement each function, let's review the functions to get a sense of what the contract does.
 
@@ -204,7 +199,12 @@ Just below the contract definition, add the following imports:
 
 #include_code imports /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
-We are importing the Option type, items from the `value_note` library to help manage private value storage, note utilities, context (for managing private and public execution contexts), `state_vars` for helping manage state, `types` for data manipulation and `oracle` for help passing data from the private to public execution context. We also import the `auth` [library](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/auth.nr) to handle token authorizations from [Account Contracts](../../learn/concepts/accounts/main). Check out the Account Contract with AuthWitness [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/schnorr_single_key_account_contract/src/main.nr).
+We are importing:
+
+- `CompressedString` to hold the token symbol
+- Types from `aztec::prelude`
+- `compute_secret_hash` that will help with the shielding and unshielding, allowing someone to claim a token from private to public
+- Types for storing note types
 
 For more detail on execution contexts, see [Contract Communication](../../learn/concepts/communication/main).
 
