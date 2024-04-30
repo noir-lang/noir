@@ -251,18 +251,23 @@ template <typename Tuple, std::size_t Index = 0> static constexpr size_t compute
  * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
  * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
  * tuple is determined by the corresponding subrelation length and the number of instances to be folded.
+ * @tparam optimised Enable optimised version with skipping some of the computation
  */
-template <typename Tuple, size_t NUM_INSTANCES, size_t Index = 0>
+template <typename Tuple, size_t NUM_INSTANCES, bool optimised = false, size_t Index = 0>
 static constexpr auto create_protogalaxy_tuple_of_tuples_of_univariates()
 {
     if constexpr (Index >= std::tuple_size<Tuple>::value) {
         return std::tuple<>{}; // Return empty when reach end of the tuple
     } else {
         using UnivariateTuple =
-            typename std::tuple_element_t<Index,
-                                          Tuple>::template ProtogalaxyTupleOfUnivariatesOverSubrelations<NUM_INSTANCES>;
-        return std::tuple_cat(std::tuple<UnivariateTuple>{},
-                              create_protogalaxy_tuple_of_tuples_of_univariates<Tuple, NUM_INSTANCES, Index + 1>());
+            std::conditional_t<optimised,
+                               typename std::tuple_element_t<Index, Tuple>::
+                                   template OptimisedProtogalaxyTupleOfUnivariatesOverSubrelations<NUM_INSTANCES>,
+                               typename std::tuple_element_t<Index, Tuple>::
+                                   template ProtogalaxyTupleOfUnivariatesOverSubrelations<NUM_INSTANCES>>;
+        return std::tuple_cat(
+            std::tuple<UnivariateTuple>{},
+            create_protogalaxy_tuple_of_tuples_of_univariates<Tuple, NUM_INSTANCES, optimised, Index + 1>());
     }
 }
 

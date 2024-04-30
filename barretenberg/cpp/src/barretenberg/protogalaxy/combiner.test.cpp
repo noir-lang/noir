@@ -44,6 +44,12 @@ TEST(Protogalaxy, CombinerOn2Instances)
                 auto prover_polynomials = get_sequential_prover_polynomials<Flavor>(
                     /*log_circuit_size=*/1, idx * 128);
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
+                // This ensures that the combiner accumulator for second instance = 0
+                // The value is computed by generating the python script values, computing the resulting accumulator and
+                // taking the value at index 1
+                if (idx == NUM_INSTANCES - 1) {
+                    prover_polynomials.q_c[0] -= 13644570;
+                }
                 instance->proving_key.polynomials = std::move(prover_polynomials);
                 instance->proving_key.circuit_size = 2;
                 instance_data[idx] = instance;
@@ -52,22 +58,22 @@ TEST(Protogalaxy, CombinerOn2Instances)
             ProverInstances instances{ instance_data };
             instances.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
             auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-            auto result = prover.compute_combiner(instances, pow_polynomial);
-            auto expected_result = Univariate<FF, 12>(std::array<FF, 12>{
-                87706,
-                13644570,
-                76451738,
-                226257946,
-                static_cast<uint64_t>(500811930),
-                static_cast<uint64_t>(937862426),
-                static_cast<uint64_t>(1575158170),
-                static_cast<uint64_t>(2450447898),
-                static_cast<uint64_t>(3601480346),
-                static_cast<uint64_t>(5066004250),
-                static_cast<uint64_t>(6881768346),
-                static_cast<uint64_t>(9086521370),
-            });
+            auto result = prover.compute_combiner</*OptimisationEnabled=*/false>(instances, pow_polynomial);
+            auto optimised_result = prover.compute_combiner(instances, pow_polynomial);
+            auto expected_result = Univariate<FF, 12>(std::array<FF, 12>{ 87706,
+                                                                          0,
+                                                                          0x02ee2966,
+                                                                          0x0b0bd2cc,
+                                                                          0x00001a98fc32,
+                                                                          0x000033d5a598,
+                                                                          0x00005901cefe,
+                                                                          0x00008c5d7864,
+                                                                          0x0000d028a1ca,
+                                                                          0x000126a34b30UL,
+                                                                          0x0001920d7496UL,
+                                                                          0x000214a71dfcUL });
             EXPECT_EQ(result, expected_result);
+            EXPECT_EQ(optimised_result, expected_result);
         } else {
             std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
             ProtoGalaxyProver prover;
@@ -130,11 +136,13 @@ TEST(Protogalaxy, CombinerOn2Instances)
                       0    0    0    0    0    0    0              0    0    6   18   36   60   90      */
 
             auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-            auto result = prover.compute_combiner(instances, pow_polynomial);
+            auto result = prover.compute_combiner</*OptimisationEnabled=*/false>(instances, pow_polynomial);
+            auto optimised_result = prover.compute_combiner(instances, pow_polynomial);
             auto expected_result =
                 Univariate<FF, 12>(std::array<FF, 12>{ 0, 0, 12, 36, 72, 120, 180, 252, 336, 432, 540, 660 });
 
             EXPECT_EQ(result, expected_result);
+            EXPECT_EQ(optimised_result, expected_result);
         }
     };
     run_test(true);
@@ -181,11 +189,13 @@ TEST(Protogalaxy, CombinerOn4Instances)
         zero_all_selectors(instances[3]->proving_key.polynomials);
 
         auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-        auto result = prover.compute_combiner(instances, pow_polynomial);
+        auto result = prover.compute_combiner</*OptimisationEnabled=*/false>(instances, pow_polynomial);
+        auto optimised_result = prover.compute_combiner(instances, pow_polynomial);
         std::array<FF, 40> zeroes;
         std::fill(zeroes.begin(), zeroes.end(), 0);
         auto expected_result = Univariate<FF, 40>(zeroes);
         EXPECT_EQ(result, expected_result);
+        EXPECT_EQ(optimised_result, expected_result);
     };
     run_test();
 };

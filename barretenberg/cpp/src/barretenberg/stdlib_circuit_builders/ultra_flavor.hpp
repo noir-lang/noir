@@ -75,6 +75,11 @@ class UltraFlavor {
     template <size_t NUM_INSTANCES>
     using ProtogalaxyTupleOfTuplesOfUnivariates =
         decltype(create_protogalaxy_tuple_of_tuples_of_univariates<Relations, NUM_INSTANCES>());
+    template <size_t NUM_INSTANCES>
+    using OptimisedProtogalaxyTupleOfTuplesOfUnivariates =
+        decltype(create_protogalaxy_tuple_of_tuples_of_univariates<Relations,
+                                                                   NUM_INSTANCES,
+                                                                   /*optimised=*/true>());
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
@@ -564,6 +569,12 @@ class UltraFlavor {
      * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
      */
     template <size_t LENGTH> using ProverUnivariates = AllEntities<bb::Univariate<FF, LENGTH>>;
+    /**
+     * @brief A container for univariates used during Protogalaxy folding and sumcheck.
+     * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
+     */
+    template <size_t LENGTH, size_t SKIP_COUNT>
+    using OptimisedProverUnivariates = AllEntities<bb::Univariate<FF, LENGTH, 0, SKIP_COUNT>>;
 
     /**
      * @brief A container for univariates produced during the hot loop in sumcheck.

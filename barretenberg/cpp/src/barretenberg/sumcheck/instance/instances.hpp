@@ -18,9 +18,11 @@ template <typename Flavor_, size_t NUM_ = 2> struct ProverInstances_ {
     static constexpr size_t EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (NUM - 1) + 1;
     static constexpr size_t BATCHED_EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1 + NUM - 1) * (NUM - 1) + 1;
     using RelationParameters = bb::RelationParameters<Univariate<FF, EXTENDED_LENGTH>>;
+    using OptimisedRelationParameters = bb::RelationParameters<Univariate<FF, EXTENDED_LENGTH, 0, NUM_ - 1>>;
     using RelationSeparator = std::array<Univariate<FF, BATCHED_EXTENDED_LENGTH>, NUM_SUBRELATIONS - 1>;
     ArrayType _data;
     RelationParameters relation_parameters;
+    OptimisedRelationParameters optimised_relation_parameters;
     RelationSeparator alphas;
     std::vector<FF> next_gate_challenges;
 
@@ -52,12 +54,13 @@ template <typename Flavor_, size_t NUM_ = 2> struct ProverInstances_ {
      * and the function returns the univariates [{a_1, b_1, c_1, d_1}, {a_2, b_2, c_2, d_2}, ...]
      *
      * @param row_idx A fixed row position in several execution traces
+     * @tparam skip_count Construct univariates that skip some of the indices when computing results
      * @return The univariates whose extensions will be used to construct the combiner.
      */
-    auto row_to_univariates(size_t row_idx) const
+    template <size_t skip_count = 0> auto row_to_univariates(size_t row_idx) const
     {
         auto insts_prover_polynomials_views = get_polynomials_views();
-        std::array<Univariate<FF, NUM>, insts_prover_polynomials_views[0].size()> results;
+        std::array<Univariate<FF, NUM, 0, skip_count>, insts_prover_polynomials_views[0].size()> results;
         // Set the size corresponding to the number of rows in the execution trace
         size_t instance_idx = 0;
         // Iterate over the prover polynomials' views corresponding to each instance

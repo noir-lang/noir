@@ -149,6 +149,12 @@ template <typename RelationImpl> class Relation : public RelationImpl {
     template <size_t NUM_INSTANCES>
     using ProtogalaxyTupleOfUnivariatesOverSubrelations =
         TupleOfUnivariates<FF, compute_composed_subrelation_partial_lengths<NUM_INSTANCES>(SUBRELATION_TOTAL_LENGTHS)>;
+    template <size_t NUM_INSTANCES>
+    using OptimisedProtogalaxyTupleOfUnivariatesOverSubrelations =
+        OptimisedTupleOfUnivariates<FF,
+                                    compute_composed_subrelation_partial_lengths<NUM_INSTANCES>(
+                                        SUBRELATION_TOTAL_LENGTHS),
+                                    NUM_INSTANCES - 1>;
     using SumcheckTupleOfUnivariatesOverSubrelations =
         TupleOfUnivariates<FF, RelationImpl::SUBRELATION_PARTIAL_LENGTHS>;
     using SumcheckArrayOfValuesOverSubrelations = ArrayOfValues<FF, RelationImpl::SUBRELATION_PARTIAL_LENGTHS>;

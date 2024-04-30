@@ -279,6 +279,11 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 
         bb::Univariate<FF, 11> expected_eta{ { 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21 } };
         EXPECT_EQ(instances.relation_parameters.eta, expected_eta);
+        // Optimised relation parameters are the same, we just don't compute any values for non-used indices when
+        // deriving values from them
+        for (size_t i = 0; i < 11; i++) {
+            EXPECT_EQ(instances.optimised_relation_parameters.eta.evaluations[i], expected_eta.evaluations[i]);
+        }
     }
 
     /**
