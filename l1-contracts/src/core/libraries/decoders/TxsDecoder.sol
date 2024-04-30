@@ -194,7 +194,7 @@ library TxsDecoder {
    * @dev We have logs preimages on the input and we need to perform the same hashing process as is done in the app
    *      circuit (hashing the logs) and in the kernel circuit (accumulating the logs hashes). In each iteration of
    *      kernel, the kernel computes a hash of the previous iteration's logs hash (the hash in the previous kernel's
-   *      public inputs) and the the current iteration private circuit public inputs logs hash.
+   *      public inputs) and the current iteration private circuit public inputs logs hash.
    *
    *      E.g. for resulting logs hash of a kernel with 3 iterations would be computed as:
    *
