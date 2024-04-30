@@ -4,7 +4,7 @@ fn main(x: u32, y: pub u32) {
 }
 
 #[fold]
-fn new_field_in_array(mut input: [u32; 3]) -> [u32 ; 3] {
+fn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {
     input[0] = input[0] + 20;
     input
 }
