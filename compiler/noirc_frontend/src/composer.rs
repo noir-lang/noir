@@ -17,7 +17,7 @@ use crate::{
 ///
 /// This is used so that the comptime interpreter can expand macros into fresh code which
 /// can then immediately be name resolved and type checked afterward.
-struct Composer {
+pub struct Composer {
     interner: NodeInterner,
     type_checker_state: TypeCheckState,
     interpreter_state: InterpreterState,
@@ -67,12 +67,8 @@ impl Composer {
         TypeChecker::with_state(&mut self.interner, self.type_checker_state)
     }
 
-    fn resolver(&mut self) -> Resolver {
-        todo!()
-    }
-
-    fn compose_block(&mut self, block: BlockExpression) {
-        self.resolver().enter_block();
+    pub fn compose_block(&mut self, resolver: &mut Resolver, block: BlockExpression) -> Vec<StmtId> {
+        resolver.enter_block();
         self.type_checker().enter_block();
         self.interpreter().enter_block();
 
@@ -87,15 +83,15 @@ impl Composer {
             results.push(result);
         }
 
-        self.resolver().exit_block(&statements);
+        resolver.exit_block(&statements);
         self.type_checker().exit_block((&statements, types));
         self.interpreter().exit_block(results);
+        statements
     }
 
-    fn compose_statement(&mut self, statement: Statement) -> (StmtId, Type, IResult<()>) {
-        let stmt_id = self.resolver().do_statement(statement);
+    pub fn compose_statement(&mut self, stmt_id: StmtId) -> (Type, IResult<()>) {
         let typ = self.type_checker().do_statement(stmt_id);
         let result = self.interpreter().do_statement(stmt_id);
-        (stmt_id, typ, result)
+        (typ, result)
     }
 }

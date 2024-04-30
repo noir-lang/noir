@@ -1,4 +1,4 @@
-use crate::composer::Composable;
+use crate::composer::{Composable, Composer};
 // Fix usage of intern and resolve
 // In some places, we do intern, however in others we are resolving and interning
 // Ideally, I want to separate the interning and resolving abstractly
@@ -137,6 +137,8 @@ pub struct Resolver<'a> {
     /// How many loops we're currently within.
     /// This increases by 1 at the start of a loop, and decreases by 1 when it ends.
     nested_loops: u32,
+
+    composer: Composer,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -221,6 +223,7 @@ impl<'a> Resolver<'a> {
             in_contract,
             in_unconstrained_fn: false,
             nested_loops: 0,
+            composer: todo!(),
         }
     }
 
@@ -2091,8 +2094,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
-        let statements =
-            self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
+        let statements = self.composer.compose_block(self, block_expr);
         HirBlockExpression { statements }
     }
 
