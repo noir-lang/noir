@@ -41,6 +41,12 @@ pub enum PathResolutionError {
     Private(Ident),
 }
 
+impl PathResolutionError {
+    fn is_unresolved(&self) -> bool {
+        matches!(self, Self::Unresolved(_))
+    }
+}
+
 #[derive(Debug)]
 pub struct ResolvedImport {
     // name of the namespace, either last path segment or an alias
@@ -159,18 +165,19 @@ fn resolve_path_to_ns(
                 allow_contracts,
             );
 
-            if result.is_ok() {
-                result
-            } else {
-                // TODO: combine error messages?
-                resolve_external_dep(
-                    def_map,
-                    import_directive,
-                    def_maps,
-                    allow_contracts,
-                    importing_crate,
-                )
+            // Attempt to resolve externally when unresolved
+            if let Err(ref result_err) = result {
+                if result_err.is_unresolved() {
+                    return resolve_external_dep(
+                        def_map,
+                        import_directive,
+                        def_maps,
+                        allow_contracts,
+                        importing_crate,
+                    );
+                }
             }
+            result
         }
     }
 }

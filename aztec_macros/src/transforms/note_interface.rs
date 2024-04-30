@@ -487,10 +487,7 @@ fn generate_note_properties_struct_source(
         .iter()
         .filter_map(|(field_name, _)| {
             if field_name != note_header_field_name {
-                Some(format!(
-                    "{}: aztec::note::note_getter_options::PropertySelector",
-                    field_name
-                ))
+                Some(format!("{}: aztec::note::note_getter_options::PropertySelector", field_name))
             } else {
                 None
             }
@@ -595,10 +592,7 @@ fn generate_note_deserialize_content_source(
                     )
                 }
             } else {
-                format!(
-                    "{}: aztec::note::note_header::NoteHeader::empty()",
-                    note_header_field_name
-                )
+                format!("{}: aztec::note::note_header::NoteHeader::empty()", note_header_field_name)
             }
         })
         .collect::<Vec<String>>()
