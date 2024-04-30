@@ -1,5 +1,5 @@
 [package]
-name = "scalar_mul"
+name = "variable_base_scalar_mul"
 type = "bin"
 authors = [""]
 

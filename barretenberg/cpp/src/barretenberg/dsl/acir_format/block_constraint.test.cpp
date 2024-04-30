@@ -127,6 +127,7 @@ TEST_F(UltraPlonkRAM, TestBlockConstraint)
         .pedersen_hash_constraints = {},
         .poseidon2_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
+        .variable_base_scalar_mul_constraints = {},
         .ec_add_constraints = {},
         .recursion_constraints = {},
         .bigint_from_le_bytes_constraints = {},

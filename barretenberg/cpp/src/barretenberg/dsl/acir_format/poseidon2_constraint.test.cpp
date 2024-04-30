@@ -47,6 +47,7 @@ TEST_F(Poseidon2Tests, TestPoseidon2Permutation)
                                   .pedersen_hash_constraints = {},
                                   .poseidon2_constraints = { poseidon2_constraint },
                                   .fixed_base_scalar_mul_constraints = {},
+                                  .variable_base_scalar_mul_constraints = {},
                                   .ec_add_constraints = {},
                                   .recursion_constraints = {},
                                   .bigint_from_le_bytes_constraints = {},

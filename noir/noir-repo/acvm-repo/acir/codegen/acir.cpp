@@ -145,6 +145,18 @@ namespace Program {
             static FixedBaseScalarMul bincodeDeserialize(std::vector<uint8_t>);
         };
 
+        struct VariableBaseScalarMul {
+            Program::FunctionInput point_x;
+            Program::FunctionInput point_y;
+            Program::FunctionInput scalar_low;
+            Program::FunctionInput scalar_high;
+            std::array<Program::Witness, 2> outputs;
+
+            friend bool operator==(const VariableBaseScalarMul&, const VariableBaseScalarMul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static VariableBaseScalarMul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
         struct EmbeddedCurveAdd {
             Program::FunctionInput input1_x;
             Program::FunctionInput input1_y;
@@ -266,7 +278,7 @@ namespace Program {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, FixedBaseScalarMul, EmbeddedCurveAdd, Keccak256, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
+        std::variant<AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, FixedBaseScalarMul, VariableBaseScalarMul, EmbeddedCurveAdd, Keccak256, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -729,6 +741,18 @@ namespace Program {
             static FixedBaseScalarMul bincodeDeserialize(std::vector<uint8_t>);
         };
 
+        struct VariableBaseScalarMul {
+            Program::MemoryAddress point_x;
+            Program::MemoryAddress point_y;
+            Program::MemoryAddress scalar_low;
+            Program::MemoryAddress scalar_high;
+            Program::HeapArray result;
+
+            friend bool operator==(const VariableBaseScalarMul&, const VariableBaseScalarMul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static VariableBaseScalarMul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
         struct EmbeddedCurveAdd {
             Program::MemoryAddress input1_x;
             Program::MemoryAddress input1_y;
@@ -820,7 +844,7 @@ namespace Program {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, FixedBaseScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
+        std::variant<Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, FixedBaseScalarMul, VariableBaseScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -2692,6 +2716,56 @@ Program::BlackBoxFuncCall::FixedBaseScalarMul serde::Deserializable<Program::Bla
 
 namespace Program {
 
+    inline bool operator==(const BlackBoxFuncCall::VariableBaseScalarMul &lhs, const BlackBoxFuncCall::VariableBaseScalarMul &rhs) {
+        if (!(lhs.point_x == rhs.point_x)) { return false; }
+        if (!(lhs.point_y == rhs.point_y)) { return false; }
+        if (!(lhs.scalar_low == rhs.scalar_low)) { return false; }
+        if (!(lhs.scalar_high == rhs.scalar_high)) { return false; }
+        if (!(lhs.outputs == rhs.outputs)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxFuncCall::VariableBaseScalarMul::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxFuncCall::VariableBaseScalarMul>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxFuncCall::VariableBaseScalarMul BlackBoxFuncCall::VariableBaseScalarMul::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxFuncCall::VariableBaseScalarMul>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BlackBoxFuncCall::VariableBaseScalarMul>::serialize(const Program::BlackBoxFuncCall::VariableBaseScalarMul &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.point_x)>::serialize(obj.point_x, serializer);
+    serde::Serializable<decltype(obj.point_y)>::serialize(obj.point_y, serializer);
+    serde::Serializable<decltype(obj.scalar_low)>::serialize(obj.scalar_low, serializer);
+    serde::Serializable<decltype(obj.scalar_high)>::serialize(obj.scalar_high, serializer);
+    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::BlackBoxFuncCall::VariableBaseScalarMul serde::Deserializable<Program::BlackBoxFuncCall::VariableBaseScalarMul>::deserialize(Deserializer &deserializer) {
+    Program::BlackBoxFuncCall::VariableBaseScalarMul obj;
+    obj.point_x = serde::Deserializable<decltype(obj.point_x)>::deserialize(deserializer);
+    obj.point_y = serde::Deserializable<decltype(obj.point_y)>::deserialize(deserializer);
+    obj.scalar_low = serde::Deserializable<decltype(obj.scalar_low)>::deserialize(deserializer);
+    obj.scalar_high = serde::Deserializable<decltype(obj.scalar_high)>::deserialize(deserializer);
+    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
     inline bool operator==(const BlackBoxFuncCall::EmbeddedCurveAdd &lhs, const BlackBoxFuncCall::EmbeddedCurveAdd &rhs) {
         if (!(lhs.input1_x == rhs.input1_x)) { return false; }
         if (!(lhs.input1_y == rhs.input1_y)) { return false; }
@@ -3746,6 +3820,56 @@ Program::BlackBoxOp::FixedBaseScalarMul serde::Deserializable<Program::BlackBoxO
     Program::BlackBoxOp::FixedBaseScalarMul obj;
     obj.low = serde::Deserializable<decltype(obj.low)>::deserialize(deserializer);
     obj.high = serde::Deserializable<decltype(obj.high)>::deserialize(deserializer);
+    obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BlackBoxOp::VariableBaseScalarMul &lhs, const BlackBoxOp::VariableBaseScalarMul &rhs) {
+        if (!(lhs.point_x == rhs.point_x)) { return false; }
+        if (!(lhs.point_y == rhs.point_y)) { return false; }
+        if (!(lhs.scalar_low == rhs.scalar_low)) { return false; }
+        if (!(lhs.scalar_high == rhs.scalar_high)) { return false; }
+        if (!(lhs.result == rhs.result)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxOp::VariableBaseScalarMul::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxOp::VariableBaseScalarMul>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxOp::VariableBaseScalarMul BlackBoxOp::VariableBaseScalarMul::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxOp::VariableBaseScalarMul>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BlackBoxOp::VariableBaseScalarMul>::serialize(const Program::BlackBoxOp::VariableBaseScalarMul &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.point_x)>::serialize(obj.point_x, serializer);
+    serde::Serializable<decltype(obj.point_y)>::serialize(obj.point_y, serializer);
+    serde::Serializable<decltype(obj.scalar_low)>::serialize(obj.scalar_low, serializer);
+    serde::Serializable<decltype(obj.scalar_high)>::serialize(obj.scalar_high, serializer);
+    serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::BlackBoxOp::VariableBaseScalarMul serde::Deserializable<Program::BlackBoxOp::VariableBaseScalarMul>::deserialize(Deserializer &deserializer) {
+    Program::BlackBoxOp::VariableBaseScalarMul obj;
+    obj.point_x = serde::Deserializable<decltype(obj.point_x)>::deserialize(deserializer);
+    obj.point_y = serde::Deserializable<decltype(obj.point_y)>::deserialize(deserializer);
+    obj.scalar_low = serde::Deserializable<decltype(obj.scalar_low)>::deserialize(deserializer);
+    obj.scalar_high = serde::Deserializable<decltype(obj.scalar_high)>::deserialize(deserializer);
     obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
     return obj;
 }

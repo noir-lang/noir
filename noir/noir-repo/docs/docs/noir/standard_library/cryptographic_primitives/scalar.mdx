@@ -1,6 +1,6 @@
 ---
 title: Scalar multiplication
-description: See how you can perform scalar multiplications over a fixed base in Noir
+description: See how you can perform scalar multiplications over a fixed and variable bases in Noir
 keywords: [cryptographic primitives, Noir project, scalar multiplication]
 sidebar_position: 1
 ---
@@ -9,17 +9,35 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 
 ## scalar_mul::fixed_base_embedded_curve
 
-Performs scalar multiplication over the embedded curve whose coordinates are defined by the
-configured noir field. For the BN254 scalar field, this is BabyJubJub or Grumpkin.
+Performs scalar multiplication of a fixed base/generator over the embedded curve whose coordinates are defined
+by the configured noir field. For the BN254 scalar field, this is BabyJubJub or Grumpkin. Suffixes `_low` and
+`_high` denote low and high limbs of the input scalar.
 
 #include_code fixed_base_embedded_curve noir_stdlib/src/scalar_mul.nr rust
 
 example
 
 ```rust
-fn main(x : Field) {
-    let scal = std::scalar_mul::fixed_base_embedded_curve(x);
-    println(scal);
+fn main(scalar_low: Field, scalar_high: Field) {
+    let point = std::scalar_mul::fixed_base_embedded_curve(scalar_low, scalar_high);
+    println(point);
+}
+```
+
+## scalar_mul::variable_base_embedded_curve
+
+Performs scalar multiplication of a variable base/input point over the embedded curve whose coordinates are defined
+by the configured noir field. For the BN254 scalar field, this is BabyJubJub or Grumpkin. Suffixes `_low` and
+`_high` denote low and high limbs of the input scalar.
+
+#include_code variable_base_embedded_curve noir_stdlib/src/scalar_mul.nr rust
+
+example
+
+```rust
+fn main(point_x: Field, point_y: Field, scalar_low: Field, scalar_high: Field) {
+    let resulting_point = std::scalar_mul::fixed_base_embedded_curve(point_x, point_y, scalar_low, scalar_high);
+    println(resulting_point);
 }
 ```
 

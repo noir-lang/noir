@@ -3,6 +3,7 @@ use dep::std::cmp::Eq;
 
 global GRUMPKIN_POINT_SERIALIZED_LEN: Field = 2;
 
+// TODO(https://github.com/noir-lang/noir/issues/4931)
 struct GrumpkinPoint {
     x: Field,
     y: Field,

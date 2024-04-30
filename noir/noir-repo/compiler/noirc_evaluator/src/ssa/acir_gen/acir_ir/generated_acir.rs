@@ -283,6 +283,13 @@ impl GeneratedAcir {
                 high: inputs[1][0],
                 outputs: (outputs[0], outputs[1]),
             },
+            BlackBoxFunc::VariableBaseScalarMul => BlackBoxFuncCall::VariableBaseScalarMul {
+                point_x: inputs[0][0],
+                point_y: inputs[1][0],
+                scalar_low: inputs[2][0],
+                scalar_high: inputs[3][0],
+                outputs: (outputs[0], outputs[1]),
+            },
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
                 input1_x: inputs[0][0],
                 input1_y: inputs[1][0],
@@ -669,6 +676,10 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // is the low and high limbs of the scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(2),
 
+        // Inputs for variable based scalar multiplication are the x and y coordinates of the base point and low
+        // and high limbs of the scalar
+        BlackBoxFunc::VariableBaseScalarMul => Some(4),
+
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
 
@@ -723,7 +734,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::FixedBaseScalarMul
+        | BlackBoxFunc::VariableBaseScalarMul
+        | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd

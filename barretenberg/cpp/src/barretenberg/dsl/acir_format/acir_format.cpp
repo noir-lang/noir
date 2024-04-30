@@ -89,6 +89,11 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
         create_fixed_base_constraint(builder, constraint);
     }
 
+    // Add variable base scalar mul constraints
+    for (const auto& constraint : constraint_system.variable_base_scalar_mul_constraints) {
+        create_variable_base_constraint(builder, constraint);
+    }
+
     // Add ec add constraints
     for (const auto& constraint : constraint_system.ec_add_constraints) {
         create_ec_add_constraint(builder, constraint, has_valid_witness_assignments);

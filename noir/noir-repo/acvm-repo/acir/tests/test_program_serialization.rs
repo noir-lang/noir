@@ -86,6 +86,38 @@ fn fixed_base_scalar_mul_circuit() {
 }
 
 #[test]
+fn variable_base_scalar_mul_circuit() {
+    let variable_base_scalar_mul =
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::VariableBaseScalarMul {
+            point_x: FunctionInput { witness: Witness(1), num_bits: 128 },
+            point_y: FunctionInput { witness: Witness(2), num_bits: 128 },
+            scalar_low: FunctionInput { witness: Witness(3), num_bits: 128 },
+            scalar_high: FunctionInput { witness: Witness(4), num_bits: 128 },
+            outputs: (Witness(5), Witness(6)),
+        });
+
+    let circuit = Circuit {
+        current_witness_index: 7,
+        opcodes: vec![variable_base_scalar_mul],
+        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3), Witness(4)]),
+        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(5), Witness(6)])),
+        ..Circuit::default()
+    };
+    let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
+
+    let bytes = Program::serialize_program(&program);
+
+    let expected_serialization: Vec<u8> = vec![
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 139, 65, 10, 0, 32, 8, 4, 213, 172, 46, 61, 186,
+        167, 103, 52, 65, 185, 176, 140, 44, 142, 202, 73, 143, 42, 247, 230, 128, 51, 106, 176,
+        64, 135, 53, 218, 112, 252, 113, 141, 223, 187, 9, 155, 36, 231, 203, 2, 176, 218, 19, 62,
+        137, 0, 0, 0,
+    ];
+
+    assert_eq!(bytes, expected_serialization)
+}
+
+#[test]
 fn pedersen_circuit() {
     let pedersen = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::PedersenCommitment {
         inputs: vec![FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() }],
