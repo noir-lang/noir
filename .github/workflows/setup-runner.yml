@@ -78,11 +78,11 @@ jobs:
         run: |
           # Compare the checked-out CI configuration files with the reference files
           if ! git diff --no-index .github/workflows/ci.yml merge-commit-pipeline-files/.github/workflows/ci.yml; then
-            echo "Error: ci.yml changes in master (or PR base). Please merge these changes."
+            echo "Error: ci.yml changes in master (or PR base). Please merge these changes. This is to prevent surprises from Github Action's merge behavior."
             exit 1
           fi
           if ! git diff --no-index .github/workflows/setup-runner.yml merge-commit-pipeline-files/.github/workflows/setup-runner.yml; then
-            echo "Error: setup-runner.yml changes in master (or PR base). Please merge these changes."
+            echo "Error: setup-runner.yml changes in master (or PR base). Please merge these changes. This is to prevent surprises from Github Action's merge behavior."
             exit 1
           fi
 

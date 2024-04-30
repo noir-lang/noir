@@ -14,8 +14,20 @@ if [ -f /run/.ebs-cache-mounted ] ; then
   WAIT_INTERVAL=10  # Interval between checks in seconds
   elapsed_time=0
   # Check for existing mount, assume we can continue if existing
+
   while ! mount | grep -q "/var/lib/docker type ext4"; do
-    echo "Someone already marked as mounting, waiting for them..."
+    echo "Someone already marked as mounting, terminating any stopped instances and waiting..."
+    # Identify and terminate instances in 'STOPPED' state that are using this volume
+    STOPPED_INSTANCES=$(aws ec2 describe-instances \
+      --region $REGION \
+      --filters "Name=instance-state-name,Values=stopped" "Name=block-device-mapping.volume-id,Values=$VOLUME_ID" \
+      --query "Reservations[*].Instances[*].InstanceId" \
+      --output text)
+
+    for instance in $STOPPED_INSTANCES; do
+      echo "Terminating instance $instance"
+      aws ec2 terminate-instances --instance-ids $instance
+    done
     if [ $elapsed_time -ge $MAX_WAIT_TIME ]; then
       echo "Cache mount did not become available within $MAX_WAIT_TIME seconds... race condition?"
       exit 1
