@@ -155,7 +155,7 @@ fn resolve_path_to_ns(
                 allow_contracts,
             )
         }
-        crate::ast::PathKind::Plain => {
+        crate::ast::PathKind::Plain | crate::ast::PathKind::Dep => {
             let result = resolve_name_in_module(
                 crate_id,
                 importing_crate,

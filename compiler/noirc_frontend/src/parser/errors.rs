@@ -20,6 +20,8 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
+    #[error("'dep::' prefix in paths is deprecated")]
+    DepPathPrefixDeprecated,
     #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
     InvalidArrayLengthExpression(Expression),
     #[error("Early 'return' is unsupported")]
@@ -146,6 +148,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::DepPathPrefixDeprecated => Diagnostic::simple_error(
+                        "'dep::' prefix in paths is deprecated".into(),
+                        "'dep::' prefix in paths is deprecated. Please use the path without 'dep::'.".into(),
                         error.span,
                     ),
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(

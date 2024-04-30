@@ -1,5 +1,5 @@
 use crate::ast::{Path, PathKind};
-use crate::parser::NoirParser;
+use crate::parser::{NoirParser, ParserError, ParserErrorReason};
 
 use crate::token::{Keyword, Token};
 
@@ -16,9 +16,17 @@ pub(super) fn path() -> impl NoirParser<Path> {
 
     choice((
         path_kind(Keyword::Crate, PathKind::Crate),
-        path_kind(Keyword::Dep, PathKind::Plain),
+        path_kind(Keyword::Dep, PathKind::Dep),
         idents().map_with_span(make_path(PathKind::Plain)),
     ))
+    .validate(|mut expr, span, emit| {
+        if expr.kind == PathKind::Dep {
+            expr.kind = PathKind::Plain;
+            emit(ParserError::with_reason(ParserErrorReason::DepPathPrefixDeprecated, span));
+        }
+        expr
+    })
+
 }
 
 fn empty_path() -> impl NoirParser<Path> {
