@@ -217,6 +217,8 @@ pub enum InlineType {
     /// and will be separately inlined after the flattening pass.
     /// They are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
+    /// This attribute is unsafe and can cause a function whose logic relies on predicates from
+    /// the flattening pass to fail.
     NoPredicates,
 }
 
