@@ -20,3 +20,4 @@ fold_numeric_generic_poseidon
 no_predicates_basic
 no_predicates_numeric_generic_poseidon
 regression_4709
+fold_fibonacci
