@@ -311,6 +311,7 @@ std::pair<uint<Builder, Native>, uint<Builder, Native>> uint<Builder, Native>::d
         field_t<Builder> one = field_t<Builder>::from_witness_index(context, 1);
         field_t<Builder> zero = field_t<Builder>::from_witness_index(context, 0);
         one / zero;
+        context->failure("uint division by 0.");
     } else if (!other.is_constant()) {
         const bool_t<Builder> is_divisor_zero = field_t<Builder>(other).is_zero();
         field_t<Builder>(is_divisor_zero).assert_equal(0); // here 0 is a circuit constant

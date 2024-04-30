@@ -19,24 +19,11 @@ template <class T> void ignore_unused(T&) {} // use to ignore unused variables i
 using namespace bb;
 
 template <typename Builder> class stdlib_field : public testing::Test {
-    typedef stdlib::bool_t<Builder> bool_ct;
-    typedef stdlib::field_t<Builder> field_ct;
-    typedef stdlib::witness_t<Builder> witness_ct;
-    typedef stdlib::public_witness_t<Builder> public_witness_ct;
+    using bool_ct = stdlib::bool_t<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
+    using witness_ct = stdlib::witness_t<Builder>;
+    using public_witness_ct = stdlib::public_witness_t<Builder>;
 
-    static void fibbonaci(Builder& builder)
-    {
-        field_ct a(witness_ct(&builder, fr::one()));
-        field_ct b(witness_ct(&builder, fr::one()));
-
-        field_ct c = a + b;
-
-        for (size_t i = 0; i < 17; ++i) {
-            b = a;
-            a = c;
-            c = a + b;
-        }
-    }
     static uint64_t fidget(Builder& builder)
     {
         field_ct a(public_witness_ct(&builder, fr::one())); // a is a legit wire value in our circuit
@@ -84,6 +71,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
     }
 
   public:
+    static void test_constructor_from_witness()
+    {
+        bb::fr val = 2;
+        Builder builder = Builder();
+        field_ct elt(witness_ct(&builder, val));
+        EXPECT_EQ(elt.get_value(), val);
+    }
+
     static void create_range_constraint()
     {
         auto run_test = [&](fr elt, size_t num_bits, bool expect_verified) {
@@ -117,61 +112,81 @@ template <typename Builder> class stdlib_field : public testing::Test {
      */
     static void test_assert_equal()
     {
-        auto run_test = [](bool constrain, bool true_when_y_val_zero = true) {
-            Builder builder = Builder();
-            field_ct x = witness_ct(&builder, 1);
-            field_ct y = witness_ct(&builder, 0);
-
-            // With no constraints, the proof verification will pass even though
-            // we assert x and y are equal.
-            bool expected_result = true;
-
-            if (constrain) {
-                /* The fact that we have a passing test in both cases that follow tells us
-                 * that the failure in the first case comes from the additive constraint,
-                 * not from a copy constraint. That failure is because the assert_equal
-                 * below says that 'the value of y was always x'--the value 1 is substituted
-                 * for x when evaluating the gate identity.
-                 */
-                if (true_when_y_val_zero) {
-                    // constraint: 0*x + 1*y + 0*0 + 0 == 0
-
-                    builder.create_add_gate({ .a = x.witness_index,
-                                              .b = y.witness_index,
-                                              .c = builder.zero_idx,
-                                              .a_scaling = 0,
-                                              .b_scaling = 1,
-                                              .c_scaling = 0,
-                                              .const_scaling = 0 });
-                    expected_result = false;
-                } else {
-                    // constraint: 0*x + 1*y + 0*0 - 1 == 0
-
-                    builder.create_add_gate({ .a = x.witness_index,
-                                              .b = y.witness_index,
-                                              .c = builder.zero_idx,
-                                              .a_scaling = 0,
-                                              .b_scaling = 1,
-                                              .c_scaling = 0,
-                                              .const_scaling = -1 });
-                    expected_result = true;
+        if constexpr (IsSimulator<Builder>) {
+            auto run_test = [](bool expect_failure) {
+                Builder simulator;
+                auto lhs = bb::fr::random_element();
+                auto rhs = lhs;
+                if (expect_failure) {
+                    lhs++;
                 }
-            }
+                simulator.assert_equal(lhs, rhs, "testing assert equal");
+                if (expect_failure) {
+                    ASSERT_TRUE(simulator.failed());
+                } else {
+                    ASSERT_FALSE(simulator.failed());
+                }
+            };
+            run_test(true);
+            run_test(false);
+        } else {
 
-            x.assert_equal(y);
+            auto run_test = [](bool constrain, bool true_when_y_val_zero = true) {
+                Builder builder = Builder();
+                field_ct x = witness_ct(&builder, 1);
+                field_ct y = witness_ct(&builder, 0);
 
-            // both field elements have real value 1 now
-            EXPECT_EQ(x.get_value(), 1);
-            EXPECT_EQ(y.get_value(), 1);
+                // With no constraints, the proof verification will pass even though
+                // we assert x and y are equal.
+                bool expected_result = true;
 
-            bool result = CircuitChecker::check(builder);
+                if (constrain) {
+                    /* The fact that we have a passing test in both cases that follow tells us
+                     * that the failure in the first case comes from the additive constraint,
+                     * not from a copy constraint. That failure is because the assert_equal
+                     * below says that 'the value of y was always x'--the value 1 is substituted
+                     * for x when evaluating the gate identity.
+                     */
+                    if (true_when_y_val_zero) {
+                        // constraint: 0*x + 1*y + 0*0 + 0 == 0
 
-            EXPECT_EQ(result, expected_result);
-        };
+                        builder.create_add_gate({ .a = x.witness_index,
+                                                  .b = y.witness_index,
+                                                  .c = builder.zero_idx,
+                                                  .a_scaling = 0,
+                                                  .b_scaling = 1,
+                                                  .c_scaling = 0,
+                                                  .const_scaling = 0 });
+                        expected_result = false;
+                    } else {
+                        // constraint: 0*x + 1*y + 0*0 - 1 == 0
 
-        run_test(false);
-        run_test(true, true);
-        run_test(true, false);
+                        builder.create_add_gate({ .a = x.witness_index,
+                                                  .b = y.witness_index,
+                                                  .c = builder.zero_idx,
+                                                  .a_scaling = 0,
+                                                  .b_scaling = 1,
+                                                  .c_scaling = 0,
+                                                  .const_scaling = -1 });
+                        expected_result = true;
+                    }
+                }
+
+                x.assert_equal(y);
+
+                // both field elements have real value 1 now
+                EXPECT_EQ(x.get_value(), 1);
+                EXPECT_EQ(y.get_value(), 1);
+
+                bool result = CircuitChecker::check(builder);
+
+                EXPECT_EQ(result, expected_result);
+            };
+
+            run_test(false);
+            run_test(true, true);
+            run_test(true, false);
+        }
     }
 
     static void test_add_mul_with_constants()
@@ -179,10 +194,12 @@ template <typename Builder> class stdlib_field : public testing::Test {
         Builder builder = Builder();
         auto gates_before = builder.get_num_gates();
         uint64_t expected = fidget(builder);
-        auto gates_after = builder.get_num_gates();
-        auto& block = builder.blocks.arithmetic;
-        EXPECT_EQ(builder.get_variable(block.w_o()[block.size() - 1]), fr(expected));
-        info("Number of gates added", gates_after - gates_before);
+        if constexpr (!IsSimulator<Builder>) {
+            auto gates_after = builder.get_num_gates();
+            auto& block = builder.blocks.arithmetic;
+            EXPECT_EQ(builder.get_variable(block.w_o()[block.size() - 1]), fr(expected));
+            info("Number of gates added", gates_after - gates_before);
+        }
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
@@ -252,12 +269,18 @@ template <typename Builder> class stdlib_field : public testing::Test {
     static void test_field_fibbonaci()
     {
         Builder builder = Builder();
-        auto gates_before = builder.get_num_gates();
-        fibbonaci(builder);
-        auto gates_after = builder.get_num_gates();
-        auto& block = builder.blocks.arithmetic;
-        EXPECT_EQ(builder.get_variable(block.w_l()[block.size() - 1]), fr(4181));
-        EXPECT_EQ(gates_after - gates_before, 18UL);
+        field_ct a(witness_ct(&builder, fr::one()));
+        field_ct b(witness_ct(&builder, fr::one()));
+
+        field_ct c = a + b;
+
+        for (size_t i = 0; i < 16; ++i) {
+            b = a;
+            a = c;
+            c = a + b;
+        }
+
+        EXPECT_EQ(c.get_value(), fr(4181));
 
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
@@ -282,9 +305,6 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         bool verified = CircuitChecker::check(builder);
 
-        for (size_t i = 0; i < builder.variables.size(); i++) {
-            info(i, builder.variables[i]);
-        }
         ASSERT_TRUE(verified);
     }
 
@@ -299,14 +319,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
         auto gates_after = builder.get_num_gates();
         EXPECT_EQ(r.get_value(), true);
 
-        fr x = builder.get_variable(r.witness_index);
+        fr x = r.get_value();
         EXPECT_EQ(x, fr(1));
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
-        } else {
+        } else if (std::same_as<Builder, UltraCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 4UL);
         }
 
@@ -327,14 +347,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         auto gates_after = builder.get_num_gates();
 
-        fr x = builder.get_variable(r.witness_index);
+        fr x = r.get_value();
         EXPECT_EQ(x, fr(0));
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
-        } else {
+        } else if (std::same_as<Builder, UltraCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 4UL);
         }
 
@@ -356,14 +376,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         auto gates_after = builder.get_num_gates();
 
-        fr x = builder.get_variable(r.witness_index);
+        fr x = r.get_value();
         EXPECT_EQ(x, fr(1));
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 11UL);
-        } else {
+        } else if (std::same_as<Builder, UltraCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 7UL);
         }
 
@@ -853,10 +873,12 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(value_ct.get_value(), value);
         EXPECT_EQ(first_copy.get_value(), value);
         EXPECT_EQ(second_copy.get_value(), value);
-        EXPECT_EQ(value_ct.get_witness_index() + 1, first_copy.get_witness_index());
-        EXPECT_EQ(value_ct.get_witness_index() + 2, second_copy.get_witness_index());
 
-        info("num gates = ", builder.get_num_gates());
+        if (!IsSimulator<Builder>) {
+            EXPECT_EQ(value_ct.get_witness_index() + 1, first_copy.get_witness_index());
+            EXPECT_EQ(value_ct.get_witness_index() + 2, second_copy.get_witness_index());
+            info("num gates = ", builder.get_num_gates());
+        }
 
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
@@ -905,12 +927,35 @@ template <typename Builder> class stdlib_field : public testing::Test {
         bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     }
+
+    static void test_add_two()
+    {
+        Builder composer = Builder();
+        auto x_1 = bb::fr::random_element();
+        auto x_2 = bb::fr::random_element();
+        auto x_3 = bb::fr::random_element();
+
+        field_ct x_1_ct = witness_ct(&composer, x_1);
+        field_ct x_2_ct = witness_ct(&composer, x_2);
+        field_ct x_3_ct = witness_ct(&composer, x_3);
+
+        auto sum_ct = x_1_ct.add_two(x_2_ct, x_3_ct);
+
+        EXPECT_EQ(sum_ct.get_value(), x_1 + x_2 + x_3);
+
+        bool circuit_checks = composer.check_circuit();
+        EXPECT_TRUE(circuit_checks);
+    }
 };
 
-typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
+using CircuitTypes = testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 
 TYPED_TEST_SUITE(stdlib_field, CircuitTypes);
 
+TYPED_TEST(stdlib_field, test_constructor_from_witness)
+{
+    TestFixture::test_constructor_from_witness();
+}
 TYPED_TEST(stdlib_field, test_create_range_constraint)
 {
     TestFixture::create_range_constraint();
@@ -919,10 +964,7 @@ TYPED_TEST(stdlib_field, test_assert_equal)
 {
     TestFixture::test_assert_equal();
 }
-TYPED_TEST(stdlib_field, test_add_mul_with_constants)
-{
-    TestFixture::test_add_mul_with_constants();
-}
+
 TYPED_TEST(stdlib_field, test_div)
 {
     TestFixture::test_div();

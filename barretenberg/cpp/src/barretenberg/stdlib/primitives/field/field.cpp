@@ -20,9 +20,15 @@ template <typename Builder>
 field_t<Builder>::field_t(const witness_t<Builder>& value)
     : context(value.context)
 {
-    additive_constant = 0;
-    multiplicative_constant = 1;
-    witness_index = value.witness_index;
+    if constexpr (IsSimulator<Builder>) {
+        additive_constant = value.witness;
+        multiplicative_constant = 1;
+        witness_index = IS_CONSTANT;
+    } else {
+        additive_constant = 0;
+        multiplicative_constant = 1;
+        witness_index = value.witness_index;
+    }
 }
 
 template <typename Builder>
@@ -342,11 +348,18 @@ template <typename Builder> field_t<Builder> field_t<Builder>::divide_no_zero_ch
  */
 template <typename Builder> field_t<Builder> field_t<Builder>::pow(const field_t& exponent) const
 {
+
     auto* ctx = get_context() ? get_context() : exponent.get_context();
+    uint256_t exponent_value = exponent.get_value();
+    if constexpr (IsSimulator<Builder>) {
+        if ((exponent_value >> 32) != static_cast<uint256_t>(0)) {
+            ctx->failure("field_t::pow exponent accumulator incorrect");
+        }
+        constexpr uint256_t MASK_32_BITS = 0xffff'ffff;
+        return get_value().pow(exponent_value & MASK_32_BITS);
+    }
 
     bool exponent_constant = exponent.is_constant();
-
-    uint256_t exponent_value = exponent.get_value();
     std::vector<bool_t<Builder>> exponent_bits(32);
     for (size_t i = 0; i < exponent_bits.size(); ++i) {
         uint256_t value_bit = exponent_value & 1;
@@ -510,32 +523,38 @@ template <typename Builder> field_t<Builder> field_t<Builder>::normalize() const
 
 template <typename Builder> void field_t<Builder>::assert_is_zero(std::string const& msg) const
 {
-    if (get_value() != bb::fr(0)) {
-        context->failure(msg);
+    if constexpr (IsSimulator<Builder>) {
+        if (get_value() != 0) {
+            context->failure(msg);
+        }
+    } else {
+        if (get_value() != bb::fr(0)) {
+            context->failure(msg);
+        }
+
+        if (witness_index == IS_CONSTANT) {
+            ASSERT(additive_constant == bb::fr(0));
+            return;
+        }
+
+        // Aim of new gate: this.v * this.mul + this.add == 0
+        // I.e.:
+        // this.v * 0 * [ 0 ] + this.v * [this.mul] + 0 * [ 0 ] + 0 * [ 0 ] + [this.add] == 0
+        // this.v * 0 * [q_m] + this.v * [   q_l  ] + 0 * [q_r] + 0 * [q_o] + [   q_c  ] == 0
+
+        Builder* ctx = context;
+
+        context->create_poly_gate({
+            .a = witness_index,
+            .b = ctx->zero_idx,
+            .c = ctx->zero_idx,
+            .q_m = bb::fr(0),
+            .q_l = multiplicative_constant,
+            .q_r = bb::fr(0),
+            .q_o = bb::fr(0),
+            .q_c = additive_constant,
+        });
     }
-
-    if (witness_index == IS_CONSTANT) {
-        ASSERT(additive_constant == bb::fr(0));
-        return;
-    }
-
-    // Aim of new gate: this.v * this.mul + this.add == 0
-    // I.e.:
-    // this.v * 0 * [ 0 ] + this.v * [this.mul] + 0 * [ 0 ] + 0 * [ 0 ] + [this.add] == 0
-    // this.v * 0 * [q_m] + this.v * [   q_l  ] + 0 * [q_r] + 0 * [q_o] + [   q_c  ] == 0
-
-    Builder* ctx = context;
-
-    context->create_poly_gate({
-        .a = witness_index,
-        .b = ctx->zero_idx,
-        .c = ctx->zero_idx,
-        .q_m = bb::fr(0),
-        .q_l = multiplicative_constant,
-        .q_r = bb::fr(0),
-        .q_o = bb::fr(0),
-        .q_c = additive_constant,
-    });
 }
 
 template <typename Builder> void field_t<Builder>::assert_is_not_zero(std::string const& msg) const
@@ -545,19 +564,20 @@ template <typename Builder> void field_t<Builder>::assert_is_not_zero(std::strin
         // We don't return; we continue with the function, for debugging purposes.
     }
 
-    if (witness_index == IS_CONSTANT) {
-        ASSERT(additive_constant != bb::fr(0));
-        return;
+    if constexpr (!IsSimulator<Builder>) {
+        if (witness_index == IS_CONSTANT) {
+            ASSERT(additive_constant != bb::fr(0));
+            return;
+        }
     }
 
-    Builder* ctx = context;
-    if (get_value() == 0 && ctx) {
-        ctx->failure(msg);
+    if (get_value() == 0 && context) {
+        context->failure(msg);
     }
 
     bb::fr inverse_value = (get_value() == 0) ? 0 : get_value().invert();
 
-    field_t<Builder> inverse(witness_t<Builder>(ctx, inverse_value));
+    field_t<Builder> inverse(witness_t<Builder>(context, inverse_value));
 
     // Aim of new gate: `this` has an inverse (hence is not zero).
     // I.e.:
@@ -569,7 +589,7 @@ template <typename Builder> void field_t<Builder>::assert_is_not_zero(std::strin
     context->create_poly_gate({
         .a = witness_index,             // input value
         .b = inverse.witness_index,     // inverse
-        .c = ctx->zero_idx,             // no output
+        .c = context->zero_idx,         // no output
         .q_m = multiplicative_constant, // a * b * mul_const
         .q_l = bb::fr(0),               // a * 0
         .q_r = additive_constant,       // b * mul_const
@@ -714,19 +734,23 @@ field_t<Builder> field_t<Builder>::conditional_assign(const bool_t<Builder>& pre
 template <typename Builder>
 void field_t<Builder>::create_range_constraint(const size_t num_bits, std::string const& msg) const
 {
-    if (num_bits == 0) {
-        assert_is_zero("0-bit range_constraint on non-zero field_t.");
+    if constexpr (IsSimulator<Builder>) {
+        context->create_range_constraint(get_value(), num_bits, msg);
     } else {
-        if (is_constant()) {
-            ASSERT(uint256_t(get_value()).get_msb() < num_bits);
+        if (num_bits == 0) {
+            assert_is_zero("0-bit range_constraint on non-zero field_t.");
         } else {
-            if constexpr (HasPlookup<Builder>) {
-                context->decompose_into_default_range(normalize().get_witness_index(),
-                                                      num_bits,
-                                                      bb::UltraCircuitBuilder::DEFAULT_PLOOKUP_RANGE_BITNUM,
-                                                      msg);
+            if (is_constant()) {
+                ASSERT(uint256_t(get_value()).get_msb() < num_bits);
             } else {
-                context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
+                if constexpr (HasPlookup<Builder>) {
+                    context->decompose_into_default_range(normalize().get_witness_index(),
+                                                          num_bits,
+                                                          bb::UltraCircuitBuilder::DEFAULT_PLOOKUP_RANGE_BITNUM,
+                                                          msg);
+                } else {
+                    context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
+                }
             }
         }
     }
@@ -744,7 +768,9 @@ template <typename Builder> void field_t<Builder>::assert_equal(const field_t& r
     const field_t lhs = *this;
     Builder* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
 
-    if (lhs.is_constant() && rhs.is_constant()) {
+    if constexpr (IsSimulator<Builder>) {
+        ctx->assert_equal(lhs.get_value(), rhs.get_value(), msg);
+    } else if (lhs.is_constant() && rhs.is_constant()) {
         ASSERT(lhs.get_value() == rhs.get_value());
     } else if (lhs.is_constant()) {
         field_t right = rhs.normalize();
@@ -1103,9 +1129,10 @@ std::vector<bool_t<Builder>> field_t<Builder>::decompose_into_bits(
     }
 
     this->assert_equal(sum); // `this` and `sum` are both normalized here.
+
+    // If value can be larger than modulus we must enforce unique representation
     constexpr uint256_t modulus_minus_one = fr::modulus - 1;
     auto modulus_bits = modulus_minus_one.get_msb() + 1;
-    // If value can be larger than modulus we must enforce unique representation
     if (num_bits >= modulus_bits) {
         // r - 1 = p_lo + 2**128 * p_hi
         const fr p_lo = modulus_minus_one.slice(0, 128);
@@ -1119,21 +1146,30 @@ std::vector<bool_t<Builder>> field_t<Builder>::decompose_into_bits(
         y_lo += shifted_high_limb;
         y_lo.normalize();
 
-        // A carry was necessary if and only if the 128th bit y_lo_hi of y_lo is 0.
-        auto [y_lo_lo, y_lo_hi, zeros] = y_lo.slice(128, 128);
-        // This copy constraint, along with the constraints of field_t::slice, imposes that y_lo has bit length 129.
-        // Since the integer y_lo is at least -2**128+1, which has more than 129 bits in `Fr`, the implicit range
-        // constraint shows that y_lo is non-negative.
-        context->assert_equal(
-            zeros.witness_index, context->zero_idx, "field_t: bit decomposition_fails: high limb non-zero");
-        // y_borrow is the boolean "a carry was necessary"
-        field_t<Builder> y_borrow = -(y_lo_hi - 1);
-        // If a carry was necessary, subtract that carry from p_hi
-        // y_hi = (p_hi - y_borrow) - sum_hi
-        field_t<Builder> y_hi = -(shifted_high_limb / shift) + (p_hi);
-        y_hi -= y_borrow;
-        // As before, except that now the range constraint is explicit, this shows that y_hi is non-negative.
-        y_hi.create_range_constraint(128, "field_t: bit decomposition fails: y_hi is too large.");
+        if constexpr (IsSimulator<Builder>) {
+            fr sum_lo = shift + p_lo - y_lo.get_value();
+            auto sum_nonreduced =
+                static_cast<uint256_t>(sum_lo) + static_cast<uint256_t>(shifted_high_limb.get_value());
+            if (sum_nonreduced > modulus_minus_one) {
+                context->failure("Bit decomposition describes non-reduced form of a field element.");
+            }
+        } else {
+            // A carry was necessary if and only if the 128th bit y_lo_hi of y_lo is 0.
+            auto [y_lo_lo, y_lo_hi, zeros] = y_lo.slice(128, 128);
+            // This copy constraint, along with the constraints of field_t::slice, imposes that y_lo has bit length 129.
+            // Since the integer y_lo is at least -2**128+1, which has more than 129 bits in `Fr`, the implicit range
+            // constraint shows that y_lo is non-negative.
+            context->assert_equal(
+                zeros.witness_index, context->zero_idx, "field_t: bit decomposition_fails: high limb non-zero");
+            // y_borrow is the boolean "a carry was necessary"
+            field_t<Builder> y_borrow = -(y_lo_hi - 1);
+            // If a carry was necessary, subtract that carry from p_hi
+            // y_hi = (p_hi - y_borrow) - sum_hi
+            field_t<Builder> y_hi = -(shifted_high_limb / shift) + (p_hi);
+            y_hi -= y_borrow;
+            // As before, except that now the range constraint is explicit, this shows that y_hi is non-negative.
+            y_hi.create_range_constraint(128, "field_t: bit decomposition fails: y_hi is too large.");
+        }
     }
 
     return result;
@@ -1142,5 +1178,6 @@ std::vector<bool_t<Builder>> field_t<Builder>::decompose_into_bits(
 template class field_t<bb::StandardCircuitBuilder>;
 template class field_t<bb::UltraCircuitBuilder>;
 template class field_t<bb::GoblinUltraCircuitBuilder>;
+template class field_t<bb::CircuitSimulatorBN254>;
 
 } // namespace bb::stdlib

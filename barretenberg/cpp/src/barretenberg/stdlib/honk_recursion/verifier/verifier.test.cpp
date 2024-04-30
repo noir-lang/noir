@@ -197,7 +197,11 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
         }
 
         // Check 3: Construct and verify a proof of the recursive verifier circuit
-        {
+        if constexpr (!IsSimulator<OuterBuilder>) {
+            using OuterFlavor = std::conditional_t<IsGoblinBuilder<OuterBuilder>, GoblinUltraFlavor, UltraFlavor>;
+            using OuterProver = UltraProver_<OuterFlavor>;
+            using OuterVerifier = UltraVerifier_<OuterFlavor>;
+            using OuterProverInstance = ProverInstance_<OuterFlavor>;
             auto instance = std::make_shared<OuterProverInstance>(outer_circuit);
             OuterProver prover(instance);
             auto verification_key = std::make_shared<typename OuterFlavor::VerificationKey>(instance->proving_key);
@@ -248,7 +252,9 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
 using Flavors = testing::Types<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
                                GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>,
                                UltraRecursiveFlavor_<UltraCircuitBuilder>,
-                               UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
+                               UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
+                               UltraRecursiveFlavor_<CircuitSimulatorBN254>,
+                               GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 TYPED_TEST_SUITE(RecursiveVerifierTest, Flavors);
 

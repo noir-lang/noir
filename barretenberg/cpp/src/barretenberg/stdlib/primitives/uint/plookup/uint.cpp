@@ -16,22 +16,26 @@ std::vector<uint32_t> uint_plookup<Builder, Native>::constrain_accumulators(Buil
 template <typename Builder, typename Native>
 uint_plookup<Builder, Native>::uint_plookup(const witness_t<Builder>& witness)
     : context(witness.context)
-    , additive_constant(0)
     , witness_status(WitnessStatus::OK)
-    , accumulators(constrain_accumulators(context, witness.witness_index))
-    , witness_index(witness.witness_index)
-{}
+{
+    if (witness.witness_index == IS_CONSTANT) {
+        additive_constant = witness.witness;
+        witness_index = IS_CONSTANT;
+    } else {
+        accumulators = constrain_accumulators(context, witness.witness_index);
+        witness_index = witness.witness_index;
+    }
+}
 
 template <typename Builder, typename Native>
 uint_plookup<Builder, Native>::uint_plookup(const field_t<Builder>& value)
     : context(value.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
-    , accumulators()
-    , witness_index(IS_CONSTANT)
 {
     if (value.witness_index == IS_CONSTANT) {
         additive_constant = value.additive_constant;
+        witness_index = IS_CONSTANT;
     } else {
         field_t<Builder> norm = value.normalize();
         accumulators = constrain_accumulators(context, norm.get_witness_index());
@@ -241,11 +245,15 @@ bool_t<Builder> uint_plookup<Builder, Native>::at(const size_t bit_index) const
 
 template class uint_plookup<bb::UltraCircuitBuilder, uint8_t>;
 template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint8_t>;
+template class uint_plookup<bb::CircuitSimulatorBN254, uint8_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint16_t>;
 template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint16_t>;
+template class uint_plookup<bb::CircuitSimulatorBN254, uint16_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint32_t>;
 template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint32_t>;
+template class uint_plookup<bb::CircuitSimulatorBN254, uint32_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint64_t>;
 template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint64_t>;
+template class uint_plookup<bb::CircuitSimulatorBN254, uint64_t>;
 
 } // namespace bb::stdlib

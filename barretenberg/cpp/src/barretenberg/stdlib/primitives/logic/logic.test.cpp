@@ -26,7 +26,7 @@ template <class T> void ignore_unused(T&) {} // use to ignore unused variables i
 
 template <class Builder> class LogicTest : public testing::Test {};
 
-using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 
 TYPED_TEST_SUITE(LogicTest, CircuitTypes);
 
@@ -91,6 +91,9 @@ TYPED_TEST(LogicTest, TestCorrectLogic)
 TYPED_TEST(LogicTest, LargeOperands)
 {
     STDLIB_TYPE_ALIASES
+    if constexpr (IsSimulator<Builder>) {
+        GTEST_SKIP() << "Skipping this test for the simulator";
+    }
     auto builder = Builder();
 
     uint256_t mask = (uint256_t(1) << 48) - 1;

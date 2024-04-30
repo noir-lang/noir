@@ -6,6 +6,7 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/376): Establish whether this type should be here at all.
 namespace bb::stdlib {
 
 // Native type

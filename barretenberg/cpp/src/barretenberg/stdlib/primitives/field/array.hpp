@@ -33,7 +33,8 @@ template <typename Builder, size_t SIZE> field_t<Builder> array_length(std::arra
 template <typename Builder, size_t SIZE> field_t<Builder> array_pop(std::array<field_t<Builder>, SIZE> const& arr)
 {
     field_t<Builder> popped_value = 0;
-    bool_t<Builder> already_popped = false;
+    bool_t<Builder> already_popped = { arr[0].context, false };
+
     for (size_t i = arr.size() - 1; i != (size_t)-1; i--) {
         bool_t<Builder> is_non_zero = arr[i] != 0;
         popped_value = field_t<Builder>::conditional_assign(!already_popped && is_non_zero, arr[i], popped_value);

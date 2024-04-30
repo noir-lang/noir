@@ -3,6 +3,7 @@
  * instantiate templates.
  */
 #pragma once
+#include "barretenberg/stdlib_circuit_builders/circuit_simulator.hpp"
 #include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
@@ -20,3 +21,6 @@ concept IsGoblinBuilder = bb::IsAnyOf<T, bb::GoblinUltraCircuitBuilder>;
 template <typename T>
 concept IsNotGoblinBuilder = !
 IsGoblinBuilder<T>;
+
+template <typename T>
+concept IsSimulator = bb::IsAnyOf<T, bb::CircuitSimulatorBN254>;

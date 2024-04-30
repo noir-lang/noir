@@ -159,5 +159,6 @@ template <typename Builder> std::string bit_array<Builder>::get_witness_as_strin
 template class bit_array<bb::StandardCircuitBuilder>;
 template class bit_array<bb::UltraCircuitBuilder>;
 template class bit_array<bb::GoblinUltraCircuitBuilder>;
+template class bit_array<bb::CircuitSimulatorBN254>;
 
 } // namespace bb::stdlib

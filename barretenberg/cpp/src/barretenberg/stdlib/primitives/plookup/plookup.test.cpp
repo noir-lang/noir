@@ -22,7 +22,7 @@ namespace {
 auto& engine = numeric::get_debug_randomness();
 }
 
-// TODO FIX FIX
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/953): Re-enable these tests
 // TEST(stdlib_plookup, pedersen_lookup_left)
 // {
 //     Builder builder = Builder();

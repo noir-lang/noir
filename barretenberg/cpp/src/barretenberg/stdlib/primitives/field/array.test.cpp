@@ -16,10 +16,10 @@ auto& engine = numeric::get_debug_randomness();
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
 template <typename Builder> class stdlib_array : public testing::Test {
-    typedef stdlib::bool_t<Builder> bool_ct;
-    typedef stdlib::field_t<Builder> field_ct;
-    typedef stdlib::witness_t<Builder> witness_ct;
-    typedef stdlib::public_witness_t<Builder> public_witness_ct;
+    using bool_ct = stdlib::bool_t<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
+    using witness_ct = stdlib::witness_t<Builder>;
+    using public_witness_ct = stdlib::public_witness_t<Builder>;
 
   public:
     static void test_array_length()
@@ -517,7 +517,10 @@ template <typename Builder> class stdlib_array : public testing::Test {
             test_push_array_to_array_helper(builder, source, target, expected_target, expect_fail);
 
         EXPECT_FALSE(proof_result);
-        EXPECT_EQ(error, "Once we've hit the first zero, there must only be zeros thereafter!");
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/666):
+        if constexpr (!IsSimulator<Builder>) {
+            EXPECT_EQ(error, "Once we've hit the first zero, there must only be zeros thereafter!");
+        }
     }
 
     class MockClass {
@@ -593,7 +596,7 @@ template <typename Builder> class stdlib_array : public testing::Test {
     }
 };
 
-typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
+typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254> CircuitTypes;
 
 TYPED_TEST_SUITE(stdlib_array, CircuitTypes);
 
@@ -631,7 +634,12 @@ TYPED_TEST(stdlib_array, test_array_push_generic)
 }
 TYPED_TEST(stdlib_array, test_array_push_generic_full)
 {
-    TestFixture::test_array_push_generic_full();
+    if constexpr (IsSimulator<TypeParam>) {
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/666):
+        GTEST_SKIP() << "Skipped for simulator";
+    } else {
+        TestFixture::test_array_push_generic_full();
+    }
 }
 // push array to array (pata) tests
 TYPED_TEST(stdlib_array, test_pata_large_bench)

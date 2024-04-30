@@ -188,16 +188,20 @@ template <typename T, typename w> inline std::ostream& operator<<(std::ostream& 
 }
 
 template <typename Builder>
-using uint8 =
-    typename std::conditional<HasPlookup<Builder>, uint_plookup<Builder, uint8_t>, uint<Builder, uint8_t>>::type;
+using uint8 = typename std::conditional<HasPlookup<Builder> || IsSimulator<Builder>,
+                                        uint_plookup<Builder, uint8_t>,
+                                        uint<Builder, uint8_t>>::type;
 template <typename Builder>
-using uint16 =
-    typename std::conditional<HasPlookup<Builder>, uint_plookup<Builder, uint16_t>, uint<Builder, uint16_t>>::type;
+using uint16 = typename std::conditional<HasPlookup<Builder> || IsSimulator<Builder>,
+                                         uint_plookup<Builder, uint16_t>,
+                                         uint<Builder, uint16_t>>::type;
 template <typename Builder>
-using uint32 =
-    typename std::conditional<HasPlookup<Builder>, uint_plookup<Builder, uint32_t>, uint<Builder, uint32_t>>::type;
+using uint32 = typename std::conditional<HasPlookup<Builder> || IsSimulator<Builder>,
+                                         uint_plookup<Builder, uint32_t>,
+                                         uint<Builder, uint32_t>>::type;
 template <typename Builder>
-using uint64 =
-    typename std::conditional<HasPlookup<Builder>, uint_plookup<Builder, uint64_t>, uint<Builder, uint64_t>>::type;
+using uint64 = typename std::conditional<HasPlookup<Builder> || IsSimulator<Builder>,
+                                         uint_plookup<Builder, uint64_t>,
+                                         uint<Builder, uint64_t>>::type;
 
 } // namespace bb::stdlib

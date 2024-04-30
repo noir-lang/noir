@@ -30,6 +30,7 @@ ecdsa_signature ecdsa_construct_signature(const std::string& message, const ecds
 template <typename Hash, typename Fq, typename Fr, typename G1>
 typename G1::affine_element ecdsa_recover_public_key(const std::string& message, const ecdsa_signature& sig);
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/659)
 template <typename Hash, typename Fq, typename Fr, typename G1>
 bool ecdsa_verify_signature(const std::string& message,
                             const typename G1::affine_element& public_key,

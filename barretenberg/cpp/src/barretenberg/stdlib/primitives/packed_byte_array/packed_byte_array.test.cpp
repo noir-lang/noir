@@ -20,7 +20,7 @@ auto& engine = numeric::get_debug_randomness();
 
 template <class Builder> class PackedByteArrayTest : public ::testing::Test {};
 
-using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 TYPED_TEST_SUITE(PackedByteArrayTest, CircuitTypes);
 
 TYPED_TEST(PackedByteArrayTest, string_constructor_and_get_value_consistency)

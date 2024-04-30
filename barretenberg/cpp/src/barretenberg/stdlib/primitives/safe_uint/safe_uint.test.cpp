@@ -1,4 +1,3 @@
-
 #include "safe_uint.hpp"
 #include "../byte_array/byte_array.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
@@ -31,7 +30,7 @@ template <class T> void ignore_unused(T&) {} // use to ignore unused variables i
 
 template <class Builder> class SafeUintTest : public ::testing::Test {};
 
-using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 TYPED_TEST_SUITE(SafeUintTest, CircuitTypes);
 
 // CONSTRUCTOR
@@ -332,14 +331,14 @@ TYPED_TEST(SafeUintTest, TestMinusUnderflowSpecial1)
     suint_ct c(a, suint_ct::MAX_BIT_NUM);
     suint_ct d(b, suint_ct::MAX_BIT_NUM);
     try {
-        c = c - d; // even though this is not an underflow, we cannot distinguish it from an actual underflow because
-                   // the sum of maxes exceeds MAX_VALUE so we must throw an error
+        c = c - d; // even though this is not an underflow, we cannot distinguish it from an actual underflow
+                   // because the sum of maxes exceeds MAX_VALUE so we must throw an error
         FAIL() << "Expected error to be thrown";
     } catch (std::runtime_error const& err) {
         EXPECT_TRUE(CircuitChecker::check(builder)); // no incorrect constraints
         EXPECT_EQ(err.what(),
-                  std::string("maximum value exceeded in safe_uint minus operator")); // possible underflow is detected
-                                                                                      // with check on maxes
+                  std::string("maximum value exceeded in safe_uint minus operator")); // possible underflow is
+                                                                                      // detected with check on maxes
     } catch (...) {
         FAIL() << "Expected no error, got other error";
     }
@@ -368,8 +367,8 @@ TYPED_TEST(SafeUintTest, TestMinusUnderflowSpecial2)
     } catch (std::runtime_error const& err) {
         EXPECT_FALSE(CircuitChecker::check(builder)); // underflow causes failing constraint
         EXPECT_EQ(err.what(),
-                  std::string("maximum value exceeded in safe_uint minus operator")); // possible underflow is detected
-                                                                                      // with check on maxes
+                  std::string("maximum value exceeded in safe_uint minus operator")); // possible underflow is
+                                                                                      // detected with check on maxes
     } catch (...) {
         FAIL() << "Expected no error, got other error";
     }
@@ -453,8 +452,8 @@ TYPED_TEST(SafeUintTest, TestDivideMethodQuotientRemainderModRFails)
     suint_ct c(a, 3);
     suint_ct d(b, 5);
     d = d.divide(c, 3, 1, "d/c", [](uint256_t a, uint256_t b) { return std::make_pair((fr)a / (fr)b, 0); });
-    // 19 / 5 in the field is 0x1d08fbde871dc67f6e96903a4db401d17e858b5eaf6f438a5bedf9bf2999999e, so the quotient
-    // should fail the range check of 3-bits.
+    // 19 / 5 in the field is 0x1d08fbde871dc67f6e96903a4db401d17e858b5eaf6f438a5bedf9bf2999999e, so the
+    // quotient should fail the range check of 3-bits.
 
     EXPECT_FALSE(CircuitChecker::check(builder));
 }
@@ -681,8 +680,7 @@ TYPED_TEST(SafeUintTest, TestDivRemainderConstraint)
     suint_ct b(witness_ct(&builder, val), 32);
 
     // set quotient to 0 and remainder to val.
-    auto supply_bad_witnesses = [](uint256_t val, uint256_t divisor) {
-        ignore_unused(divisor);
+    auto supply_bad_witnesses = [](uint256_t val, [[maybe_unused]] uint256_t divisor) {
         return std::make_pair(0, val);
     };
 

@@ -1,0 +1,1 @@
+ barretenberg_module(simulator_bench stdlib_honk_recursion stdlib_sha256 crypto_merkle_tree) 

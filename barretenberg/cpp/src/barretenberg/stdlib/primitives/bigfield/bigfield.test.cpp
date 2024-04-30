@@ -1,5 +1,4 @@
-#include <gtest/gtest.h>
-
+#include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
 #include "barretenberg/ecc/curves/bn254/fq.hpp"
@@ -12,8 +11,7 @@
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
-
-#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include <gtest/gtest.h>
 #include <memory>
 #include <utility>
 
@@ -514,6 +512,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
                                fr(uint256_t(inputs[3]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
             fq_ct e = (a - b) * (c - d);
             fq expected = (inputs[0] - inputs[1]) * (inputs[2] - inputs[3]);
+
             expected = expected.from_montgomery_form();
             uint512_t result = e.get_value();
 
@@ -844,7 +843,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
 };
 
 // Define types for which the above tests will be constructed.
-typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
+using CircuitTypes = testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 // Define the suite of tests.
 TYPED_TEST_SUITE(stdlib_bigfield, CircuitTypes);
 TYPED_TEST(stdlib_bigfield, badmul)

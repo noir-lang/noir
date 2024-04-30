@@ -350,9 +350,9 @@ typename byte_array<Builder>::byte_slice byte_array<Builder>::split_byte(const s
 
     if (byte.is_constant()) {
         field_t<Builder> low(context, low_value);
-        field_t<Builder> high(context, high_value);
+        field_t<Builder> shifted_high(context, high_value * (uint64_t(1) << (8ULL - num_high_bits)));
         bool_t<Builder> bit(context, static_cast<bool>(bit_value));
-        return { low, high, bit };
+        return { low, shifted_high, bit };
     }
     field_t<Builder> low = witness_t<Builder>(context, low_value);
     field_t<Builder> high = witness_t<Builder>(context, high_value);
@@ -382,5 +382,6 @@ typename byte_array<Builder>::byte_slice byte_array<Builder>::split_byte(const s
 template class byte_array<bb::StandardCircuitBuilder>;
 template class byte_array<bb::UltraCircuitBuilder>;
 template class byte_array<bb::GoblinUltraCircuitBuilder>;
+template class byte_array<bb::CircuitSimulatorBN254>;
 
 } // namespace bb::stdlib

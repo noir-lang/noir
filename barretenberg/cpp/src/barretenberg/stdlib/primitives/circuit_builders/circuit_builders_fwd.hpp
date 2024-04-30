@@ -23,4 +23,5 @@ template <class Arithmetization> class UltraCircuitBuilder_;
 using UltraCircuitBuilder = UltraCircuitBuilder_<UltraArith<field<Bn254FrParams>>>;
 template <class FF> class GoblinUltraCircuitBuilder_;
 using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<field<Bn254FrParams>>;
+class CircuitSimulatorBN254;
 } // namespace bb

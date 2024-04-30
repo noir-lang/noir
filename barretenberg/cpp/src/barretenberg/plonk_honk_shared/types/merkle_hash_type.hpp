@@ -1,6 +1,6 @@
 #pragma once
 
 namespace bb::merkle {
-// TODO(Cody) Get rid of this?
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/426)
 enum HashType { FIXED_BASE_PEDERSEN, LOOKUP_PEDERSEN };
 } // namespace bb::merkle

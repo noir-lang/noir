@@ -74,12 +74,12 @@ uint_native rotate(uint_native value, size_t rotation)
                     : value;
 }
 template <typename Builder> class stdlib_uint : public testing::Test {
-    typedef typename std::conditional<std::same_as<Builder, UltraCircuitBuilder>,
-                                      stdlib::uint_plookup<Builder, uint_native>,
-                                      stdlib::uint<Builder, uint_native>>::type uint_ct;
-    typedef stdlib::bool_t<Builder> bool_ct;
-    typedef stdlib::witness_t<Builder> witness_ct;
-    typedef stdlib::byte_array<Builder> byte_array_ct;
+    using uint_ct = typename std::conditional<std::same_as<Builder, StandardCircuitBuilder>,
+                                              stdlib::uint<Builder, uint_native>,
+                                              stdlib::uint_plookup<Builder, uint_native>>::type;
+    using bool_ct = stdlib::bool_t<Builder>;
+    using witness_ct = stdlib::witness_t<Builder>;
+    using byte_array_ct = stdlib::byte_array<Builder>;
 
     static inline std::vector<uint_native> special_values{ 0U,
                                                            1U,
@@ -332,8 +332,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             a = c;
             c = a * b;
         }
-        uint_native c_result =
-            static_cast<uint_native>(builder.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
+        uint_native c_result = static_cast<uint_native>(c.get_value());
         EXPECT_EQ(c_result, c_expected);
 
         auto special_uints = get_special_uints(&builder);
@@ -397,8 +396,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             c = a + b;
             a = c ^ a;
         }
-        uint_native a_result =
-            static_cast<uint_native>(builder.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+        uint_native a_result = static_cast<uint_native>(a.get_value());
 
         EXPECT_EQ(a_result, a_expected);
 
@@ -449,9 +447,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             a = c;
             c = (a + b) ^ (const_a ^ const_b);
         }
-        uint32_t c_witness_index = c.get_witness_index();
-        uint_native c_result =
-            static_cast<uint_native>(builder.get_variable(c_witness_index).from_montgomery_form().data[0]);
+        uint_native c_result = static_cast<uint_native>(c.get_value());
         EXPECT_EQ(c_result, c_expected);
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
@@ -486,9 +482,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             a = c;
             c = (~a & const_a) + (b & const_b);
         }
-        uint32_t c_witness_index = c.get_witness_index();
-        uint_native c_result =
-            static_cast<uint_native>(builder.get_variable(c_witness_index).from_montgomery_form().data[0]);
+        uint_native c_result = static_cast<uint_native>(c.get_value());
         EXPECT_EQ(c_result, c_expected);
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
@@ -520,8 +514,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             c = a + b;
             a = c & a;
         }
-        uint_native a_result =
-            static_cast<uint_native>(builder.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+        uint_native a_result = static_cast<uint_native>(a.get_value());
         EXPECT_EQ(a_result, a_expected);
 
         bool result = CircuitChecker::check(builder);
@@ -554,8 +547,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             c = a + b;
             a = c | a;
         }
-        uint_native a_result =
-            static_cast<uint_native>(builder.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+        uint_native a_result = static_cast<uint_native>(a.get_value());
         EXPECT_EQ(a_result, a_expected);
 
         bool result = CircuitChecker::check(builder);
@@ -662,8 +654,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             c = a + b;
             a = c.ror(static_cast<uint_native>(i % 31)) + a.ror(static_cast<uint_native>((i + 1) % 31));
         }
-        uint_native a_result =
-            static_cast<uint_native>(builder.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+        uint_native a_result = static_cast<uint_native>(a.get_value());
         EXPECT_EQ(a_result, a_expected);
 
         bool result = CircuitChecker::check(builder);
@@ -794,22 +785,14 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             a = temp1 + temp2;
         }
 
-        uint_native a_result =
-            static_cast<uint_native>(builder.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native b_result =
-            static_cast<uint_native>(builder.get_variable(b.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native c_result =
-            static_cast<uint_native>(builder.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native d_result =
-            static_cast<uint_native>(builder.get_variable(d.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native e_result =
-            static_cast<uint_native>(builder.get_variable(e.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native f_result =
-            static_cast<uint_native>(builder.get_variable(f.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native g_result =
-            static_cast<uint_native>(builder.get_variable(g.get_witness_index()).from_montgomery_form().data[0]);
-        uint_native h_result =
-            static_cast<uint_native>(builder.get_variable(h.get_witness_index()).from_montgomery_form().data[0]);
+        uint_native a_result = static_cast<uint_native>(a.get_value()); // PROBLEM
+        uint_native b_result = static_cast<uint_native>(b.get_value());
+        uint_native c_result = static_cast<uint_native>(c.get_value());
+        uint_native d_result = static_cast<uint_native>(d.get_value());
+        uint_native e_result = static_cast<uint_native>(e.get_value());
+        uint_native f_result = static_cast<uint_native>(f.get_value());
+        uint_native g_result = static_cast<uint_native>(g.get_value());
+        uint_native h_result = static_cast<uint_native>(h.get_value());
 
         EXPECT_EQ(a_result, a_alt);
         EXPECT_EQ(b_result, b_alt);
@@ -1059,10 +1042,26 @@ template <typename Builder> class stdlib_uint : public testing::Test {
             EXPECT_EQ(proof_result, false);
         };
 
-        divide_integers(false, false, false, false, true);
-        divide_integers(false, false, false, true, true);
-        divide_integers(true, true, false, false, true);
-        divide_integers(true, true, false, true, true);
+        divide_integers(/*lhs_constant=*/false,
+                        /*rhs_constant=*/false,
+                        /*dividend_is_divisor=*/false,
+                        /*dividend_zero=*/false,
+                        /*divisor_zero=*/true);
+        divide_integers(/*lhs_constant=*/false,
+                        /*rhs_constant=*/false,
+                        /*dividend_is_divisor=*/false,
+                        /*dividend_zero=*/true,
+                        /*divisor_zero=*/true);
+        divide_integers(/*lhs_constant=*/true,
+                        /*rhs_constant=*/true,
+                        /*dividend_is_divisor=*/false,
+                        /*dividend_zero=*/false,
+                        /*divisor_zero=*/true);
+        divide_integers(/*lhs_constant=*/true,
+                        /*rhs_constant=*/true,
+                        /*dividend_is_divisor=*/false,
+                        /*dividend_zero=*/true,
+                        /*divisor_zero=*/true);
     }
 
     static void test_divide_special()
@@ -1099,7 +1098,8 @@ template <typename Builder> class stdlib_uint : public testing::Test {
 
     /**
      * @brief Make sure we prevent proving v / v = 0 by setting the divison remainder to be v.
-     * TODO: This is lifted from the implementation. Should rewrite this test after introducing framework that separates
+     * TODO: This is lifted from the implementation. Should rewrite this test after introducing framework that
+     separates
      * circuit construction from witness generation.
 
      */
@@ -1738,7 +1738,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
     }
 };
 
-typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
+using CircuitTypes = testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 
 TYPED_TEST_SUITE(stdlib_uint, CircuitTypes);
 
@@ -1845,7 +1845,11 @@ TYPED_TEST(stdlib_uint, test_divide_special)
 }
 TYPED_TEST(stdlib_uint, div_remainder_constraint)
 {
-    TestFixture::div_remainder_constraint();
+    if constexpr (IsSimulator<CircuitSimulatorBN254>) {
+        GTEST_SKIP() << "Doesn't apply to the simulator.";
+    } else {
+        TestFixture::div_remainder_constraint();
+    }
 }
 TYPED_TEST(stdlib_uint, test_and)
 {

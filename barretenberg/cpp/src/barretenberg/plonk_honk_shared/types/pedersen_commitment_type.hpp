@@ -1,6 +1,6 @@
 #pragma once
 
 namespace bb::pedersen {
-// TODO(Cody) Get rid of this?
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/426)
 enum CommitmentType { FIXED_BASE_PEDERSEN, LOOKUP_PEDERSEN };
 } // namespace bb::pedersen

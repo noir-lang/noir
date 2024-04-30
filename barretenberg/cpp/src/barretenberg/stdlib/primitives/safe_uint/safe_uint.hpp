@@ -80,7 +80,7 @@ template <typename Builder> class safe_uint_t {
 
     {
         witness_t<Builder> out(parent_context, value);
-        parent_context->assert_equal_constant(out.witness_index, value);
+        parent_context->assert_equal_constant(out.witness_index, value, "create_constant_witness");
         return safe_uint_t(value, uint256_t(value), IS_UNSAFE);
     }
 

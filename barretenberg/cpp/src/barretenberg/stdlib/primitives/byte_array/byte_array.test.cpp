@@ -22,7 +22,7 @@ template <class Builder> class ByteArrayTest : public ::testing::Test {};
 
 template <class Builder> using byte_array_ct = byte_array<Builder>;
 
-using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 TYPED_TEST_SUITE(ByteArrayTest, CircuitTypes);
 
 TYPED_TEST(ByteArrayTest, test_reverse)

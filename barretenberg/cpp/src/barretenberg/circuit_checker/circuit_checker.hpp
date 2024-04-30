@@ -12,7 +12,8 @@ concept IsCheckable = bb::IsAnyOf<T,
                                   StandardCircuitBuilder_<bb::fr>,
                                   StandardCircuitBuilder_<bb::fq>,
                                   UltraCircuitBuilder,
-                                  GoblinUltraCircuitBuilder>;
+                                  GoblinUltraCircuitBuilder,
+                                  CircuitSimulatorBN254>;
 
 /**
  * @brief The unified interface for check circuit functionality implemented in the specialized CircuitChecker classes
@@ -28,6 +29,8 @@ class CircuitChecker {
             return UltraCircuitChecker::check(builder);
         } else if constexpr (IsStandardBuilder<Builder>) {
             return StandardCircuitChecker::check(builder);
+        } else if constexpr (IsSimulator<Builder>) {
+            return SimulatorCircuitChecker::check(builder);
         } else {
             return false;
         }

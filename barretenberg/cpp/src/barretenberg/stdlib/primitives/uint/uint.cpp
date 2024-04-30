@@ -34,12 +34,18 @@ std::vector<uint32_t> uint<Builder, Native>::constrain_accumulators(Builder* con
 template <typename Builder, typename Native>
 uint<Builder, Native>::uint(const witness_t<Builder>& witness)
     : context(witness.context)
-    , additive_constant(0)
     , witness_status(WitnessStatus::OK)
-    , accumulators(constrain_accumulators(
-          context, witness.witness_index, width, "uint: range constraint fails in constructor of uint from witness"))
-    , witness_index(accumulators[num_accumulators() - 1])
-{}
+{
+    if constexpr (IsSimulator<Builder>) {
+        additive_constant = witness.witness;
+        witness_index = IS_CONSTANT;
+    } else {
+        additive_constant = 0;
+        accumulators = constrain_accumulators(
+            context, witness.witness_index, width, "uint: range constraint fails in constructor of uint from witness");
+        witness_index = accumulators[num_accumulators() - 1];
+    }
+}
 
 template <typename Builder, typename Native>
 uint<Builder, Native>::uint(const field_t<Builder>& value)

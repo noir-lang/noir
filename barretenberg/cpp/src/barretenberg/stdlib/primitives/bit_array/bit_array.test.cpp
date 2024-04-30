@@ -25,7 +25,7 @@ auto& engine = numeric::get_debug_randomness();
 
 template <class Builder> class BitArrayTest : public ::testing::Test {};
 
-using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::CircuitSimulatorBN254, bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
 TYPED_TEST_SUITE(BitArrayTest, CircuitTypes);
 
 TYPED_TEST(BitArrayTest, test_uint32_input_output_consistency)
@@ -46,10 +46,8 @@ TYPED_TEST(BitArrayTest, test_uint32_input_output_consistency)
 
     EXPECT_EQ(result.size(), 2UL);
 
-    auto a_result =
-        static_cast<uint32_t>(builder.get_variable(result[0].get_witness_index()).from_montgomery_form().data[0]);
-    auto b_result =
-        static_cast<uint32_t>(builder.get_variable(result[1].get_witness_index()).from_montgomery_form().data[0]);
+    auto a_result = static_cast<uint32_t>(result[0].get_value());
+    auto b_result = static_cast<uint32_t>(result[1].get_value());
 
     EXPECT_EQ(a_result, a_expected);
     EXPECT_EQ(b_result, b_expected);
@@ -72,8 +70,7 @@ TYPED_TEST(BitArrayTest, test_binary_input_output_consistency)
 
     EXPECT_EQ(uint32_vec.size(), 1UL);
 
-    auto result =
-        static_cast<uint32_t>(builder.get_variable(uint32_vec[0].get_witness_index()).from_montgomery_form().data[0]);
+    auto result = static_cast<uint32_t>(uint32_vec[0].get_value());
 
     auto expected = 0b01101;
     EXPECT_EQ(result, expected);
