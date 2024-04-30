@@ -75,7 +75,7 @@ export default function useMatomo() {
     setShowBanner(true);
   };
 
-  if (!showBanner) {
+  if (!showBanner && env !== 'prod') {
     return (
       <div id="optout-form">
         <div className="homepage_footer">
@@ -91,6 +91,8 @@ export default function useMatomo() {
         </div>
       </div>
     );
+  } else if (!showBanner) {
+    return null;
   }
 
   return (
@@ -108,9 +110,11 @@ export default function useMatomo() {
           <button className="cta-button button button--secondary button--sm" onClick={optOut}>
             I refuse cookies
           </button>
-          <button className="cta-button button button--secondary button--sm" onClick={debug}>
-            Debug
-          </button>
+          {env !== 'prod' && (
+            <button className="cta-button button button--secondary button--sm" onClick={debug}>
+              Debug
+            </button>
+          )}
         </div>
       </div>
     </div>

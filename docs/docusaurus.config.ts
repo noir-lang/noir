@@ -150,27 +150,6 @@ export default {
         };
       },
     }),
-    () => ({
-      name: 'gdpr-cookie-consent',
-      injectHtmlTags({ content }) {
-        return {
-          headTags: [
-            {
-              tagName: 'div',
-              attributes: {
-                id: 'matomo-opt-out',
-              },
-            },
-            {
-              tagName: 'script',
-              attributes: {
-                src: 'https://noirlang.matomo.cloud/index.php?module=CoreAdminHome&action=optOutJS&divId=matomo-opt-out&language=auto&backgroundColor=FFFFFF&fontColor=000000&fontSize=16px&fontFamily=Roboto&showIntro=1',
-              },
-            },
-          ],
-        };
-      },
-    }),
     [
       'docusaurus-plugin-typedoc',
       {
