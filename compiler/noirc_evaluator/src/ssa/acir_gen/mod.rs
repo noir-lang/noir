@@ -334,13 +334,13 @@ impl Ssa {
 
         // Currently we require that all outputs from ACIR functions aside `main` must be unique.
         // This removes the chance for return values to be re-ordered and thus reduce user confusion.
-        // 
+        //
         // TODO: Decide whether we want to let users specify distinctness for foldable functions.
         // At the moment we specify Distinctness as part of the ABI exclusively rather than the function itself
         // so this will need to be updated.
         if acirs.len() > 1 {
             for acir in acirs.iter_mut().skip(1) {
-                generate_distinct_return_witnesses(acir, Distinctness::Distinct)
+                generate_distinct_return_witnesses(acir, Distinctness::Distinct);
             }
         }
 
@@ -358,12 +358,11 @@ fn generate_distinct_return_witnesses(acir: &mut GeneratedAcir, distinctness: Di
                 .clone()
                 .into_iter()
                 .map(|return_witness| {
-                    acir
-                        .create_witness_for_expression(&Expression::from(return_witness))
+                    acir.create_witness_for_expression(&Expression::from(return_witness))
                 })
                 .collect();
 
-                acir.return_witnesses = distinct_return_witness;
+            acir.return_witnesses = distinct_return_witness;
         }
         Distinctness::DuplicationAllowed => {}
     }
@@ -726,8 +725,6 @@ impl<'a> Context<'a> {
                                 // TODO(https://github.com/noir-lang/noir/issues/4608): handle complex return types from ACIR functions
                                 let output_count =
                                     result_ids.iter().fold(0usize, |sum, result_id| {
-                                        dbg!(result_id);
-                                        dbg!(dfg.try_get_array_length(*result_id).unwrap_or(1));
                                         sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
                                     });
 
