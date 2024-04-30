@@ -22,6 +22,7 @@ use crate::{
         stmt::HirStatement,
         traits::TraitConstraint,
     },
+    macros_api::FunctionReturnType,
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner, StmtId},
     Type, TypeBindings,
 };
@@ -50,149 +51,158 @@ pub struct TypeCheckState {
     type_variables: Vec<Type>,
 }
 
-/// Type checks a function and assigns the
-/// appropriate types to expressions in a side table
+/// Type check a single function without running the name resolver or comptime interpreter.
+/// Since we now only run passes interleaved with each other, this function is only used for testing.
+#[cfg(test)]
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
-    let meta = interner.function_meta(&func_id);
-    let declared_return_type = meta.return_type().clone();
-    let can_ignore_ret = meta.can_ignore_return_type();
-
-    let function_body_id = &interner.function(&func_id).as_expr();
-
     let mut type_checker = TypeChecker::new(interner);
-    type_checker.state.current_function = Some(func_id);
-
-    let meta = type_checker.interner.function_meta(&func_id);
-    let parameters = meta.parameters.clone();
-    let expected_return_type = meta.return_type.clone();
-    let expected_trait_constraints = meta.trait_constraints.clone();
-    let name_span = meta.name.location.span;
-
-    let mut errors = Vec::new();
-
-    // Temporarily add any impls in this function's `where` clause to scope
-    for constraint in &expected_trait_constraints {
-        let object = constraint.typ.clone();
-        let trait_id = constraint.trait_id;
-        let generics = constraint.trait_generics.clone();
-
-        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id, generics) {
-            if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
-                let trait_name = the_trait.name.to_string();
-                let typ = constraint.typ.clone();
-                let span = name_span;
-                errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
-            }
-        }
-    }
-
-    // Bind each parameter to its annotated type.
-    // This is locally obvious, but it must be bound here so that the
-    // Definition object of the parameter in the NodeInterner is given the correct type.
-    for param in parameters {
-        check_if_type_is_valid_for_program_input(&type_checker, func_id, &param, &mut errors);
-        type_checker.bind_pattern(&param.0, param.1);
-    }
-
-    let function_last_type = type_checker.check_function_body(function_body_id);
-
-    // Check declared return type and actual return type
-    if !can_ignore_ret {
-        let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
-        let func_span = type_checker.interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
-            if type_checker
-                .interner
-                .lookup_trait_implementation(&function_last_type, *trait_id, generics)
-                .is_err()
-            {
-                let error = TypeCheckError::TypeMismatchWithSource {
-                    expected: declared_return_type.clone(),
-                    actual: function_last_type,
-                    span: func_span,
-                    source: Source::Return(expected_return_type, expr_span),
-                };
-                errors.push(error);
-            }
-        } else {
-            function_last_type.unify_with_coercions(
-                &declared_return_type,
-                *function_body_id,
-                type_checker.interner,
-                &mut errors,
-                || {
-                    let mut error = TypeCheckError::TypeMismatchWithSource {
-                        expected: declared_return_type.clone(),
-                        actual: function_last_type.clone(),
-                        span: func_span,
-                        source: Source::Return(expected_return_type, expr_span),
-                    };
-
-                    if empty_function {
-                        error = error.add_context("implicitly returns `()` as its body has no tail or `return` expression");
-                    }
-                    error
-                },
-            );
-        }
-    }
-
-    // Default any type variables that still need defaulting.
-    // This is done before trait impl search since leaving them bindable can lead to errors
-    // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
-    for typ in &type_checker.state.type_variables {
-        if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
-            let msg = "TypeChecker should only track defaultable type vars";
-            variable.bind(kind.default_type().expect(msg));
-        }
-    }
-
-    // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.state.trait_constraints) {
-        let span = type_checker.interner.expr_span(&expr_id);
-        type_checker.verify_trait_constraint(
-            &constraint.typ,
-            constraint.trait_id,
-            &constraint.trait_generics,
-            expr_id,
-            span,
-        );
-    }
-
-    // Now remove all the `where` clause constraints we added
-    for constraint in &expected_trait_constraints {
-        type_checker.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
-    }
-
-    errors.append(&mut type_checker.state.errors);
-    errors
+    let state = type_checker.enter_function(func_id);
+    let body = interner.function(&func_id).as_expr();
+    let body = type_checker.check_expression(&body);
+    type_checker.exit_function(body, state);
+    type_checker.state.errors
 }
 
 impl<'a> Composable for TypeChecker<'a> {
-    type FunctionResult = ();
-    type BlockResult = Type;
-    type StatementResult = Type;
-
-    type FunctionState = ();
-    type FunctionInput = FuncId;
+    type Result = Type;
+    type FunctionState = (bool, ExprId, Type, FunctionReturnType, Vec<TraitConstraint>);
     type BlockInput<'local> = (&'local [StmtId], Vec<Type>);
-    type StatementInput = StmtId;
 
-    fn enter_function(&mut self, function: Self::FunctionInput) -> Self::FunctionState {
-        todo!()
+    fn enter_function(&mut self, func_id: FuncId) -> Self::FunctionState {
+        let meta = self.interner.function_meta(&func_id);
+        let declared_return_type = meta.return_type().clone();
+        let can_ignore_ret = meta.can_ignore_return_type();
+
+        self.state.current_function = Some(func_id);
+
+        let meta = self.interner.function_meta(&func_id);
+        let parameters = meta.parameters.clone();
+        let expected_return_type = meta.return_type.clone();
+        let expected_trait_constraints = meta.trait_constraints.clone();
+        let name_span = meta.name.location.span;
+
+        let mut errors = Vec::new();
+
+        // Temporarily add any impls in this function's `where` clause to scope
+        for constraint in &expected_trait_constraints {
+            let object = constraint.typ.clone();
+            let trait_id = constraint.trait_id;
+            let generics = constraint.trait_generics.clone();
+
+            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
+                if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
+                    let trait_name = the_trait.name.to_string();
+                    let typ = constraint.typ.clone();
+                    let span = name_span;
+                    errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+                }
+            }
+        }
+
+        // Bind each parameter to its annotated type.
+        // This is locally obvious, but it must be bound here so that the
+        // Definition object of the parameter in the NodeInterner is given the correct type.
+        for param in parameters {
+            check_if_type_is_valid_for_program_input(&self, func_id, &param, &mut errors);
+            self.bind_pattern(&param.0, param.1);
+        }
+
+        let function_body_id = self.interner.function(&func_id).as_expr();
+        (
+            can_ignore_ret,
+            function_body_id,
+            declared_return_type,
+            expected_return_type,
+            expected_trait_constraints,
+        )
     }
 
     fn exit_function(
         &mut self,
-        body: Self::BlockResult,
-        state: Self::FunctionState,
-    ) -> Self::FunctionResult {
-        todo!()
+        function_last_type: Self::Result,
+        (
+            can_ignore_ret,
+            function_body_id,
+            declared_return_type,
+            expected_return_type,
+            expected_trait_constraints,
+        ): Self::FunctionState,
+    ) -> Self::Result {
+        // Check declared return type and actual return type
+        if !can_ignore_ret {
+            let (expr_span, empty_function) = function_info(self.interner, &function_body_id);
+            let func_span = self.interner.expr_span(&function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+            if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
+                if self
+                    .interner
+                    .lookup_trait_implementation(&function_last_type, *trait_id, generics)
+                    .is_err()
+                {
+                    let error = TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: function_last_type,
+                        span: func_span,
+                        source: Source::Return(expected_return_type, expr_span),
+                    };
+                    self.state.errors.push(error);
+                }
+            } else {
+                function_last_type.unify_with_coercions(
+                    &declared_return_type,
+                    function_body_id,
+                    self.interner,
+                    &mut self.state.errors,
+                    || {
+                        let mut error = TypeCheckError::TypeMismatchWithSource {
+                            expected: declared_return_type.clone(),
+                            actual: function_last_type.clone(),
+                            span: func_span,
+                            source: Source::Return(expected_return_type, expr_span),
+                        };
+
+                        if empty_function {
+                            error = error.add_context("implicitly returns `()` as its body has no tail or `return` expression");
+                        }
+                        error
+                    },
+                );
+            }
+        }
+
+        // Default any type variables that still need defaulting.
+        // This is done before trait impl search since leaving them bindable can lead to errors
+        // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
+        for typ in &self.state.type_variables {
+            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+                let msg = "TypeChecker should only track defaultable type vars";
+                variable.bind(kind.default_type().expect(msg));
+            }
+        }
+
+        // Verify any remaining trait constraints arising from the function body
+        for (constraint, expr_id) in std::mem::take(&mut self.state.trait_constraints) {
+            let span = self.interner.expr_span(&expr_id);
+            self.verify_trait_constraint(
+                &constraint.typ,
+                constraint.trait_id,
+                &constraint.trait_generics,
+                expr_id,
+                span,
+            );
+        }
+
+        // Now remove all the `where` clause constraints we added
+        for constraint in &expected_trait_constraints {
+            self.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+        }
+
+        self.state.errors.append(&mut self.state.errors);
+        Type::Unit
     }
 
     fn enter_block(&mut self) {}
 
-    fn exit_block<'local>(&mut self, input: Self::BlockInput<'local>) -> Self::BlockResult {
+    fn exit_block<'local>(&mut self, input: Self::BlockInput<'local>) -> Self::Result {
         let (statements, types) = input;
         let mut block_type = Type::Unit;
 
@@ -215,7 +225,7 @@ impl<'a> Composable for TypeChecker<'a> {
         block_type
     }
 
-    fn do_statement(&mut self, statement: Self::StatementInput) -> Self::StatementResult {
+    fn do_statement(&mut self, statement: StmtId) -> Self::Result {
         self.check_statement(&statement)
     }
 }
@@ -414,10 +424,6 @@ impl<'interner> TypeChecker<'interner> {
         Self { interner, state }
     }
 
-    fn check_function_body(&mut self, body: &ExprId) -> Type {
-        self.check_expression(body)
-    }
-
     pub fn check_global(
         id: GlobalId,
         interner: &'interner mut NodeInterner,
@@ -486,6 +492,7 @@ pub mod test {
     use crate::ast::{
         BinaryOpKind, Distinctness, FunctionKind, FunctionReturnType, Path, Visibility,
     };
+    use crate::composer::Composer;
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::{
@@ -789,8 +796,10 @@ pub mod test {
             },
         );
 
+        let composer = &mut Composer::default();
+
         for nf in program.into_sorted().functions {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file, composer);
 
             let function_id = *func_ids.get(nf.name()).unwrap();
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, function_id);

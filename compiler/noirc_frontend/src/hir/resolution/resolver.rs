@@ -1,4 +1,5 @@
-use crate::composer::{Composable, Composer};
+use crate::composer::Composer;
+use crate::hir::comptime::IResult;
 // Fix usage of intern and resolve
 // In some places, we do intern, however in others we are resolving and interning
 // Ideally, I want to separate the interning and resolving abstractly
@@ -138,7 +139,7 @@ pub struct Resolver<'a> {
     /// This increases by 1 at the start of a loop, and decreases by 1 when it ends.
     nested_loops: u32,
 
-    composer: Composer,
+    pub composer: &'a mut Composer,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -154,53 +155,13 @@ pub enum ResolvePathError {
     NotFound,
 }
 
-impl<'a> Composable for Resolver<'a> {
-    type FunctionResult = FuncId;
-    type BlockResult = ExprId;
-    type StatementResult = StmtId;
-
-    type FunctionState = ();
-
-    type FunctionInput = NoirFunction;
-    type BlockInput<'local> = &'local [StmtId];
-    type StatementInput = Statement;
-
-    fn enter_function(&mut self, function: Self::FunctionInput) -> Self::FunctionState {
-        todo!()
-    }
-
-    fn exit_function(
-        &mut self,
-        body: Self::BlockResult,
-        state: Self::FunctionState,
-    ) -> Self::FunctionResult {
-        todo!()
-    }
-
-    fn enter_block(&mut self) {
-        self.scopes.start_scope();
-    }
-
-    fn exit_block<'local>(&mut self, statements: Self::BlockInput<'local>) -> Self::BlockResult {
-        let scope = self.scopes.end_scope();
-        self.check_for_unused_variables_in_scope_tree(scope.into());
-
-        let statements = statements.to_vec();
-        let hir_block = HirExpression::Block(HirBlockExpression { statements });
-        self.interner.push_expr(hir_block)
-    }
-
-    fn do_statement(&mut self, statement: Self::StatementInput) -> Self::StatementResult {
-        self.intern_stmt(statement)
-    }
-}
-
 impl<'a> Resolver<'a> {
     pub fn new(
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         file: FileId,
+        composer: &'a mut Composer,
     ) -> Resolver<'a> {
         let module_id = path_resolver.module_id();
         let in_contract = module_id.module(def_maps).is_contract;
@@ -223,7 +184,7 @@ impl<'a> Resolver<'a> {
             in_contract,
             in_unconstrained_fn: false,
             nested_loops: 0,
-            composer: todo!(),
+            composer,
         }
     }
 
@@ -298,11 +259,7 @@ impl<'a> Resolver<'a> {
     /// and interning the function itself
     /// We resolve and lower the function at the same time
     /// Since lowering would require scope data, unless we add an extra resolution field to the AST
-    pub fn resolve_function(
-        mut self,
-        mut func: NoirFunction,
-        func_id: FuncId,
-    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+    pub fn enter_function(&mut self, mut func: NoirFunction, func_id: FuncId) -> bool {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
 
@@ -318,7 +275,19 @@ impl<'a> Resolver<'a> {
             .function
             .as_ref()
             .map_or(false, |func| func.is_low_level() || func.is_oracle());
-        let (hir_func, func_meta) = self.intern_function(func, func_id);
+
+        let func_meta = self.extract_meta(&func, func_id);
+        self.interner.push_fn_meta(func_meta, func_id);
+
+        is_low_level_or_oracle
+    }
+
+    pub fn exit_function(
+        &mut self,
+        is_low_level_or_oracle: bool,
+        func_id: FuncId,
+        hir_func: HirFunction,
+    ) {
         let func_scope_tree = self.scopes.end_function();
 
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
@@ -326,8 +295,8 @@ impl<'a> Resolver<'a> {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
         }
 
+        self.interner.update_fn(func_id, hir_func);
         self.trait_bounds.clear();
-        (hir_func, func_meta, self.errors)
     }
 
     pub fn resolve_trait_function(
@@ -338,7 +307,7 @@ impl<'a> Resolver<'a> {
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
         func_id: FuncId,
-    ) -> (HirFunction, FuncMeta) {
+    ) {
         self.scopes.start_function();
 
         // Check whether the function has globals in the local module and add them to the scope
@@ -368,11 +337,14 @@ impl<'a> Resolver<'a> {
             return_distinctness: Distinctness::DuplicationAllowed,
         };
 
-        let (hir_func, func_meta) = self.intern_function(NoirFunction { kind, def }, func_id);
+        if def.is_unconstrained {
+            self.in_unconstrained_fn = true;
+        }
+        let function = NoirFunction { kind, def };
+        self.composer.compose_function(self, function, func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.trait_bounds.clear();
-        (hir_func, func_meta)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
@@ -531,25 +503,15 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func, id);
-
-        if func.def.is_unconstrained {
-            self.in_unconstrained_fn = true;
-        }
-
-        let hir_func = match func.kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
-                HirFunction::empty()
-            }
-            FunctionKind::Normal | FunctionKind::Recursive => {
-                let expr_id = self.intern_block(func.def.body);
-                self.interner.push_expr_location(expr_id, func.def.span, self.file);
-                HirFunction::unchecked_from_expr(expr_id)
-            }
-        };
-
-        (hir_func, func_meta)
+    pub fn intern_function_body(
+        &mut self,
+        func: NoirFunction,
+        id: FuncId,
+    ) -> (HirFunction, Type, IResult<()>) {
+        let (block, typ, result) = self.composer.compose_block(self, func.def.body);
+        let block_id = self.interner.push_expr(HirExpression::Block(block));
+        self.interner.push_expr_location(block_id, func.def.span, self.file);
+        (HirFunction::unchecked_from_expr(block_id), typ, result)
     }
 
     pub fn resolve_trait_constraint(
@@ -1039,7 +1001,7 @@ impl<'a> Resolver<'a> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
-    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
+    pub fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
@@ -1342,16 +1304,24 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
-        let result = self.intern_stmt_inner(stmt);
-        result
+    pub fn enter_block(&mut self) {
+        self.scopes.start_scope();
     }
 
-    fn intern_stmt_inner(&mut self, stmt: Statement) -> StmtId {
+    pub fn exit_block<'local>(&mut self, statements: &'local [StmtId]) -> HirBlockExpression {
+        let scope = self.scopes.end_scope();
+        self.check_for_unused_variables_in_scope_tree(scope.into());
+        HirBlockExpression { statements: statements.to_vec() }
+    }
+
+    pub fn compose_stmt(&mut self, stmt: Statement) -> (StmtId, Type, IResult<()>) {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         let id = self.interner.push_stmt(hir_stmt);
         self.interner.push_statement_location(id, stmt.span, self.file);
-        id
+
+        // Run the type checker and comptime interpreter on this statement
+        let (typ, result) = self.composer.compose_statement(id);
+        (id, typ, result)
     }
 
     fn resolve_stmt(&mut self, stmt: StatementKind, span: Span) -> HirStatement {
@@ -2093,14 +2063,8 @@ impl<'a> Resolver<'a> {
         Ok(path_resolution.module_def_id)
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
-        let statements = self.composer.compose_block(self, block_expr);
-        HirBlockExpression { statements }
-    }
-
-    pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
-        let hir_block = HirExpression::Block(self.resolve_block(block));
-        self.interner.push_expr(hir_block)
+    fn resolve_block(&mut self, block: BlockExpression) -> HirBlockExpression {
+        self.composer.compose_block(self, block).0
     }
 
     fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {

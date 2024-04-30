@@ -5,6 +5,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::ast::{ItemVisibility, Path, TraitItem};
+use crate::composer::Composer;
 use crate::{
     graph::CrateId,
     hir::{
@@ -34,6 +35,7 @@ pub(crate) fn resolve_traits(
     context: &mut Context,
     traits: BTreeMap<TraitId, UnresolvedTrait>,
     crate_id: CrateId,
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     for (trait_id, unresolved_trait) in &traits {
         context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
@@ -51,8 +53,14 @@ pub(crate) fn resolve_traits(
         // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
         let _ = resolve_trait_constants(context, crate_id, &unresolved_trait);
         // 3. Trait Methods
-        let (methods, errors) =
-            resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, &generics);
+        let (methods, errors) = resolve_trait_methods(
+            context,
+            trait_id,
+            crate_id,
+            &unresolved_trait,
+            &generics,
+            composer,
+        );
 
         all_errors.extend(errors);
 
@@ -94,6 +102,7 @@ fn resolve_trait_methods(
     crate_id: CrateId,
     unresolved_trait: &UnresolvedTrait,
     trait_generics: &Generics,
+    composer: &mut Composer,
 ) -> (Vec<TraitFunction>, Vec<(CompilationError, FileId)>) {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
@@ -122,14 +131,14 @@ fn resolve_trait_methods(
             let self_type = Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
             let name_span = the_trait.name.span();
 
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file, composer);
             resolver.add_generics(generics);
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
             resolver.add_existing_generic("Self", name_span, self_typevar);
             resolver.set_self_type(Some(self_type.clone()));
 
             let func_id = unresolved_trait.method_ids[&name.0.contents];
-            let (_, func_meta) = resolver.resolve_trait_function(
+            resolver.resolve_trait_function(
                 name,
                 generics,
                 parameters,
@@ -137,7 +146,6 @@ fn resolve_trait_methods(
                 where_clause,
                 func_id,
             );
-            resolver.interner.push_fn_meta(func_meta, func_id);
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let return_type = resolver.resolve_type(return_type.get_type().into_owned());
@@ -181,14 +189,16 @@ fn collect_trait_impl_methods(
     crate_id: CrateId,
     trait_id: TraitId,
     trait_impl: &mut UnresolvedTraitImpl,
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
     // for a particular method, the default implementation will be added at that slot.
     let mut ordered_methods = Vec::new();
 
     // check whether the trait implementation is in the same crate as either the trait or the type
-    let mut errors =
-        check_trait_impl_crate_coherence(interner, trait_id, trait_impl, crate_id, def_maps);
+    let mut errors = check_trait_impl_crate_coherence(
+        interner, trait_id, trait_impl, crate_id, def_maps, composer,
+    );
     // set of function ids that have a corresponding method in the trait
     let mut func_ids_in_trait = HashSet::new();
 
@@ -268,6 +278,7 @@ fn collect_trait_impl(
     context: &mut Context,
     crate_id: CrateId,
     trait_impl: &mut UnresolvedTraitImpl,
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
@@ -292,12 +303,13 @@ fn collect_trait_impl(
         };
 
     if let Some(trait_id) = trait_impl.trait_id {
-        errors
-            .extend(collect_trait_impl_methods(interner, def_maps, crate_id, trait_id, trait_impl));
+        errors.extend(collect_trait_impl_methods(
+            interner, def_maps, crate_id, trait_id, trait_impl, composer,
+        ));
 
         let path_resolver = StandardPathResolver::new(module);
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file, composer);
         resolver.add_generics(&trait_impl.generics);
         let typ = resolver.resolve_type(unresolved_type);
         errors.extend(take_errors(trait_impl.file_id, resolver));
@@ -331,10 +343,11 @@ pub(crate) fn collect_trait_impls(
     context: &mut Context,
     crate_id: CrateId,
     collected_impls: &mut [UnresolvedTraitImpl],
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     collected_impls
         .iter_mut()
-        .flat_map(|trait_impl| collect_trait_impl(context, crate_id, trait_impl))
+        .flat_map(|trait_impl| collect_trait_impl(context, crate_id, trait_impl, composer))
         .collect()
 }
 
@@ -344,13 +357,14 @@ fn check_trait_impl_crate_coherence(
     trait_impl: &UnresolvedTraitImpl,
     current_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
     let module = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
     let file = def_maps[&current_crate].file_id(trait_impl.module_id);
     let path_resolver = StandardPathResolver::new(module);
-    let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+    let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file, composer);
 
     let object_crate = match resolver.resolve_type(trait_impl.object_type.clone()) {
         Type::Struct(struct_type, _) => struct_type.borrow().id.krate(),
@@ -388,6 +402,7 @@ pub(crate) fn resolve_trait_impls(
     context: &mut Context,
     traits: Vec<UnresolvedTraitImpl>,
     crate_id: CrateId,
+    composer: &mut Composer,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let interner = &mut context.def_interner;
@@ -401,8 +416,13 @@ pub(crate) fn resolve_trait_impls(
 
         let self_type_span = unresolved_type.span;
 
-        let mut resolver =
-            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+        let mut resolver = Resolver::new(
+            interner,
+            &path_resolver,
+            &context.def_maps,
+            trait_impl.file_id,
+            composer,
+        );
         resolver.add_generics(&trait_impl.generics);
 
         let trait_generics =
@@ -420,6 +440,7 @@ pub(crate) fn resolve_trait_impls(
             Some(self_type.clone()),
             Some(impl_id),
             impl_generics.clone(),
+            composer,
             errors,
         );
 
@@ -436,8 +457,13 @@ pub(crate) fn resolve_trait_impls(
             errors.push((error.into(), trait_impl.file_id));
         }
 
-        let mut new_resolver =
-            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+        let mut new_resolver = Resolver::new(
+            interner,
+            &path_resolver,
+            &context.def_maps,
+            trait_impl.file_id,
+            composer,
+        );
 
         new_resolver.set_generics(impl_generics.clone());
         new_resolver.set_self_type(Some(self_type.clone()));

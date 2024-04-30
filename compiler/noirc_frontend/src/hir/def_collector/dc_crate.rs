@@ -1,7 +1,8 @@
 use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
+use crate::composer::Composer;
 use crate::graph::CrateId;
-use crate::hir::comptime::{Interpreter, InterpreterError};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
@@ -11,9 +12,7 @@ use crate::hir::resolution::{
     resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
     resolve_type_aliases,
 };
-use crate::hir::type_check::{
-    check_trait_impl_method_matches_declaration, type_check_func, TypeCheckError, TypeChecker,
-};
+use crate::hir::type_check::{check_trait_impl_method_matches_declaration, TypeCheckError};
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
@@ -324,6 +323,7 @@ impl DefCollector {
         }
 
         let mut resolved_module = ResolvedModule { errors, ..Default::default() };
+        let mut composer = Composer::default();
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -345,6 +345,7 @@ impl DefCollector {
             context,
             def_collector.collected_traits,
             crate_id,
+            &mut composer,
         ));
         // Must resolve structs before we resolve globals.
         resolved_module.errors.extend(resolve_structs(
@@ -359,6 +360,7 @@ impl DefCollector {
             context,
             crate_id,
             &mut def_collector.collected_traits_impls,
+            &mut composer,
         ));
 
         // Before we resolve any function symbols we must go through our impls and
@@ -385,6 +387,7 @@ impl DefCollector {
             &context.def_maps,
             def_collector.collected_functions,
             None,
+            &mut composer,
             &mut resolved_module.errors,
         );
 
@@ -400,6 +403,7 @@ impl DefCollector {
             context,
             def_collector.collected_traits_impls,
             crate_id,
+            &mut composer,
             &mut resolved_module.errors,
         );
 
@@ -412,15 +416,7 @@ impl DefCollector {
         }
 
         let cycle_errors = context.def_interner.check_for_dependency_cycles();
-        let cycles_present = !cycle_errors.is_empty();
         resolved_module.errors.extend(cycle_errors);
-
-        resolved_module.type_check(context);
-
-        if !cycles_present {
-            resolved_module.evaluate_comptime(&mut context.def_interner);
-        }
-
         resolved_module.errors
     }
 }
@@ -480,56 +476,10 @@ fn filter_literal_globals(
 }
 
 impl ResolvedModule {
-    fn type_check(&mut self, context: &mut Context) {
-        self.type_check_globals(&mut context.def_interner);
-        self.type_check_functions(&mut context.def_interner);
-        self.type_check_trait_impl_function(&mut context.def_interner);
-    }
-
-    fn type_check_globals(&mut self, interner: &mut NodeInterner) {
-        for (file_id, global_id) in self.globals.iter() {
-            for error in TypeChecker::check_global(*global_id, interner) {
-                self.errors.push((error.into(), *file_id));
-            }
-        }
-    }
-
-    fn type_check_functions(&mut self, interner: &mut NodeInterner) {
-        for (file, func) in self.functions.iter() {
-            for error in type_check_func(interner, *func) {
-                self.errors.push((error.into(), *file));
-            }
-        }
-    }
-
     fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner) {
         for (file, func) in self.trait_impl_functions.iter() {
             for error in check_trait_impl_method_matches_declaration(interner, *func) {
                 self.errors.push((error.into(), *file));
-            }
-            for error in type_check_func(interner, *func) {
-                self.errors.push((error.into(), *file));
-            }
-        }
-    }
-
-    /// Evaluate all `comptime` expressions in this module
-    fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
-        if self.count_errors() == 0 {
-            let mut interpreter = Interpreter::new(interner);
-
-            for (_file, global) in &self.globals {
-                if let Err(error) = interpreter.scan_global(*global) {
-                    self.errors.push(error.into_compilation_error_pair());
-                }
-            }
-
-            for (_file, function) in &self.functions {
-                // The file returned by the error may be different than the file the
-                // function is in so only use the error's file id.
-                if let Err(error) = interpreter.scan_function(*function) {
-                    self.errors.push(error.into_compilation_error_pair());
-                }
             }
         }
     }

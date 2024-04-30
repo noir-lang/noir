@@ -31,26 +31,16 @@ use super::{
 };
 
 impl<'a> Composable for Interpreter<'a> {
-    type FunctionResult = IResult<()>;
-    type BlockResult = IResult<()>;
-    type StatementResult = IResult<()>;
-
+    type Result = IResult<()>;
     type FunctionState = InterpreterFunctionState;
-
-    type FunctionInput = FuncId;
     type BlockInput<'local> = Vec<IResult<()>>;
-    type StatementInput = StmtId;
 
-    fn enter_function(&mut self, function: Self::FunctionInput) -> Self::FunctionState {
+    fn enter_function(&mut self, function: FuncId) -> Self::FunctionState {
         let function = self.interner.function(&function);
         self.enter_function()
     }
 
-    fn exit_function(
-        &mut self,
-        result: Self::BlockResult,
-        state: Self::FunctionState,
-    ) -> Self::FunctionResult {
+    fn exit_function(&mut self, result: Self::Result, state: Self::FunctionState) -> Self::Result {
         self.exit_function(state);
         result
     }
@@ -59,7 +49,7 @@ impl<'a> Composable for Interpreter<'a> {
         self.push_scope();
     }
 
-    fn exit_block<'local>(&mut self, results: Self::BlockInput<'local>) -> Self::BlockResult {
+    fn exit_block<'local>(&mut self, results: Self::BlockInput<'local>) -> Self::Result {
         self.pop_scope();
         for result in results {
             result?;
@@ -67,7 +57,7 @@ impl<'a> Composable for Interpreter<'a> {
         Ok(())
     }
 
-    fn do_statement(&mut self, statement: Self::StatementInput) -> Self::StatementResult {
+    fn do_statement(&mut self, statement: StmtId) -> Self::Result {
         self.scan_statement(statement)
     }
 }
