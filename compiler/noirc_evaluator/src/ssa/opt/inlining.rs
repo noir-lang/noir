@@ -102,7 +102,7 @@ fn get_entry_point_functions(ssa: &Ssa, use_inline_never: bool) -> BTreeSet<Func
     let functions = ssa.functions.iter();
     let mut entry_points = functions
         .filter(|(_, function)| {
-            let inline_never = if use_inline_never { function.is_inline_never() } else { false };
+            let inline_never = use_inline_never && function.is_inline_never();
             function.runtime().is_entry_point() || inline_never
         })
         .map(|(id, _)| *id)
@@ -357,8 +357,7 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
                         let function = &ssa.functions[&func_id];
-                        let inline_never =
-                            if ssa.use_inline_never { function.is_inline_never() } else { false };
+                        let inline_never = ssa.use_inline_never && function.is_inline_never();
                         if function.runtime().is_entry_point() || inline_never {
                             self.push_instruction(*id);
                         } else {
