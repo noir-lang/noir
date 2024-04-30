@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import Link from '@docusaurus/Link';
 
 function getSiteId(env) {
   if (env == 'dev') {
@@ -29,7 +30,6 @@ export default function useMatomo() {
       setShowBanner(!this.hasRememberedConsent());
     });
 
-    // pushInstruction('requireConsent', true);
     pushInstruction('setTrackerUrl', trackerUrl);
     pushInstruction('setSiteId', getSiteId(env));
     if (env !== 'prod') {
@@ -75,7 +75,7 @@ export default function useMatomo() {
     setShowBanner(true);
   };
 
-  if (!showBanner && env !== 'prod') {
+  if (!showBanner && env === 'dev') {
     return (
       <div id="optout-form">
         <div className="homepage_footer">
@@ -100,8 +100,12 @@ export default function useMatomo() {
       <div className="homepage_footer">
         <p>
           We value your privacy and don't track your browsing by default. If you'd like to help us improve, you can
-          allow cookies for tracking page views, time on site, and other analytics. Find out how we use cookies and how
-          you can change your settings.
+          allow cookies for tracking page views, time on site, and other analytics.
+          <br />
+          <br />
+          <Link to="https://aztec.network/privacy-policy/">
+            Find out how we use cookies and how you can change your settings.
+          </Link>
         </p>
         <div className="homepage_cta_footer_container">
           <button className="cta-button button button--primary button--sm" onClick={optIn}>
@@ -110,7 +114,7 @@ export default function useMatomo() {
           <button className="cta-button button button--secondary button--sm" onClick={optOut}>
             I refuse cookies
           </button>
-          {env !== 'prod' && (
+          {env === 'dev' && (
             <button className="cta-button button button--secondary button--sm" onClick={debug}>
               Debug
             </button>
