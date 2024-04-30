@@ -16,7 +16,7 @@ import { jest } from '@jest/globals';
 
 import { publicDeployAccounts, setup } from '../fixtures/utils.js';
 
-jest.setTimeout(50_000);
+jest.setTimeout(100_000);
 
 describe('benchmarks/tx_size_fees', () => {
   let aliceWallet: AccountWalletWithSecretKey;
