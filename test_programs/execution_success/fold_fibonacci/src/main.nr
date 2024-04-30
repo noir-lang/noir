@@ -1,5 +1,5 @@
 fn main(x: u32) {
-    assert(fibonacci(x) == 34);
+    assert(fibonacci(x) == 55);
 }
 
 #[fold]
