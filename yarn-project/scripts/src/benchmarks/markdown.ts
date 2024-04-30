@@ -179,7 +179,7 @@ ${rows.join('\n')}
 }
 
 /** Creates a md with the benchmark contents. */
-export function getMarkdown() {
+export function getMarkdown(prNumber: number) {
   const benchmark = JSON.parse(fs.readFileSync(inputFile, 'utf-8'));
   const baseBenchmark = getBaseBenchmark();
 
@@ -199,7 +199,6 @@ export function getMarkdown() {
     ? `\nValues are compared against data from master at commit ${baseUrl} and shown if the difference exceeds 1%.`
     : '';
 
-  const prNumber = process.env.CIRCLE_PULL_REQUEST && parseInt(process.env.CIRCLE_PULL_REQUEST.split('/')[6]);
   const prSourceDataUrl = prNumber && `${S3_URL}/benchmarks-v1/pulls/${prNumber}.json`;
   const prSourceDataText = prSourceDataUrl
     ? `\nThis benchmark source data is available in JSON format on S3 [here](${prSourceDataUrl}).`
@@ -256,6 +255,6 @@ ${COMMENT_MARK}
 }
 
 /** Entrypoint */
-export function main() {
-  log(getMarkdown());
+export function main(prNumber: number) {
+  log(getMarkdown(prNumber));
 }

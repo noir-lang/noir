@@ -1,0 +1,4 @@
+.docusaurus
+node_modules
+processed-docs
+processed-docs-cache

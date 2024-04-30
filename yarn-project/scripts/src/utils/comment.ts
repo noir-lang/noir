@@ -8,34 +8,31 @@ import * as https from 'https';
 import { COMMENT_TYPES } from '../types.js';
 
 const GITHUB_TOKEN = process.env.AZTEC_BOT_COMMENTER_GITHUB_TOKEN;
+const DOCS_PREVIEW_URL = process.env.DOCS_PREVIEW_URL;
+
 const OWNER = 'AztecProtocol';
-const REPO = 'aztec3-packages';
+const REPO = 'aztec-packages';
 
 const log = createConsoleLogger();
 
-async function getMarkdown(commentType: COMMENT_TYPES) {
+async function getMarkdown(prNumber: number, commentType: COMMENT_TYPES) {
   if (commentType === COMMENT_TYPES.BENCH) {
-    return (await import('../benchmarks/markdown.js')).getMarkdown();
+    return (await import('../benchmarks/markdown.js')).getMarkdown(prNumber);
   } else if (commentType === COMMENT_TYPES.DOCS) {
-    return (await import('../docs_previews/markdown.js')).getMarkdown();
+    if (!DOCS_PREVIEW_URL) {
+      throw new Error('DOCS_PREVIEW_URL is not set');
+    } else {
+      return (await import('../docs_previews/markdown.js')).getMarkdown(DOCS_PREVIEW_URL);
+    }
   } else {
     throw new Error('Invalid comment type');
   }
 }
 
-/** Returns the number of the current PR */
-function getPrNumber() {
-  if (!process.env.CIRCLE_PULL_REQUEST) {
-    throw new Error(`Not in Circle PR`);
-  }
-  const fragments = process.env.CIRCLE_PULL_REQUEST.split('/');
-  return fragments[fragments.length - 1];
-}
-
 /** Function to check if a bench comment already exists */
-async function getExistingComment(commentType: COMMENT_TYPES) {
+async function getExistingComment(prNumber: number, commentType: COMMENT_TYPES) {
   try {
-    const response = await sendGitHubRequest(`/repos/${OWNER}/${REPO}/issues/${getPrNumber()}/comments`);
+    const response = await sendGitHubRequest(`/repos/${OWNER}/${REPO}/issues/${prNumber}/comments`);
     const comments = JSON.parse(response);
     return comments.find((comment: any) => comment.body.includes(commentType));
   } catch (error: any) {
@@ -44,15 +41,15 @@ async function getExistingComment(commentType: COMMENT_TYPES) {
 }
 
 /** Function to create or update a comment */
-async function upsertComment(existingCommentId: string, commentType: COMMENT_TYPES) {
+async function upsertComment(prNumber: number, existingCommentId: string, commentType: COMMENT_TYPES) {
   try {
-    const commentContent = await getMarkdown(commentType);
+    const commentContent = await getMarkdown(prNumber, commentType);
     const commentData = { body: commentContent };
 
     const requestMethod = existingCommentId ? 'PATCH' : 'POST';
     const requestUrl = existingCommentId
       ? `/repos/${OWNER}/${REPO}/issues/comments/${existingCommentId}`
-      : `/repos/${OWNER}/${REPO}/issues/${getPrNumber()}/comments`;
+      : `/repos/${OWNER}/${REPO}/issues/${prNumber}/comments`;
 
     await sendGitHubRequest(requestUrl, requestMethod, commentData);
     log('Comment added or updated successfully.');
@@ -113,7 +110,7 @@ function sendGitHubRequest(url: string, method = 'GET', data?: object): Promise<
 }
 
 /** Entrypoint */
-export default async function main(commentType: COMMENT_TYPES = COMMENT_TYPES.BENCH) {
-  const existingComment = await getExistingComment(commentType);
-  await upsertComment(existingComment?.id, commentType);
+export default async function main(prNumber: number, commentType: COMMENT_TYPES = COMMENT_TYPES.BENCH) {
+  const existingComment = await getExistingComment(prNumber, commentType);
+  await upsertComment(prNumber, existingComment?.id, commentType);
 }

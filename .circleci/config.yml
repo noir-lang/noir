@@ -513,24 +513,6 @@ jobs:
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
-  build-docs:
-    machine:
-      image: default
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build docs"
-          command: |
-            echo "Building docs"
-            build docs
-      - run:
-          name: "Deploy docs"
-          command: |
-            echo "Deploying docs"
-            docs/deploy_netlify.sh $BRANCH $PULL_REQUEST
-
   e2e-join:
     docker:
       - image: cimg/base:2023.09
@@ -741,7 +723,6 @@ workflows:
             - noir-projects
           <<: *defaults
       - end-to-end: *defaults_yarn_project
-      - build-docs: *defaults_yarn_project_pre_join
       - prover-client-test: *defaults_yarn_project
       - yarn-project-x86_64: *defaults_yarn_project_pre_join
       - yarn-project-arm64: *defaults_yarn_project_pre_join
@@ -787,7 +768,6 @@ workflows:
             - barretenberg-acir-tests-bb
             - barretenberg-acir-tests-bb-sol
             - barretenberg-docs
-            - build-docs
             - boxes-vanilla
             - boxes-react
             - noir-packages-tests

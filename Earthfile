@@ -28,3 +28,7 @@ test-end-to-end:
 
 bench:
   RUN echo hi
+
+release-meta:
+    COPY .release-please-manifest.json /usr/src/.release-please-manifest.json
+    SAVE ARTIFACT /usr/src /usr/src

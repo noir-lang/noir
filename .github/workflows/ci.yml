@@ -153,6 +153,22 @@ jobs:
         timeout-minutes: 25
         run: earthly-ci --no-output ./yarn-project/+test
 
+  docs-preview:
+    needs: setup
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: docs-preview-${{ inputs.username || github.actor }}-x86
+      - name: "Docs Preview"
+        timeout-minutes: 25
+        run: earthly --no-output ./docs/+deploy-preview --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+
   # push benchmarking binaries to dockerhub registry
   bb-bench-binaries:
     needs: setup

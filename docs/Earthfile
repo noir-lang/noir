@@ -1,0 +1,56 @@
+VERSION 0.8
+
+FROM node:18.19.0
+WORKDIR /usr/src/docs
+
+deps:
+  RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
+  COPY ./yarn.lock ./yarn.lock
+  COPY ./package.json ./package.json
+  RUN yarn install --frozen-lockfile
+
+build:
+  BUILD ../yarn-project/+build-dev
+  BUILD ../+release-meta
+  FROM +deps
+
+  COPY --dir ../yarn-project/+build-dev/usr/src /usr
+  COPY ../+release-meta/usr/src/.release-please-manifest.json /usr/src
+
+  COPY . .
+
+  RUN ./scripts/build.sh
+  SAVE ARTIFACT build
+
+serve:
+  FROM +deps
+  COPY +build/build build
+  COPY ./static static
+  COPY ./src src
+  COPY ./docusaurus.config.js .
+  COPY ./sidebars.js .
+  ENTRYPOINT ["yarn", "serve"]
+  EXPOSE 3000
+  SAVE ARTIFACT /usr/src/docs
+  SAVE IMAGE aztecprotocol/docs-server
+
+deploy-preview:
+  BUILD ../yarn-project/+scripts-prod
+  ARG NETLIFY_AUTH_TOKEN
+  ARG NETLIFY_SITE_ID
+  ARG AZTEC_BOT_COMMENTER_GITHUB_TOKEN
+  ARG PR
+  FROM +serve
+  COPY --dir ../yarn-project/+scripts-prod/usr/src/yarn-project /usr/src
+  COPY ./netlify.toml .
+  COPY ./deploy_preview.sh .
+  RUN NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID=$NETLIFY_SITE_ID ./deploy_preview.sh $PR $AZTEC_BOT_COMMENTER_GITHUB_TOKEN
+
+deploy-prod:
+  BUILD ../yarn-project/+scripts-prod
+  ARG NETLIFY_AUTH_TOKEN
+  ARG NETLIFY_SITE_ID
+  FROM +serve
+  COPY ./netlify.toml .
+  COPY ./deploy_prod.sh .
+  RUN NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID=$NETLIFY_SITE_ID ./deploy_prod.sh
