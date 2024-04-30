@@ -124,6 +124,7 @@ fn resolve_trait_methods(
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(generics);
+
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
             resolver.add_existing_generic("Self", name_span, self_typevar);
             resolver.set_self_type(Some(self_type.clone()));
@@ -207,16 +208,16 @@ fn collect_trait_impl_methods(
 
         if overrides.is_empty() {
             if let Some(default_impl) = &method.default_impl {
+                // copy 'where' clause from unresolved trait impl
+                let mut default_impl_clone = default_impl.clone();
+                default_impl_clone.def.where_clause.extend(trait_impl.where_clause.clone());
+
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
                 let location = Location::new(default_impl.def.span, trait_impl.file_id);
                 interner.push_function(func_id, &default_impl.def, module, location);
                 func_ids_in_trait.insert(func_id);
-                ordered_methods.push((
-                    method.default_impl_module_id,
-                    func_id,
-                    *default_impl.clone(),
-                ));
+                ordered_methods.push((method.default_impl_module_id, func_id, *default_impl_clone));
             } else {
                 let error = DefCollectorErrorKind::TraitMissingMethod {
                     trait_name: interner.get_trait(trait_id).name.clone(),
