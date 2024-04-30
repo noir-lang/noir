@@ -9,10 +9,12 @@ E2E_TEST_LOCAL:
   ARG compose_file=./scripts/docker-compose.yml
   ARG enable_gas=""
   ARG debug="aztec:*"
+  ARG EARTHLY_TARGET_NAME
   LOCALLY
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test
   ENV DEBUG=$debug
+  ENV JOB_NAME=$EARTHLY_TARGET_NAME
   WITH DOCKER \
     --load aztecprotocol/aztec:latest=../+aztec \
     --load aztecprotocol/end-to-end:latest=../+end-to-end \
@@ -29,13 +31,15 @@ E2E_TEST_FROM_CACHE:
   ARG enable_gas=""
   ARG debug="aztec:*"
   ARG aztec_docker_tag
+  ARG EARTHLY_TARGET_NAME
   LOCALLY
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test
   ENV DEBUG=$debug
   ENV AZTEC_DOCKER_TAG=$aztec_docker_tag
+  ENV JOB_NAME=$EARTHLY_TARGET_NAME
   # need a different project name for each to run in parallel
-  LET project_name=$(echo $test | sed 's/\./_/g')
+  LET project_name=$(echo $test | sed 's/[./]/_/g')
   IF docker compose > /dev/null 2>&1
     LET CMD="docker compose"
   ELSE
@@ -51,10 +55,12 @@ E2E_TEST_FROM_BUILD:
   ARG compose_file=./scripts/docker-compose.yml
   ARG enable_gas=""
   ARG debug="aztec:*"
+  ARG EARTHLY_TARGET_NAME
   FROM earthly/dind:alpine-3.19-docker-25.0.2-r0
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test
   ENV DEBUG=$debug
+  ENV JOB_NAME=$EARTHLY_TARGET_NAME
   COPY $compose_file $compose_file
   # For ARM, we do use WITH DOCKER as we don't have many e2e tests, but note E2E_TEST_FROM_CACHE
   WITH DOCKER \
@@ -80,6 +86,22 @@ E2E_TEST:
   ELSE
     DO +E2E_TEST_FROM_BUILD --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
   END
+
+UPLOAD_LOGS:
+  FUNCTION
+  ARG e2e_mode=cache
+  ARG PULL_REQUEST
+  ARG BRANCH
+  ARG COMMIT_HASH
+  LOCALLY
+  LET COMMIT_HASH="${COMMIT_HASH:-$(git rev-parse HEAD)}"
+  FROM ../../+scripts
+  COPY ./log /usr/var/log
+  ENV PULL_REQUEST=$PULL_REQUEST
+  ENV BRANCH=$BRANCH
+  ENV COMMIT_HASH=$COMMIT_HASH
+  ENV E2E_MODE=$e2e_mode
+  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY /usr/src/scripts/logs/upload_logs_to_s3.sh /usr/var/log
 
 # Define e2e tests
 e2e-tests:
@@ -124,24 +146,34 @@ guides-dapp-testing:
 
 # TODO intermittent failure
 # guides-sample-dapp:
-#  ARG e2e_mode=local
-#  DO +E2E_TEST --test=sample-dapp --e2e_mode=$e2e_mode
+#   ARG e2e_mode=local
+#   DO +E2E_TEST --test=sample-dapp --e2e_mode=$e2e_mode
 
 # TODO currently hangs for hour+
 # guides-up-quick-start:
 #   ARG e2e_mode=local
 #   DO +E2E_TEST --test=guides/up_quick_start.test.ts --e2e_mode=$e2e_mode
 
-# TODO hanging
-# bench-publish-rollup:
-#   ARG e2e_mode=local
-#   DO +E2E_TEST --test=benchmarks/bench_publish_rollup.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml
+bench-publish-rollup:
+  ARG e2e_mode=local
+  ARG PULL_REQUEST
+  ARG BRANCH
+  ARG COMMIT_HASH
+  DO +E2E_TEST --test=benchmarks/bench_publish_rollup.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode --compose_file=./scripts/docker-compose-no-sandbox.yml
+  DO +UPLOAD_LOGS --e2e_mode=$e2e_mode --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
 
-# TODO hanging
-# bench-process-history:
-#   ARG e2e_mode=local
-#   DO +E2E_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml
+bench-process-history:
+  ARG e2e_mode=local
+  ARG PULL_REQUEST
+  ARG BRANCH
+  ARG COMMIT_HASH
+  DO +E2E_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode --compose_file=./scripts/docker-compose-no-sandbox.yml
+  DO +UPLOAD_LOGS --e2e_mode=$e2e_mode --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
 
-# bench-tx-size:
-#   ARG e2e_mode=local
-#   DO +E2E_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml
+bench-tx-size:
+  ARG e2e_mode=local
+  ARG PULL_REQUEST
+  ARG BRANCH
+  ARG COMMIT_HASH
+  DO +E2E_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml
+  DO +UPLOAD_LOGS --e2e_mode=$e2e_mode --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH

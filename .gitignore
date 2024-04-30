@@ -18,3 +18,7 @@ cmake-build-debug
 .DS_Store
 
 **/*.dockerignore
+
+# Earthly
+.arg
+.secret

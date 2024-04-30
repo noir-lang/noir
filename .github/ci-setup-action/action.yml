@@ -1,14 +1,14 @@
 # Reusable setup workflow for CI tasks
 name: Setup Workflow
-description: 'Reusable setup steps'
+description: "Reusable setup steps"
 
 inputs:
   dockerhub_password:
     required: true
-    description: 'DockerHub Password'
+    description: "DockerHub Password"
   concurrency_key:
     required: false
-    description: 'Concurrency key for locking jobs'
+    description: "Concurrency key for locking jobs"
 runs:
   # define an action, runs in OS of caller
   using: composite
@@ -43,11 +43,14 @@ runs:
       with:
         # permission issue with spot runners, simpler to leave out
         use-cache: false
-        version: 'v0.8.5'
+        version: "v0.8.5"
 
     - name: Setup Env
       shell: bash
       run: ./scripts/setup_env.sh ${{ inputs.dockerhub_password }}
+      env:
+        PULL_REQUEST: "${{ github.event.pull_request.number }}"
+        BRANCH: "${{ github.ref_name }}"
 
     # As detailed in https://github.com/ben-z/gh-action-mutex
     # things do not become 'pending' in github actions, and instead just cancel one another

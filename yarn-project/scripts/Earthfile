@@ -1,0 +1,70 @@
+VERSION 0.8
+FROM node:18.19.0
+
+build:
+  FROM ../+scripts-prod
+  RUN apt-get update && apt-get install awscli -y
+  COPY ../../+scripts/scripts /usr/src/scripts
+  WORKDIR /usr/src
+
+download-logs:
+  # Downloads logs for the current PR and saves them as an artifact, to be consumed by bench-aggregate.
+  ARG COMMIT_HASH
+  ARG PULL_REQUEST
+  ARG BRANCH
+  FROM +build
+  LET LOG_FOLDER=/usr/var/logs
+  LET BENCH_FOLDER=/usr/var/bench
+  ENV LOG_FOLDER=$LOG_FOLDER
+  ENV BENCH_FOLDER=$BENCH_FOLDER
+  ENV COMMIT_HASH=$COMMIT_HASH
+  ENV PULL_REQUEST=$PULL_REQUEST
+  ENV BRANCH=$BRANCH
+  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY ./scripts/logs/download_logs_from_s3.sh 
+  SAVE ARTIFACT $LOG_FOLDER logs
+
+bench-aggregate:
+  # Copies logs downloaded from download-logs and aggregates them using bench-aggregate.
+  # No aggregation is done if there is a log missing from the benchmark jobs.
+  ARG COMMIT_HASH
+  ARG PULL_REQUEST
+  ARG BRANCH
+  FROM +build
+  LET LOG_FOLDER=/usr/var/logs
+  LET BENCH_FOLDER=/usr/var/bench
+  ENV LOG_FOLDER=$LOG_FOLDER
+  ENV BENCH_FOLDER=$BENCH_FOLDER
+  ENV COMMIT_HASH=$COMMIT_HASH
+  ENV PULL_REQUEST=$PULL_REQUEST
+  ENV BRANCH=$BRANCH
+  COPY +download-logs/logs $LOG_FOLDER
+  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY \
+    ./scripts/logs/check_logs_for_benchmark.sh \
+    && ((cd /usr/src/yarn-project/scripts && yarn bench-aggregate) && ./scripts/logs/upload_aggregated_benchmarks_to_s3.sh) \
+    || (echo "Not all log files from benchmark jobs found"; mkdir -p $BENCH_FOLDER)
+  SAVE ARTIFACT $BENCH_FOLDER bench
+
+bench-comment:
+  # Use the scripts image to run bench comment after loading the benchmark from bench-aggregate.
+  # Requires base-benchmark to be downloaded outside of this target. Note we cannot run it within
+  # an Earthly container because it needs access to the .git folder, and we cannot run it with a
+  # LOCALLY statement because Earthly does not support secrets when running locally (and we need)
+  # the AWS access keys to access S3. This step is then manually run in the ci.yml.
+  ARG COMMIT_HASH
+  ARG PULL_REQUEST
+  ARG BRANCH
+  FROM +build
+  LET BENCH_FOLDER=/usr/var/bench
+  ENV BENCH_FOLDER=$BENCH_FOLDER
+  ENV COMMIT_HASH=$COMMIT_HASH
+  ENV PULL_REQUEST=$PULL_REQUEST
+  ENV PR_NUMBER=$PULL_REQUEST
+  ENV BRANCH=$BRANCH
+  COPY ./bench $BENCH_FOLDER/
+  COPY +bench-aggregate/bench $BENCH_FOLDER
+  RUN echo "Bench folder contents $(ls $BENCH_FOLDER)"
+  RUN --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN \
+    [ -f $BENCH_FOLDER/benchmark.json ] \
+      && (cd /usr/src/yarn-project/scripts && AZTEC_BOT_COMMENTER_GITHUB_TOKEN=$AZTEC_BOT_COMMENTER_GITHUB_TOKEN yarn bench-comment) \
+      || echo "No benchmark file found in $BENCH_FOLDER"
+  
