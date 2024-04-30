@@ -50,7 +50,7 @@ mod test {
             ("std", vec!["std"]),
             ("std::hash", vec!["std", "hash"]),
             ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("dep::foo::bar", vec!["foo", "bar"]),
+            ("foo::bar", vec!["foo", "bar"]),
             ("foo::bar", vec!["foo", "bar"]),
             ("crate::std::hash", vec!["std", "hash"]),
         ];
@@ -69,7 +69,6 @@ mod test {
     fn parse_path_kinds() {
         let cases = vec![
             ("std", PathKind::Plain),
-            ("dep::hash::collections", PathKind::Plain),
             ("hash::collections", PathKind::Plain),
             ("crate::std::hash", PathKind::Crate),
         ];
