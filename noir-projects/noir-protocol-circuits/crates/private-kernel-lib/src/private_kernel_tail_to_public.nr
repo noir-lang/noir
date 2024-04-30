@@ -92,7 +92,8 @@ mod tests {
     };
     use dep::types::constants::{
         MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
-        MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
+        DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE
     };
     use dep::types::{
         abis::{
@@ -532,6 +533,11 @@ mod tests {
                 [new_nullifiers[3], new_nullifiers[4]]
             )
         );
+
+        assert_eq(public_inputs.end.gas_used, Gas::new(2 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0));
+        assert_eq(
+            public_inputs.end_non_revertible.gas_used, Gas::new(3 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0) + Gas::tx_overhead()
+        );
     }
 
     #[test]
@@ -586,12 +592,12 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn set_teardown_gas_as_gas_used() {
-        // TODO(gas): When we compute DA gas used, we'll have to include it here as well.
+    unconstrained fn empty_tx_consumes_teardown_limits_plus_fixed_gas() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         builder.previous_kernel.tx_context.gas_settings.teardown_gas_limits = Gas::new(300, 300);
         let public_inputs = builder.execute();
 
-        assert_eq(public_inputs.end.gas_used, Gas::new(300, 300));
+        let expected_gas_consumed = Gas::new(300, 300) + Gas::tx_overhead();
+        assert_eq(public_inputs.end.gas_used, expected_gas_consumed);
     }
 }

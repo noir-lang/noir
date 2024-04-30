@@ -13,9 +13,10 @@ use crate::{
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
+    DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE
 },
-    traits::Empty
+    traits::{Empty, is_empty}
 };
 
 // Builds via PrivateKernelCircuitPublicInputsBuilder:
@@ -60,10 +61,11 @@ impl PrivateAccumulatedDataBuilder {
         }
     }
 
-    pub fn to_combined(self) -> CombinedAccumulatedData {
+    pub fn to_combined(self, teardown_gas: Gas) -> CombinedAccumulatedData {
         // TODO(Miranda): Hash here or elsewhere?
         let encrypted_logs_hash = compute_tx_logs_hash(self.encrypted_logs_hashes.storage);
         let unencrypted_logs_hash = compute_tx_logs_hash(self.unencrypted_logs_hashes.storage);
+        let gas_used = self.to_metered_gas_used() + Gas::tx_overhead() + teardown_gas;
 
         CombinedAccumulatedData {
             new_note_hashes: self.new_note_hashes.storage.map(|n: NoteHashContext| n.value),
@@ -74,24 +76,69 @@ impl PrivateAccumulatedDataBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-            gas_used: self.gas_used.add(self.non_revertible_gas_used)
+            gas_used
         }
+    }
+
+    pub fn to_metered_gas_used(self) -> Gas {
+        let mut metered_bytes = 0;
+
+        // note_hash_gas
+        for i in 0..self.new_note_hashes.storage.len() {
+            if !is_empty(self.new_note_hashes.get_unchecked(i)) {
+                metered_bytes += DA_BYTES_PER_FIELD;
+            }
+        }
+
+        // nullifier_gas
+        for i in 0..self.new_nullifiers.storage.len() {
+            if !is_empty(self.new_nullifiers.get_unchecked(i)) {
+                metered_bytes += DA_BYTES_PER_FIELD;
+            }
+        }
+
+        // l2_to_l1_msg_gas
+        for i in 0..self.new_l2_to_l1_msgs.storage.len() {
+            if !is_empty(self.new_l2_to_l1_msgs.get_unchecked(i)) {
+                metered_bytes += DA_BYTES_PER_FIELD;
+            }
+        }
+
+        // encrypted_logs_hash_gas
+        metered_bytes += self.encrypted_log_preimages_length as u32;
+
+        // unencrypted_logs_hash_gas
+        metered_bytes += self.unencrypted_log_preimages_length as u32;
+
+        Gas::new(DA_GAS_PER_BYTE * metered_bytes, 0)
     }
 
     pub fn split_to_public(
         self,
-        min_revertible_side_effect_counter: u32
+        min_revertible_side_effect_counter: u32,
+        teardown_gas: Gas
     ) -> (PublicAccumulatedData, PublicAccumulatedData) {
         let mut non_revertible_builder = PublicAccumulatedDataBuilder::empty();
         let mut revertible_builder = PublicAccumulatedDataBuilder::empty();
+        let mut non_revertible_da_gas_used = 0;
+        let mut non_revertible_l2_gas_used = 0;
+        let mut revertible_da_gas_used = teardown_gas.da_gas; // pre-pay for teardown gas
+        let mut revertible_l2_gas_used = teardown_gas.l2_gas;
+        let DA_GAS_PER_FIELD = DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE;
 
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             let note_hash = self.new_note_hashes.storage[i];
             let public_note_hash = note_hash.expose_to_public();
             if note_hash.counter < min_revertible_side_effect_counter {
                 non_revertible_builder.new_note_hashes.push(public_note_hash);
+                if !is_empty(public_note_hash) {
+                    non_revertible_da_gas_used += DA_GAS_PER_FIELD ;
+                }
             } else {
                 revertible_builder.new_note_hashes.push(public_note_hash);
+                if !is_empty(public_note_hash) {
+                    revertible_da_gas_used += DA_GAS_PER_FIELD;
+                }
             }
         }
 
@@ -99,11 +146,18 @@ impl PrivateAccumulatedDataBuilder {
             let nullifier = self.new_nullifiers.storage[i];
             if nullifier.counter < min_revertible_side_effect_counter {
                 non_revertible_builder.new_nullifiers.push(nullifier);
+                if !is_empty(nullifier) {
+                    non_revertible_da_gas_used += DA_GAS_PER_FIELD;
+                }
             } else {
                 revertible_builder.new_nullifiers.push(nullifier);
+                if !is_empty(nullifier) {
+                    revertible_da_gas_used += DA_GAS_PER_FIELD;
+                }
             }
         }
 
+        // TODO(gas): add AVM_STARTUP_L2_GAS here
         for i in 0..MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX {
             let call_stack_item = self.public_call_stack.storage[i];
             if call_stack_item.start_side_effect_counter < min_revertible_side_effect_counter {
@@ -136,8 +190,10 @@ impl PrivateAccumulatedDataBuilder {
         revertible_builder.encrypted_log_preimages_length =  self.encrypted_log_preimages_length;
         revertible_builder.unencrypted_log_preimages_length = self.unencrypted_log_preimages_length;
 
-        revertible_builder.gas_used = self.gas_used;
-        non_revertible_builder.gas_used = self.non_revertible_gas_used;
+        revertible_da_gas_used += DA_GAS_PER_BYTE * (self.encrypted_log_preimages_length as u32 + self.unencrypted_log_preimages_length as u32);
+
+        revertible_builder.gas_used = Gas::new(revertible_da_gas_used, revertible_l2_gas_used);
+        non_revertible_builder.gas_used = Gas::tx_overhead() + Gas::new(non_revertible_da_gas_used, non_revertible_l2_gas_used);
         (non_revertible_builder.finish(), revertible_builder.finish())
     }
 }
@@ -150,7 +206,7 @@ mod tests {
         note_hash::{NoteHash, NoteHashContext}, nullifier::Nullifier,
         public_data_update_request::PublicDataUpdateRequest, side_effect::SideEffect
     },
-        address::AztecAddress, utils::arrays::array_eq
+        address::AztecAddress, utils::arrays::array_eq, constants::{DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE}
     };
 
     #[test]
@@ -213,10 +269,7 @@ mod tests {
         builder.public_call_stack.extend_from_array(non_revertible_public_stack);
         builder.public_call_stack.extend_from_array(revertible_public_call_stack);
 
-        builder.gas_used = Gas::new(20,20);
-        builder.non_revertible_gas_used = Gas::new(10,10);
-
-        let (non_revertible, revertible) = builder.split_to_public(7);
+        let (non_revertible, revertible) = builder.split_to_public(7, Gas::new(42, 17));
 
         assert(
             array_eq(
@@ -242,8 +295,14 @@ mod tests {
         assert(array_eq(revertible.new_nullifiers, revertible_nullifiers));
         assert(array_eq(revertible.public_call_stack, revertible_public_call_stack));
 
-        assert_eq(revertible.gas_used, Gas::new(20, 20));
-        assert_eq(non_revertible.gas_used, Gas::new(10, 10));
+        assert_eq(
+            revertible.gas_used, Gas::new(4 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0) + Gas::new(42, 17)
+        );
+
+        print(non_revertible.gas_used);
+        assert_eq(
+            non_revertible.gas_used, Gas::new(4 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0) + Gas::tx_overhead()
+        );
     }
 }
 
