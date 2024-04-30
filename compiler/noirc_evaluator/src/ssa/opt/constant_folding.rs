@@ -6,9 +6,8 @@
 //!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
 //! - Check whether any input values have been constrained to be equal to a value of a simpler form
 //!   by a [constrain instruction][Instruction::Constrain]. If so, replace the input value with the simpler form.
-//! - Check whether the instruction is [pure][Instruction::is_pure()]
-//!   and there exists a duplicate instruction earlier in the same block.
-//!   If so, the instruction can be replaced with the results of this previous instruction.
+//! - Check whether the instruction [can_be_replaced][Instruction::can_be_replaced()]
+//!   by duplicate instruction earlier in the same block.
 //!
 //! These operations are done in parallel so that they can each benefit from each other
 //! without the need for multiple passes.
@@ -259,7 +258,7 @@ impl Context {
 
         // If the instruction doesn't have side-effects, cache the results so we can reuse them if
         // the same instruction appears again later in the block.
-        if instruction.is_pure(dfg) {
+        if instruction.can_be_replaced(dfg) {
             instruction_result_cache.insert(instruction, instruction_results);
         }
     }
