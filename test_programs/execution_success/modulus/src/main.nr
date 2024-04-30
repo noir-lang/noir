@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main(bn254_modulus_be_bytes: [u8; 32], bn254_modulus_be_bits: [u1; 254]) {
     let modulus_size = std::field::modulus_num_bits();

@@ -436,8 +436,11 @@ fn inject_prelude(
         .map(|segment| crate::ast::Ident::new(segment.into(), Span::default()))
         .collect();
 
-    let path =
-        Path { segments: segments.clone(), kind: crate::ast::PathKind::Dep, span: Span::default() };
+    let path = Path {
+        segments: segments.clone(),
+        kind: crate::ast::PathKind::Plain,
+        span: Span::default(),
+    };
 
     if !crate_id.is_stdlib() {
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
@@ -457,7 +460,7 @@ fn inject_prelude(
                     0,
                     ImportDirective {
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,
                     },

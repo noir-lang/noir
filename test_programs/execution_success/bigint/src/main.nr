@@ -1,5 +1,5 @@
-use dep::std::bigint;
-use dep::std::{bigint::Secpk1Fq, println};
+use std::bigint;
+use std::{bigint::Secpk1Fq, println};
 
 fn main(mut x: [u8; 5], y: [u8; 5]) {
     let a = bigint::Secpk1Fq::from_le_bytes(&[x[0], x[1], x[2], x[3], x[4]]);
@@ -10,8 +10,8 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
         a_be_bytes[31-i] = x[i];
         b_be_bytes[31-i] = y[i];
     }
-    let a_field = dep::std::field::bytes32_to_field(a_be_bytes);
-    let b_field = dep::std::field::bytes32_to_field(b_be_bytes);
+    let a_field = std::field::bytes32_to_field(a_be_bytes);
+    let b_field = std::field::bytes32_to_field(b_be_bytes);
 
     // Regression for issue #4682
     let c = if x[0] != 0 {
@@ -19,7 +19,7 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     } else {
         test_unconstrained2(a, b)
     };
-    assert(c.array[0] == dep::std::wrapping_mul(x[0], y[0]));
+    assert(c.array[0] == std::wrapping_mul(x[0], y[0]));
 
     let a_bytes = a.to_le_bytes();
     let b_bytes = b.to_le_bytes();

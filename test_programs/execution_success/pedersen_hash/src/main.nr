@@ -1,5 +1,5 @@
 // docs:start:pedersen-hash
-use dep::std;
+use std;
 
 fn main(x: Field, y: Field, expected_hash: Field) {
     let hash = std::hash::pedersen_hash([x, y]);

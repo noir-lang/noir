@@ -1,5 +1,5 @@
 // Regression test for issue #4449
-use dep::std;
+use std;
 
 fn main(x: u8, result: [u8; 32]) {
     let x = x % 31;

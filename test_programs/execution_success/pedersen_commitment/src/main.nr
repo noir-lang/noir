@@ -1,5 +1,5 @@
 // docs:start:pedersen-commitment
-use dep::std;
+use std;
 
 fn main(x: Field, y: Field, expected_commitment: std::hash::PedersenPoint) {
     let commitment = std::hash::pedersen_commitment([x, y]);

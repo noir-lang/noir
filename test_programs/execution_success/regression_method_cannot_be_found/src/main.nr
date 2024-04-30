@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 struct Item {
     id: Field,
 }

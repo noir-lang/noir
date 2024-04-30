@@ -1,5 +1,5 @@
 fn get_transaction() {
-    dep::std::unsafe::zeroed()
+    std::unsafe::zeroed()
 }
 
 fn main() {

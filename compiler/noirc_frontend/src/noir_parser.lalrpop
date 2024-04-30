@@ -66,7 +66,6 @@ extern {
         "continue" => BorrowedToken::Keyword(noir_token::Keyword::Continue),
         "contract" => BorrowedToken::Keyword(noir_token::Keyword::Contract),
         "crate" => BorrowedToken::Keyword(noir_token::Keyword::Crate),
-        "dep" => BorrowedToken::Keyword(noir_token::Keyword::Dep),
         "distinct" => BorrowedToken::Keyword(noir_token::Keyword::Distinct),
         "else" => BorrowedToken::Keyword(noir_token::Keyword::Else),
         "Field" => BorrowedToken::Keyword(noir_token::Keyword::Field),
@@ -125,8 +124,9 @@ pub(crate) Path: Path = {
         Path { segments, kind, span }
     },
 
-    <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
-        let kind = PathKind::Dep;
+    // TODO: still needed with PathKind::Plain now that "dep::.." is gone?
+    <lo:@L> <segments:PathSegments> <hi:@R> => {
+        let kind = PathKind::Plain;
         let span = Span::from(lo as u32..hi as u32);
         Path { segments, kind, span }
     },

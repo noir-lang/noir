@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 // This circuit aggregates two proofs from `assert_statement_recursive`.
 #[recursive]

@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main() {
     std::print("Hello world");

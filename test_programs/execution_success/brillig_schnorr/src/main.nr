@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 // Note: If main has any unsized types, then the verifier will never be able
 // to figure out the circuit instance
 unconstrained fn main(

@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 unconstrained fn main(x: u8, y: u8) {
     assert(std::wrapping_sub(x, 1) == y);

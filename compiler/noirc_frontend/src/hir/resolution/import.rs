@@ -149,24 +149,28 @@ fn resolve_path_to_ns(
                 allow_contracts,
             )
         }
-        crate::ast::PathKind::Dep => resolve_external_dep(
-            def_map,
-            import_directive,
-            def_maps,
-            allow_contracts,
-            importing_crate,
-        ),
         crate::ast::PathKind::Plain => {
-            // Plain paths are only used to import children modules. It's possible to allow import of external deps, but maybe this distinction is better?
-            // In Rust they can also point to external Dependencies, if no children can be found with the specified name
-            resolve_name_in_module(
+            let result = resolve_name_in_module(
                 crate_id,
                 importing_crate,
                 import_path,
                 import_directive.module_id,
                 def_maps,
                 allow_contracts,
-            )
+            );
+
+            if result.is_ok() {
+                result
+            } else {
+                // TODO: combine error messages?
+                resolve_external_dep(
+                    def_map,
+                    import_directive,
+                    def_maps,
+                    allow_contracts,
+                    importing_crate,
+                )
+            }
         }
     }
 }
@@ -293,7 +297,9 @@ fn resolve_external_dep(
         .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
     // Create an import directive for the dependency crate
-    let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
+    // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
+    // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
+    let path_without_crate_name = &path[1..];
 
     let path = Path {
         segments: path_without_crate_name.to_vec(),

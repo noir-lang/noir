@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main() {
     //Regression for to_le_bits() constant evaluation 

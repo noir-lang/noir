@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main(mut x: i8, mut y: i8, z: i8) {
     let mut s1: i8 = 5;

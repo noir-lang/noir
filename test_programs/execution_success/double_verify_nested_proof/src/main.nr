@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 // This circuit aggregates two recursive proofs from `double_verify_proof_recursive`.
 // Recursive aggregation is a backend-specific process and it is expected for backends 

@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn sort(mut a: [u32; 4]) -> [u32; 4] {
     for i in 1..4 {

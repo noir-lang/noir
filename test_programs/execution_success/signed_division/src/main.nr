@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 // Testing signed integer division: 
 //  7/3  = 2
 // -7/3  = -2

@@ -1416,7 +1416,7 @@ impl<'a> Resolver<'a> {
                     Ident::from("internal"),
                     Ident::from("resolve_assert_message"),
                 ],
-                kind: PathKind::Dep,
+                kind: PathKind::Plain,
                 span,
             })
         };

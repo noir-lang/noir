@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main() {
     let x: u8 = 0x61;

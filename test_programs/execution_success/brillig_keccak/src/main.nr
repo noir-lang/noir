@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 // Tests a very simple program.
 // 
 // The features being tested is keccak256 in brillig

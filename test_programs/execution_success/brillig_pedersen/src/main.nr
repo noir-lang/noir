@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 unconstrained fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: Field) {
     let res = std::hash::pedersen_commitment_with_separator([x, y], 0);

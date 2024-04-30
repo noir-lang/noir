@@ -1357,6 +1357,7 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         assert_eq!(get_program_errors(src).len(), 1);
     }
 
+    #[test]
     fn deny_inline_attribute_on_unconstrained() {
         let src = r#"
             #[inline(never)]

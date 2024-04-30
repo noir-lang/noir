@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 unconstrained fn main(x: Field, _y: Field) {
     // The result of this byte array will be big-endian

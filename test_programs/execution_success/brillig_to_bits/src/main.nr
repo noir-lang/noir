@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 unconstrained fn main() {
     let field = 1000;
