@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main(
     verification_key: [Field; 114],

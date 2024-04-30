@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main() {
     let var = -1 as u8;

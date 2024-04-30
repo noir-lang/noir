@@ -12,7 +12,7 @@ import Experimental from '@site/src/components/Notes/_experimental.mdx';
 A slice is a dynamically-sized view into a sequence of elements. They can be resized at runtime, but because they don't own the data, they cannot be returned from a circuit. You can treat slices as arrays without a constrained size.
 
 ```rust
-use dep::std::slice;
+use std::slice;
 
 fn main() -> pub Field {
     let mut slice: [Field] = &[0; 2];

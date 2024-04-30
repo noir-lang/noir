@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main(x: Field) {
     let a: Field = x / 0;

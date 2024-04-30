@@ -29,8 +29,8 @@ use crate::utils::{
 //   for i in 0..third_arg.len() {
 //     args_acc = args_acc.append(third_arg[i].serialize().as_slice());
 //   }
-//   let args_hash = dep::aztec::hash::hash_args(args_acc);
-//   assert(args_hash == dep::aztec::oracle::arguments::pack_arguments(args_acc));
+//   let args_hash = aztec::hash::hash_args(args_acc);
+//   assert(args_hash == aztec::oracle::arguments::pack_arguments(args_acc));
 //   PublicCallInterface {
 //     target_contract: self.target_contract,
 //     selector: FunctionSelector::from_signature("SELECTOR_PLACEHOLDER"),
@@ -55,7 +55,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
         .join(", ");
     let fn_return_type: noirc_frontend::ast::UnresolvedType = func.return_type();
 
-    let fn_selector = format!("dep::aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature(\"{}\")", SELECTOR_PLACEHOLDER);
+    let fn_selector = format!("aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature(\"{}\")", SELECTOR_PLACEHOLDER);
 
     let parameters = func.parameters();
     let is_void = if matches!(fn_return_type.typ, UnresolvedTypeData::Unit) { "Void" } else { "" };
@@ -90,8 +90,8 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
             format!(
                 "let mut args_acc: [Field] = &[];
                 {}
-                let args_hash = dep::aztec::hash::hash_args(args_acc);
-                assert(args_hash == dep::aztec::oracle::arguments::pack_arguments(args_acc));",
+                let args_hash = aztec::hash::hash_args(args_acc);
+                assert(args_hash == aztec::oracle::arguments::pack_arguments(args_acc));",
                 call_args
             )
         } else {
@@ -100,7 +100,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
 
         let fn_body = format!(
             "{}
-                dep::aztec::context::{}{}CallInterface {{
+                aztec::context::{}{}CallInterface {{
                     target_contract: self.target_contract,
                     selector: {},
                     args_hash,
@@ -108,7 +108,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
             args_hash, aztec_visibility, is_void, fn_selector,
         );
         format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::{}{}CallInterface{} {{
+            "pub fn {}(self, {}) -> aztec::context::{}{}CallInterface{} {{
                     {}
                 }}",
             fn_name, fn_parameters, aztec_visibility, is_void, return_type_hint, fn_body
@@ -122,7 +122,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
         );
         let fn_body = format!(
             "{}
-            dep::aztec::context::Avm{}CallInterface {{
+            aztec::context::Avm{}CallInterface {{
                 target_contract: self.target_contract,
                 selector: {},
                 args: args_acc,
@@ -130,7 +130,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
             args, is_void, fn_selector,
         );
         format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::Avm{}CallInterface{} {{
+            "pub fn {}(self, {}) -> aztec::context::Avm{}CallInterface{} {{
                     {}
             }}",
             fn_name, fn_parameters, is_void, return_type_hint, fn_body
@@ -149,14 +149,14 @@ pub fn generate_contract_interface(
     let contract_interface = format!(
         "
         struct {0} {{
-            target_contract: dep::aztec::protocol_types::address::AztecAddress
+            target_contract: aztec::protocol_types::address::AztecAddress
         }}
 
         impl {0} {{
             {1}
 
             pub fn at(
-                target_contract: dep::aztec::protocol_types::address::AztecAddress
+                target_contract: aztec::protocol_types::address::AztecAddress
             ) -> Self {{
                 Self {{ target_contract }}
             }}
@@ -164,7 +164,7 @@ pub fn generate_contract_interface(
 
         #[contract_library_method]
         pub fn at(
-            target_contract: dep::aztec::protocol_types::address::AztecAddress
+            target_contract: aztec::protocol_types::address::AztecAddress
         ) -> {0} {{
             {0} {{ target_contract }}
         }}

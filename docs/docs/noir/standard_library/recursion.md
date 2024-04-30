@@ -42,7 +42,7 @@ This is a black box function. Read [this section](./black_box_fns) to learn more
 ## Example usage
 
 ```rust
-use dep::std;
+use std;
 
 fn main(
     verification_key : [Field; 114],

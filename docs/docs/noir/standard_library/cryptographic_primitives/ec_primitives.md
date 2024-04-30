@@ -81,7 +81,7 @@ from the private key. This is a matter of using scalar multiplication. In the ca
 for example, this code would do:
 
 ```rust
-use dep::std::ec::tecurve::affine::{Curve, Point};
+use std::ec::tecurve::affine::{Curve, Point};
 
 fn bjj_pub_key(priv_key: Field) -> Point
 {

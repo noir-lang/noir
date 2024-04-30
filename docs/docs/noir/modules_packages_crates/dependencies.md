@@ -70,15 +70,15 @@ You can import a dependency to a Noir file using the following syntax. For examp
 ecrecover-noir library and local lib_a referenced above:
 
 ```rust
-use dep::ecrecover;
-use dep::lib_a;
+use ecrecover;
+use lib_a;
 ```
 
 You can also import only the specific parts of dependency that you want to use, like so:
 
 ```rust
-use dep::std::hash::sha256;
-use dep::std::scalar_mul::fixed_base_embedded_curve;
+use std::hash::sha256;
+use std::scalar_mul::fixed_base_embedded_curve;
 ```
 
 Lastly, as demonstrated in the
@@ -86,7 +86,7 @@ Lastly, as demonstrated in the
 can import multiple items in the same line by enclosing them in curly braces:
 
 ```rust
-use dep::std::ec::tecurve::affine::{Curve, Point};
+use std::ec::tecurve::affine::{Curve, Point};
 ```
 
 We don't have a way to consume libraries from inside a [workspace](./workspaces) as external dependencies right now.
@@ -100,7 +100,7 @@ Note that when you import a dependency, you also get access to all of the depend
 For example, the [phy_vector](https://github.com/resurgencelabs/phy_vector) library imports an [fraction](https://github.com/resurgencelabs/fraction) library. If you're importing the phy_vector library, then you can access the functions in fractions library like so:
 
 ```rust
-use dep::phy_vector;
+use phy_vector;
 
 fn main(x : Field, y : pub Field) {
   //...
