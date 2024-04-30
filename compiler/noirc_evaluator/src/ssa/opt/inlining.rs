@@ -36,22 +36,28 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
+    ///
+    /// There are some attributes that allow inlining a function at a different step of codegen.
+    /// Currently this is just `InlineType::NoPredicates` for which we have a flag indicating
+    /// whether treating that inline functions. The default is to treat these functions as entry points.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn inline_functions(mut self) -> Ssa {
-        self.functions = btree_map(get_entry_point_functions(&self, true), |entry_point| {
-            let new_function = InlineContext::new(&self, entry_point, true).inline_all(&self);
-            (entry_point, new_function)
-        });
-
-        self
+    pub(crate) fn inline_functions(self) -> Ssa {
+        Self::inline_functions_inner(self, true)
     }
 
     // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
-    pub(crate) fn inline_functions_with_no_predicates(mut self) -> Ssa {
-        self.functions = btree_map(get_entry_point_functions(&self, false), |entry_point| {
-            let new_function = InlineContext::new(&self, entry_point, false).inline_all(&self);
-            (entry_point, new_function)
-        });
+    pub(crate) fn inline_functions_with_no_predicates(self) -> Ssa {
+        Self::inline_functions_inner(self, false)
+    }
+
+    fn inline_functions_inner(mut self, no_predicates_is_entry_point: bool) -> Ssa {
+        self.functions = btree_map(
+            get_entry_point_functions(&self, no_predicates_is_entry_point),
+            |entry_point| {
+                let new_function = InlineContext::new(&self, entry_point, false).inline_all(&self);
+                (entry_point, new_function)
+            },
+        );
         self
     }
 }
