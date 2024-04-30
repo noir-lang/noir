@@ -10,7 +10,7 @@ CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
 
 echo "Last successfully published commit: $CONTENT_HASH"
 
-# Check if image hash has alredy been deployed.
+# Check if image hash has already been deployed.
 if check_rebuild "cache-$CONTENT_HASH-$DEPLOY_TAG-deployed" $REPOSITORY; then
   echo "No changes detected, no contract deploy necessary."
   # Set global variable for redeployment of contracts

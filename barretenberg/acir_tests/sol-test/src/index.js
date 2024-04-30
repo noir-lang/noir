@@ -137,7 +137,7 @@ const readPublicInputs = (proofAsFields) => {
  * Get Anvil
  * 
  * Creates an anvil instance on a random port, and returns the instance and the port
- * If the port is alredy allocated, it will try again
+ * If the port is already allocated, it will try again
  * @returns {[ChildProcess, Number]} [anvil, port]
  */
 const getAnvil = async () => {

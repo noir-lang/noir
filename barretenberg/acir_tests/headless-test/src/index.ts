@@ -51,7 +51,7 @@ const readWitnessFile = (path: string): Uint8Array => {
 // Set up the command-line interface
 const program = new Command();
 program.option("-v, --verbose", "verbose logging");
-program.option("-c, --crs-path <path>", "ignored (here for compatability)");
+program.option("-c, --crs-path <path>", "ignored (here for compatibility)");
 
 program
   .command("prove_and_verify")
