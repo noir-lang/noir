@@ -292,4 +292,18 @@ export class TestKeyStore implements KeyStore {
     }
     return Promise.resolve(Fr.fromBuffer(publicKeysHashBuffer));
   }
+
+  // TODO(#5834): Re-add separation between recipients and accounts in keystore.
+  public async addPublicKeysForAccount(
+    accountAddress: AztecAddress,
+    masterNullifierPublicKey: Point,
+    masterIncomingViewingPublicKey: Point,
+    masterOutgoingViewingPublicKey: Point,
+    masterTaggingPublicKey: Point,
+  ): Promise<void> {
+    await this.#keys.set(`${accountAddress.toString()}-npk_m`, masterNullifierPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-ivpk_m`, masterIncomingViewingPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-ovpk_m`, masterOutgoingViewingPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-tpk_m`, masterTaggingPublicKey.toBuffer());
+  }
 }

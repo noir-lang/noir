@@ -167,6 +167,16 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
+   * Gets public keys for an address.
+   * @param The address to look up
+   * @returns The public keys for a specific address
+   * TODO(#5834): Replace with `getCompleteAddress`.
+   */
+  public override getPublicKeysForAddress(address: AztecAddress) {
+    return this.db.getPublicKeysForAddress(address);
+  }
+
+  /**
    * Gets some notes for a contract address and storage slot.
    * Returns a flattened array containing filtered notes.
    *

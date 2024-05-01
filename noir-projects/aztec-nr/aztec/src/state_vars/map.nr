@@ -27,10 +27,14 @@ impl<K, V> Map<K, V> {
     // docs:start:at
     pub fn at(self, key: K) -> V where K: ToField {
         // TODO(#1204): use a generator index for the storage slot
-        let derived_storage_slot = pedersen_hash([self.storage_slot, key.to_field()], 0);
+        let derived_storage_slot = derive_storage_slot_in_map(self.storage_slot, key);
 
         let state_var_constructor = self.state_var_constructor;
         state_var_constructor(self.context, derived_storage_slot)
     }
     // docs:end:at
+}
+
+pub fn derive_storage_slot_in_map<K>(storage_slot: Field, key: K) -> Field where K: ToField {
+    pedersen_hash([storage_slot, key.to_field()], 0)
 }

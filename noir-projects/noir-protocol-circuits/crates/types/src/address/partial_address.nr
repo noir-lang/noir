@@ -68,6 +68,10 @@ impl PartialAddress {
         self.inner
     }
 
+    pub fn is_zero(self) -> bool {
+        self.to_field() == 0
+    }
+
     pub fn assert_is_zero(self) {
         assert(self.to_field() == 0);
     }

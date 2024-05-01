@@ -1,4 +1,4 @@
-import { type AztecAddress, type CompleteAddress, type Fr, type PartialAddress } from '@aztec/circuits.js';
+import { type AztecAddress, type CompleteAddress, type Fr, type PartialAddress, type Point } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { type NodeInfo } from '@aztec/types/interfaces';
@@ -73,7 +73,8 @@ export interface PXE {
    * the recipient's notes. We can send notes to this account because we can encrypt them with the recipient's
    * public key.
    */
-  registerRecipient(recipient: CompleteAddress): Promise<void>;
+  // TODO: #5834: Nuke publicKeys optional parameter after `CompleteAddress` refactor.
+  registerRecipient(recipient: CompleteAddress, publicKeys?: Point[]): Promise<void>;
 
   /**
    * Retrieves the user accounts registered on this PXE Service.

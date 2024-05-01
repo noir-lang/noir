@@ -42,7 +42,7 @@ import {
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
 import { type ContractArtifact, type DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, type Point } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
@@ -216,8 +216,20 @@ export class PXEService implements PXE {
     return this.keyStore.getPublicKeysHash(address);
   }
 
-  public async registerRecipient(recipient: CompleteAddress): Promise<void> {
+  public async registerRecipient(recipient: CompleteAddress, publicKeys: Point[] = []): Promise<void> {
     const wasAdded = await this.db.addCompleteAddress(recipient);
+
+    // TODO #5834: This should be refactored to be okay with only adding complete address
+    if (publicKeys.length !== 0) {
+      await this.keyStore.addPublicKeysForAccount(
+        recipient.address,
+        publicKeys[0],
+        publicKeys[1],
+        publicKeys[2],
+        publicKeys[3],
+      );
+    }
+
     if (wasAdded) {
       this.log.info(`Added recipient:\n ${recipient.toReadableString()}`);
     } else {

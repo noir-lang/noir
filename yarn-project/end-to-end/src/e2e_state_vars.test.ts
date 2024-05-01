@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, type PXE, type Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Fr, type Wallet } from '@aztec/aztec.js';
 import { AuthContract, DocsExampleContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -8,7 +8,6 @@ import { setup } from './fixtures/utils.js';
 const TIMEOUT = 100_000;
 
 describe('e2e_state_vars', () => {
-  let pxe: PXE;
   jest.setTimeout(TIMEOUT);
 
   let wallet: Wallet;
@@ -20,7 +19,7 @@ describe('e2e_state_vars', () => {
   const RANDOMNESS = 2n;
 
   beforeAll(async () => {
-    ({ teardown, wallet, pxe } = await setup(2));
+    ({ teardown, wallet } = await setup(2));
     contract = await DocsExampleContract.deploy(wallet).send().deployed();
   });
 
@@ -249,27 +248,21 @@ describe('e2e_state_vars', () => {
     });
 
     it("checks authorized in auth contract from test contract and finds the old value because the change hasn't been applied yet", async () => {
-      const { txHash } = await testContract.methods
+      const authorized = await testContract.methods
         .test_shared_mutable_private_getter(authContract.address, 2)
-        .send()
-        .wait();
+        .simulate();
 
-      // The function above emits an unencrypted log as a means of returning the data
-      const rawLogs = await pxe.getUnencryptedLogs({ txHash });
-      expect(Fr.fromBuffer(rawLogs.logs[0].log.data)).toEqual(new Fr(0));
+      expect(AztecAddress.fromBigInt(authorized)).toEqual(AztecAddress.ZERO);
     });
 
     it('checks authorized in auth contract from test contract and finds the correctly set value', async () => {
       await delay(5);
 
-      const { txHash } = await testContract.methods
+      const authorized = await testContract.methods
         .test_shared_mutable_private_getter(authContract.address, 2)
-        .send()
-        .wait();
+        .simulate();
 
-      // The function above emits an unencrypted log as a means of returning the data
-      const rawLogs = await pxe.getUnencryptedLogs({ txHash });
-      expect(Fr.fromBuffer(rawLogs.logs[0].log.data)).toEqual(new Fr(6969696969));
+      expect(AztecAddress.fromBigInt(authorized)).toEqual(AztecAddress.fromBigInt(6969696969n));
     });
   });
 });
