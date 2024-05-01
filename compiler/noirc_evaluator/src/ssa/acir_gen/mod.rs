@@ -713,10 +713,9 @@ impl<'a> Context<'a> {
                                 assert!(!matches!(inline_type, InlineType::Inline), "ICE: Got an ACIR function named {} that should have already been inlined", func.name());
 
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-                                // TODO(https://github.com/noir-lang/noir/issues/4608): handle complex return types from ACIR functions
                                 let output_count =
                                     result_ids.iter().fold(0usize, |sum, result_id| {
-                                        sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
+                                        sum + dfg.type_of_value(*result_id).flattened_size()
                                     });
 
                                 let acir_function_id = ssa
@@ -729,6 +728,7 @@ impl<'a> Context<'a> {
                                     output_count,
                                     self.current_side_effects_enabled_var,
                                 )?;
+
                                 let output_values =
                                     self.convert_vars_to_values(output_vars, dfg, result_ids);
 
