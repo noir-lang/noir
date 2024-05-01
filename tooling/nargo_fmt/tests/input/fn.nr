@@ -23,7 +23,7 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
 
 fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>) -> bool {}
 
-fn main() -> distinct pub [Field;2] {}
+fn main() -> pub [Field;2] {}
 
 fn ret_normal_lambda1() -> ((fn() -> Field)) {}
 

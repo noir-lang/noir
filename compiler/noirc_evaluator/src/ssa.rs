@@ -43,8 +43,6 @@ pub(crate) fn optimize_into_acir(
     force_brillig_output: bool,
     print_timings: bool,
 ) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
-    let abi_distinctness = program.return_distinctness;
-
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
@@ -75,7 +73,7 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig, abi_distinctness))
+    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig))
 }
 
 // Helper to time SSA passes
