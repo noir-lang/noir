@@ -713,10 +713,10 @@ impl<'a> Context<'a> {
                                 assert!(!matches!(inline_type, InlineType::Inline), "ICE: Got an ACIR function named {} that should have already been inlined", func.name());
 
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-                                let output_count =
-                                    result_ids.iter().fold(0usize, |sum, result_id| {
-                                        sum + dfg.type_of_value(*result_id).flattened_size()
-                                    });
+                                let output_count = result_ids
+                                    .iter()
+                                    .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
+                                    .sum();
 
                                 let acir_function_id = ssa
                                     .entry_point_to_generated_index
