@@ -431,6 +431,42 @@ jobs:
           command: build aztec
           aztec_manifest_key: aztec
 
+  boxes:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build boxes 4
+          aztec_manifest_key: boxes
+
+  boxes-vanilla:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=vanilla
+          aztec_manifest_key: boxes
+
+  boxes-react:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=react
+          aztec_manifest_key: boxes
+
   end-to-end:
     machine:
       image: default
@@ -658,6 +694,20 @@ workflows:
       # Artifacts
       - aztec-package: *defaults_yarn_project
 
+      # Boxes.
+      - boxes:
+          requires:
+            - aztec-package
+          <<: *defaults
+      - boxes-vanilla:
+          requires:
+            - boxes
+          <<: *defaults
+      - boxes-react:
+          requires:
+            - boxes
+          <<: *defaults
+
       # End to end tests.
       - e2e-join:
           requires:
@@ -677,6 +727,8 @@ workflows:
             - barretenberg-acir-tests-bb
             - barretenberg-acir-tests-bb-sol
             - barretenberg-docs
+            - boxes-vanilla
+            - boxes-react
             - noir-packages-tests
             - prover-client-test
             - e2e-join

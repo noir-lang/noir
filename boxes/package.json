@@ -6,7 +6,6 @@
   "scripts": {
     "compile": "yarn workspaces foreach -A -v run compile",
     "build": "yarn workspaces foreach -A -v run build",
-    "install-browsers": "playwright install --with-deps",
     "publish": "yarn npm publish"
   },
   "workspaces": [
@@ -37,8 +36,5 @@
     "pino": "^8.19.0",
     "pino-pretty": "^10.3.1",
     "tiged": "^2.12.6"
-  },
-  "devDependencies": {
-    "@playwright/test": "1.42.0"
   }
 }

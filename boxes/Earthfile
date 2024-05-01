@@ -1,130 +1,18 @@
 VERSION 0.8
-
-deps:
-    LOCALLY
-    LET packages = $(git ls-files "**/package*.json" package*.json)
-    LET tsconfigs = $(git ls-files "**/tsconfig*.json" tsconfig*.json)
-    FROM node:18.19.0
-
-    # copy the aztec yarn workspace, needed to resolve portal dependencies
-    COPY ../yarn-project+build-dev/usr/src /usr/src
-
-    WORKDIR /usr/src/boxes
-
-    COPY --dir .yarn .yarnrc.yml yarn.lock .
-    FOR file IN $packages
-        COPY $file $file
-    END
-    RUN yarn install --immutable
-    RUN yarn install-browsers
-    FOR file IN $tsconfigs
-        COPY $file $file
-    END
+# Produces a container that can be run to test a specific box. See docker-compose.yml.
 
 build:
-    FROM +deps
-
+    # We need yarn. Start fresh container.
+    FROM node:18.19.0
+    RUN apt update && apt install netcat-openbsd
+    COPY ../yarn-project+build/build /usr/src
     COPY ../noir/+nargo/nargo /usr/src/noir/noir-repo/target/release/nargo
     COPY ../noir-projects/+build/aztec-nr /usr/src/noir-projects/aztec-nr
     COPY ../noir-projects/+build/noir-protocol-circuits/crates/types /usr/src/noir-projects/noir-protocol-circuits/crates/types
-
     WORKDIR /usr/src/boxes
-
+    COPY . .
     ENV AZTEC_NARGO=/usr/src/noir/noir-repo/target/release/nargo
     ENV AZTEC_BUILDER=/usr/src/yarn-project/builder/aztec-builder-dest
-    COPY . .
-    RUN yarn build
-
-boxes:
-    FROM +build
+    RUN yarn && yarn build
+    RUN npx -y playwright@1.42 install --with-deps
     ENTRYPOINT ["/bin/sh", "-c"]
-
-BOX_TEST_LOCAL:
-  FUNCTION
-  ARG box
-  ARG browser
-  ARG compose_file=./docker-compose.yml
-  ARG debug="aztec:*"
-  LOCALLY
-  ENV BOX=$box
-  ENV BROWSER=$browser
-  ENV DEBUG=$debug
-  ENV CI=1
-  WITH DOCKER \
-    --load aztecprotocol/aztec:latest=../yarn-project/+aztec \
-    --load aztecprotocol/boxes:latest=+boxes
-    RUN docker compose -f $compose_file up --exit-code-from=boxes --force-recreate
-  END
-
-# run locally and take from cache, used for our mainly x86 jobs
-BOX_TEST_FROM_CACHE:
-  FUNCTION
-  ARG box
-  ARG browser
-  ARG compose_file=./docker-compose.yml
-  ARG debug="aztec:*"
-  ARG aztec_docker_tag
-  LOCALLY
-  ENV BOX=$box
-  ENV BROWSER=$browser
-  ENV DEBUG=$debug
-  ENV AZTEC_DOCKER_TAG=$aztec_docker_tag
-  ENV CI=1
-  # need a different project name for each to run in parallel
-  LET project_name=$box_$browser
-  IF docker compose > /dev/null 2>&1
-    LET CMD="docker compose"
-  ELSE
-    LET CMD="docker-compose"
-  END
-  # In CI we do not use WITH DOCKER as we have had issues with earthly copying big images
-  RUN $CMD -p $project_name -f $compose_file up --exit-code-from=boxes --force-recreate
-
-BOX_TEST_FROM_BUILD:
-  FUNCTION
-  ARG box
-  ARG browser
-  ARG compose_file=./docker-compose.yml
-  ARG debug="aztec:*"
-  FROM earthly/dind:alpine-3.19-docker-25.0.2-r0
-  ENV BOX=$box
-  ENV BROWSER=$browser
-  ENV DEBUG=$debug
-  ENV CI=1
-  COPY $compose_file $compose_file
-  # For ARM, we do use WITH DOCKER as we don't have many e2e tests, but note BOX_TEST_FROM_CACHE
-  WITH DOCKER \
-    --load aztecprotocol/aztec:latest=../yarn-project/+aztec \
-    --load aztecprotocol/boxes:latest=+boxes
-    # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
-    RUN docker compose -f $compose_file up --exit-code-from=boxes --force-recreate
-  END
-
-BOX_TEST:
-  FUNCTION
-  ARG box
-  ARG browser
-  ARG compose_file=./docker-compose.yml
-  ARG mode=local
-  ARG debug="aztec:*"
-  LOCALLY
-  IF [ $mode = local ]
-    DO +BOX_TEST_LOCAL --box=$box --browser=$browser --compose_file=$compose_file --debug=$debug
-  ELSE IF [ $mode = cache ]
-    DO +BOX_TEST_FROM_CACHE --box=$box --browser=$browser --aztec_docker_tag=$(git rev-parse HEAD) --compose_file=$compose_file --debug=$debug
-  ELSE
-    DO +BOX_TEST_FROM_BUILD --box=$box --browser=$browser --compose_file=$compose_file --debug=$debug
-  END
-
-test:
-  ARG box=vanilla
-  ARG browser=chromium
-  ARG mode=local
-  DO +BOX_TEST --box=$box --browser=$browser --mode=$mode
-
-# for use with mode=cache
-export-boxes:
-    BUILD +boxes
-    ARG EARTHLY_GIT_HASH
-    FROM +boxes
-    SAVE IMAGE aztecprotocol/boxes:$EARTHLY_GIT_HASH

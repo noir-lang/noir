@@ -70,12 +70,8 @@ aztec:
     FROM ubuntu:noble
     RUN apt update && apt install nodejs -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
     COPY +aztec-prod/usr/src /usr/src
-    LET port=8080
-    ENV PORT=$port
-    HEALTHCHECK --interval=10s --timeout=10s --retries=6 \
-        CMD curl -fsSd '{\"jsonrpc\":\"2.0\",\"method\":\"pxe_getNodeInfo\",\"id\":1}' http://127.0.0.1:$port
     ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/aztec/dest/bin/index.js"]
-    EXPOSE $port
+    EXPOSE 8080
 
 # We care about creating a slimmed down e2e image because we have to serialize it from earthly to docker for running.
 end-to-end-prod:
