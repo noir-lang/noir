@@ -166,16 +166,14 @@ fn resolve_path_to_ns(
             );
 
             // Attempt to resolve externally when unresolved
-            if let Err(ref result_err) = result {
-                if result_err.is_unresolved() {
-                    return resolve_external_dep(
-                        def_map,
-                        import_directive,
-                        def_maps,
-                        allow_contracts,
-                        importing_crate,
-                    );
-                }
+            if let Err(PathResolutionError::Unresolved(_)) = result {
+                return resolve_external_dep(
+                    def_map,
+                    import_directive,
+                    def_maps,
+                    allow_contracts,
+                    importing_crate,
+                );
             }
             result
         }
