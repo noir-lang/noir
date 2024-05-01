@@ -7,7 +7,5 @@
     },
     "[javascript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
-    "testing.alwaysRevealTestOnStateChange": false,
-    "testing.showAllMessages": false
+    }
 }
