@@ -106,8 +106,8 @@ export default function useMatomo() {
     <div id="optout-form">
       <div className="homepage_footer">
         <p>
-          We value your privacy and don't track your browsing by default. If you'd like to help us improve, you can
-          allow cookies for tracking page views, time on site, and other analytics.
+          We value your privacy and we only collect statistics and essential cookies. If you'd like to help us improve
+          our websites, you can allow cookies for tracking page views, time on site, and other analytics.
           <br />
           <br />
           <Link to="https://aztec.network/privacy-policy/">
