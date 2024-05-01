@@ -7,7 +7,7 @@ use noirc_errors::{
 
 use crate::hir_def::function::FunctionSignature;
 use crate::{
-    ast::{BinaryOpKind, Distinctness, IntegerBitSize, Signedness, Visibility},
+    ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
 
@@ -302,11 +302,6 @@ pub struct Program {
     pub functions: Vec<Function>,
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
-    /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
-    ///
-    /// Note: this has no impact on monomorphization, and is simply attached here for ease of
-    /// forwarding to the next phase.
-    pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
     /// Indicates to a backend whether a SNARK-friendly prover should be used.  
@@ -322,7 +317,6 @@ impl Program {
         functions: Vec<Function>,
         function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
-        return_distinctness: Distinctness,
         return_location: Option<Location>,
         return_visibility: Visibility,
         recursive: bool,
@@ -334,7 +328,6 @@ impl Program {
             functions,
             function_signatures,
             main_function_signature,
-            return_distinctness,
             return_location,
             return_visibility,
             recursive,

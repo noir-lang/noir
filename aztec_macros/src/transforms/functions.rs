@@ -2,7 +2,7 @@ use convert_case::{Case, Casing};
 use noirc_errors::Span;
 use noirc_frontend::ast;
 use noirc_frontend::ast::{
-    BlockExpression, ConstrainKind, ConstrainStatement, Distinctness, Expression, ExpressionKind,
+    BlockExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
     ForLoopStatement, ForRange, FunctionReturnType, Ident, Literal, NoirFunction, NoirStruct,
     Param, PathKind, Pattern, Signedness, Statement, StatementKind, UnresolvedType,
     UnresolvedTypeData, Visibility,
@@ -104,13 +104,8 @@ pub fn transform_function(
         func.def.return_visibility = Visibility::Public;
     }
 
-    // Distinct return types are only required for private functions
     // Public functions should have unconstrained auto-inferred
-    match ty {
-        "Private" => func.def.return_distinctness = Distinctness::Distinct,
-        "Public" | "Avm" => func.def.is_unconstrained = true,
-        _ => (),
-    }
+    func.def.is_unconstrained = matches!(ty, "Public" | "Avm");
 
     Ok(())
 }
