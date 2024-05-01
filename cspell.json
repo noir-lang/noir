@@ -54,6 +54,7 @@
         "csat",
         "curvegroup",
         "databus",
+        "datastructures",
         "debouncer",
         "deflater",
         "deflatten",

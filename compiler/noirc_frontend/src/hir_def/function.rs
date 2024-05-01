@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::ast::{Distinctness, FunctionKind, FunctionReturnType, Visibility};
+use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{Type, TypeVariable};
 
@@ -98,8 +98,6 @@ pub struct FuncMeta {
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
-
-    pub return_distinctness: Distinctness,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.

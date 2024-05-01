@@ -6,7 +6,7 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::ast::{Distinctness, NoirFunction, Visibility};
+use noirc_frontend::ast::{NoirFunction, Visibility};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -117,10 +117,6 @@ impl super::FmtVisitor<'_> {
 
         if let Some(span) = return_type_span {
             result.push_str(" -> ");
-
-            if let Distinctness::Distinct = func.def.return_distinctness {
-                result.push_str("distinct ");
-            }
 
             let visibility = match func.def.return_visibility {
                 Visibility::Public => "pub",

@@ -41,7 +41,6 @@ use acvm::{
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_frontend::ast::Distinctness;
 
 #[derive(Default)]
 struct SharedContext {
@@ -281,7 +280,6 @@ impl Ssa {
     pub(crate) fn into_acir(
         self,
         brillig: &Brillig,
-        abi_distinctness: Distinctness,
     ) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelise this?
@@ -335,24 +333,31 @@ impl Ssa {
         // Also at the moment we specify Distinctness as part of the ABI exclusively rather than the function itself
         // so this will need to be updated.
         let main_func_acir = &mut acirs[0];
-        match abi_distinctness {
-            Distinctness::Distinct => {
-                // Create a witness for each return witness we have
-                // to guarantee that the return witnesses are distinct
-                let distinct_return_witness: Vec<_> = main_func_acir
-                    .return_witnesses
-                    .clone()
-                    .into_iter()
-                    .map(|return_witness| {
-                        main_func_acir
-                            .create_witness_for_expression(&Expression::from(return_witness))
-                    })
-                    .collect();
 
-                main_func_acir.return_witnesses = distinct_return_witness;
-            }
-            Distinctness::DuplicationAllowed => {}
-        }
+        // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
+        // layout for serializing those types as if they were being passed as inputs.
+        //
+        // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
+        // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
+        // working with rather than following the standard ABI encoding rules.
+        //
+        // TODO: We're being conservative here by generating a new witness for every expression.
+        // This means that we're likely to get a number of constraints which are just renumbering witnesses.
+        // This can be tackled by:
+        // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
+        // - Modifying existing constraints to rearrange their outputs so they are suitable
+        //   - See: https://github.com/noir-lang/noir/pull/4467
+        let distinct_return_witness: Vec<_> = main_func_acir
+            .return_witnesses
+            .clone()
+            .into_iter()
+            .map(|return_witness| {
+                main_func_acir.create_witness_for_expression(&Expression::from(return_witness))
+            })
+            .collect();
+
+        main_func_acir.return_witnesses = distinct_return_witness;
+
         Ok((acirs, brillig))
     }
 }
@@ -2705,7 +2710,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -2800,7 +2805,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -2890,7 +2895,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -3003,9 +3008,8 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
-            .expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions) =
+            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         assert_eq!(brillig_functions.len(), 2, "Should only have generated two Brillig functions");
@@ -3061,7 +3065,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3132,9 +3136,8 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
-            .expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions) =
+            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         // We expect 3 brillig functions:
@@ -3221,9 +3224,8 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
-            .expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions) =
+            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
         // We expect 3 brillig functions:

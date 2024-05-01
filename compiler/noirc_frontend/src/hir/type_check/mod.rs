@@ -433,9 +433,7 @@ pub mod test {
     use iter_extended::btree_map;
     use noirc_errors::{Location, Span};
 
-    use crate::ast::{
-        BinaryOpKind, Distinctness, FunctionKind, FunctionReturnType, Path, Visibility,
-    };
+    use crate::ast::{BinaryOpKind, FunctionKind, FunctionReturnType, Path, Visibility};
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::{
@@ -539,7 +537,6 @@ pub mod test {
             ]
             .into(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
