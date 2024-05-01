@@ -30,7 +30,7 @@ describe('benchmarks/process_history', () => {
 
   beforeEach(async () => {
     ({ context, contract, sequencer } = await benchmarkSetup({ maxTxsPerBlock: BLOCK_SIZE }));
-  }, 60_000);
+  });
 
   it(
     `processes chain history of ${MAX_CHAIN_LENGTH} with ${BLOCK_SIZE}-tx blocks`,

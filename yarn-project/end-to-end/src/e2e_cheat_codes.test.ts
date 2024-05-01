@@ -47,7 +47,7 @@ describe('e2e_cheat_codes', () => {
     admin = wallet.getCompleteAddress();
 
     token = await TokenContract.deploy(wallet, admin, 'TokenName', 'TokenSymbol', 18).send().deployed();
-  }, 100_000);
+  });
 
   afterAll(() => teardown());
 
@@ -186,7 +186,7 @@ describe('e2e_cheat_codes', () => {
           .wait({ interval: 0.1 });
         // block is published at t >= newTimestamp + 1.
         expect(Number(await rollup.read.lastBlockTs())).toBeGreaterThanOrEqual(newTimestamp + 1);
-      }, 50_000);
+      });
 
       it('should throw if setting L2 block time to a past timestamp', async () => {
         const timestamp = await cc.eth.timestamp();
@@ -244,6 +244,6 @@ describe('e2e_cheat_codes', () => {
       const balance = values.reduce((sum, current) => sum + current.toBigInt(), 0n);
       expect(balance).toEqual(mintAmount);
       // docs:end:load_private_cheatcode
-    }, 50_000);
+    });
   });
 });

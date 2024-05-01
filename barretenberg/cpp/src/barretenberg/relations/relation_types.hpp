@@ -23,10 +23,10 @@ using GetParameterView = std::conditional_t<IsField<typename Params::DataType>, 
 
 template <typename T, size_t subrelation_idx>
 concept HasSubrelationLinearlyIndependentMember = requires(T) {
-                                                      {
-                                                          std::get<subrelation_idx>(T::SUBRELATION_LINEARLY_INDEPENDENT)
-                                                          } -> std::convertible_to<bool>;
-                                                  };
+    {
+        std::get<subrelation_idx>(T::SUBRELATION_LINEARLY_INDEPENDENT)
+    } -> std::convertible_to<bool>;
+};
 
 template <typename T>
 concept HasParameterLengthAdjustmentsMember = requires { T::TOTAL_LENGTH_ADJUSTMENTS; };
@@ -121,10 +121,10 @@ consteval std::array<size_t, NUM_SUBRELATIONS> compute_composed_subrelation_part
  */
 template <typename Relation, typename AllEntities>
 concept isSkippable = requires(const AllEntities& input) {
-                          {
-                              Relation::skip(input)
-                              } -> std::same_as<bool>;
-                      };
+    {
+        Relation::skip(input)
+    } -> std::same_as<bool>;
+};
 
 /**
  * @brief A wrapper for Relations to expose methods used by the Sumcheck prover or verifier to add the

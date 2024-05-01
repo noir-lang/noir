@@ -61,7 +61,7 @@ describe('e2e_cross_chain_messaging', () => {
     aztecNode = aztecNode_;
     teardown = teardown_;
     logger.info('Successfully deployed contracts and initialized portal');
-  }, 100_000);
+  });
 
   afterEach(async () => {
     await teardown();
@@ -132,7 +132,7 @@ describe('e2e_cross_chain_messaging', () => {
       siblingPath,
     );
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount + withdrawAmount);
-  }, 120_000);
+  });
   // docs:end:e2e_private_cross_chain
 
   // Unit tests for TokenBridge's private methods.
@@ -191,7 +191,7 @@ describe('e2e_cross_chain_messaging', () => {
     );
     await crossChainTestHarness.redeemShieldPrivatelyOnL2(bridgeAmount, secretForRedeemingMintedNotes);
     await crossChainTestHarness.expectPrivateBalanceOnL2(ownerAddress, bridgeAmount);
-  }, 120_000);
+  });
 
   it("Bridge can't withdraw my funds if I don't give approval", async () => {
     const mintAmountToUser1 = 100n;
@@ -212,7 +212,7 @@ describe('e2e_cross_chain_messaging', () => {
         .methods.exit_to_l1_private(l2Token.address, ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
         .prove(),
     ).rejects.toThrow(`Unknown auth witness for message hash ${expectedBurnMessageHash.toString()}`);
-  }, 120_000);
+  });
 
   it("Can't claim funds publicly if they were deposited privately", async () => {
     // 1. Mint tokens on L1
@@ -257,5 +257,5 @@ describe('e2e_cross_chain_messaging', () => {
         .methods.claim_public(ownerAddress, bridgeAmount, secretForL2MessageConsumption, messageLeafIndex)
         .prove(),
     ).rejects.toThrow(`No non-nullified L1 to L2 message found for message hash ${wrongMessage.hash().toString()}`);
-  }, 120_000);
+  });
 });

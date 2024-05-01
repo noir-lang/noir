@@ -65,7 +65,7 @@ describe('e2e_deploy_contract private initialization', () => {
     await new BatchCall(wallet, calls).send().wait();
     expect(await contracts[0].methods.summed_values(owner).simulate()).toEqual(42n);
     expect(await contracts[1].methods.summed_values(owner).simulate()).toEqual(52n);
-  }, 30_000);
+  });
 
   // TODO(@spalladino): This won't work until we can read a nullifier in the same tx in which it was emitted.
   it.skip('initializes and calls a private function in a single tx', async () => {

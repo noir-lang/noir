@@ -4,18 +4,13 @@
 #include <barretenberg/numeric/bitop/get_msb.hpp>
 #include <functional>
 #include <iostream>
-#include <thread>
 #include <vector>
 
 namespace bb {
 
 inline size_t get_num_cpus()
 {
-#ifdef NO_MULTITHREADING
-    return 1;
-#else
     return env_hardware_concurrency();
-#endif
 }
 
 // For algorithms that need to be divided amongst power of 2 threads.

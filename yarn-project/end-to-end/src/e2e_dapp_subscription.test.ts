@@ -121,7 +121,7 @@ describe('e2e_dapp_subscription', () => {
       [aliceAddress, sequencerAddress, subscriptionContract.address, bananaFPC.address],
       [0n, 0n, INITIAL_GAS_BALANCE, INITIAL_GAS_BALANCE],
     );
-  }, 180_000);
+  });
 
   it('should allow Alice to subscribe by paying privately with bananas', async () => {
     /**

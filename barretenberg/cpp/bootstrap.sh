@@ -31,9 +31,6 @@ fi
 # Download ignition transcripts.
 (cd ./srs_db && ./download_ignition.sh 0)
 
-# Install wasi-sdk.
-./scripts/install-wasi-sdk.sh
-
 # Attempt to just pull artefacts from CI and exit on success.
 [ -n "${USE_CACHE:-}" ] && ./bootstrap_cache.sh && exit
 
@@ -82,7 +79,7 @@ AVAILABLE_MEMORY=0
 case "$(uname)" in
   Linux*)
     # Check available memory on Linux
-    AVAILABLE_MEMORY=$(awk '/MemFree/ { printf $2 }' /proc/meminfo)
+    AVAILABLE_MEMORY=$(awk '/MemTotal/ { printf $2 }' /proc/meminfo)
     ;;
   *)
     echo "Parallel builds not supported on this operating system"
@@ -90,11 +87,11 @@ case "$(uname)" in
 esac
 # This value may be too low.
 # If builds fail with an amount of free memory greater than this value then it should be increased.
-MIN_PARALLEL_BUILD_MEMORY=32000000
+MIN_PARALLEL_BUILD_MEMORY=32854492
 
 if [[ AVAILABLE_MEMORY -lt MIN_PARALLEL_BUILD_MEMORY ]]; then
   echo "System does not have enough memory for parallel builds, falling back to sequential"
-  build_native 
+  build_native
   build_wasm
   build_wasm_threads
 else

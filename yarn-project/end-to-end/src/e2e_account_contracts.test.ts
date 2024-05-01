@@ -40,21 +40,21 @@ function itShouldBehaveLikeAnAccountContract(
 
       wallet = await walletSetup(pxe, secretKey, getAccountContract(signingKey));
       child = await ChildContract.deploy(wallet).send().deployed();
-    }, 60_000);
+    });
 
     afterEach(() => teardown());
 
     it('calls a private function', async () => {
       logger.info('Calling private function...');
       await child.methods.value(42).send().wait({ interval: 0.1 });
-    }, 60_000);
+    });
 
     it('calls a public function', async () => {
       logger.info('Calling public function...');
       await child.methods.pub_inc_value(42).send().wait({ interval: 0.1 });
       const storedValue = await pxe.getPublicStorageAt(child.address, new Fr(1));
       expect(storedValue).toEqual(new Fr(42n));
-    }, 60_000);
+    });
 
     // TODO(#5830): re-enable this test
     it.skip('fails to call a function using an invalid signature', async () => {

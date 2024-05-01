@@ -47,5 +47,5 @@ describe('docs_examples', () => {
     const balance = await contract.methods.balance_of_public(wallet.getAddress()).simulate();
     expect(balance).toEqual(1n);
     // docs:end:simulate_function
-  }, 120_000);
+  });
 });

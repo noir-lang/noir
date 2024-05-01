@@ -37,7 +37,7 @@
     // Displays code coverage report information within vscode
     "ryanluker.vscode-coverage-gutters",
     // Spell checking
-    "streetsidesoftware.code-spell-checker",
+    "streetsidesoftware.code-spell-checker"
     // End C++/Circuits extensions
     ///////////////////////////////////////
   ],
@@ -58,7 +58,7 @@
     // Most features are disabled in `settings.json`
     // which confict with `clangd`
     // Since we ignore GDB, we no longer need this extension
-    "ms-vscode.cpptools",
+    "ms-vscode.cpptools"
     // End C++/Circuits unwanted extensions
     ///////////////////////////////////////
   ]

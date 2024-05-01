@@ -87,8 +87,8 @@ export class BarretenbergApi {
     return out[0];
   }
 
-  async poseidon2Permutation(inputState: Fr[]): Promise<Fr[]> {
-    const inArgs = [inputState].map(serializeBufferable);
+  async poseidon2Permutation(inputsBuffer: Fr[]): Promise<Fr[]> {
+    const inArgs = [inputsBuffer].map(serializeBufferable);
     const outTypes: OutputType[] = [VectorDeserializer(Fr)];
     const result = await this.wasm.callWasmExport(
       'poseidon2_permutation',
@@ -643,8 +643,8 @@ export class BarretenbergApiSync {
     return out[0];
   }
 
-  poseidon2Permutation(inputState: Fr[]): Fr[] {
-    const inArgs = [inputState].map(serializeBufferable);
+  poseidon2Permutation(inputsBuffer: Fr[]): Fr[] {
+    const inArgs = [inputsBuffer].map(serializeBufferable);
     const outTypes: OutputType[] = [VectorDeserializer(Fr)];
     const result = this.wasm.callWasmExport(
       'poseidon2_permutation',

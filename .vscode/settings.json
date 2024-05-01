@@ -136,7 +136,7 @@
   // Clangd. Note that this setting may be overridden by user settings
   // to the default value "clangd".
   //
-  "clangd.path": "clangd-15",
+  "clangd.path": "clangd-16",
   //
   // C/C++ (should be disabled)
   //
@@ -165,6 +165,5 @@
     "**/target/**": true,
     "**/l1-contracts/lib/**": true,
     "**/barretenberg/cpp/build*/**": true
-  },
-  "cmake.sourceDirectory": "/mnt/user-data/adam/aztec-packages/barretenberg/cpp"
+  }
 }

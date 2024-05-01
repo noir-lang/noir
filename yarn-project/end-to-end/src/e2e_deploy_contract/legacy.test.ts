@@ -44,7 +44,7 @@ describe('e2e_deploy_contract legacy', () => {
     expect(receipt.contract.address).toEqual(deploymentData.address);
     expect(await pxe.getContractInstance(deploymentData.address)).toBeDefined();
     expect(await pxe.isContractPubliclyDeployed(deploymentData.address)).toBeDefined();
-  }, 60_000);
+  });
 
   /**
    * Verify that we can produce multiple rollups.
@@ -56,7 +56,7 @@ describe('e2e_deploy_contract legacy', () => {
       logger.info(`Deploying contract ${index + 1}...`);
       await deployer.deploy().send({ contractAddressSalt: Fr.random() }).wait({ wallet });
     }
-  }, 60_000);
+  });
 
   /**
    * Verify that we can deploy multiple contracts and interact with all of them.
@@ -70,7 +70,7 @@ describe('e2e_deploy_contract legacy', () => {
       logger.info(`Sending TX to contract ${index + 1}...`);
       await receipt.contract.methods.get_public_key(wallet.getAddress()).send().wait();
     }
-  }, 90_000);
+  });
 
   /**
    * Milestone 1.2.
@@ -82,7 +82,7 @@ describe('e2e_deploy_contract legacy', () => {
 
     await deployer.deploy().send({ contractAddressSalt }).wait({ wallet });
     await expect(deployer.deploy().send({ contractAddressSalt }).wait()).rejects.toThrow(/dropped/);
-  }, 60_000);
+  });
 
   it('should not deploy a contract which failed the public part of the execution', async () => {
     // This test requires at least another good transaction to go through in the same block as the bad one.
@@ -114,5 +114,5 @@ describe('e2e_deploy_contract legacy', () => {
 
     // But the bad tx did not deploy
     await expect(pxe.isContractClassPubliclyRegistered(badDeploy.getInstance().address)).resolves.toBeFalsy();
-  }, 90_000);
+  });
 });

@@ -77,7 +77,7 @@ describe('e2e_lending_contract', () => {
       new TokenSimulator(collateralAsset, logger, [lendingContract.address, wallet.getAddress()]),
       new TokenSimulator(stableCoin, logger, [lendingContract.address, wallet.getAddress()]),
     );
-  }, 200_000);
+  });
 
   afterAll(() => teardown());
 

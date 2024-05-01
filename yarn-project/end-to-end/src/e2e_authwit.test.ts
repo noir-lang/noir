@@ -22,7 +22,7 @@ describe('e2e_authwit_tests', () => {
     const nodeInfo = await wallets[0].getNodeInfo();
     chainId = new Fr(nodeInfo.chainId);
     version = new Fr(nodeInfo.protocolVersion);
-  }, 100_000);
+  });
 
   describe('Private', () => {
     describe('arbitrary data', () => {

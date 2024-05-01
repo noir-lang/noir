@@ -1,17 +1,22 @@
 {
-  "image": "node:lts-bookworm-slim",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  "name": "Development",
+  "build": {
+    "dockerfile": "../../build-images/Dockerfile",
+    "context": "../../build-images",
+    "target": "devbox"
   },
-  "postCreateCommand": "curl -s install.aztec.network | VERSION=master NON_INTERACTIVE=1 BIN_PATH=/usr/local/bin bash -s",
-  "customizations": {
-    "vscode": {
-      "settings": {},
-      "extensions": [
-        "noir-lang.vscode-noir"
-      ]
-    }
-  },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/root/workspace,type=bind",
-  "workspaceFolder": "/root/workspace"
+  "containerUser": "aztec-dev",
+  // ubuntu:noble is currently not supported.
+  // Can possibly workaround cherry-picking from here:
+  //   https://github.com/devcontainers/features/blob/main/src/docker-in-docker/install.sh
+  //
+  // "image": "aztecprotocol/codespace",
+  // "features": {
+  //   "docker-in-docker": {
+  //     "version": "latest",
+  //     "moby": true,
+  //     "dockerDashComposeVersion": "v1"
+  //   }
+  // },
+  "mounts": ["source=devbox-home,target=/home/aztec-dev,type=volume"]
 }

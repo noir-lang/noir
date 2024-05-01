@@ -49,7 +49,7 @@ describe('guides/writing_an_account_contract', () => {
 
   beforeEach(async () => {
     context = await setup(0);
-  }, 60_000);
+  });
 
   afterEach(() => context.teardown());
 
@@ -104,5 +104,5 @@ describe('guides/writing_an_account_contract', () => {
       logger.info(`Failed to send tx: ${err}`);
     }
     // docs:end:account-contract-fails
-  }, 60_000);
+  });
 });

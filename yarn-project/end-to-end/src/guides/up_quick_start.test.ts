@@ -16,5 +16,5 @@ describe('guides/up_quick_start', () => {
         stdio: 'inherit',
       },
     );
-  }, 90_000);
+  });
 });

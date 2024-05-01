@@ -32,3 +32,7 @@ for PROJECT in "${PROJECTS[@]}"; do
   PPATH=$(cd noir-repo && yarn workspaces list --json | jq -r "select(.name==\"$PROJECT\").location")
   tar zxfv noir-repo/$PPATH/package.tgz -C packages && mv packages/package packages/${PROJECT#*/}
 done
+
+if [ -x $ROOT/scripts/fix_incremental_ts.sh ]; then
+  $ROOT/scripts/fix_incremental_ts.sh
+fi

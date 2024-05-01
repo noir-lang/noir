@@ -75,7 +75,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     await pxe.addNote(extendedNote);
 
     await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait();
-  }, 100_000);
+  });
 
   afterEach(() => teardown());
 
@@ -142,5 +142,5 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       expectedBalancesAfterTransfer2[2] + transferAmount3,
     ];
     await transfer(1, 2, transferAmount3, expectedBalancesAfterTransfer3);
-  }, 180_000);
+  });
 });

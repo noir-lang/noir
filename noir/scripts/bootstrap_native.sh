@@ -20,3 +20,7 @@ if [ -n "${DEBUG:-}" ]; then
 else
   cargo build --release
 fi
+
+if [ -x ../scripts/fix_incremental_ts.sh ]; then
+  ../scripts/fix_incremental_ts.sh
+fi

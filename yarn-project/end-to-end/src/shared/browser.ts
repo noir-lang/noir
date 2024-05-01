@@ -101,7 +101,7 @@ export const browserTestSuite = (
         pageLogger.verbose('Waiting for window.AztecJs...');
         await AztecJs.sleep(1000);
       }
-    }, 120_000);
+    });
 
     afterAll(async () => {
       await browser.close();
@@ -136,11 +136,11 @@ export const browserTestSuite = (
       const accounts = await testClient.getRegisteredAccounts();
       const stringAccounts = accounts.map(acc => acc.address.toString());
       expect(stringAccounts.includes(result)).toBeTruthy();
-    }, 15_000);
+    });
 
     it('Deploys Token contract', async () => {
       await deployTokenContract();
-    }, 60_000);
+    });
 
     it('Can access CompleteAddress class in browser', async () => {
       const result: string = await page.evaluate(() => {
@@ -207,7 +207,7 @@ export const browserTestSuite = (
         TokenContractArtifact,
       );
       expect(result).toEqual(transferAmount);
-    }, 60_000);
+    });
 
     const deployTokenContract = async () => {
       const [txHash, tokenAddress] = await page.evaluate(

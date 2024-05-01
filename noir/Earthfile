@@ -1,8 +1,7 @@
 VERSION 0.8
 
 nargo:
-    FROM rust:bullseye
-    RUN apt update && apt install -y libc++1
+    FROM ../build-images/+build
     WORKDIR /usr/src
     # Relevant source (TODO finer-grained 'tooling')
     COPY --dir \
@@ -28,11 +27,7 @@ nargo:
 
 packages:
     BUILD ../barretenberg/ts/+build # prefetch
-    FROM node:20
-
-    RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-    RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
-    RUN apt update && apt install -y jq libc++1
+    FROM ../build-images/+build
 
     # `noir-repo` is nested inside of `noir` so we copy `bb.js` as such to account
     # for the extra nested folder specified in portalled package paths
@@ -69,13 +64,13 @@ packages:
     # TODO(AD) is this OK as a content hash?
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
     RUN echo CONTENT HASH $COMMIT_HASH | tee .content-hash
-    RUN PATH="/root/.cargo/bin:$PATH" ./scripts/bootstrap_packages.sh
+    RUN ./scripts/bootstrap_packages.sh
     SAVE ARTIFACT packages
     SAVE IMAGE --cache-hint
 
 run:
     # When running the container, mount the users home directory to same location.
-    FROM ubuntu:lunar
+    FROM ubuntu:noble
     # Install Tini as nargo doesn't handle signals properly.
     # Install git as nargo needs it to clone.
     RUN apt-get update && apt-get install -y git tini && rm -rf /var/lib/apt/lists/* && apt-get clean

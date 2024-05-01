@@ -39,7 +39,7 @@ describe('e2e_block_building', () => {
         aztecNode,
         wallets: [owner, minter],
       } = await setup(2));
-    }, 100_000);
+    });
 
     afterEach(() => aztecNode.setConfig({ minTxsPerBlock: 1 }));
     afterAll(() => teardown());
@@ -75,7 +75,7 @@ describe('e2e_block_building', () => {
       const isContractDeployed = async (address: AztecAddress) => !!(await pxe.getContractInstance(address));
       const areDeployed = await Promise.all(receipts.map(r => isContractDeployed(r.contract.address)));
       expect(areDeployed).toEqual(times(TX_COUNT, () => true));
-    }, 60_000);
+    });
 
     it.skip('can call public function from different tx in same block', async () => {
       // Ensure both txs will land on the same block
@@ -108,7 +108,7 @@ describe('e2e_block_building', () => {
       ]);
 
       expect(deployTxReceipt.blockNumber).toEqual(callTxReceipt.blockNumber);
-    }, 60_000);
+    });
   });
 
   describe('double-spends', () => {
@@ -119,7 +119,7 @@ describe('e2e_block_building', () => {
       ({ teardown, pxe, logger, wallet: owner } = await setup(1));
       contract = await TestContract.deploy(owner).send().deployed();
       logger.info(`Test contract deployed at ${contract.address}`);
-    }, 100_000);
+    });
 
     afterAll(() => teardown());
 
@@ -133,7 +133,7 @@ describe('e2e_block_building', () => {
         }
         const [tx1, tx2] = calls.map(call => call.send());
         await expectXorTx(tx1, tx2);
-      }, 30_000);
+      });
 
       it('drops tx with public nullifier already emitted on the same block', async () => {
         const secret = Fr.random();
@@ -143,13 +143,13 @@ describe('e2e_block_building', () => {
         }
         const [tx1, tx2] = calls.map(call => call.send());
         await expectXorTx(tx1, tx2);
-      }, 30_000);
+      });
 
       it('drops tx with two equal nullifiers', async () => {
         const nullifier = Fr.random();
         const calls = times(2, () => contract.methods.emit_nullifier(nullifier).request());
         await expect(new BatchCall(owner, calls).send().wait()).rejects.toThrow(/dropped/);
-      }, 30_000);
+      });
 
       it('drops tx with private nullifier already emitted from public on the same block', async () => {
         const secret = Fr.random();
@@ -166,7 +166,7 @@ describe('e2e_block_building', () => {
         }
         const [tx1, tx2] = calls.map(call => call.send());
         await expectXorTx(tx1, tx2);
-      }, 30_000);
+      });
     });
 
     describe('across blocks', () => {

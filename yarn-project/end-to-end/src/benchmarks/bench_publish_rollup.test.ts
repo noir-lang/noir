@@ -14,7 +14,7 @@ describe('benchmarks/publish_rollup', () => {
 
   beforeEach(async () => {
     ({ context, contract, sequencer } = await benchmarkSetup({ maxTxsPerBlock: 1024 }));
-  }, 60_000);
+  });
 
   it.each(BENCHMARK_BLOCK_SIZES)(
     `publishes a rollup with %d txs`,

@@ -21,7 +21,7 @@ describe('e2e_note_getter', () => {
 
   beforeAll(async () => {
     ({ teardown, wallet } = await setup());
-  }, 25_000);
+  });
 
   afterAll(() => teardown());
 
@@ -32,7 +32,7 @@ describe('e2e_note_getter', () => {
       contract = await DocsExampleContract.deploy(wallet).send().deployed();
       // sets card value to 1 and leader to sender.
       await contract.methods.initialize_private(Fr.random(), 1).send().wait();
-    }, 25_000);
+    });
 
     it('inserts notes from 0-9, then makes multiple queries specifying the total suite of comparators', async () => {
       // ISSUE #4243
@@ -145,7 +145,7 @@ describe('e2e_note_getter', () => {
           { points: 8n, randomness: 1n },
         ].sort(sortFunc),
       );
-    }, 300_000);
+    });
   });
 
   describe('status filter', () => {
@@ -155,7 +155,7 @@ describe('e2e_note_getter', () => {
     beforeAll(async () => {
       contract = await TestContract.deploy(wallet).send().deployed();
       owner = wallet.getCompleteAddress().address;
-    }, 100_000);
+    });
 
     const VALUE = 5;
 
@@ -189,14 +189,14 @@ describe('e2e_note_getter', () => {
       it('returns active notes', async () => {
         await contract.methods.call_create_note(VALUE, owner, storageSlot).send().wait();
         await assertNoteIsReturned(storageSlot, VALUE, activeOrNullified);
-      }, 30_000);
+      });
 
       it('does not return nullified notes', async () => {
         await contract.methods.call_create_note(VALUE, owner, storageSlot).send().wait();
         await contract.methods.call_destroy_note(storageSlot).send().wait();
 
         await assertNoReturnValue(storageSlot, activeOrNullified);
-      }, 30_000);
+      });
     });
 
     describe('active and nullified notes', () => {
@@ -205,14 +205,14 @@ describe('e2e_note_getter', () => {
       it('returns active notes', async () => {
         await contract.methods.call_create_note(VALUE, owner, storageSlot).send().wait();
         await assertNoteIsReturned(storageSlot, VALUE, activeOrNullified);
-      }, 30_000);
+      });
 
       it('returns nullified notes', async () => {
         await contract.methods.call_create_note(VALUE, owner, storageSlot).send().wait();
         await contract.methods.call_destroy_note(storageSlot).send().wait();
 
         await assertNoteIsReturned(storageSlot, VALUE, activeOrNullified);
-      }, 30_000);
+      });
 
       it('returns both active and nullified notes', async () => {
         // We store two notes with two different values in the same storage slot, and then delete one of them. Note that
@@ -236,7 +236,7 @@ describe('e2e_note_getter', () => {
         // however that both view_notes and get_notes get the exact same result.
         expect(viewNotesManyResult).toEqual(getNotesManyResult);
         expect(viewNotesManyResult.sort()).toEqual([BigInt(VALUE), BigInt(VALUE + 1)]);
-      }, 45_000);
+      });
     });
   });
 });

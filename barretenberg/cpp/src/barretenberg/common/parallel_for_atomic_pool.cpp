@@ -1,3 +1,4 @@
+#ifndef NO_MULTITHREADING
 #include "log.hpp"
 #include "thread.hpp"
 #include <atomic>
@@ -114,3 +115,4 @@ void parallel_for_atomic_pool(size_t num_iterations, const std::function<void(si
     // info("done");
 }
 } // namespace bb
+#endif

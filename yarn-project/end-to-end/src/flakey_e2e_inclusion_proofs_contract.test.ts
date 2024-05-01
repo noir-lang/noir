@@ -38,7 +38,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     const receipt = await InclusionProofsContract.deploy(wallets[0], publicValue).send({ contractAddressSalt }).wait();
     contract = receipt.contract;
     deploymentBlockNumber = receipt.blockNumber!;
-  }, 100_000);
+  });
 
   afterAll(() => teardown());
 

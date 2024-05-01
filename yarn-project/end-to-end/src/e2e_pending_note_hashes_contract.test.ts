@@ -14,7 +14,7 @@ describe('e2e_pending_note_hashes_contract', () => {
   beforeEach(async () => {
     ({ teardown, aztecNode, wallet, logger } = await setup(2));
     owner = wallet.getAddress();
-  }, 100_000);
+  });
 
   afterEach(() => teardown());
 
@@ -63,7 +63,7 @@ describe('e2e_pending_note_hashes_contract', () => {
     const deployedContract = await deployContract();
 
     await deployedContract.methods.test_insert_then_get_then_nullify_flat(mintAmount, owner).send().wait();
-  }, 60_000);
+  });
 
   it('Squash! Aztec.nr function can "create" and "nullify" note in the same TX', async () => {
     // Kernel will squash the noteHash and its nullifier.
@@ -87,7 +87,7 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     await expectNoteHashesSquashedExcept(0);
     await expectNullifiersSquashedExcept(0);
-  }, 60_000);
+  });
 
   it('Squash! Aztec.nr function can "create" 2 notes and "nullify" both in the same TX', async () => {
     // Kernel will squash both noteHashes and their nullifier.
@@ -108,7 +108,7 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     await expectNoteHashesSquashedExcept(0);
     await expectNullifiersSquashedExcept(0);
-  }, 60_000);
+  });
 
   it('Squash! Aztec.nr function can "create" 2 notes and "nullify" 1 in the same TX (kernel will squash one note + nullifier)', async () => {
     // Kernel will squash one noteHash and its nullifier.
@@ -130,7 +130,7 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     await expectNoteHashesSquashedExcept(1);
     await expectNullifiersSquashedExcept(0);
-  }, 60_000);
+  });
 
   it('Squash! Aztec.nr function can nullify a pending note and a persistent in the same TX', async () => {
     // Create 1 note in isolated TX.
@@ -167,7 +167,7 @@ describe('e2e_pending_note_hashes_contract', () => {
     // the nullifier corresponding to this transient note is squashed, but the
     // other nullifier corresponding to the persistent note becomes persistent itself.
     await expectNullifiersSquashedExcept(1);
-  }, 60_000);
+  });
 
   it('get_notes function filters a nullified note created in a previous transaction', async () => {
     // Create a note in an isolated transaction.
@@ -195,5 +195,5 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     // There is a single new nullifier.
     await expectNullifiersSquashedExcept(1);
-  }, 60_000);
+  });
 });

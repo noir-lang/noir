@@ -22,7 +22,7 @@ describe('e2e_avm_simulator', () => {
   beforeAll(async () => {
     ({ teardown, wallet } = await setup());
     await publicDeployAccounts(wallet, [wallet]);
-  }, 100_000);
+  });
 
   afterAll(() => teardown());
 
@@ -31,7 +31,7 @@ describe('e2e_avm_simulator', () => {
 
     beforeEach(async () => {
       avmContract = await AvmTestContract.deploy(wallet).send().deployed();
-    }, 50_000);
+    });
 
     describe('Gas metering', () => {
       it('Tracks L2 gas usage on simulation', async () => {
@@ -93,7 +93,7 @@ describe('e2e_avm_simulator', () => {
 
     beforeEach(async () => {
       avmContract = await AvmAcvmInteropTestContract.deploy(wallet).send().deployed();
-    }, 50_000);
+    });
 
     it('Can execute ACVM function among AVM functions', async () => {
       expect(await avmContract.methods.constant_field_acvm().simulate()).toEqual(123456n);
@@ -159,7 +159,7 @@ describe('e2e_avm_simulator', () => {
 
       beforeEach(async () => {
         avmContract = await AvmInitializerTestContract.deploy(wallet).send().deployed();
-      }, 50_000);
+      });
 
       describe('Storage', () => {
         it('Read immutable (initialized) storage (Field)', async () => {
@@ -176,7 +176,7 @@ describe('e2e_avm_simulator', () => {
     beforeEach(async () => {
       avmContract = await AvmNestedCallsTestContract.deploy(wallet).send().deployed();
       secondAvmContract = await AvmNestedCallsTestContract.deploy(wallet).send().deployed();
-    }, 50_000);
+    });
 
     it('Should NOT be able to emit the same unsiloed nullifier from the same contract', async () => {
       const nullifier = new Fr(1);

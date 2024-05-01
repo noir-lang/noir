@@ -111,13 +111,13 @@
     "functionName": "poseidon2_permutation",
     "inArgs": [
       {
-        "name": "input_state",
+        "name": "inputs_buffer",
         "type": "fr::vec_in_buf"
       }
     ],
     "outArgs": [
       {
-        "name": "output_state",
+        "name": "output",
         "type": "fr::vec_out_buf"
       }
     ],

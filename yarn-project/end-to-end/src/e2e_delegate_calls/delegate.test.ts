@@ -33,7 +33,7 @@ describe('e2e_delegate_calls', () => {
 
       expect(delegatedOnValue).toEqual(0n);
       expect(delegatorValue).toEqual(sentValue);
-    }, 100_000);
+    });
 
     it("runs another contract's enqueued public function on delegator's storage", async () => {
       const sentValue = 42n;
@@ -44,7 +44,7 @@ describe('e2e_delegate_calls', () => {
 
       expect(delegatedOnValue).toEqual(0n);
       expect(delegatorValue).toEqual(sentValue);
-    }, 100_000);
+    });
 
     it("runs another contract's public function on delegator's storage", async () => {
       const sentValue = 42n;
@@ -55,6 +55,6 @@ describe('e2e_delegate_calls', () => {
 
       expect(delegatedOnValue).toEqual(0n);
       expect(delegatorValue).toEqual(sentValue);
-    }, 100_000);
+    });
   });
 });

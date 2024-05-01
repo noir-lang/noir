@@ -26,7 +26,7 @@ describe('e2e_deploy_contract deploy method', () => {
     logger.debug(`Calling public method on stateful test contract at ${contract.address.toString()}`);
     await contract.methods.increment_public_value(owner, 84).send().wait();
     expect(await contract.methods.get_public_value(owner).simulate()).toEqual(84n);
-  }, 60_000);
+  });
 
   it('publicly universally deploys and initializes a contract', async () => {
     const owner = wallet.getAddress();
@@ -35,13 +35,13 @@ describe('e2e_deploy_contract deploy method', () => {
     expect(await contract.methods.summed_values(owner).simulate()).toEqual(42n);
     await contract.methods.increment_public_value(owner, 84).send().wait();
     expect(await contract.methods.get_public_value(owner).simulate()).toEqual(84n);
-  }, 60_000);
+  });
 
   it('publicly deploys and calls a public function from the constructor', async () => {
     const owner = wallet.getAddress();
     const token = await TokenContract.deploy(wallet, owner, 'TOKEN', 'TKN', 18).send().deployed();
     expect(await token.methods.is_minter(owner).simulate()).toEqual(true);
-  }, 60_000);
+  });
 
   it('publicly deploys and initializes via a public function', async () => {
     const owner = wallet.getAddress();
@@ -53,7 +53,7 @@ describe('e2e_deploy_contract deploy method', () => {
     logger.debug(`Calling a private function to ensure the contract was properly initialized`);
     await contract.methods.create_note(owner, 30).send().wait();
     expect(await contract.methods.summed_values(owner).simulate()).toEqual(30n);
-  }, 60_000);
+  });
 
   it('deploys a contract with a default initializer not named constructor', async () => {
     logger.debug(`Deploying contract with a default initializer named initialize`);

@@ -14,10 +14,9 @@ RUN apt update && apt install -y \
   libssl-dev \
   jq \
   bash \
-  libstdc++6 \
-  clang-format
+  libstdc++6
 
-RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16 && apt install -y clang-format-16
 
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .

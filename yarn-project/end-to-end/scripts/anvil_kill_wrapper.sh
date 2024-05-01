@@ -4,7 +4,7 @@
 PARENT_PID=$(awk '{print $4}' /proc/$$/stat)
 
 # Start anvil in the background.
-../../foundry/bin/anvil $@ &
+anvil $@ &
 CHILD_PID=$!
 
 cleanup() {

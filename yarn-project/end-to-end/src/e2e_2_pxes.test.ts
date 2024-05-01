@@ -45,7 +45,7 @@ describe('e2e_2_pxes', () => {
       wallets: [walletB],
       teardown: teardownB,
     } = await setupPXEService(1, aztecNode!, {}, undefined, true));
-  }, 100_000);
+  });
 
   afterEach(async () => {
     await teardownB();
@@ -163,7 +163,7 @@ describe('e2e_2_pxes', () => {
     );
     await expectTokenBalance(walletB, tokenAddress, walletB.getAddress(), transferAmount1 - transferAmount2);
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
-  }, 120_000);
+  });
 
   const deployChildContractViaServerA = async () => {
     logger.info(`Deploying Child contract...`);

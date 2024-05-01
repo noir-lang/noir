@@ -1,3 +1,4 @@
+#ifndef NO_MULTITHREADING
 #include "log.hpp"
 #include "thread.hpp"
 #include <atomic>
@@ -129,3 +130,4 @@ void parallel_for_mutex_pool(size_t num_iterations, const std::function<void(siz
     // info("done");
 }
 } // namespace bb
+#endif

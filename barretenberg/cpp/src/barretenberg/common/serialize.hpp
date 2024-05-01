@@ -371,8 +371,7 @@ template <typename B, typename T> inline void read(B& it, std::optional<T>& opt_
 }
 
 template <typename T>
-concept HasGetAll = requires(T t) { t.get_all(); } && !
-msgpack_concepts::HasMsgPack<T>;
+concept HasGetAll = requires(T t) { t.get_all(); } && !msgpack_concepts::HasMsgPack<T>;
 
 // Write out a struct that defines get_all()
 template <typename B, HasGetAll T> inline void write(B& buf, T const& value)

@@ -23,8 +23,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18)
         # We target clang18 and need this, eventually warning should be fixed or this will be unconditional.
-        add_compile_options(-Wno-vla-cxx-extension -pthread)
-        add_link_options(-Wl,--shared-memory)
+        add_compile_options(-Wno-vla-cxx-extension)
     endif()
 endif()
 

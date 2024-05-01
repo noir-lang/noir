@@ -175,7 +175,7 @@ describe('e2e_sandbox_example', () => {
 
     expect(aliceBalance).toBe(initialSupply - transferQuantity);
     expect(bobBalance).toBe(transferQuantity + mintQuantity);
-  }, 120_000);
+  });
 
   it('can create accounts on the sandbox', async () => {
     const logger = createDebugLogger('token');
@@ -231,5 +231,5 @@ describe('e2e_sandbox_example', () => {
     // check that alice and bob are in registeredAccounts
     expect(registeredAccounts.find(acc => acc.equals(alice))).toBeTruthy();
     expect(registeredAccounts.find(acc => acc.equals(bob))).toBeTruthy();
-  }, 60_000);
+  });
 });

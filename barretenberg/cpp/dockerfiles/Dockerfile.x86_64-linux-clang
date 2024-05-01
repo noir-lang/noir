@@ -20,7 +20,7 @@ RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
 
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
-# Build bb binary and targets needed for benchmarking. 
+# Build bb binary and targets needed for benchmarking.
 # Everything else is built as part linux-clang-assert.
 # Benchmark targets want to run without asserts, so get built alongside bb.
 RUN cmake --preset clang16

@@ -1,0 +1,3 @@
+PATH="/opt/foundry/bin:/opt/rust/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
+LANG=C.UTF-8
+RUSTUP_HOME=/opt/rust/rustup

@@ -1,3 +1,4 @@
+#ifndef NO_MULTITHREADING
 #include "log.hpp"
 #include "thread.hpp"
 #include <atomic>
@@ -124,3 +125,4 @@ void parallel_for_queued(size_t num_iterations, const std::function<void(size_t)
     // info("pool finished work");
 }
 } // namespace bb
+#endif

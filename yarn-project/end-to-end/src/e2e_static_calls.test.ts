@@ -11,14 +11,14 @@ describe('e2e_static_calls', () => {
 
   beforeEach(async () => {
     ({ teardown, wallet } = await setup());
-  }, 100_000);
+  });
 
   afterEach(() => teardown());
 
   beforeEach(async () => {
     parentContract = await ParentContract.deploy(wallet).send().deployed();
     childContract = await ChildContract.deploy(wallet).send().deployed();
-  }, 100_000);
+  });
 
   describe('parent calls child', () => {
     it('performs legal private to private static calls', async () => {
@@ -32,7 +32,7 @@ describe('e2e_static_calls', () => {
         ])
         .send()
         .wait();
-    }, 100_000);
+    });
 
     it('performs legal (nested) private to private static calls', async () => {
       // We create a note in the set, so...
@@ -45,28 +45,28 @@ describe('e2e_static_calls', () => {
         ])
         .send()
         .wait();
-    }, 100_000);
+    });
 
     it('performs legal public to public static calls', async () => {
       await parentContract.methods
         .public_static_call(childContract.address, childContract.methods.pub_get_value.selector, [42n])
         .send()
         .wait();
-    }, 100_000);
+    });
 
     it('performs legal (nested) public to public static calls', async () => {
       await parentContract.methods
         .public_nested_static_call(childContract.address, childContract.methods.pub_get_value.selector, [42n])
         .send()
         .wait();
-    }, 100_000);
+    });
 
     it('performs legal enqueued public static calls', async () => {
       await parentContract.methods
         .enqueue_static_call_to_pub_function(childContract.address, childContract.methods.pub_get_value.selector, [42n])
         .send()
         .wait();
-    }, 100_000);
+    });
 
     it('performs legal (nested) enqueued public static calls', async () => {
       await parentContract.methods
@@ -77,7 +77,7 @@ describe('e2e_static_calls', () => {
         )
         .send()
         .wait();
-    }, 100_000);
+    });
 
     it('fails when performing illegal private to private static calls', async () => {
       await expect(
@@ -89,7 +89,7 @@ describe('e2e_static_calls', () => {
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot create new notes, emit L2->L1 messages or generate logs');
-    }, 100_000);
+    });
 
     it('fails when performing illegal (nested) private to private static calls', async () => {
       await expect(
@@ -101,7 +101,7 @@ describe('e2e_static_calls', () => {
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot create new notes, emit L2->L1 messages or generate logs');
-    }, 100_000);
+    });
 
     it('fails when performing illegal public to public static calls', async () => {
       await expect(
@@ -110,7 +110,7 @@ describe('e2e_static_calls', () => {
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
-    }, 100_000);
+    });
 
     it('fails when performing illegal (nested) public to public static calls', async () => {
       await expect(
@@ -119,7 +119,7 @@ describe('e2e_static_calls', () => {
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
-    }, 100_000);
+    });
 
     it('fails when performing illegal enqueued public static calls', async () => {
       await expect(
@@ -130,7 +130,7 @@ describe('e2e_static_calls', () => {
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
-    }, 100_000);
+    });
 
     it('fails when performing illegal (nested) enqueued public static calls', async () => {
       await expect(
@@ -143,6 +143,6 @@ describe('e2e_static_calls', () => {
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
-    }, 100_000);
+    });
   });
 });

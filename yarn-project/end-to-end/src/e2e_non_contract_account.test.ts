@@ -30,7 +30,7 @@ describe('e2e_non_contract_account', () => {
     logger.debug(`Deploying L2 contract...`);
     contract = await TestContract.deploy(wallet).send().deployed();
     logger.info(`L2 contract deployed at ${contract.address}`);
-  }, 100_000);
+  });
 
   afterEach(() => teardown());
 
@@ -48,7 +48,7 @@ describe('e2e_non_contract_account', () => {
     const siloedNullifier = debugInfo!.nullifiers[1];
 
     expect(siloedNullifier.equals(expectedSiloedNullifier)).toBeTruthy();
-  }, 120_000);
+  });
 
   it('msg.sender is 0 when a non-contract account calls a private function on a contract', async () => {
     const contractWithNoContractWallet = await TestContract.at(contract.address, nonContractAccountWallet);
@@ -62,7 +62,7 @@ describe('e2e_non_contract_account', () => {
 
     const msgSender = toBigInt(logs[0].log.data);
     expect(msgSender).toBe(0n);
-  }, 120_000);
+  });
 
   // Note: This test doesn't really belong here as it doesn't have anything to do with non-contract accounts. I needed
   // to test the TestNote functionality and it doesn't really fit anywhere else. Creating a separate e2e test for this

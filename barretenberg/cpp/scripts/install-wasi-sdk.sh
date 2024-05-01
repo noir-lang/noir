@@ -35,4 +35,8 @@ else
   curl -s -L https://wasi-sdk.s3.eu-west-2.amazonaws.com/yamt-wasi-sysroot-20.0.threads.tgz | tar zxf -
 fi
 # TODO(https://github.com/AztecProtocol/barretenberg/issues/906): in the future this should use earthly and a 'SAVE ARTIFACT wasi-sdk AS LOCAL wasi-sdk'
-mv wasi-sdk-20.0+threads wasi-sdk
+if [ "$(id -u)" -eq 0 ]; then
+  mv wasi-sdk-20.0+threads /opt/wasi-sdk
+else
+  sudo mv wasi-sdk-20.0+threads /opt/wasi-sdk
+fi

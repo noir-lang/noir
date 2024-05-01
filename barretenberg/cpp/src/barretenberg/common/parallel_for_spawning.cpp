@@ -1,4 +1,6 @@
+#ifndef NO_MULTITHREADING
 #include "thread.hpp"
+#include <thread>
 
 namespace bb {
 /**
@@ -41,3 +43,4 @@ void parallel_for_spawning(size_t num_iterations, const std::function<void(size_
     // info("joined!\n\n");
 }
 } // namespace bb
+#endif

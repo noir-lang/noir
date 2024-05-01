@@ -123,7 +123,7 @@ describe('e2e_card_game', () => {
     [firstPlayer, secondPlayer, thirdPlayer] = wallets.map(a => a.getAddress());
 
     masterNullifierSecretKeys = PLAYER_SECRET_KEYS.map(sk => deriveMasterNullifierSecretKey(sk));
-  }, 100_000);
+  });
 
   beforeEach(async () => {
     await deployContract();
@@ -148,7 +148,7 @@ describe('e2e_card_game', () => {
     const collection = await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer });
     const expected = getPackedCards(0, seed);
     expect(unwrapOptions(collection)).toMatchObject(expected);
-  }, 30_000);
+  });
 
   describe('game join', () => {
     const seed = 27n;
@@ -162,7 +162,7 @@ describe('e2e_card_game', () => {
       firstPlayerCollection = unwrapOptions(
         await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer }),
       );
-    }, 30_000);
+    });
 
     it('should be able to join games', async () => {
       await contract.methods
@@ -199,7 +199,7 @@ describe('e2e_card_game', () => {
         claimed: false,
         current_player: 0n,
       });
-    }, 30_000);
+    });
 
     it('should start games', async () => {
       const secondPlayerCollection = unwrapOptions(
@@ -239,7 +239,7 @@ describe('e2e_card_game', () => {
         claimed: false,
         current_player: 0n,
       });
-    }, 360_000);
+    });
   });
 
   describe('game play', () => {
@@ -266,7 +266,7 @@ describe('e2e_card_game', () => {
       thirdPlayerCOllection = unwrapOptions(
         await contract.methods.view_collection_cards(thirdPlayer, 0).simulate({ from: thirdPlayer }),
       );
-    }, 60_000);
+    });
 
     async function joinGame(playerWallet: Wallet, cards: Card[], id = GAME_ID) {
       await contract.withWallet(playerWallet).methods.join_game(id, cards.map(cardToField)).send().wait();
@@ -343,6 +343,6 @@ describe('e2e_card_game', () => {
       );
 
       expect(game.finished).toBe(true);
-    }, 360_000);
+    });
   });
 });

@@ -1,6 +1,6 @@
 VERSION 0.8
 
-FROM node:18.19.0
+FROM ../../build-images+build
 WORKDIR /usr/src/barretenberg/ts-build
 
 # minimum files to download yarn packages
@@ -12,7 +12,7 @@ RUN yarn --immutable
 # other source files
 COPY --dir src *.json *.js *.cjs .
 
-# copy over wasm build from cpp folder
+# copy over wasm builds from cpp folder
 COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg-threads.wasm
 COPY ../cpp/+preset-wasm/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg.wasm
 COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm dest/node/barretenberg_wasm/barretenberg-threads.wasm

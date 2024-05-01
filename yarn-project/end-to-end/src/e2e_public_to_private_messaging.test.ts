@@ -39,7 +39,7 @@ describe('e2e_public_to_private_messaging', () => {
     teardown = teardown_;
     logger = logger_;
     logger.info('Successfully deployed contracts and initialized portal');
-  }, 100_000);
+  });
 
   afterEach(async () => {
     await teardown();
@@ -79,5 +79,5 @@ describe('e2e_public_to_private_messaging', () => {
     await crossChainTestHarness.unshieldTokensOnL2(shieldAmount);
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, bridgeAmount);
     await crossChainTestHarness.expectPrivateBalanceOnL2(ownerAddress, 0n);
-  }, 200_000);
+  });
 });

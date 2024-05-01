@@ -85,7 +85,7 @@ describe('Aztec persistence', () => {
     await contract.methods.redeem_shield(ownerAddress.address, 1000n, secret).send().wait();
 
     await initialContext.teardown();
-  }, 100_000);
+  });
 
   describe.each([
     [
@@ -160,7 +160,7 @@ describe('Aztec persistence', () => {
 
       expect(ownerBalance).toEqual(initialOwnerBalance - 500n);
       expect(targetBalance).toEqual(500n);
-    }, 30_000);
+    });
   });
 
   describe.each([
@@ -278,7 +278,7 @@ describe('Aztec persistence', () => {
 
       // shut everything down
       await temporaryContext.teardown();
-    }, 100_000);
+    });
 
     let ownerWallet: AccountWallet;
     let contract: TokenContract;
@@ -290,7 +290,7 @@ describe('Aztec persistence', () => {
       contract = await TokenContract.at(contractAddress, ownerWallet);
 
       await waitForAccountSynch(context.pxe, ownerAddress, { interval: 0.1, timeout: 5 });
-    }, 5000);
+    });
 
     afterEach(async () => {
       await context.teardown();

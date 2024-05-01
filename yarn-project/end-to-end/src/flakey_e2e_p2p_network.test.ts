@@ -37,7 +37,7 @@ describe('e2e_p2p_network', () => {
 
   beforeEach(async () => {
     ({ teardown, config, logger } = await setup(1));
-  }, 100_000);
+  });
 
   afterEach(() => teardown());
 
@@ -68,7 +68,7 @@ describe('e2e_p2p_network', () => {
       await context.pxeService.stop();
     }
     await bootstrapNode.stop();
-  }, 120_000);
+  });
 
   const createBootstrapNode = async () => {
     const peerId = await createLibP2PPeerId();

@@ -14,11 +14,11 @@ RUN foundryup --version nightly-de33b6af53005037b463318d2628b5cfcaf39916
 
 WORKDIR /usr/src/l1-contracts
 COPY . .
-RUN git init
+#RUN git init
 RUN forge clean && forge fmt --check && forge build && forge test --no-match-contract UniswapPortalTest
 
-RUN npm install --global yarn
-RUN yarn && yarn lint
+RUN npm install --global solhint
+RUN solhint --config ./.solhint.json --fix "src/**/*.sol"
 
 # RUN git add . && yarn slither && yarn slither-has-diff
 RUN forge build

@@ -130,8 +130,10 @@ if [ -n "$COMMIT_HASH" ]; then
 
   # Install and ensure correct permissions on build instance key.
   mkdir -p ~/.ssh
-  echo ${BUILD_INSTANCE_KEY:-} | base64 -d > ~/.ssh/build_instance_key
-  chmod 600 ~/.ssh/build_instance_key
+  if [ -n "${BUILD_INSTANCE_KEY:-}" ]; then
+    echo $BUILD_INSTANCE_KEY | base64 -d > ~/.ssh/build_instance_key
+    chmod 600 ~/.ssh/build_instance_key
+  fi
   cp $BUILD_SYSTEM_PATH/remote/ssh_config ~/.ssh/config
 
   if [[ "$COMMIT_MESSAGE" == *"[ci debug]"* ]]; then

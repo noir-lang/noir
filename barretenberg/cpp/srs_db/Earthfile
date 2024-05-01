@@ -1,5 +1,5 @@
 VERSION 0.8
-FROM ubuntu:lunar
+FROM ubuntu:noble
 
 RUN apt-get update && apt-get install -y curl
 

@@ -159,7 +159,7 @@ describe('L1Publisher integration', () => {
     feeRecipient = config.feeRecipient || AztecAddress.random();
 
     prevHeader = await builderDb.buildInitialHeader(false);
-  }, 100_000);
+  });
 
   const makeEmptyProcessedTx = () => {
     const tx = makeEmptyProcessedTxFromHistoricalTreeRoots(prevHeader, new Fr(chainId), new Fr(config.version));
@@ -463,7 +463,7 @@ describe('L1Publisher integration', () => {
       // We wipe the messages from previous iteration
       nextL1ToL2Messages = [];
     }
-  }, 360_000);
+  });
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 2 empty txs building on each other`, async () => {
     const archiveInRollup_ = await rollup.read.archive();
@@ -523,7 +523,7 @@ describe('L1Publisher integration', () => {
       });
       expect(ethTx.input).toEqual(expectedData);
     }
-  }, 60_000);
+  });
 });
 
 /**

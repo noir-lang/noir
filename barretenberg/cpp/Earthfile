@@ -1,80 +1,13 @@
 VERSION 0.8
 
-build-base:
-    ARG TARGETARCH
-    FROM --platform=linux/$TARGETARCH ubuntu:lunar
-    RUN apt-get update && apt-get install -y \
-        build-essential \
-        curl \
-        git \
-        cmake \
-        lsb-release \
-        wget \
-        software-properties-common \
-        gnupg \
-        ninja-build \
-        npm \
-        libssl-dev \
-        jq \
-        bash \
-        libstdc++6 \
-        clang-format \
-        clang-16
-
-    IF [ $TARGETARCH = arm64 ]
-        # publish arm after, assumes x86 already exists, becomes multiplatform image
-        SAVE IMAGE --push aztecprotocol/bb-ubuntu-lunar
-        FROM --platform=linux/amd64 aztecprotocol/bb-ubuntu-lunar:x86-latest
-        SAVE IMAGE --push aztecprotocol/bb-ubuntu-lunar
-    ELSE
-        SAVE IMAGE --push aztecprotocol/bb-ubuntu-lunar:x86-latest
-    END
-
-build-wasi-sdk-image:
-    WORKDIR /
-    RUN git clone --recursive https://github.com/WebAssembly/wasi-sdk.git
-    WORKDIR /wasi-sdk
-    RUN git checkout 9389ea5eeec98afc61039683ae92c6147fee9c54
-    ENV NINJA_FLAGS=-v
-    ENV MAKEFLAGS="-j$(nproc)"
-    RUN make build/llvm.BUILT
-    RUN make build/wasi-libc.BUILT
-    RUN make build/compiler-rt.BUILT
-    RUN make build/libcxx.BUILT
-    RUN make build/config.BUILT
-    SAVE ARTIFACT build/install/opt/wasi-sdk
-
-build-wasi-sdk:
-    ARG TARGETARCH
-    # Wrapper just exists share files.
-    FROM scratch
-    WORKDIR /usr/src
-    COPY +get-wasi-sdk-image/wasi-sdk wasi-sdk
-    SAVE ARTIFACT wasi-sdk
-    SAVE IMAGE --push aztecprotocol/cache:wasi-sdk-threads-v21.0-$TARGETARCH
-
-get-wasi-sdk-threads:
-    ARG TARGETARCH
-    # If this is failing, we need to run earthly --push +build-wasi-sdk
-    FROM aztecprotocol/cache:wasi-sdk-threads-v21.0-$TARGETARCH
-    SAVE ARTIFACT wasi-sdk
-
-get-wasi-sdk:
-    # NOTE: currently only works with x86
-    # TODO Align with above
-    FROM +source
-    COPY ./scripts/install-wasi-sdk.sh ./scripts/
-    RUN ./scripts/install-wasi-sdk.sh
-    # TODO better output name to mirror wasi-sdk
-    SAVE ARTIFACT src/wasi-sdk-20.0 wasi-sdk
-
 wasmtime:
-    FROM aztecprotocol/bb-ubuntu-lunar
+    FROM ubuntu:noble
+    RUN apt update && apt install -y curl xz-utils
     RUN curl https://wasmtime.dev/install.sh -sSf | bash
     SAVE ARTIFACT /root/.wasmtime/bin/wasmtime
 
 source:
-    FROM aztecprotocol/bb-ubuntu-lunar
+    FROM ../../build-images+build
     WORKDIR /usr/src/barretenberg
     # cpp source
     COPY --dir src/barretenberg src/CMakeLists.txt src
@@ -106,19 +39,17 @@ preset-wasm:
         FROM +preset-wasm-threads
         SAVE ARTIFACT build/bin
     ELSE
-        COPY +get-wasi-sdk/wasi-sdk src/wasi-sdk
         RUN cmake --preset wasm -Bbuild && cmake --build build --target barretenberg.wasm
-        RUN src/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
+        RUN /opt/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
         SAVE ARTIFACT build/bin
         SAVE IMAGE --cache-hint
     END
 
 preset-wasm-threads:
     FROM +source
-    COPY +get-wasi-sdk-threads/wasi-sdk src/wasi-sdk
     RUN cmake --preset wasm-threads -Bbuild && cmake --build build --target barretenberg.wasm
     # TODO(https://github.com/AztecProtocol/barretenberg/issues/941) We currently do not strip barretenberg threaded wasm, for stack traces.
-    # RUN src/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
+    # RUN /opt/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
     SAVE ARTIFACT build/bin
 
 preset-gcc:
@@ -189,7 +120,7 @@ bench-binaries:
 # Runs on the bench image, sent from the builder runner
 bench-ultra-honk:
     BUILD +wasmtime # prefetch
-    FROM +source
+    FROM ubuntu:noble
     COPY --dir +bench-binaries/* .
     # install SRS needed for proving
     COPY --dir ./srs_db/+build/. srs_db
@@ -201,7 +132,7 @@ bench-ultra-honk:
 
 bench-client-ivc:
     BUILD +wasmtime # prefetch
-    FROM +source
+    FROM ubuntu:noble
     COPY --dir +bench-binaries/* .
     # install SRS needed for proving
     COPY --dir ./srs_db/+build/. srs_db

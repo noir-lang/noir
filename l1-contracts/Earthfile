@@ -1,23 +1,12 @@
 VERSION 0.8
 
 build:
-    FROM ubuntu:lunar
-    RUN apt update && apt install curl git jq bash nodejs npm python3.11-full python3-pip -y
-
-    # Use virtualenv, do not try to use pipx, it's not working.
-    RUN python3 -m venv /root/.venv
-    RUN /root/.venv/bin/pip3 install slither-analyzer==0.10.0 slitherin==0.5.0
-    ENV PATH="${PATH}:/root/.venv/bin"
-
-    # Install yarn and solhint.
-    RUN npm install --global yarn solhint
-
-    # Install our build of foundry.
-    COPY --dir ../foundry/+build/usr/src/foundry/bin /usr/src/foundry/bin
-    ENV PATH="${PATH}:/usr/src/foundry/bin"
-
+    FROM ../build-images+build
     WORKDIR /usr/src/l1-contracts
     COPY --dir lib scripts src terraform test *.json *.toml *.sh .
-    RUN git init && git add . && yarn lint && yarn slither && yarn slither-has-diff
+    #RUN git init && git add . && yarn lint && yarn slither && yarn slither-has-diff
+    # "slither": "forge clean && forge build --build-info --skip '*/test/**' --force && slither . --checklist --ignore-compile --show-ignored-findings --config-file ./slither.config.json | tee slither_output.md",
+    # "slither-has-diff": "./slither_has_diff.sh"
+    RUN solhint --config ./.solhint.json --fix "src/**/*.sol"
     RUN forge clean && forge fmt --check && forge build && forge test --no-match-contract UniswapPortalTest
     SAVE ARTIFACT /usr/src/l1-contracts /usr/src/l1-contracts

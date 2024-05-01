@@ -623,7 +623,7 @@ export const uniswapL1L2TestSuite = (
       logger.info('***** 🧚‍♀️ SWAP L2 assets on L1 Uniswap 🧚‍♀️ *****');
       logger.info('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
       logger.info('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
-    }, 360_000);
+    });
     // docs:end:uniswap_public
 
     // Edge cases for the private flow:

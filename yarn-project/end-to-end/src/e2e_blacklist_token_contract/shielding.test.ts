@@ -13,7 +13,7 @@ describe('e2e_blacklist_token_contract shield + redeem_shield', () => {
     await t.setup();
     // Have to destructure again to ensure we have latest refs.
     ({ asset, tokenSim, wallets, blacklisted } = t);
-  }, 200_000);
+  });
 
   afterAll(async () => {
     await t.teardown();

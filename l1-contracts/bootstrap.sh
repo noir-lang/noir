@@ -23,10 +23,10 @@ fi
 rm -rf broadcast cache out serve
 
 # Install
-../foundry/bin/forge install --no-commit
+forge install --no-commit
 
 # Ensure libraries are at the correct version
 git submodule update --init --recursive ./lib
 
 # Compile contracts
-../foundry/bin/forge build
+forge build
