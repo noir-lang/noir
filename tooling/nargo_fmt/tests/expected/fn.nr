@@ -36,7 +36,7 @@ fn apply_binary_field_op<N>(
     registers: &mut Registers<N>
 ) -> bool {}
 
-fn main() -> distinct pub [Field; 2] {}
+fn main() -> pub [Field; 2] {}
 
 fn ret_normal_lambda1() -> ((fn() -> Field)) {}
 
