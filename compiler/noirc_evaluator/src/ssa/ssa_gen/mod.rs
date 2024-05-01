@@ -12,7 +12,7 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use crate::{
-    errors::RuntimeError,
+    errors::{InternalError, RuntimeError},
     ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
 };
 

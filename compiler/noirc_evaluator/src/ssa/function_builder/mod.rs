@@ -19,7 +19,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, ErrorType, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };
