@@ -746,6 +746,70 @@ mod test {
         }
     }
 
+    #[test]
+    fn check_trait_as_type_as_fn_parameter() {
+        let src = "
+        trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+
+        struct Foo {
+            a: u64,
+        }
+
+        impl Eq for Foo {
+            fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        }
+
+        fn test_eq(x: impl Eq) -> bool {
+            x.eq(x)
+        }
+
+        fn main(a: Foo) -> pub bool {
+            test_eq(a)
+        }";
+
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn check_trait_as_type_as_two_fn_parameters() {
+        let src = "
+        trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+
+        trait Test {
+            fn test(self) -> bool;
+        }
+
+        struct Foo {
+            a: u64,
+        }
+
+        impl Eq for Foo {
+            fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        }
+
+        impl Test for u64 {
+            fn test(self) -> bool { self == self } 
+        }
+
+        fn test_eq(x: impl Eq, y: impl Test) -> bool {
+            x.eq(x) == y.test()
+        }
+
+        fn main(a: Foo, b: u64) -> pub bool {
+            test_eq(a, b)
+        }";
+
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
+    }
+
     fn get_program_captures(src: &str) -> Vec<Vec<String>> {
         let (program, context, _errors) = get_program(src);
         let interner = context.def_interner;
@@ -1167,7 +1231,7 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     }
 
     #[test]
-    fn deny_cyclic_structs() {
+    fn deny_mutually_recursive_structs() {
         let src = r#"
             struct Foo { bar: Bar }
             struct Bar { foo: Foo }
@@ -1284,6 +1348,15 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     }
 
     #[test]
+    fn ban_mutable_globals() {
+        // Mutable globals are only allowed in a comptime context
+        let src = r#"
+            mut global FOO: Field = 0;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
     fn deny_inline_attribute_on_unconstrained() {
         let src = r#"
             #[inline(never)]

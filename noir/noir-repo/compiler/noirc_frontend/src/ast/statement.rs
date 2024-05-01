@@ -40,7 +40,7 @@ pub enum StatementKind {
     Break,
     Continue,
     /// This statement should be executed at compile-time
-    Comptime(Box<StatementKind>),
+    Comptime(Box<Statement>),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -486,7 +486,8 @@ impl Pattern {
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
-            _ => panic!("only the identifier pattern can return a name"),
+            Pattern::Mutable(pattern, ..) => pattern.name_ident(),
+            _ => panic!("Only the Identifier or Mutable patterns can return a name"),
         }
     }
 
@@ -685,7 +686,7 @@ impl Display for StatementKind {
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
-            StatementKind::Comptime(statement) => write!(f, "comptime {statement}"),
+            StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),
             StatementKind::Semi(semi) => write!(f, "{semi};"),
             StatementKind::Error => write!(f, "Error"),
         }

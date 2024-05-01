@@ -9,7 +9,7 @@ use noirc_frontend::monomorphization::ast::InlineType;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     function::{Function, FunctionId},
-    instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+    instruction::{Binary, BinaryOp, ErrorSelector, Instruction, TerminatorInstruction},
     types::Type,
     value::{Value, ValueId},
 };
@@ -19,7 +19,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, ErrorSelector, ErrorType, InstructionId, Intrinsic},
+        instruction::{ConstrainError, ErrorType, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -232,7 +232,12 @@ impl FunctionBuilder {
     ) -> ValueId {
         let lhs_type = self.type_of_value(lhs);
         let rhs_type = self.type_of_value(rhs);
-        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
+        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
+            assert_eq!(
+                lhs_type, rhs_type,
+                "ICE - Binary instruction operands must have the same type"
+            );
+        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }

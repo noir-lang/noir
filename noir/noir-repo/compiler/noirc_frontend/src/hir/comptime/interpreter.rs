@@ -70,20 +70,21 @@ impl<'a> Interpreter<'a> {
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
-        call_location: Location,
+        location: Location,
     ) -> IResult<Value> {
         let previous_state = self.enter_function();
 
         let meta = self.interner.function_meta(&function);
         if meta.kind != FunctionKind::Normal {
-            todo!("Evaluation for {:?} is unimplemented", meta.kind);
+            let item = "Evaluation for builtin functions";
+            return Err(InterpreterError::Unimplemented { item, location });
         }
 
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
                 actual: arguments.len(),
-                call_location,
+                location,
             });
         }
 
@@ -113,7 +114,7 @@ impl<'a> Interpreter<'a> {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: closure.parameters.len(),
                 actual: arguments.len(),
-                call_location,
+                location: call_location,
             });
         }
 
@@ -133,8 +134,11 @@ impl<'a> Interpreter<'a> {
     /// `exit_function` is called.
     pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
-        let scope = self.scopes.drain(1..).collect();
-        self.push_scope();
+        let mut scope = Vec::new();
+        if self.scopes.len() > 1 {
+            scope = self.scopes.drain(1..).collect();
+            self.push_scope();
+        }
         (std::mem::take(&mut self.in_loop), scope)
     }
 
@@ -159,7 +163,7 @@ impl<'a> Interpreter<'a> {
         self.scopes.last_mut().unwrap()
     }
 
-    fn define_pattern(
+    pub(super) fn define_pattern(
         &mut self,
         pattern: &HirPattern,
         typ: &Type,
@@ -261,7 +265,7 @@ impl<'a> Interpreter<'a> {
         Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
-    fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
+    pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
         self.lookup_id(ident.id, ident.location)
     }
 
@@ -290,7 +294,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Evaluate an expression and return the result
-    fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
@@ -321,7 +325,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
         let definition = self.interner.definition(ident.id);
 
         match &definition.kind {
@@ -331,9 +335,15 @@ impl<'a> Interpreter<'a> {
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
-                let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
-                self.evaluate_let(let_)?;
-                self.lookup(&ident)
+                // Don't need to check let_.comptime, we can evaluate non-comptime globals too.
+                // Avoid resetting the value if it is already known
+                if let Ok(value) = self.lookup(&ident) {
+                    Ok(value)
+                } else {
+                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
+                    self.evaluate_let(let_)?;
+                    self.lookup(&ident)
+                }
             }
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
@@ -1026,7 +1036,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub(super) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;

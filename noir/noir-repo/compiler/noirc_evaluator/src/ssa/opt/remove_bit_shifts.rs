@@ -117,7 +117,7 @@ impl Context<'_> {
         } else {
             // we use a predicate to nullify the result in case of overflow
             let bit_size_var =
-                self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
+                self.numeric_constant(FieldElement::from(bit_size as u128), Type::unsigned(8));
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ.clone());
             // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value

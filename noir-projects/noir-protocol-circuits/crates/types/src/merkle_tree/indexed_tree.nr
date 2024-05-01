@@ -64,7 +64,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     }
 
     let empty_subtree_root = calculate_empty_tree_root(SubtreeHeight);
-    let leaf_index_subtree_depth = start_insertion_index >> (SubtreeHeight as u32);
+    let leaf_index_subtree_depth = start_insertion_index >> (SubtreeHeight as u8);
 
     assert_check_membership(
         empty_subtree_root,
@@ -78,7 +78,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
 
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
-    let subtree_index = start_insertion_index >> (SubtreeHeight as u32);
+    let subtree_index = start_insertion_index >> (SubtreeHeight as u8);
     let new_root = root_from_sibling_path(subtree_root, subtree_index as Field, new_subtree_sibling_path);
 
     AppendOnlyTreeSnapshot { root: new_root, next_available_leaf_index: start_insertion_index + (values_to_insert.len() as u32) }

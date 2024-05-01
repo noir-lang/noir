@@ -116,12 +116,12 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn set_opcode_u32() -> pub u32 {
-        1 << 30 as u32
+        1 << 30 as u8
     }
 
     #[aztec(public-vm)]
     fn set_opcode_u64() -> pub u64 {
-        1 << 60 as u64
+        1 << 60 as u8
     }
 
     #[aztec(public-vm)]
