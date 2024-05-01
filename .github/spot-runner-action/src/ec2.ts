@@ -158,7 +158,6 @@ export class Ec2Instance {
   async getLaunchTemplate(): Promise<string> {
     const client = await this.getEc2Client();
 
-    // NOTE: This should be deterministic or we will create a launch template each time
     const userData = await new UserData(this.config).getUserData();
     const ec2InstanceTypeHash = this.getHashOfStringArray(
       this.config.ec2InstanceType.concat([userData, JSON.stringify(this.tags), this.config.ec2KeyName])
@@ -170,6 +169,7 @@ export class Ec2Instance {
       LaunchTemplateName: launchTemplateName,
       LaunchTemplateData: {
         ImageId: this.config.ec2AmiId,
+        InstanceInitiatedShutdownBehavior: "terminate",
         InstanceRequirements: {
           // We do not know what the instance types correspond to
           // just let the user send a list of allowed instance types
@@ -177,6 +177,7 @@ export class Ec2Instance {
           MemoryMiB: { Min: 0 },
           AllowedInstanceTypes: this.config.ec2InstanceType,
         },
+        SecurityGroupIds: [this.config.ec2SecurityGroupId],
         KeyName: this.config.ec2KeyName,
         UserData: userData,
         TagSpecifications: [
@@ -195,34 +196,19 @@ export class Ec2Instance {
         ],
       },
     };
-    let arr: any[] = [];
-
-    try {
-      arr = (
-        await client
-          .describeLaunchTemplates({
-            LaunchTemplateNames: [launchTemplateName],
-          })
-          .promise()
-      ).LaunchTemplates || [];
-    } catch (err) {
-      core.info("Launch templates describe error, note this will be likely resolved by creating the template in the next step: " + err);
-    }
-    core.info("Launch templates found: " + JSON.stringify(arr, null, 2));
-    if (arr.length <= 0) {
-      core.info("Creating launch template: " + launchTemplateName);
-      await client.createLaunchTemplate(launchTemplateParams).promise();
-    }
+    core.info("Creating launch template: " + launchTemplateName);
+    await client.createLaunchTemplate(launchTemplateParams).promise();
     return launchTemplateName;
   }
 
   async requestMachine(useOnDemand: boolean): Promise<string|undefined> {
     // Note advice re max bid: "If you specify a maximum price, your instances will be interrupted more frequently than if you do not specify this parameter."
+    const launchTemplateName = await this.getLaunchTemplate();
     const availabilityZone = await this.getSubnetAz();
     const fleetLaunchConfig: FleetLaunchTemplateConfigRequest = {
       LaunchTemplateSpecification: {
         Version: "$Latest",
-        LaunchTemplateName: await this.getLaunchTemplate(),
+        LaunchTemplateName: launchTemplateName,
       },
       Overrides: this.config.ec2InstanceType.map((instanceType) => ({
         InstanceType: instanceType,
@@ -243,6 +229,10 @@ export class Ec2Instance {
     const client = await this.getEc2Client();
     const fleet = await client.createFleet(createFleetRequest).promise();
     const instances: CreateFleetInstance = (fleet?.Instances || [])[0] || {};
+    // cleanup
+    await client.deleteLaunchTemplate({
+      LaunchTemplateName: launchTemplateName,
+    });
     return (instances.InstanceIds || [])[0];
   }
 
