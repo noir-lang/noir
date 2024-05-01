@@ -4,9 +4,7 @@ import {
   CreateFleetInstance,
   CreateFleetRequest,
   CreateLaunchTemplateRequest,
-  FleetLaunchTemplateConfig,
   FleetLaunchTemplateConfigRequest,
-  RunInstancesRequest,
 } from "aws-sdk/clients/ec2";
 import * as crypto from "crypto";
 import * as core from "@actions/core";
@@ -229,6 +227,7 @@ export class Ec2Instance {
         InstanceType: instanceType,
         AvailabilityZone: availabilityZone,
         SubnetId: this.config.ec2SubnetId,
+        KeyName: this.config.ec2KeyName,
       })),
     };
     const createFleetRequest: CreateFleetRequest = {

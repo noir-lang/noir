@@ -40,10 +40,6 @@ inputs:
   ec2_ami_id:
     description: 'Ec2 ami ID'
     required: true
-  ec2_instance_iam_role:
-    description: 'IAM role for to associate with ec2 instance'
-    required: false
-    default: ''
   ec2_instance_tags:
     description: 'List of extra aws resource tags for ec2 instance'
     required: false

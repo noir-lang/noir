@@ -29,6 +29,12 @@ elif ! earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
     earthly $@
     # TODO handle
     # could not configure satellite: failed getting org: unable to authenticate: failed to execute login request: Post
+  elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null ; then
+    echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker"
+    earthly $@
+  elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null ; then
+    echo "Detected an Earthly daemon restart, possibly due to it (mis)detecting a cache setting change, trying again..."
+    earthly $@
   else
     # otherwise, propagate error
     exit 1
