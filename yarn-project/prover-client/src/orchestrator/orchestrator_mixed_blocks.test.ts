@@ -14,7 +14,7 @@ describe('prover/orchestrator/mixed-blocks', () => {
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -49,6 +49,6 @@ describe('prover/orchestrator/mixed-blocks', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(context.blockNumber);
-    }, 60_000);
+    });
   });
 });

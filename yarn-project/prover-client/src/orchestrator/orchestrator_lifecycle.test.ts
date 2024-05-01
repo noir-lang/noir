@@ -14,7 +14,7 @@ describe('prover/orchestrator/lifecycle', () => {
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -75,7 +75,7 @@ describe('prover/orchestrator/lifecycle', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(101);
-    }, 40000);
+    });
 
     it('automatically cancels an incomplete block when starting a new one', async () => {
       const txs1 = await Promise.all([
@@ -123,6 +123,6 @@ describe('prover/orchestrator/lifecycle', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(101);
-    }, 60000);
+    });
   });
 });

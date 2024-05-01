@@ -12,7 +12,7 @@ describe('prover/orchestrator/public-functions', () => {
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -56,7 +56,6 @@ describe('prover/orchestrator/public-functions', () => {
 
         expect(finalisedBlock.block.number).toEqual(context.blockNumber);
       },
-      60_000,
     );
   });
 });

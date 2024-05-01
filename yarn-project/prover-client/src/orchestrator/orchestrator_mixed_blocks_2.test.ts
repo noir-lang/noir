@@ -19,7 +19,7 @@ describe('prover/orchestrator/mixed-blocks', () => {
   beforeEach(async () => {
     context = await TestContext.new(logger);
     expectsDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -70,7 +70,6 @@ describe('prover/orchestrator/mixed-blocks', () => {
         const expectedNoteHashTreeAfter = await expectsDb.getTreeInfo(MerkleTreeId.NOTE_HASH_TREE).then(t => t.root);
         expect(noteHashTreeAfter.root).toEqual(expectedNoteHashTreeAfter);
       },
-      60000,
     );
   });
 });

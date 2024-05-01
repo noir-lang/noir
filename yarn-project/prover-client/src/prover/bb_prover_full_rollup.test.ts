@@ -14,11 +14,11 @@ describe('prover/bb_prover/full-rollup', () => {
 
   beforeAll(async () => {
     context = await TestContext.new(logger, 1, BBNativeRollupProver.new);
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await context.cleanup();
-  }, 5000);
+  });
 
   it('proves all circuits', async () => {
     const numTransactions = 4;
@@ -58,5 +58,5 @@ describe('prover/bb_prover/full-rollup', () => {
     const blockResult = await context.orchestrator.finaliseBlock();
 
     await expect(context.prover.verifyProof('RootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
-  }, 600_000);
+  });
 });

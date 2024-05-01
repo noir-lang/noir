@@ -31,11 +31,11 @@ describe('prover/bb_prover/parity', () => {
       return bbProver;
     };
     context = await TestContext.new(logger, 1, buildProver);
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await context.cleanup();
-  }, 5000);
+  });
 
   it('proves the parity circuits', async () => {
     const l1ToL2Messages = makeTuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>(
@@ -134,5 +134,5 @@ describe('prover/bb_prover/parity', () => {
         ]).toContainEqual(error);
       }
     }
-  }, 200_000);
+  });
 });

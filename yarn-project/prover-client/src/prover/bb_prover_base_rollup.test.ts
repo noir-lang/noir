@@ -16,11 +16,11 @@ describe('prover/bb_prover/base-rollup', () => {
       return BBNativeRollupProver.new(bbConfig);
     };
     context = await TestContext.new(logger, 1, buildProver);
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await context.cleanup();
-  }, 5000);
+  });
 
   it('proves the base rollup', async () => {
     const tx = await makeBloatedProcessedTx(context.actualDb, 1);
@@ -31,5 +31,5 @@ describe('prover/bb_prover/base-rollup', () => {
     const proofOutputs = await context.prover.getBaseRollupProof(baseRollupInputs);
     logger.verbose('Verifying base rollups');
     await expect(context.prover.verifyProof('BaseRollupArtifact', proofOutputs.proof)).resolves.not.toThrow();
-  }, 200_000);
+  });
 });

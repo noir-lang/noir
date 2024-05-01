@@ -19,7 +19,7 @@ describe('prover/orchestrator/blocks', () => {
   beforeEach(async () => {
     context = await TestContext.new(logger);
     expectsDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -48,7 +48,7 @@ describe('prover/orchestrator/blocks', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(context.blockNumber);
-    }, 60_000);
+    });
 
     it('builds a block with 1 transaction', async () => {
       const txs = await Promise.all([makeBloatedProcessedTx(context.actualDb, 1)]);
@@ -75,7 +75,7 @@ describe('prover/orchestrator/blocks', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(context.blockNumber);
-    }, 60_000);
+    });
 
     it('builds a block concurrently with transaction simulation', async () => {
       const txs = await Promise.all([
@@ -104,6 +104,6 @@ describe('prover/orchestrator/blocks', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(context.blockNumber);
-    }, 60_000);
+    });
   });
 });

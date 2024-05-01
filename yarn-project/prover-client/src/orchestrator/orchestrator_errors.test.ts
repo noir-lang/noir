@@ -12,7 +12,7 @@ describe('prover/orchestrator/errors', () => {
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -49,25 +49,25 @@ describe('prover/orchestrator/errors', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(context.blockNumber);
-    }, 40_000);
+    });
 
     it('throws if adding a transaction before start', async () => {
       await expect(
         async () => await context.orchestrator.addNewTx(await makeEmptyProcessedTestTx(context.actualDb)),
       ).rejects.toThrow(`Invalid proving state, call startNewBlock before adding transactions`);
-    }, 1000);
+    });
 
     it('throws if completing a block before start', async () => {
       await expect(async () => await context.orchestrator.setBlockCompleted()).rejects.toThrow(
         'Invalid proving state, call startNewBlock before adding transactions or completing the block',
       );
-    }, 1000);
+    });
 
     it('throws if finalising an incomplete block', async () => {
       await expect(async () => await context.orchestrator.finaliseBlock()).rejects.toThrow(
         'Invalid proving state, a block must be proven before it can be finalised',
       );
-    }, 1000);
+    });
 
     it('throws if finalising an already finalised block', async () => {
       const txs = await Promise.all([
@@ -91,7 +91,7 @@ describe('prover/orchestrator/errors', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
       expect(finalisedBlock.block.number).toEqual(context.blockNumber);
       await expect(async () => await context.orchestrator.finaliseBlock()).rejects.toThrow('Block already finalised');
-    }, 60000);
+    });
 
     it('throws if adding to a cancelled block', async () => {
       await context.orchestrator.startNewBlock(
@@ -106,7 +106,7 @@ describe('prover/orchestrator/errors', () => {
       await expect(
         async () => await context.orchestrator.addNewTx(await makeEmptyProcessedTestTx(context.actualDb)),
       ).rejects.toThrow('Rollup not accepting further transactions');
-    }, 10000);
+    });
 
     it.each([[-4], [0], [1], [3], [8.1], [7]] as const)(
       'fails to start a block with %i transactions',

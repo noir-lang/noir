@@ -11,7 +11,7 @@ describe('prover/orchestrator/multi-block', () => {
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
-  }, 20_000);
+  });
 
   afterEach(async () => {
     await context.cleanup();
@@ -49,6 +49,6 @@ describe('prover/orchestrator/multi-block', () => {
 
         await context.actualDb.commit();
       }
-    }, 60_000);
+    });
   });
 });

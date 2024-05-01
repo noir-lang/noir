@@ -16,6 +16,10 @@
     "name": "Prover Client",
     "tsconfig": "./tsconfig.json"
   },
+  "inherits": [
+    "../package.common.json",
+    "./package.local.json"
+  ],
   "scripts": {
     "build": "yarn clean && tsc -b",
     "build:dev": "tsc -b --watch",
@@ -23,12 +27,8 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "bb": "node --no-warnings ./dest/bb/index.js",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
-    "generate-and-test": "yarn bb-cli write-server-vks && yarn test"
+    "test": "LOG_LEVEL=${LOG_LEVEL:-silent} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=600000 --forceExit"
   },
-  "inherits": [
-    "../package.common.json"
-  ],
   "jest": {
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"

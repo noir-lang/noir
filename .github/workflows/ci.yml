@@ -178,6 +178,22 @@ jobs:
         timeout-minutes: 25
         run: earthly-ci --no-output ./yarn-project/+test
 
+  prover-client-test:
+    needs: noir-projects
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: prover-client-test-${{ github.actor }}-x86
+      - name: "Prover Client Tests"
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./yarn-project/+prover-client-test
+
   docs-preview:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
@@ -257,6 +273,7 @@ jobs:
       - bb-bench
       - yarn-project-formatting
       - yarn-project-test
+      - prover-client-test
     if: always()
     steps:
       - run: |
@@ -279,6 +296,7 @@ jobs:
         bb-bench,
         yarn-project-formatting,
         yarn-project-test,
+        prover-client-test,
       ]
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/master' && failure() }}
