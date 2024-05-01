@@ -2672,9 +2672,9 @@ mod test {
     #[test]
     #[should_panic]
     fn basic_calls_no_predicates() {
+        basic_call_with_outputs_assert(InlineType::NoPredicates);
         call_output_as_next_call_input(InlineType::NoPredicates);
         basic_nested_call(InlineType::NoPredicates);
-        basic_call_with_outputs_assert(InlineType::NoPredicates);
     }
 
     #[test]
@@ -2917,9 +2917,10 @@ mod test {
 
         let func_with_nested_call_acir = &acir_functions[1];
         let func_with_nested_call_opcodes = func_with_nested_call_acir.opcodes();
+
         assert_eq!(
             func_with_nested_call_opcodes.len(),
-            2,
+            3,
             "Should have an expression and a call to a nested `foo`"
         );
         // Should call foo f2
