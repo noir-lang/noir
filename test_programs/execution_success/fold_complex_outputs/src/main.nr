@@ -21,6 +21,8 @@ fn main(x: u32, y: pub u32) {
     let s = MyStruct { x, y, z: x + y, nested_struct };
     let parent = ParentStruct { basic_array: [1; 3], id: 100, my_structs: [s, s] };
     let new_parent = map_fields(parent);
+
+    // Now check that the outputs are as we expect them to be
     assert(new_parent.basic_array[0] == 1);
     assert(new_parent.basic_array[1] == 18);
     assert(new_parent.basic_array[2] == 1);
@@ -38,10 +40,6 @@ fn main(x: u32, y: pub u32) {
     assert(struct_1.z == 80);
     assert(struct_1.nested_struct.small_array == [5, 10]);
     assert(struct_1.nested_struct.big_array == [15, 20, 25, 30, 35]);
-
-    assert(new_parent.basic_array[1] == 18);
-    assert(new_parent.basic_array[2] == 1);
-
 }
 
 // Meaningless mapping to test whether the values returned are what we expect
