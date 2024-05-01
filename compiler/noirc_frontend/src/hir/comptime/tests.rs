@@ -2,7 +2,9 @@
 
 use noirc_errors::Location;
 
-use super::interpreter::{Interpreter, InterpreterError, Value};
+use super::errors::InterpreterError;
+use super::interpreter::Interpreter;
+use super::value::Value;
 use crate::hir::type_check::test::type_check_src_code;
 
 fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
@@ -72,6 +74,20 @@ fn mutating_arrays() {
     }";
     let result = interpret(program, vec!["main".into()]);
     assert_eq!(result, Value::U8(22));
+}
+
+#[test]
+fn mutate_in_new_scope() {
+    let program = "fn main() -> pub u8 {
+        let mut x = 0;
+        x += 1;
+        {
+            x += 1;
+        }
+        x
+    }";
+    let result = interpret(program, vec!["main".into()]);
+    assert_eq!(result, Value::U8(2));
 }
 
 #[test]
