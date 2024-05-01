@@ -431,6 +431,18 @@ jobs:
           command: build aztec
           aztec_manifest_key: aztec
 
+  aztec-builder:
+    machine:
+      image: default
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build image"
+          command: build aztec-builder
+          aztec_manifest_key: aztec-builder
+
   boxes:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -514,6 +526,7 @@ jobs:
             should_release || exit 0
             deploy_dockerhub noir
             deploy_dockerhub aztec
+            deploy_dockerhub aztec-builder
       - run:
           name: "Release canary to NPM: bb.js"
           command: |
@@ -693,6 +706,7 @@ workflows:
 
       # Artifacts
       - aztec-package: *defaults_yarn_project
+      - aztec-builder: *defaults_yarn_project
 
       # Boxes.
       - boxes:
@@ -732,6 +746,7 @@ workflows:
             - noir-packages-tests
             - prover-client-test
             - e2e-join
+            - aztec-builder
           <<: *defaults
 
       # Production releases.

@@ -32,7 +32,7 @@ RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN ./bootstrap.sh
-RUN yarn workspaces focus @aztec/aztec --production && yarn cache clean
+RUN yarn workspaces focus @aztec/aztec @aztec/builder --production && yarn cache clean
 
 # TODO: Use release-please to update package.json directly, and remove this!
 # It's here to ensure the image rebuilds if the commit tag changes (as the content hash won't).

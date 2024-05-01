@@ -52,7 +52,7 @@ build-dev:
 
 aztec-prod:
     FROM +build
-    RUN yarn workspaces focus @aztec/aztec --production && yarn cache clean
+    RUN yarn workspaces focus @aztec/aztec @aztec/builder --production && yarn cache clean
     # Remove a bunch of stuff that we don't need that takes up space.
     RUN rm -rf \
         ../noir-projects \

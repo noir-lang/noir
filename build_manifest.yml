@@ -201,6 +201,13 @@ aztec:
     - yarn-project
   multiarch: buildx
 
+aztec-builder:
+  buildDir: yarn-project
+  projectDir: yarn-project/builder
+  dependencies:
+    - yarn-project
+  multiarch: buildx
+
 # Builds all the boxes. They are then independently tested in the container.
 boxes:
   buildDir: boxes
