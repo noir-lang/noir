@@ -150,7 +150,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
-                    ParserErrorReason::DepPathPrefixDeprecated => Diagnostic::simple_error(
+                    ParserErrorReason::DepPathPrefixDeprecated => Diagnostic::simple_warning(
                         "'dep::' prefix in paths is deprecated".into(),
                         "'dep::' prefix in paths is deprecated. Please use the path without 'dep::'.".into(),
                         error.span,
