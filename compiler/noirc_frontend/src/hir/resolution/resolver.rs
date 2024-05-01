@@ -695,7 +695,7 @@ impl<'a> Resolver<'a> {
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {
-                    self.push_err(ResolverError::AbiAttributeOusideContract {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
                         span: struct_type.borrow().name.span(),
                     });
                 }
@@ -1280,7 +1280,7 @@ impl<'a> Resolver<'a> {
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
             let span = let_stmt.pattern.span();
-            self.push_err(ResolverError::AbiAttributeOusideContract { span });
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
