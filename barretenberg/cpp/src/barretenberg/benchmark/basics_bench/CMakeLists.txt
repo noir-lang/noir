@@ -1,1 +1,1 @@
-barretenberg_module(basics_bench ecc)
+barretenberg_module(basics_bench ecc srs)
