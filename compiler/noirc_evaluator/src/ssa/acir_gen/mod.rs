@@ -332,7 +332,7 @@ impl Ssa {
             generate_distinct_return_witnesses(acir);
         }
 
-        Ok((acirs, brillig))
+        Ok((acirs, brillig, self.error_selector_to_type))
     }
 }
 
