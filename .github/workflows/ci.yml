@@ -249,10 +249,52 @@ jobs:
         timeout-minutes: 15
         run: earthly-ci --no-output +bench-ultra-honk --bench_mode=cache
 
+  boxes:
+    needs: build
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          # must be globally unique for build x runner
+          concurrency_key: boxes-${{ inputs.username || github.actor }}-x86-${{ matrix.test }}
+      - name: Build
+        working-directory: ./boxes
+        timeout-minutes: 10
+        run: earthly-ci +export-boxes
+
+  boxes-test:
+    needs: boxes
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    strategy:
+      fail-fast: false
+      matrix:
+        box: [vanilla, react]
+        browser: [chromium, webkit, firefox]
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          # must be globally unique for build x runner
+          concurrency_key: boxes-${{ inputs.username || github.actor }}-x86-${{ matrix.test }}
+      - name: Box test
+        working-directory: ./boxes
+        timeout-minutes: 10
+        run: earthly-ci -P --no-output +test --box=${{ matrix.box }} --browser=${{ matrix.browser }} --mode=cache
+
   merge-check:
     runs-on: ubuntu-latest
     needs:
       - e2e
+      - boxes-test
       - bb-native-tests
       - bb-bench
       - yarn-project-formatting

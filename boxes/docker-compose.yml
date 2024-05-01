@@ -5,7 +5,7 @@ services:
     command: "'anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337'"
 
   aztec:
-    image: aztecprotocol/aztec
+    image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
     environment:
       ETHEREUM_HOST: http://ethereum:8545
       CHAIN_ID: 31337
@@ -15,13 +15,14 @@ services:
       WS_BLOCK_CHECK_INTERVAL_MS: 50
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
+    depends_on:
+      - ethereum
 
   boxes:
-    image: aztecprotocol/boxes
+    image: aztecprotocol/boxes:${AZTEC_DOCKER_TAG:-latest}
     entrypoint: >
       sh -c '
-        while ! nc -z aztec 8080; do sleep 1; done;
-        yarn workspace @aztec/$BOX test
+        yarn workspace @aztec/$BOX test --project=$BROWSER
       '
     environment:
       DEBUG: "aztec:*"
@@ -30,3 +31,8 @@ services:
       CHAIN_ID: 31337
       PXE_URL: http://aztec:8080
       BOX: ${BOX:-vanilla}
+      CI: ${CI:-}
+      BROWSER: ${BROWSER:-chromium}
+    depends_on:
+      aztec:
+        condition: service_healthy
