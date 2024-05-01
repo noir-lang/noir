@@ -11,7 +11,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 pub mod ast;
-mod composer;
+pub mod composer;
 pub mod debug;
 pub mod graph;
 pub mod lexer;

@@ -6,7 +6,14 @@
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::{macros_api::{Path, UnaryOp, Ident, UnresolvedType, ItemVisibility, Visibility, Pattern, SecondaryAttribute}, ast::{BinaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, ConstrainKind}, token::Attributes};
+use crate::{
+    ast::{BinaryOp, ConstrainKind, UnresolvedGenerics, UnresolvedTraitConstraint},
+    macros_api::{
+        Ident, ItemVisibility, Path, Pattern, SecondaryAttribute, UnaryOp, UnresolvedType,
+        Visibility,
+    },
+    token::Attributes,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression<T> {

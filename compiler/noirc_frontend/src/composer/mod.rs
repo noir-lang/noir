@@ -5,4 +5,4 @@
 //!
 //! The Composer's job then is to just recur on the raw Ast, create a `functor::Ast`
 //! for that node holding results from any recursive calls, and hand that off to each pass.
-mod functor;
+pub mod functor;
