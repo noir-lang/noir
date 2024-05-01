@@ -327,13 +327,9 @@ impl Ssa {
             bytecode: brillig.byte_code,
         });
 
-        // TODO: check whether doing this for a single circuit's return witnesses is correct.
-        // We probably need it for all foldable circuits, as any circuit being folded is essentially an entry point. However, I do not know how that
-        // plays a part when we potentially want not inlined functions normally as part of the compiler.
-        // Also at the moment we specify Distinctness as part of the ABI exclusively rather than the function itself
-        // so this will need to be updated.
-        let main_func_acir = &mut acirs[0];
-        generate_distinct_return_witnesses(main_func_acir);
+        for acir in acirs.iter_mut() {
+            generate_distinct_return_witnesses(acir);
+        }
 
         Ok((acirs, brillig))
     }
@@ -2664,9 +2660,9 @@ mod test {
     #[test]
     #[should_panic]
     fn basic_calls_no_predicates() {
+        basic_call_with_outputs_assert(InlineType::NoPredicates);
         call_output_as_next_call_input(InlineType::NoPredicates);
         basic_nested_call(InlineType::NoPredicates);
-        basic_call_with_outputs_assert(InlineType::NoPredicates);
     }
 
     #[test]
@@ -2909,9 +2905,10 @@ mod test {
 
         let func_with_nested_call_acir = &acir_functions[1];
         let func_with_nested_call_opcodes = func_with_nested_call_acir.opcodes();
+
         assert_eq!(
             func_with_nested_call_opcodes.len(),
-            2,
+            3,
             "Should have an expression and a call to a nested `foo`"
         );
         // Should call foo f2
