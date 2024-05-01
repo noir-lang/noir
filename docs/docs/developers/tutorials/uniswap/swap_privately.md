@@ -1,5 +1,6 @@
 ---
 title: Swapping Privately
+draft: true
 ---
 
 In the `uniswap/src/main.nr` contract we created [previously](./l2_contract_setup.md) in `aztec-contracts/uniswap`, paste these functions:

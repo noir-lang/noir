@@ -57,7 +57,3 @@ If you were looking at your terminal that is running the Sandbox you should have
 This is because the Sandbox will have simulated the deployment of both contracts, executed the private kernel circuit for each account deployment and later on submitted the 2 transactions to the pool.
 The sequencer will have picked them up and inserted them into an L2 block and executed the recursive rollup circuits before publishing the L2 block on L1 (in our case Anvil).
 Once this has completed, the L2 block is retrieved and pulled down to the PXE so that any new account state can be decrypted.
-
-## Next Steps
-
-Check out our section on [Writing your own Account Contract](../contracts/writing_contracts/accounts/write_accounts_contract.md) leveraging our account abstraction

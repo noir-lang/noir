@@ -82,7 +82,7 @@ Both return the value `0xabf64ad4` (`IS_VALID` selector) for a successful authen
 
 As part of [Aztec.nr](https://aztec.nr), we are providing a library that can be used to implement authentication witness for your contracts.
 
-This library also provides a basis for account implementations such that these can more easily implement authentication witness. For more on the wallets, see [writing an account contract](../../writing_contracts/accounts/write_accounts_contract.md).
+This library also provides a basis for account implementations such that these can more easily implement authentication witness.
 
 For our purposes here (not building a wallet), the most important part of the library is the `auth` utility which exposes a couple of helper methods for computing the action hash, retrieving witnesses, validating them and emitting the nullifier.
 

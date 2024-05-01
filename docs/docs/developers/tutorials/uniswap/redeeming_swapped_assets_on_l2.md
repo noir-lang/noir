@@ -1,5 +1,6 @@
 ---
 title: Redeeming Swapped Assets on L2
+draft: true
 ---
 So you emitted a message to withdraw input tokens to L1 and a message to swap. Then you or someone on your behalf can swap on L1 and emit a message to deposit swapped assets to L2,
 

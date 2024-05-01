@@ -13,8 +13,6 @@ In this step, we’re going to
 
 We recommend going through this setup to fully understand where things live.
 
-However if you’d rather skip this part, our dev-rels repo contains the starter code here.
-
 ## Prerequisites
 
 - [node v18+](https://github.com/tj/n)
@@ -35,7 +33,7 @@ mkdir aztec-token-bridge
 cd aztec-token-bridge && mkdir packages
 ```
 
-We will hold our projects inside of `packages` to follow the design of the project in the [repo](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/token-bridge-e2e).
+We will hold our projects inside of `packages` to follow the design of other projects.
 
 ## Create a noir project
 

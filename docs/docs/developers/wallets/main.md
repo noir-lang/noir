@@ -4,8 +4,6 @@ title: Wallets
 
 In this page we will cover the main responsibilities of a wallet in the Aztec network.
 
-Refer to [_writing an account contract_](../contracts/writing_contracts/accounts/write_accounts_contract.md) for a tutorial on how to write a contract to back a user's account.
-
 Go to [\_wallet architecture](./architecture.md) for an overview of its architecture and a reference on the interface a wallet must implement.
 
 Wallets are the applications through which users manage their accounts. Users rely on wallets to browse through their accounts, monitor their balances, and create new accounts. Wallets also store seed phrases and private keys, or interact with external keystores such as hardware wallets.
@@ -18,7 +16,7 @@ In addition to these usual responsibilities, wallets in Aztec also need to track
 
 The first step for any wallet is to let the user set up their [accounts](../../learn/concepts/accounts/main.md). An account in Aztec is represented on-chain by its corresponding account contract that the user must deploy to begin interacting with the network. This account contract dictates how transactions are authenticated and executed.
 
-A wallet must support at least one specific [account contract implementation](../contracts/writing_contracts/accounts/write_accounts_contract.md), which means being able to deploy such a contract, as well as interacting with it when sending transactions. Code-wise, this requires [implementing the `AccountContract` interface](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/account_contract/index.ts).
+A wallet must support at least one specific account contract implementation, which means being able to deploy such a contract, as well as interacting with it when sending transactions. Code-wise, this requires [implementing the `AccountContract` interface](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/account_contract/index.ts).
 
 Note that users must be able to receive funds in Aztec before deploying their account. A wallet should let a user generate a [deterministic complete address](../../learn/concepts/accounts/keys.md#addresses-partial-addresses-and-public-keys) without having to interact with the network, so they can share it with others to receive funds. This requires that the wallet pins a specific contract implementation, its initialization arguments, a deployment salt, and a privacy key. These values yield a deterministic address, so when the account contract is actually deployed, it is available at the precalculated address. Once the account contract is deployed, the user can start sending transactions using it as the transaction origin.
 

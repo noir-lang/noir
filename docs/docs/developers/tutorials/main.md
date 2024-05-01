@@ -4,7 +4,7 @@ title: Tutorials
 
 This section will guide you through all aspects of Aztec. You'll be building Aztec.nr contracts, writing tests with Aztec.js, and exploring more aspects of the sandbox on the way.
 
-It is recommended to follow them in order, beginning with the [private voting contract](writing_private_voting_contract.md) through to the [uniswap contract with e2e test](./uniswap/main.md). 
+It is recommended to follow them in order, beginning with the [private voting contract](writing_private_voting_contract.md). 
 
 Here's an overview of what you'll learn in each:
 
@@ -37,11 +37,3 @@ Here's an overview of what you'll learn in each:
 - More details into what the Sandbox is capable of
 
 [Check it out](./token_portal/main.md).
-
-## Swap on L1 Uniswap from L2 with Portals
-
-- A more complex example of cross-chain communication
-
-Note - this builds on the code previously written in the Token Bridge tutorial.
-
-[Check it out](./uniswap/main.md).

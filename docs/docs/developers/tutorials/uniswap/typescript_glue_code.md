@@ -1,5 +1,6 @@
 ---
 title: Deploy & Call Contracts with Typescript
+draft: true
 ---
 
 In this step, we We will now write a Typescript to interact with the sandbox and see our Solidity and Aztec.nr contracts in action.

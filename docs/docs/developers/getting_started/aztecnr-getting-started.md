@@ -26,7 +26,14 @@ cd aztec-private-counter
 mkdir contracts
 ```
 
-Inside contracts create the following file structure:
+Inside `contracts` create a new project called `counter`:
+
+```bash
+cd contracts
+aztec-nargo new --contract counter
+```
+
+Your structure should look like this:
 
 ```tree
 .
@@ -40,14 +47,14 @@ Inside contracts create the following file structure:
 
 The file `main.nr` will soon turn into our smart contract!
 
-Add the following content to `Nargo.toml`:
+Add the following dependencies to `Nargo.toml`:
 
 ```toml
 [package]
 name = "counter"
 type = "contract"
 authors = [""]
-compiler_version = ">=0.18.0"
+compiler_version = ">=0.28.0"
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
@@ -144,10 +151,12 @@ aztec-nargo compile
 
 This will compile the smart contract and create a `target` folder with a `.json` artifact inside.
 
-After compiling, you can generate a typescript class. In the same directory, run this:
+After compiling, you can generate a typescript class using `aztec-builder`'s `codegen` command. (See `aztec-builder help codegen` for syntax).
+
+In the same directory, run this:
 
 ```bash
-aztec-builder target -o src/artifacts
+aztec-builder codegen -o src/artifacts target
 ```
 
 You can now use the artifact and/or the TS class in your Aztec.js! If you skipped the Aztec.js getting-started guide, you can follow it [here](aztecjs-getting-started.md). This will teach you about deploying and calling contracts in Aztec.js.

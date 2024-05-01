@@ -6,8 +6,6 @@ This page talks about the architecture of a wallet in Aztec.
 
 To get an overview about wallets in Aztec, [go here](./main.md).
 
-To learn how to write an accounts contract, [go here](../contracts/writing_contracts/accounts/write_accounts_contract.md).
-
 To create a schnorr account in the sandbox, [go here](./creating_schnorr_accounts.md).
 
 Wallets expose to dapps an interface that allows them to act on behalf of the user, such as querying private state or sending transactions. Bear mind that, as in Ethereum, wallets should require user confirmation whenever carrying out a potentially sensitive action requested by a dapp.
@@ -27,8 +25,6 @@ In code, this translates to a wallet implementing an **AccountInterface** interf
 The account interface is used for creating an _execution request_ out of one or more _function calls_ requested by a dapp, as well as creating an _auth witness_ for a given message hash. Account contracts are expected to handle multiple function calls per transaction, since dapps may choose to batch multiple actions into a single request to the wallet.
 
 #include_code account-interface yarn-project/aztec.js/src/account/interface.ts typescript
-
-Refer to the page on [writing an account contract](../contracts/writing_contracts/accounts/write_accounts_contract.md) for an example on how to implement this interface.
 
 ## PXE interface
 

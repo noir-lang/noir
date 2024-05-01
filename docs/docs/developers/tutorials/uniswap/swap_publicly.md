@@ -1,5 +1,6 @@
 ---
 title: Swapping Publicly
+draft: true
 ---
 
 In this step we will create the flow for allowing a user to swap their tokens publicly on L1. It will have the functionality of letting anyone call this method on behalf of the user, assuming they have appropriate approvals. This means that an operator can pay gas fees on behalf of the user!

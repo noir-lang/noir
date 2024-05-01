@@ -16,10 +16,6 @@ This guide assumes you have followed the [quickstart](./quickstart.md).
 
 We will deploy a pre-compiled token contract, and send tokens privately, using the Sandbox.
 
-:::info
-Find the full code [here](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/sandbox-tutorial/token)
-:::
-
 We will create a `yarn` project called `token` (although `npm` works fine too).
 
 1. Initialize a yarn project

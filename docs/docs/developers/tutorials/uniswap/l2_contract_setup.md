@@ -1,5 +1,6 @@
 ---
 title: L2 Contract Setup
+draft: true
 ---
 
 As we mentioned in [the overview](./main.md), the Uniswap L2 contract will receive funds from the user and then burn funds on L2 to withdraw. To do this it calls `TokenBridge.exit_to_l1_public()` which burns funds on the Uniswap contract. The bridge needs approval from the Uniswap contract to burn its funds.
