@@ -1,9 +1,8 @@
-import React, { lazy, Suspense } from 'react';
+import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 
 import headerPic from '@site/static/img/homepage_header_pic.png';
-import { BeatLoader } from 'react-spinners';
 
 export default function Landing() {
   return (

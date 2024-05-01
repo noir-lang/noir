@@ -1,9 +1,7 @@
 use chumsky::prelude::*;
 
-use super::{
-    block, expression, fresh_statement, function, function_declaration_parameters,
-    function_return_type,
-};
+use super::function::function_return_type;
+use super::{block, expression, fresh_statement, function, function_declaration_parameters};
 
 use crate::ast::{
     Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,

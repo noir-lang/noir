@@ -30,6 +30,8 @@ pub enum ParserErrorReason {
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
+    #[error("distinct keyword is deprecated. The `distinct` behavior is now the default.")]
+    DistinctDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
     #[error(

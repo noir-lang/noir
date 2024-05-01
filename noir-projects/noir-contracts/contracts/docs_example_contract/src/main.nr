@@ -306,7 +306,7 @@ contract DocsExample {
         b: Field // The actual return type of our circuit is the PrivateCircuitPublicInputs struct, this will be the 
         // input to our kernel! 
         // docs:start:context-example-return
-    ) -> distinct pub PrivateCircuitPublicInputs {
+    ) -> pub PrivateCircuitPublicInputs {
         // docs:end:context-example-return
         // ************************************************************
         // The hasher is a structure used to generate a hash of the circuits inputs. 

@@ -1,6 +1,6 @@
 use dep::public_kernel_lib::PublicKernelAppLogicCircuitPrivateInputs;
 use dep::types::PublicKernelCircuitPublicInputs;
 
-unconstrained fn main(input: PublicKernelAppLogicCircuitPrivateInputs) -> distinct pub PublicKernelCircuitPublicInputs {
+unconstrained fn main(input: PublicKernelAppLogicCircuitPrivateInputs) ->  pub PublicKernelCircuitPublicInputs {
     input.public_kernel_app_logic()
 }

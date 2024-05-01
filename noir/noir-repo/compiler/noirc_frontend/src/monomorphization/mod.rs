@@ -142,8 +142,7 @@ pub fn monomorphize_debug(
         .collect();
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, return_visibility, kind, .. } =
-        monomorphizer.interner.function_meta(&main);
+    let FuncMeta { return_visibility, kind, .. } = monomorphizer.interner.function_meta(&main);
 
     let (debug_variables, debug_functions, debug_types) =
         monomorphizer.debug_type_tracker.extract_vars_and_types();
@@ -151,7 +150,6 @@ pub fn monomorphize_debug(
         functions,
         func_sigs,
         function_sig,
-        *return_distinctness,
         monomorphizer.return_location,
         *return_visibility,
         *kind == FunctionKind::Recursive,

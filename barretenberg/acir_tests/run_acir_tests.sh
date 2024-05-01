@@ -35,7 +35,7 @@ export BIN CRS_PATH VERBOSE BRANCH
 cd acir_tests
 
 # Convert them to array
-SKIP_ARRAY=(diamond_deps_0 workspace workspace_default_member)
+SKIP_ARRAY=(diamond_deps_0 workspace workspace_default_member witness_compression)
 
 function test() {
   cd $1

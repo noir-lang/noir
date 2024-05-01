@@ -33,10 +33,10 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
-    BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
+    InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
+    Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -294,21 +294,6 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     p.map_with_span(|((name, generics), typ), span| {
         TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, typ, span })
     })
-}
-
-fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
-    just(Token::Arrow)
-        .ignore_then(optional_distinctness())
-        .then(optional_visibility())
-        .then(spanned(parse_type()))
-        .or_not()
-        .map_with_span(|ret, span| match ret {
-            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
-            None => (
-                (Distinctness::DuplicationAllowed, Visibility::Private),
-                FunctionReturnType::Default(span),
-            ),
-        })
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -735,13 +720,6 @@ fn optional_visibility() -> impl NoirParser<Visibility> {
             None => Visibility::Private,
             _ => unreachable!("unexpected token found"),
         })
-}
-
-fn optional_distinctness() -> impl NoirParser<Distinctness> {
-    keyword(Keyword::Distinct).or_not().map(|opt| match opt {
-        Some(_) => Distinctness::Distinct,
-        None => Distinctness::DuplicationAllowed,
-    })
 }
 
 fn maybe_comp_time() -> impl NoirParser<bool> {
