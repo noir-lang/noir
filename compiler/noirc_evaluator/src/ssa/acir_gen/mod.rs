@@ -9,7 +9,8 @@ use self::acir_ir::generated_acir::BrilligStdlibFunc;
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
 use super::ir::function::FunctionId;
-use super::ir::instruction::{ConstrainError, UserDefinedConstrainError};
+use super::ir::instruction::{ConstrainError, ErrorSelector, ErrorType};
+use super::ir::printer::try_to_extract_string_from_error_payload;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -31,7 +32,7 @@ pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::{AssertionPayload, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
@@ -275,12 +276,12 @@ impl AcirValue {
     }
 }
 
+pub(crate) type Artifacts =
+    (Vec<GeneratedAcir>, Vec<BrilligBytecode>, BTreeMap<ErrorSelector, ErrorType>);
+
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(
-        self,
-        brillig: &Brillig,
-    ) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
+    pub(crate) fn into_acir(self, brillig: &Brillig) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelise this?
         let mut shared_context = SharedContext::default();
@@ -613,24 +614,39 @@ impl<'a> Context<'a> {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
 
-                let assert_message = if let Some(error) = assert_message {
-                    match error.as_ref() {
-                        ConstrainError::Intrinsic(string)
-                        | ConstrainError::UserDefined(UserDefinedConstrainError::Static(string)) => {
-                            Some(string.clone())
+                let assert_payload = if let Some(error) = assert_message {
+                    match error {
+                        ConstrainError::Intrinsic(string) => {
+                            Some(AssertionPayload::StaticString(string.clone()))
                         }
-                        ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
-                            call_instruction,
-                        )) => {
-                            self.convert_ssa_call(call_instruction, dfg, ssa, brillig, &[])?;
-                            None
+                        ConstrainError::UserDefined(error_selector, values) => {
+                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
+                                *error_selector,
+                                values,
+                                dfg,
+                            ) {
+                                Some(AssertionPayload::StaticString(constant_string))
+                            } else {
+                                let acir_vars: Vec<_> = values
+                                    .iter()
+                                    .map(|value| self.convert_value(*value, dfg))
+                                    .collect();
+
+                                let expressions_or_memory =
+                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                                Some(AssertionPayload::Dynamic(
+                                    error_selector.to_u64(),
+                                    expressions_or_memory,
+                                ))
+                            }
                         }
                     }
                 } else {
                     None
                 };
 
-                self.acir_context.assert_eq_var(lhs, rhs, assert_message)?;
+                self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
@@ -2703,7 +2719,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
+        let (acir_functions, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
@@ -2798,7 +2814,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
+        let (acir_functions, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
@@ -2888,7 +2904,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
+        let (acir_functions, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3001,9 +3017,8 @@ mod test {
 
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
-        println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) =
+        let (acir_functions, brillig_functions, _) =
             ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3059,7 +3074,7 @@ mod test {
 
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
-        let (acir_functions, brillig_functions) = ssa
+        let (acir_functions, brillig_functions, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3131,7 +3146,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) =
+        let (acir_functions, brillig_functions, _) =
             ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3219,7 +3234,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) =
+        let (acir_functions, brillig_functions, _) =
             ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");

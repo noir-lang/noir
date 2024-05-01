@@ -12,8 +12,9 @@ use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
+use noirc_printable_type::PrintableType;
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{borrow::Borrow, ops::Range};
 use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -203,6 +204,38 @@ impl AbiType {
     }
 }
 
+impl From<&AbiType> for PrintableType {
+    fn from(value: &AbiType) -> Self {
+        match value {
+            AbiType::Field => PrintableType::Field,
+            AbiType::String { length } => PrintableType::String { length: *length },
+            AbiType::Tuple { fields } => {
+                let fields = fields.iter().map(|field| field.into()).collect();
+                PrintableType::Tuple { types: fields }
+            }
+            AbiType::Array { length, typ } => {
+                let borrowed: &AbiType = typ.borrow();
+                PrintableType::Array { length: Some(*length), typ: Box::new(borrowed.into()) }
+            }
+            AbiType::Boolean => PrintableType::Boolean,
+            AbiType::Struct { path, fields } => {
+                let fields =
+                    fields.iter().map(|(name, field)| (name.clone(), field.into())).collect();
+                PrintableType::Struct {
+                    name: path.split("::").last().unwrap_or_default().to_string(),
+                    fields,
+                }
+            }
+            AbiType::Integer { sign: Sign::Unsigned, width } => {
+                PrintableType::UnsignedInteger { width: *width }
+            }
+            AbiType::Integer { sign: Sign::Signed, width } => {
+                PrintableType::SignedInteger { width: *width }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
@@ -223,6 +256,7 @@ pub struct AbiReturnType {
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
@@ -232,6 +266,7 @@ pub struct Abi {
     pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
     pub return_type: Option<AbiReturnType>,
     pub return_witnesses: Vec<Witness>,
+    pub error_types: BTreeMap<u64, AbiErrorType>,
 }
 
 impl Abi {
@@ -281,6 +316,7 @@ impl Abi {
             param_witnesses,
             return_type: self.return_type,
             return_witnesses: self.return_witnesses,
+            error_types: self.error_types,
         }
     }
 
@@ -547,6 +583,29 @@ fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
     result
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "error_kind", rename_all = "lowercase")]
+pub enum AbiErrorType {
+    FmtString { length: u64, item_types: Vec<AbiType> },
+    Custom(AbiType),
+}
+impl AbiErrorType {
+    pub fn from_type(context: &Context, typ: &Type) -> Self {
+        match typ {
+            Type::FmtString(len, item_types) => {
+                let length = len.evaluate_to_u64().expect("Cannot evaluate fmt length");
+                let Type::Tuple(item_types) = item_types.as_ref() else {
+                    unreachable!("FmtString items must be a tuple")
+                };
+                let item_types =
+                    item_types.iter().map(|typ| AbiType::from_type(context, typ)).collect();
+                Self::FmtString { length, item_types }
+            }
+            _ => Self::Custom(AbiType::from_type(context, typ)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
@@ -583,6 +642,7 @@ mod test {
                 visibility: AbiVisibility::Public,
             }),
             return_witnesses: vec![Witness(3)],
+            error_types: BTreeMap::default(),
         };
 
         // Note we omit return value from inputs

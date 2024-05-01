@@ -1,5 +1,12 @@
-use acvm::{acir::BlackBoxFunc, FieldElement};
+use std::hash::{Hash, Hasher};
+
+use acvm::{
+    acir::{circuit::STRING_ERROR_SELECTOR, BlackBoxFunc},
+    FieldElement,
+};
+use fxhash::FxHasher;
 use iter_extended::vecmap;
+use noirc_frontend::hir_def::types::Type as HirType;
 
 use super::{
     basic_block::BasicBlockId,
@@ -157,7 +164,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<Box<ConstrainError>>),
+    Constrain(ValueId, ValueId, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -346,12 +353,12 @@ impl Instruction {
                 // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
-                let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
-                    ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(call_instr)) => {
-                        let new_instr = call_instr.map_values(f);
-                        Box::new(ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
-                            new_instr,
-                        )))
+                let assert_message = assert_message.as_ref().map(|error| match error {
+                    ConstrainError::UserDefined(selector, payload_values) => {
+                        ConstrainError::UserDefined(
+                            *selector,
+                            payload_values.iter().map(|&value| f(value)).collect(),
+                        )
                     }
                     _ => error.clone(),
                 });
@@ -412,13 +419,10 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(error) = assert_error.as_ref() {
-                    if let ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
-                        call_instr,
-                    )) = error.as_ref()
-                    {
-                        call_instr.for_each_value(f);
-                    }
+                if let Some(ConstrainError::UserDefined(_, values)) = assert_error.as_ref() {
+                    values.iter().for_each(|&val| {
+                        f(val);
+                    });
                 }
             }
 
@@ -599,22 +603,36 @@ impl Instruction {
     }
 }
 
+pub(crate) type ErrorType = HirType;
+
+#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+pub(crate) struct ErrorSelector(u64);
+
+impl ErrorSelector {
+    pub(crate) fn new(typ: &ErrorType) -> Self {
+        match typ {
+            ErrorType::String(_) => Self(STRING_ERROR_SELECTOR),
+            _ => {
+                let mut hasher = FxHasher::default();
+                typ.hash(&mut hasher);
+                let hash = hasher.finish();
+                assert!(hash != 0, "ICE: Error type {} collides with the string error type", typ);
+                Self(hash)
+            }
+        }
+    }
+
+    pub(crate) fn to_u64(self) -> u64 {
+        self.0
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
     Intrinsic(String),
     // These are errors issued by the user
-    UserDefined(UserDefinedConstrainError),
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub(crate) enum UserDefinedConstrainError {
-    // These are errors which come from static strings specified by a Noir program
-    Static(String),
-    // These are errors which come from runtime expressions specified by a Noir program
-    // We store an `Instruction` as we want this Instruction to be atomic in SSA with
-    // a constrain instruction, and leave codegen of this instruction to lower level passes.
-    Dynamic(Instruction),
+    UserDefined(ErrorSelector, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {

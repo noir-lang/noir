@@ -529,6 +529,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         names,
+        error_types,
     } = create_program(
         program,
         options.show_ssa,
@@ -543,6 +544,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         visibility,
+        error_types,
     );
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 

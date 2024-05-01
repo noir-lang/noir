@@ -146,6 +146,15 @@ Inputs and outputs are similar to SchnorrVerify, except that because we use a di
 Because the Grumpkin scalar field is bigger than the ACIR field, we provide 2 ACIR fields representing the low and high parts of the Grumpkin scalar $a$:
 $a=low+high*2^{128},$ with $low, high < 2^{128}$
 
+**VariableBaseScalarMul**: scalar multiplication with a variable base/input point (P) of the embedded curve
+- input:
+    point_x, point_y representing x and y coordinates of input point P
+    scalar_low, scalar_high are 2 (field , 254), representing the low and high part of the input scalar. For Barretenberg, they must both be less than 128 bits.
+- output: x and y coordinates of $low*P+high*2^{128}*P$, where P is the input point P
+
+Because the Grumpkin scalar field is bigger than the ACIR field, we provide 2 ACIR fields representing the low and high parts of the Grumpkin scalar $a$:
+$a=low+high*2^{128},$ with $low, high < 2^{128}$
+
 **Keccak256**: Computes the Keccak-256 (Ethereum version) of the inputs.
 - inputs: Vector of bytes (FieldElement, 8)
 - outputs: Vector of 32 bytes (FieldElement, 8)

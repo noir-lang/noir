@@ -29,7 +29,9 @@ pub(crate) struct GeneratedBrillig {
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
 pub(crate) struct BrilligArtifact {
     pub(crate) byte_code: Vec<BrilligOpcode>,
-    /// A map of bytecode positions to assertion messages
+    /// A map of bytecode positions to assertion messages.
+    /// Some error messages (compiler intrinsics) are not emitted via revert data,
+    /// instead, they are handled externally so they don't add size to user programs.
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
     /// The set of jumps that need to have their locations
     /// resolved.

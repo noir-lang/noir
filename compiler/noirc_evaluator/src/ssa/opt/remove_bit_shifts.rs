@@ -97,7 +97,7 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(lhs);
         let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
         {
-            // Happy case is that we know precisely by how many bits the the integer will
+            // Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
             let bit_shift_size = rhs_constant.to_u128() as u32;
 

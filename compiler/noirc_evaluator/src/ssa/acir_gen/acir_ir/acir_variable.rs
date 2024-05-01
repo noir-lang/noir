@@ -9,7 +9,7 @@ use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
-use acvm::acir::circuit::Opcode;
+use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, Opcode};
 use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
@@ -495,7 +495,7 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        assert_message: Option<String>,
+        assert_message: Option<AssertionPayload>,
     ) -> Result<(), RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -511,12 +511,36 @@ impl AcirContext {
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
-        if let Some(message) = assert_message {
-            self.acir_ir.assert_messages.insert(self.acir_ir.last_acir_opcode_location(), message);
+        if let Some(payload) = assert_message {
+            self.acir_ir
+                .assertion_payloads
+                .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())
+    }
+
+    pub(crate) fn vars_to_expressions_or_memory(
+        &self,
+        values: &[AcirValue],
+    ) -> Result<Vec<ExpressionOrMemory>, RuntimeError> {
+        let mut result = Vec::with_capacity(values.len());
+        for value in values {
+            match value {
+                AcirValue::Var(var, _) => {
+                    result.push(ExpressionOrMemory::Expression(self.var_to_expression(*var)?));
+                }
+                AcirValue::Array(vars) => {
+                    let vars_as_vec: Vec<_> = vars.iter().cloned().collect();
+                    result.extend(self.vars_to_expressions_or_memory(&vars_as_vec)?);
+                }
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
+                    result.push(ExpressionOrMemory::Memory(*block_id));
+                }
+            }
+        }
+        Ok(result)
     }
 
     /// Adds a new Variable to context whose value will
@@ -985,9 +1009,10 @@ impl AcirContext {
                 let witness = self.var_to_witness(witness_var)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
                 if let Some(message) = message {
-                    self.acir_ir
-                        .assert_messages
-                        .insert(self.acir_ir.last_acir_opcode_location(), message);
+                    self.acir_ir.assertion_payloads.insert(
+                        self.acir_ir.last_acir_opcode_location(),
+                        AssertionPayload::StaticString(message.clone()),
+                    );
                 }
             }
             NumericType::NativeField => {

@@ -7,12 +7,11 @@ use crate::{
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
-
 use acvm::acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        OpcodeLocation,
+        AssertionPayload, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -61,7 +60,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload>,
 
     pub(crate) warnings: Vec<SsaReport>,
 
@@ -282,6 +281,13 @@ impl GeneratedAcir {
             BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                 low: inputs[0][0],
                 high: inputs[1][0],
+                outputs: (outputs[0], outputs[1]),
+            },
+            BlackBoxFunc::VariableBaseScalarMul => BlackBoxFuncCall::VariableBaseScalarMul {
+                point_x: inputs[0][0],
+                point_y: inputs[1][0],
+                scalar_low: inputs[2][0],
+                scalar_high: inputs[3][0],
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -603,12 +609,12 @@ impl GeneratedAcir {
             );
         }
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
-            self.assert_messages.insert(
+            self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
                     acir_index: self.opcodes.len() - 1,
                     brillig_index: *brillig_index,
                 },
-                message.clone(),
+                AssertionPayload::StaticString(message.clone()),
             );
         }
     }
@@ -670,6 +676,10 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // is the low and high limbs of the scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(2),
 
+        // Inputs for variable based scalar multiplication are the x and y coordinates of the base point and low
+        // and high limbs of the scalar
+        BlackBoxFunc::VariableBaseScalarMul => Some(4),
+
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
 
@@ -724,7 +734,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::FixedBaseScalarMul
+        | BlackBoxFunc::VariableBaseScalarMul
+        | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd

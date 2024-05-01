@@ -130,7 +130,7 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, ValueOrArray,
+        ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -173,6 +173,16 @@ pub(crate) mod tests {
             _high: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into()))
+        }
+
+        fn variable_base_scalar_mul(
+            &self,
+            _point_x: &FieldElement,
+            _point_y: &FieldElement,
+            _scalar_low: &FieldElement,
+            _scalar_high: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((7_u128.into(), 8_u128.into()))
         }
 
         fn ec_add(
@@ -270,7 +280,7 @@ pub(crate) mod tests {
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 });
+        context.push_opcode(BrilligOpcode::Trap { revert_data: HeapArray::default() });
 
         context.stop_instruction();
 
