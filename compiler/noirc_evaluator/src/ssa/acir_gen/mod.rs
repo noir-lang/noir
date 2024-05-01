@@ -401,7 +401,10 @@ impl<'a> Context<'a> {
                             panic!("ACIR function should have been inlined earlier if not marked otherwise");
                         }
                     }
-                    InlineType::Fold | InlineType::Never => {}
+                    InlineType::NoPredicates => {
+                        panic!("All ACIR functions marked with #[no_predicates] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute");
+                    }
+                    InlineType::Fold => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
@@ -2664,10 +2667,14 @@ mod test {
         basic_call_with_outputs_assert(InlineType::Fold);
         call_output_as_next_call_input(InlineType::Fold);
         basic_nested_call(InlineType::Fold);
+    }
 
-        call_output_as_next_call_input(InlineType::Never);
-        basic_nested_call(InlineType::Never);
-        basic_call_with_outputs_assert(InlineType::Never);
+    #[test]
+    #[should_panic]
+    fn basic_calls_no_predicates() {
+        call_output_as_next_call_input(InlineType::NoPredicates);
+        basic_nested_call(InlineType::NoPredicates);
+        basic_call_with_outputs_assert(InlineType::NoPredicates);
     }
 
     #[test]
@@ -2806,7 +2813,7 @@ mod test {
         let (acir_functions, _) = ssa
             .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
-        // The expected result should look very similar to the abvoe test expect that the input witnesses of the `Call`
+        // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
 
         let main_acir = &acir_functions[0];

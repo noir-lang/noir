@@ -36,13 +36,30 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
+    ///
+    /// There are some attributes that allow inlining a function at a different step of codegen.
+    /// Currently this is just `InlineType::NoPredicates` for which we have a flag indicating
+    /// whether treating that inline functions. The default is to treat these functions as entry points.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn inline_functions(mut self) -> Ssa {
-        self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
-            let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
-            (entry_point, new_function)
-        });
+    pub(crate) fn inline_functions(self) -> Ssa {
+        Self::inline_functions_inner(self, true)
+    }
 
+    // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
+    pub(crate) fn inline_functions_with_no_predicates(self) -> Ssa {
+        Self::inline_functions_inner(self, false)
+    }
+
+    fn inline_functions_inner(mut self, no_predicates_is_entry_point: bool) -> Ssa {
+        self.functions = btree_map(
+            get_entry_point_functions(&self, no_predicates_is_entry_point),
+            |entry_point| {
+                let new_function =
+                    InlineContext::new(&self, entry_point, no_predicates_is_entry_point)
+                        .inline_all(&self);
+                (entry_point, new_function)
+            },
+        );
         self
     }
 }
@@ -60,6 +77,8 @@ struct InlineContext {
 
     // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
     entry_point: FunctionId,
+
+    no_predicates_is_entry_point: bool,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -97,10 +116,19 @@ struct PerFunctionContext<'function> {
 /// should be left in the final program.
 /// This is the `main` function, any Acir functions with a [fold inline type][InlineType::Fold],
 /// and any brillig functions used.
-fn get_entry_point_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
+fn get_entry_point_functions(
+    ssa: &Ssa,
+    no_predicates_is_entry_point: bool,
+) -> BTreeSet<FunctionId> {
     let functions = ssa.functions.iter();
     let mut entry_points = functions
-        .filter(|(_, function)| function.runtime().is_entry_point())
+        .filter(|(_, function)| {
+            // If we have not already finished the flattening pass, functions marked
+            // to not have predicates should be marked as entry points.
+            let no_predicates_is_entry_point =
+                no_predicates_is_entry_point && function.is_no_predicates();
+            function.runtime().is_entry_point() || no_predicates_is_entry_point
+        })
         .map(|(id, _)| *id)
         .collect::<BTreeSet<_>>();
 
@@ -114,11 +142,21 @@ impl InlineContext {
     /// The function being inlined into will always be the main function, although it is
     /// actually a copy that is created in case the original main is still needed from a function
     /// that could not be inlined calling it.
-    fn new(ssa: &Ssa, entry_point: FunctionId) -> InlineContext {
+    fn new(
+        ssa: &Ssa,
+        entry_point: FunctionId,
+        no_predicates_is_entry_point: bool,
+    ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
         builder.set_runtime(source.runtime());
-        Self { builder, recursion_level: 0, entry_point, call_stack: CallStack::new() }
+        Self {
+            builder,
+            recursion_level: 0,
+            entry_point,
+            call_stack: CallStack::new(),
+            no_predicates_is_entry_point,
+        }
     }
 
     /// Start inlining the entry point function and all functions reachable from it.
@@ -351,11 +389,17 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => {
-                        if ssa.functions[&function].runtime().is_entry_point() {
+                    Some(func_id) => {
+                        let function = &ssa.functions[&func_id];
+                        // If we have not already finished the flattening pass, functions marked
+                        // to not have predicates should be marked as entry points.
+                        let no_predicates_is_entry_point =
+                            self.context.no_predicates_is_entry_point
+                                && function.is_no_predicates();
+                        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
                             self.push_instruction(*id);
                         } else {
-                            self.inline_function(ssa, *id, function, arguments);
+                            self.inline_function(ssa, *id, func_id, arguments);
                         }
                     }
                     None => self.push_instruction(*id),

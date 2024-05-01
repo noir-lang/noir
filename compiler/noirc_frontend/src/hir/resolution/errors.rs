@@ -90,8 +90,8 @@ pub enum ResolverError {
     MutableGlobal { span: Span },
     #[error("Self-referential structs are not supported")]
     SelfReferentialStruct { span: Span },
-    #[error("#[inline(tag)] attribute is only allowed on constrained functions")]
-    InlineAttributeOnUnconstrained { ident: Ident },
+    #[error("#[no_predicates] attribute is only allowed on constrained functions")]
+    NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
 }
@@ -362,16 +362,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
-            ResolverError::InlineAttributeOnUnconstrained { ident } => {
+            ResolverError::NoPredicatesAttributeOnUnconstrained { ident } => {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[inline(tag)] attribute on unconstrained function {name}. Only allowed on constrained functions"),
-                    "misplaced #[inline(tag)] attribute".to_string(),
+                    format!("misplaced #[no_predicates] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    "misplaced #[no_predicates] attribute".to_string(),
                     ident.0.span(),
                 );
 
-                diag.add_note("The `#[inline(tag)]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
+                diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident } => {

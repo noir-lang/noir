@@ -1,5 +1,5 @@
 [package]
-name = "inline_never_basic"
+name = "no_predicates_basic"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.27.0"
