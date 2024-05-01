@@ -27,6 +27,10 @@ impl Gas {
     pub fn is_empty(self) -> bool {
         (self.da_gas == 0) & (self.l2_gas == 0)
     }
+
+    pub fn within(self, limits: Gas) -> bool {
+        (self.da_gas <= limits.da_gas) & (self.l2_gas <= limits.l2_gas)
+    }
 }
 
 impl Add for Gas {

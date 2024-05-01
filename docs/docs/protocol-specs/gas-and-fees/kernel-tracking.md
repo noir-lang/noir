@@ -206,6 +206,7 @@ It must:
 - check that there are enqueued public functions or a public teardown function
 - partition the side effects produced during private execution into revertible and non-revertible sets of `PublicAccumulatedData`
 - compute gas used for the revertible and non-revertible. Both sets can have a DA component, but the revertible set will also include the teardown gas allocations the user specified (if any). This ensures that the user effectively pre-pays for the gas consumed in teardown.
+- ensure the gas used (across revertible and non-revertible) is less than the gas limits
 - ensure that `fee_payer` is set, and set it in the `PublicKernelCircuitPublicInputs`
 - copy the constants from the `PrivateKernelData` to the `PublicKernelCircuitPublicInputs.constants`
 

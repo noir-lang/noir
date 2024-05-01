@@ -115,6 +115,8 @@ mod tests {
     impl PrivateKernelTailInputsBuilder {
         pub fn new() -> Self {
             let mut previous_kernel = FixtureBuilder::new();
+            previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1_000_000, 1_000_000);
+
             previous_kernel.append_new_nullifiers(1);
 
             PrivateKernelTailInputsBuilder {
@@ -571,5 +573,13 @@ mod tests {
             + Gas::tx_overhead() // tx overhead
             + Gas::new(DA_GAS_PER_BYTE * DA_BYTES_PER_FIELD * 1, 0); // tx nullifier
         assert_eq(public_inputs.end.gas_used, expected_gas_consumed);
+    }
+
+    #[test(should_fail_with="The gas used exceeds the gas limits")]
+    unconstrained fn gas_limits_are_enforced() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+        builder.previous_kernel.tx_context.gas_settings.teardown_gas_limits = Gas::new(300, 300);
+        builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1, 1);
+        builder.failed();
     }
 }

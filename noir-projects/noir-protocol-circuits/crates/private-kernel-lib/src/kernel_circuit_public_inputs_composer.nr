@@ -113,13 +113,20 @@ impl KernelCircuitPublicInputsComposer {
 
     pub fn finish(self) -> KernelCircuitPublicInputs {
         let teardown_gas = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.teardown_gas_limits;
-        self.public_inputs.finish_tail(teardown_gas)
+        let inputs = self.public_inputs.finish_tail(teardown_gas);
+        let limits = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.gas_limits;
+        assert(inputs.end.gas_used.within(limits), "The gas used exceeds the gas limits");
+        inputs
     }
 
     pub fn finish_to_public(self) -> PublicKernelCircuitPublicInputs {
         let min_revertible_side_effect_counter = self.previous_kernel.public_inputs.min_revertible_side_effect_counter;
         let teardown_gas = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.teardown_gas_limits;
-        self.public_inputs.finish_to_public(teardown_gas, min_revertible_side_effect_counter)
+        let inputs = self.public_inputs.finish_to_public(teardown_gas, min_revertible_side_effect_counter);
+        let limits = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.gas_limits;
+        let total_gas_used = inputs.end.gas_used + inputs.end_non_revertible.gas_used;
+        assert(total_gas_used.within(limits), "The gas used exceeds the gas limits");
+        inputs
     }
 
     fn silo_values(&mut self) {

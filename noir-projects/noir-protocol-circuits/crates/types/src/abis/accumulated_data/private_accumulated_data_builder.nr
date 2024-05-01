@@ -39,15 +39,10 @@ struct PrivateAccumulatedDataBuilder {
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
-    gas_used: Gas,
-    non_revertible_gas_used: Gas,
 }
 
 impl PrivateAccumulatedDataBuilder {
     pub fn finish(self) -> PrivateAccumulatedData {
-        assert(self.gas_used.is_empty());
-        assert(self.non_revertible_gas_used.is_empty());
-
         PrivateAccumulatedData {
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
@@ -318,8 +313,6 @@ impl Empty for PrivateAccumulatedDataBuilder {
             unencrypted_log_preimages_length: 0,
             private_call_stack: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
-            gas_used: Gas::empty(),
-            non_revertible_gas_used: Gas::empty(),
         }
     }
 }

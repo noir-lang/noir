@@ -133,9 +133,7 @@ impl FixtureBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             private_call_stack: self.private_call_stack,
-            public_call_stack: self.public_call_stack,
-            gas_used: self.gas_used,
-            non_revertible_gas_used: self.non_revertible_gas_used
+            public_call_stack: self.public_call_stack
         };
         public_inputs.finish()
     }
