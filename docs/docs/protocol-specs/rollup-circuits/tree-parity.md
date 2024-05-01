@@ -68,13 +68,11 @@ And the `sha_root` which must match the root of the sha256 message tree from the
 The circuit computes the two trees using the same inputs, and then we ensure that the elements of the trees match the inbox later in the [state transitioner](./../l1-smart-contracts/index.md#overview).
 It proves parity of the leaves in the two trees.
 
-
 ```mermaid
 classDiagram
 direction LR
 
 class ParityPublicInputs {
-    aggregation_object: AggregationObject
     sha_root: Fr[2]
     converted_root: Fr
 }
@@ -87,6 +85,7 @@ RootParityInputs *-- RootParityInput: children
 
 class RootParityInput {
     proof: Proof
+    verification_key: VerificationKey
     public_inputs: ParityPublicInputs
 }
 RootParityInput *-- ParityPublicInputs: public_inputs
@@ -95,6 +94,7 @@ class BaseParityInputs {
     msgs: List~Fr[2]~
 }
 ```
+
 The logic of the circuits is quite simple - build both a SHA256 and a snark-friendly tree from the same inputs.
 For optimization purposes, it can be useful to have the layers take more than 2 inputs to increase the task of every layer.
 If each just take 2 inputs, the overhead of recursing through the layers might be higher than the actual work done.
@@ -108,17 +108,15 @@ def base_parity_circuit(inputs: BaseParityInputs) -> ParityPublicInputs:
 
 def root_parity_circuit(inputs: RootParityInputs) -> ParityPublicInputs:
     for msg in inputs.children:
-        assert msg.proof.verify(msg.public_inputs);
+        assert msg.proof.verify(msg.public_inputs, msg.verification_key);
 
     sha_root = MERKLE_TREE(
-      [msg.public_inputs.sha_root for msg in inputs.children], 
+      [msg.public_inputs.sha_root for msg in inputs.children],
       SHA256
     );
     converted_root = MERKLE_TREE(
-      [msg.public_inputs.converted_root for msg in inputs.children], 
+      [msg.public_inputs.converted_root for msg in inputs.children],
       SNARK_FRIENDLY_HASH_FUNCTION
     );
     return ParityPublicInputs(sha_root, converted_root)
 ```
-
-
