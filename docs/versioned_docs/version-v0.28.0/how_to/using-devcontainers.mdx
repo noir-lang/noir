@@ -84,12 +84,14 @@ ENTRYPOINT ["nargo"]
     "vscode": {
       "extensions": ["noir-lang.vscode-noir"]
     }
-  }
+  },
+  "onCreateCommand": "git add . && git commit -m 'setting up devcontainer' && git push"
 }
 ```
-#### 6. Commit and push your changes
+#### 6. Commit and push your changes 
+This will be automatically completed after pasting the above content.You needn't do anything until a note shows a rebuild prompt that the developer configuration is complete.
 
-This will pull the new image and build it, so it could take a minute or so
+#### 7. Just click the "Rebuild now" button
 
 #### 8. Done! 
 Just wait for the build to finish, and there's your easy Noir environment.
