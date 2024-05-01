@@ -4,6 +4,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 
 use crate::ast::Ident;
+use crate::composer::Composer;
 use crate::{
     graph::CrateId,
     hir::{
@@ -23,6 +24,7 @@ pub(crate) fn resolve_structs(
     context: &mut Context,
     structs: BTreeMap<StructId, UnresolvedStruct>,
     crate_id: CrateId,
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     // This is necessary to avoid cloning the entire struct map
@@ -34,7 +36,7 @@ pub(crate) fn resolve_structs(
     for (type_id, typ) in structs {
         let file_id = typ.file_id;
         let (generics, fields, resolver_errors) =
-            resolve_struct_fields(context, crate_id, type_id, typ);
+            resolve_struct_fields(context, crate_id, type_id, typ, composer);
         errors.extend(vecmap(resolver_errors, |err| (err.into(), file_id)));
         context.def_interner.update_struct(type_id, |struct_def| {
             struct_def.set_fields(fields);
@@ -71,12 +73,13 @@ fn resolve_struct_fields(
     krate: CrateId,
     type_id: StructId,
     unresolved: UnresolvedStruct,
+    composer: &mut Composer,
 ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
     let file_id = unresolved.file_id;
     let (generics, fields, errors) =
-        Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file_id)
+        Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file_id, composer)
             .resolve_struct_fields(unresolved.struct_def, type_id);
 
     (generics, fields, errors)
