@@ -333,33 +333,34 @@ impl Ssa {
         // Also at the moment we specify Distinctness as part of the ABI exclusively rather than the function itself
         // so this will need to be updated.
         let main_func_acir = &mut acirs[0];
-
-        // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
-        // layout for serializing those types as if they were being passed as inputs.
-        //
-        // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
-        // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
-        // working with rather than following the standard ABI encoding rules.
-        //
-        // TODO: We're being conservative here by generating a new witness for every expression.
-        // This means that we're likely to get a number of constraints which are just renumbering witnesses.
-        // This can be tackled by:
-        // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
-        // - Modifying existing constraints to rearrange their outputs so they are suitable
-        //   - See: https://github.com/noir-lang/noir/pull/4467
-        let distinct_return_witness: Vec<_> = main_func_acir
-            .return_witnesses
-            .clone()
-            .into_iter()
-            .map(|return_witness| {
-                main_func_acir.create_witness_for_expression(&Expression::from(return_witness))
-            })
-            .collect();
-
-        main_func_acir.return_witnesses = distinct_return_witness;
+        generate_distinct_return_witnesses(main_func_acir);
 
         Ok((acirs, brillig))
     }
+}
+
+fn generate_distinct_return_witnesses(acir: &mut GeneratedAcir) {
+    // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
+    // layout for serializing those types as if they were being passed as inputs.
+    //
+    // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
+    // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
+    // working with rather than following the standard ABI encoding rules.
+    //
+    // TODO: We're being conservative here by generating a new witness for every expression.
+    // This means that we're likely to get a number of constraints which are just renumbering witnesses.
+    // This can be tackled by:
+    // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
+    // - Modifying existing constraints to rearrange their outputs so they are suitable
+    //   - See: https://github.com/noir-lang/noir/pull/4467
+    let distinct_return_witness: Vec<_> = acir
+        .return_witnesses
+        .clone()
+        .into_iter()
+        .map(|return_witness| acir.create_witness_for_expression(&Expression::from(return_witness)))
+        .collect();
+
+    acir.return_witnesses = distinct_return_witness;
 }
 
 impl<'a> Context<'a> {
