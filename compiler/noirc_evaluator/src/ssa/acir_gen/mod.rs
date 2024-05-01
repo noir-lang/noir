@@ -353,12 +353,9 @@ fn generate_distinct_return_witnesses(acir: &mut GeneratedAcir) {
     // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
     // - Modifying existing constraints to rearrange their outputs so they are suitable
     //   - See: https://github.com/noir-lang/noir/pull/4467
-    let distinct_return_witness: Vec<_> = acir
-        .return_witnesses
-        .clone()
-        .into_iter()
-        .map(|return_witness| acir.create_witness_for_expression(&Expression::from(return_witness)))
-        .collect();
+    let distinct_return_witness = vecmap(acir.return_witnesses.clone(), |return_witness| {
+        acir.create_witness_for_expression(&Expression::from(return_witness))
+    });
 
     acir.return_witnesses = distinct_return_witness;
 }
