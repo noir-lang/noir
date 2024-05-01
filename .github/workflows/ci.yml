@@ -78,33 +78,33 @@ jobs:
         timeout-minutes: 25
         run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --no-output +${{ matrix.test }}
 
-  bench-summary:
-    needs: e2e
-    runs-on: ${{ inputs.username || github.actor }}-x86
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 100 # Downloading base benchmark from master requires access to history
-          ref: "${{ github.event.pull_request.head.sha }}"
-      - uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_key: build-${{ inputs.username || github.actor }}-x86
-      - name: "Build and upload bench aggregate file"
-        working-directory: ./yarn-project/scripts
-        run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} +bench-aggregate
-      - name: "Download base benchmark"
-        if: ${{ github.event_name == 'pull_request' }}
-        run: scripts/logs/download_base_benchmark_from_s3.sh
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          BENCH_FOLDER: ./yarn-project/scripts/bench
-          PULL_REQUEST: "${{ github.event.pull_request.number }}"
-      - name: "Generate summary comment if pull request"
-        if: ${{ github.event_name == 'pull_request' }}
-        working-directory: ./yarn-project/scripts
-        run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} +bench-comment
+  # bench-summary:
+  #   needs: e2e
+  #   runs-on: ${{ inputs.username || github.actor }}-x86
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 100 # Downloading base benchmark from master requires access to history
+  #         ref: "${{ github.event.pull_request.head.sha }}"
+  #     - uses: ./.github/ci-setup-action
+  #       with:
+  #         dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+  #         concurrency_key: build-${{ inputs.username || github.actor }}-x86
+  #     - name: "Build and upload bench aggregate file"
+  #       working-directory: ./yarn-project/scripts
+  #       run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} +bench-aggregate
+  #     - name: "Download base benchmark"
+  #       if: ${{ github.event_name == 'pull_request' }}
+  #       run: scripts/logs/download_base_benchmark_from_s3.sh
+  #       env:
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         BENCH_FOLDER: ./yarn-project/scripts/bench
+  #         PULL_REQUEST: "${{ github.event.pull_request.number }}"
+  #     - name: "Generate summary comment if pull request"
+  #       if: ${{ github.event_name == 'pull_request' }}
+  #       working-directory: ./yarn-project/scripts
+  #       run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} +bench-comment
 
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
