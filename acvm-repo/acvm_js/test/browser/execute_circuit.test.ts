@@ -103,6 +103,16 @@ it('successfully executes a FixedBaseScalarMul opcode', async () => {
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
+it('successfully executes a VariableBaseScalarMul opcode', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/variable_base_scalar_mul');
+
+  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
+
+  expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
+});
+
 it('successfully executes a SchnorrVerify opcode', async () => {
   const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/schnorr_verify');
 

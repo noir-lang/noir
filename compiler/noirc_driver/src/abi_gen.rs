@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiValue};
+use noirc_abi::{Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue};
 use noirc_frontend::ast::Visibility;
 use noirc_frontend::{
     hir::Context,
-    hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern},
+    hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern, types::Type},
     macros_api::{HirExpression, HirLiteral},
     node_interner::{FuncId, NodeInterner},
 };
@@ -20,12 +20,17 @@ pub(super) fn gen_abi(
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
     return_visibility: Visibility,
+    error_types: BTreeMap<u64, Type>,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
     let return_type = return_type
         .map(|typ| AbiReturnType { abi_type: typ, visibility: return_visibility.into() });
-    Abi { parameters, return_type, param_witnesses, return_witnesses }
+    let error_types = error_types
+        .into_iter()
+        .map(|(selector, typ)| (selector, AbiErrorType::from_type(context, &typ)))
+        .collect();
+    Abi { parameters, return_type, param_witnesses, return_witnesses, error_types }
 }
 
 pub(super) fn compute_function_abi(

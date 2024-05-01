@@ -252,7 +252,7 @@ pub fn check_crate(
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
-        let diagnostic: CustomDiagnostic = error.into();
+        let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
     }));
 
@@ -529,6 +529,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         names,
+        error_types,
     } = create_program(
         program,
         options.show_ssa,
@@ -543,6 +544,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         visibility,
+        error_types,
     );
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 

@@ -1,7 +1,8 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::ast::{BinaryOpKind, UnaryOp};
+use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
+use crate::macros_api::Signedness;
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
@@ -890,36 +891,6 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
-            // Special-case == and != for arrays
-            (Array(x_size, x_type), Array(y_size, y_type))
-                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
-            {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::ArrayLen,
-                    span: op.location.span,
-                });
-
-                let (_, use_impl) = self.comparator_operand_type_rules(x_type, y_type, op, span)?;
-
-                // If the size is not constant, we must fall back to a user-provided impl for
-                // equality on slices.
-                let size = x_size.follow_bindings();
-                let use_impl = use_impl || size.evaluate_to_u64().is_none();
-                Ok((Bool, use_impl))
-            }
-
-            (String(x_size), String(y_size)) => {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: *x_size.clone(),
-                    actual: *y_size.clone(),
-                    span: op.location.span,
-                    source: Source::StringLen,
-                });
-
-                Ok((Bool, false))
-            }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
@@ -1159,11 +1130,30 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    self.unify(
+                        rhs_type,
+                        &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+                        || TypeCheckError::InvalidShiftSize { span },
+                    );
+                    let use_impl = if lhs_type.is_numeric() {
+                        let integer_type = Type::polymorphic_integer(self.interner);
+                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
+                    } else {
+                        true
+                    };
+                    return Ok((lhs_type.clone(), use_impl));
+                }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
+                        return Err(TypeCheckError::InvalidShiftSize { span });
+                    }
+                    return Ok((Integer(*sign_x, *bit_width_x), false));
+                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -1195,6 +1185,12 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if rhs == &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
+                        return Ok((lhs.clone(), true));
+                    }
+                    return Err(TypeCheckError::InvalidShiftSize { span });
+                }
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),

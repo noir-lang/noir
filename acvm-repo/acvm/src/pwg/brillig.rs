@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use acir::{
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
-        brillig::{Brillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        OpcodeLocation,
+        OpcodeLocation, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
     native_types::WitnessMap,
     FieldElement,
@@ -30,19 +30,6 @@ pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
-    /// Evaluates if the Brillig block should be skipped entirely
-    pub(super) fn should_skip(
-        witness: &WitnessMap,
-        brillig: &Brillig,
-    ) -> Result<bool, OpcodeResolutionError> {
-        // If the predicate is `None`, the block should never be skipped
-        // If the predicate is `Some` but we cannot find a value, then we return stalled
-        match &brillig.predicate {
-            Some(pred) => Ok(get_value(pred, witness)?.is_zero()),
-            None => Ok(false),
-        }
-    }
-
     /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap,
@@ -61,26 +48,6 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
             }
         }
         Ok(())
-    }
-
-    // TODO: Delete this old method once `Brillig` is deleted
-    /// Constructs a solver for a Brillig block given the bytecode and initial
-    /// witness.
-    pub(crate) fn new(
-        initial_witness: &WitnessMap,
-        memory: &HashMap<BlockId, MemoryOpSolver>,
-        brillig: &'b Brillig,
-        bb_solver: &'b B,
-        acir_index: usize,
-    ) -> Result<Self, OpcodeResolutionError> {
-        let vm = Self::setup_brillig_vm(
-            initial_witness,
-            memory,
-            &brillig.inputs,
-            &brillig.bytecode,
-            bb_solver,
-        )?;
-        Ok(Self { vm, acir_index })
     }
 
     /// Constructs a solver for a Brillig block given the bytecode and initial
@@ -193,32 +160,51 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
             VMStatus::Failure { reason, call_stack } => {
-                let message = match reason {
-                    FailureReason::RuntimeError { message } => Some(message),
+                let payload = match reason {
+                    FailureReason::RuntimeError { message } => {
+                        Some(ResolvedAssertionPayload::String(message))
+                    }
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
                         // Since noir can only revert with strings currently, we can parse return data as a string
                         if revert_data_size == 0 {
                             None
                         } else {
                             let memory = self.vm.get_memory();
-                            let bytes = memory
+                            let mut revert_values_iter = memory
                                 [revert_data_offset..(revert_data_offset + revert_data_size)]
-                                .iter()
-                                .map(|memory_value| {
-                                    memory_value
-                                        .try_into()
-                                        .expect("Assert message character is not a byte")
-                                })
-                                .collect();
-                            Some(
-                                String::from_utf8(bytes)
-                                    .expect("Assert message is not valid UTF-8"),
-                            )
+                                .iter();
+                            let error_selector = revert_values_iter
+                                .next()
+                                .expect("Incorrect revert data size")
+                                .try_into()
+                                .expect("Error selector is not u64");
+
+                            match error_selector {
+                                STRING_ERROR_SELECTOR => {
+                                    // If the error selector is 0, it means the error is a string
+                                    let string = revert_values_iter
+                                        .map(|memory_value| {
+                                            let as_u8: u8 = memory_value
+                                                .try_into()
+                                                .expect("String item is not u8");
+                                            as_u8 as char
+                                        })
+                                        .collect();
+                                    Some(ResolvedAssertionPayload::String(string))
+                                }
+                                _ => {
+                                    // If the error selector is not 0, it means the error is a custom error
+                                    Some(ResolvedAssertionPayload::Raw(
+                                        error_selector,
+                                        revert_values_iter.map(|value| value.to_field()).collect(),
+                                    ))
+                                }
+                            }
                         }
                     }
                 };
                 Err(OpcodeResolutionError::BrilligFunctionFailed {
-                    message,
+                    payload,
                     call_stack: call_stack
                         .iter()
                         .map(|brillig_index| OpcodeLocation::Brillig {

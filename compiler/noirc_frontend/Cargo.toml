@@ -10,10 +10,10 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
+noirc_arena.workspace = true
 noirc_errors.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
-arena.workspace = true
 iter-extended.workspace = true
 chumsky.workspace = true
 thiserror.workspace = true

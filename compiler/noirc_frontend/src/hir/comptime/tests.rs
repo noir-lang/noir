@@ -77,6 +77,20 @@ fn mutating_arrays() {
 }
 
 #[test]
+fn mutate_in_new_scope() {
+    let program = "fn main() -> pub u8 {
+        let mut x = 0;
+        x += 1;
+        {
+            x += 1;
+        }
+        x
+    }";
+    let result = interpret(program, vec!["main".into()]);
+    assert_eq!(result, Value::U8(2));
+}
+
+#[test]
 fn for_loop() {
     let program = "fn main() -> pub u8 {
         let mut x = 0;

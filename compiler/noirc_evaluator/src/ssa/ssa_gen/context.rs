@@ -11,9 +11,8 @@ use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
-use crate::ssa::ir::dfg::DataFlowGraph;
+use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::function::{FunctionId as IrFunctionId, InlineType};
 use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
@@ -126,8 +125,7 @@ impl<'a> FunctionContext<'a> {
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
-            let inline_type = if func.should_fold { InlineType::Fold } else { InlineType::Inline };
-            self.builder.new_function(func.name.clone(), id, inline_type);
+            self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
         self.add_parameters_to_scope(&func.parameters);
     }
@@ -346,7 +344,7 @@ impl<'a> FunctionContext<'a> {
                         self.insert_safe_cast(result, result_type, location)
                     }
                     BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location, true)
+                        self.check_shift_overflow(result, rhs, bit_size, location)
                     }
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
@@ -410,7 +408,7 @@ impl<'a> FunctionContext<'a> {
                             }
                         }
 
-                        self.check_shift_overflow(result, rhs, bit_size, location, false);
+                        self.check_shift_overflow(result, rhs, bit_size, location);
                     }
 
                     _ => unreachable!("operator {} should not overflow", operator),
@@ -432,32 +430,12 @@ impl<'a> FunctionContext<'a> {
         rhs: ValueId,
         bit_size: u32,
         location: Location,
-        is_signed: bool,
     ) -> ValueId {
         let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
-        let rhs = if is_signed {
-            self.insert_safe_cast(rhs, Type::unsigned(bit_size), location)
-        } else {
-            rhs
-        };
-        // Bit-shift with a negative number is an overflow
-        if is_signed {
-            // We compute the sign of rhs.
-            let half_width = self.builder.numeric_constant(
-                FieldElement::from(2_i128.pow(bit_size - 1)),
-                Type::unsigned(bit_size),
-            );
-            let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
-            self.builder.set_location(location).insert_constrain(
-                sign,
-                one,
-                Some("attempt to bit-shift with overflow".to_owned().into()),
-            );
-        }
+        assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
-        let max = self
-            .builder
-            .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
+        let max =
+            self.builder.numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(8));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
             overflow,
@@ -566,22 +544,12 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
-        let result_type = self.builder.type_of_value(lhs);
-        let mut result = match operator {
-            BinaryOpKind::Equal | BinaryOpKind::NotEqual
-                if matches!(result_type, Type::Array(..)) =>
-            {
-                return self.insert_array_equality(lhs, operator, rhs, location)
-            }
-            _ => {
-                let op = convert_operator(operator);
-                if operator_requires_swapped_operands(operator) {
-                    std::mem::swap(&mut lhs, &mut rhs);
-                }
+        let op = convert_operator(operator);
+        if operator_requires_swapped_operands(operator) {
+            std::mem::swap(&mut lhs, &mut rhs);
+        }
 
-                self.builder.set_location(location).insert_binary(lhs, op, rhs)
-            }
-        };
+        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
         if matches!(
@@ -593,94 +561,6 @@ impl<'a> FunctionContext<'a> {
         ) {
             result = self.check_overflow(result, lhs, rhs, operator, location);
         }
-
-        if operator_requires_not(operator) {
-            result = self.builder.insert_not(result);
-        }
-        result.into()
-    }
-
-    /// The frontend claims to support equality (==) on arrays, so we must support it in SSA here.
-    /// The actual BinaryOp::Eq in SSA is meant only for primitive numeric types so we encode an
-    /// entire equality loop on each array element. The generated IR is as follows:
-    ///
-    ///   ...
-    ///   result_alloc = allocate
-    ///   store u1 1 in result_alloc
-    ///   jmp loop_start(0)
-    /// loop_start(i: Field):
-    ///   v0 = lt i, array_len
-    ///   jmpif v0, then: loop_body, else: loop_end
-    /// loop_body():
-    ///   v1 = array_get lhs, index i
-    ///   v2 = array_get rhs, index i
-    ///   v3 = eq v1, v2
-    ///   v4 = load result_alloc
-    ///   v5 = and v4, v3
-    ///   store v5 in result_alloc
-    ///   v6 = add i, Field 1
-    ///   jmp loop_start(v6)
-    /// loop_end():
-    ///   result = load result_alloc
-    fn insert_array_equality(
-        &mut self,
-        lhs: ValueId,
-        operator: BinaryOpKind,
-        rhs: ValueId,
-        location: Location,
-    ) -> Values {
-        let lhs_type = self.builder.type_of_value(lhs);
-        let rhs_type = self.builder.type_of_value(rhs);
-
-        let (array_length, element_type) = match (lhs_type, rhs_type) {
-            (
-                Type::Array(lhs_composite_type, lhs_length),
-                Type::Array(rhs_composite_type, rhs_length),
-            ) => {
-                assert!(
-                    lhs_composite_type.len() == 1 && rhs_composite_type.len() == 1,
-                    "== is unimplemented for arrays of structs"
-                );
-                assert_eq!(lhs_composite_type[0], rhs_composite_type[0]);
-                assert_eq!(lhs_length, rhs_length, "Expected two arrays of equal length");
-                (lhs_length, lhs_composite_type[0].clone())
-            }
-            _ => unreachable!("Expected two array values"),
-        };
-
-        let loop_start = self.builder.insert_block();
-        let loop_body = self.builder.insert_block();
-        let loop_end = self.builder.insert_block();
-
-        // pre-loop
-        let result_alloc = self.builder.set_location(location).insert_allocate(Type::bool());
-        let true_value = self.builder.numeric_constant(1u128, Type::bool());
-        self.builder.insert_store(result_alloc, true_value);
-        let zero = self.builder.length_constant(0u128);
-        self.builder.terminate_with_jmp(loop_start, vec![zero]);
-
-        // loop_start
-        self.builder.switch_to_block(loop_start);
-        let i = self.builder.add_block_parameter(loop_start, Type::length_type());
-        let array_length = self.builder.length_constant(array_length as u128);
-        let v0 = self.builder.insert_binary(i, BinaryOp::Lt, array_length);
-        self.builder.terminate_with_jmpif(v0, loop_body, loop_end);
-
-        // loop body
-        self.builder.switch_to_block(loop_body);
-        let v1 = self.builder.insert_array_get(lhs, i, element_type.clone());
-        let v2 = self.builder.insert_array_get(rhs, i, element_type);
-        let v3 = self.builder.insert_binary(v1, BinaryOp::Eq, v2);
-        let v4 = self.builder.insert_load(result_alloc, Type::bool());
-        let v5 = self.builder.insert_binary(v4, BinaryOp::And, v3);
-        self.builder.insert_store(result_alloc, v5);
-        let one = self.builder.length_constant(1u128);
-        let v6 = self.builder.insert_binary(i, BinaryOp::Add, one);
-        self.builder.terminate_with_jmp(loop_start, vec![v6]);
-
-        // loop end
-        self.builder.switch_to_block(loop_end);
-        let mut result = self.builder.insert_load(result_alloc, Type::bool());
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
@@ -1101,72 +981,6 @@ fn operator_requires_not(op: BinaryOpKind) -> bool {
 fn operator_requires_swapped_operands(op: BinaryOpKind) -> bool {
     use BinaryOpKind::*;
     matches!(op, Greater | LessEqual)
-}
-
-/// If the operation requires its result to be truncated because it is an integer, the maximum
-/// number of bits that result may occupy is returned.
-fn operator_result_max_bit_size_to_truncate(
-    op: BinaryOpKind,
-    lhs: ValueId,
-    rhs: ValueId,
-    dfg: &DataFlowGraph,
-) -> Option<u32> {
-    let lhs_type = dfg.type_of_value(lhs);
-    let rhs_type = dfg.type_of_value(rhs);
-
-    let get_bit_size = |typ| match typ {
-        Type::Numeric(NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size }) => {
-            Some(bit_size)
-        }
-        _ => None,
-    };
-
-    let lhs_bit_size = get_bit_size(lhs_type)?;
-    let rhs_bit_size = get_bit_size(rhs_type)?;
-    use BinaryOpKind::*;
-    match op {
-        Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
-        Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
-        Multiply => {
-            if lhs_bit_size == 1 || rhs_bit_size == 1 {
-                // Truncation is unnecessary as multiplication by a boolean value cannot cause an overflow.
-                None
-            } else {
-                Some(lhs_bit_size + rhs_bit_size)
-            }
-        }
-
-        ShiftLeft => {
-            if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
-                // Happy case is that we know precisely by how many bits the the integer will
-                // increase: lhs_bit_size + rhs
-                return Some(lhs_bit_size + (rhs_constant.to_u128() as u32));
-            }
-            // Unhappy case is that we don't yet know the rhs value, (even though it will
-            // eventually have to resolve to a constant). The best we can is assume the value of
-            // rhs to be the maximum value of it's numeric type. If that turns out to be larger
-            // than the native field's bit size, we full back to using that.
-
-            // The formula for calculating the max bit size of a left shift is:
-            // lhs_bit_size + 2^{rhs_bit_size} - 1
-            // Inferring the max bit size of left shift from its operands can result in huge
-            // number, that might not only be larger than the native field's max bit size, but
-            // furthermore might not be representable as a u32. Hence we use overflow checks and
-            // fallback to the native field's max bits.
-            let field_max_bits = FieldElement::max_num_bits();
-            let (rhs_bit_size_pow_2, overflows) = 2_u32.overflowing_pow(rhs_bit_size);
-            if overflows {
-                return Some(field_max_bits);
-            }
-            let (max_bits_plus_1, overflows) = rhs_bit_size_pow_2.overflowing_add(lhs_bit_size);
-            if overflows {
-                return Some(field_max_bits);
-            }
-            let max_bit_size = std::cmp::min(max_bits_plus_1 - 1, field_max_bits);
-            Some(max_bit_size)
-        }
-        _ => None,
-    }
 }
 
 /// Converts the given operator to the appropriate BinaryOp.

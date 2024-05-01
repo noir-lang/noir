@@ -97,7 +97,7 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(lhs);
         let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
         {
-            // Happy case is that we know precisely by how many bits the the integer will
+            // Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
             let bit_shift_size = rhs_constant.to_u128() as u32;
 
@@ -117,7 +117,7 @@ impl Context<'_> {
         } else {
             // we use a predicate to nullify the result in case of overflow
             let bit_size_var =
-                self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
+                self.numeric_constant(FieldElement::from(bit_size as u128), Type::unsigned(8));
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ.clone());
             // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value

@@ -201,7 +201,26 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: FixedBaseScalarMul expects one register argument and one array result"
+                    "ICE: FixedBaseScalarMul expects two register arguments and one array result"
+                )
+            }
+        }
+        BlackBoxFunc::VariableBaseScalarMul => {
+            if let (
+                [BrilligVariable::SingleAddr(point_x), BrilligVariable::SingleAddr(point_y), BrilligVariable::SingleAddr(scalar_low), BrilligVariable::SingleAddr(scalar_high)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                brillig_context.black_box_op_instruction(BlackBoxOp::VariableBaseScalarMul {
+                    point_x: point_x.address,
+                    point_y: point_y.address,
+                    scalar_low: scalar_low.address,
+                    scalar_high: scalar_high.address,
+                    result: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!(
+                    "ICE: VariableBaseScalarMul expects four register arguments and one array result"
                 )
             }
         }

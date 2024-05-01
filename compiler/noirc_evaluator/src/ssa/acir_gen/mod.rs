@@ -9,7 +9,8 @@ use self::acir_ir::generated_acir::BrilligStdlibFunc;
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
 use super::ir::function::FunctionId;
-use super::ir::instruction::{ConstrainError, UserDefinedConstrainError};
+use super::ir::instruction::{ConstrainError, ErrorSelector, ErrorType};
+use super::ir::printer::try_to_extract_string_from_error_payload;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -27,11 +28,11 @@ use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
-use crate::ssa::ir::function::InlineType;
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::{AssertionPayload, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
@@ -41,7 +42,6 @@ use acvm::{
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_frontend::ast::Distinctness;
 
 #[derive(Default)]
 struct SharedContext {
@@ -276,13 +276,12 @@ impl AcirValue {
     }
 }
 
+pub(crate) type Artifacts =
+    (Vec<GeneratedAcir>, Vec<BrilligBytecode>, BTreeMap<ErrorSelector, ErrorType>);
+
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(
-        self,
-        brillig: &Brillig,
-        abi_distinctness: Distinctness,
-    ) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
+    pub(crate) fn into_acir(self, brillig: &Brillig) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelise this?
         let mut shared_context = SharedContext::default();
@@ -329,32 +328,36 @@ impl Ssa {
             bytecode: brillig.byte_code,
         });
 
-        // TODO: check whether doing this for a single circuit's return witnesses is correct.
-        // We probably need it for all foldable circuits, as any circuit being folded is essentially an entry point. However, I do not know how that
-        // plays a part when we potentially want not inlined functions normally as part of the compiler.
-        // Also at the moment we specify Distinctness as part of the ABI exclusively rather than the function itself
-        // so this will need to be updated.
-        let main_func_acir = &mut acirs[0];
-        match abi_distinctness {
-            Distinctness::Distinct => {
-                // Create a witness for each return witness we have
-                // to guarantee that the return witnesses are distinct
-                let distinct_return_witness: Vec<_> = main_func_acir
-                    .return_witnesses
-                    .clone()
-                    .into_iter()
-                    .map(|return_witness| {
-                        main_func_acir
-                            .create_witness_for_expression(&Expression::from(return_witness))
-                    })
-                    .collect();
-
-                main_func_acir.return_witnesses = distinct_return_witness;
+        let runtime_types = self.functions.values().map(|function| function.runtime());
+        for (acir, runtime_type) in acirs.iter_mut().zip(runtime_types) {
+            if matches!(runtime_type, RuntimeType::Acir(_)) {
+                generate_distinct_return_witnesses(acir);
             }
-            Distinctness::DuplicationAllowed => {}
         }
-        Ok((acirs, brillig))
+
+        Ok((acirs, brillig, self.error_selector_to_type))
     }
+}
+
+fn generate_distinct_return_witnesses(acir: &mut GeneratedAcir) {
+    // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
+    // layout for serializing those types as if they were being passed as inputs.
+    //
+    // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
+    // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
+    // working with rather than following the standard ABI encoding rules.
+    //
+    // TODO: We're being conservative here by generating a new witness for every expression.
+    // This means that we're likely to get a number of constraints which are just renumbering witnesses.
+    // This can be tackled by:
+    // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
+    // - Modifying existing constraints to rearrange their outputs so they are suitable
+    //   - See: https://github.com/noir-lang/noir/pull/4467
+    let distinct_return_witness = vecmap(acir.return_witnesses.clone(), |return_witness| {
+        acir.create_witness_for_expression(&Expression::from(return_witness))
+    });
+
+    acir.return_witnesses = distinct_return_witness;
 }
 
 impl<'a> Context<'a> {
@@ -385,12 +388,15 @@ impl<'a> Context<'a> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
-                    InlineType::Fold => {}
                     InlineType::Inline => {
                         if function.id() != ssa.main_id {
                             panic!("ACIR function should have been inlined earlier if not marked otherwise");
                         }
                     }
+                    InlineType::NoPredicates => {
+                        panic!("All ACIR functions marked with #[no_predicates] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute");
+                    }
+                    InlineType::Fold => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
@@ -611,24 +617,39 @@ impl<'a> Context<'a> {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
 
-                let assert_message = if let Some(error) = assert_message {
-                    match error.as_ref() {
-                        ConstrainError::Intrinsic(string)
-                        | ConstrainError::UserDefined(UserDefinedConstrainError::Static(string)) => {
-                            Some(string.clone())
+                let assert_payload = if let Some(error) = assert_message {
+                    match error {
+                        ConstrainError::Intrinsic(string) => {
+                            Some(AssertionPayload::StaticString(string.clone()))
                         }
-                        ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
-                            call_instruction,
-                        )) => {
-                            self.convert_ssa_call(call_instruction, dfg, ssa, brillig, &[])?;
-                            None
+                        ConstrainError::UserDefined(error_selector, values) => {
+                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
+                                *error_selector,
+                                values,
+                                dfg,
+                            ) {
+                                Some(AssertionPayload::StaticString(constant_string))
+                            } else {
+                                let acir_vars: Vec<_> = values
+                                    .iter()
+                                    .map(|value| self.convert_value(*value, dfg))
+                                    .collect();
+
+                                let expressions_or_memory =
+                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                                Some(AssertionPayload::Dynamic(
+                                    error_selector.to_u64(),
+                                    expressions_or_memory,
+                                ))
+                            }
                         }
                     }
                 } else {
                     None
                 };
 
-                self.acir_context.assert_eq_var(lhs, rhs, assert_message)?;
+                self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
@@ -2610,25 +2631,22 @@ mod test {
         },
         FieldElement,
     };
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::{
         brillig::Brillig,
         ssa::{
             acir_gen::acir_ir::generated_acir::BrilligStdlibFunc,
             function_builder::FunctionBuilder,
-            ir::{
-                function::{FunctionId, InlineType},
-                instruction::BinaryOp,
-                map::Id,
-                types::Type,
-            },
+            ir::{function::FunctionId, instruction::BinaryOp, map::Id, types::Type},
         },
     };
 
     fn build_basic_foo_with_return(
         builder: &mut FunctionBuilder,
         foo_id: FunctionId,
-        is_brillig_func: bool,
+        // `InlineType` can only exist on ACIR functions, so if the option is `None` we should generate a Brillig function
+        inline_type: Option<InlineType>,
     ) {
         // fn foo f1 {
         // b0(v0: Field, v1: Field):
@@ -2636,10 +2654,10 @@ mod test {
         //     constrain v2 == u1 0
         //     return v0
         // }
-        if is_brillig_func {
-            builder.new_brillig_function("foo".into(), foo_id);
+        if let Some(inline_type) = inline_type {
+            builder.new_function("foo".into(), foo_id, inline_type);
         } else {
-            builder.new_function("foo".into(), foo_id, InlineType::Fold);
+            builder.new_brillig_function("foo".into(), foo_id);
         }
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());
@@ -2650,8 +2668,29 @@ mod test {
         builder.terminate_with_return(vec![foo_v0]);
     }
 
+    /// Check that each `InlineType` which prevents inlining functions generates code in the same manner
     #[test]
-    fn basic_call_with_outputs_assert() {
+    fn basic_calls_fold() {
+        basic_call_with_outputs_assert(InlineType::Fold);
+        call_output_as_next_call_input(InlineType::Fold);
+        basic_nested_call(InlineType::Fold);
+    }
+
+    #[test]
+    #[should_panic]
+    fn basic_calls_no_predicates() {
+        basic_call_with_outputs_assert(InlineType::NoPredicates);
+        call_output_as_next_call_input(InlineType::NoPredicates);
+        basic_nested_call(InlineType::NoPredicates);
+    }
+
+    #[test]
+    #[should_panic]
+    fn call_without_inline_attribute() {
+        basic_call_with_outputs_assert(InlineType::Inline);
+    }
+
+    fn basic_call_with_outputs_assert(inline_type: InlineType) {
         // acir(inline) fn main f0 {
         //     b0(v0: Field, v1: Field):
         //       v2 = call f1(v0, v1)
@@ -2679,12 +2718,12 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, false);
+        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+        let (acir_functions, _, _) = ssa
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -2745,8 +2784,7 @@ mod test {
         }
     }
 
-    #[test]
-    fn call_output_as_next_call_input() {
+    fn call_output_as_next_call_input(inline_type: InlineType) {
         // acir(inline) fn main f0 {
         //     b0(v0: Field, v1: Field):
         //       v3 = call f1(v0, v1)
@@ -2775,14 +2813,14 @@ mod test {
         builder.insert_constrain(main_call1_results[0], main_call2_results[0], None);
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, false);
+        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+        let (acir_functions, _, _) = ssa
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
-        // The expected result should look very similar to the abvoe test expect that the input witnesses of the `Call`
+        // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
 
         let main_acir = &acir_functions[0];
@@ -2794,8 +2832,7 @@ mod test {
         check_call_opcode(&main_opcodes[1], 1, vec![Witness(2), Witness(1)], vec![Witness(3)]);
     }
 
-    #[test]
-    fn basic_nested_call() {
+    fn basic_nested_call(inline_type: InlineType) {
         // SSA for the following Noir program:
         // fn main(x: Field, y: pub Field) {
         //     let z = func_with_nested_foo_call(x, y);
@@ -2851,7 +2888,7 @@ mod test {
         builder.new_function(
             "func_with_nested_foo_call".into(),
             func_with_nested_foo_call_id,
-            InlineType::Fold,
+            inline_type,
         );
         let func_with_nested_call_v0 = builder.add_parameter(Type::field());
         let func_with_nested_call_v1 = builder.add_parameter(Type::field());
@@ -2866,12 +2903,12 @@ mod test {
             .to_vec();
         builder.terminate_with_return(vec![foo_call[0]]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, false);
+        build_basic_foo_with_return(&mut builder, foo_id, Some(inline_type));
 
         let ssa = builder.finish();
 
-        let (acir_functions, _) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+        let (acir_functions, _, _) = ssa
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -2887,9 +2924,10 @@ mod test {
 
         let func_with_nested_call_acir = &acir_functions[1];
         let func_with_nested_call_opcodes = func_with_nested_call_acir.opcodes();
+
         assert_eq!(
             func_with_nested_call_opcodes.len(),
-            2,
+            3,
             "Should have an expression and a call to a nested `foo`"
         );
         // Should call foo f2
@@ -2977,16 +3015,14 @@ mod test {
         builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, true);
-        build_basic_foo_with_return(&mut builder, bar_id, true);
+        build_basic_foo_with_return(&mut builder, foo_id, None);
+        build_basic_foo_with_return(&mut builder, bar_id, None);
 
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
-        println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
-            .expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) =
+            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         assert_eq!(brillig_functions.len(), 2, "Should only have generated two Brillig functions");
@@ -3041,8 +3077,8 @@ mod test {
 
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&Brillig::default(), noirc_frontend::ast::Distinctness::Distinct)
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3106,16 +3142,15 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, true);
+        build_basic_foo_with_return(&mut builder, foo_id, None);
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
-            .expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) =
+            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         // We expect 3 brillig functions:
@@ -3192,17 +3227,18 @@ mod test {
 
         builder.terminate_with_return(vec![]);
 
-        build_basic_foo_with_return(&mut builder, foo_id, true);
-        build_basic_foo_with_return(&mut builder, bar_id, false);
+        // Build a Brillig function
+        build_basic_foo_with_return(&mut builder, foo_id, None);
+        // Build an ACIR function which has the same logic as the Brillig function above
+        build_basic_foo_with_return(&mut builder, bar_id, Some(InlineType::Fold));
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions) = ssa
-            .into_acir(&brillig, noirc_frontend::ast::Distinctness::Distinct)
-            .expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) =
+            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
         // We expect 3 brillig functions:
@@ -3277,18 +3313,15 @@ mod test {
         // This check right now expects to only call one Brillig function.
         let mut num_normal_brillig_calls = 0;
         for (i, opcode) in opcodes.iter().enumerate() {
-            match opcode {
-                Opcode::BrilligCall { id, .. } => {
-                    if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
-                        // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
-                        continue;
-                    }
-                    // We only generate one normal Brillig call so we should expect a function ID of `0`
-                    let expected_id = 0u32;
-                    assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
-                    num_normal_brillig_calls += 1;
+            if let Opcode::BrilligCall { id, .. } = opcode {
+                if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
+                    // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
+                    continue;
                 }
-                _ => {}
+                // We only generate one normal Brillig call so we should expect a function ID of `0`
+                let expected_id = 0u32;
+                assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
+                num_normal_brillig_calls += 1;
             }
         }
 

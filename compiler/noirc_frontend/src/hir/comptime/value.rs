@@ -116,7 +116,7 @@ impl Value {
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
-                let item = "returning closures from a comptime fn";
+                let item = "Returning closures from a comptime fn";
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {

@@ -33,10 +33,10 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
-    BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
+    InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
+    Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -235,16 +235,27 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = attributes::attributes()
         .then(maybe_comp_time())
+        .then(spanned(keyword(Keyword::Mut)).or_not())
         .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
         .then(ident().map(Pattern::Identifier));
 
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
-    p.validate(|((((attributes, comptime), pattern), r#type), expression), span, emit| {
-        let global_attributes = attributes::validate_secondary_attributes(attributes, span, emit);
-        LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
-    })
+    p.validate(
+        |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
+            let global_attributes =
+                attributes::validate_secondary_attributes(attributes, span, emit);
+
+            // Only comptime globals are allowed to be mutable, but we always parse the `mut`
+            // and throw the error in name resolution.
+            if let Some((_, mut_span)) = mutable {
+                let span = mut_span.merge(pattern.span());
+                pattern = Pattern::Mutable(Box::new(pattern), span, false);
+            }
+            LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
+        },
+    )
     .map(TopLevelStatement::Global)
 }
 
@@ -283,21 +294,6 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     p.map_with_span(|((name, generics), typ), span| {
         TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, typ, span })
     })
-}
-
-fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
-    just(Token::Arrow)
-        .ignore_then(optional_distinctness())
-        .then(optional_visibility())
-        .then(spanned(parse_type()))
-        .or_not()
-        .map_with_span(|ret, span| match ret {
-            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
-            None => (
-                (Distinctness::DuplicationAllowed, Visibility::Private),
-                FunctionReturnType::Default(span),
-            ),
-        })
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -532,15 +528,16 @@ where
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::Comptime)
-        .ignore_then(choice((
-            declaration(expr),
-            for_loop(expr_no_constructors, statement.clone()),
-            block(statement).map_with_span(|block, span| {
-                StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
-            }),
-        )))
-        .map(|statement| StatementKind::Comptime(Box::new(statement)))
+    let comptime_statement = choice((
+        declaration(expr),
+        for_loop(expr_no_constructors, statement.clone()),
+        block(statement).map_with_span(|block, span| {
+            StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
+        }),
+    ))
+    .map_with_span(|kind, span| Box::new(Statement { kind, span }));
+
+    keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
 }
 
 /// Comptime in an expression position only accepts entire blocks
@@ -725,18 +722,11 @@ fn optional_visibility() -> impl NoirParser<Visibility> {
         })
 }
 
-fn optional_distinctness() -> impl NoirParser<Distinctness> {
-    keyword(Keyword::Distinct).or_not().map(|opt| match opt {
-        Some(_) => Distinctness::Distinct,
-        None => Distinctness::DuplicationAllowed,
-    })
-}
-
 fn maybe_comp_time() -> impl NoirParser<bool> {
     keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
             emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("comptime"),
+                ParserErrorReason::ExperimentalFeature("Comptime values"),
                 span,
             ));
         }
