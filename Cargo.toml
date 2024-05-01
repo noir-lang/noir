@@ -4,6 +4,7 @@ members = [
     # Aztec Macro crate for metaprogramming
     "aztec_macros",
     # Compiler crates
+    "compiler/noirc_arena",
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
@@ -11,10 +12,7 @@ members = [
     "compiler/noirc_printable_type",
     "compiler/fm",
     "compiler/wasm",
-    # Utility crates used by the Noir compiler
-    "compiler/utils/arena",
-    "compiler/utils/iter-extended",
-    # Crates related to tooling built ontop of the Noir compiler
+    # Crates related to tooling built on top of the Noir compiler
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
     "tooling/lsp",
@@ -35,13 +33,15 @@ members = [
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
+    # Utility crates
+    "utils/iter-extended",
 ]
 default-members = ["tooling/nargo_cli", "tooling/acvm_cli"]
 resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.27.0"
+version = "0.28.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -52,18 +52,17 @@ repository = "https://github.com/noir-lang/noir/"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.43.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.43.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.43.0", path = "acvm-repo/acvm" }
-brillig = { version = "0.43.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.43.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.43.0", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "0.43.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "0.44.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.44.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.44.0", path = "acvm-repo/acvm" }
+brillig = { version = "0.44.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.44.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.44.0", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "0.44.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
-arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
-iter-extended = { path = "compiler/utils/iter-extended" }
+noirc_arena = { path = "compiler/noirc_arena" }
 noirc_driver = { path = "compiler/noirc_driver" }
 noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
@@ -79,6 +78,9 @@ noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
+
+# Misc utils crates
+iter-extended = { path = "utils/iter-extended" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }

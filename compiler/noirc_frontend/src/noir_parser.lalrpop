@@ -61,7 +61,7 @@ extern {
         "break" => BorrowedToken::Keyword(noir_token::Keyword::Break),
         "call_data" => BorrowedToken::Keyword(noir_token::Keyword::CallData),
         "char" => BorrowedToken::Keyword(noir_token::Keyword::Char),
-        "comptime" => BorrowedToken::Keyword(noir_token::Keyword::CompTime),
+        "comptime" => BorrowedToken::Keyword(noir_token::Keyword::Comptime),
         "constrain" => BorrowedToken::Keyword(noir_token::Keyword::Constrain),
         "continue" => BorrowedToken::Keyword(noir_token::Keyword::Continue),
         "contract" => BorrowedToken::Keyword(noir_token::Keyword::Contract),

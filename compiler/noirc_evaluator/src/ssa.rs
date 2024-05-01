@@ -9,10 +9,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::{
-    brillig::Brillig,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::errors::{RuntimeError, SsaReport};
 use acvm::acir::{
     circuit::{
         brillig::BrilligBytecode, Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs,
@@ -64,6 +61,9 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
@@ -316,10 +316,6 @@ impl SsaBuilder {
     ) -> Result<Self, RuntimeError> {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
-    }
-
-    fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
-        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {
