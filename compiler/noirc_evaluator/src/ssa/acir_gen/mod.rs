@@ -326,11 +326,11 @@ impl Ssa {
         let brillig = vecmap(shared_context.generated_brillig, |brillig| BrilligBytecode {
             bytecode: brillig.byte_code,
         });
-      
+
         for acir in acirs.iter_mut() {
-            generate_distinct_return_witnesses(acir, Distinctness::Distinct);
+            generate_distinct_return_witnesses(acir);
         }
-      
+
         Ok((acirs, brillig))
     }
 }
