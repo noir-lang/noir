@@ -95,7 +95,6 @@ it('end-to-end proof creation and verification (inner)', async () => {
 });
 
 it('end-to-end proving and verification with different instances', async () => {
-  console.log('got here');
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -108,10 +107,8 @@ it('end-to-end proving and verification with different instances', async () => {
 
   // bb.js part
   const prover = new Backend(assert_lt_program);
-  console.log('got prover');
 
   const proof = await prover.generateProof(witness);
-  console.log('got proof');
 
   const verifier = new Backend(assert_lt_program);
   const proof_is_valid = await verifier.verifyProof(proof);
