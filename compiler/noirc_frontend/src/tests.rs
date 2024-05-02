@@ -1369,6 +1369,16 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     }
 
     #[test]
+    fn numeric_generic_arith() {
+        let src = r#"
+            type Outer<N> = [u8; 2 * N + 1];
+            fn main(_arg: Outer<1>) {}
+        "#;
+        // assert_eq!(get_program_errors(src).len(), 0);
+        assert_eq!(get_program_errors(src), vec![]);
+    }
+
+    #[test]
     fn ban_mutable_globals() {
         // Mutable globals are only allowed in a comptime context
         let src = r#"

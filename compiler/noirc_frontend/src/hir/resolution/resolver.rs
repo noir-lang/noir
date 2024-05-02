@@ -40,7 +40,7 @@ use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
+use crate::{BinaryTypeOperator, Generics, GenericArith, GenericArithOpKind, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -586,7 +586,7 @@ impl<'a> Resolver<'a> {
                 let env = Box::new(self.resolve_type_inner(*env, new_variables));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::GenericArith(GenericArith::NamedGeneric(..), _) => {
                         Type::Function(args, ret, env)
                     }
                     _ => {
@@ -753,7 +753,7 @@ impl<'a> Resolver<'a> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some((name, var, _)) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(var.clone(), name.clone()));
+                return Some(Type::GenericArith(GenericArith::NamedGeneric(var.clone(), name.clone()), Shared::new(vec![])));
             }
         }
 
@@ -767,7 +767,7 @@ impl<'a> Resolver<'a> {
                 if let Some(error) = error {
                     self.push_err(error.into());
                 }
-                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
+                Some(Type::GenericArith(GenericArith::Constant(self.eval_global_as_array_length(id, path))))
             }
             _ => None,
         }
@@ -787,7 +787,7 @@ impl<'a> Resolver<'a> {
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
                 // wont be bound over but this one has no name since we do not currently
                 // require users to explicitly be generic over array lengths.
-                Type::NamedGeneric(typevar, Rc::new("".into()))
+                Type::GenericArith(GenericArith::NamedGeneric(typevar, Rc::new("".into())))
             }
             Some(length) => self.convert_expression_type(length),
         }
@@ -798,25 +798,70 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeExpression::Variable(path) => {
                 self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                     self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    Type::Constant(0)
+                    Type::GenericArith(GenericArith::Constant(0))
                 })
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+            UnresolvedTypeExpression::Constant(int, _) => Type::GenericArith(GenericArith::Constant(int)),
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, op_span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function()(lhs, rhs))
+                    // (Type::Constant(lhs), Type::Constant(rhs)) => {
+                    //     Type::Constant(op.function()(lhs, rhs))
+                    // }
+
+                    (Type::GenericArith(rhs), Type::GenericArith(lhs)) => {
+                        match (lhs, rhs) {
+                            (GenericArith::Constant(lhs), GenericArith::Constant(rhs)) => {
+                                Type::GenericArith(GenericArith::Constant(op.function()(lhs, rhs)))
+                            }
+                            (lhs, rhs) => {
+                                match op {
+                                    BinaryTypeOperator::Addition => {
+                                        Type::GenericArith(GenericArith::Op {
+                                            kind: GenericArithOpKind::Add,
+                                            lhs: Box::new(lhs),
+                                            rhs: Box::new(rhs),
+                                        })
+                                    }
+                                    BinaryTypeOperator::Multiplication => {
+                                        Type::GenericArith(GenericArith::Op {
+                                            kind: GenericArithOpKind::Mul,
+                                            lhs: Box::new(lhs),
+                                            rhs: Box::new(rhs),
+                                        })
+                                    }
+                                    BinaryTypeOperator::Subtraction => {
+                                        Type::GenericArith(GenericArith::Op {
+                                            kind: GenericArithOpKind::Sub,
+                                            lhs: Box::new(lhs),
+                                            rhs: Box::new(rhs),
+                                        })
+                                    }
+                                    _ => {
+                                        self.push_err(ResolverError::InvalidGenericArithOp { span: op_span });
+                                        Type::GenericArith(GenericArith::Constant(0))
+                                    }
+                                }
+                            }
+                        }
+
+
                     }
-                    (lhs, _) => {
-                        let span =
-                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        Type::Constant(0)
+
+                    (lhs, rhs) => {
+
+                        // TODO cleanup
+                        // let span =
+                        //     if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                        // // TODO: revert before PR
+                        // dbg!("convert_expression_type", &lhs, &rhs);
+                        self.push_err(ResolverError::InvalidArrayLengthExpr { span: op_span });
+                        Type::GenericArith(GenericArith::Constant(0))
                     }
+
                 }
             }
         }
@@ -1195,8 +1240,9 @@ impl<'a> Resolver<'a> {
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
-            | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
+            // TODO
+            // | Type::Constant(_)
+            // | Type::NamedGeneric(_, _)
             | Type::Code
             | Type::Forall(_, _) => (),
 
@@ -1207,7 +1253,7 @@ impl<'a> Resolver<'a> {
             }
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, name)) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
@@ -1232,7 +1278,7 @@ impl<'a> Resolver<'a> {
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
+                    if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, name)) = generic {
                         if struct_type.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1243,7 +1289,7 @@ impl<'a> Resolver<'a> {
             }
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
+                    if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, name)) = generic {
                         if alias.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1254,12 +1300,12 @@ impl<'a> Resolver<'a> {
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, name)) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, name)) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
@@ -2109,10 +2155,16 @@ impl<'a> Resolver<'a> {
                             let expression = let_statement.expression;
                             self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
                         } else {
+                            // TODO: revert before PR
+                            dbg!("Global", definition);
                             Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
                         }
                     }
-                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                    _ => {
+                        // TODO: revert before PR
+                        dbg!("Ident", definition);
+                        Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                    }
                 }
             }
             HirExpression::Infix(infix) => {
@@ -2138,7 +2190,12 @@ impl<'a> Resolver<'a> {
                     BinaryOpKind::Modulo => Ok(lhs % rhs),
                 }
             }
-            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+            _other => {
+                // TODO: revert before PR
+                dbg!("_other", _other);
+
+                Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+            }
         }
     }
 

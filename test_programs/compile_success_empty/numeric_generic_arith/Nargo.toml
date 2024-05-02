@@ -1,0 +1,7 @@
+[package]
+name = "numeric_generic_arith"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]
