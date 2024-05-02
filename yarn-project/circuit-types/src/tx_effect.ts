@@ -8,13 +8,8 @@ import {
   RevertCode,
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
-import { sha256 } from '@aztec/foundation/crypto';
-import {
-  BufferReader,
-  serializeArrayOfBufferableToVector,
-  serializeToBuffer,
-  truncateAndPad,
-} from '@aztec/foundation/serialize';
+import { sha256Trunc } from '@aztec/foundation/crypto';
+import { BufferReader, serializeArrayOfBufferableToVector, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
@@ -157,7 +152,7 @@ export class TxEffect {
       unencryptedLogsHashKernel0,
     ]);
 
-    return truncateAndPad(sha256(inputValue));
+    return sha256Trunc(inputValue);
   }
 
   static random(

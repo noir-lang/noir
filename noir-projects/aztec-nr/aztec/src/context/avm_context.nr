@@ -82,7 +82,7 @@ impl PublicContextInterface for AvmContext {
         nullifier_exists(unsiloed_nullifier, address.to_field()) == 1
     }
 
-    fn emit_unencrypted_log<T>(&mut self, log: T) {
+    fn emit_unencrypted_log<T,N,M>(&mut self, log: T) {
         let event_selector = 5;  // Matches current PublicContext.
         self.emit_unencrypted_log(event_selector, log);
     }

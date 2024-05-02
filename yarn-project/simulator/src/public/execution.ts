@@ -55,6 +55,15 @@ export interface PublicExecutionResult {
    */
   unencryptedLogs: UnencryptedFunctionL2Logs;
   /**
+   * Length of the unencrypted log preimages emitted in this function call.
+   */
+  unencryptedLogPreimagesLength: Fr;
+  /**
+   * Unencrypted logs emitted during this call AND any nested calls.
+   * Useful for maintaining correct ordering in ts.
+   */
+  allUnencryptedLogs: UnencryptedFunctionL2Logs;
+  /**
    * Whether the execution reverted.
    */
   reverted: boolean;

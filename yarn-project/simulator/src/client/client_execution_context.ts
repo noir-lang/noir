@@ -32,7 +32,13 @@ import { type NoteData, toACVMWitness } from '../acvm/index.js';
 import { type PackedValuesCache } from '../common/packed_values_cache.js';
 import { type DBOracle } from './db_oracle.js';
 import { type ExecutionNoteCache } from './execution_note_cache.js';
-import { type ExecutionResult, type NoteAndSlot, type NullifiedNoteHashCounter } from './execution_result.js';
+import {
+  CountedLog,
+  type ExecutionResult,
+  type NoteAndSlot,
+  type NullifiedNoteHashCounter,
+} from './execution_result.js';
+import { type LogsCache } from './logs_cache.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -60,8 +66,8 @@ export class ClientExecutionContext extends ViewDataOracle {
    */
   private gotNotes: Map<bigint, bigint> = new Map();
   private nullifiedNoteHashCounters: NullifiedNoteHashCounter[] = [];
-  private encryptedLogs: EncryptedL2Log[] = [];
-  private unencryptedLogs: UnencryptedL2Log[] = [];
+  private encryptedLogs: CountedLog<EncryptedL2Log>[] = [];
+  private unencryptedLogs: CountedLog<UnencryptedL2Log>[] = [];
   private nestedExecutions: ExecutionResult[] = [];
   private enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
 
@@ -76,6 +82,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     authWitnesses: AuthWitness[],
     private readonly packedValuesCache: PackedValuesCache,
     private readonly noteCache: ExecutionNoteCache,
+    private readonly logsCache: LogsCache,
     db: DBOracle,
     private node: AztecNode,
     protected sideEffectCounter: number = 0,
@@ -147,14 +154,28 @@ export class ClientExecutionContext extends ViewDataOracle {
    * Return the encrypted logs emitted during this execution.
    */
   public getEncryptedLogs() {
-    return new EncryptedFunctionL2Logs(this.encryptedLogs);
+    return this.encryptedLogs;
+  }
+
+  /**
+   * Return the encrypted logs emitted during this execution and nested executions.
+   */
+  public getAllEncryptedLogs() {
+    return new EncryptedFunctionL2Logs(this.logsCache.getEncryptedLogs());
   }
 
   /**
    * Return the encrypted logs emitted during this execution.
    */
   public getUnencryptedLogs() {
-    return new UnencryptedFunctionL2Logs(this.unencryptedLogs);
+    return this.unencryptedLogs;
+  }
+
+  /**
+   * Return the unencrypted logs emitted during this execution and nested executions.
+   */
+  public getAllUnencryptedLogs() {
+    return new UnencryptedFunctionL2Logs(this.logsCache.getUnencryptedLogs());
   }
 
   /**
@@ -340,24 +361,45 @@ export class ClientExecutionContext extends ViewDataOracle {
     noteTypeId: Fr,
     publicKey: Point,
     log: Fr[],
+    counter: number,
   ) {
     const note = new Note(log);
     const l1NotePayload = new L1NotePayload(note, contractAddress, storageSlot, noteTypeId);
     const taggedNote = new TaggedNote(l1NotePayload);
     const encryptedNote = taggedNote.toEncryptedBuffer(publicKey);
     const encryptedLog = new EncryptedL2Log(encryptedNote);
-    this.encryptedLogs.push(encryptedLog);
-    return Fr.fromBuffer(encryptedLog.hash());
+    this.encryptedLogs.push(new CountedLog(encryptedLog, counter));
+    this.logsCache.addEncryptedLog(encryptedLog);
+    return encryptedNote;
   }
 
   /**
    * Emit an unencrypted log.
    * @param log - The unencrypted log to be emitted.
    */
-  public override emitUnencryptedLog(log: UnencryptedL2Log) {
-    this.unencryptedLogs.push(log);
+  public override emitUnencryptedLog(log: UnencryptedL2Log, counter: number) {
+    this.unencryptedLogs.push(new CountedLog(log, counter));
+    this.logsCache.addUnencryptedLog(log);
     const text = log.toHumanReadable();
     this.log.verbose(`Emitted unencrypted log: "${text.length > 100 ? text.slice(0, 100) + '...' : text}"`);
+  }
+
+  /**
+   * Emit a contract class unencrypted log.
+   * This fn exists separately from emitUnencryptedLog because sha hashing the preimage
+   * is too large to compile (16,200 fields, 518,400 bytes) => the oracle hashes it.
+   * See private_context.nr
+   * @param log - The unencrypted log to be emitted.
+   */
+  public override emitContractClassUnencryptedLog(log: UnencryptedL2Log, counter: number) {
+    this.unencryptedLogs.push(new CountedLog(log, counter));
+    this.logsCache.addUnencryptedLog(log);
+    const text = log.toHumanReadable();
+    this.log.verbose(
+      `Emitted unencrypted log from ContractClassRegisterer: "${
+        text.length > 100 ? text.slice(0, 100) + '...' : text
+      }"`,
+    );
     return Fr.fromBuffer(log.hash());
   }
 
@@ -419,6 +461,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.authWitnesses,
       this.packedValuesCache,
       this.noteCache,
+      this.logsCache,
       this.db,
       this.node,
       sideEffectCounter,

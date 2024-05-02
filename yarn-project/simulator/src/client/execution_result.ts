@@ -1,8 +1,16 @@
-import { type EncryptedFunctionL2Logs, type Note, type UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
+  EncryptedFunctionL2Logs,
+  type EncryptedL2Log,
+  type Note,
+  UnencryptedFunctionL2Logs,
+  type UnencryptedL2Log,
+} from '@aztec/circuit-types';
+import {
+  type IsEmpty,
   type NoteHashReadRequestMembershipWitness,
   type PrivateCallStackItem,
   type PublicCallRequest,
+  sortByCounter,
 } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
 
@@ -18,6 +26,14 @@ export interface NoteAndSlot {
   storageSlot: Fr;
   /** The note type identifier. */
   noteTypeId: Fr;
+}
+
+export class CountedLog<TLog extends UnencryptedL2Log | EncryptedL2Log> implements IsEmpty {
+  constructor(public log: TLog, public counter: number) {}
+
+  isEmpty(): boolean {
+    return !this.log.data.length && !this.counter;
+  }
 }
 
 export interface NullifiedNoteHashCounter {
@@ -54,12 +70,12 @@ export interface ExecutionResult {
    * Encrypted logs emitted during execution of this function call.
    * Note: These are preimages to `encryptedLogsHashes`.
    */
-  encryptedLogs: EncryptedFunctionL2Logs;
+  encryptedLogs: CountedLog<EncryptedL2Log>[];
   /**
    * Unencrypted logs emitted during execution of this function call.
    * Note: These are preimages to `unencryptedLogsHashes`.
    */
-  unencryptedLogs: UnencryptedFunctionL2Logs;
+  unencryptedLogs: CountedLog<UnencryptedL2Log>[];
 }
 
 export function collectNullifiedNoteHashCounters(execResult: ExecutionResult): NullifiedNoteHashCounter[] {
@@ -74,9 +90,19 @@ export function collectNullifiedNoteHashCounters(execResult: ExecutionResult): N
  * @param execResult - The topmost execution result.
  * @returns All encrypted logs.
  */
-export function collectEncryptedLogs(execResult: ExecutionResult): EncryptedFunctionL2Logs[] {
-  // without the .reverse(), the logs will be in a queue like fashion which is wrong as the kernel processes it like a stack.
-  return [execResult.encryptedLogs, ...[...execResult.nestedExecutions].reverse().flatMap(collectEncryptedLogs)];
+function collectEncryptedLogs(execResult: ExecutionResult): CountedLog<EncryptedL2Log>[] {
+  return [execResult.encryptedLogs, ...[...execResult.nestedExecutions].flatMap(collectEncryptedLogs)].flat();
+}
+
+/**
+ * Collect all encrypted logs across all nested executions and sorts by counter.
+ * @param execResult - The topmost execution result.
+ * @returns All encrypted logs.
+ */
+export function collectSortedEncryptedLogs(execResult: ExecutionResult): EncryptedFunctionL2Logs {
+  const allLogs = collectEncryptedLogs(execResult);
+  const sortedLogs = sortByCounter(allLogs);
+  return new EncryptedFunctionL2Logs(sortedLogs.map(l => l.log));
 }
 
 /**
@@ -84,9 +110,19 @@ export function collectEncryptedLogs(execResult: ExecutionResult): EncryptedFunc
  * @param execResult - The topmost execution result.
  * @returns All unencrypted logs.
  */
-export function collectUnencryptedLogs(execResult: ExecutionResult): UnencryptedFunctionL2Logs[] {
-  // without the .reverse(), the logs will be in a queue like fashion which is wrong as the kernel processes it like a stack.
-  return [execResult.unencryptedLogs, ...[...execResult.nestedExecutions].reverse().flatMap(collectUnencryptedLogs)];
+function collectUnencryptedLogs(execResult: ExecutionResult): CountedLog<UnencryptedL2Log>[] {
+  return [execResult.unencryptedLogs, ...[...execResult.nestedExecutions].flatMap(collectUnencryptedLogs)].flat();
+}
+
+/**
+ * Collect all unencrypted logs across all nested executions and sorts by counter.
+ * @param execResult - The topmost execution result.
+ * @returns All unencrypted logs.
+ */
+export function collectSortedUnencryptedLogs(execResult: ExecutionResult): UnencryptedFunctionL2Logs {
+  const allLogs = collectUnencryptedLogs(execResult);
+  const sortedLogs = sortByCounter(allLogs);
+  return new UnencryptedFunctionL2Logs(sortedLogs.map(l => l.log));
 }
 
 /**

@@ -90,8 +90,11 @@ describe('e2e_ordering', () => {
       const expectedOrders = {
         set_value_twice_with_nested_first: [nestedValue, directValue] as bigint[], // eslint-disable-line camelcase
         set_value_twice_with_nested_last: [directValue, nestedValue] as bigint[], // eslint-disable-line camelcase
+        // TODO(6052)
+        // set_value_with_two_nested_calls: [nestedValue, directValue, directValue, nestedValue, directValue] as bigint[], // eslint-disable-line camelcase
       } as const;
 
+      // TODO(6052): Once resolved, add 'set_value_with_nested_calls'
       it.each(['set_value_twice_with_nested_first', 'set_value_twice_with_nested_last'] as const)(
         'orders public state updates in %s (and ensures final state value is correct)',
         async method => {
@@ -100,7 +103,7 @@ describe('e2e_ordering', () => {
           await child.methods[method]().send().wait();
 
           const value = await pxe.getPublicStorageAt(child.address, new Fr(1));
-          expect(value.value).toBe(expectedOrder[1]); // final state should match last value set
+          expect(value.value).toBe(expectedOrder[expectedOrder.length - 1]); // final state should match last value set
         },
       );
 
@@ -111,6 +114,7 @@ describe('e2e_ordering', () => {
       //     in reverse order. More info in this thread: https://discourse.aztec.network/t/identifying-the-ordering-of-state-access-across-contract-calls/382/12#transition-counters-for-private-calls-2
       // The below only works due to a hack which sorts the logs in ts
       // See tail_phase_manager.ts
+      // TODO(6052): Once resolved, add 'set_value_with_two_nested_calls'
       it.each(['set_value_twice_with_nested_first', 'set_value_twice_with_nested_last'] as const)(
         'orders unencrypted logs in %s',
         async method => {

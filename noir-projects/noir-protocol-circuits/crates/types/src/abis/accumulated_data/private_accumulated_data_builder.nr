@@ -181,7 +181,7 @@ impl PrivateAccumulatedDataBuilder {
         }
 
         revertible_builder.new_l2_to_l1_msgs =  self.new_l2_to_l1_msgs;
-        // TODO(1165): Once we have individual lens, split here
+        // TODO(1641) & TODO(4712): Once we track logs with more info, including individual lens, split here
         revertible_builder.encrypted_log_preimages_length =  self.encrypted_log_preimages_length;
         revertible_builder.unencrypted_log_preimages_length = self.unencrypted_log_preimages_length;
 

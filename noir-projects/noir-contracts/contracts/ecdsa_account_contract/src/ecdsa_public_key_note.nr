@@ -1,6 +1,5 @@
 use dep::aztec::prelude::{
-    AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext,
-    emit_encrypted_log
+    AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext
 };
 
 use dep::aztec::{
@@ -89,8 +88,7 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         let encryption_pub_key = get_public_key(self.owner);
-        emit_encrypted_log(
-            context,
+        context.emit_encrypted_log(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),

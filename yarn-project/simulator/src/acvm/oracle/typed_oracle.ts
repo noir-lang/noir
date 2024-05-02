@@ -197,12 +197,17 @@ export abstract class TypedOracle {
     _noteTypeId: Fr,
     _publicKey: PublicKey,
     _log: Fr[],
-  ): Fr {
+    _counter: number,
+  ): Buffer {
     throw new OracleMethodNotAvailableError('emitEncryptedLog');
   }
 
-  emitUnencryptedLog(_log: UnencryptedL2Log): Fr {
+  emitUnencryptedLog(_log: UnencryptedL2Log, _counter: number): void {
     throw new OracleMethodNotAvailableError('emitUnencryptedLog');
+  }
+
+  emitContractClassUnencryptedLog(_log: UnencryptedL2Log, _counter: number): Fr {
+    throw new OracleMethodNotAvailableError('emitContractClassUnencryptedLog');
   }
 
   callPrivateFunction(

@@ -1,4 +1,4 @@
-use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContext, emit_encrypted_log};
+use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContext};
 use dep::aztec::{
     note::{utils::compute_note_hash_for_consumption},
     oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
@@ -48,8 +48,7 @@ impl NoteInterface<CARD_NOTE_LEN> for CardNote {
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         let encryption_pub_key = get_public_key(self.owner);
-        emit_encrypted_log(
-            context,
+        context.emit_encrypted_log(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),

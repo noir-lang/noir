@@ -90,6 +90,7 @@ mod tests {
     use dep::types::constants::{
         MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
         MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
+        MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
         DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE
     };
     use dep::types::{
@@ -98,7 +99,7 @@ mod tests {
         note_hash::NoteHashContext, nullifier::Nullifier, side_effect::{SideEffect, Ordered}, gas::Gas
     },
         grumpkin_private_key::GrumpkinPrivateKey,
-        hash::{compute_note_hash_nonce, compute_unique_siloed_note_hash, accumulate_sha256},
+        hash::{compute_note_hash_nonce, compute_unique_siloed_note_hash, sha256_to_field},
         tests::{fixture_builder::FixtureBuilder, sort::sort_get_sorted_hints},
         utils::{arrays::{array_eq, array_length}}, traits::{Empty, is_empty, is_empty_array}
     };
@@ -319,10 +320,19 @@ mod tests {
             public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
         );
 
-        let expected_encrypted_logs_hash = accumulate_sha256([0, prev_encrypted_logs_hash]);
+        let hash_bytes: [u8; MAX_ENCRYPTED_LOGS_PER_TX * 32] = prev_encrypted_logs_hash
+            .to_be_bytes(32)
+            .append(&[0; MAX_ENCRYPTED_LOGS_PER_TX * 32 - 32])
+            .as_array();
+        let expected_encrypted_logs_hash = sha256_to_field(hash_bytes);
         assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
-        let mut expected_unencrypted_logs_hash = accumulate_sha256([0, prev_unencrypted_logs_hash]);
-        expected_unencrypted_logs_hash = accumulate_sha256([expected_unencrypted_logs_hash, unencrypted_logs_hash]);
+
+        let hash_bytes: [u8; MAX_UNENCRYPTED_LOGS_PER_TX * 32] = prev_unencrypted_logs_hash
+            .to_be_bytes(32)
+            .append(unencrypted_logs_hash.to_be_bytes(32))
+            .append(&[0; MAX_UNENCRYPTED_LOGS_PER_TX * 32 - 64])
+            .as_array();
+        let expected_unencrypted_logs_hash = sha256_to_field(hash_bytes);
         assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
     }
 

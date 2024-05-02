@@ -4,7 +4,6 @@ mod hash;
 mod history;
 mod initializer;
 mod keys;
-mod log;
 mod messaging;
 mod note;
 mod oracle;

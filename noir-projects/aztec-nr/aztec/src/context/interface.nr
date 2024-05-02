@@ -32,7 +32,7 @@ trait PublicContextInterface {
     fn fee_per_l2_gas(self) -> Field;
     fn message_portal(&mut self, recipient: EthAddress, content: Field);
     fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, leaf_index: Field);
-    fn emit_unencrypted_log<T>(&mut self, log: T);
+    fn emit_unencrypted_log<T,N,M>(&mut self, log: T);
     fn call_public_function<RETURNS_COUNT>(
         self: &mut Self,
         contract_address: AztecAddress,

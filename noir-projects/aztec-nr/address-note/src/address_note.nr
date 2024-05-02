@@ -1,6 +1,3 @@
-// docs:start:encrypted_import
-use dep::aztec::log::emit_encrypted_log;
-// docs:end:encrypted_import
 use dep::aztec::{
     protocol_types::{address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER},
     note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
@@ -45,8 +42,7 @@ impl NoteInterface<ADDRESS_NOTE_LEN> for AddressNote {
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         let encryption_pub_key = get_public_key(self.owner);
         // docs:start:encrypted
-        emit_encrypted_log(
-            context,
+        context.emit_encrypted_log(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),

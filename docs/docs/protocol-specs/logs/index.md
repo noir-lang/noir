@@ -29,7 +29,7 @@ Logs on Aztec are similar to logs on Ethereum, enabling smart contracts to conve
 
 ### Hash Function
 
-The protocol uses **SHA256** as the hash function for logs, and then reduces the 256-bit result to 253 bits for representation as a field element.
+The protocol uses **SHA256** as the hash function for logs, and then reduces the 256-bit result to 248 bits for representation as a field element.
 
 <!-- TODO: explicitly detail how the truncation is being done, so that we can check that it is secure. -->
 
@@ -227,10 +227,7 @@ Following the iterations for all private or public calls, the tail kernel circui
 
 2. Accumulate all the hashes and output the final hash to the public inputs:
 
-   - _`accumulated_logs_hash = hash(logs_hash_a, logs_hash_b)`_
-     - For tail public kernel circuit, it begins with _`accumulated_logs_hash = hash(accumulated_logs_hash, logs_hash_a)`_ if the _accumulated_logs_hash_ outputted from the tail private kernel circuit is not empty.
-   - _`accumulated_logs_hash = hash(accumulated_logs_hash, logs_hash_c)`_
-   - Repeat the process until all _logs_hashes_ are collectively hashed.
+   - `accumulated_logs_hash = hash(log_hash[0], log_hash[1], ..., log_hash[N - 1])` for N logs.
 
 ### Encoding
 
@@ -273,11 +270,9 @@ After successfully decrypting an encrypted log, one can use the _randomness_ in 
    - _`log_hash_a = hash(log_hash_a, contract_address_tag_a)`_
    - Repeat the process for all _log_hashes_ in the transaction.
 
-2. Accumulate all the hashes and outputs the final hash to the public inputs:
+2. Accumulate all the hashes in the tail and outputs the final hash to the public inputs:
 
-   - _`accumulated_logs_hash = hash(log_hash_a, log_hash_b)`_
-   - _`accumulated_logs_hash = hash(accumulated_logs_hash, log_hash_c)`_
-   - Repeat the process until all _logs_hashes_ are collectively hashed.
+   - `accumulated_logs_hash = hash(log_hash[0], log_hash[1], ..., log_hash[N - 1])` for N logs, with hashes defined above.
 
 ### Encoding
 
@@ -310,9 +305,7 @@ As each encrypted note preimage can be associated with a note in the same transa
 
 The kernel circuit simply accumulates all the hashes:
 
-- _`accumulated_logs_hash = hash(log_hash_a, log_hash_b)`_
-- _`accumulated_logs_hash = hash(accumulated_logs_hash, log_hash_c)`_
-- Repeat the process until all _logs_hashes_ are collectively hashed.
+- `accumulated_logs_hash = hash(log_hash[0], log_hash[1], ..., log_hash[N - 1])` for N logs.
 
 ### Encoding
 

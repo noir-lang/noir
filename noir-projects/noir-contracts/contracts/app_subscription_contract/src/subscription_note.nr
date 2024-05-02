@@ -1,4 +1,4 @@
-use dep::aztec::prelude::{AztecAddress, PrivateContext, NoteHeader, emit_encrypted_log, NoteInterface};
+use dep::aztec::prelude::{AztecAddress, PrivateContext, NoteHeader, NoteInterface};
 use dep::aztec::{
     protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER, note::utils::compute_note_hash_for_consumption,
     hash::poseidon2_hash,
@@ -40,8 +40,7 @@ impl NoteInterface<SUBSCRIPTION_NOTE_LEN> for SubscriptionNote {
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         let encryption_pub_key = get_public_key(self.owner);
-        emit_encrypted_log(
-            context,
+        context.emit_encrypted_log(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),

@@ -1,7 +1,6 @@
 import { type FunctionData, PrivateCallStackItem, PrivateCircuitPublicInputs } from '@aztec/circuits.js';
 import { type FunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { witnessMapToFields } from '../acvm/deserialize.js';
@@ -45,9 +44,6 @@ export async function executePrivateFunction(
 
   const encryptedLogs = context.getEncryptedLogs();
   const unencryptedLogs = context.getUnencryptedLogs();
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir
-  publicInputs.encryptedLogPreimagesLength = new Fr(encryptedLogs.getSerializedLength());
-  publicInputs.unencryptedLogPreimagesLength = new Fr(unencryptedLogs.getSerializedLength());
 
   const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs);
 

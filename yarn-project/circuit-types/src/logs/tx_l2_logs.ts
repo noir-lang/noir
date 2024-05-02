@@ -84,18 +84,21 @@ export abstract class TxL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
    *       for more details.
    */
   public hash(): Buffer {
-    const logsHashes: [Buffer, Buffer] = [Buffer.alloc(32), Buffer.alloc(32)];
-    let kernelPublicInputsLogsHash = Buffer.alloc(32);
-
-    for (const logsFromSingleFunctionCall of this.unrollLogs()) {
-      logsHashes[0] = kernelPublicInputsLogsHash;
-      logsHashes[1] = logsFromSingleFunctionCall.hash(); // privateCircuitPublicInputsLogsHash
-
-      // Hash logs hash from the public inputs of previous kernel iteration and logs hash from private circuit public inputs
-      kernelPublicInputsLogsHash = sha256Trunc(Buffer.concat(logsHashes));
+    if (this.unrollLogs().length == 0) {
+      return Buffer.alloc(32);
     }
 
-    return kernelPublicInputsLogsHash;
+    let flattenedLogs = Buffer.alloc(0);
+    for (const logsFromSingleFunctionCall of this.unrollLogs()) {
+      flattenedLogs = Buffer.concat([flattenedLogs, logsFromSingleFunctionCall.hash()]);
+    }
+    // pad the end of logs with 0s
+    // NB - This assumes MAX_ENCRYPTED_LOGS_PER_TX == MAX_UNENCRYPTED_LOGS_PER_TX
+    for (let i = 0; i < MAX_ENCRYPTED_LOGS_PER_TX - this.unrollLogs().length; i++) {
+      flattenedLogs = Buffer.concat([flattenedLogs, Buffer.alloc(32)]);
+    }
+
+    return sha256Trunc(flattenedLogs);
   }
 }
 

@@ -236,6 +236,24 @@ contract Test {
         context.emit_unencrypted_log(fields);
     }
 
+    #[aztec(private)]
+    fn emit_unencrypted_logs_nested(fields: [Field; 5]) {
+        Test::at(context.this_address()).emit_msg_sender().call(&mut context);
+        Test::at(context.this_address()).emit_array_as_unencrypted_log(fields).call(&mut context);
+        context.emit_unencrypted_log("test");
+    }
+
+    #[aztec(private)]
+    fn emit_encrypted_logs_nested(value: Field, owner: AztecAddress) {
+        let mut storage_slot = storage.example_constant.get_storage_slot() + 1;
+        Test::at(context.this_address()).call_create_note(value, owner, storage_slot).call(&mut context);
+        storage_slot += 1;
+        let mut note = ValueNote::new(value + 1, owner);
+        create_note(&mut context, storage_slot, &mut note, true);
+        storage_slot += 1;
+        Test::at(context.this_address()).call_create_note(value + 2, owner, storage_slot).call(&mut context);
+    }
+
     // docs:start:is-time-equal
     #[aztec(public)]
     fn is_time_equal(time: u64) -> u64 {

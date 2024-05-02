@@ -1,7 +1,7 @@
 import { EncryptedL2BlockL2Logs, TxEffect, UnencryptedL2BlockL2Logs } from '@aztec/circuit-types';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { sha256 } from '@aztec/foundation/crypto';
-import { BufferReader, serializeToBuffer, truncateAndPad } from '@aztec/foundation/serialize';
+import { sha256Trunc } from '@aztec/foundation/crypto';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
@@ -56,7 +56,7 @@ export class Body {
           const left = layers[activeLayer][i];
           const right = layers[activeLayer][i + 1];
 
-          layer.push(truncateAndPad(sha256(Buffer.concat([left, right]))));
+          layer.push(sha256Trunc(Buffer.concat([left, right])));
         }
 
         layers.push(layer);

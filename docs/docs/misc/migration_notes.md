@@ -6,6 +6,20 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## 0.38.0
+
+### [Aztec.nr] Emmiting encrypted logs
+
+The `emit_encrypted_log` function is now a context method.
+
+```diff
+- use dep::aztec::log::emit_encrypted_log;
+- use dep::aztec::logs::emit_encrypted_log;
+
+- emit_encrypted_log(context, log1);
++ context.emit_encrypted_log(log1);
+```
+
 ## 0.36.0
 
 ### `FieldNote` removed
@@ -171,7 +185,7 @@ Note that gas limits are not yet enforced. For now, it is suggested you use `dep
 
 Note that this is not required when enqueuing a public function from a private one, since top-level enqueued public functions will always consume all gas available for the transaction, as it is not possible to handle any out-of-gas errors.
 
-### [Aztec.nr] Emmiting unencrypted logs
+### [Aztec.nr] Emitting unencrypted logs
 
 The `emit_unencrypted_logs` function is now a context method.
 

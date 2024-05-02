@@ -5,15 +5,11 @@ pragma solidity >=0.8.18;
 import {DecoderBase} from "./Base.sol";
 
 import {Hash} from "../../src/core/libraries/Hash.sol";
-import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 
 import {HeaderLibHelper} from "./helpers/HeaderLibHelper.sol";
 import {TxsDecoderHelper} from "./helpers/TxsDecoderHelper.sol";
 import {HeaderLib} from "../../src/core/libraries/HeaderLib.sol";
-
-import {TxsDecoder} from "../../src/core/libraries/decoders/TxsDecoder.sol";
-
-import {AvailabilityOracle} from "../../src/core/availability_oracle/AvailabilityOracle.sol";
+import {Constants} from "../../src/core/libraries/ConstantsGen.sol";
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.
@@ -196,13 +192,12 @@ contract DecodersTest is DecoderBase {
       abi.encodePacked(hex"0000000c00000008", hex"00000004", firstFunctionCallLogs);
     (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
-    // Zero because this is the first iteration
-    bytes32 previousKernelPublicInputsLogsHash = bytes32(0);
     bytes32 privateCircuitPublicInputsLogsHashFirstCall = Hash.sha256ToField(firstFunctionCallLogs);
 
     bytes32 referenceLogsHash = Hash.sha256ToField(
       abi.encodePacked(
-        previousKernelPublicInputsLogsHash, privateCircuitPublicInputsLogsHashFirstCall
+        privateCircuitPublicInputsLogsHashFirstCall,
+        new bytes(Constants.MAX_ENCRYPTED_LOGS_PER_TX * 32 - 32)
       )
     );
 
@@ -229,15 +224,16 @@ contract DecodersTest is DecoderBase {
     );
     (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
-    bytes32 referenceLogsHashFromIteration1 =
-      Hash.sha256ToField(abi.encodePacked(bytes32(0), Hash.sha256ToField(firstFunctionCallLogs)));
+    bytes32 referenceLogsHashFromIteration1 = Hash.sha256ToField(firstFunctionCallLogs);
 
     bytes32 privateCircuitPublicInputsLogsHashSecondCall =
       Hash.sha256ToField(secondFunctionCallLogs);
 
     bytes32 referenceLogsHashFromIteration2 = Hash.sha256ToField(
       abi.encodePacked(
-        referenceLogsHashFromIteration1, privateCircuitPublicInputsLogsHashSecondCall
+        referenceLogsHashFromIteration1,
+        privateCircuitPublicInputsLogsHashSecondCall,
+        new bytes(Constants.MAX_ENCRYPTED_LOGS_PER_TX * 32 - 64)
       )
     );
 
@@ -269,8 +265,7 @@ contract DecodersTest is DecoderBase {
     );
     (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
-    bytes32 referenceLogsHashFromIteration1 =
-      Hash.sha256ToField(abi.encodePacked(bytes32(0), Hash.sha256ToField(firstFunctionCallLogs)));
+    bytes32 referenceLogsHashFromIteration1 = Hash.sha256ToField(firstFunctionCallLogs);
 
     // Note: as of resolving #5017, we now hash logs inside the circuits
     // Following the YP, we skip any zero length logs, hence no use of secondFunctionCallLogs here
@@ -278,7 +273,11 @@ contract DecodersTest is DecoderBase {
     bytes32 privateCircuitPublicInputsLogsHashThirdCall = Hash.sha256ToField(thirdFunctionCallLogs);
 
     bytes32 referenceLogsHashFromIteration3 = Hash.sha256ToField(
-      abi.encodePacked(referenceLogsHashFromIteration1, privateCircuitPublicInputsLogsHashThirdCall)
+      abi.encodePacked(
+        referenceLogsHashFromIteration1,
+        privateCircuitPublicInputsLogsHashThirdCall,
+        new bytes(Constants.MAX_ENCRYPTED_LOGS_PER_TX * 32 - 64)
+      )
     );
 
     assertEq(bytesAdvanced, encodedLogs.length, "Advanced by an incorrect number of bytes");

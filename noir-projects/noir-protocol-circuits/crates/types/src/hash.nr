@@ -8,7 +8,8 @@ use crate::traits::is_empty;
 use crate::utils::{uint256::U256, field::field_from_bytes_32_trunc};
 use crate::constants::{
     FUNCTION_TREE_HEIGHT, GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER,
-    GENERATOR_INDEX__VK, GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH
+    GENERATOR_INDEX__VK, GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH,
+    MAX_ENCRYPTED_LOGS_PER_TX
 };
 use crate::traits::Hash;
 use crate::messaging::l2_to_l1_message::L2ToL1Message;
@@ -118,33 +119,28 @@ pub fn accumulate_sha256(input: [Field; 2]) -> Field {
     sha256_to_field(hash_input_flattened)
 }
 
-pub fn compute_tx_logs_hash<MAX_ENCRYPTED_LOGS_PER_TX>(logs: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX]) -> Field {
-    // TODO(Miranda): Below is flat hashing which would reduce constraints (we now only hash once in tail) - convert to this?
-
-    // // Convert each field element into a byte array and append the bytes to `hash_input_flattened`
-    // // Ideally we would define a new global here but for now we assert in case MAX_LOGS changes
-    // assert(MAX_ENCRYPTED_LOGS_PER_TX * 32 == 256);
-    // let mut hash_input_flattened = [0; 256];
-    // for offset in 0..MAX_ENCRYPTED_LOGS_PER_TX {
-    //     let input_as_bytes = logs[offset].value.to_be_bytes(32);
-    //     for byte_index in 0..32 {
-    //         hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
-    //     }
-    // }
-    // // This differs from accumulate_sha256 as we could increase MAX_LOGS and
-    // // ideally we would push to a slice then hash, but in practice compilation was very slow
-    // // Hardcode to 256 bytes for now
-    // sha256_to_field(hash_input_flattened)
-
-    // Assuming logs are pre-sorted
-    let mut accumulated_logs_hash = 0;
-    for i in 0..MAX_ENCRYPTED_LOGS_PER_TX {
-        if !is_empty(logs[i]) {
-            accumulated_logs_hash = accumulate_sha256([accumulated_logs_hash, logs[i].value]);
+// Computes the final logs hash for a tx.
+// NB: this assumes MAX_ENCRYPTED_LOGS_PER_TX == MAX_UNENCRYPTED_LOGS_PER_TX
+// to avoid doubling code, since we can't define the byte len to be 32*N directly. 
+pub fn compute_tx_logs_hash(logs: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX]) -> Field {
+    // Convert each field element into a byte array and append the bytes to `hash_input_flattened`
+    let mut hash_input_flattened = [0; MAX_ENCRYPTED_LOGS_PER_TX * 32];
+    for offset in 0..MAX_ENCRYPTED_LOGS_PER_TX {
+        let input_as_bytes = logs[offset].value.to_be_bytes(32);
+        for byte_index in 0..32 {
+            hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }
     }
-
-    accumulated_logs_hash
+    // Ideally we would push to a slice then hash, but there is no sha_slice
+    // Hardcode to 256 bytes for now
+    let mut hash = sha256_to_field(hash_input_flattened);
+    // Not having a 0 value hash for empty logs causes issues with empty txs
+    // used for padding. Returning early is currently unsupported.
+    // We always provide sorted logs here, so 0 being empty means all are empty.
+    if is_empty(logs[0]) {
+        hash = 0;
+    }
+    hash
 }
 
 pub fn compute_note_hash_nonce(first_nullifier: Field, commitment_index: u64) -> Field {

@@ -1,6 +1,6 @@
 use dep::aztec::prelude::{
     AztecAddress, NoteGetterOptions, NoteViewerOptions, NoteHeader, NoteInterface, PrivateContext,
-    PrivateSet, Map, emit_encrypted_log
+    PrivateSet, Map
 };
 use dep::aztec::{
     context::{PublicContext, Context}, hash::pedersen_hash,

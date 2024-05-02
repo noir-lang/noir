@@ -159,6 +159,8 @@ async function executePublicFunctionAcvm(
       nestedExecutions: [],
       unencryptedLogsHashes: [],
       unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
+      unencryptedLogPreimagesLength: new Fr(4n), // empty logs have len 4
+      allUnencryptedLogs: UnencryptedFunctionL2Logs.empty(),
       reverted,
       revertReason,
       startGasLeft: context.availableGas,
@@ -182,6 +184,7 @@ async function executePublicFunctionAcvm(
     startSideEffectCounter,
     endSideEffectCounter,
     unencryptedLogsHashes: unencryptedLogsHashesPadded,
+    unencryptedLogPreimagesLength,
   } = PublicCircuitPublicInputs.fromFields(returnWitness);
   const returnValues = await context.unpackReturns(returnsHash);
 
@@ -207,6 +210,7 @@ async function executePublicFunctionAcvm(
 
   const nestedExecutions = context.getNestedExecutions();
   const unencryptedLogs = context.getUnencryptedLogs();
+  const allUnencryptedLogs = context.getAllUnencryptedLogs();
 
   // TODO(palla/gas): We should be loading these values from the returned PublicCircuitPublicInputs
   const startGasLeft = context.availableGas;
@@ -227,6 +231,8 @@ async function executePublicFunctionAcvm(
     nestedExecutions,
     unencryptedLogsHashes,
     unencryptedLogs,
+    unencryptedLogPreimagesLength,
+    allUnencryptedLogs,
     reverted: false,
     revertReason: undefined,
     startGasLeft,

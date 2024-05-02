@@ -47,15 +47,9 @@ In the future we will allow emitting arbitrary information.
 (If you currently emit arbitrary information, PXE will fail to decrypt, process and store this data, so it will not be queryable).
 :::
 
-### Import library
-
-To emit encrypted logs first import the `emit_encrypted_log` utility function which wraps an [oracle](../oracles/main.md):
-
-#include_code encrypted_import /noir-projects/aztec-nr/address-note/src/address_note.nr rust
-
 ### Call emit_encrypted_log
 
-After importing, you can call the function:
+To emit encrypted logs you don't need to import any library. You call the context method `emit_encrypted_log`:
 
 #include_code encrypted /noir-projects/aztec-nr/address-note/src/address_note.nr rust
 

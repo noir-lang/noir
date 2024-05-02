@@ -5,8 +5,7 @@
 contract PendingNoteHashes {
     // Libs
     use dep::aztec::prelude::{
-        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet,
-        emit_encrypted_log
+        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet
     };
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::context::{PublicContext, Context};

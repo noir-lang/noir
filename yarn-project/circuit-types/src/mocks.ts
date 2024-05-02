@@ -103,8 +103,8 @@ export const mockTx = (
     );
   } else {
     data.forRollup!.end.newNullifiers[0] = firstNullifier.value;
-    data.forRollup!.end.encryptedLogsHash = hasLogs ? Fr.fromBuffer(encryptedLogs.hash()) : Fr.ZERO;
-    data.forRollup!.end.unencryptedLogsHash = hasLogs ? Fr.fromBuffer(unencryptedLogs.hash()) : Fr.ZERO;
+    data.forRollup!.end.encryptedLogsHash = Fr.fromBuffer(encryptedLogs.hash());
+    data.forRollup!.end.unencryptedLogsHash = Fr.fromBuffer(unencryptedLogs.hash());
   }
 
   const tx = new Tx(data, new Proof(Buffer.alloc(0)), encryptedLogs, unencryptedLogs, publicCallRequests);

@@ -102,4 +102,14 @@ contract Child {
         context.emit_unencrypted_log(20);
         let _result = Child::at(context.this_address()).pub_set_value(10).call(&mut context);
     }
+
+    #[aztec(public)]
+    // TODO(6052): The logs emitted are currently in the wrong order as we don't update
+    // counters for nested public calls
+    fn set_value_with_two_nested_calls() {
+        Child::at(context.this_address()).set_value_twice_with_nested_first().call(&mut context);
+        Child::at(context.this_address()).set_value_twice_with_nested_last().call(&mut context);
+        storage.current_value.write(20);
+        context.emit_unencrypted_log(20);
+    }
 }

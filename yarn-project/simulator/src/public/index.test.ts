@@ -252,24 +252,31 @@ describe('ACIR public execution simulator', () => {
   });
 
   describe('Parent/Child contracts', () => {
-    it('calls the public entry point in the parent', async () => {
-      const parentContractAddress = AztecAddress.random();
-      const parentEntryPointFn = ParentContractArtifact.functions.find(f => f.name === 'pub_entry_point')!;
-      const parentEntryPointFnSelector = FunctionSelector.fromNameAndParameters(
+    let parentContractAddress: AztecAddress;
+    let childContractAddress: AztecAddress;
+    let parentEntryPointFn: FunctionArtifact;
+    let parentEntryPointFnSelector: FunctionSelector;
+    let functionData: FunctionData;
+    let callContext: CallContext;
+
+    beforeEach(() => {
+      parentContractAddress = AztecAddress.random();
+      parentEntryPointFn = ParentContractArtifact.functions.find(f => f.name === 'pub_entry_point')!;
+      parentEntryPointFnSelector = FunctionSelector.fromNameAndParameters(
         parentEntryPointFn.name,
         parentEntryPointFn.parameters,
       );
+      functionData = new FunctionData(parentEntryPointFnSelector, false);
+      childContractAddress = AztecAddress.random();
+      callContext = makeCallContext(parentContractAddress);
+    }, 10000);
 
-      const childContractAddress = AztecAddress.random();
+    it('calls the public entry point in the parent to get value', async () => {
       const childValueFn = ChildContractArtifact.functions.find(f => f.name === 'pub_get_value')!;
       const childValueFnSelector = FunctionSelector.fromNameAndParameters(childValueFn.name, childValueFn.parameters);
 
       const initialValue = 3n;
-
-      const functionData = new FunctionData(parentEntryPointFnSelector, false);
       const args = encodeArguments(parentEntryPointFn, [childContractAddress, childValueFnSelector, initialValue]);
-
-      const callContext = makeCallContext(parentContractAddress);
 
       // eslint-disable-next-line require-await
       publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: FunctionSelector) => {
@@ -303,6 +310,39 @@ describe('ACIR public execution simulator', () => {
             globalVariables.timestamp.toBigInt(),
         ),
       );
+    }, 20_000);
+
+    it('calls the public entry point in the parent to set value', async () => {
+      const childValueFn = ChildContractArtifact.functions.find(f => f.name === 'pub_set_value')!;
+      const childValueFnSelector = FunctionSelector.fromNameAndParameters(childValueFn.name, childValueFn.parameters);
+
+      const newValue = 5n;
+
+      const args = encodeArguments(parentEntryPointFn, [childContractAddress, childValueFnSelector, newValue]);
+
+      // eslint-disable-next-line require-await
+      publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: FunctionSelector) => {
+        if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
+          return parentEntryPointFn.bytecode;
+        } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
+          return childValueFn.bytecode;
+        } else {
+          return undefined;
+        }
+      });
+
+      const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
+
+      const result = await simulate(execution, globalVariables);
+      const childExecutionResult = result.nestedExecutions[0];
+      expect(Fr.fromBuffer(childExecutionResult.unencryptedLogs.logs[0].data)).toEqual(new Fr(newValue));
+      expect(Fr.fromBuffer(childExecutionResult.unencryptedLogs.logs[0].hash())).toEqual(
+        childExecutionResult.unencryptedLogsHashes[0].value,
+      );
+      expect(childExecutionResult.unencryptedLogPreimagesLength).toEqual(
+        new Fr(childExecutionResult.unencryptedLogs.getSerializedLength()),
+      );
+      expect(result.returnValues[0]).toEqual(new Fr(newValue));
     }, 20_000);
   });
 

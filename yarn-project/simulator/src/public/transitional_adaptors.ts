@@ -153,6 +153,7 @@ export async function convertAvmResults(
 
   // TODO: Support nested executions.
   const nestedExecutions: PublicExecutionResult[] = [];
+  const allUnencryptedLogs = unencryptedLogs;
   // TODO keep track of side effect counters
   const startSideEffectCounter = Fr.ZERO;
   const endSideEffectCounter = Fr.ZERO;
@@ -172,6 +173,8 @@ export async function convertAvmResults(
     nestedExecutions,
     unencryptedLogsHashes,
     unencryptedLogs,
+    unencryptedLogPreimagesLength: new Fr(unencryptedLogs.getSerializedLength()),
+    allUnencryptedLogs,
     reverted: result.reverted,
     revertReason: result.revertReason ? createSimulationError(result.revertReason) : undefined,
     startGasLeft: executionContext.availableGas,

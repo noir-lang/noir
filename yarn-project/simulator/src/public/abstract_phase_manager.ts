@@ -246,6 +246,7 @@ export abstract class AbstractPhaseManager {
       while (executionStack.length) {
         const current = executionStack.pop()!;
         const isExecutionRequest = !isPublicExecutionResult(current);
+        // TODO(6052): Extract correct new counter from nested calls
         const sideEffectCounter = lastSideEffectCounter(tx) + 1;
         const availableGas = this.getAvailableGas(tx, previousPublicKernelOutput);
 
@@ -270,7 +271,9 @@ export abstract class AbstractPhaseManager {
           throw result.revertReason;
         }
 
-        newUnencryptedFunctionLogs.push(result.unencryptedLogs);
+        if (isExecutionRequest) {
+          newUnencryptedFunctionLogs.push(result.allUnencryptedLogs);
+        }
 
         this.log.debug(
           `Running public kernel circuit for ${result.execution.contractAddress.toString()}:${functionSelector}`,
@@ -382,8 +385,6 @@ export abstract class AbstractPhaseManager {
       MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     );
 
-    const unencryptedLogPreimagesLength = new Fr(result.unencryptedLogs.getSerializedLength());
-
     const publicCircuitPublicInputs = PublicCircuitPublicInputs.from({
       callContext: result.execution.callContext,
       proverAddress: AztecAddress.ZERO,
@@ -420,7 +421,7 @@ export abstract class AbstractPhaseManager {
         SideEffect.empty(),
         MAX_UNENCRYPTED_LOGS_PER_CALL,
       ),
-      unencryptedLogPreimagesLength,
+      unencryptedLogPreimagesLength: result.unencryptedLogPreimagesLength,
       historicalHeader: this.historicalHeader,
       globalVariables: this.globalVariables,
       startGasLeft: Gas.from(result.startGasLeft),

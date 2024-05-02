@@ -1,3 +1,4 @@
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import {
   type AztecAddress,
   type AztecNode,
@@ -11,6 +12,7 @@ import {
   type TxReceipt,
   TxStatus,
   type Wallet,
+  deriveKeys,
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -18,6 +20,7 @@ import { StatefulTestContractArtifact } from '@aztec/noir-contracts.js';
 import { TestContract } from '@aztec/noir-contracts.js/Test';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
+import { TaggedNote } from '../../circuit-types/src/logs/l1_note_payload/tagged_note.js';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_block_building', () => {
@@ -183,6 +186,60 @@ describe('e2e_block_building', () => {
         await expect(contract.methods.emit_nullifier(emittedPublicNullifier).send().wait()).rejects.toThrow(/dropped/);
       });
     });
+  });
+
+  describe('logs in nested calls are ordered as expected', () => {
+    // This test was originally writted for e2e_nested, but it was refactored
+    // to not use TestContract.
+    let testContract: TestContract;
+
+    beforeEach(async () => {
+      ({ teardown, pxe, logger, wallet: owner } = await setup(1));
+      logger.info(`Deploying test contract`);
+      testContract = await TestContract.deploy(owner).send().deployed();
+    }, 30_000);
+
+    it('calls a method with nested unencrypted logs', async () => {
+      const tx = await testContract.methods.emit_unencrypted_logs_nested([1, 2, 3, 4, 5]).send().wait();
+      const logs = (await pxe.getUnencryptedLogs({ txHash: tx.txHash })).logs.map(l => l.log);
+
+      // First log should be contract address
+      expect(logs[0].data).toEqual(testContract.address.toBuffer());
+
+      // Second log should be array of fields
+      let expectedBuffer = Buffer.concat([1, 2, 3, 4, 5].map(num => new Fr(num).toBuffer()));
+      expect(logs[1].data.subarray(-32 * 5)).toEqual(expectedBuffer);
+
+      // Third log should be string "test"
+      expectedBuffer = Buffer.concat(
+        ['t', 'e', 's', 't'].map(num => Buffer.concat([Buffer.alloc(31), Buffer.from(num)])),
+      );
+      expect(logs[2].data.subarray(-32 * 5)).toEqual(expectedBuffer);
+    }, 30_000);
+
+    it('calls a method with nested encrypted logs', async () => {
+      // account setup
+      const privateKey = new Fr(7n);
+      const keys = deriveKeys(privateKey);
+      const account = getSchnorrAccount(pxe, privateKey, keys.masterIncomingViewingSecretKey);
+      await account.deploy().wait();
+      const thisWallet = await account.getWallet();
+
+      // call test contract
+      const action = testContract.methods.emit_encrypted_logs_nested(10, thisWallet.getAddress());
+      const tx = await action.prove();
+      const rct = await action.send().wait();
+
+      // compare logs
+      expect(rct.status).toEqual('mined');
+      const decryptedLogs = tx.encryptedLogs
+        .unrollLogs()
+        .map(l => TaggedNote.fromEncryptedBuffer(l.data, keys.masterIncomingViewingSecretKey));
+      const notevalues = decryptedLogs.map(l => l?.notePayload.note.items[0]);
+      expect(notevalues[0]).toEqual(new Fr(10));
+      expect(notevalues[1]).toEqual(new Fr(11));
+      expect(notevalues[2]).toEqual(new Fr(12));
+    }, 30_000);
   });
 });
 

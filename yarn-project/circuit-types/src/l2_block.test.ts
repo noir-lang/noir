@@ -27,7 +27,7 @@ describe('L2Block', () => {
     // The following 2 values are copied from `testComputeKernelLogs1Iteration` in `Decoder.t.sol`
     const encodedLogs = Buffer.from('0000000c000000080000000493e78a70', 'hex');
     const logs = EncryptedTxL2Logs.fromBuffer(encodedLogs, true);
-    const referenceLogsHash = Buffer.from('0020f9217a7218a377a78d0e8929b87d31c32d270817fe8f5fe876c61b741024', 'hex');
+    const referenceLogsHash = Buffer.from('0044339f3cafeb22de0d76423142797f1d4520c6cad559de5d1390bb7ab4c812', 'hex');
 
     const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
@@ -41,7 +41,7 @@ describe('L2Block', () => {
       'hex',
     );
     const logs = EncryptedTxL2Logs.fromBuffer(encodedLogs, true);
-    const referenceLogsHash = Buffer.from('007e066525b587fdfb3704301ffcfa4b6a585d95491926d0fd5698f3ae603b18', 'hex');
+    const referenceLogsHash = Buffer.from('00ebc16f83abc50c57496375353bf377b06bef23880bd3e9975ea1f7f5a0e8b1', 'hex');
 
     const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
@@ -56,7 +56,7 @@ describe('L2Block', () => {
       'hex',
     );
     const logs = EncryptedTxL2Logs.fromBuffer(encodedLogs, true);
-    const referenceLogsHash = Buffer.from('007e066525b587fdfb3704301ffcfa4b6a585d95491926d0fd5698f3ae603b18', 'hex');
+    const referenceLogsHash = Buffer.from('00ebc16f83abc50c57496375353bf377b06bef23880bd3e9975ea1f7f5a0e8b1', 'hex');
 
     const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
