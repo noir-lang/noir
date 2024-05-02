@@ -1,3 +1,4 @@
+pub mod ast_to_hir;
 pub mod comptime;
 pub mod def_collector;
 pub mod def_map;
