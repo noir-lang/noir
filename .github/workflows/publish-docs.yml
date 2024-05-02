@@ -3,12 +3,26 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The tag to build from (leave empty to build a nightly release from master)
+        description: The tag to build from.
         required: true
 
 jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      runner_label: master
+      ebs_cache_size_gb: 256
+      runner_concurrency: 20
+      subaction: ${{ inputs.runner_action || 'start' }}
+      ec2_instance_type: i4i.32xlarge m6a.32xlarge m6i.32xlarge m6id.32xlarge m6idn.32xlarge m6in.32xlarge m7a.32xlarge r6a.32xlarge r6i.32xlarge r6id.32xlarge
+      ec2_ami_id: ami-04d8422a9ba4de80f
+      ec2_spot_instance_strategy: BestEffort
+      ec2_instance_ttl: 40 # refreshed by jobs
+    secrets: inherit
+
   publish:
-    runs-on: ubuntu-latest
+    needs: setup
+    runs-on: master
     steps:
       - uses: actions/checkout@v4
         with:
