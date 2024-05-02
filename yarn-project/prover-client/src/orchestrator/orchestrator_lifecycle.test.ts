@@ -1,11 +1,22 @@
 import { PROVING_STATUS, type ProvingFailure } from '@aztec/circuit-types';
-import { type GlobalVariables, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
-import { fr } from '@aztec/circuits.js/testing';
+import {
+  type GlobalVariables,
+  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  NUM_BASE_PARITY_PER_ROOT_PARITY,
+} from '@aztec/circuits.js';
+import { fr, makeGlobalVariables } from '@aztec/circuits.js/testing';
 import { range } from '@aztec/foundation/array';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { type PromiseWithResolvers, promiseWithResolvers } from '@aztec/foundation/promise';
+import { sleep } from '@aztec/foundation/sleep';
+
+import { jest } from '@jest/globals';
 
 import { makeBloatedProcessedTx, makeEmptyProcessedTestTx, makeGlobals } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
+import { type CircuitProver } from '../prover/interface.js';
+import { TestCircuitProver } from '../prover/test_circuit_prover.js';
+import { ProvingOrchestrator } from './orchestrator.js';
 
 const logger = createDebugLogger('aztec:orchestrator-lifecycle');
 
@@ -123,6 +134,28 @@ describe('prover/orchestrator/lifecycle', () => {
       const finalisedBlock = await context.orchestrator.finaliseBlock();
 
       expect(finalisedBlock.block.number).toEqual(101);
+    }, 60000);
+
+    it('cancels proving requests', async () => {
+      const prover: CircuitProver = new TestCircuitProver();
+      const orchestrator = new ProvingOrchestrator(context.actualDb, prover);
+
+      const spy = jest.spyOn(prover, 'getBaseParityProof');
+      const deferredPromises: PromiseWithResolvers<any>[] = [];
+      spy.mockImplementation(() => {
+        const deferred = promiseWithResolvers<any>();
+        deferredPromises.push(deferred);
+        return deferred.promise;
+      });
+      await orchestrator.startNewBlock(2, makeGlobalVariables(1), [], await makeEmptyProcessedTestTx(context.actualDb));
+
+      await sleep(1);
+
+      expect(spy).toHaveBeenCalledTimes(NUM_BASE_PARITY_PER_ROOT_PARITY);
+      expect(spy.mock.calls.every(([_, signal]) => !signal?.aborted)).toBeTruthy();
+
+      orchestrator.cancelBlock();
+      expect(spy.mock.calls.every(([_, signal]) => signal?.aborted)).toBeTruthy();
     });
   });
 });

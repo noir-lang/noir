@@ -102,7 +102,7 @@ export type ProvingRequestPublicInputs = {
 export type ProvingRequestResult<T extends ProvingRequestType> = ProvingRequestPublicInputs[T];
 
 export interface ProvingJobSource {
-  getProvingJob(): Promise<ProvingJob<ProvingRequest> | null>;
+  getProvingJob(): Promise<ProvingJob<ProvingRequest> | undefined>;
 
   resolveProvingJob<T extends ProvingRequestType>(jobId: string, result: ProvingRequestResult<T>): Promise<void>;
 

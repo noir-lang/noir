@@ -66,8 +66,8 @@ export class DummyProver implements ProverClient {
 }
 
 class DummyProvingJobSource implements ProvingJobSource {
-  getProvingJob(): Promise<ProvingJob<ProvingRequest> | null> {
-    return Promise.resolve(null);
+  getProvingJob(): Promise<ProvingJob<ProvingRequest> | undefined> {
+    return Promise.resolve(undefined);
   }
 
   rejectProvingJob(): Promise<void> {

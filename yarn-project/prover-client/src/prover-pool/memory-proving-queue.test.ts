@@ -27,8 +27,8 @@ describe('MemoryProvingQueue', () => {
     expect(job2?.request.type).toEqual(ProvingRequestType.BASE_ROLLUP);
   });
 
-  it('returns null when no jobs are available', async () => {
-    await expect(queue.getProvingJob({ timeoutSec: 0 })).resolves.toBeNull();
+  it('returns undefined when no jobs are available', async () => {
+    await expect(queue.getProvingJob({ timeoutSec: 0 })).resolves.toBeUndefined();
   });
 
   it('notifies of completion', async () => {

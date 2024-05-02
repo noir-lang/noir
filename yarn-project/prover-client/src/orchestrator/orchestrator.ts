@@ -36,6 +36,7 @@ import {
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
+import { AbortedError } from '@aztec/foundation/error';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
 import { type Tuple } from '@aztec/foundation/serialize';
@@ -82,6 +83,8 @@ const KernelTypesWithoutFunctions: Set<PublicKernelType> = new Set<PublicKernelT
  */
 export class ProvingOrchestrator {
   private provingState: ProvingState | undefined = undefined;
+  private pendingProvingJobs: AbortController[] = [];
+
   constructor(private db: MerkleTreeOperations, private prover: CircuitProver) {}
 
   /**
@@ -211,6 +214,10 @@ export class ProvingOrchestrator {
    * Cancel any further proving of the block
    */
   public cancelBlock() {
+    for (const controller of this.pendingProvingJobs) {
+      controller.abort();
+    }
+
     this.provingState?.cancel();
   }
 
@@ -303,19 +310,28 @@ export class ProvingOrchestrator {
    */
   private deferredProving<T>(
     provingState: ProvingState | undefined,
-    request: () => Promise<T>,
+    request: (signal: AbortSignal) => Promise<T>,
     callback: (result: T, durationMs: number) => void | Promise<void>,
   ) {
     if (!provingState?.verifyState()) {
       logger.debug(`Not enqueuing job, state no longer valid`);
       return;
     }
+
+    const controller = new AbortController();
+    this.pendingProvingJobs.push(controller);
+
     // We use a 'safeJob'. We don't want promise rejections in the proving pool, we want to capture the error here
     // and reject the proving job whilst keeping the event loop free of rejections
     const safeJob = async () => {
       try {
+        // there's a delay between enqueueing this job and it actually running
+        if (controller.signal.aborted) {
+          return;
+        }
+
         const timer = new Timer();
-        const result = await request();
+        const result = await request(controller.signal);
         const duration = timer.ms();
 
         if (!provingState?.verifyState()) {
@@ -323,10 +339,27 @@ export class ProvingOrchestrator {
           return;
         }
 
+        // we could have been cancelled whilst waiting for the result
+        // and the prover ignored the signal. Drop the result in that case
+        if (controller.signal.aborted) {
+          return;
+        }
+
         await callback(result, duration);
       } catch (err) {
+        if (err instanceof AbortedError) {
+          // operation was cancelled, probably because the block was cancelled
+          // drop this result
+          return;
+        }
+
         logger.error(`Error thrown when proving job`);
         provingState!.reject(`${err}`);
+      } finally {
+        const index = this.pendingProvingJobs.indexOf(controller);
+        if (index > -1) {
+          this.pendingProvingJobs.splice(index, 1);
+        }
       }
     };
 
@@ -441,7 +474,7 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      () => this.prover.getBaseRollupProof(tx.baseRollupInputs),
+      signal => this.prover.getBaseRollupProof(tx.baseRollupInputs, signal),
       (result, duration) => {
         this.emitCircuitSimulationStats(
           'base-rollup',
@@ -472,7 +505,7 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      () => this.prover.getMergeRollupProof(inputs),
+      signal => this.prover.getMergeRollupProof(inputs, signal),
       (result, duration) => {
         this.emitCircuitSimulationStats(
           'merge-rollup',
@@ -508,7 +541,7 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      () => this.prover.getRootRollupProof(inputs),
+      signal => this.prover.getRootRollupProof(inputs, signal),
       (result, duration) => {
         this.emitCircuitSimulationStats(
           'root-rollup',
@@ -533,7 +566,7 @@ export class ProvingOrchestrator {
   private enqueueBaseParityCircuit(provingState: ProvingState, inputs: BaseParityInputs, index: number) {
     this.deferredProving(
       provingState,
-      () => this.prover.getBaseParityProof(inputs),
+      signal => this.prover.getBaseParityProof(inputs, signal),
       (rootInput, duration) => {
         this.emitCircuitSimulationStats(
           'base-parity',
@@ -560,7 +593,7 @@ export class ProvingOrchestrator {
   private enqueueRootParityCircuit(provingState: ProvingState | undefined, inputs: RootParityInputs) {
     this.deferredProving(
       provingState,
-      () => this.prover.getRootParityProof(inputs),
+      signal => this.prover.getRootParityProof(inputs, signal),
       async (rootInput, duration) => {
         this.emitCircuitSimulationStats(
           'root-parity',
@@ -674,11 +707,11 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      (): Promise<PublicInputsAndProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
+      (signal): Promise<PublicInputsAndProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
         if (request.type === PublicKernelType.TAIL) {
-          return this.prover.getPublicTailProof(request);
+          return this.prover.getPublicTailProof(request, signal);
         } else {
-          return this.prover.getPublicKernelProof(request);
+          return this.prover.getPublicKernelProof(request, signal);
         }
       },
       (result, duration) => {

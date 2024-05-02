@@ -69,31 +69,46 @@ export interface CircuitProver {
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getBaseParityProof(inputs: BaseParityInputs): Promise<RootParityInput<typeof RECURSIVE_PROOF_LENGTH>>;
+  getBaseParityProof(
+    inputs: BaseParityInputs,
+    signal?: AbortSignal,
+  ): Promise<RootParityInput<typeof RECURSIVE_PROOF_LENGTH>>;
 
   /**
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getRootParityProof(inputs: RootParityInputs): Promise<RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>>;
+  getRootParityProof(
+    inputs: RootParityInputs,
+    signal?: AbortSignal,
+  ): Promise<RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>>;
 
   /**
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getBaseRollupProof(input: BaseRollupInputs): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>>;
+  getBaseRollupProof(
+    input: BaseRollupInputs,
+    signal?: AbortSignal,
+  ): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>>;
 
   /**
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getMergeRollupProof(input: MergeRollupInputs): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>>;
+  getMergeRollupProof(
+    input: MergeRollupInputs,
+    signal?: AbortSignal,
+  ): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>>;
 
   /**
    * Creates a proof for the given input.
    * @param input - Input to the circuit.
    */
-  getRootRollupProof(input: RootRollupInputs): Promise<PublicInputsAndProof<RootRollupPublicInputs>>;
+  getRootRollupProof(
+    input: RootRollupInputs,
+    signal?: AbortSignal,
+  ): Promise<PublicInputsAndProof<RootRollupPublicInputs>>;
 
   /**
    * Create a public kernel proof.
@@ -101,18 +116,22 @@ export interface CircuitProver {
    */
   getPublicKernelProof(
     kernelRequest: PublicKernelNonTailRequest,
+    signal?: AbortSignal,
   ): Promise<PublicInputsAndProof<PublicKernelCircuitPublicInputs>>;
 
   /**
    * Create a public kernel tail proof.
    * @param kernelRequest - Object containing the details of the proof required
    */
-  getPublicTailProof(kernelRequest: PublicKernelTailRequest): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>>;
+  getPublicTailProof(
+    kernelRequest: PublicKernelTailRequest,
+    signal?: AbortSignal,
+  ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>>;
 
   /**
    * Verifies a circuit proof
    */
-  verifyProof(artifact: ServerProtocolArtifact, proof: Proof): Promise<void>;
+  verifyProof(artifact: ServerProtocolArtifact, proof: Proof, signal?: AbortSignal): Promise<void>;
 }
 
 /**

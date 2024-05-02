@@ -9,3 +9,8 @@ export class InterruptError extends Error {}
  * An error thrown when an action times out.
  */
 export class TimeoutError extends Error {}
+
+/**
+ * Represents an error thrown when an operation is aborted.
+ */
+export class AbortedError extends Error {}
