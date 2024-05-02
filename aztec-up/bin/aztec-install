@@ -44,6 +44,7 @@ function title() {
   echo -e "  ${bold}${g}aztec-nargo${r}   - aztec's build of nargo, the noir compiler toolchain."
   echo -e "  ${bold}${g}aztec-sandbox${r} - a wrapper around docker-compose that launches services needed for sandbox testing."
   echo -e "  ${bold}${g}aztec-up${r}      - a tool to upgrade the aztec toolchain to the latest, or specific versions."
+  echo -e "  ${bold}${g}aztec-builder${r} - a tool to generate typescript interfaces of Noir contracts"
   echo
   read -p "Do you wish to continue? (y/n)" -n 1 -r
   echo
@@ -106,6 +107,7 @@ if [ -z "${SKIP_PULL:-}" ]; then
   info "Pulling aztec version $VERSION..."
   pull_container aztec
   pull_container noir
+  pull_container aztec-builder
 fi
 
 # Download the Docker Compose file. Used by aztec.
@@ -124,6 +126,7 @@ install_bin aztec
 install_bin aztec-sandbox
 install_bin aztec-up
 install_bin aztec-nargo
+install_bin aztec-builder
 
 function update_path_env_var {
   TARGET_DIR="${1}"
