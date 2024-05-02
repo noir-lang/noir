@@ -31,6 +31,7 @@ import {
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type Tuple } from '@aztec/foundation/serialize';
+import { Timer } from '@aztec/foundation/timer';
 import {
   ServerCircuitArtifacts,
   type ServerProtocolArtifact,
@@ -62,6 +63,7 @@ import {
   generateProof,
   verifyProof,
 } from '../bb/execute.js';
+import { circuitTypeToCircuitName, emitCircuitProvingStats, emitCircuitWitnessGenerationStats } from '../stats.js';
 import { type CircuitProver, KernelArtifactMapping } from './interface.js';
 
 const logger = createDebugLogger('aztec:bb-prover');
@@ -268,7 +270,15 @@ export class BBNativeRollupProver implements CircuitProver {
 
     logger.debug(`Generating witness data for ${circuitType}`);
 
+    const timer = new Timer();
     const outputWitness = await simulator.simulateCircuit(witnessMap, artifact);
+    emitCircuitWitnessGenerationStats(
+      circuitTypeToCircuitName(circuitType),
+      timer.ms(),
+      witnessMap.size * Fr.SIZE_IN_BYTES,
+      outputWitness.size * Fr.SIZE_IN_BYTES,
+      logger,
+    );
 
     // Now prove the circuit from the generated witness
     logger.debug(`Proving ${circuitType}...`);
@@ -292,6 +302,16 @@ export class BBNativeRollupProver implements CircuitProver {
 
     // Read the proof and then cleanup up our temporary directory
     const proof = await fs.readFile(`${provingResult.proofPath!}/${PROOF_FILENAME}`);
+
+    // does not include reading the proof from disk above because duration comes from the bb wrapper
+    emitCircuitProvingStats(
+      circuitTypeToCircuitName(circuitType),
+      provingResult.duration,
+      witnessMap.size * Fr.SIZE_IN_BYTES,
+      outputWitness.size * Fr.SIZE_IN_BYTES,
+      proof.length,
+      logger,
+    );
 
     await fs.rm(bbWorkingDirectory, { recursive: true, force: true });
 
@@ -334,7 +354,16 @@ export class BBNativeRollupProver implements CircuitProver {
 
       logger.debug(`Generating witness data for ${circuitType}`);
 
+      const timer = new Timer();
       const outputWitness = await simulator.simulateCircuit(witnessMap, artifact);
+
+      emitCircuitWitnessGenerationStats(
+        circuitTypeToCircuitName(circuitType),
+        timer.ms(),
+        witnessMap.size * Fr.SIZE_IN_BYTES,
+        outputWitness.size * Fr.SIZE_IN_BYTES,
+        logger,
+      );
 
       const outputType = convertOutput(outputWitness);
 
@@ -363,6 +392,15 @@ export class BBNativeRollupProver implements CircuitProver {
 
       logger.info(
         `Generated proof for ${circuitType} in ${provingResult.duration} ms, size: ${proof.proof.length} fields`,
+      );
+
+      emitCircuitProvingStats(
+        circuitTypeToCircuitName(circuitType),
+        provingResult.duration,
+        witnessMap.size * Fr.SIZE_IN_BYTES,
+        outputWitness.size * Fr.SIZE_IN_BYTES,
+        proof.binaryProof.buffer.length,
+        logger,
       );
 
       return [outputType, proof];

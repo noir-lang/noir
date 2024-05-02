@@ -117,6 +117,18 @@ export const Metrics = [
     events: ['circuit-simulation'],
   },
   {
+    name: 'circuit_witness_generation_time_in_ms',
+    groupBy: 'circuit-name',
+    description: 'Time to generate the partial witness for a circuit',
+    events: ['circuit-simulation'],
+  },
+  {
+    name: 'circuit_proving_time_in_ms',
+    groupBy: 'circuit-name',
+    description: 'Time to prove circuit execution.',
+    events: ['circuit-proving'],
+  },
+  {
     name: 'circuit_input_size_in_bytes',
     groupBy: 'circuit-name',
     description: 'Size of the inputs to a circuit simulation.',
@@ -127,6 +139,12 @@ export const Metrics = [
     groupBy: 'circuit-name',
     description: 'Size of the outputs (ie public inputs) from a circuit simulation.',
     events: ['circuit-simulation'],
+  },
+  {
+    name: 'circuit_proof_size_in_bytes',
+    groupBy: 'circuit-name',
+    description: 'Size of the proof produced by a circuit.',
+    events: ['circuit-proving'],
   },
   {
     name: 'tx_size_in_bytes',

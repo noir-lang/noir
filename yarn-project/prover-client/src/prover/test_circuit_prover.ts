@@ -5,7 +5,6 @@ import {
   PublicKernelType,
   makePublicInputsAndProof,
 } from '@aztec/circuit-types';
-import { type CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
@@ -25,7 +24,7 @@ import {
   makeRecursiveProof,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { elapsed } from '@aztec/foundation/timer';
+import { Timer } from '@aztec/foundation/timer';
 import {
   BaseParityArtifact,
   MergeRollupArtifact,
@@ -49,6 +48,7 @@ import {
 } from '@aztec/noir-protocol-circuits-types';
 import { type SimulationProvider, WASMSimulator } from '@aztec/simulator';
 
+import { emitCircuitSimulationStats, mapPublicKernelToCircuitName } from '../stats.js';
 import { type CircuitProver, KernelArtifactMapping } from './interface.js';
 
 const VERIFICATION_KEYS: Record<ServerProtocolArtifact, VerificationKeyAsFields> = {
@@ -81,17 +81,25 @@ export class TestCircuitProver implements CircuitProver {
    * @returns The public inputs of the parity circuit.
    */
   public async getBaseParityProof(inputs: BaseParityInputs): Promise<RootParityInput<typeof RECURSIVE_PROOF_LENGTH>> {
+    const timer = new Timer();
     const witnessMap = convertBaseParityInputsToWitnessMap(inputs);
 
     // use WASM here as it is faster for small circuits
     const witness = await this.wasmSimulator.simulateCircuit(witnessMap, BaseParityArtifact);
-
     const result = convertBaseParityOutputsFromWitnessMap(witness);
 
     const rootParityInput = new RootParityInput<typeof RECURSIVE_PROOF_LENGTH>(
       makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH),
       VERIFICATION_KEYS['BaseParityArtifact'],
       result,
+    );
+
+    emitCircuitSimulationStats(
+      'base-parity',
+      timer.ms(),
+      inputs.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
     );
 
     return Promise.resolve(rootParityInput);
@@ -105,6 +113,7 @@ export class TestCircuitProver implements CircuitProver {
   public async getRootParityProof(
     inputs: RootParityInputs,
   ): Promise<RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>> {
+    const timer = new Timer();
     const witnessMap = convertRootParityInputsToWitnessMap(inputs);
 
     // use WASM here as it is faster for small circuits
@@ -118,6 +127,14 @@ export class TestCircuitProver implements CircuitProver {
       result,
     );
 
+    emitCircuitSimulationStats(
+      'root-parity',
+      timer.ms(),
+      inputs.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
+
     return Promise.resolve(rootParityInput);
   }
 
@@ -129,6 +146,7 @@ export class TestCircuitProver implements CircuitProver {
   public async getBaseRollupProof(
     input: BaseRollupInputs,
   ): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>> {
+    const timer = new Timer();
     const witnessMap = convertSimulatedBaseRollupInputsToWitnessMap(input);
 
     const simulationProvider = this.simulationProvider ?? this.wasmSimulator;
@@ -136,6 +154,13 @@ export class TestCircuitProver implements CircuitProver {
 
     const result = convertSimulatedBaseRollupOutputsFromWitnessMap(witness);
 
+    emitCircuitSimulationStats(
+      'base-rollup',
+      timer.ms(),
+      input.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
     return makePublicInputsAndProof(result, makeEmptyProof());
   }
   /**
@@ -146,6 +171,7 @@ export class TestCircuitProver implements CircuitProver {
   public async getMergeRollupProof(
     input: MergeRollupInputs,
   ): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>> {
+    const timer = new Timer();
     const witnessMap = convertMergeRollupInputsToWitnessMap(input);
 
     // use WASM here as it is faster for small circuits
@@ -153,6 +179,13 @@ export class TestCircuitProver implements CircuitProver {
 
     const result = convertMergeRollupOutputsFromWitnessMap(witness);
 
+    emitCircuitSimulationStats(
+      'merge-rollup',
+      timer.ms(),
+      input.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
     return makePublicInputsAndProof(result, makeEmptyProof());
   }
 
@@ -162,26 +195,28 @@ export class TestCircuitProver implements CircuitProver {
    * @returns The public inputs as outputs of the simulation.
    */
   public async getRootRollupProof(input: RootRollupInputs): Promise<PublicInputsAndProof<RootRollupPublicInputs>> {
+    const timer = new Timer();
     const witnessMap = convertRootRollupInputsToWitnessMap(input);
 
     // use WASM here as it is faster for small circuits
-    const [duration, witness] = await elapsed(() => this.wasmSimulator.simulateCircuit(witnessMap, RootRollupArtifact));
+    const witness = await this.wasmSimulator.simulateCircuit(witnessMap, RootRollupArtifact);
 
     const result = convertRootRollupOutputsFromWitnessMap(witness);
 
-    this.logger.debug(`Simulated root rollup circuit`, {
-      eventName: 'circuit-simulation',
-      circuitName: 'root-rollup',
-      duration,
-      inputSize: input.toBuffer().length,
-      outputSize: result.toBuffer().length,
-    } satisfies CircuitSimulationStats);
+    emitCircuitSimulationStats(
+      'root-rollup',
+      timer.ms(),
+      input.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
     return makePublicInputsAndProof(result, makeEmptyProof());
   }
 
   public async getPublicKernelProof(
     kernelRequest: PublicKernelNonTailRequest,
   ): Promise<PublicInputsAndProof<PublicKernelCircuitPublicInputs>> {
+    const timer = new Timer();
     const kernelOps = KernelArtifactMapping[kernelRequest.type];
     if (kernelOps === undefined) {
       throw new Error(`Unable to prove for kernel type ${PublicKernelType[kernelRequest.type]}`);
@@ -191,12 +226,21 @@ export class TestCircuitProver implements CircuitProver {
     const witness = await this.wasmSimulator.simulateCircuit(witnessMap, ServerCircuitArtifacts[kernelOps.artifact]);
 
     const result = kernelOps.convertOutputs(witness);
+    emitCircuitSimulationStats(
+      mapPublicKernelToCircuitName(kernelRequest.type),
+      timer.ms(),
+      kernelRequest.inputs.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
+
     return makePublicInputsAndProof(result, makeEmptyProof());
   }
 
   public async getPublicTailProof(
     kernelRequest: PublicKernelTailRequest,
   ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
+    const timer = new Timer();
     const witnessMap = convertPublicTailInputsToWitnessMap(kernelRequest.inputs);
     // use WASM here as it is faster for small circuits
     const witness = await this.wasmSimulator.simulateCircuit(
@@ -205,11 +249,19 @@ export class TestCircuitProver implements CircuitProver {
     );
 
     const result = convertPublicTailOutputFromWitnessMap(witness);
+    emitCircuitSimulationStats(
+      'public-kernel-tail',
+      timer.ms(),
+      kernelRequest.inputs.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
+
     return makePublicInputsAndProof(result, makeEmptyProof());
   }
 
   // Not implemented for test circuits
   public verifyProof(_1: ServerProtocolArtifact, _2: Proof): Promise<void> {
-    throw new Error('Method not implemented.');
+    return Promise.reject(new Error('Method not implemented.'));
   }
 }

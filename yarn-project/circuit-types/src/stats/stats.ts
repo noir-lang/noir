@@ -48,30 +48,62 @@ export type NodeSyncedChainHistoryStats = {
   dbSize: number;
 };
 
+export type CircuitName =
+  | 'base-parity'
+  | 'root-parity'
+  | 'base-rollup'
+  | 'private-kernel-init'
+  | 'private-kernel-ordering'
+  | 'root-rollup'
+  | 'merge-rollup'
+  | 'private-kernel-inner'
+  | 'public-kernel-setup'
+  | 'public-kernel-app-logic'
+  | 'public-kernel-teardown'
+  | 'public-kernel-tail';
+
 /** Stats for circuit simulation. */
 export type CircuitSimulationStats = {
   /** name of the event. */
   eventName: 'circuit-simulation';
   /** Name of the circuit. */
-  circuitName:
-    | 'base-parity'
-    | 'root-parity'
-    | 'base-rollup'
-    | 'private-kernel-init'
-    | 'private-kernel-ordering'
-    | 'root-rollup'
-    | 'merge-rollup'
-    | 'private-kernel-inner'
-    | 'public-kernel-setup'
-    | 'public-kernel-app-logic'
-    | 'public-kernel-teardown'
-    | 'public-kernel-tail';
+  circuitName: CircuitName;
   /** Duration in ms. */
   duration: number;
   /** Size in bytes of circuit inputs. */
   inputSize: number;
   /** Size in bytes of circuit outputs (aka public inputs). */
   outputSize: number;
+};
+
+/** Stats for witness generation. */
+export type CircuitWitnessGenerationStats = {
+  /** name of the event. */
+  eventName: 'circuit-witness-generation';
+  /** Name of the circuit. */
+  circuitName: CircuitName;
+  /** Duration in ms. */
+  duration: number;
+  /** Size in bytes of circuit inputs. */
+  inputSize: number;
+  /** Size in bytes of circuit outputs (aka public inputs). */
+  outputSize: number;
+};
+
+/** Stats for proving a circuit */
+export type CircuitProvingStats = {
+  /** Name of the event. */
+  eventName: 'circuit-proving';
+  /** Name of the circuit. */
+  circuitName: CircuitName;
+  /** Duration in ms. */
+  duration: number;
+  /** Size in bytes of circuit inputs. */
+  inputSize: number;
+  /** Size in bytes of circuit outputs (aka public inputs). */
+  outputSize: number;
+  /** Size in bytes of the proof. */
+  proofSize: number;
 };
 
 /** Stats for an L2 block built by a sequencer. */
@@ -206,6 +238,8 @@ export type Stats =
   | L1PublishStats
   | NodeSyncedChainHistoryStats
   | CircuitSimulationStats
+  | CircuitProvingStats
+  | CircuitWitnessGenerationStats
   | L2BlockBuiltStats
   | L2BlockHandledStats
   | NoteProcessorCaughtUpStats

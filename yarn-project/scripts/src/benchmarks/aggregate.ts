@@ -15,7 +15,9 @@ import {
   type BenchmarkMetricResults,
   type BenchmarkResults,
   type BenchmarkResultsWithTimestamp,
+  type CircuitProvingStats,
   type CircuitSimulationStats,
+  type CircuitWitnessGenerationStats,
   type L1PublishStats,
   type L2BlockBuiltStats,
   type L2BlockHandledStats,
@@ -104,6 +106,30 @@ function processCircuitSimulation(entry: CircuitSimulationStats, results: Benchm
   append(results, 'circuit_output_size_in_bytes', bucket, entry.outputSize);
 }
 
+/**
+ * Processes an entry with event name 'circuit-proving' and updates results
+ * Buckets are circuit names
+ */
+function processCircuitProving(entry: CircuitProvingStats, results: BenchmarkCollectedResults) {
+  const bucket = entry.circuitName;
+  if (!bucket) {
+    return;
+  }
+  append(results, 'circuit_proving_time_in_ms', bucket, entry.duration);
+  append(results, 'circuit_proof_size_in_bytes', bucket, entry.proofSize);
+}
+
+/**
+ * Processes an entry with event name 'circuit-proving' and updates results
+ * Buckets are circuit names
+ */
+function processCircuitWitnessGeneration(entry: CircuitWitnessGenerationStats, results: BenchmarkCollectedResults) {
+  const bucket = entry.circuitName;
+  if (!bucket) {
+    return;
+  }
+  append(results, 'circuit_witness_generation_time_in_ms', bucket, entry.duration);
+}
 /**
  * Processes an entry with event name 'note-processor-caught-up' and updates results
  */
@@ -198,6 +224,10 @@ function processEntry(entry: Stats, results: BenchmarkCollectedResults, fileName
       return processRollupBlockSynced(entry, results);
     case 'circuit-simulation':
       return processCircuitSimulation(entry, results);
+    case 'circuit-witness-generation':
+      return processCircuitWitnessGeneration(entry, results);
+    case 'circuit-proving':
+      return processCircuitProving(entry, results);
     case 'note-processor-caught-up':
       return processNoteProcessorCaughtUp(entry, results);
     case 'l2-block-built':
