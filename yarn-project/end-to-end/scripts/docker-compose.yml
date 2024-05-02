@@ -1,7 +1,8 @@
 version: '3'
 services:
   fork:
-    image: aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
+    image: aztecprotocol/foundry:de33b6af53005037b463318d2628b5cfcaf39916
+    pull_policy: always
     entrypoint: >
       sh -c '
       if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then

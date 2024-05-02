@@ -81,8 +81,9 @@ RUN ulimit -n 65535 && \
         mv ./target/local/$t /opt/foundry/bin/$t; \
         strip /opt/foundry/bin/$t; \
     done
-FROM scratch AS foundry
+FROM ubuntu:noble AS foundry
 COPY --from=foundry-build /opt/foundry /opt/foundry
+ENV PATH="/opt/foundry/bin:$PATH"
 
 ########################################################################################################################
 # This image contains *just* what's needed to perform a full build of the aztec project.

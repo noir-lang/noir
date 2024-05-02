@@ -91,6 +91,10 @@ end-to-end-prod:
         **/artifacts
     SAVE ARTIFACT /usr/src /usr/src
 
+anvil:
+    FROM ../build-images+build
+    SAVE ARTIFACT /opt/foundry/bin/anvil
+
 end-to-end:
     FROM ubuntu:noble
     RUN apt-get update && apt-get install -y wget gnupg \
@@ -100,7 +104,7 @@ end-to-end:
         && rm -rf /var/lib/apt/lists/*
     ENV CHROME_BIN="/usr/bin/google-chrome-stable"
     ENV PATH=/opt/foundry/bin:$PATH
-    COPY ../build-images+build/anvil /opt/foundry/bin/anvil
+    COPY +anvil/anvil /opt/foundry/bin/anvil
     COPY +end-to-end-prod/usr/src /usr/src
     WORKDIR /usr/src/yarn-project/end-to-end
     RUN ln -s /usr/src/yarn-project/.yarn/releases/yarn-3.6.3.cjs /usr/local/bin/yarn
