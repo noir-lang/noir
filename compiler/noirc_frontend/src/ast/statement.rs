@@ -263,6 +263,32 @@ impl<T> Recoverable for Vec<T> {
     }
 }
 
+pub trait MapIdents {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F);
+}
+
+impl<T> MapIdents for Option<T> where T: MapIdents {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        self.map(|x| x.map_idents(f));
+    }
+}
+
+impl<T> MapIdents for Vec<T> where T: MapIdents {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        for elem in self {
+            elem.map_idents(f);
+        }
+    }
+}
+
+impl MapIdents for Ident {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        if let Some(new_ident) = f(self) {
+            *self = new_ident;
+        }
+    }
+}
+
 /// Trait for recoverable nodes during parsing.
 /// This is similar to Default but is expected
 /// to return an Error node of the appropriate type.
@@ -273,6 +299,12 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub ident: Ident,
+}
+
+impl MapIdents for ModuleDeclaration {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        self.ident.map_idents(f)
+    }
 }
 
 impl std::fmt::Display for ModuleDeclaration {
@@ -298,6 +330,33 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
+}
+
+impl UseTree {
+    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
+        let prefix = if let Some(mut root) = root {
+            root.segments.extend(self.prefix.segments);
+            root
+        } else {
+            self.prefix
+        };
+
+        match self.kind {
+            UseTreeKind::Path(name, alias) => {
+                vec![ImportStatement { path: prefix.join(name), alias }]
+            }
+            UseTreeKind::List(trees) => {
+                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+            }
+        }
+    }
+}
+
+impl MapIdents for UseTree {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        self.prefix.map_idents(f);
+        self.kind.map_idents(f)
+    }
 }
 
 impl Display for UseTree {
@@ -329,21 +388,16 @@ pub enum UseTreeKind {
     List(Vec<UseTree>),
 }
 
-impl UseTree {
-    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
-        let prefix = if let Some(mut root) = root {
-            root.segments.extend(self.prefix.segments);
-            root
-        } else {
-            self.prefix
-        };
 
-        match self.kind {
-            UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { path: prefix.join(name), alias }]
+impl MapIdents for UseTreeKind {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        match self {
+            Self::Path(ident, opt_ident) => {
+                ident.map_idents(f);
+                opt_ident.map_idents(f);
             }
-            UseTreeKind::List(trees) => {
-                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+            Self::List(use_trees) => {
+                use_trees.map_idents(f)
             }
         }
     }
@@ -426,6 +480,12 @@ impl Path {
     }
 }
 
+impl MapIdents for Path {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+       self.segments.map_idents(f)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
     pub pattern: Pattern,
@@ -435,6 +495,14 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
+}
+
+impl MapIdents for LetStatement {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        self.pattern.map_idents(f);
+        self.r#type.map_idents(f);
+        self.expression.kind.map_idents(f);
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -503,6 +571,20 @@ impl Pattern {
 impl Recoverable for Pattern {
     fn error(span: Span) -> Self {
         Pattern::Identifier(Ident::error(span))
+    }
+}
+
+impl MapIdents for Pattern {
+    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
+        match self {
+            Self::Identifier(ident) => ident.map_idents(f),
+            Self::Mutable(pattern, _, _) => patten.map_idents(f),
+            Self::Tuple(patterns, _) => patterns.map_idents(f),
+            Self::Struct(path, fields, _) => {
+                path.map_idents(f);
+                fields.map_idents(f)
+            }
+        }
     }
 }
 
