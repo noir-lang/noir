@@ -1362,7 +1362,7 @@ impl<'a> Resolver<'a> {
             StatementKind::Comptime(statement) => {
                 let hir_statement = self.resolve_stmt(statement.kind, statement.span);
                 let statement_id = self.interner.push_stmt(hir_statement);
-                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                self.interner.push_stmt_location(statement_id, statement.span, self.file);
                 HirStatement::Comptime(statement_id)
             }
         }
@@ -1413,7 +1413,7 @@ impl<'a> Resolver<'a> {
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         let id = self.interner.push_stmt(hir_stmt);
-        self.interner.push_statement_location(id, stmt.span, self.file);
+        self.interner.push_stmt_location(id, stmt.span, self.file);
         id
     }
 
