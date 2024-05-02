@@ -1,5 +1,6 @@
 use crate::{
-    abis::side_effect::{Ordered, OrderedValue}, address::AztecAddress, constants::NULLIFIER_LENGTH,
+    abis::{side_effect::{Ordered, OrderedValue, Readable}, read_request::ReadRequestContext},
+    address::AztecAddress, constants::NULLIFIER_LENGTH, hash::silo_nullifier,
     traits::{Empty, Hash, Serialize, Deserialize}
 };
 
@@ -55,5 +56,15 @@ impl Deserialize<NULLIFIER_LENGTH> for Nullifier {
             counter: values[1] as u32,
             note_hash: values[2],
         }
+    }
+}
+
+impl Readable for Nullifier {
+    fn assert_match_read_request(self, read_request: ReadRequestContext) {
+        let siloed_value = silo_nullifier(read_request.contract_address, read_request.value);
+        assert_eq(self.value, siloed_value, "Value of the nullifier does not match read request");
+        assert(
+            read_request.counter > self.counter, "Read request counter must be greater than the counter of the nullifier"
+        );
     }
 }

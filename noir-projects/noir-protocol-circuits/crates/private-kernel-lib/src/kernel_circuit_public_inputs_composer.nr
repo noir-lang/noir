@@ -1,9 +1,4 @@
-use crate::common;
-use dep::std::{cmp::Eq, option::Option};
-use dep::reset_kernel_lib::{
-    NullifierReadRequestHints, PrivateValidationRequestProcessor,
-    verify_squashed_transient_note_hashes_and_nullifiers
-};
+use dep::reset_kernel_lib::verify_squashed_transient_note_hashes_and_nullifiers;
 use dep::types::{
     abis::{
     kernel_data::PrivateKernelData,
@@ -11,15 +6,11 @@ use dep::types::{
     note_hash::NoteHashContext, nullifier::Nullifier, side_effect::{SideEffect, Ordered}, gas::Gas
 },
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
-    MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, DA_BYTES_PER_FIELD, FIXED_DA_GAS,
-    DA_GAS_PER_BYTE
+    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
+    MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    grumpkin_private_key::GrumpkinPrivateKey,
     hash::{compute_note_hash_nonce, compute_unique_siloed_note_hash},
-    utils::arrays::{array_length, array_to_bounded_vec, assert_sorted_array}, traits::{Empty, is_empty}
+    utils::arrays::{array_length, array_to_bounded_vec, assert_sorted_array}
 };
 
 fn asc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {

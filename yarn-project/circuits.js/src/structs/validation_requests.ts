@@ -12,7 +12,6 @@ import { NullifierKeyValidationRequestContext } from './nullifier_key_validation
 import { PublicDataRead } from './public_data_read_request.js';
 import { ReadRequestContext } from './read_request.js';
 import { RollupValidationRequests } from './rollup_validation_requests.js';
-import { SideEffect } from './side_effects.js';
 
 /**
  * Validation requests accumulated during the execution of the transaction.
@@ -27,7 +26,7 @@ export class ValidationRequests {
     /**
      * All the read requests made in this transaction.
      */
-    public noteHashReadRequests: Tuple<SideEffect, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
+    public noteHashReadRequests: Tuple<ReadRequestContext, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
     /**
      * All the nullifier read requests made in this transaction.
      */
@@ -76,7 +75,7 @@ export class ValidationRequests {
     const reader = BufferReader.asReader(buffer);
     return new ValidationRequests(
       reader.readObject(RollupValidationRequests),
-      reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, SideEffect),
+      reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, ReadRequestContext),
       reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext),
       reader.readArray(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, ReadRequestContext),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext),
@@ -96,7 +95,7 @@ export class ValidationRequests {
   static empty() {
     return new ValidationRequests(
       RollupValidationRequests.empty(),
-      makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, ReadRequestContext.empty),
       makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext.empty),
       makeTuple(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, ReadRequestContext.empty),
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),

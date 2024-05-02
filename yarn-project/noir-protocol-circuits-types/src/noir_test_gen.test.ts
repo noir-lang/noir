@@ -1,8 +1,6 @@
-import { MerkleTreeId } from '@aztec/circuit-types';
 import {
   AztecAddress,
   FunctionSelector,
-  NOTE_HASH_TREE_HEIGHT,
   computeContractAddressFromInstance,
   computeContractClassId,
   computeContractClassIdPreimage,
@@ -13,8 +11,6 @@ import {
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
-import { openTmpStore } from '@aztec/kv-store/utils';
-import { Pedersen, StandardTree } from '@aztec/merkle-tree';
 import { type ContractClass, type ContractInstance } from '@aztec/types/contracts';
 
 describe('Data generation for noir tests', () => {
@@ -90,33 +86,5 @@ describe('Data generation for noir tests', () => {
         siblingPath: tree.getSiblingPath(index).map(b => b.toString('hex')),
       })),
     ).toMatchSnapshot();
-  });
-
-  it('Computes a note hash tree', async () => {
-    const indexes = new Array(128).fill(null).map((_, i) => BigInt(i));
-    const leaves = indexes.map(i => new Fr(i + 1n));
-
-    const db = openTmpStore();
-
-    const noteHashTree = new StandardTree(
-      db,
-      new Pedersen(),
-      `${MerkleTreeId[MerkleTreeId.NOTE_HASH_TREE]}`,
-      NOTE_HASH_TREE_HEIGHT,
-      0n,
-      Fr,
-    );
-
-    await noteHashTree.appendLeaves(leaves);
-
-    const root = noteHashTree.getRoot(true);
-    const siblingPaths = await Promise.all(
-      indexes.map(async index => (await noteHashTree.getSiblingPath(index, true)).toFields()),
-    );
-
-    expect({
-      root: Fr.fromBuffer(root).toString(),
-      siblingPaths: siblingPaths.map(path => path.map(field => field.toString())),
-    }).toMatchSnapshot();
   });
 });

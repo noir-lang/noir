@@ -405,7 +405,7 @@ mod tests {
         builder.succeeded();
     }
 
-    #[test(should_fail_with="Hinted value does not match read request")]
+    #[test(should_fail_with="Value of the nullifier does not match read request")]
     unconstrained fn pending_nullifier_read_request_wrong_hint_fails() {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
@@ -418,7 +418,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="Read request counter must be greater than counter of the value being read")]
+    #[test(should_fail_with="Read request counter must be greater than the counter of the nullifier")]
     unconstrained fn pending_nullifier_read_request_reads_before_value_fails() {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 

@@ -3,7 +3,7 @@ use crate::{
     FUNCTION_TREE_HEIGHT, NULLIFIER_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT, ROLLUP_VK_TREE_HEIGHT,
     ARCHIVE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT
 },
-traits::Empty
+    traits::Empty
 };
 
 // TODO(Kev): Instead of doing `MembershipWitness<FUNCTION_TREE_HEIGHT>` we are forced 
@@ -35,14 +35,9 @@ struct ArchiveRootMembershipWitness{
     sibling_path: [Field; ARCHIVE_HEIGHT]
 }
 
-struct NoteHashReadRequestMembershipWitness {
+struct NoteHashMembershipWitness {
     leaf_index: Field,
     sibling_path: [Field; NOTE_HASH_TREE_HEIGHT],
-    // whether or not the read request corresponds to a pending note hash
-    // In case we change the default to true, we have to adapt is_empty() method
-    // hint to point kernel to the commitment this rr corresponds to
-    is_transient: bool,
-    hint_to_note_hash: Field,
 }
 
 impl Empty for VKMembershipWitness {
@@ -68,6 +63,15 @@ impl Empty for PublicDataMembershipWitness {
         PublicDataMembershipWitness {
             leaf_index: 0,
             sibling_path: [0; PUBLIC_DATA_TREE_HEIGHT]
+        }
+    }
+}
+
+impl Empty for NoteHashMembershipWitness {
+    fn empty() -> Self {
+        NoteHashMembershipWitness {
+            leaf_index: 0,
+            sibling_path: [0; NOTE_HASH_TREE_HEIGHT]
         }
     }
 }

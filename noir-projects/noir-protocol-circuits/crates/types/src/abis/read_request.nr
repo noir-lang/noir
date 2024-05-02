@@ -1,7 +1,6 @@
 use crate::{
-    abis::side_effect::{OrderedValue, ContractScopedOrderedValue},
-    traits::{Empty, Serialize, Deserialize}, address::AztecAddress,
-    constants::READ_REQUEST_LENGTH,
+    abis::side_effect::OrderedValue, traits::{Empty, Serialize, Deserialize}, address::AztecAddress,
+    constants::READ_REQUEST_LENGTH
 };
 use dep::std::cmp::Eq;
 
@@ -70,18 +69,6 @@ impl OrderedValue<Field> for ReadRequestContext {
     }
     fn counter(self) -> u32 {
         self.counter
-    }
-}
-
-impl ContractScopedOrderedValue<Field> for ReadRequestContext {
-    fn value(self) -> Field {
-        self.value
-    }
-    fn counter(self) -> u32 {
-        self.counter
-    }
-    fn contract_address(self) -> AztecAddress {
-        self.contract_address
     }
 }
 

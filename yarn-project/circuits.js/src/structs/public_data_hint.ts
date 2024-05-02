@@ -3,7 +3,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { PUBLIC_DATA_TREE_HEIGHT } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';
-import { PublicDataTreeLeafPreimage } from './rollup/public_data_leaf/index.js';
+import { PublicDataTreeLeafPreimage } from './trees/index.js';
 
 export class PublicDataHint {
   constructor(

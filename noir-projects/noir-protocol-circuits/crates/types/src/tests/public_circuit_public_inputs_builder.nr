@@ -47,7 +47,6 @@ impl PublicCircuitPublicInputsBuilder {
     pub fn new() -> Self {
         let mut public_inputs = PublicCircuitPublicInputsBuilder::empty();
         public_inputs.call_context.msg_sender = fixtures::MSG_SENDER;
-        public_inputs.historical_header = fixtures::HEADER;
         public_inputs
     }
 

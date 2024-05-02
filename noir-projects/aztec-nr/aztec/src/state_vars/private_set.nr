@@ -1,4 +1,4 @@
-use dep::protocol_types::{constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, abis::side_effect::SideEffect};
+use dep::protocol_types::{constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, abis::read_request::ReadRequest};
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
     constants::MAX_NOTES_PER_PAGE, lifecycle::{create_note, create_note_hash_from_public, destroy_note},
@@ -59,7 +59,7 @@ impl<Note> PrivateSet<Note> {
     pub fn remove<N>(self, note: Note) where Note: NoteInterface<N> {
         let context = self.context.private.unwrap();
         let note_hash = compute_note_hash_for_consumption(note);
-        let has_been_read = context.note_hash_read_requests.any(|r: SideEffect| r.value == note_hash);
+        let has_been_read = context.note_hash_read_requests.any(|r: ReadRequest| r.value == note_hash);
         assert(has_been_read, "Can only remove a note that has been read from the set.");
 
         destroy_note(context, note);

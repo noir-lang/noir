@@ -58,7 +58,7 @@ export interface ProvingDataOracle {
    * @param leafIndex - The leaf index of the note in the note hash tree.
    * @returns the MembershipWitness for the note.
    */
-  getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
+  getNoteHashMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
 
   getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
 

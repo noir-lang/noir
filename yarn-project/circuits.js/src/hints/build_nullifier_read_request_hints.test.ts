@@ -37,7 +37,7 @@ describe('buildNullifierReadRequestHints', () => {
 
   function makeNullifier(value: number, counter = 1) {
     const siloedValue = siloNullifier(contractAddress, new Fr(value));
-    return new Nullifier(siloedValue, 0, new Fr(counter));
+    return new Nullifier(siloedValue, counter, Fr.ZERO);
   }
 
   const readPendingNullifier = ({

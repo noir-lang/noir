@@ -8,7 +8,7 @@ import {
 import { PartialStateReference } from '../partial_state_reference.js';
 import { PublicDataHint } from '../public_data_hint.js';
 import { PublicDataReadRequestHints } from '../public_data_read_request_hints.js';
-import { type NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints.js';
+import { type NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints/index.js';
 import { PublicKernelData } from './public_kernel_data.js';
 
 export class PublicKernelTailCircuitPrivateInputs {

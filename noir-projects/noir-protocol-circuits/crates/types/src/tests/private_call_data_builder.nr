@@ -2,9 +2,8 @@ use crate::{
     abis::{
     gas_settings::GasSettings, call_request::{CallerContext, CallRequest},
     private_call_stack_item::PrivateCallStackItem, function_data::FunctionData,
-    max_block_number::MaxBlockNumber,
-    membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
-    private_circuit_public_inputs::{PrivateCircuitPublicInputs},
+    max_block_number::MaxBlockNumber, membership_witness::FunctionLeafMembershipWitness,
+    private_circuit_public_inputs::PrivateCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect
 },
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
@@ -12,10 +11,7 @@ use crate::{
     tests::{fixtures, private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder},
     transaction::{tx_request::TxRequest, tx_context::TxContext}
 };
-use crate::constants::{
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
-};
+use crate::constants::{MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL};
 
 struct PrivateCallDataBuilder {
     // Values of PrivateCallStackItem.
@@ -33,7 +29,6 @@ struct PrivateCallDataBuilder {
     contract_class_artifact_hash: Field,
     contract_class_public_bytecode_commitment: Field,
     function_leaf_membership_witness: FunctionLeafMembershipWitness,
-    note_hash_read_request_membership_witnesses: BoundedVec<NoteHashReadRequestMembershipWitness, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     acir_hash: Field,
     gas_settings: GasSettings,
 }
@@ -60,7 +55,6 @@ impl PrivateCallDataBuilder {
             public_keys_hash: contract_data.public_keys_hash,
             contract_class_artifact_hash: contract_data.artifact_hash,
             contract_class_public_bytecode_commitment: contract_data.public_bytecode_commitment,
-            note_hash_read_request_membership_witnesses: BoundedVec::new(),
             acir_hash: contract_function.acir_hash,
             gas_settings: public_inputs.gas_settings
         }
@@ -144,18 +138,6 @@ impl PrivateCallDataBuilder {
         self.public_inputs.max_block_number = MaxBlockNumber::new(max_block_number);
     }
 
-    pub fn append_note_hash_read_requests(&mut self, num_read_requests: u64) {
-        let (read_requests, read_request_membership_witnesses) = fixtures::note_hash_read_requests::generate_note_hash_read_requests(num_read_requests);
-        self.public_inputs.note_hash_read_requests.extend_from_bounded_vec(read_requests);
-        self.note_hash_read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
-    }
-
-    pub fn append_transient_note_hash_read_requests(&mut self, num_read_requests: u64) {
-        let (read_requests, read_request_membership_witnesses) = fixtures::note_hash_read_requests::generate_transient_note_hash_read_requests(num_read_requests);
-        self.public_inputs.note_hash_read_requests.extend_from_bounded_vec(read_requests);
-        self.note_hash_read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
-    }
-
     pub fn set_encrypted_logs(&mut self, hash: Field, preimages_length: Field) {
         // Counter set as 0 for testing, like note read requests
         let side_effect = SideEffect { value: hash, counter: 0 };
@@ -194,7 +176,6 @@ impl PrivateCallDataBuilder {
             public_keys_hash: self.public_keys_hash,
             contract_class_artifact_hash: self.contract_class_artifact_hash,
             contract_class_public_bytecode_commitment: self.contract_class_public_bytecode_commitment,
-            note_hash_read_request_membership_witnesses: self.note_hash_read_request_membership_witnesses.storage,
             acir_hash: self.acir_hash
         }
     }

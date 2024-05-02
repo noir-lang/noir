@@ -10,7 +10,7 @@ import {
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
 } from '../../constants.gen.js';
 import { MembershipWitness } from '../membership_witness.js';
-import { NullifierLeafPreimage } from './nullifier_leaf/index.js';
+import { NullifierLeafPreimage } from '../trees/index.js';
 
 /**
  * Hints used while proving state diff validity.

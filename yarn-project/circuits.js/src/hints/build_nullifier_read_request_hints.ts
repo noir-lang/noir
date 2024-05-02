@@ -8,10 +8,12 @@ import {
   type NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
 import { siloNullifier } from '../hash/index.js';
-import { type Nullifier } from '../structs/index.js';
-import { type MembershipWitness } from '../structs/membership_witness.js';
-import { type ReadRequestContext } from '../structs/read_request.js';
-import { NullifierReadRequestHintsBuilder } from '../structs/read_request_hints.js';
+import {
+  type MembershipWitness,
+  type Nullifier,
+  NullifierReadRequestHintsBuilder,
+  type ReadRequestContext,
+} from '../structs/index.js';
 import { countAccumulatedItems } from '../utils/index.js';
 
 interface NullifierMembershipWitnessWithPreimage {

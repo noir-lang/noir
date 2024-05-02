@@ -1,6 +1,8 @@
 use crate::{
-    address::AztecAddress, abis::side_effect::{Ordered, OrderedValue},
-    constants::{NOTE_HASH_LENGTH, NOTE_HASH_CONTEXT_LENGTH}, traits::{Empty, Serialize, Deserialize}
+    abis::read_request::ReadRequestContext, address::AztecAddress,
+    abis::side_effect::{Ordered, OrderedValue, Readable},
+    constants::{NOTE_HASH_LENGTH, NOTE_HASH_CONTEXT_LENGTH}, hash::silo_note_hash,
+    traits::{Empty, Serialize, Deserialize}
 };
 use dep::std::cmp::Eq;
 
@@ -113,6 +115,20 @@ impl Deserialize<NOTE_HASH_CONTEXT_LENGTH> for NoteHashContext {
             counter: values[1] as u32,
             nullifier_counter: values[2] as u32,
         }
+    }
+}
+
+impl Readable for NoteHashContext {
+    fn assert_match_read_request(self, read_request: ReadRequestContext) {
+        // TODO(#6122)
+        let siloed_value = silo_note_hash(read_request.contract_address, read_request.value);
+        assert_eq(self.value, siloed_value, "Value of the note hash does not match read request");
+        assert(
+            read_request.counter > self.counter, "Read request counter must be greater than the counter of the note hash"
+        );
+        assert(
+            (self.nullifier_counter == 0) | (read_request.counter < self.nullifier_counter), "Read request counter must be less than the nullifier counter of the note hash"
+        );
     }
 }
 

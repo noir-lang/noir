@@ -21,9 +21,9 @@ use crate::{
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     VK_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::silo_nullifier, header::Header, mocked::{AggregationObject, Proof, VerificationKey},
-    partial_state_reference::PartialStateReference, tests::fixtures, transaction::tx_context::TxContext,
-    traits::Empty
+    hash::{silo_note_hash, silo_nullifier}, header::Header,
+    mocked::{AggregationObject, Proof, VerificationKey}, partial_state_reference::PartialStateReference,
+    tests::fixtures, transaction::tx_context::TxContext, traits::Empty
 };
 
 struct FixtureBuilder {
@@ -53,7 +53,7 @@ struct FixtureBuilder {
 
     // Validation requests.
     max_block_number: MaxBlockNumber,
-    note_hash_read_requests: BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
+    note_hash_read_requests: BoundedVec<ReadRequestContext, MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
     nullifier_read_requests: BoundedVec<ReadRequestContext, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_non_existent_read_requests: BoundedVec<ReadRequestContext, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequestContext, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
@@ -81,7 +81,7 @@ impl FixtureBuilder {
         FixtureBuilder {
             contract_address: fixtures::contracts::parent_contract.address,
             storage_contract_address: fixtures::contracts::parent_contract.address,
-            historical_header: fixtures::HEADER,
+            historical_header: Header::empty(),
             tx_context,
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
@@ -253,11 +253,12 @@ impl FixtureBuilder {
     }
 
     pub fn append_new_note_hashes(&mut self, num_new_note_hashes: u64) {
-        let mocked_value_offset = self.new_note_hashes.len() + 1;
+        let index_offset = self.new_note_hashes.len();
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             if i < num_new_note_hashes {
-                // The empty value is its index + 1.
-                self.add_new_note_hash((i + mocked_value_offset) as Field);
+                let mocked_value = self.get_mocked_note_hash_value(index_offset + i);
+                let value = silo_note_hash(self.storage_contract_address, mocked_value);
+                self.add_new_note_hash(value);
             }
         }
     }
@@ -271,8 +272,8 @@ impl FixtureBuilder {
         let index_offset = self.new_nullifiers.len();
         for i in 0..MAX_NEW_NULLIFIERS_PER_TX {
             if i < num_extra_nullifier {
-                let mock_value = self.get_mock_nullifier_value(index_offset + i);
-                self.add_nullifier(mock_value);
+                let mocked_value = self.get_mocked_nullifier_value(index_offset + i);
+                self.add_nullifier(mocked_value);
             }
         }
     }
@@ -312,16 +313,30 @@ impl FixtureBuilder {
     }
 
     pub fn add_read_request_for_pending_note_hash(&mut self, note_hash_index: u64) -> u64 {
-        let new_read_request_index = self.note_hash_read_requests.len();
-        let note_hash = self.new_note_hashes.get(note_hash_index);
-        let read_request = SideEffect { value: note_hash.value, counter: self.next_counter() };
+        let read_request_index = self.note_hash_read_requests.len();
+        let value = self.get_mocked_note_hash_value(note_hash_index);
+        let read_request = ReadRequestContext { value, counter: self.next_counter(), contract_address: self.storage_contract_address };
         self.note_hash_read_requests.push(read_request);
-        new_read_request_index
+        read_request_index
+    }
+
+    pub fn append_note_hash_read_requests(&mut self, num_reads: u64) {
+        let value_offset = self.note_hash_read_requests.len();
+        for i in 0..MAX_NOTE_HASH_READ_REQUESTS_PER_TX {
+            if i < num_reads {
+                let read_request = ReadRequestContext {
+                    value: (value_offset + i + 789) as Field,
+                    counter: self.next_counter(),
+                    contract_address: self.storage_contract_address
+                };
+                self.note_hash_read_requests.push(read_request);
+            }
+        }
     }
 
     pub fn add_read_request_for_pending_nullifier(&mut self, nullifier_index: u64) -> u64 {
         let read_request_index = self.nullifier_read_requests.len();
-        let unsiloed_nullifier = self.get_mock_nullifier_value(nullifier_index);
+        let unsiloed_nullifier = self.get_mocked_nullifier_value(nullifier_index);
         let read_request = ReadRequestContext {
             value: unsiloed_nullifier,
             counter: self.next_counter(),
@@ -406,12 +421,17 @@ impl FixtureBuilder {
         }
     }
 
-    fn get_mock_nullifier_value(_self: Self, nullifier_index: u64) -> Field {
+    fn get_mocked_note_hash_value(_self: Self, note_hash_index: u64) -> Field {
+        let value_offset = 212121;
+        value_offset + note_hash_index as Field
+    }
+
+    fn get_mocked_nullifier_value(_self: Self, nullifier_index: u64) -> Field {
         let value_offset = 5678;
         value_offset + nullifier_index as Field
     }
 
-    fn get_mock_nullifier_value_non_revertible(_self: Self, nullifier_index: u64) -> Field {
+    fn get_mocked_nullifier_value_non_revertible(_self: Self, nullifier_index: u64) -> Field {
         let value_offset = 987;
         value_offset + nullifier_index as Field
     }

@@ -47,10 +47,7 @@ mod tests {
     use crate::reset::read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus, reset_read_requests};
     use dep::types::{
         address::AztecAddress,
-        abis::{
-        nullifier_leaf_preimage::NullifierLeafPreimage, read_request::ReadRequestContext,
-        side_effect::SideEffect
-    },
+        abis::{nullifier::Nullifier, nullifier_leaf_preimage::NullifierLeafPreimage, read_request::ReadRequestContext},
         constants::NULLIFIER_TREE_HEIGHT, hash::silo_nullifier, merkle_tree::MembershipWitness,
         tests::merkle_tree_utils::NonEmptyMerkleTree
     };
@@ -70,7 +67,7 @@ mod tests {
         ReadRequestContext { value: inner_nullifiers[3], counter: 78, contract_address }, // pending
     ];
 
-    global pending_values = [SideEffect { value: nullifiers[2], counter: 2 }, SideEffect { value: nullifiers[3], counter: 8 }];
+    global pending_values = [Nullifier { value: nullifiers[2], counter: 2, note_hash: 0 }, Nullifier { value: nullifiers[3], counter: 8, note_hash: 0 }];
     global pending_read_hints = [
         PendingReadHint { read_request_index: 1, pending_value_index: 1 },
         PendingReadHint { read_request_index: 2, pending_value_index: 0 },
@@ -81,6 +78,18 @@ mod tests {
         NullifierLeafPreimage { nullifier: nullifiers[0], next_nullifier: nullifiers[1], next_index: 1 },
         NullifierLeafPreimage { nullifier: nullifiers[1], next_nullifier: 0, next_index: 0 },
     ];
+
+    fn read_request_statuses() -> [ReadRequestStatus; 5] {
+        // Failed when assigned to global: 
+        // The application panicked (crashed). Message:  no entry found for key
+        [
+            ReadRequestStatus { state: ReadRequestState.SETTLED, hint_index: 0 },
+            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 0 },
+            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 1 },
+            ReadRequestStatus { state: ReadRequestState.SETTLED, hint_index: 1 },
+            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 2 }
+        ]
+    }
 
     fn build_tree<N>() -> NonEmptyMerkleTree<2, NULLIFIER_TREE_HEIGHT, NULLIFIER_TREE_HEIGHT - 1, 1> {
         NonEmptyMerkleTree::new(
@@ -110,19 +119,12 @@ mod tests {
     }
 
     #[test]
-    fn test_reset_read_requests_all() {
-        let read_request_statuses = [
-            ReadRequestStatus { state: ReadRequestState.SETTLED, hint_index: 0 },
-            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 0 },
-            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 1 },
-            ReadRequestStatus { state: ReadRequestState.SETTLED, hint_index: 1 },
-            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 2 }
-        ];
+    fn test_reset_nullifier_read_requests_all() {
         let (settled_read_hints, tree_root) = get_settled_read_hints();
         let unverified_read_requests = reset_read_requests(
             read_requests,
             pending_values,
-            read_request_statuses,
+            read_request_statuses(),
             pending_read_hints,
             settled_read_hints,
             tree_root
@@ -131,19 +133,16 @@ mod tests {
     }
 
     #[test]
-    fn test_reset_read_requests_partial() {
-        let read_request_statuses = [
-            ReadRequestStatus { state: ReadRequestState.SETTLED, hint_index: 0 },
-            ReadRequestStatus { state: ReadRequestState.PENDING, hint_index: 0 },
-            ReadRequestStatus::empty(),
-            ReadRequestStatus { state: ReadRequestState.SETTLED, hint_index: 1 },
-            ReadRequestStatus::empty()
-        ];
+    fn test_reset_nullifier_read_requests_partial() {
+        let mut partial_read_request_statuses = read_request_statuses();
+        partial_read_request_statuses[2] = ReadRequestStatus::empty();
+        partial_read_request_statuses[4] = ReadRequestStatus::empty();
+
         let (settled_read_hints, tree_root) = get_settled_read_hints();
         let unverified_read_requests = reset_read_requests(
             read_requests,
             pending_values,
-            read_request_statuses,
+            partial_read_request_statuses,
             pending_read_hints,
             settled_read_hints,
             tree_root
@@ -151,6 +150,61 @@ mod tests {
         assert(unverified_read_requests.len() == 2);
         assert(unverified_read_requests.get(0) == read_requests[2]);
         assert(unverified_read_requests.get(1) == read_requests[4]);
+    }
+
+    #[test(should_fail_with="Value of the nullifier does not match read request")]
+    fn test_reset_nullifier_read_requests_wrong_hinted_value() {
+        let mut tainted_pending_values = pending_values;
+        // Tweak the value to be something different.
+        tainted_pending_values[0].value += 1;
+
+        let (settled_read_hints, tree_root) = get_settled_read_hints();
+        let _ = reset_read_requests(
+            read_requests,
+            tainted_pending_values,
+            read_request_statuses(),
+            pending_read_hints,
+            settled_read_hints,
+            tree_root
+        );
+    }
+
+    #[test(should_fail_with="Read request counter must be greater than the counter of the nullifier")]
+    fn test_reset_nullifier_read_requests_invalid_counter() {
+        let hint = pending_read_hints[0];
+        let pending_read = read_requests[hint.read_request_index];
+        let mut tainted_pending_values = pending_values;
+        // Tweak the counter of the value to be greater than the read request.
+        tainted_pending_values[hint.pending_value_index].counter = pending_read.counter + 1;
+
+        let (settled_read_hints, tree_root) = get_settled_read_hints();
+        let _ = reset_read_requests(
+            read_requests,
+            tainted_pending_values,
+            read_request_statuses(),
+            pending_read_hints,
+            settled_read_hints,
+            tree_root
+        );
+    }
+
+    #[test(should_fail_with="Value of the nullifier leaf does not match read request")]
+    fn test_reset_nullifier_read_requests_invalid_leaf() {
+        let (settled_read_hints, tree_root) = get_settled_read_hints();
+
+        let mut tained_read_requests = read_requests;
+        let hint = settled_read_hints[0];
+        // Tweak the value of the first settled read to be something different.
+        tained_read_requests[hint.read_request_index].value += 1;
+
+        let _ = reset_read_requests(
+            tained_read_requests,
+            pending_values,
+            read_request_statuses(),
+            pending_read_hints,
+            settled_read_hints,
+            tree_root
+        );
     }
 }
 

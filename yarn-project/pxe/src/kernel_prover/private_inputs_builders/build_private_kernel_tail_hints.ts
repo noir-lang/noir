@@ -4,13 +4,11 @@ import {
   type MAX_ENCRYPTED_LOGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   type MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   type MAX_UNENCRYPTED_LOGS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
-  type NoteHashContext,
   type Nullifier,
   type NullifierKeyValidationRequestContext,
   type PrivateKernelCircuitPublicInputs,
@@ -18,9 +16,9 @@ import {
   type ReadRequestContext,
   type SideEffect,
   type SideEffectType,
+  buildNoteHashReadRequestHints,
   buildNullifierReadRequestHints,
   buildTransientDataHints,
-  countAccumulatedItems,
   sortByCounterGetSortedHints,
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
@@ -48,42 +46,6 @@ function sortSideEffects<T extends SideEffectType, K extends number>(
   });
 
   return [sorted.map(({ sideEffect }) => sideEffect) as Tuple<T, K>, originalToSorted as Tuple<number, K>];
-}
-
-function isValidNoteHashReadRequest(readRequest: SideEffect, noteHash: NoteHashContext) {
-  return (
-    noteHash.value.equals(readRequest.value) &&
-    noteHash.counter < readRequest.counter.toNumber() &&
-    (noteHash.nullifierCounter === 0 || noteHash.nullifierCounter > readRequest.counter.toNumber())
-  );
-}
-
-/**
- * Performs the matching between an array of read request and an array of note hashes. This produces
- * hints for the private kernel tail circuit to efficiently match a read request with the corresponding
- * note hash. Several read requests might be pointing to the same note hash. It is therefore valid
- * to return more than one hint with the same index.
- *
- * @param noteHashReadRequests - The array of read requests.
- * @param noteHashes - The array of note hashes.
- * @returns An array of hints where each element is the index of the note hash in note hashes array
- *  corresponding to the read request. In other words we have readRequests[i] == noteHashes[hints[i]].
- */
-function getNoteHashReadRequestHints(
-  noteHashReadRequests: Tuple<SideEffect, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
-  noteHashes: Tuple<NoteHashContext, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
-): Tuple<number, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX> {
-  const hints = makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, () => 0);
-  const numReadRequests = countAccumulatedItems(noteHashReadRequests);
-  for (let i = 0; i < numReadRequests; i++) {
-    const readRequest = noteHashReadRequests[i];
-    const noteHashIndex = noteHashes.findIndex((n: NoteHashContext) => isValidNoteHashReadRequest(readRequest, n));
-    if (noteHashIndex === -1) {
-      throw new Error(`The read request at index ${i} ${readRequest} does not match to any note hash.`);
-    }
-    hints[i] = noteHashIndex;
-  }
-  return hints;
 }
 
 function getNullifierReadRequestHints(
@@ -131,11 +93,14 @@ async function getMasterNullifierSecretKeys(
 
 export async function buildPrivateKernelTailHints(
   publicInputs: PrivateKernelCircuitPublicInputs,
+  noteHashLeafIndexMap: Map<bigint, bigint>,
   oracle: ProvingDataOracle,
 ) {
-  const noteHashReadRequestHints = getNoteHashReadRequestHints(
+  const noteHashReadRequestHints = await buildNoteHashReadRequestHints(
+    oracle,
     publicInputs.validationRequests.noteHashReadRequests,
     publicInputs.end.newNoteHashes,
+    noteHashLeafIndexMap,
   );
 
   const nullifierReadRequestHints = await getNullifierReadRequestHints(

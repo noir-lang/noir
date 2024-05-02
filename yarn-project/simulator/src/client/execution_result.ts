@@ -5,13 +5,7 @@ import {
   UnencryptedFunctionL2Logs,
   type UnencryptedL2Log,
 } from '@aztec/circuit-types';
-import {
-  type IsEmpty,
-  type NoteHashReadRequestMembershipWitness,
-  type PrivateCallStackItem,
-  type PublicCallRequest,
-  sortByCounter,
-} from '@aztec/circuits.js';
+import { type IsEmpty, type PrivateCallStackItem, type PublicCallRequest, sortByCounter } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
 
 import { type ACVMField } from '../acvm/index.js';
@@ -36,11 +30,6 @@ export class CountedLog<TLog extends UnencryptedL2Log | EncryptedL2Log> implemen
   }
 }
 
-export interface NullifiedNoteHashCounter {
-  noteHashCounter: number;
-  nullifierCounter: number;
-}
-
 /**
  * The result of executing a private function.
  */
@@ -55,11 +44,12 @@ export interface ExecutionResult {
   // Needed for the verifier (kernel)
   /** The call stack item. */
   callStackItem: PrivateCallStackItem;
-  /** The partially filled-in read request membership witnesses for commitments being read. */
-  noteHashReadRequestPartialWitnesses: NoteHashReadRequestMembershipWitness[];
+  /** Mapping of note hash to its index in the note hash tree. Used for building hints for note hash read requests. */
+  noteHashLeafIndexMap: Map<bigint, bigint>;
   /** The notes created in the executed function. */
   newNotes: NoteAndSlot[];
-  nullifiedNoteHashCounters: NullifiedNoteHashCounter[];
+  /** Mapping of note hash counter to the counter of its nullifier. */
+  nullifiedNoteHashCounters: Map<number, number>;
   /** The raw return values of the executed function. */
   returnValues: Fr[];
   /** The nested executions. */
@@ -78,11 +68,16 @@ export interface ExecutionResult {
   unencryptedLogs: CountedLog<UnencryptedL2Log>[];
 }
 
-export function collectNullifiedNoteHashCounters(execResult: ExecutionResult): NullifiedNoteHashCounter[] {
-  return [
-    execResult.nullifiedNoteHashCounters,
-    ...execResult.nestedExecutions.flatMap(collectNullifiedNoteHashCounters),
-  ].flat();
+export function collectNoteHashLeafIndexMap(execResult: ExecutionResult, accum: Map<bigint, bigint> = new Map()) {
+  execResult.noteHashLeafIndexMap.forEach((value, key) => accum.set(key, value));
+  execResult.nestedExecutions.forEach(nested => collectNoteHashLeafIndexMap(nested, accum));
+  return accum;
+}
+
+export function collectNullifiedNoteHashCounters(execResult: ExecutionResult, accum: Map<number, number> = new Map()) {
+  execResult.nullifiedNoteHashCounters.forEach((value, key) => accum.set(key, value));
+  execResult.nestedExecutions.forEach(nested => collectNullifiedNoteHashCounters(nested, accum));
+  return accum;
 }
 
 /**

@@ -2,7 +2,7 @@ import { makeTuple } from '@aztec/foundation/array';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { MAX_PUBLIC_DATA_READS_PER_TX } from '../constants.gen.js';
-import { PendingReadHint, ReadRequestState, ReadRequestStatus } from './read_request_hints.js';
+import { PendingReadHint, ReadRequestState, ReadRequestStatus } from './read_request_hints/index.js';
 
 export class LeafDataReadHint {
   constructor(public readRequestIndex: number, public dataHintIndex: number) {}

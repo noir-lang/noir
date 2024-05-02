@@ -12,12 +12,9 @@ import { KernelData } from '../kernel/kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { PartialStateReference } from '../partial_state_reference.js';
 import { type UInt32 } from '../shared.js';
+import { PublicDataTreeLeaf, PublicDataTreeLeafPreimage } from '../trees/index.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
-import { NullifierLeaf, NullifierLeafPreimage } from './nullifier_leaf/index.js';
-import { PublicDataTreeLeaf, PublicDataTreeLeafPreimage } from './public_data_leaf/index.js';
 import { StateDiffHints } from './state_diff_hints.js';
-
-export { NullifierLeaf, NullifierLeafPreimage, PublicDataTreeLeaf, PublicDataTreeLeafPreimage };
 
 /**
  * Data which is forwarded through the base rollup circuits unchanged.

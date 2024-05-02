@@ -5,7 +5,6 @@ import {
   MAX_ENCRYPTED_LOGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_UNENCRYPTED_LOGS_PER_TX,
 } from '../../constants.gen.js';
@@ -13,7 +12,12 @@ import { type GrumpkinPrivateKey } from '../../types/grumpkin_private_key.js';
 import { countAccumulatedItems } from '../../utils/index.js';
 import { NoteHashContext } from '../note_hash.js';
 import { Nullifier } from '../nullifier.js';
-import { type NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints.js';
+import {
+  type NoteHashReadRequestHints,
+  type NullifierReadRequestHints,
+  noteHashReadRequestHintsFromBuffer,
+  nullifierReadRequestHintsFromBuffer,
+} from '../read_request_hints/index.js';
 import { SideEffect } from '../side_effects.js';
 import { PrivateKernelData } from './private_kernel_data.js';
 
@@ -49,7 +53,7 @@ export class PrivateKernelTailHints {
     /**
      * Contains hints for the transient read requests to localize corresponding commitments.
      */
-    public noteHashReadRequestHints: Tuple<number, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
+    public noteHashReadRequestHints: NoteHashReadRequestHints,
     /**
      * Contains hints for the nullifier read requests to locate corresponding pending or settled nullifiers.
      */
@@ -121,7 +125,7 @@ export class PrivateKernelTailHints {
     return new PrivateKernelTailHints(
       reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
       reader.readNumbers(MAX_NEW_NULLIFIERS_PER_TX),
-      reader.readNumbers(MAX_NOTE_HASH_READ_REQUESTS_PER_TX),
+      reader.readObject({ fromBuffer: noteHashReadRequestHintsFromBuffer }),
       reader.readObject({ fromBuffer: nullifierReadRequestHintsFromBuffer }),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GrumpkinScalar),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, NoteHashContext),

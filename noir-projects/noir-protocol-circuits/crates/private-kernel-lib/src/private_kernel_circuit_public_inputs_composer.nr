@@ -2,9 +2,8 @@ use dep::types::{
     abis::{
     call_request::CallRequest, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
-    max_block_number::MaxBlockNumber, membership_witness::NoteHashReadRequestMembershipWitness,
-    nullifier::Nullifier, private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    side_effect::SideEffect
+    max_block_number::MaxBlockNumber, nullifier::Nullifier,
+    private_circuit_public_inputs::PrivateCircuitPublicInputs
 },
     address::AztecAddress,
     constants::{
@@ -19,7 +18,6 @@ struct DataSource {
     private_call_public_inputs: PrivateCircuitPublicInputs,
     storage_contract_address: AztecAddress,
     note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
-    note_hash_read_request_membership_witnesses: [NoteHashReadRequestMembershipWitness; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     private_call_requests: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
 }
@@ -80,7 +78,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         &mut self,
         private_call_public_inputs: PrivateCircuitPublicInputs,
         note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
-        note_hash_read_request_membership_witnesses: [NoteHashReadRequestMembershipWitness; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
         private_call_requests: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
         public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]
     ) -> Self {
@@ -89,7 +86,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
             storage_contract_address,
             private_call_public_inputs,
             note_hash_nullifier_counters,
-            note_hash_read_request_membership_witnesses,
             private_call_requests,
             public_call_requests
         };
@@ -118,19 +114,11 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn propagate_note_hash_read_requests(&mut self, source: DataSource) {
-        // TODO: Propagate all requests to verify in a reset circuit.
-        // Transient read requests and witnesses are accumulated in public_inputs.end
-        // We silo the read requests (domain separation per contract address)
         let read_requests = source.private_call_public_inputs.note_hash_read_requests;
         for i in 0..read_requests.len() {
-            let read_request = read_requests[i];
-            let witness = source.note_hash_read_request_membership_witnesses[i];
-            if witness.is_transient & (read_request.value != 0) { // only forward transient to public inputs
-                let siloed_read_request = SideEffect {
-                    counter: read_request.counter,
-                    value: silo_note_hash(source.storage_contract_address, read_request.value)
-                };
-                self.public_inputs.validation_requests.note_hash_read_requests.push(siloed_read_request);
+            let request = read_requests[i];
+            if !is_empty(request) {
+                self.public_inputs.validation_requests.note_hash_read_requests.push(request.to_context(source.storage_contract_address));
             }
         }
     }

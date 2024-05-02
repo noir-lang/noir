@@ -74,19 +74,11 @@ impl PrivateKernelInitCircuitPrivateInputs {
 
         self.validate_this_private_call_against_tx_request();
 
-        // TODO: Do this in a reset circuit.
-        common::validate_note_hash_read_requests(
-            private_call_public_inputs.historical_header.state.partial.note_hash_tree.root,
-            self.private_call.call_stack_item.public_inputs.note_hash_read_requests,
-            self.private_call.note_hash_read_request_membership_witnesses
-        );
-
         assert(verify_private_function_proof(self.private_call.proof), "Invalid private function proof.");
 
         PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).compose(
             private_call_public_inputs,
             self.hints.note_hash_nullifier_counters,
-            self.private_call.note_hash_read_request_membership_witnesses,
             self.private_call.private_call_stack,
             self.private_call.public_call_stack
         ).finish()
@@ -102,11 +94,8 @@ mod tests {
         private_kernel::private_call_data::PrivateCallData, read_request::ReadRequest,
         nullifier::Nullifier, side_effect::SideEffect
     },
-        address::{AztecAddress, EthAddress},
-        constants::{MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
-        grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey,
-        hash::stdlib_recursion_verification_key_compress_native_vk,
-        messaging::l2_to_l1_message::L2ToL1Message,
+        address::{AztecAddress, EthAddress}, constants::MAX_NEW_NOTE_HASHES_PER_CALL,
+        grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message,
         tests::private_call_data_builder::PrivateCallDataBuilder, transaction::tx_request::TxRequest,
         utils::arrays::array_length
     };
@@ -182,8 +171,8 @@ mod tests {
 
         builder.private_call.public_inputs.note_hash_read_requests.extend_from_array(
             [
-            SideEffect { value: 0, counter: 0 },
-            SideEffect { value: 9123, counter: 1 }
+            ReadRequest::empty(),
+            ReadRequest { value: 9123, counter: 1 }
         ]
         );
 
@@ -347,47 +336,6 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_note_hash_read_request_bad_request() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_note_hash_read_requests(2);
-
-        // tweak read_request so it gives wrong root when paired with its sibling path
-        let read_request = builder.private_call.public_inputs.note_hash_read_requests.pop();
-        builder.private_call.public_inputs.note_hash_read_requests.push(SideEffect { value: read_request.value + 1, counter: read_request.counter });
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_note_hash_read_request_bad_leaf_index() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_note_hash_read_requests(2);
-
-        // tweak leaf index so it gives wrong root when paired with its request and sibling path
-        let mut read_request_membership_witness = builder.private_call.note_hash_read_request_membership_witnesses.pop();
-        read_request_membership_witness.leaf_index += 1;
-        builder.private_call.note_hash_read_request_membership_witnesses.push(read_request_membership_witness);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_note_hash_read_request_bad_sibling_path() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_note_hash_read_requests(2);
-
-        // tweak sibling path so it gives wrong root when paired with its request
-        let mut read_request_membership_witness = builder.private_call.note_hash_read_request_membership_witnesses.pop();
-        read_request_membership_witness.sibling_path[1] += 1;
-        builder.private_call.note_hash_read_request_membership_witnesses.push(read_request_membership_witness);
-
-        builder.failed();
-    }
-
     #[test]
     fn default_max_block_number() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
@@ -406,109 +354,29 @@ mod tests {
     }
 
     #[test]
-    fn native_no_note_hash_read_requests_works() {
+    fn propagate_note_hash_read_requests() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
+        let storage_contract_address = builder.private_call.public_inputs.call_context.storage_contract_address;
+
+        let request_0 = ReadRequest { value: 123, counter: 4567 };
+        builder.private_call.public_inputs.note_hash_read_requests.push(request_0);
+        let request_1 = ReadRequest { value: 777888, counter: 90 };
+        builder.private_call.public_inputs.note_hash_read_requests.push(request_1);
 
         let public_inputs = builder.execute();
 
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
+        let end_note_hash_read_requests = public_inputs.validation_requests.note_hash_read_requests;
+        assert_eq(array_length(end_note_hash_read_requests), 2);
 
-        // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
-    }
+        let request_context = end_note_hash_read_requests[0];
+        assert_eq(request_context.value, request_0.value);
+        assert_eq(request_context.counter, request_0.counter);
+        assert_eq(request_context.contract_address, storage_contract_address);
 
-    #[test]
-    fn native_one_note_hash_read_requests_works() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_note_hash_read_requests(1);
-
-        let public_inputs = builder.execute();
-
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
-
-        // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
-    }
-
-    #[test]
-    fn native_two_note_hash_read_requests_works() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_note_hash_read_requests(2);
-
-        let public_inputs = builder.execute();
-
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
-
-        // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
-    }
-
-    #[test]
-    fn native_max_note_hash_read_requests_works() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_note_hash_read_requests(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
-
-        let public_inputs = builder.execute();
-
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
-
-        // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
-    }
-
-    #[test]
-    fn native_one_transient_note_hash_read_requests_works() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_transient_note_hash_read_requests(1);
-
-        let public_inputs = builder.execute();
-
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
-
-        // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 1);
-    }
-
-    #[test]
-    fn native_max_note_hash_read_requests_one_transient_works() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_transient_note_hash_read_requests(1);
-        builder.private_call.append_note_hash_read_requests(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL - 1);
-
-        let public_inputs = builder.execute();
-
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
-
-        // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 1);
-    }
-
-    #[test]
-    fn native_max_note_hash_read_requests_all_transient_works() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.append_transient_note_hash_read_requests(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
-
-        let public_inputs = builder.execute();
-
-        // Check the first nullifier is hash of the signed tx request
-        assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
-
-        // non-transient read requests are NOT forwarded
-        assert_eq(
-            array_length(public_inputs.validation_requests.note_hash_read_requests), MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
-        );
+        let request_context = end_note_hash_read_requests[1];
+        assert_eq(request_context.value, request_1.value);
+        assert_eq(request_context.counter, request_1.counter);
+        assert_eq(request_context.contract_address, storage_contract_address);
     }
 
     #[test]

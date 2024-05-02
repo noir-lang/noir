@@ -9,7 +9,7 @@ import {
 } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';
 import { Nullifier } from './nullifier.js';
-import { NullifierLeafPreimage } from './rollup/nullifier_leaf/index.js';
+import { NullifierLeafPreimage } from './trees/index.js';
 
 interface PendingValue {
   toBuffer(): Buffer;

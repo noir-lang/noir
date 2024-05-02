@@ -2,15 +2,12 @@ use dep::std;
 use dep::types::{
     abis::{
     call_request::CallRequest, accumulated_data::PrivateAccumulatedData,
-    membership_witness::NoteHashReadRequestMembershipWitness,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect
+    private_kernel::private_call_data::PrivateCallData
 },
     address::{AztecAddress, PartialAddress}, contract_class_id::ContractClassId,
-    constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
     hash::{private_functions_root_from_siblings, stdlib_recursion_verification_key_compress_native_vk},
-    merkle_tree::check_membership, utils::{arrays::{array_length, validate_array}},
-    traits::{is_empty, is_empty_array}
+    utils::{arrays::{array_length, validate_array}}, traits::{is_empty, is_empty_array}
 };
 
 fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
@@ -28,48 +25,6 @@ fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
     validate_array(app_public_inputs.new_l2_to_l1_msgs);
     validate_array(app_public_inputs.encrypted_logs_hashes);
     validate_array(app_public_inputs.unencrypted_logs_hashes);
-}
-
-// Validate all read requests against the historical note hash tree root.
-// Use their membership witnesses to do so. If the historical root is not yet
-// initialized, initialize it using the first read request here (if present).
-//
-// More info here:
-// - https://discourse.aztec.network/t/to-read-or-not-to-read/178
-// - https://discourse.aztec.network/t/spending-notes-which-havent-yet-been-inserted/180
-pub fn validate_note_hash_read_requests(
-    historical_note_hash_tree_root: Field,
-    read_requests: [SideEffect; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
-    read_request_membership_witnesses: [NoteHashReadRequestMembershipWitness; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL]
-) {
-    // membership witnesses must resolve to the same note hash tree root
-    // for every request in all kernel iterations
-    for rr_idx in 0..MAX_NOTE_HASH_READ_REQUESTS_PER_CALL {
-        let read_request = read_requests[rr_idx].value;
-        let witness = read_request_membership_witnesses[rr_idx];
-
-        // A pending note hash is the one that is not yet added to note hash tree
-        // A "transient read" is when we try to "read" a pending note hash within a transaction
-        // between function calls, as opposed to reading the outputs of a previous transaction
-        // which is a "pending read".
-        // A transient read is when we try to "read" a pending note hash
-        // We determine if it is a transient read depending on the leaf index from the membership witness
-        // Note that the Merkle membership proof would be null and void in case of an transient read
-        // but we use the leaf index as a placeholder to detect a 'pending note read'.
-
-        if (read_request != 0) & (witness.is_transient == false) {
-            assert(
-                check_membership(
-                    read_request,
-                    witness.leaf_index,
-                    witness.sibling_path,
-                    historical_note_hash_tree_root
-                ), "note hash tree root mismatch"
-            );
-            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1354): do we need to enforce
-            // that a non-transient read_request was derived from the proper/current contract address?
-        }
-    }
 }
 
 fn perform_static_call_checks(private_call: PrivateCallData) {

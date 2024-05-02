@@ -48,12 +48,13 @@ import {
   type MembershipWitness,
   type MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
+  type NOTE_HASH_TREE_HEIGHT,
   type NULLIFIER_TREE_HEIGHT,
   NUM_BYTES_PER_SHA256,
   type NonMembershipHint,
   NoteHash,
   NoteHashContext,
-  type NoteHashReadRequestMembershipWitness,
+  type NoteHashReadRequestHints,
   Nullifier,
   NullifierKeyValidationRequest,
   NullifierKeyValidationRequestContext,
@@ -141,7 +142,6 @@ import {
   type GrumpkinPoint as NoirPoint,
   type NoteHashContext as NoteHashContextNoir,
   type NoteHash as NoteHashNoir,
-  type NoteHashReadRequestMembershipWitness as NoteHashReadRequestMembershipWitnessNoir,
   type NullifierKeyValidationRequestContext as NullifierKeyValidationRequestContextNoir,
   type NullifierKeyValidationRequest as NullifierKeyValidationRequestNoir,
   type Nullifier as NullifierNoir,
@@ -169,6 +169,10 @@ import {
   type CombinedAccumulatedData as CombinedAccumulatedDataNoir,
   type Gas as GasNoir,
   type GrumpkinPrivateKey as GrumpkinPrivateKeyNoir,
+  type NoteHashLeafPreimage as NoteHashLeafPreimageNoir,
+  type NoteHashMembershipWitness as NoteHashMembershipWitnessNoir,
+  type NoteHashReadRequestHints as NoteHashReadRequestHintsNoir,
+  type NoteHashSettledReadHint as NoteHashSettledReadHintNoir,
   type NullifierReadRequestHints as NullifierReadRequestHintsNoir,
   type NullifierSettledReadHint as NullifierSettledReadHintNoir,
   type PendingReadHint as PendingReadHintNoir,
@@ -734,7 +738,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
     call_context: mapCallContextToNoir(privateCircuitPublicInputs.callContext),
     args_hash: mapFieldToNoir(privateCircuitPublicInputs.argsHash),
     returns_hash: mapFieldToNoir(privateCircuitPublicInputs.returnsHash),
-    note_hash_read_requests: mapTuple(privateCircuitPublicInputs.noteHashReadRequests, mapSideEffectToNoir),
+    note_hash_read_requests: mapTuple(privateCircuitPublicInputs.noteHashReadRequests, mapReadRequestToNoir),
     nullifier_read_requests: mapTuple(privateCircuitPublicInputs.nullifierReadRequests, mapReadRequestToNoir),
     nullifier_key_validation_requests: mapTuple(
       privateCircuitPublicInputs.nullifierKeyValidationRequests,
@@ -785,22 +789,6 @@ function mapFunctionLeafMembershipWitnessToNoir(
 }
 
 /**
- * Maps a read request membership witness to a noir read request membership witness.
- * @param noteHashReadRequestMembershipWitness - The read request membership witness.
- * @returns The noir read request membership witness.
- */
-export function mapNoteHashReadRequestMembershipWitnessToNoir(
-  noteHashReadRequestMembershipWitness: NoteHashReadRequestMembershipWitness,
-): NoteHashReadRequestMembershipWitnessNoir {
-  return {
-    leaf_index: mapFieldToNoir(noteHashReadRequestMembershipWitness.leafIndex),
-    sibling_path: mapTuple(noteHashReadRequestMembershipWitness.siblingPath, mapFieldToNoir),
-    is_transient: noteHashReadRequestMembershipWitness.isTransient,
-    hint_to_note_hash: mapFieldToNoir(noteHashReadRequestMembershipWitness.hintToNoteHash),
-  };
-}
-
-/**
  * Maps a private call data to a noir private call data.
  * @param privateCallData - The private call data.
  * @returns The noir private call data.
@@ -814,10 +802,6 @@ export function mapPrivateCallDataToNoir(privateCallData: PrivateCallData): Priv
     vk: {},
     function_leaf_membership_witness: mapFunctionLeafMembershipWitnessToNoir(
       privateCallData.functionLeafMembershipWitness,
-    ),
-    note_hash_read_request_membership_witnesses: mapTuple(
-      privateCallData.noteHashReadRequestMembershipWitnesses,
-      mapNoteHashReadRequestMembershipWitnessToNoir,
     ),
     contract_class_artifact_hash: mapFieldToNoir(privateCallData.contractClassArtifactHash),
     contract_class_public_bytecode_commitment: mapFieldToNoir(privateCallData.contractClassPublicBytecodeCommitment),
@@ -941,6 +925,16 @@ function mapLeafDataReadHintToNoir(hint: LeafDataReadHint): LeafDataReadHintNoir
   };
 }
 
+function mapNoteHashSettledReadHintToNoir(
+  hint: SettledReadHint<typeof NOTE_HASH_TREE_HEIGHT, Fr>,
+): NoteHashSettledReadHintNoir {
+  return {
+    read_request_index: mapNumberToNoir(hint.readRequestIndex),
+    membership_witness: mapNoteHashMembershipWitnessToNoir(hint.membershipWitness),
+    leaf_preimage: mapNoteHashLeafPreimageToNoir(hint.leafPreimage),
+  };
+}
+
 function mapNullifierSettledReadHintToNoir(
   hint: SettledReadHint<typeof NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage>,
 ): NullifierSettledReadHintNoir {
@@ -948,6 +942,14 @@ function mapNullifierSettledReadHintToNoir(
     read_request_index: mapNumberToNoir(hint.readRequestIndex),
     membership_witness: mapNullifierMembershipWitnessToNoir(hint.membershipWitness),
     leaf_preimage: mapNullifierLeafPreimageToNoir(hint.leafPreimage),
+  };
+}
+
+function mapNoteHashReadRequestHintsToNoir(hints: NoteHashReadRequestHints): NoteHashReadRequestHintsNoir {
+  return {
+    read_request_statuses: mapTuple(hints.readRequestStatuses, mapReadRequestStatusToNoir),
+    pending_read_hints: mapTuple(hints.pendingReadHints, mapPendingReadHintToNoir),
+    settled_read_hints: mapTuple(hints.settledReadHints, mapNoteHashSettledReadHintToNoir),
   };
 }
 
@@ -1000,7 +1002,7 @@ function mapPublicDataReadRequestHintsToNoir(hints: PublicDataReadRequestHints):
 function mapValidationRequestsToNoir(requests: ValidationRequests): ValidationRequestsNoir {
   return {
     for_rollup: mapRollupValidationRequestsToNoir(requests.forRollup),
-    note_hash_read_requests: mapTuple(requests.noteHashReadRequests, mapSideEffectToNoir),
+    note_hash_read_requests: mapTuple(requests.noteHashReadRequests, mapReadRequestContextToNoir),
     nullifier_read_requests: mapTuple(requests.nullifierReadRequests, mapReadRequestContextToNoir),
     nullifier_non_existent_read_requests: mapTuple(
       requests.nullifierNonExistentReadRequests,
@@ -1017,7 +1019,11 @@ function mapValidationRequestsToNoir(requests: ValidationRequests): ValidationRe
 function mapValidationRequestsFromNoir(requests: ValidationRequestsNoir): ValidationRequests {
   return new ValidationRequests(
     mapRollupValidationRequestsFromNoir(requests.for_rollup),
-    mapTupleFromNoir(requests.note_hash_read_requests, MAX_NOTE_HASH_READ_REQUESTS_PER_TX, mapSideEffectFromNoir),
+    mapTupleFromNoir(
+      requests.note_hash_read_requests,
+      MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+      mapReadRequestContextFromNoir,
+    ),
     mapTupleFromNoir(
       requests.nullifier_read_requests,
       MAX_NULLIFIER_READ_REQUESTS_PER_TX,
@@ -1413,7 +1419,7 @@ function mapPrivateKernelTailHintsToNoir(inputs: PrivateKernelTailHints): Privat
       mapNumberToNoir,
     ),
     transient_note_hash_indexes_for_nullifiers: mapTuple(inputs.transientNoteHashIndexesForNullifiers, mapNumberToNoir),
-    note_hash_read_request_hints: mapTuple(inputs.noteHashReadRequestHints, mapFieldToNoir),
+    note_hash_read_request_hints: mapNoteHashReadRequestHintsToNoir(inputs.noteHashReadRequestHints),
     nullifier_read_request_hints: mapNullifierReadRequestHintsToNoir(inputs.nullifierReadRequestHints),
     master_nullifier_secret_keys: mapTuple(inputs.masterNullifierSecretKeys, mapGrumpkinPrivateKeyToNoir),
     sorted_new_note_hashes: mapTuple(inputs.sortedNewNoteHashes, mapNoteHashContextToNoir),
@@ -1924,6 +1930,12 @@ export function mapMergeRollupInputsToNoir(mergeRollupInputs: MergeRollupInputs)
   };
 }
 
+function mapNoteHashLeafPreimageToNoir(noteHashLeafValue: Fr): NoteHashLeafPreimageNoir {
+  return {
+    value: mapFieldToNoir(noteHashLeafValue),
+  };
+}
+
 /**
  * Maps a nullifier leaf preimage to noir
  * @param nullifierLeafPreimage - The nullifier leaf preimage.
@@ -1936,6 +1948,15 @@ export function mapNullifierLeafPreimageToNoir(
     nullifier: mapFieldToNoir(nullifierLeafPreimage.nullifier),
     next_nullifier: mapFieldToNoir(nullifierLeafPreimage.nextNullifier),
     next_index: mapNumberToNoir(Number(nullifierLeafPreimage.nextIndex)),
+  };
+}
+
+function mapNoteHashMembershipWitnessToNoir(
+  membershipWitness: MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>,
+): NoteHashMembershipWitnessNoir {
+  return {
+    leaf_index: membershipWitness.leafIndex.toString(),
+    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
   };
 }
 

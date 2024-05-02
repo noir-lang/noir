@@ -48,7 +48,7 @@ struct PrivateContext {
 
     max_block_number: MaxBlockNumber,
 
-    note_hash_read_requests: BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
+    note_hash_read_requests: BoundedVec<ReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequest, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL>,
 
@@ -192,7 +192,7 @@ impl PrivateContext {
     }
 
     pub fn push_note_hash_read_request(&mut self, note_hash: Field) {
-        let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
+        let side_effect = ReadRequest { value: note_hash, counter: self.side_effect_counter };
         self.note_hash_read_requests.push(side_effect);
         self.side_effect_counter = self.side_effect_counter + 1;
     }

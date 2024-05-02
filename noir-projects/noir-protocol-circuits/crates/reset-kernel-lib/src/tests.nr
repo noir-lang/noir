@@ -1,3 +1,4 @@
+mod note_hash_read_request_hints_builder;
 mod nullifier_non_existent_read_request_hints_builder;
 mod nullifier_read_request_hints_builder;
 mod public_data_read_request_hints_builder;

@@ -49,9 +49,7 @@ export async function executePrivateFunction(
 
   const rawReturnValues = await context.unpackReturns(publicInputs.returnsHash);
 
-  const noteHashReadRequestPartialWitnesses = context.getNoteHashReadRequestPartialWitnesses(
-    publicInputs.noteHashReadRequests,
-  );
+  const noteHashLeafIndexMap = context.getNoteHashLeafIndexMap();
   const newNotes = context.getNewNotes();
   const nullifiedNoteHashCounters = context.getNullifiedNoteHashCounters();
   const nestedExecutions = context.getNestedExecutions();
@@ -64,7 +62,7 @@ export async function executePrivateFunction(
     partialWitness,
     callStackItem,
     returnValues: rawReturnValues,
-    noteHashReadRequestPartialWitnesses,
+    noteHashLeafIndexMap,
     newNotes,
     nullifiedNoteHashCounters,
     vk: Buffer.from(artifact.verificationKey!, 'hex'),
