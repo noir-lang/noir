@@ -12,6 +12,7 @@ mod test {
     use iter_extended::vecmap;
     use noirc_errors::Location;
 
+    use crate::graph::CrateId;
     use crate::hir::def_collector::dc_crate::CompilationError;
     use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
     use crate::hir::def_map::ModuleData;
@@ -19,7 +20,6 @@ mod test {
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::type_check::TypeCheckError;
     use crate::hir::Context;
-    use crate::graph::CrateId;
     use crate::node_interner::{NodeInterner, StmtId};
 
     use crate::hir::def_collector::dc_crate::DefCollector;
@@ -79,7 +79,7 @@ mod test {
         mut context: Context<'a, 'a>,
         root_file_id: FileId,
         root_crate_id: CrateId,
-        mut errors: Vec<(CompilationError, FileId)>
+        mut errors: Vec<(CompilationError, FileId)>,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         if !has_parser_error(&errors) {
             // Allocate a default Module for the root, giving it a ModuleId
@@ -1799,5 +1799,4 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
             CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
         ));
     }
-
 }
