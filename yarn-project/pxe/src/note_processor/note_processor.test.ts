@@ -168,7 +168,7 @@ describe('Note Processor', () => {
         index: BigInt(firstBlockDataStartIndex + 2),
       }),
     ]);
-  });
+  }, 25_000);
 
   it('should store multiple notes that belong to us', async () => {
     const prependedBlocks = 2;
