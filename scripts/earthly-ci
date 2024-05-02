@@ -1,42 +1,45 @@
 #!/usr/bin/env bash
-# A wrapper for Earthly that is meant to caught signs of known intermittent failures and continue.
+# A wrapper for Earthly that is meant to catch signs of known intermittent failures and continue.
 # The silver lining is if Earthly does crash, the cache can pick up the build.
 set -eu -o pipefail
 
-# Flag to determine if -i is present
-INTERACTIVE=false
-# Check for -i flag in the arguments
-for arg in "$@"; do
-    if [ "$arg" == "-i" ] || [ "$arg" == "--interactive" ]; then
-        INTERACTIVE=true
-        break
+OUTPUT_FILE=$(mktemp)
+INCONSISTENT_GRAPH_STATE_COUNT=0  # Counter for 'inconsistent graph state' errors
+
+# Maximum attempts
+MAX_ATTEMPTS=3
+ATTEMPT_COUNT=0
+
+# Handle earthly commands and retries
+while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
+  if earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
+    exit 0  # Success, exit the script
+  else
+    # Increment attempt counter
+    ATTEMPT_COUNT=$((ATTEMPT_COUNT + 1))
+    echo "Attempt #$ATTEMPT_COUNT failed."
+
+    # Check the output for specific errors
+    if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null; then
+      INCONSISTENT_GRAPH_STATE_COUNT=$((INCONSISTENT_GRAPH_STATE_COUNT + 1))
+      echo "Got 'inconsistent graph state'."
+      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq 2 ]; then
+        echo "Performing 'earthly prune' due to repeated 'inconsistent graph state' errors."
+        earthly prune
+        if earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
+          exit 0 # Post-prune success
+        fi
+      fi
+    elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null; then
+      echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker"
+    elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null; then
+      echo "Detected an Earthly daemon restart, possibly due to it (mis)detecting a cache setting change, trying again..."
+    else
+      # If other errors, exit the script
+      exit 1
     fi
+  fi
 done
 
-OUTPUT_FILE=$(mktemp)
-# capture output to handle earthly edge cases
-if $INTERACTIVE ; then
-  # don't play nice with tee if interactive
-  earthly $@
-elif ! earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
-  # we try earthly once, capturing output
-  # if we get one of our (unfortunate) known failures, handle retries
-  # TODO potentially handle other intermittent errors here
-  if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null ; then
-    # TODO when earthly is overloaded we sometimes get
-    # 'failed to solve: failed to get edge: inconsistent graph state'
-    echo "Got 'inconsistent graph state'. Restarting earthly. See https://github.com/earthly/earthly/issues/2454'"
-    earthly $@
-    # TODO handle
-    # could not configure satellite: failed getting org: unable to authenticate: failed to execute login request: Post
-  elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null ; then
-    echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker"
-    earthly $@
-  elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null ; then
-    echo "Detected an Earthly daemon restart, possibly due to it (mis)detecting a cache setting change, trying again..."
-    earthly $@
-  else
-    # otherwise, propagate error
-    exit 1
-  fi
-fi
+echo "Maximum attempts reached, exiting with failure."
+exit 1
