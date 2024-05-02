@@ -333,12 +333,13 @@ impl DefCollector {
         let (literal_globals, other_globals) =
             filter_literal_globals(def_collector.collected_globals);
 
-        resolved_module.resolve_globals(context, literal_globals, crate_id);
+        resolved_module.resolve_globals(context, literal_globals, crate_id, &mut composer);
 
         resolved_module.errors.extend(resolve_type_aliases(
             context,
             def_collector.collected_type_aliases,
             crate_id,
+            &mut composer,
         ));
 
         resolved_module.errors.extend(resolve_traits(
@@ -352,6 +353,7 @@ impl DefCollector {
             context,
             def_collector.collected_types,
             crate_id,
+            &mut composer,
         ));
 
         // Bind trait impls to their trait. Collect trait functions, that have a
@@ -374,11 +376,12 @@ impl DefCollector {
             context,
             crate_id,
             &def_collector.collected_impls,
+            &mut composer,
         ));
 
         // We must wait to resolve non-integer globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        resolved_module.resolve_globals(context, other_globals, crate_id);
+        resolved_module.resolve_globals(context, other_globals, crate_id, &mut composer);
 
         // Resolve each function in the crate. This is now possible since imports have been resolved
         resolved_module.functions = resolve_free_functions(
@@ -396,6 +399,7 @@ impl DefCollector {
             crate_id,
             &context.def_maps,
             def_collector.collected_impls,
+            &mut composer,
             &mut resolved_module.errors,
         ));
 
@@ -489,8 +493,9 @@ impl ResolvedModule {
         context: &mut Context,
         literal_globals: Vec<UnresolvedGlobal>,
         crate_id: CrateId,
+        composer: &mut Composer,
     ) {
-        let globals = resolve_globals(context, literal_globals, crate_id);
+        let globals = resolve_globals(context, literal_globals, crate_id, composer);
         self.globals.extend(globals.globals);
         self.errors.extend(globals.errors);
     }

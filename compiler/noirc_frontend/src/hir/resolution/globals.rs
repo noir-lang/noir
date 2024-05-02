@@ -6,7 +6,7 @@ use crate::{
         def_map::ModuleId,
         Context,
     },
-    node_interner::GlobalId,
+    node_interner::GlobalId, composer::Composer,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -21,6 +21,7 @@ pub(crate) fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
+    composer: &mut Composer,
 ) -> ResolvedGlobals {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let globals = vecmap(globals, |global| {
@@ -32,6 +33,7 @@ pub(crate) fn resolve_globals(
             &path_resolver,
             &context.def_maps,
             global.file_id,
+            composer,
         );
 
         let hir_stmt = resolver.resolve_global_let(global.stmt_def, global.global_id);

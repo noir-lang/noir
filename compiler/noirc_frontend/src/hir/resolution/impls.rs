@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use fm::FileId;
 
 use crate::ast::ItemVisibility;
+use crate::composer::Composer;
 use crate::{
     graph::CrateId,
     hir::{
@@ -28,6 +29,7 @@ pub(crate) fn collect_impls(
     context: &mut Context,
     crate_id: CrateId,
     collected_impls: &ImplMap,
+    composer: &mut Composer,
 ) -> Vec<(CompilationError, FileId)> {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
@@ -40,7 +42,7 @@ pub(crate) fn collect_impls(
         let file = def_maps[&crate_id].file_id(*module_id);
 
         for (generics, span, unresolved) in methods {
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file, composer);
             resolver.add_generics(generics);
             let typ = resolver.resolve_type(unresolved_type.clone());
 
@@ -95,6 +97,7 @@ pub(crate) fn resolve_impls(
     crate_id: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_impls: ImplMap,
+    composer: &mut Composer,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_method_ids = Vec::new();
@@ -106,7 +109,7 @@ pub(crate) fn resolve_impls(
         let file = def_maps[&crate_id].file_id(module_id);
 
         for (generics, _, functions) in methods {
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file, composer);
             resolver.add_generics(&generics);
             let generics = resolver.get_generics().to_vec();
             let self_type = resolver.resolve_type(unresolved_type.clone());
@@ -119,6 +122,7 @@ pub(crate) fn resolve_impls(
                 Some(self_type.clone()),
                 None,
                 generics,
+                composer,
                 errors,
             );
             if self_type != Type::Error {
