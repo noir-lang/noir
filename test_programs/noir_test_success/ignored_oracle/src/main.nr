@@ -13,7 +13,7 @@ unconstrained fn custom_debug() {}
 unconstrained fn custom_getter() -> Field {}
 
 #[test]
-unconstrained fn void_return_oracle_ignored() {
+unconstrained fn unit_return_oracle_ignored() {
     custom_debug();
 }
 
