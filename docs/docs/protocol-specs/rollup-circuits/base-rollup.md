@@ -159,9 +159,11 @@ TxContext *-- GasSettings : gas_settings
 class CombinedConstantData {
     historical_header: Header
     tx_context: TxContext
+    global_variables: GlobalVariables
 }
 CombinedConstantData *-- Header : historical_header
 CombinedConstantData *-- TxContext : tx_context
+CombinedConstantData *-- GlobalVariables : global_variables
 
 class GasSettings {
     da.gas_limit: u32
