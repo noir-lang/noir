@@ -32,6 +32,31 @@
       }
     },
     {
+      "name": "darwin-arm64",
+      "displayName": "Apple arm64 Cross-compile",
+      "inherits": "default",
+      "binaryDir": "build-darwin-arm64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "/opt/osxcross/toolchain.cmake"
+      },
+      "environment": {
+        "OSXCROSS_HOST": "arm64-apple-darwin23",
+        "OSXCROSS_TARGET_DIR": "/opt/osxcross",
+        "OSXCROSS_TARGET": "darwin23",
+        "OSXCROSS_SDK": "/opt/osxcross/SDK/MacOSX14.0.sdk"
+      }
+    },
+    {
+      "name": "darwin-amd64",
+      "displayName": "Apple amd64 Cross-compile",
+      "inherits": "darwin-arm64",
+      "binaryDir": "build-darwin-amd64",
+      "environment": {
+        "OSXCROSS_HOST": "x86_64-apple-darwin23"
+      }
+    },
+    {
       "name": "clang16",
       "displayName": "Build with Clang-16",
       "description": "Build with globally installed Clang-16",
@@ -359,6 +384,16 @@
       "configurePreset": "op-count"
     },
     {
+      "name": "darwin-arm64",
+      "inherits": "default",
+      "configurePreset": "darwin-arm64"
+    },
+    {
+      "name": "darwin-amd64",
+      "inherits": "default",
+      "configurePreset": "darwin-amd64"
+    },
+    {
       "name": "clang16-dbg",
       "inherits": "default",
       "configurePreset": "clang16-dbg"
@@ -456,18 +491,14 @@
       "configurePreset": "wasm-dbg",
       "inheritConfigureEnvironment": true,
       "jobs": 0,
-      "targets": [
-        "barretenberg.wasm"
-      ]
+      "targets": ["barretenberg.wasm"]
     },
     {
       "name": "wasm-threads",
       "configurePreset": "wasm-threads",
       "inheritConfigureEnvironment": true,
       "jobs": 0,
-      "targets": [
-        "barretenberg.wasm"
-      ]
+      "targets": ["barretenberg.wasm"]
     },
     {
       "name": "xray",

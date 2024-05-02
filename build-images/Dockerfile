@@ -23,11 +23,57 @@ FROM ubuntu:noble AS wasi-sdk
 COPY --from=wasi-sdk-build /opt/wasi-sdk /opt/wasi-sdk
 
 ########################################################################################################################
+# Build osxcross.
+FROM ubuntu:noble AS osxcross-build
+RUN export DEBIAN_FRONTEND="noninteractive" \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+        bash \
+        binutils-multiarch-dev \
+        build-essential \
+        ca-certificates \
+        clang \
+        git \
+        libbz2-dev \
+        libmpc-dev \
+        libmpfr-dev \
+        libgmp-dev \
+        liblzma-dev \
+        libpsi3-dev \
+        libssl-dev \
+        libxml2-dev \
+        libz-dev \
+        lzma-dev \
+        make \
+        patch \
+        python3 \
+        uuid-dev \
+        wget \
+        xz-utils \
+        zlib1g-dev \
+        cmake \
+        curl \
+    && apt-get -y autoremove \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+WORKDIR /usr/src/osxcross
+ARG OSX_CROSS_COMMIT="ff8d100f3f026b4ffbe4ce96d8aac4ce06f1278b"
+RUN git clone https://github.com/tpoechtrager/osxcross.git . && git reset --hard $OSX_CROSS_COMMIT
+ARG OSX_SDK="MacOSX14.0.sdk"
+ARG OSX_SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.0/${OSX_SDK}.tar.xz"
+RUN curl -sSL "$OSX_SDK_URL" -o "./tarballs/$OSX_SDK.tar.xz" \
+    && OSX_VERSION_MIN=14.0 UNATTENDED=1 ENABLE_COMPILER_RT_INSTALL=1 TARGET_DIR=/opt/osxcross ./build.sh \
+    && rm -rf ./tarballs/$OSX_SDK.tar.xz /opt/osxcross/SDK/$OSX_SDK
+FROM scratch AS osxcross
+COPY --from=osxcross-build /opt/osxcross /opt/osxcross
+
+########################################################################################################################
 # Build foundry.
-FROM ubuntu:noble AS foundry
+FROM ubuntu:noble AS foundry-build
 RUN apt update && apt install -y git cargo
+ARG TAG
 RUN ulimit -n 65535 && \
-    git clone --depth 1 --branch nightly-de33b6af53005037b463318d2628b5cfcaf39916 \
+    git clone --depth 1 --branch nightly-$TAG \
         https://github.com/foundry-rs/foundry.git && \
     cd foundry && cargo build --profile local && \
     mkdir -p /opt/foundry/bin && \
@@ -35,6 +81,8 @@ RUN ulimit -n 65535 && \
         mv ./target/local/$t /opt/foundry/bin/$t; \
         strip /opt/foundry/bin/$t; \
     done
+FROM scratch AS foundry
+COPY --from=foundry-build /opt/foundry /opt/foundry
 
 ########################################################################################################################
 # This image contains *just* what's needed to perform a full build of the aztec project.
@@ -73,8 +121,13 @@ RUN apt update && \
 # Install wasi-sdk.
 COPY --from=aztecprotocol/wasi-sdk:22.0 /opt/wasi-sdk /opt/wasi-sdk
 
+# Install osxcross. Requires developer to mount SDK from their mac host.
+COPY --from=aztecprotocol/osxcross:14.0 /opt/osxcross /opt/osxcross
+ENV PATH="/opt/osxcross/bin:$PATH"
+ENV LD_LIBRARY_PATH="/opt/osxcross/lib:$LD_LIBRARY_PATH"
+
 # Install foundry.
-COPY --from=foundry /opt/foundry /opt/foundry
+COPY --from=aztecprotocol/foundry:de33b6af53005037b463318d2628b5cfcaf39916 /opt/foundry /opt/foundry
 ENV PATH="/opt/foundry/bin:$PATH"
 
 # Install rust and cross-compilers. Noir specifically uses 1.74.1.
@@ -87,7 +140,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
     chmod -R a+w /opt/rust
 
 # Install yq
-RUN curl -L https://github.com/mikefarah/yq/releases/download/v4.42.1/yq_linux_$(dpkg --print-architecture) \
+RUN curl -sL https://github.com/mikefarah/yq/releases/download/v4.42.1/yq_linux_$(dpkg --print-architecture) \
         -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
 
 # Install yarn
@@ -180,6 +233,14 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 # - It provides docker via the hosts docker instance, mounted at /var/lib/docker.sock.
 # - It uses an entrypoint script at runtime to perform uid/gid alignment with the host and drop into user account.
 FROM basebox as devbox
+
+# Install docker client. Will use mounted host docker socket.
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --batch --yes --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+        | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update && apt-get install -y docker-ce-cli
+ADD https://raw.githubusercontent.com/docker/docker-ce/master/components/cli/contrib/completion/bash/docker /etc/bash_completion.d/docker.sh
+
 RUN apt install -y gosu
 ENV TERM=xterm-256color
 # Detect if the host machine is Mac, if so set an env var, and disable prompts vcs info for performance.

@@ -16,6 +16,14 @@ source:
     # for debugging rebuilds
     RUN echo CONTENT HASH $(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}') | tee .content-hash
 
+preset-darwin-arm64:
+    FROM +source
+    LET OSX_SDK="MacOSX14.0.sdk"
+    LET OSX_SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.0/${OSX_SDK}.tar.xz"
+    RUN curl -sSL "$OSX_SDK_URL" | tar -xJ -C /opt/osxcross/SDK && rm -rf /opt/osxcross/SDK/$OSX_SDK/System
+    RUN cmake --preset darwin-arm64 -Bbuild && cmake --build build --target bb
+    SAVE ARTIFACT build/bin AS LOCAL build-darwin-arm64/bin
+
 preset-release:
     FROM +source
     RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb
