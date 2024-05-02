@@ -1,21 +1,17 @@
-use acvm::acir::circuit::ExpressionWidth;
+use acvm::acir::circuit::{ExpressionWidth, Program};
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
-
-/// TODO(https://github.com/noir-lang/noir/issues/4428): Need to update how these passes are run to account for
-/// multiple ACIR functions
+use noirc_errors::debug_info::DebugInfo;
 
 pub fn transform_program(
     mut compiled_program: CompiledProgram,
     expression_width: ExpressionWidth,
 ) -> CompiledProgram {
-    let (optimized_circuit, location_map) = acvm::compiler::compile(
-        std::mem::take(&mut compiled_program.program.functions[0]),
+    compiled_program.program = transform_program_internal(
+        compiled_program.program,
+        &mut compiled_program.debug,
         expression_width,
     );
-
-    compiled_program.program.functions[0] = optimized_circuit;
-    compiled_program.debug.update_acir(location_map);
     compiled_program
 }
 
@@ -24,14 +20,33 @@ pub fn transform_contract(
     expression_width: ExpressionWidth,
 ) -> CompiledContract {
     let functions = vecmap(contract.functions, |mut func| {
-        let (optimized_bytecode, location_map) = acvm::compiler::compile(
-            std::mem::take(&mut func.bytecode.functions[0]),
-            expression_width,
-        );
-        func.bytecode.functions[0] = optimized_bytecode;
-        func.debug.update_acir(location_map);
+        func.bytecode =
+            transform_program_internal(func.bytecode, &mut func.debug, expression_width);
+
         func
     });
 
     CompiledContract { functions, ..contract }
+}
+
+fn transform_program_internal(
+    mut program: Program,
+    debug: &mut [DebugInfo],
+    expression_width: ExpressionWidth,
+) -> Program {
+    let functions = std::mem::take(&mut program.functions);
+
+    let optimized_functions = functions
+        .into_iter()
+        .enumerate()
+        .map(|(i, function)| {
+            let (optimized_circuit, location_map) =
+                acvm::compiler::compile(function, expression_width);
+            debug[i].update_acir(location_map);
+            optimized_circuit
+        })
+        .collect::<Vec<_>>();
+
+    program.functions = optimized_functions;
+    program
 }

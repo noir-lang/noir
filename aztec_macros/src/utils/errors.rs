@@ -1,5 +1,6 @@
 use noirc_errors::Span;
-use noirc_frontend::{macros_api::MacroError, UnresolvedTypeData};
+use noirc_frontend::ast;
+use noirc_frontend::macros_api::MacroError;
 
 use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 
@@ -7,14 +8,16 @@ use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 pub enum AztecMacroError {
     AztecDepNotFound,
     ContractHasTooManyPrivateFunctions { span: Span },
-    UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
-    UnsupportedFunctionReturnType { span: Span, typ: UnresolvedTypeData },
-    UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
+    UnsupportedFunctionArgumentType { span: Span, typ: ast::UnresolvedTypeData },
+    UnsupportedFunctionReturnType { span: Span, typ: ast::UnresolvedTypeData },
+    UnsupportedStorageType { span: Option<Span>, typ: ast::UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
+    CouldNotImplementComputeNoteHashAndNullifier { secondary_message: Option<String> },
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },
     MultipleStorageDefinitions { span: Option<Span> },
     CouldNotExportStorageLayout { span: Option<Span>, secondary_message: Option<String> },
     CouldNotExportFunctionAbi { span: Option<Span>, secondary_message: Option<String> },
+    CouldNotGenerateContractInterface { secondary_message: Option<String> },
     EventError { span: Span, message: String },
     UnsupportedAttributes { span: Span, secondary_message: Option<String> },
 }
@@ -23,7 +26,7 @@ impl From<AztecMacroError> for MacroError {
     fn from(err: AztecMacroError) -> Self {
         match err {
             AztecMacroError::AztecDepNotFound {} => MacroError {
-                primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/developers/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml".to_owned(),
+                primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Nargo.toml. For more information go to https://docs.aztec.network/developers/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml".to_owned(),
                 secondary_message: None,
                 span: None,
             },
@@ -52,6 +55,11 @@ impl From<AztecMacroError> for MacroError {
                 secondary_message,
                 span: None,
             },
+            AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier { secondary_message } => MacroError {
+                primary_message: "Could not implement compute_note_hash_and_nullifier automatically, please provide an implementation".to_string(),
+                secondary_message,
+                span: None,
+            },
             AztecMacroError::CouldNotImplementNoteInterface { span, secondary_message } => MacroError {
                 primary_message: "Could not implement automatic methods for note, please provide an implementation of the NoteInterface trait".to_string(),
                 secondary_message,
@@ -71,6 +79,11 @@ impl From<AztecMacroError> for MacroError {
                 primary_message: "Could not generate and export function abi".to_string(),
                 secondary_message,
                 span,
+            },
+            AztecMacroError::CouldNotGenerateContractInterface { secondary_message } => MacroError {
+                primary_message: "Could not generate contract interface".to_string(),
+                secondary_message,
+                span: None
             },
             AztecMacroError::EventError { span, message } => MacroError {
                 primary_message: message,

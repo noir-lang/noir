@@ -4,6 +4,7 @@ use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -17,7 +18,7 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
-        function::{InlineType, RuntimeType},
+        function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -229,7 +230,12 @@ impl FunctionBuilder {
     ) -> ValueId {
         let lhs_type = self.type_of_value(lhs);
         let rhs_type = self.type_of_value(rhs);
-        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
+        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
+            assert_eq!(
+                lhs_type, rhs_type,
+                "ICE - Binary instruction operands must have the same type"
+            );
+        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }

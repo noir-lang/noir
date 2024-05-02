@@ -6,9 +6,9 @@ use std::rc::Rc;
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
+use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::FunctionKind;
-use crate::{Distinctness, FunctionReturnType, Type, TypeVariable, Visibility};
+use crate::{Type, TypeVariable};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -24,8 +24,8 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    pub const fn as_expr(&self) -> &ExprId {
-        &self.0
+    pub const fn as_expr(&self) -> ExprId {
+        self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
@@ -99,8 +99,6 @@ pub struct FuncMeta {
 
     pub return_visibility: Visibility,
 
-    pub return_distinctness: Distinctness,
-
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
     pub typ: Type,
@@ -126,8 +124,9 @@ pub struct FuncMeta {
     pub is_entry_point: bool,
 
     /// True if this function is marked with an attribute
-    /// that indicates it should not be inlined, such as for folding.
-    pub should_fold: bool,
+    /// that indicates it should be inlined differently than the default (inline everything).
+    /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
+    pub has_inline_attribute: bool,
 }
 
 impl FuncMeta {

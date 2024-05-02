@@ -97,17 +97,21 @@ pub(crate) fn run(
 
     if args.profile_info {
         for compiled_program in &compiled_programs {
-            let span_opcodes = compiled_program.debug.count_span_opcodes();
             let debug_artifact = DebugArtifact::from(compiled_program.clone());
-            print_span_opcodes(span_opcodes, &debug_artifact);
+            for function_debug in compiled_program.debug.iter() {
+                let span_opcodes = function_debug.count_span_opcodes();
+                print_span_opcodes(span_opcodes, &debug_artifact);
+            }
         }
 
         for compiled_contract in &compiled_contracts {
             let debug_artifact = DebugArtifact::from(compiled_contract.clone());
             let functions = &compiled_contract.functions;
             for contract_function in functions {
-                let span_opcodes = contract_function.debug.count_span_opcodes();
-                print_span_opcodes(span_opcodes, &debug_artifact);
+                for function_debug in contract_function.debug.iter() {
+                    let span_opcodes = function_debug.count_span_opcodes();
+                    print_span_opcodes(span_opcodes, &debug_artifact);
+                }
             }
         }
     }
@@ -224,7 +228,7 @@ struct InfoReport {
 
 #[derive(Debug, Serialize)]
 struct ProgramInfo {
-    name: String,
+    package_name: String,
     #[serde(skip)]
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
@@ -234,7 +238,7 @@ impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
         vecmap(program_info.functions, |function| {
             row![
-                Fm->format!("{}", program_info.name),
+                Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
                 format!("{:?}", program_info.expression_width),
                 Fc->format!("{}", function.acir_opcodes),
@@ -289,13 +293,16 @@ fn count_opcodes_and_gates_in_program(
             Ok(FunctionInfo {
                 name: compiled_program.names[i].clone(),
                 acir_opcodes: function.opcodes.len(),
-                circuit_size: backend
-                    .get_exact_circuit_size(&Program { functions: vec![function] })?,
+                // Unconstrained functions do not matter to a backend circuit count so we pass nothing here
+                circuit_size: backend.get_exact_circuit_size(&Program {
+                    functions: vec![function],
+                    unconstrained_functions: Vec::new(),
+                })?,
             })
         })
         .collect::<Result<_, _>>()?;
 
-    Ok(ProgramInfo { name: package.name.to_string(), expression_width, functions })
+    Ok(ProgramInfo { package_name: package.name.to_string(), expression_width, functions })
 }
 
 fn count_opcodes_and_gates_in_contract(

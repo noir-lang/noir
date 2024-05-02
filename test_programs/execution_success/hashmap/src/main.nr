@@ -2,7 +2,7 @@ mod utils;
 
 use dep::std::collections::map::HashMap;
 use dep::std::hash::BuildHasherDefault;
-use dep::std::hash::pedersen::PedersenHasher;
+use dep::std::hash::poseidon2::Poseidon2Hasher;
 use dep::std::cmp::Eq;
 
 use utils::cut;
@@ -25,7 +25,7 @@ global K_CMP = FIELD_CMP;
 global V_CMP = FIELD_CMP;
 global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP = || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<PedersenHasher>> 
+global ALLOCATE_HASHMAP = || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> 
     HashMap::default();
 
 fn main(input: [Entry; HASHMAP_LEN]) {
@@ -194,24 +194,24 @@ fn test_mut_iterators() {
 }
 
 // docs:start:type_alias
-type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<PedersenHasher>>;
+type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>;
 // docs:end:type_alias
 
 /// Tests examples from the stdlib hashmap documentation
 fn doc_tests() {
     // docs:start:default_example
-    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<PedersenHasher>> = HashMap::default();
+    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     assert(hashmap.is_empty());
     // docs:end:default_example
 
     // docs:start:with_hasher_example
-    let my_hasher: BuildHasherDefault<PedersenHasher> = Default::default();
-    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<PedersenHasher>> = HashMap::with_hasher(my_hasher);
+    let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
+    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::with_hasher(my_hasher);
     assert(hashmap.is_empty());
     // docs:end:with_hasher_example
 
     // docs:start:insert_example
-    let mut map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>> = HashMap::default();
+    let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     map.insert(12, 42);
     assert(map.len() == 1);
     // docs:end:insert_example
@@ -255,7 +255,7 @@ fn doc_tests() {
     // docs:end:len_example
 
     // docs:start:capacity_example
-    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<PedersenHasher>> = HashMap::default();
+    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     assert(empty_map.len() == 0);
     assert(empty_map.capacity() == 42);
     // docs:end:capacity_example
@@ -283,8 +283,8 @@ fn doc_tests() {
     // docs:end:retain_example
 
     // docs:start:eq_example
-    let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<PedersenHasher>> = HashMap::default();
-    let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<PedersenHasher>> = HashMap::default();
+    let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 
     map1.insert(1, 2);
     map1.insert(3, 4);
@@ -297,7 +297,7 @@ fn doc_tests() {
 }
 
 // docs:start:get_example
-fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
+fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     let x = map.get(12);
 
     if x.is_some() {
@@ -306,7 +306,7 @@ fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>
 }
 // docs:end:get_example
 
-fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
+fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     // docs:start:entries_example
     let entries = map.entries();
 
@@ -344,7 +344,7 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHas
     // docs:end:values_example
 }
 
-fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
+fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     // docs:start:iter_mut_example
     // Add 1 to each key in the map, and double the value associated with that key.
     map.iter_mut(|k, v| (k + 1, v * 2));

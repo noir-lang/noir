@@ -6,11 +6,10 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
-use crate::cli::fs::witness::save_witness_to_dir;
 use crate::errors::CliError;
 use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 
-use super::fs::witness::create_output_witness_string;
+use super::fs::witness::{create_output_witness_string, save_witness_to_dir};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -46,9 +45,9 @@ fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     )?;
     if args.output_witness.is_some() {
         save_witness_to_dir(
-            &output_witness_string,
-            &args.working_directory,
+            output_witness,
             &args.output_witness.unwrap(),
+            &args.working_directory,
         )?;
     }
     Ok(output_witness_string)

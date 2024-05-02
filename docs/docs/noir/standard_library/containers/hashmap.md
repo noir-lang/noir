@@ -20,8 +20,9 @@ Example:
 
 ```rust
 // Create a mapping from Fields to u32s with a maximum length of 12
-// using a pedersen hash
-let mut map: HashMap<Field, u32, 12, BuildHasherDefault<Pedersen>> = HashMap::default();
+// using a poseidon2 hasher
+use dep::std::hash::poseidon2::Poseidon2Hasher;
+let mut map: HashMap<Field, u32, 12, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 
 map.insert(1, 2);
 map.insert(3, 4);

@@ -15,9 +15,9 @@ where
 {
     let (tokens, lexer_errors) = Lexer::lex(program);
     if !lexer_errors.is_empty() {
-        return Err(vecmap(lexer_errors, Into::into));
+        return Err(vecmap(&lexer_errors, Into::into));
     }
-    parser.then_ignore(just(Token::EOF)).parse(tokens).map_err(|errors| vecmap(errors, Into::into))
+    parser.then_ignore(just(Token::EOF)).parse(tokens).map_err(|errors| vecmap(&errors, Into::into))
 }
 
 pub(crate) fn parse_recover<P, T>(parser: P, program: &str) -> (Option<T>, Vec<CustomDiagnostic>)
@@ -27,8 +27,8 @@ where
     let (tokens, lexer_errors) = Lexer::lex(program);
     let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
 
-    let mut errors = vecmap(lexer_errors, Into::into);
-    errors.extend(errs.into_iter().map(Into::into));
+    let mut errors = vecmap(&lexer_errors, Into::into);
+    errors.extend(errs.iter().map(Into::into));
 
     (opt, errors)
 }

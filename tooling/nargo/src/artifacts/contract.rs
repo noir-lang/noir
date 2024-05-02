@@ -4,7 +4,7 @@ use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use serde::{Deserialize, Serialize};
 
 use noirc_driver::DebugFile;
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::debug_info::ProgramDebugInfo;
 use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
@@ -68,10 +68,10 @@ pub struct ContractFunctionArtifact {
     pub bytecode: Program,
 
     #[serde(
-        serialize_with = "DebugInfo::serialize_compressed_base64_json",
-        deserialize_with = "DebugInfo::deserialize_compressed_base64_json"
+        serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",
+        deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
-    pub debug_symbols: DebugInfo,
+    pub debug_symbols: ProgramDebugInfo,
 }
 
 impl From<ContractFunction> for ContractFunctionArtifact {
@@ -82,7 +82,7 @@ impl From<ContractFunction> for ContractFunctionArtifact {
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
-            debug_symbols: func.debug,
+            debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
         }
     }
 }

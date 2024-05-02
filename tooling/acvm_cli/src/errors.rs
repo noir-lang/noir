@@ -20,9 +20,6 @@ pub(crate) enum FilesystemError {
 
     #[error(" Error: failed to create output witness file {0}.")]
     OutputWitnessCreationFailed(String),
-
-    #[error(" Error: failed to write output witness file {0}.")]
-    OutputWitnessWriteFailed(String),
 }
 
 #[derive(Debug, Error)]

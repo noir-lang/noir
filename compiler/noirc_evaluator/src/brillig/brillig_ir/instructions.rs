@@ -75,12 +75,6 @@ impl BrilligContext {
         result: SingleAddrVariable,
         operation: BrilligBinaryOp,
     ) {
-        assert!(
-            lhs.bit_size == rhs.bit_size,
-            "Not equal bit size for lhs and rhs: lhs {}, rhs {}",
-            lhs.bit_size,
-            rhs.bit_size
-        );
         let is_field_op = lhs.bit_size == FieldElement::max_num_bits();
         let expected_result_bit_size =
             BrilligContext::binary_result_bit_size(operation, lhs.bit_size);
@@ -213,29 +207,6 @@ impl BrilligContext {
             BrilligOpcode::JumpIf { condition, location: 0 },
             target_label.to_string(),
         );
-    }
-
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false.
-    pub(crate) fn constrain_instruction(
-        &mut self,
-        condition: SingleAddrVariable,
-        assert_message: Option<String>,
-    ) {
-        self.debug_show.constrain_instruction(condition.address);
-
-        assert!(condition.bit_size == 1);
-
-        let (next_section, next_label) = self.reserve_next_section_label();
-        self.add_unresolved_jump(
-            BrilligOpcode::JumpIf { condition: condition.address, location: 0 },
-            next_label,
-        );
-        self.push_opcode(BrilligOpcode::Trap);
-        if let Some(assert_message) = assert_message {
-            self.obj.add_assert_message_to_last_opcode(assert_message);
-        }
-        self.enter_section(next_section);
     }
 
     /// Adds a unresolved `Jump` to the bytecode.
@@ -487,6 +458,12 @@ impl BrilligContext {
             size: calldata_size,
             offset,
         });
+    }
+
+    pub(super) fn trap_instruction(&mut self, revert_data_offset: usize, revert_data_size: usize) {
+        self.debug_show.trap_instruction(revert_data_offset, revert_data_size);
+
+        self.push_opcode(BrilligOpcode::Trap { revert_data_offset, revert_data_size });
     }
 }
 

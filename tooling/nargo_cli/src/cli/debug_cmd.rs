@@ -232,7 +232,7 @@ pub(crate) fn debug_program(
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![compiled_program.debug.clone()],
+        debug_symbols: compiled_program.debug.clone(),
         file_map: compiled_program.file_map.clone(),
         warnings: compiled_program.warnings.clone(),
     };
@@ -242,6 +242,7 @@ pub(crate) fn debug_program(
         &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,
+        &compiled_program.program.unconstrained_functions,
     )
     .map_err(CliError::from)
 }

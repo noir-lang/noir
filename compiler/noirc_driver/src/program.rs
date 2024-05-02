@@ -24,7 +24,7 @@ pub struct CompiledProgram {
     )]
     pub program: Program,
     pub abi: noirc_abi::Abi,
-    pub debug: DebugInfo,
+    pub debug: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
     pub warnings: Vec<SsaReport>,
     /// Names of the functions in the program. These are used for more informative debugging and benchmarking.

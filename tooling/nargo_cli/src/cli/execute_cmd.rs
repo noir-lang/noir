@@ -149,7 +149,7 @@ pub(crate) fn execute_program(
         Ok(solved_witness_stack) => Ok(solved_witness_stack),
         Err(err) => {
             let debug_artifact = DebugArtifact {
-                debug_symbols: vec![compiled_program.debug.clone()],
+                debug_symbols: compiled_program.debug.clone(),
                 file_map: compiled_program.file_map.clone(),
                 warnings: compiled_program.warnings.clone(),
             };

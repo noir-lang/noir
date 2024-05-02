@@ -2,7 +2,7 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "0.43.0"
+version = "0.44.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -20,6 +20,7 @@ thiserror.workspace = true
 flate2.workspace = true
 bincode.workspace = true
 base64.workspace = true
+serde-big-array = "0.5.1"
 
 [dev-dependencies]
 serde_json = "1.0"
@@ -28,8 +29,14 @@ strum_macros = "0.24"
 serde-reflection = "0.3.6"
 serde-generate = "0.25.1"
 fxhash.workspace = true
+criterion.workspace = true
+pprof.workspace = true
 
 [features]
 default = ["bn254"]
 bn254 = ["acir_field/bn254", "brillig/bn254"]
 bls12_381 = ["acir_field/bls12_381", "brillig/bls12_381"]
+
+[[bench]]
+name = "serialization"
+harness = false

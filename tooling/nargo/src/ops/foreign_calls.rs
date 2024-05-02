@@ -167,8 +167,15 @@ pub struct DefaultForeignCallExecutor {
 impl DefaultForeignCallExecutor {
     pub fn new(show_output: bool, resolver_url: Option<&str>) -> Self {
         let oracle_resolver = resolver_url.map(|resolver_url| {
-            let transport_builder =
+            let mut transport_builder =
                 Builder::new().url(resolver_url).expect("Invalid oracle resolver URL");
+
+            if let Some(Ok(timeout)) =
+                std::env::var("NARGO_FOREIGN_CALL_TIMEOUT").ok().map(|timeout| timeout.parse())
+            {
+                let timeout_duration = std::time::Duration::from_millis(timeout);
+                transport_builder = transport_builder.timeout(timeout_duration);
+            };
             Client::with_transport(transport_builder.build())
         });
         DefaultForeignCallExecutor {

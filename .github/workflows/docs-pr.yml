@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.73.0
+        uses: dtolnay/rust-toolchain@1.74.1
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -79,6 +79,8 @@ jobs:
         run: yarn workspace docs version::stables
 
       - name: Build docs
+        env:
+          MATOMO_ENV: staging # not really a secret, it will show in the footer anyway
         run: yarn workspaces foreach -Rpt --from docs run build
 
       - name: Upload artifact

@@ -71,7 +71,9 @@ pub(crate) fn evaluate_binary_int_op(
             }
         }
     })?;
-    let rhs = rhs.expect_integer_with_bit_size(bit_size).map_err(|err| match err {
+    let rhs_bit_size =
+        if op == &BinaryIntOp::Shl || op == &BinaryIntOp::Shr { 8 } else { bit_size };
+    let rhs = rhs.expect_integer_with_bit_size(rhs_bit_size).map_err(|err| match err {
         MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
             BrilligArithmeticError::MismatchedRhsBitSize {
                 rhs_bit_size: value_bit_size,

@@ -152,6 +152,16 @@ export interface DebugInfo {
 }
 
 /**
+ * The debug information for a given program.
+ */
+export interface ProgramDebugInfo {
+  /**
+   * An array that maps to each function of a program.
+   */
+  debug_infos: Array<DebugInfo>;
+}
+
+/**
  * Maps a file ID to its metadata for debugging purposes.
  */
 export type DebugFileMap = Record<
