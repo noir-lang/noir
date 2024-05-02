@@ -12,7 +12,6 @@ mod test {
     use iter_extended::vecmap;
     use noirc_errors::Location;
 
-    use crate::graph::CrateId;
     use crate::hir::def_collector::dc_crate::CompilationError;
     use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
     use crate::hir::def_map::ModuleData;
@@ -51,14 +50,6 @@ mod test {
     pub(crate) fn get_program(
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
-        let (program, context, root_file_id, root_crate_id, errors) = get_parsed_program(src);
-
-        get_program_from_parsed(program, context, root_file_id, root_crate_id, errors)
-    }
-
-    fn get_parsed_program(
-        src: &str,
-    ) -> (ParsedModule, Context, FileId, CrateId, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
         let fm = FileManager::new(root);
 
@@ -71,16 +62,6 @@ mod test {
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
         remove_experimental_warnings(&mut errors);
 
-        (program, context, root_file_id, root_crate_id, errors)
-    }
-
-    fn get_program_from_parsed<'a>(
-        program: ParsedModule,
-        mut context: Context<'a, 'a>,
-        root_file_id: FileId,
-        root_crate_id: CrateId,
-        mut errors: Vec<(CompilationError, FileId)>,
-    ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         if !has_parser_error(&errors) {
             // Allocate a default Module for the root, giving it a ModuleId
             let mut modules: Arena<ModuleData> = Arena::default();
