@@ -14,7 +14,7 @@ Indexed Merkle trees, introduced [here](https://eprint.iacr.org/2021/1263.pdf), 
 
 With an Indexed Merkle tree, proving non-membership of a value `x` then requires a membership proof of the node with value lower than `x` and a next-highest value greater than `x`. The cost of this proof is proportional to the height of the tree, which can be set according to the expected number of elements to be stored in the tree. For comparison, a non-membership proof in a sparse tree requires a tree with height proportional to the size of the elements, so when working with 256-bit elements, 256 hashes are required for a proof.
 
-Refer to [this page](https://docs.aztec.network/concepts/advanced/data_structures/indexed_merkle_tree) for more details on how insertions, updates, and membership proofs are executed on an Indexed Merkle tree.
+Refer to [this page](../../learn/concepts/storage/trees/indexed_merkle_tree.md) for more details on how insertions, updates, and membership proofs are executed on an Indexed Merkle tree.
 
 <!-- Q: should we embed the diagrams and pseudocode here, instead of linking? -->
 
