@@ -5,7 +5,7 @@ use noirc_errors::Span;
 
 use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
-    UnresolvedType, MapIdents,
+    UnresolvedType,
 };
 use crate::node_interner::TraitId;
 
@@ -66,17 +66,6 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<TraitImplItem>,
-}
-
-impl MapIdents for NoirTraitImpl {
-    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
-        self.impl_generics.map_idents(f);
-        self.trait_name.map_idents(f);
-        self.trait_generics.map_idents(f);
-        self.object_type.map_idents(f);
-        self.where_clause.map_idents(f);
-        self.items.map_idents(f)
-    }
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`

@@ -14,7 +14,6 @@ mod parser;
 use crate::ast::{
     Expression, Ident, ImportStatement, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
     NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
-    MapIdents,
 };
 use crate::token::{Keyword, Token};
 
@@ -294,12 +293,6 @@ impl ParsedModule {
     }
 }
 
-impl MapIdents for ParsedModule {
-    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
-        self.items.map_idents(f)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Item {
     pub kind: ItemKind,
@@ -320,23 +313,6 @@ pub enum ItemKind {
     Submodules(ParsedSubModule),
 }
 
-impl MapIdents for ItemKind {
-    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
-        match self {
-            ItemKind::Import(import) => import.map_idents(f), 
-            ItemKind::Function(func) => func.map_idents(f), 
-            ItemKind::Struct(typ) => typ.map_idents(f), 
-            ItemKind::Trait(noir_trait) => noir_trait.map_idents(f), 
-            ItemKind::TraitImpl(trait_impl) => trait_impl.map_idents(f), 
-            ItemKind::Impl(r#impl) => r#impl.map_idents(f), 
-            ItemKind::TypeAlias(type_alias) => type_alias.map_idents(f), 
-            ItemKind::Global(global) => global.map_idents(f), 
-            ItemKind::ModuleDecl(mod_name) => mod_name.map_idents(f), 
-            ItemKind::Submodules(submodule) => submodule.map_idents(f), 
-        }
-    }
-}
-
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
@@ -353,13 +329,6 @@ impl ParsedSubModule {
             contents: self.contents.into_sorted(),
             is_contract: self.is_contract,
         }
-    }
-}
-
-impl MapIdents for ParsedSubModule {
-    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
-        self.name.map_idents(f);
-        self.contents.map_idents(f)
     }
 }
 

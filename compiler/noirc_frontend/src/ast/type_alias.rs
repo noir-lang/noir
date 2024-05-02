@@ -1,4 +1,4 @@
-use super::{Ident, MapIdents, UnresolvedGenerics, UnresolvedType};
+use super::{Ident, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::Span;
 use std::fmt::Display;
@@ -27,13 +27,5 @@ impl Display for NoirTypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
         write!(f, "type {}<{}> = {}", self.name, generics.join(", "), self.typ)
-    }
-}
-
-impl MapIdents for NoirTypeAlias {
-    fn map_idents<F: FnMut(&Ident) -> Option<Ident>>(&mut self, f: F) {
-        self.name.map_idents(f);
-        self.generics.map_idents(f);
-        self.typ.map_idents(f)
     }
 }

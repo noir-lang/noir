@@ -421,25 +421,11 @@ mod test {
         }";
 
 
-        let (mut program, context, root_file_id, root_crate_id, errors) = get_parsed_program(src);
-
-        // rename_ident(&mut program, "IMPORT_GLOBAL_N_2", "IMPORT_GLOBAL_M_2");
-        (&mut program).map_idents(|x| {
-            if x == crate::ast::Ident::from("IMPORT_GLOBAL_N_2") {
-                "IMPORT_GLOBAL_M_2".into()
-            } else {
-                x
-            }
-        });
-
-        let errors = get_program_from_parsed(program, context, root_file_id, root_crate_id, errors).2;
-        // let errors = get_program_errors(src);
-
+        let errors = get_program_errors(src);
         errors.iter().for_each(|err| println!("{:?}", err));
         assert!(errors.is_empty());
 
     }
-
 
 //     #[test]
 //     fn check_trait_implemented_for_all_t() {
