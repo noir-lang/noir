@@ -44,8 +44,8 @@ template <class Flavor> class ProverInstance_ {
     ProverInstance_(Circuit& circuit, bool is_structured = false)
     {
         BB_OP_COUNT_TIME_NAME("ProverInstance(Circuit&)");
-        circuit.add_gates_to_ensure_all_polys_are_non_zero();
         circuit.finalize_circuit();
+
         // If using a structured trace, ensure that no block exceeds the fixed size
         if (is_structured) {
             for (auto& block : circuit.blocks.get()) {

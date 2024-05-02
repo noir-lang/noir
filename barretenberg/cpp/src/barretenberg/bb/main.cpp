@@ -164,10 +164,7 @@ bool proveAndVerifyHonkAcirFormat(acir_format::AcirFormat constraint_system, aci
     // Construct a bberg circuit from the acir representation
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Add a buffer to the expected circuit size to
-    // account for the addition of "gates to ensure nonzero polynomials" (in Honk only).
-    const size_t additional_gates_buffer = 15; // conservatively large to be safe
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + additional_gates_buffer);
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size());
     init_bn254_crs(srs_size);
 
     // Construct Honk proof
@@ -601,8 +598,8 @@ void prove_honk(const std::string& bytecodePath, const std::string& witnessPath,
 
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
 
-    const size_t additional_gates_buffer = 15; // conservatively large to be safe
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + additional_gates_buffer);
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size());
+
     init_bn254_crs(srs_size);
 
     // Construct Honk proof
@@ -672,8 +669,7 @@ template <IsUltraFlavor Flavor> void write_vk_honk(const std::string& bytecodePa
     auto constraint_system = get_constraint_system(bytecodePath);
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, {});
 
-    const size_t additional_gates_buffer = 15; // conservatively large to be safe
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + additional_gates_buffer);
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size());
     init_bn254_crs(srs_size);
 
     ProverInstance prover_inst(builder);

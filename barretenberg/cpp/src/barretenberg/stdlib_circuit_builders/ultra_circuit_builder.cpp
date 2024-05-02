@@ -40,6 +40,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
      * our circuit is finalized, and we must not to execute these functions again.
      */
     if (!circuit_finalized) {
+        add_gates_to_ensure_all_polys_are_non_zero();
         process_non_native_field_multiplications();
         process_ROM_arrays();
         process_RAM_arrays();

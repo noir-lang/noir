@@ -77,6 +77,7 @@ template <IsUltraFlavor Flavor> HonkProof& UltraProver_<Flavor>::construct_proof
     OinkProver<Flavor> oink_prover(instance->proving_key, transcript);
     auto [proving_key, relation_params, alphas] = oink_prover.prove();
     instance->proving_key = std::move(proving_key);
+
     instance->relation_parameters = std::move(relation_params);
     instance->alphas = alphas;
 

@@ -12,22 +12,24 @@ namespace bb {
 
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 {
-    UltraCircuitBuilder_<UltraHonkArith<FF>>::finalize_circuit();
+    if (!this->circuit_finalized) {
+        add_goblin_gates_to_ensure_all_polys_are_non_zero();
+        UltraCircuitBuilder_<UltraHonkArith<FF>>::finalize_circuit();
+    }
 }
 
 /**
- * @brief Ensure all polynomials have at least one non-zero coefficient to avoid commiting to the zero-polynomial
+ * @brief Ensure all polynomials have at least one non-zero coefficient to avoid commiting to the zero-polynomial.
+ *        This only adds gates for the Goblin polynomials. Most polynomials are handled via the Ultra method,
+ *        which should be done by a separate call to the Ultra builder's non zero polynomial gates method.
  *
  * @param in Structure containing variables and witness selectors
  */
 // TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
 // them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
 // polynomials is zero, which is required for them to be shiftable.
-template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
+template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_goblin_gates_to_ensure_all_polys_are_non_zero()
 {
-    // Most polynomials are handled via the conventional Ultra method
-    UltraCircuitBuilder_<UltraHonkArith<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
-
     // All that remains is to handle databus related and poseidon2 related polynomials. In what follows we populate the
     // calldata with some mock data then constuct a single calldata read gate
 
