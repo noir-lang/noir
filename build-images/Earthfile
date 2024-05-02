@@ -1,5 +1,80 @@
 VERSION 0.8
 
+# TODO(AD): This is a kludge. There seem to be caching issues with FROM DOCKERFILE
+# This needs to be investigated with a better workaround, but, until then, this prevents CI from being unstable.
+# See Dockerfile for comments.
+
+wasi-sdk:
+    FROM aztecprotocol/wasi-sdk:22.0
+    SAVE ARTIFACT /opt/wasi-sdk
+
+osxcross:
+    FROM aztecprotocol/osxcross:14.0
+    SAVE ARTIFACT /opt/osxcross
+
+foundry:
+    FROM aztecprotocol/foundry:de33b6af53005037b463318d2628b5cfcaf39916
+    SAVE ARTIFACT /opt/foundry
+
 build:
-  FROM DOCKERFILE --target build .
-  SAVE ARTIFACT /opt/foundry/bin/anvil
+    FROM ubuntu:noble
+    RUN apt update && \
+        apt install -y \
+            # Utils
+            curl \
+            git \
+            curl \
+            wget \
+            jq \
+            gawk \
+            unzip \
+            netcat-openbsd \
+            parallel \
+            # C++ (clang=18, which we will move to. 16 is for current build.)
+            build-essential \
+            cmake \
+            ninja-build \
+            clang \
+            clang-16 \
+            clang-format-16 \
+            libc++-dev \
+            libomp-dev \
+            doxygen \
+            # Node (18.19.1)
+            nodejs \
+            npm \
+            # Python (clang bindings for wasm bindgen.)
+            python3 \
+            python3-clang && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+    # Install wasi-sdk.
+    COPY +wasi-sdk/wasi-sdk /opt/wasi-sdk
+
+    # Install osxcross. Requires developer to mount SDK from their mac host.
+    COPY +osxcross/osxcross /opt/osxcross
+    ENV PATH="/opt/osxcross/bin:$PATH"
+    ENV LD_LIBRARY_PATH="/opt/osxcross/lib:$LD_LIBRARY_PATH"
+
+    # Install foundry.
+    COPY +foundry/foundry /opt/foundry
+    ENV PATH="/opt/foundry/bin:$PATH"
+
+    # Install rust and cross-compilers. Noir specifically uses 1.74.1.
+    # We add everyone write ownership so downstream boxes can write.
+    ENV RUSTUP_HOME=/opt/rust/rustup
+    ENV CARGO_HOME=/opt/rust/cargo
+    ENV PATH="/opt/rust/cargo/bin:$PATH"
+    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.74.1 && \
+        rustup target add wasm32-unknown-unknown wasm32-wasi aarch64-apple-darwin && \
+        chmod -R a+w /opt/rust
+
+    # Install yq
+    RUN curl -L https://github.com/mikefarah/yq/releases/download/v4.42.1/yq_linux_$(dpkg --print-architecture) \
+            -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+
+    # Install yarn
+    RUN npm install --global yarn
+
+    # Install solhint
+    RUN npm install --global solhint
+    SAVE ARTIFACT /opt/foundry/bin/anvil
