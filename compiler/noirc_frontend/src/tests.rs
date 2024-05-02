@@ -747,6 +747,27 @@ mod test {
     }
 
     #[test]
+    fn test_impl_self_within_default_def() {
+        let src = "
+        trait Bar {
+            fn ok(self) -> Self;
+
+            fn ref_ok(self) -> Self {
+                self.ok()
+            }
+        }
+
+        impl<T> Bar for (T, T) where T: Bar {
+            fn ok(self) -> Self {
+                self
+            }
+        }";
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
+    }
+
+    #[test]
     fn check_trait_as_type_as_fn_parameter() {
         let src = "
         trait Eq {
@@ -1357,9 +1378,10 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         assert_eq!(get_program_errors(src).len(), 1);
     }
 
+    #[test]
     fn deny_inline_attribute_on_unconstrained() {
         let src = r#"
-            #[inline(never)]
+            #[no_predicates]
             unconstrained fn foo(x: Field, y: Field) {
                 assert(x != y);
             }
@@ -1368,7 +1390,9 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         assert_eq!(errors.len(), 1);
         assert!(matches!(
             errors[0].0,
-            CompilationError::ResolverError(ResolverError::InlineAttributeOnUnconstrained { .. })
+            CompilationError::ResolverError(
+                ResolverError::NoPredicatesAttributeOnUnconstrained { .. }
+            )
         ));
     }
 
