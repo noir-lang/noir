@@ -23,7 +23,7 @@ services:
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
       HOST_WORKDIR: "${PWD}" # Loaded from the user shell to show log files absolute path in host
-      ETHEREUM_HOST: http://ethereum:${ANVIL_PORT:-8545}
+      ETHEREUM_HOST: ${ETHEREUM_HOST:-http://ethereum:${ANVIL_PORT:-8545}}
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
       P2P_BLOCK_CHECK_INTERVAL_MS: 50
@@ -32,5 +32,7 @@ services:
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
       PXE_PORT: ${PXE_PORT:-8080}
+      PORT:  ${AZTEC_NODE_PORT:-8080}
+      TEST_ACCOUNTS: ${TEST_ACCOUNTS:-true}
     volumes:
       - ./log:/usr/src/yarn-project/aztec/log:rw
