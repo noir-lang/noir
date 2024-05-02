@@ -1,8 +1,5 @@
-[workspace]
-members = [
-    "library", 
-    "library2",
-    "library3",
-    "binary"
-]
-default-member = "binary"
+[package]
+name = "binary"
+type = "bin"
+authors = [""]
+[dependencies]
