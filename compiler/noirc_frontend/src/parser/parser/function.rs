@@ -1,16 +1,19 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_distinctness,
-    optional_visibility, parameter_name_recovery, parameter_recovery, parenthesized, parse_type,
-    pattern, self_parameter, where_clause, NoirParser,
-};
-use crate::ast::{
-    Distinctness, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction,
-    Param, Visibility,
+    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
+    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
+    self_parameter, where_clause, NoirParser,
 };
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::spanned;
 use crate::token::{Keyword, Token};
+use crate::{
+    ast::{
+        FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
+        Visibility,
+    },
+    parser::{ParserError, ParserErrorReason},
+};
 
 use chumsky::prelude::*;
 
@@ -43,8 +46,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 body,
                 where_clause,
                 return_type: ret.1,
-                return_visibility: ret.0 .1,
-                return_distinctness: ret.0 .0,
+                return_visibility: ret.0,
             }
             .into()
         })
@@ -93,18 +95,26 @@ pub(super) fn generics() -> impl NoirParser<Vec<Ident>> {
         .map(|opt| opt.unwrap_or_default())
 }
 
-fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
+#[deprecated = "Distinct keyword is now deprecated. Remove this function after the 0.30.0 release"]
+fn optional_distinctness() -> impl NoirParser<bool> {
+    keyword(Keyword::Distinct).or_not().validate(|opt, span, emit| {
+        if opt.is_some() {
+            emit(ParserError::with_reason(ParserErrorReason::DistinctDeprecated, span));
+        }
+        opt.is_some()
+    })
+}
+
+pub(super) fn function_return_type() -> impl NoirParser<(Visibility, FunctionReturnType)> {
+    #[allow(deprecated)]
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
-        .then(optional_visibility())
+        .ignore_then(optional_visibility())
         .then(spanned(parse_type()))
         .or_not()
         .map_with_span(|ret, span| match ret {
-            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
-            None => (
-                (Distinctness::DuplicationAllowed, Visibility::Private),
-                FunctionReturnType::Default(span),
-            ),
+            Some((visibility, (ty, _))) => (visibility, FunctionReturnType::Ty(ty)),
+            None => (Visibility::Private, FunctionReturnType::Default(span)),
         })
 }
 
@@ -174,7 +184,7 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
                 "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
-                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
+                "fn main(x: pub u8, y: pub u8) -> pub [u8; 2] { [x, y] }",
                 "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
                 "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
@@ -214,6 +224,8 @@ mod test {
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
+                // `distinct` is deprecated
+                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
             ],
         );
     }

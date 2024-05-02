@@ -7,7 +7,7 @@ use noirc_errors::{
 
 use crate::hir_def::function::FunctionSignature;
 use crate::{
-    ast::{BinaryOpKind, Distinctness, IntegerBitSize, Signedness, Visibility},
+    ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
 
@@ -213,10 +213,13 @@ pub enum InlineType {
     Inline,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
-    /// Similar to `Fold`, these functions will not be inlined and compile separately into ACIR.
-    /// They are different from `Fold` though as they are expected to be inlined into the program
+    /// Functions marked to have no predicates will not be inlined in the default inlining pass
+    /// and will be separately inlined after the flattening pass.
+    /// They are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
-    Never,
+    /// This attribute is unsafe and can cause a function whose logic relies on predicates from
+    /// the flattening pass to fail.
+    NoPredicates,
 }
 
 impl From<&Attributes> for InlineType {
@@ -224,13 +227,7 @@ impl From<&Attributes> for InlineType {
         attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
             match func_attribute {
                 FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::Inline(tag) => {
-                    if tag == "never" {
-                        InlineType::Never
-                    } else {
-                        InlineType::default()
-                    }
-                }
+                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
                 _ => InlineType::default(),
             }
         })
@@ -242,7 +239,7 @@ impl InlineType {
         match self {
             InlineType::Inline => false,
             InlineType::Fold => true,
-            InlineType::Never => true,
+            InlineType::NoPredicates => false,
         }
     }
 }
@@ -252,7 +249,7 @@ impl std::fmt::Display for InlineType {
         match self {
             InlineType::Inline => write!(f, "inline"),
             InlineType::Fold => write!(f, "fold"),
-            InlineType::Never => write!(f, "inline(never)"),
+            InlineType::NoPredicates => write!(f, "no_predicates"),
         }
     }
 }
@@ -305,11 +302,6 @@ pub struct Program {
     pub functions: Vec<Function>,
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
-    /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
-    ///
-    /// Note: this has no impact on monomorphization, and is simply attached here for ease of
-    /// forwarding to the next phase.
-    pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
     /// Indicates to a backend whether a SNARK-friendly prover should be used.  
@@ -325,7 +317,6 @@ impl Program {
         functions: Vec<Function>,
         function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
-        return_distinctness: Distinctness,
         return_location: Option<Location>,
         return_visibility: Visibility,
         recursive: bool,
@@ -337,7 +328,6 @@ impl Program {
             functions,
             function_signatures,
             main_function_signature,
-            return_distinctness,
             return_location,
             return_visibility,
             recursive,

@@ -1,5 +1,5 @@
 [package]
-name = "inline_never_basic"
+name = "impl_from_where_impl"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.27.0"
