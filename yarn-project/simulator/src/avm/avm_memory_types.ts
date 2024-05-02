@@ -225,7 +225,7 @@ export class TaggedMemory implements TaggedMemoryInterface {
   }
 
   /** Returns a MeteredTaggedMemory instance to track the number of reads and writes if TRACK_MEMORY_ACCESSES is set. */
-  public track(type: string = 'instruction') {
+  public track(type: string = 'instruction'): TaggedMemoryInterface {
     return TaggedMemory.TRACK_MEMORY_ACCESSES ? new MeteredTaggedMemory(this, type) : this;
   }
 

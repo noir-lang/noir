@@ -428,6 +428,7 @@ const INSTRUCTION_SET_RAW = [
       {
         name: "bOffset",
         description: "memory offset of the operation's right input",
+        type: "u8",
       },
       {
         name: "dstOffset",
@@ -438,7 +439,7 @@ const INSTRUCTION_SET_RAW = [
     Expression: "`M[dstOffset] = M[aOffset] << M[bOffset]`",
     Summary: "Bitwise leftward shift (a << b)",
     Details: "",
-    "Tag checks": "`T[aOffset] == T[bOffset] == inTag`",
+    "Tag checks": "`T[aOffset] == inTag`, `T[bOffset] == u8`",
     "Tag updates": "`T[dstOffset] = inTag`",
   },
   {
@@ -457,6 +458,7 @@ const INSTRUCTION_SET_RAW = [
       {
         name: "bOffset",
         description: "memory offset of the operation's right input",
+        type: "u8",
       },
       {
         name: "dstOffset",
@@ -467,7 +469,7 @@ const INSTRUCTION_SET_RAW = [
     Expression: "`M[dstOffset] = M[aOffset] >> M[bOffset]`",
     Summary: "Bitwise rightward shift (a >> b)",
     Details: "",
-    "Tag checks": "`T[aOffset] == T[bOffset] == inTag`",
+    "Tag checks": "`T[aOffset] == inTag`, `T[bOffset] == u8`",
     "Tag updates": "`T[dstOffset] = inTag`",
   },
   {

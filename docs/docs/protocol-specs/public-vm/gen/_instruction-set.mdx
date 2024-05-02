@@ -729,7 +729,7 @@ Bitwise leftward shift (a << b)
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] << M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag checks**: `T[aOffset] == inTag`, `T[bOffset] == u8`
 - **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
@@ -750,7 +750,7 @@ Bitwise rightward shift (a >> b)
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] >> M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag checks**: `T[aOffset] == inTag`, `T[bOffset] == u8`
 - **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 

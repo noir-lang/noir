@@ -1,5 +1,5 @@
 import { type AvmContext } from '../avm_context.js';
-import { TypeTag, Uint16, Uint32 } from '../avm_memory_types.js';
+import { TypeTag, Uint8, Uint16, Uint32 } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 
@@ -157,9 +157,28 @@ describe('Bitwise instructions', () => {
       expect(inst.serialize()).toEqual(buf);
     });
 
-    it('Should shift correctly 0 positions over integral types', async () => {
+    it('Should require shift amount to be U8', async () => {
       const a = new Uint32(0b11111110010011100100n);
       const b = new Uint32(0n);
+
+      context.machineState.memory.set(0, a);
+      context.machineState.memory.set(1, b);
+
+      await expect(
+        async () =>
+          await new Shr(
+            /*indirect=*/ 0,
+            /*inTag=*/ TypeTag.UINT32,
+            /*aOffset=*/ 0,
+            /*bOffset=*/ 1,
+            /*dstOffset=*/ 2,
+          ).execute(context),
+      ).rejects.toThrow(/got UINT32, expected UINT8/);
+    });
+
+    it('Should shift correctly 0 positions over integral types', async () => {
+      const a = new Uint32(0b11111110010011100100n);
+      const b = new Uint8(0n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
@@ -179,7 +198,7 @@ describe('Bitwise instructions', () => {
 
     it('Should shift correctly 2 positions over integral types', async () => {
       const a = new Uint32(0b11111110010011100100n);
-      const b = new Uint32(2n);
+      const b = new Uint8(2n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
@@ -199,7 +218,7 @@ describe('Bitwise instructions', () => {
 
     it('Should shift correctly 19 positions over integral types', async () => {
       const a = new Uint32(0b11111110010011100100n);
-      const b = new Uint32(19n);
+      const b = new Uint8(19n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
@@ -240,9 +259,28 @@ describe('Bitwise instructions', () => {
       expect(inst.serialize()).toEqual(buf);
     });
 
-    it('Should shift correctly 0 positions over integral types', async () => {
+    it('Should require shift amount to be U8', async () => {
       const a = new Uint32(0b11111110010011100100n);
       const b = new Uint32(0n);
+
+      context.machineState.memory.set(0, a);
+      context.machineState.memory.set(1, b);
+
+      await expect(
+        async () =>
+          await new Shl(
+            /*indirect=*/ 0,
+            /*inTag=*/ TypeTag.UINT32,
+            /*aOffset=*/ 0,
+            /*bOffset=*/ 1,
+            /*dstOffset=*/ 2,
+          ).execute(context),
+      ).rejects.toThrow(/got UINT32, expected UINT8/);
+    });
+
+    it('Should shift correctly 0 positions over integral types', async () => {
+      const a = new Uint32(0b11111110010011100100n);
+      const b = new Uint8(0n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
@@ -262,7 +300,7 @@ describe('Bitwise instructions', () => {
 
     it('Should shift correctly 2 positions over integral types', async () => {
       const a = new Uint32(0b11111110010011100100n);
-      const b = new Uint32(2n);
+      const b = new Uint8(2n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
@@ -282,7 +320,7 @@ describe('Bitwise instructions', () => {
 
     it('Should shift correctly over bit limit over integral types', async () => {
       const a = new Uint16(0b1110010011100111n);
-      const b = new Uint16(17n);
+      const b = new Uint8(17n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
@@ -302,7 +340,7 @@ describe('Bitwise instructions', () => {
 
     it('Should truncate when shifting over bit size over integral types', async () => {
       const a = new Uint16(0b1110010011100111n);
-      const b = new Uint16(2n);
+      const b = new Uint8(2n);
 
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
