@@ -38,6 +38,7 @@
   "dependencies": {
     "@aztec/accounts": "latest",
     "@aztec/aztec.js": "latest",
+    "@aztec/builder": "latest",
     "classnames": "^2.3.2",
     "formik": "^2.4.3",
     "node-sass": "^9.0.0",

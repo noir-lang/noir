@@ -1,8 +1,9 @@
 {
   "name": "create-aztec-app",
-  "packageManager": "yarn@4.1.0",
-  "version": "0.3.16",
+  "packageManager": "yarn@4.0.2",
+  "version": "0.4.2",
   "type": "module",
+  "private": true,
   "scripts": {
     "compile": "yarn workspaces foreach -A -v run compile",
     "build": "yarn workspaces foreach -A -v run build",
@@ -13,16 +14,16 @@
   ],
   "bin": "bin.js",
   "resolutions": {
-    "@aztec/accounts": "portal:../yarn-project/accounts",
-    "@aztec/aztec.js": "portal:../yarn-project/aztec.js",
-    "@aztec/circuits.js": "portal:../yarn-project/circuits.js",
-    "@aztec/entrypoints": "portal:../yarn-project/entrypoints",
-    "@aztec/foundation": "portal:../yarn-project/foundation",
-    "@aztec/bb.js": "portal:../barretenberg/ts",
-    "@aztec/circuit-types": "portal:../yarn-project/circuit-types",
-    "@aztec/ethereum": "portal:../yarn-project/ethereum",
-    "@aztec/protocol-contracts": "portal:../yarn-project/protocol-contracts",
-    "@aztec/types": "portal:../yarn-project/types"
+    "@aztec/accounts": "link:../yarn-project/accounts",
+    "@aztec/aztec.js": "link:../yarn-project/aztec.js",
+    "@aztec/circuits.js": "link:../yarn-project/circuits.js",
+    "@aztec/entrypoints": "link:../yarn-project/entrypoints",
+    "@aztec/foundation": "link:../yarn-project/foundation",
+    "@aztec/bb.js": "link:../barretenberg/ts",
+    "@aztec/circuit-types": "link:../yarn-project/circuit-types",
+    "@aztec/ethereum": "link:../yarn-project/ethereum",
+    "@aztec/protocol-contracts": "link:../yarn-project/protocol-contracts",
+    "@aztec/types": "link:../yarn-project/types"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
@@ -31,7 +32,6 @@
     "@inquirer/select": "^2.0.0",
     "axios": "^1.6.7",
     "commander": "^12.0.0",
-    "node-pty": "^1.0.0",
     "ora": "^8.0.1",
     "pino": "^8.19.0",
     "pino-pretty": "^10.3.1",

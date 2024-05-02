@@ -6,9 +6,18 @@ import {
   replacePaths,
   clone,
 } from "../utils.js";
+import { execSync } from "child_process";
 import { getPlaceholders } from "../config.js";
 
+async function initGit({ dir }) {
+  execSync(`yes | git -C ${dir} init`);
+}
+
 async function chooseAndCloneBox({ projectName }) {
+  // if the user has already chosen a project name, we should skip the input
+  // and use the one they've chosen
+  const skipName = projectName || undefined;
+
   const availableBoxes = await getAvailableBoxes();
   if (!projectName) {
     projectName = await select({
@@ -32,8 +41,10 @@ async function chooseAndCloneBox({ projectName }) {
     type: "box",
     tag,
     version,
-    name: projectName,
+    name: skipName,
   });
+
+  await initGit({ dir: rootDir });
 
   await replacePaths({
     rootDir,
@@ -46,7 +57,10 @@ async function chooseAndCloneBox({ projectName }) {
 
 async function chooseAndCloneContract({ projectName }) {
   const availableContracts = await getAvailableContracts();
-  // let user choose one of the contracts in noir-projects
+
+  // if the user has already chosen a project name, we should skip the input
+  // and use the one they've chosen
+  const skipName = projectName || undefined;
 
   if (!projectName) {
     projectName = await select({
@@ -70,8 +84,10 @@ async function chooseAndCloneContract({ projectName }) {
     type: "contract",
     tag,
     version,
-    name: projectName,
+    name: skipName,
   });
+
+  await initGit({ dir: rootDir });
 
   await replacePaths({
     rootDir,

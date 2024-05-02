@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@aztec/accounts": "latest",
-    "@aztec/aztec.js": "latest"
+    "@aztec/aztec.js": "latest",
+    "@aztec/builder": "latest"
   },
   "devDependencies": {
     "@playwright/test": "1.42.0",

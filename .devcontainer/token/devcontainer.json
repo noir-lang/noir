@@ -4,27 +4,15 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "onCreateCommand": ".devcontainer/scripts/onCreateCommand.sh contract token_contract",
-  "postAttachCommand": ".devcontainer/scripts/postAttachCommand.sh contract token_contract",
+  "onCreateCommand": "cp -R /root/workspace /root/scripts && rm -rf /root/workspace/* && sh /root/scripts/onCreateCommand.sh contract token_contract",
+  "postAttachCommand": "sh /root/scripts/postAttachCommand.sh contract token_contract",
   "customizations": {
     "vscode": {
       "settings": {},
       "extensions": ["noir-lang.vscode-noir"]
     }
   },
-  "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/token_contract,target=/root/workspace,type=bind",
+  "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/scripts,target=/root/workspace,type=bind",
   "workspaceFolder": "/root/workspace",
-  "hostRequirements": {
-    "cpus": 8,
-    "memory": "8gb",
-    "storage": "32gb"
-  },
-  "mounts": [
-    {
-      "source": "${localWorkspaceFolder}/.devcontainer/scripts",
-      "target": "/root/workspace/.devcontainer/scripts",
-      "type": "bind"
-    }
-  ],
   "forwardPorts": [8080]
 }

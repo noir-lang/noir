@@ -12,11 +12,6 @@
       "extensions": ["noir-lang.vscode-noir"]
     }
   },
-  "hostRequirements": {
-    "cpus": 8,
-    "memory": "8gb",
-    "storage": "32gb"
-  },
   "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/scripts,target=/root/workspace,type=bind",
   "workspaceFolder": "/root/workspace",
   "forwardPorts": [8080]

@@ -1,30 +1,18 @@
 {
-  "name": "Vanilla Typescript App",
-  "image": "node:lts-bookworm",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-  },
-  "onCreateCommand": ".devcontainer/scripts/onCreateCommand.sh app vanilla",
-  "postAttachCommand": ".devcontainer/scripts/postAttachCommand.sh app vanilla",
-  "customizations": {
-    "vscode": {
-      "settings": {},
-      "extensions": ["noir-lang.vscode-noir"]
-    }
-  },
-  "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/vanilla,target=/root/workspace,type=bind",
-  "workspaceFolder": "/root/workspace",
-  "hostRequirements": {
-    "cpus": 8,
-    "memory": "8gb",
-    "storage": "32gb"
-  },
-  "mounts": [
-    {
-      "source": "${localWorkspaceFolder}/.devcontainer/scripts",
-      "target": "/root/workspace/.devcontainer/scripts",
-      "type": "bind"
-    }
-  ],
-  "forwardPorts": [8080]
+	"name": "Vanilla Typescript App",
+	"image": "node:lts-bookworm",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	},
+	"onCreateCommand": "cp -R /root/workspace /root/scripts && rm -rf /root/workspace/* && sh /root/scripts/onCreateCommand.sh app vanilla",
+	"postAttachCommand": "sh /root/scripts/postAttachCommand.sh app vanilla",
+	"customizations": {
+		"vscode": {
+			"settings": {},
+			"extensions": ["noir-lang.vscode-noir"]
+		}
+	},
+	"workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/scripts,target=/root/workspace,type=bind",
+	"workspaceFolder": "/root/workspace",
+	"forwardPorts": [8080]
 }

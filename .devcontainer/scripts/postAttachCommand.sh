@@ -5,7 +5,7 @@ NAME=$2
 apt install gh
 gh codespace ports visibility 8080:public -c $CODESPACE_NAME
 
-(nohup /usr/local/bin/aztec sandbox &)
+npx create-aztec-app sandbox start
 
 r=$(tput sgr0)       # Reset color
 bold=$(tput bold)    # Bold text
@@ -52,14 +52,16 @@ echo "${bold}${b}██╔══██║ ███╔╝     ██║   ██
 echo "${bold}${p}██║  ██║███████╗   ██║   ███████╗╚██████╗${r}"
 echo "${bold}${y}╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝${r}"
 echo
-print_colored "${bold}Sandbox Codespace" "cyan"
 print_colored "${bold}Your codespace is ready with your chosen box! 🎉" "cyan"
+print_colored "You can now yarn dev or any other package.json script." "cyan"
 echo
-print_colored "All the packages are already installed, and you can now run yarn dev or any other package.json script." "magenta"
-print_colored "You can also use this codespace for its running sandbox, by connecting your local environment to it." "magenta"
+print_colored "Manage the running development network by running:" "magenta"
+print_colored "sandbox [start, stop, logs, etc]" "green"
+print_colored "example: \"sandbox logs\""
 echo
-print_colored "To do so, set the PXE_URL to this codespace's sandbox URL:" "magenta"
+print_colored "You can also connect your local environment to it." "magenta"
+print_colored "To do so, prepend your commands with this codespace's sandbox URL:" "magenta"
 print_colored "${PXE_URL}" "green" 
-print_colored "ex. PXE_URL=\"${PXE_URL}\" yarn dev"
+print_colored "example: PXE_URL=\"${PXE_URL}\" yarn dev"
 echo
 print_colored "${bold}Enjoy your sandbox! 🏖️" "orange"
