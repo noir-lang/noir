@@ -125,6 +125,10 @@ export-end-to-end:
     FROM +end-to-end
     SAVE IMAGE aztecprotocol/end-to-end:$EARTHLY_GIT_HASH
 
+export-e2e-test-images:
+    BUILD +export-aztec
+    BUILD +export-end-to-end
+
 format-check:
     FROM +build
     RUN yarn formatting
