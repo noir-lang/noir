@@ -5,14 +5,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "compile": "cd src/contracts && ${AZTEC_NARGO:-aztec-nargo} compile",
+    "compile": "cd src/contracts && ${AZTEC_NARGO:-aztec-nargo} compile --silence-warnings",
     "codegen": "${AZTEC_BUILDER:-aztec-builder} codegen src/contracts/target -o artifacts",
     "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./src/contracts/target",
     "prep": "yarn clean && yarn compile && yarn codegen && tsc -b",
     "dev": "yarn prep && webpack serve --mode development",
     "build": "yarn prep && webpack",
     "serve": "webpack serve --no-open --mode development",
-    "test": "yarn prep && npx playwright test",
+    "test": "npx playwright test",
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src"
   },
