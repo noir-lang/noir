@@ -26,8 +26,8 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
-    ArrayLiteral, BinaryOpKind, BlockExpression, Distinctness, Expression, ExpressionKind,
-    ForRange, FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
+    ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange,
+    FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
     LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
     Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
@@ -320,7 +320,6 @@ impl<'a> Resolver<'a> {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
         };
 
         let (hir_func, func_meta) = self.intern_function(NoirFunction { kind, def }, func_id);
@@ -695,7 +694,7 @@ impl<'a> Resolver<'a> {
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {
-                    self.push_err(ResolverError::AbiAttributeOusideContract {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
                         span: struct_type.borrow().name.span(),
                     });
                 }
@@ -1000,11 +999,11 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
-        let has_inline_attribute = attributes.is_inline();
+        let has_no_predicates_attribute = attributes.is_no_predicates();
         let should_fold = attributes.is_foldable();
         if !self.inline_attribute_allowed(func) {
-            if has_inline_attribute {
-                self.push_err(ResolverError::InlineAttributeOnUnconstrained {
+            if has_no_predicates_attribute {
+                self.push_err(ResolverError::NoPredicatesAttributeOnUnconstrained {
                     ident: func.name_ident().clone(),
                 });
             } else if should_fold {
@@ -1013,10 +1012,10 @@ impl<'a> Resolver<'a> {
                 });
             }
         }
-        // Both the #[fold] and #[inline(tag)] alter a function's inline type and code generation in similar ways.
+        // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
-        let has_inline_or_fold_attribute = has_inline_attribute || should_fold;
+        let has_inline_attribute = has_no_predicates_attribute || should_fold;
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
@@ -1069,12 +1068,6 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        if !self.distinct_allowed(func)
-            && func.def.return_distinctness != Distinctness::DuplicationAllowed
-        {
-            self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
-        }
-
         if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
             && !parameters.is_empty()
         {
@@ -1107,11 +1100,10 @@ impl<'a> Resolver<'a> {
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
-            return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
-            has_inline_or_fold_attribute,
+            has_inline_attribute,
         }
     }
 
@@ -1131,17 +1123,6 @@ impl<'a> Resolver<'a> {
     fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
         if self.in_contract {
             func.attributes().is_contract_entry_point()
-        } else {
-            func.name() == MAIN_FUNCTION
-        }
-    }
-
-    /// True if the `distinct` keyword is allowed on a function's return type
-    fn distinct_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
-            // "unconstrained" functions are compiled to brillig and thus duplication of
-            // witness indices in their abis is not a concern.
-            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
         }
@@ -1280,7 +1261,7 @@ impl<'a> Resolver<'a> {
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
             let span = let_stmt.pattern.span();
-            self.push_err(ResolverError::AbiAttributeOusideContract { span });
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {

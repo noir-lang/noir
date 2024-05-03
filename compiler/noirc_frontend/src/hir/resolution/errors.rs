@@ -77,7 +77,7 @@ pub enum ResolverError {
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
-    AbiAttributeOusideContract { span: Span },
+    AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -90,8 +90,8 @@ pub enum ResolverError {
     MutableGlobal { span: Span },
     #[error("Self-referential structs are not supported")]
     SelfReferentialStruct { span: Span },
-    #[error("#[inline(tag)] attribute is only allowed on constrained functions")]
-    InlineAttributeOnUnconstrained { ident: Ident },
+    #[error("#[no_predicates] attribute is only allowed on constrained functions")]
+    NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
 }
@@ -313,7 +313,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
                 diag
             }
-            ResolverError::AbiAttributeOusideContract { span } => {
+            ResolverError::AbiAttributeOutsideContract { span } => {
                 Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
@@ -362,16 +362,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
-            ResolverError::InlineAttributeOnUnconstrained { ident } => {
+            ResolverError::NoPredicatesAttributeOnUnconstrained { ident } => {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[inline(tag)] attribute on unconstrained function {name}. Only allowed on constrained functions"),
-                    "misplaced #[inline(tag)] attribute".to_string(),
+                    format!("misplaced #[no_predicates] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    "misplaced #[no_predicates] attribute".to_string(),
                     ident.0.span(),
                 );
 
-                diag.add_note("The `#[inline(tag)]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
+                diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident } => {
