@@ -315,43 +315,49 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .iter()
                     .position(|response| response.matches(foreign_call_name, &foreign_call.inputs));
 
-                match (mock_response_position, &self.external_resolver) {
-                    (Some(response_position), _) => {
-                        let mock = self
-                            .mocked_responses
-                            .get_mut(response_position)
-                            .expect("Invalid position of mocked response");
+                if let Some(response_position) = mock_response_position {
+                    // If the program has registered a mocked response to this oracle call then we prefer responding
+                    // with that.
 
-                        mock.last_called_params = Some(foreign_call.inputs.clone());
+                    let mock = self
+                        .mocked_responses
+                        .get_mut(response_position)
+                        .expect("Invalid position of mocked response");
 
-                        let result = mock.result.values.clone();
+                    mock.last_called_params = Some(foreign_call.inputs.clone());
 
-                        if let Some(times_left) = &mut mock.times_left {
-                            *times_left -= 1;
-                            if *times_left == 0 {
-                                self.mocked_responses.remove(response_position);
-                            }
+                    let result = mock.result.values.clone();
+
+                    if let Some(times_left) = &mut mock.times_left {
+                        *times_left -= 1;
+                        if *times_left == 0 {
+                            self.mocked_responses.remove(response_position);
                         }
-
-                        Ok(result.into())
                     }
-                    (None, Some(external_resolver)) => {
-                        let encoded_params: Vec<_> =
-                            foreign_call.inputs.iter().map(build_json_rpc_arg).collect();
 
-                        let req =
-                            external_resolver.build_request(foreign_call_name, &encoded_params);
+                    Ok(result.into())
+                } else if let Some(external_resolver) = &self.external_resolver {
+                    // If the user has registered an external resolver then we forward any remaining oracle calls there.
 
-                        let response = external_resolver.send_request(req)?;
+                    let encoded_params: Vec<_> =
+                        foreign_call.inputs.iter().map(build_json_rpc_arg).collect();
 
-                        let parsed_response: ForeignCallResult = response.result()?;
+                    let req = external_resolver.build_request(foreign_call_name, &encoded_params);
 
-                        Ok(parsed_response.into())
-                    }
-                    (None, None) => panic!(
-                        "No mock for foreign call {}({:?})",
-                        foreign_call_name, &foreign_call.inputs
-                    ),
+                    let response = external_resolver.send_request(req)?;
+
+                    let parsed_response: ForeignCallResult = response.result()?;
+
+                    Ok(parsed_response.into())
+                } else {
+                    // If there's no registered mock oracle response and no registered resolver then we cannot
+                    // return a correct response to the ACVM. The best we can do is to return an empty response,
+                    // this allows us to ignore any foreign calls which exist solely to pass information from inside
+                    // the circuit to the environment (e.g. custom logging) as the execution will still be able to progress.
+                    //
+                    // We optimistically return an empty response for all oracle calls as the ACVM will error
+                    // should a response have been required.
+                    Ok(ForeignCallResult::default().into())
                 }
             }
         }
