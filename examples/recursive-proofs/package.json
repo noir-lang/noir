@@ -1,0 +1,23 @@
+{
+  "license": "UNLICENSED",
+  "scripts": {
+    "clean": "rm -rf build",
+    "compile": "yarn clean && tsc",
+    "start": "node build/main.js",
+    "clean:codegen": "rm -rf codegen",
+    "export:leaf": "nargo export --program-dir=./circuits/sum",
+    "export:recurseLeaf": "nargo export --program-dir=./circuits/recurseLeaf",
+    "export:recurseNode": "nargo export --program-dir=./circuits/recurseNode",
+    "export:all": "yarn clean:codegen && yarn export:leaf && yarn export:recurseLeaf && yarn export:recurseNode",
+    "codegen": "echo 'skipping' || yarn noir-codegen ./circuits/**/export/*.json",
+    "compile:all": "yarn export:all && yarn codegen && yarn compile"
+  },
+  "devDependencies": {
+    "@noir-lang/backend_barretenberg": "^0.26.0",
+    "@noir-lang/noir_codegen": "^0.26.0",
+    "@noir-lang/noir_js": "^0.26.0",
+    "@noir-lang/noir_wasm": "^0.26.0",
+    "@types/node": "^20.12.2",
+    "typescript": "^5.4.3"
+  }
+}
