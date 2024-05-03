@@ -686,6 +686,9 @@ impl<'a> Context<'a> {
                     assert_message.clone(),
                 )?;
             }
+            Instruction::IfElse { .. } => {
+                unreachable!("IfElse instruction remaining in acir-gen")
+            }
         }
 
         self.acir_context.set_call_stack(CallStack::new());
@@ -1009,6 +1012,7 @@ impl<'a> Context<'a> {
                             });
                         }
                     };
+
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
                         if index >= array_size {
