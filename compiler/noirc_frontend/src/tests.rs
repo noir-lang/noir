@@ -476,7 +476,8 @@ mod test {
             "trait_fn7",
         ];
 
-        // TODO: make issue for this
+        // TODO(https://github.com/noir-lang/noir/issues/4973):
+        // Name resolution panic from name shadowing test
         let cases_to_skip = [
             (1, 21),
             (2, 11),
