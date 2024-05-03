@@ -193,18 +193,6 @@ jobs:
           command: build bb.js
           aztec_manifest_key: bb.js
 
-  bb-js-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_test bb.js 32 ./scripts/run_tests
-          aztec_manifest_key: bb.js
-
   # Noir
   noir-x86_64:
     docker:
@@ -278,18 +266,6 @@ jobs:
           command: cond_spot_run_build noir-packages-tests 32
           aztec_manifest_key: noir-packages-tests
 
-  noir-compile-acir-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir-compile-acir-tests 32
-          aztec_manifest_key: noir-compile-acir-tests
-
   avm-transpiler:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -301,42 +277,6 @@ jobs:
           name: "Build"
           command: cond_spot_run_build avm-transpiler 32
           aztec_manifest_key: avm-transpiler
-
-  barretenberg-acir-tests-bb:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_build barretenberg-acir-tests-bb 32
-          aztec_manifest_key: barretenberg-acir-tests-bb
-
-  barretenberg-acir-tests-bb-sol:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_build barretenberg-acir-tests-bb-sol 32
-          aztec_manifest_key: barretenberg-acir-tests-bb-sol
-
-  bb-js-acir-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_build barretenberg-acir-tests-bb.js 32
-          aztec_manifest_key: barretenberg-acir-tests-bb.js
 
   l1-contracts:
     machine:
@@ -532,12 +472,6 @@ defaults: &defaults
         event: fail
         branch_pattern: "master"
 
-bb_acir_tests: &bb_acir_tests
-  requires:
-    - barretenberg-x86_64-linux-clang-assert
-    - noir-compile-acir-tests
-  <<: *defaults
-
 defaults_yarn_project_pre_join: &defaults_yarn_project_pre_join
   requires:
     - yarn-project-pre-join
@@ -593,10 +527,6 @@ workflows:
             - noir-ecr-manifest
             - noir-packages
           <<: *defaults
-      - noir-compile-acir-tests:
-          requires:
-            - noir-ecr-manifest
-          <<: *defaults
 
       # Transpiler
       - avm-transpiler: *defaults
@@ -607,27 +537,10 @@ workflows:
       - barretenberg-x86_64-linux-clang-assert: *defaults
       - barretenberg-x86_64-linux-clang-fuzzing: *defaults
       - barretenberg-wasm-linux-clang: *defaults
-      - barretenberg-x86_64-linux-clang-sol: *defaults
-      - barretenberg-acir-tests-bb: *bb_acir_tests
-      - barretenberg-acir-tests-bb-sol:
-          requires:
-            - barretenberg-x86_64-linux-clang-assert
-            - barretenberg-x86_64-linux-clang-sol
-            - noir-compile-acir-tests
-          <<: *bb_acir_tests
       - barretenberg-docs: *defaults
       - bb-js:
           requires:
             - barretenberg-wasm-linux-clang
-          <<: *defaults
-      - bb-js-tests:
-          requires:
-            - bb-js
-          <<: *defaults
-      - bb-js-acir-tests:
-          requires:
-            - bb-js
-            - noir-compile-acir-tests
           <<: *defaults
 
       - l1-contracts: *defaults
@@ -674,9 +587,6 @@ workflows:
             - barretenberg-x86_64-linux-clang-assert
             - barretenberg-x86_64-linux-clang-fuzzing
             - barretenberg-wasm-linux-clang
-            - barretenberg-x86_64-linux-clang-sol
-            - barretenberg-acir-tests-bb
-            - barretenberg-acir-tests-bb-sol
             - barretenberg-docs
             - noir-packages-tests
             - e2e-join

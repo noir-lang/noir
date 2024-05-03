@@ -53,6 +53,11 @@ preset-wasm:
         SAVE IMAGE --cache-hint
     END
 
+preset-sol:
+    FROM +source
+    RUN cmake --preset clang16  && cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen
+    SAVE ARTIFACT build/bin
+
 preset-wasm-threads:
     FROM +source
     RUN cmake --preset wasm-threads -Bbuild && cmake --build build --target barretenberg.wasm

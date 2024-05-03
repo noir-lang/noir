@@ -81,6 +81,104 @@ build:
   BUILD +nargo
   BUILD +packages
 
+build-acir-tests:
+  FROM ../build-images/+build
+  COPY +nargo/ /usr/src/noir-repo/target/release
+  ENV PATH="/usr/src/noir-repo/target/release:${PATH}"
+  WORKDIR /usr/src/noir-repo/test_programs
+  COPY ./noir-repo/test_programs/ /usr/src/noir-repo/test_programs/
+  RUN /usr/src/noir-repo/target/release/nargo --version
+  # We run this with parallel compilation switched off, which isn't ideal.
+  # There seems to be problems with this when running under Earthly, see bottom of this file*
+  RUN ./rebuild.sh true
+  SAVE ARTIFACT /usr/src/noir-repo/test_programs/acir_artifacts/*
+
+barretenberg-acir-tests-bb:
+  FROM ../build-images/+build
+
+  COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+  COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
+  COPY +build-acir-tests/ /usr/src/acir_artifacts
+
+  WORKDIR /usr/src/barretenberg/acir_tests
+  RUN rm -rf ./acir_tests
+
+  ENV TEST_SRC /usr/src/acir_artifacts
+  ENV VERBOSE=1
+  # Run every acir test through native bb build prove_then_verify flow for UltraPlonk.
+  # This ensures we test independent pk construction through real/garbage witness data paths.
+  RUN FLOW=prove_then_verify ./run_acir_tests.sh
+  # Construct and separately verify a UltraHonk proof for a single program
+  RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+  # Construct and separately verify a GoblinUltraHonk proof for all acir programs
+  RUN FLOW=prove_then_verify_goblin_ultra_honk ./run_acir_tests.sh
+  # Construct and verify a UltraHonk proof for a single program
+  RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+  # Construct and verify a Goblin UltraHonk (GUH) proof for a single arbitrary program
+  RUN FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
+  # Construct and verify a UltraHonk proof for all ACIR programs using the new witness stack workflow
+  RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh
+  # This is a "full" Goblin flow. It constructs and verifies four proofs: GoblinUltraHonk, ECCVM, Translator, and merge
+  RUN FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
+  # Run 1_mul through native bb build, all_cmds flow, to test all cli args.
+  RUN FLOW=all_cmds ./run_acir_tests.sh 1_mul
+
+
+barretenberg-acir-tests-sol:
+  FROM ../build-images/+build
+
+  COPY ../barretenberg/cpp/+preset-sol/ /usr/src/barretenberg/cpp/build
+  COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+  COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
+  COPY ../barretenberg/+sol/ /usr/src/barretenberg/sol
+  COPY +build-acir-tests/ /usr/src/acir_artifacts
+
+  WORKDIR /usr/src/barretenberg/acir_tests
+
+  ENV TEST_SRC /usr/src/acir_artifacts
+  ENV VERBOSE=1
+
+  RUN (cd sol-test && yarn)
+  RUN PARALLEL=1 FLOW=sol ./run_acir_tests.sh assert_statement double_verify_proof double_verify_nested_proof
+
+barretenberg-acir-tests-bb.js:
+  # Playwright not supported on base image ubuntu:noble, results in unmet dependencies
+  FROM node:18.19.0
+  RUN apt update && apt install -y curl jq lsof
+
+  COPY ../barretenberg/ts/+build/build/ /usr/src/barretenberg/ts
+  COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
+  COPY +build-acir-tests/ /usr/src/acir_artifacts
+
+  WORKDIR /usr/src/barretenberg/acir_tests
+
+  # Build/install ts apps.
+  RUN cd browser-test-app && yarn && yarn build
+  RUN cd headless-test && yarn && npx playwright install && npx playwright install-deps
+  RUN cd ../ts && yarn
+  ENV VERBOSE=1
+  ENV TEST_SRC /usr/src/acir_artifacts
+
+  # Run double_verify_proof through bb.js on node to check 512k support.
+  RUN BIN=../ts/dest/node/main.js FLOW=prove_then_verify ./run_acir_tests.sh double_verify_proof
+  # Run a single arbitrary test not involving recursion through bb.js for UltraHonk
+  RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh 6_array
+  # Run a single arbitrary test not involving recursion through bb.js for GoblinUltraHonk
+  RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
+  # Run a single arbitrary test not involving recursion through bb.js for full Goblin
+  RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
+  # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.
+  RUN BIN=../ts/dest/node/main.js FLOW=all_cmds ./run_acir_tests.sh 1_mul
+  # Run double_verify_proof through bb.js on chrome testing multi-threaded browser support.
+  # TODO: Currently headless webkit doesn't seem to have shared memory so skipping multi-threaded test.
+  RUN BROWSER=chrome THREAD_MODEL=mt ./run_acir_tests_browser.sh double_verify_proof
+  # Run 1_mul through bb.js on chrome/webkit testing single threaded browser support.
+  RUN BROWSER=chrome THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
+  # Commenting for now as fails intermittently. Unreproducable on mainframe.
+  # See https://github.com/AztecProtocol/aztec-packages/issues/2104
+  #RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
+
+
 # TOOD
 # test-packages
 # FROM aztecprotocol/noir AS noir
@@ -116,3 +214,43 @@ build:
 # # Don't waste time pushing a huge container back to ECR as nothing needs the output.
 # FROM scratch
 # COPY --from=0 /usr/src/noir/README.md /usr/src/noir/README.md
+
+
+
+#* Analysis of compiling Acir tests inside/outside Earthly
+# Each test run compiles the full suite, either in series or in parallel, either inside or outside Earthly.
+# Each test prints the contents of the target directory of the eddsa circuit after compilation
+# You can see that the 'Inside Earthly Parallel' run has an acir.gz file of a different size
+# This results in a proof that fails verification
+#
+# Outside Earthly Parallel
+
+# [eddsa] Circuit witness successfully solved
+# [eddsa] Witness saved to /mnt/user-data/phil/aztec3-packages/noir/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
+# total 2544
+# -rw-rw-r-- 1 phil phil  904034 May  3 10:40 acir.gz
+# -rw-rw-r-- 1 phil phil 1696442 May  3 10:40 witness.gz
+
+# Outside Earthly Series
+
+# [eddsa] Circuit witness successfully solved
+# [eddsa] Witness saved to /mnt/user-data/phil/aztec3-packages/noir/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
+# total 2544
+# -rw-rw-r-- 1 phil phil  904034 May  3 10:43 acir.gz
+# -rw-rw-r-- 1 phil phil 1696442 May  3 10:43 witness.gz
+
+# Inside Earthly Parallel
+
+#    +build-acir-tests | [eddsa] Circuit witness successfully solved
+#    +build-acir-tests | [eddsa] Witness saved to /usr/src/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
+#    +build-acir-tests | total 2472
+#    +build-acir-tests | -rw-r--r-- 1 root root  830340 May  3 10:47 acir.gz
+#    +build-acir-tests | -rw-r--r-- 1 root root 1696442 May  3 10:47 witness.gz
+   
+#  Inside Earthly Series
+ 
+#     +build-acir-tests | [eddsa] Circuit witness successfully solved
+#    +build-acir-tests | [eddsa] Witness saved to /usr/src/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
+#    +build-acir-tests | total 2544
+#    +build-acir-tests | -rw-r--r-- 1 root root  904034 May  3 10:50 acir.gz
+#    +build-acir-tests | -rw-r--r-- 1 root root 1696442 May  3 10:51 witness.gz

@@ -45,4 +45,5 @@ build:
 
 test:
     BUILD +test-prettier-format
-    RUN yarn test
+    # We frequently get tests timing out in GA, increase the timeout here
+    RUN yarn test --testTimeout=300000

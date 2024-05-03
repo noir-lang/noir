@@ -128,6 +128,23 @@ jobs:
         # limit our parallelism to half our cores
         run: earthly-ci --no-output +test --hardware_concurrency=64
 
+  bb-js-test:
+    needs: setup
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: bb-js-test-${{ github.actor }}-x86
+      - name: "bb.js Tests"
+        working-directory: ./barretenberg/ts/
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./+test
+
   noir-projects:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
@@ -193,6 +210,73 @@ jobs:
       - name: "Prover Client Tests"
         timeout-minutes: 25
         run: earthly-ci --no-output ./yarn-project/+prover-client-test
+
+  build-acir-tests:
+    needs: build
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: build-acir-tests-${{ github.actor }}-x86
+      - name: "Build Acir Tests"
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./noir/+build-acir-tests
+
+  barretenberg-acir-tests-bb:
+    needs: build-acir-tests
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: barretenberg-acir-tests-bb-${{ github.actor }}-x86
+      - name: "BB Native Acir Tests"
+        working-directory: ./noir/
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-bb
+
+  barretenberg-acir-tests-sol:
+    needs: build-acir-tests
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: barretenberg-acir-tests-sol-${{ github.actor }}-x86
+      - name: "BB Solidity Acir Tests"
+        working-directory: ./noir/
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-sol
+
+  barretenberg-acir-tests-bb-js:
+    needs: build-acir-tests
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: barretenberg-acir-tests-bb-js-${{ github.actor }}-x86
+      - name: "BB JS Acir Tests"
+        working-directory: ./noir/
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
 
   docs-preview:
     needs: setup
