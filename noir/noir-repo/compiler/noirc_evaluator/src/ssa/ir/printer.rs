@@ -4,16 +4,14 @@ use std::{
     fmt::{Formatter, Result},
 };
 
-use acvm::acir::circuit::STRING_ERROR_SELECTOR;
+use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
 use iter_extended::vecmap;
 
 use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::Function,
-    instruction::{
-        ConstrainError, ErrorSelector, Instruction, InstructionId, TerminatorInstruction,
-    },
+    instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
     value::{Value, ValueId},
 };
 
@@ -203,7 +201,7 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    ((error_selector.to_u64() == STRING_ERROR_SELECTOR) && (values.len() == 1))
+    ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
         .then_some(())
         .and_then(|()| {
             let Value::Array { array: values, .. } = &dfg[values[0]] else {

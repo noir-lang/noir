@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, fmt::Display};
 
+use acvm::acir::circuit::ErrorSelector;
 use iter_extended::btree_map;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId, RuntimeType},
-    instruction::ErrorSelector,
     map::AtomicCounter,
 };
 use noirc_frontend::hir_def::types::Type as HirType;

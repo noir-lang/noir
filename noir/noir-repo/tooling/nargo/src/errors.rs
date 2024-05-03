@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 
 use acvm::{
-    acir::circuit::{OpcodeLocation, ResolvedAssertionPayload, ResolvedOpcodeLocation},
+    acir::circuit::{
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        ResolvedOpcodeLocation,
+    },
     pwg::{ErrorLocation, OpcodeResolutionError},
-    FieldElement,
 };
-use noirc_abi::{Abi, AbiErrorType};
+use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
     debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
 };
@@ -13,9 +15,7 @@ use noirc_errors::{
 pub use noirc_errors::Location;
 
 use noirc_frontend::graph::CrateName;
-use noirc_printable_type::{
-    decode_value, ForeignCallError, PrintableType, PrintableValue, PrintableValueDisplay,
-};
+use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 
 /// Errors covering situations where a package cannot be compiled.
@@ -61,7 +61,7 @@ impl NargoError {
     /// in tests to expected failure messages
     pub fn user_defined_failure_message(
         &self,
-        error_types: &BTreeMap<u64, AbiErrorType>,
+        error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     ) -> Option<String> {
         let execution_error = match self {
             NargoError::ExecutionError(error) => error,
@@ -71,9 +71,9 @@ impl NargoError {
         match execution_error {
             ExecutionError::AssertionFailed(payload, _) => match payload {
                 ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                ResolvedAssertionPayload::Raw(error_selector, fields) => {
-                    let abi_type = error_types.get(error_selector)?;
-                    let decoded = prepare_for_display(fields, abi_type.clone());
+                ResolvedAssertionPayload::Raw(raw) => {
+                    let abi_type = error_types.get(&raw.selector)?;
+                    let decoded = display_abi_error(&raw.data, abi_type.clone());
                     Some(decoded.to_string())
                 }
             },
@@ -160,33 +160,8 @@ fn extract_locations_from_error(
     )
 }
 
-fn prepare_for_display(fields: &[FieldElement], error_type: AbiErrorType) -> PrintableValueDisplay {
-    match error_type {
-        AbiErrorType::FmtString { length, item_types } => {
-            let mut fields_iter = fields.iter().copied();
-            let PrintableValue::String(string) =
-                decode_value(&mut fields_iter, &PrintableType::String { length })
-            else {
-                unreachable!("Got non-string from string decoding");
-            };
-            let _length_of_items = fields_iter.next();
-            let items = item_types.into_iter().map(|abi_type| {
-                let printable_typ = (&abi_type).into();
-                let decoded = decode_value(&mut fields_iter, &printable_typ);
-                (decoded, printable_typ)
-            });
-            PrintableValueDisplay::FmtString(string, items.collect())
-        }
-        AbiErrorType::Custom(abi_typ) => {
-            let printable_type = (&abi_typ).into();
-            let decoded = decode_value(&mut fields.iter().copied(), &printable_type);
-            PrintableValueDisplay::Plain(decoded, printable_type)
-        }
-    }
-}
-
 fn extract_message_from_error(
-    error_types: &BTreeMap<u64, AbiErrorType>,
+    error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     nargo_err: &NargoError,
 ) -> String {
     match nargo_err {
@@ -197,11 +172,11 @@ fn extract_message_from_error(
             format!("Assertion failed: '{message}'")
         }
         NargoError::ExecutionError(ExecutionError::AssertionFailed(
-            ResolvedAssertionPayload::Raw(error_selector, fields),
+            ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data }),
             ..,
         )) => {
-            if let Some(error_type) = error_types.get(error_selector) {
-                format!("Assertion failed: {}", prepare_for_display(fields, error_type.clone()))
+            if let Some(error_type) = error_types.get(selector) {
+                format!("Assertion failed: {}", display_abi_error(data, error_type.clone()))
             } else {
                 "Assertion failed".to_string()
             }

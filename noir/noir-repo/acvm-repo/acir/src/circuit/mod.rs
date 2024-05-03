@@ -75,12 +75,6 @@ pub struct Circuit {
     pub recursive: bool,
 }
 
-/// This selector indicates that the payload is a string.
-/// This is used to parse any error with a string payload directly,
-/// to avoid users having to parse the error externally to the ACVM.
-/// Only non-string errors need to be parsed externally to the ACVM using the circuit ABI.
-pub const STRING_ERROR_SELECTOR: u64 = 0;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExpressionOrMemory {
     Expression(Expression),
@@ -93,10 +87,55 @@ pub enum AssertionPayload {
     Dynamic(/* error_selector */ u64, Vec<ExpressionOrMemory>),
 }
 
+#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+pub struct ErrorSelector(u64);
+
+impl ErrorSelector {
+    pub fn new(integer: u64) -> Self {
+        ErrorSelector(integer)
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+}
+
+impl Serialize for ErrorSelector {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.to_string().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ErrorSelector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        let as_u64 = s.parse().map_err(serde::de::Error::custom)?;
+        Ok(ErrorSelector(as_u64))
+    }
+}
+
+/// This selector indicates that the payload is a string.
+/// This is used to parse any error with a string payload directly,
+/// to avoid users having to parse the error externally to the ACVM.
+/// Only non-string errors need to be parsed externally to the ACVM using the circuit ABI.
+pub const STRING_ERROR_SELECTOR: ErrorSelector = ErrorSelector(0);
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct RawAssertionPayload {
+    pub selector: ErrorSelector,
+    pub data: Vec<FieldElement>,
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ResolvedAssertionPayload {
     String(String),
-    Raw(/*error_selector:*/ u64, Vec<FieldElement>),
+    Raw(RawAssertionPayload),
 }
 
 #[derive(Debug, Copy, Clone)]

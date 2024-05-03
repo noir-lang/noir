@@ -1,7 +1,10 @@
 use std::hash::{Hash, Hasher};
 
 use acvm::{
-    acir::{circuit::STRING_ERROR_SELECTOR, BlackBoxFunc},
+    acir::{
+        circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
+        BlackBoxFunc,
+    },
     FieldElement,
 };
 use fxhash::FxHasher;
@@ -605,25 +608,16 @@ impl Instruction {
 
 pub(crate) type ErrorType = HirType;
 
-#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
-pub(crate) struct ErrorSelector(u64);
-
-impl ErrorSelector {
-    pub(crate) fn new(typ: &ErrorType) -> Self {
-        match typ {
-            ErrorType::String(_) => Self(STRING_ERROR_SELECTOR),
-            _ => {
-                let mut hasher = FxHasher::default();
-                typ.hash(&mut hasher);
-                let hash = hasher.finish();
-                assert!(hash != 0, "ICE: Error type {} collides with the string error type", typ);
-                Self(hash)
-            }
+pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
+    match typ {
+        ErrorType::String(_) => STRING_ERROR_SELECTOR,
+        _ => {
+            let mut hasher = FxHasher::default();
+            typ.hash(&mut hasher);
+            let hash = hasher.finish();
+            assert!(hash != 0, "ICE: Error type {} collides with the string error type", typ);
+            ErrorSelector::new(hash)
         }
-    }
-
-    pub(crate) fn to_u64(self) -> u64 {
-        self.0
     }
 }
 

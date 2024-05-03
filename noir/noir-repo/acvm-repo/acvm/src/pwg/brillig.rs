@@ -5,7 +5,8 @@ use acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        OpcodeLocation, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        STRING_ERROR_SELECTOR,
     },
     native_types::WitnessMap,
     FieldElement,
@@ -173,11 +174,13 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                             let mut revert_values_iter = memory
                                 [revert_data_offset..(revert_data_offset + revert_data_size)]
                                 .iter();
-                            let error_selector = revert_values_iter
-                                .next()
-                                .expect("Incorrect revert data size")
-                                .try_into()
-                                .expect("Error selector is not u64");
+                            let error_selector = ErrorSelector::new(
+                                revert_values_iter
+                                    .next()
+                                    .expect("Incorrect revert data size")
+                                    .try_into()
+                                    .expect("Error selector is not u64"),
+                            );
 
                             match error_selector {
                                 STRING_ERROR_SELECTOR => {
@@ -194,10 +197,12 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                                 }
                                 _ => {
                                     // If the error selector is not 0, it means the error is a custom error
-                                    Some(ResolvedAssertionPayload::Raw(
-                                        error_selector,
-                                        revert_values_iter.map(|value| value.to_field()).collect(),
-                                    ))
+                                    Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                                        selector: error_selector,
+                                        data: revert_values_iter
+                                            .map(|value| value.to_field())
+                                            .collect(),
+                                    }))
                                 }
                             }
                         }

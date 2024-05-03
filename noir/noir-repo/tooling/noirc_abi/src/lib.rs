@@ -4,7 +4,10 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::{
-    acir::native_types::{Witness, WitnessMap},
+    acir::{
+        circuit::ErrorSelector,
+        native_types::{Witness, WitnessMap},
+    },
     FieldElement,
 };
 use errors::AbiError;
@@ -12,7 +15,10 @@ use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
-use noirc_printable_type::PrintableType;
+use noirc_printable_type::{
+    decode_value as printable_type_decode_value, PrintableType, PrintableValue,
+    PrintableValueDisplay,
+};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, ops::Range};
 use std::{collections::BTreeMap, str};
@@ -266,7 +272,7 @@ pub struct Abi {
     pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
     pub return_type: Option<AbiReturnType>,
     pub return_witnesses: Vec<Witness>,
-    pub error_types: BTreeMap<u64, AbiErrorType>,
+    pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 
 impl Abi {
@@ -480,7 +486,7 @@ impl Abi {
     }
 }
 
-fn decode_value(
+pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     value_type: &AbiType,
 ) -> Result<InputValue, AbiError> {
@@ -602,6 +608,34 @@ impl AbiErrorType {
                 Self::FmtString { length, item_types }
             }
             _ => Self::Custom(AbiType::from_type(context, typ)),
+        }
+    }
+}
+
+pub fn display_abi_error(
+    fields: &[FieldElement],
+    error_type: AbiErrorType,
+) -> PrintableValueDisplay {
+    match error_type {
+        AbiErrorType::FmtString { length, item_types } => {
+            let mut fields_iter = fields.iter().copied();
+            let PrintableValue::String(string) =
+                printable_type_decode_value(&mut fields_iter, &PrintableType::String { length })
+            else {
+                unreachable!("Got non-string from string decoding");
+            };
+            let _length_of_items = fields_iter.next();
+            let items = item_types.into_iter().map(|abi_type| {
+                let printable_typ = (&abi_type).into();
+                let decoded = printable_type_decode_value(&mut fields_iter, &printable_typ);
+                (decoded, printable_typ)
+            });
+            PrintableValueDisplay::FmtString(string, items.collect())
+        }
+        AbiErrorType::Custom(abi_typ) => {
+            let printable_type = (&abi_typ).into();
+            let decoded = printable_type_decode_value(&mut fields.iter().copied(), &printable_type);
+            PrintableValueDisplay::Plain(decoded, printable_type)
         }
     }
 }

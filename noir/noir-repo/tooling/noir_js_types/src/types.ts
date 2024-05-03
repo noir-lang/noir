@@ -27,6 +27,12 @@ export type AbiErrorType =
     }
   | ({ error_kind: 'custom' } & AbiType);
 
+// The payload for a raw assertion error returned on execution.
+export type RawAssertionPayload = {
+  selector: string;
+  data: string[];
+};
+
 // Map from witness index to hex string value of witness.
 export type WitnessMap = Map<number, string>;
 

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use acvm::acir::circuit::ErrorSelector;
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::{Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue};
@@ -20,7 +21,7 @@ pub(super) fn gen_abi(
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
     return_visibility: Visibility,
-    error_types: BTreeMap<u64, Type>,
+    error_types: BTreeMap<ErrorSelector, Type>,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);

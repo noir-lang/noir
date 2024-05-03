@@ -1,14 +1,13 @@
-use acvm::{acir::circuit::OpcodeLocation, FieldElement};
-use js_sys::{Array, Error, JsString, Map, Object, Reflect};
+use acvm::acir::circuit::{OpcodeLocation, RawAssertionPayload};
+use gloo_utils::format::JsValueSerdeExt;
+use js_sys::{Array, Error, JsString, Reflect};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
-
-use crate::js_witness_map::field_element_to_js_string;
 
 #[wasm_bindgen(typescript_custom_section)]
 const EXECUTION_ERROR: &'static str = r#"
 export type RawAssertionPayload = {
-    selector: number;
-    fields: string[];
+    selector: string;
+    data: string[];
 };
 export type ExecutionError = Error & {
     callStack?: string[];
@@ -35,7 +34,7 @@ impl JsExecutionError {
     pub fn new(
         message: String,
         call_stack: Option<Vec<OpcodeLocation>>,
-        assertion_payload: Option<(u64, Vec<FieldElement>)>,
+        assertion_payload: Option<RawAssertionPayload>,
     ) -> Self {
         let mut error = JsExecutionError::constructor(JsString::from(message));
         let js_call_stack = match call_stack {
@@ -49,18 +48,8 @@ impl JsExecutionError {
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some((selector, fields)) => {
-                let raw_payload_map = Map::new();
-                raw_payload_map
-                    .set(&JsValue::from_str("selector"), &JsValue::from(selector.to_string()));
-                let js_fields = Array::new();
-                for field in fields {
-                    js_fields.push(&field_element_to_js_string(&field));
-                }
-                raw_payload_map.set(&JsValue::from_str("fields"), &js_fields.into());
-
-                Object::from_entries(&raw_payload_map).unwrap().into()
-            }
+            Some(raw) => <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&raw)
+                .expect("Cannot serialize assertion payload"),
             None => JsValue::UNDEFINED,
         };
 

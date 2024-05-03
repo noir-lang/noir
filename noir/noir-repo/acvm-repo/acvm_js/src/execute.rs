@@ -272,7 +272,7 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
                         };
                         // If the failed opcode has an assertion message, integrate it into the error message for backwards compatibility.
                         // Otherwise, pass the raw assertion payload as is.
-                        let (message, raw_assertion_payload) = match &error {
+                        let (message, raw_assertion_payload) = match error {
                             OpcodeResolutionError::UnsatisfiedConstrain {
                                 payload: Some(payload),
                                 ..
@@ -281,8 +281,8 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
                                 payload: Some(payload),
                                 ..
                             } => match payload {
-                                ResolvedAssertionPayload::Raw(selector, fields) => {
-                                    (error.to_string(), Some((*selector, fields.clone())))
+                                ResolvedAssertionPayload::Raw(raw_payload) => {
+                                    ("Assertion failed".to_string(), Some(raw_payload))
                                 }
                                 ResolvedAssertionPayload::String(message) => {
                                     (format!("Assertion failed: {}", message), None)

@@ -21,7 +21,7 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::instruction::ErrorSelector;
+use super::ir::instruction::error_selector_from_type;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -703,8 +703,7 @@ impl<'a> FunctionContext<'a> {
 
         let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
 
-        let error_type_id = ErrorSelector::new(assert_message_typ);
-
+        let error_type_id = error_selector_from_type(assert_message_typ);
         // Do not record string errors in the ABI
         match assert_message_typ {
             HirType::String(_) => {}
