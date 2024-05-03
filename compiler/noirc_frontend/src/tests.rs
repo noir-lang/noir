@@ -494,10 +494,8 @@ mod test {
         ];
         let cases_to_skip: HashSet<(usize, usize)> = cases_to_skip.into_iter().collect();
 
-        for i_x in names_to_collapse.iter().enumerate() {
-            for j_y in names_to_collapse.iter().enumerate().filter(|j_y| i_x.0 < j_y.0) {
-                let (i, x) = i_x;
-                let (j, y) = j_y;
+        for (i, x) in names_to_collapse.iter().enumerate() {
+            for (j, y) in names_to_collapse.iter().enumerate().filter(|(j, _)| i < j) {
                 if !cases_to_skip.contains(&(i, j)) {
                     dbg!((i, j));
 
