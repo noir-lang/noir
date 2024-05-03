@@ -521,9 +521,6 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        // let mut value_merger =
-        //     ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
-
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
             let instruction = Instruction::IfElse {
@@ -537,13 +534,6 @@ impl<'f> Context<'f> {
                 .dfg
                 .insert_instruction_and_results(instruction, block, None, CallStack::new())
                 .first()
-
-            // value_merger.merge_values(
-            //     cond_context.then_branch.condition,
-            //     cond_context.else_branch.clone().unwrap().condition,
-            //     then_arg,
-            //     else_arg,
-            // )
         });
 
         self.merge_stores(cond_context.then_branch, cond_context.else_branch);
@@ -634,15 +624,9 @@ impl<'f> Context<'f> {
         };
         let block = self.inserter.function.entry_block();
 
-        // let mut value_merger =
-        //     ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
-
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
         for (address, (then_case, else_case, _)) in &new_map {
-            // let value =
-            //     value_merger.merge_values(then_condition, else_condition, *then_case, *else_case);
-
             let instruction = Instruction::IfElse {
                 then_condition,
                 then_value: *then_case,
