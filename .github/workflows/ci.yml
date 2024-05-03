@@ -162,7 +162,7 @@ jobs:
         run: earthly-ci --no-output ./noir-projects/+test
 
   yarn-project-formatting:
-    needs: setup
+    needs: noir-projects
     runs-on: ${{ github.actor }}-x86
     steps:
       - {
@@ -279,7 +279,7 @@ jobs:
         run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
 
   docs-preview:
-    needs: setup
+    needs: build
     runs-on: ${{ inputs.username || github.actor }}-x86
     if: github.event.number
     steps:
