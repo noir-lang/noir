@@ -192,7 +192,7 @@ jobs:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           concurrency_key: yarn-project-test-${{ github.actor }}-x86
       - name: "Yarn Project Tests"
-        timeout-minutes: 25
+        timeout-minutes: 30
         run: earthly-ci --no-output ./yarn-project/+test
 
   prover-client-test:
@@ -292,7 +292,7 @@ jobs:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           concurrency_key: docs-preview-${{ inputs.username || github.actor }}-x86
       - name: "Docs Preview"
-        timeout-minutes: 25
+        timeout-minutes: 30
         run: earthly --no-output ./docs/+deploy-preview --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
 
   # push benchmarking binaries to dockerhub registry

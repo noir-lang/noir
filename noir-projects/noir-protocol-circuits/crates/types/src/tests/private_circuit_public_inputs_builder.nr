@@ -39,6 +39,7 @@ struct PrivateCircuitPublicInputsBuilder {
 
     private_call_stack_hashes: BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    public_teardown_function_hash: Field,
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
     encrypted_logs_hashes: BoundedVec<SideEffect, MAX_ENCRYPTED_LOGS_PER_CALL>,
@@ -81,6 +82,7 @@ impl PrivateCircuitPublicInputsBuilder {
         public_inputs.chain_id = 0;
         public_inputs.version = 1;
         public_inputs.gas_settings = GasSettings::default();
+        public_inputs.public_teardown_function_hash = 0;
 
         public_inputs
     }
@@ -103,6 +105,7 @@ impl PrivateCircuitPublicInputsBuilder {
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack_hashes: self.private_call_stack_hashes.storage,
             public_call_stack_hashes: self.public_call_stack_hashes.storage,
+            public_teardown_function_hash: self.public_teardown_function_hash,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             start_side_effect_counter: self.call_context.side_effect_counter,
             end_side_effect_counter: 10,
@@ -131,6 +134,7 @@ impl Empty for PrivateCircuitPublicInputsBuilder {
             new_nullifiers: BoundedVec::new(),
             private_call_stack_hashes: BoundedVec::new(),
             public_call_stack_hashes: BoundedVec::new(),
+            public_teardown_function_hash: 0,
             new_l2_to_l1_msgs: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
