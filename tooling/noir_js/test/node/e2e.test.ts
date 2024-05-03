@@ -152,7 +152,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   expect(isValidInner).to.be.true;
 });
 
-it('end-to-end ACIR program proof creation and verification (inner)', async () => {
+it('end-to-end proof creation and verification for multiple ACIR circuits (inner)', async () => {
   // Noir.Js part
   const inputs = {
     x: '10',
