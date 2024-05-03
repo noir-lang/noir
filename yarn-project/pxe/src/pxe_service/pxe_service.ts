@@ -57,6 +57,7 @@ import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { type PxeDatabase } from '../database/index.js';
 import { NoteDao } from '../database/note_dao.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
+import { type ProofCreator } from '../kernel_prover/interface/proof_creator.js';
 import { KernelProver } from '../kernel_prover/kernel_prover.js';
 import { getAcirSimulator } from '../simulator/index.js';
 import { Synchronizer } from '../synchronizer/index.js';
@@ -78,6 +79,7 @@ export class PXEService implements PXE {
     private keyStore: KeyStore,
     private node: AztecNode,
     private db: PxeDatabase,
+    private proofCreator: ProofCreator,
     private config: PXEServiceConfig,
     logSuffix?: string,
   ) {
@@ -661,7 +663,7 @@ export class PXEService implements PXE {
     const executionResult = await this.#simulate(txExecutionRequest, msgSender);
 
     const kernelOracle = new KernelOracle(this.contractDataOracle, this.keyStore, this.node);
-    const kernelProver = new KernelProver(kernelOracle);
+    const kernelProver = new KernelProver(kernelOracle, this.proofCreator);
     this.log.debug(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
 

@@ -5,9 +5,24 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 /**
- * Configuration settings for the PXE Service.
+ * Temporary configuration until WASM can be used instead of native
  */
-export interface PXEServiceConfig {
+export interface BBProverConfig {
+  bbWorkingDirectory?: string;
+  bbBinaryPath?: string;
+}
+
+/**
+ * Configuration settings for the prover factory
+ */
+export interface KernelProverConfig {
+  /** Whether we are running with real proofs */
+  proverEnabled?: boolean;
+}
+/**
+ * Configuration settings for the PXE.
+ */
+export interface PXEConfig {
   /** The interval to wait between polling for new blocks. */
   l2BlockPollingIntervalMS: number;
   /** L2 block to start scanning from for new accounts */
@@ -15,6 +30,8 @@ export interface PXEServiceConfig {
   /** Where to store PXE data. If not set, will store in memory */
   dataDirectory?: string;
 }
+
+export type PXEServiceConfig = PXEConfig & KernelProverConfig & BBProverConfig;
 
 /**
  * Creates an instance of PXEServiceConfig out of environment variables using sensible defaults for integration testing if not set.

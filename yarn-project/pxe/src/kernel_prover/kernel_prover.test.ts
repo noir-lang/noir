@@ -24,8 +24,8 @@ import { type ExecutionResult, type NoteAndSlot } from '@aztec/simulator';
 
 import { mock } from 'jest-mock-extended';
 
+import { type ProofCreator } from './interface/proof_creator.js';
 import { KernelProver } from './kernel_prover.js';
-import { type ProofCreator } from './proof_creator.js';
 import { type ProvingDataOracle } from './proving_data_oracle.js';
 
 describe('Kernel Prover', () => {

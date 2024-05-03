@@ -9,6 +9,8 @@ import {
   PrivateKernelInitCircuitPrivateInputs,
   PrivateKernelInnerCircuitPrivateInputs,
   PrivateKernelTailCircuitPrivateInputs,
+  type PrivateKernelTailCircuitPublicInputs,
+  type Proof,
   type TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -20,12 +22,12 @@ import { assertLength } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
 import { type ExecutionResult, collectNoteHashLeafIndexMap, collectNullifiedNoteHashCounters } from '@aztec/simulator';
 
+import { type ProofCreator, type ProofOutput } from './interface/proof_creator.js';
 import {
   buildPrivateKernelInnerHints,
   buildPrivateKernelTailHints,
   buildPrivateKernelTailOutputs,
 } from './private_inputs_builders/index.js';
-import { KernelProofCreator, type ProofCreator, type ProofOutput, type ProofOutputFinal } from './proof_creator.js';
 import { type ProvingDataOracle } from './proving_data_oracle.js';
 
 /**
@@ -36,7 +38,8 @@ import { type ProvingDataOracle } from './proving_data_oracle.js';
  */
 export class KernelProver {
   private log = createDebugLogger('aztec:kernel-prover');
-  constructor(private oracle: ProvingDataOracle, private proofCreator: ProofCreator = new KernelProofCreator()) {}
+
+  constructor(private oracle: ProvingDataOracle, private proofCreator: ProofCreator) {}
 
   /**
    * Generate a proof for a given transaction request and execution result.
@@ -48,12 +51,15 @@ export class KernelProver {
    * @param executionResult - The execution result object containing nested executions and preimages.
    * @returns A Promise that resolves to a KernelProverOutput object containing proof, public inputs, and output notes.
    */
-  async prove(txRequest: TxRequest, executionResult: ExecutionResult): Promise<ProofOutputFinal> {
+  async prove(
+    txRequest: TxRequest,
+    executionResult: ExecutionResult,
+  ): Promise<ProofOutput<PrivateKernelTailCircuitPublicInputs>> {
     const executionStack = [executionResult];
     let firstIteration = true;
     let previousVerificationKey = VerificationKey.makeFake();
 
-    let output: ProofOutput = {
+    let output: ProofOutput<PrivateKernelCircuitPublicInputs> = {
       publicInputs: PrivateKernelCircuitPublicInputs.empty(),
       proof: makeEmptyProof(),
     };
@@ -70,10 +76,16 @@ export class KernelProver {
       );
       const publicCallRequests = currentExecution.enqueuedPublicFunctionCalls.map(result => result.toCallRequest());
 
+      const proof = await this.proofCreator.createAppCircuitProof(
+        currentExecution.partialWitness,
+        currentExecution.acir,
+      );
+
       const privateCallData = await this.createPrivateCallData(
         currentExecution,
         privateCallRequests,
         publicCallRequests,
+        proof,
       );
 
       const hints = buildPrivateKernelInnerHints(
@@ -129,6 +141,7 @@ export class KernelProver {
     { callStackItem, vk }: ExecutionResult,
     privateCallRequests: CallRequest[],
     publicCallRequests: CallRequest[],
+    proof: Proof,
   ) {
     const { contractAddress, functionData } = callStackItem;
 
@@ -153,9 +166,6 @@ export class KernelProver {
     // TODO(#262): Use real acir hash
     // const acirHash = keccak256(Buffer.from(bytecode, 'hex'));
     const acirHash = Fr.fromBuffer(Buffer.alloc(32, 0));
-
-    // TODO
-    const proof = makeEmptyProof();
 
     return PrivateCallData.from({
       callStackItem,

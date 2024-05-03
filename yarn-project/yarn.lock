@@ -710,6 +710,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/pxe@workspace:pxe"
   dependencies:
+    "@aztec/bb.js": "portal:../../barretenberg/ts"
     "@aztec/builder": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
@@ -723,6 +724,7 @@ __metadata:
     "@aztec/simulator": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi"
     "@types/jest": ^29.5.0
     "@types/lodash.omit": ^4.5.7
     "@types/node": ^18.7.23

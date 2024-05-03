@@ -110,7 +110,10 @@ export async function waitNewPXESynced(
   contract: BenchmarkingContract,
   startingBlock: number = INITIAL_L2_BLOCK_NUM,
 ): Promise<PXEService> {
-  const pxe = await createPXEService(node, { l2BlockPollingIntervalMS: 100, l2StartingBlock: startingBlock });
+  const pxe = await createPXEService(node, {
+    l2BlockPollingIntervalMS: 100,
+    l2StartingBlock: startingBlock,
+  });
   await pxe.registerContract(contract);
   await retryUntil(() => pxe.isGlobalStateSynchronized(), 'pxe-global-sync');
   return pxe;
