@@ -1,9 +1,10 @@
+use noirc_frontend::ast::{NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext, HirExpression, HirLiteral, HirStatement},
     parse_program,
     parser::SortedModule,
-    NoirFunction, Type, UnresolvedTypeData,
+    Type,
 };
 
 use crate::utils::{
@@ -52,7 +53,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ");
-    let fn_return_type: noirc_frontend::UnresolvedType = func.return_type();
+    let fn_return_type: noirc_frontend::ast::UnresolvedType = func.return_type();
 
     let fn_selector = format!("dep::aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature(\"{}\")", SELECTOR_PLACEHOLDER);
 

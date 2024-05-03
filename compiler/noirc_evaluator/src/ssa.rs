@@ -9,10 +9,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::{
-    brillig::Brillig,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::errors::{RuntimeError, SsaReport};
 use acvm::acir::{
     circuit::{
         brillig::BrilligBytecode, Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs,
@@ -22,9 +19,8 @@ use acvm::acir::{
 
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
-use noirc_frontend::{
-    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
-};
+use noirc_frontend::ast::Visibility;
+use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
 use tracing::{span, Level};
 
 use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
@@ -47,8 +43,6 @@ pub(crate) fn optimize_into_acir(
     force_brillig_output: bool,
     print_timings: bool,
 ) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
-    let abi_distinctness = program.return_distinctness;
-
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
@@ -66,6 +60,9 @@ pub(crate) fn optimize_into_acir(
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
@@ -77,7 +74,7 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig, abi_distinctness))
+    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig))
 }
 
 // Helper to time SSA passes
@@ -318,10 +315,6 @@ impl SsaBuilder {
     ) -> Result<Self, RuntimeError> {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
-    }
-
-    fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
-        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {

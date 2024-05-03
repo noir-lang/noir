@@ -33,17 +33,17 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
+    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
+    InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
+    Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+};
+use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
 };
 use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
-use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
-};
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
@@ -234,15 +234,28 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = attributes::attributes()
+        .then(maybe_comp_time())
+        .then(spanned(keyword(Keyword::Mut)).or_not())
         .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
         .then(ident().map(Pattern::Identifier));
+
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
-    p.validate(|(((attributes, pattern), r#type), expression), span, emit| {
-        let global_attributes = attributes::validate_secondary_attributes(attributes, span, emit);
-        LetStatement { pattern, r#type, expression, attributes: global_attributes }
-    })
+    p.validate(
+        |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
+            let global_attributes =
+                attributes::validate_secondary_attributes(attributes, span, emit);
+
+            // Only comptime globals are allowed to be mutable, but we always parse the `mut`
+            // and throw the error in name resolution.
+            if let Some((_, mut_span)) = mutable {
+                let span = mut_span.merge(pattern.span());
+                pattern = Pattern::Mutable(Box::new(pattern), span, false);
+            }
+            LetStatement { pattern, r#type, comptime, expression, attributes: global_attributes }
+        },
+    )
     .map(TopLevelStatement::Global)
 }
 
@@ -281,21 +294,6 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     p.map_with_span(|((name, generics), typ), span| {
         TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, typ, span })
     })
-}
-
-fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
-    just(Token::Arrow)
-        .ignore_then(optional_distinctness())
-        .then(optional_visibility())
-        .then(spanned(parse_type()))
-        .or_not()
-        .map_with_span(|ret, span| match ret {
-            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
-            None => (
-                (Distinctness::DuplicationAllowed, Visibility::Private),
-                FunctionReturnType::Default(span),
-            ),
-        })
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -498,10 +496,11 @@ where
             assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
-            for_loop(expr_no_constructors, statement),
+            for_loop(expr_no_constructors.clone(), statement.clone()),
             break_statement(),
             continue_statement(),
             return_statement(expr_parser.clone()),
+            comptime_statement(expr_parser.clone(), expr_no_constructors, statement),
             expr_parser.map(StatementKind::Expression),
         ))
     })
@@ -517,6 +516,36 @@ fn break_statement() -> impl NoirParser<StatementKind> {
 
 fn continue_statement() -> impl NoirParser<StatementKind> {
     keyword(Keyword::Continue).to(StatementKind::Continue)
+}
+
+fn comptime_statement<'a, P1, P2, S>(
+    expr: P1,
+    expr_no_constructors: P2,
+    statement: S,
+) -> impl NoirParser<StatementKind> + 'a
+where
+    P1: ExprParser + 'a,
+    P2: ExprParser + 'a,
+    S: NoirParser<StatementKind> + 'a,
+{
+    let comptime_statement = choice((
+        declaration(expr),
+        for_loop(expr_no_constructors, statement.clone()),
+        block(statement).map_with_span(|block, span| {
+            StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
+        }),
+    ))
+    .map_with_span(|kind, span| Box::new(Statement { kind, span }));
+
+    keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
+}
+
+/// Comptime in an expression position only accepts entire blocks
+fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    keyword(Keyword::Comptime).ignore_then(block(statement)).map(ExpressionKind::Comptime)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -693,31 +722,25 @@ fn optional_visibility() -> impl NoirParser<Visibility> {
         })
 }
 
-fn optional_distinctness() -> impl NoirParser<Distinctness> {
-    keyword(Keyword::Distinct).or_not().map(|opt| match opt {
-        Some(_) => Distinctness::Distinct,
-        None => Distinctness::DuplicationAllowed,
-    })
-}
-
-fn maybe_comp_time() -> impl NoirParser<()> {
-    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+fn maybe_comp_time() -> impl NoirParser<bool> {
+    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
-            emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Comptime values"),
+                span,
+            ));
         }
+        opt.is_some()
     })
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Field))
+    keyword(Keyword::Field)
         .map_with_span(|_, span| UnresolvedTypeData::FieldElement.with_span(span))
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Bool))
-        .map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
+    keyword(Keyword::Bool).map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
 }
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
@@ -744,21 +767,20 @@ fn format_string_type(
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time()
-        .then(filter_map(|span, token: Token| match token {
-            Token::IntType(int_type) => Ok(int_type),
-            unexpected => {
-                Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
-            }
-        }))
-        .validate(|(_, token), span, emit| {
-            UnresolvedTypeData::from_int_token(token)
-                .map(|data| data.with_span(span))
-                .unwrap_or_else(|err| {
-                    emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
-                    UnresolvedType::error(span)
-                })
-        })
+    filter_map(|span, token: Token| match token {
+        Token::IntType(int_type) => Ok(int_type),
+        unexpected => {
+            Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
+        }
+    })
+    .validate(|token, span, emit| {
+        UnresolvedTypeData::from_int_token(token).map(|data| data.with_span(span)).unwrap_or_else(
+            |err| {
+                emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
+                UnresolvedType::error(span)
+            },
+        )
+    })
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
@@ -1236,6 +1258,7 @@ where
         },
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
+        comptime_expr(statement.clone()),
         quote(statement),
         variable(),
         literal(),
@@ -1320,7 +1343,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::ArrayLiteral;
+    use crate::ast::ArrayLiteral;
 
     #[test]
     fn parse_infix() {

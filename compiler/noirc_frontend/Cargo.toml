@@ -3,16 +3,17 @@ name = "noirc_frontend"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 acvm.workspace = true
+noirc_arena.workspace = true
 noirc_errors.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
-arena.workspace = true
 iter-extended.workspace = true
 chumsky.workspace = true
 thiserror.workspace = true

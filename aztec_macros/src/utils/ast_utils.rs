@@ -1,10 +1,11 @@
 use noirc_errors::{Span, Spanned};
-use noirc_frontend::{
-    token::SecondaryAttribute, BinaryOpKind, CallExpression, CastExpression, Expression,
-    ExpressionKind, FunctionReturnType, Ident, IndexExpression, InfixExpression, Lambda,
-    LetStatement, MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement,
-    StatementKind, TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
+use noirc_frontend::ast::{
+    BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
+    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MethodCallExpression,
+    NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind, TraitImplItem,
+    UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
+use noirc_frontend::token::SecondaryAttribute;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -66,6 +67,7 @@ pub fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
         pattern: mutable(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
+        comptime: false,
         attributes: vec![],
     }))
 }
@@ -90,6 +92,7 @@ pub fn assignment_with_type(
         pattern: pattern(name),
         r#type: make_type(typ),
         expression: assigned_to,
+        comptime: false,
         attributes: vec![],
     }))
 }

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
@@ -17,18 +18,6 @@ pub(crate) enum RuntimeType {
     Brillig,
 }
 
-/// Represents how a RuntimeType::Acir function should be inlined.
-/// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub(crate) enum InlineType {
-    /// The most basic entry point can expect all its functions to be inlined.
-    /// All function calls are expected to be inlined into a single ACIR.
-    #[default]
-    Inline,
-    /// Functions marked as foldable will not be inlined and compiled separately into ACIR
-    Fold,
-}
-
 impl RuntimeType {
     /// Returns whether the runtime type represents an entry point.
     /// We return `false` for InlineType::Inline on default, which is true
@@ -36,10 +25,7 @@ impl RuntimeType {
     /// handling in any places where this function determines logic.
     pub(crate) fn is_entry_point(&self) -> bool {
         match self {
-            RuntimeType::Acir(inline_type) => match inline_type {
-                InlineType::Inline => false,
-                InlineType::Fold => true,
-            },
+            RuntimeType::Acir(inline_type) => inline_type.is_entry_point(),
             RuntimeType::Brillig => true,
         }
     }
@@ -97,6 +83,13 @@ impl Function {
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.runtime = runtime;
+    }
+
+    pub(crate) fn is_no_predicates(&self) -> bool {
+        match self.runtime() {
+            RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::NoPredicates),
+            RuntimeType::Brillig => false,
+        }
     }
 
     /// Retrieves the entry block of a function.
@@ -159,15 +152,6 @@ impl std::fmt::Display for RuntimeType {
         match self {
             RuntimeType::Acir(inline_type) => write!(f, "acir({inline_type})"),
             RuntimeType::Brillig => write!(f, "brillig"),
-        }
-    }
-}
-
-impl std::fmt::Display for InlineType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InlineType::Inline => write!(f, "inline"),
-            InlineType::Fold => write!(f, "fold"),
         }
     }
 }

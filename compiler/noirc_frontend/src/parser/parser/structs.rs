@@ -1,5 +1,6 @@
 use chumsky::prelude::*;
 
+use crate::ast::{Ident, NoirStruct, UnresolvedType};
 use crate::{
     parser::{
         parser::{
@@ -10,7 +11,6 @@ use crate::{
         NoirParser, TopLevelStatement,
     },
     token::{Keyword, Token},
-    Ident, NoirStruct, UnresolvedType,
 };
 
 pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
