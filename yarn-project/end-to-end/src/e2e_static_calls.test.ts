@@ -9,22 +9,19 @@ describe('e2e_static_calls', () => {
   let childContract: ChildContract;
   let teardown: () => Promise<void>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     ({ teardown, wallet } = await setup());
-  });
-
-  afterEach(() => teardown());
-
-  beforeEach(async () => {
     parentContract = await ParentContract.deploy(wallet).send().deployed();
     childContract = await ChildContract.deploy(wallet).send().deployed();
+
+    // We create a note in the set, such that later reads doesn't fail due to get_notes returning 0 notes
+    await childContract.methods.private_set_value(42n, wallet.getCompleteAddress().address).send().wait();
   });
+
+  afterAll(() => teardown());
 
   describe('parent calls child', () => {
     it('performs legal private to private static calls', async () => {
-      // We create a note in the set, so...
-      await childContract.methods.private_set_value(42n, wallet.getCompleteAddress().address).send().wait();
-      // ...this call doesn't fail due to get_notes returning 0 notes
       await parentContract.methods
         .private_static_call(childContract.address, childContract.methods.private_get_value.selector, [
           42n,
@@ -35,9 +32,6 @@ describe('e2e_static_calls', () => {
     });
 
     it('performs legal (nested) private to private static calls', async () => {
-      // We create a note in the set, so...
-      await childContract.methods.private_set_value(42n, wallet.getCompleteAddress().address).send().wait();
-      // ...this call doesn't fail due to get_notes returning 0 notes
       await parentContract.methods
         .private_nested_static_call(childContract.address, childContract.methods.private_get_value.selector, [
           42n,
