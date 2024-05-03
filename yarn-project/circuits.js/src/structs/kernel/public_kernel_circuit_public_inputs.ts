@@ -105,7 +105,7 @@ export class PublicKernelCircuitPublicInputs {
       validationRequests: ${inspect(this.validationRequests)},
       endNonRevertibleData: ${inspect(this.endNonRevertibleData)},
       end: ${inspect(this.end)},
-      constants: ${this.constants},
+      constants: ${inspect(this.constants)},
       revertCode: ${this.revertCode}
       }`;
   }

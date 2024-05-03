@@ -238,15 +238,17 @@ describe('e2e_fees', () => {
 
     it('pays fees for tx that dont run public app logic', async () => {
       /**
-       * PRIVATE SETUP
-       * check authwit
-       * reduce alice BC.private by MaxFee
+       * PRIVATE SETUP (1 nullifier for tx)
+       * check authwit (1 nullifier)
+       * reduce alice BC.private by MaxFee (1 nullifier)
        * enqueue public call to increase FPC BC.public by MaxFee
        * enqueue public call for fpc.pay_fee_with_shielded_rebate
        *
        * PRIVATE APP LOGIC
-       * reduce Alice's BC.private by transferAmount
-       * create note for Bob of transferAmount
+       * reduce Alice's BC.private by transferAmount (1 note)
+       * create note for Bob of transferAmount (1 note)
+       * encrypted logs of 944 bytes
+       * unencrypted logs of 20 bytes
        *
        * PUBLIC SETUP
        * increase FPC BC.public by MaxFee
@@ -279,6 +281,27 @@ describe('e2e_fees', () => {
           },
         })
         .wait();
+
+      /**
+       * at present the user is paying DA gas for:
+       * 3 nullifiers = 3 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE = 3 * 32 * 16 = 1536 DA gas
+       * 2 note hashes =  2 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE = 2 * 32 * 16 = 1024 DA gas
+       * 964 bytes of logs = 964 * DA_GAS_PER_BYTE = 964 * 16 = 15424 DA gas
+       * tx overhead of 512 DA gas
+       * for a total of 18496 DA gas.
+       *
+       * The default teardown gas allocation at present is
+       * 100_000_000 for both DA and L2 gas.
+       *
+       * That produces a grand total of 200018496n.
+       *
+       * This will change because:
+       * 1. Gas use during public execution is not currently incorporated
+       * 2. We are presently squashing notes/nullifiers across non/revertible during private exeuction,
+       *    but we shouldn't.
+       */
+
+      expect(tx.transactionFee).toEqual(200018496n);
 
       await expectMapping(
         bananaPrivateBalances,

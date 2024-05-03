@@ -61,19 +61,47 @@ describe('benchmarks/tx_size_fees', () => {
     await token.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait();
   });
 
-  it.each<[string, () => Promise<FeePaymentMethod | undefined>]>([
-    ['no', () => Promise.resolve(undefined)],
-    ['native fee', () => NativeFeePaymentMethod.create(aliceWallet)],
-    ['public fee', () => Promise.resolve(new PublicFeePaymentMethod(token.address, fpc.address, aliceWallet))],
-    ['private fee', () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet))],
-  ] as const)('sends a tx with a fee with %s payment method', async (_name, createPaymentMethod) => {
-    const paymentMethod = await createPaymentMethod();
-    const gasSettings = GasSettings.default();
-    const tx = await token.methods
-      .transfer(aliceWallet.getAddress(), bobAddress, 1n, 0)
-      .send({ fee: paymentMethod ? { gasSettings, paymentMethod } : undefined })
-      .wait();
+  it.each<[string, () => Promise<FeePaymentMethod | undefined>, bigint]>([
+    ['no', () => Promise.resolve(undefined), 0n],
+    [
+      'native fee',
+      () => NativeFeePaymentMethod.create(aliceWallet),
+      // DA:
+      // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 624 B enc logs, 8 B unenc logs, teardown
+      // L2:
+      // non-rev: 0; rev: 0
+      200012672n,
+    ],
+    [
+      'public fee',
+      () => Promise.resolve(new PublicFeePaymentMethod(token.address, fpc.address, aliceWallet)),
+      // DA:
+      // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 628 B enc logs, 12 B unenc logs, teardown
+      // L2:
+      // non-rev: 0; rev: 0
+      200012800n,
+    ],
+    [
+      'private fee',
+      () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet)),
+      // DA:
+      // non-rev: 3 nullifiers, overhead; rev: 2 note hashes, 944 B enc logs, 20 B unenc logs, teardown
+      // L2:
+      // non-rev: 0; rev: 0
+      200018496n,
+    ],
+  ] as const)(
+    'sends a tx with a fee with %s payment method',
+    async (_name, createPaymentMethod, expectedTransactionFee) => {
+      const paymentMethod = await createPaymentMethod();
+      const gasSettings = GasSettings.default();
+      const tx = await token.methods
+        .transfer(aliceWallet.getAddress(), bobAddress, 1n, 0)
+        .send({ fee: paymentMethod ? { gasSettings, paymentMethod } : undefined })
+        .wait();
 
-    expect(tx.status).toEqual(TxStatus.MINED);
-  });
+      expect(tx.status).toEqual(TxStatus.MINED);
+      expect(tx.transactionFee).toEqual(expectedTransactionFee);
+    },
+  );
 });

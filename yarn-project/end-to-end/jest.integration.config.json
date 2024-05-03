@@ -6,7 +6,7 @@
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  "reporters": [["default", {"summaryThreshold": 9999}]],
+  "reporters": [["default", { "summaryThreshold": 9999 }]],
   "testRegex": "./src/.*\\.test\\.ts$",
   "rootDir": "./src"
 }

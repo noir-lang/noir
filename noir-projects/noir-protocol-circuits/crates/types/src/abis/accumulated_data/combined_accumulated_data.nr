@@ -59,7 +59,7 @@ impl CombinedAccumulatedData {
                 non_revertible.public_data_update_requests,
                 revertible.public_data_update_requests
             ),
-            gas_used: revertible.gas_used.add(non_revertible.gas_used)
+            gas_used: revertible.gas_used + non_revertible.gas_used
         }
     }
 }

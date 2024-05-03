@@ -33,6 +33,10 @@ export class TxReceipt {
      */
     public error: string,
     /**
+     * The transaction fee paid for the transaction.
+     */
+    public transactionFee?: bigint,
+    /**
      * The hash of the block containing the transaction.
      */
     public blockHash?: Buffer,
@@ -69,9 +73,10 @@ export class TxReceipt {
     const txHash = TxHash.fromString(obj.txHash);
     const status = obj.status as TxStatus;
     const error = obj.error;
+    const transactionFee = obj.transactionFee;
     const blockHash = obj.blockHash ? Buffer.from(obj.blockHash, 'hex') : undefined;
     const blockNumber = obj.blockNumber ? Number(obj.blockNumber) : undefined;
-    return new TxReceipt(txHash, status, error, blockHash, blockNumber);
+    return new TxReceipt(txHash, status, error, transactionFee, blockHash, blockNumber);
   }
 }
 

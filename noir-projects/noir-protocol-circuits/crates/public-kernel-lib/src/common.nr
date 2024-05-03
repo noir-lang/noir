@@ -232,7 +232,7 @@ pub fn update_non_revertible_gas_used(public_call: PublicCallData, circuit_outpu
     let accum_end_gas_used = circuit_outputs.end.gas_used;
 
     // dep::types::debug_log::debug_log_format(
-    //     "Updating non-revertible gas: limit.da={0} limit.l1={1} limit.l2={2} left.da={3} left.l1={4} left.l2={5} used.da={6} used.l1={7} used.l2={8}",
+    //     "Updating non-revertible gas: limit.da={0} limit.l2={1} left.da={2} left.l2={3} used.da={4} used.l2={5}",
     //     [
     //     tx_gas_limits.da_gas as Field,
     //     tx_gas_limits.l2_gas as Field,
@@ -241,10 +241,6 @@ pub fn update_non_revertible_gas_used(public_call: PublicCallData, circuit_outpu
     //     accum_end_gas_used.da_gas as Field,
     //     accum_end_gas_used.l2_gas as Field
     // ]
-    // );
-
-    // println(
-    //     f"Updating non-revertible gas: tx_gas_limits={tx_gas_limits} call_gas_left={call_gas_left} accum_end_gas_used={accum_end_gas_used}"
     // );
 
     circuit_outputs.end_non_revertible.gas_used = tx_gas_limits

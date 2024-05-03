@@ -1,6 +1,8 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { inspect } from 'util';
+
 import {
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
@@ -101,5 +103,31 @@ export class ValidationRequests {
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),
       makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, PublicDataRead.empty),
     );
+  }
+
+  [inspect.custom]() {
+    return `ValidationRequests {
+  forRollup: ${inspect(this.forRollup)},
+  noteHashReadRequests: [${this.noteHashReadRequests
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  nullifierReadRequests: [${this.nullifierReadRequests
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  nullifierNonExistentReadRequests: [${this.nullifierNonExistentReadRequests
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  nullifierKeyValidationRequests: [${this.nullifierKeyValidationRequests
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  publicDataReads: [${this.publicDataReads
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}]
+}`;
   }
 }

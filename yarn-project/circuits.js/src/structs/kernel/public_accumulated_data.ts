@@ -103,16 +103,37 @@ export class PublicAccumulatedData {
   [inspect.custom]() {
     // print out the non-empty fields
     return `PublicAccumulatedData {
-  newNoteHashes: [${this.newNoteHashes.map(h => h.toString()).join(', ')}],
-  newNullifiers: [${this.newNullifiers.map(h => h.toString()).join(', ')}],
-  newL2ToL1Msgs: [${this.newL2ToL1Msgs.map(h => h.toString()).join(', ')}],
-  encryptedLogsHashes: [${this.encryptedLogsHashes.map(h => h.toString()).join(', ')}],
-  unencryptedLogsHashes: [${this.unencryptedLogsHashes.map(h => h.toString()).join(', ')}],
+  newNoteHashes: [${this.newNoteHashes
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  newNullifiers: [${this.newNullifiers
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  newL2ToL1Msgs: [${this.newL2ToL1Msgs
+    .filter(x => !x.isZero())
+    .map(h => inspect(h))
+    .join(', ')}],
+  encryptedLogsHashes: [${this.encryptedLogsHashes
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  unencryptedLogsHashes: [${this.unencryptedLogsHashes
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
   encryptedLogPreimagesLength: ${this.encryptedLogPreimagesLength}
   unencryptedLogPreimagesLength: ${this.unencryptedLogPreimagesLength}
-  publicDataUpdateRequests: [${this.publicDataUpdateRequests.map(h => h.toString()).join(', ')}],
-  publicCallStack: [${this.publicCallStack.map(h => h.toString()).join(', ')}],
-  gasUsed: [${this.gasUsed}]
+  publicDataUpdateRequests: [${this.publicDataUpdateRequests
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  publicCallStack: [${this.publicCallStack
+    .filter(x => !x.isEmpty())
+    .map(h => inspect(h))
+    .join(', ')}],
+  gasUsed: [${inspect(this.gasUsed)}]
 }`;
   }
 

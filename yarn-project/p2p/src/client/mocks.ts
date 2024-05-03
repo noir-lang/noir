@@ -78,7 +78,16 @@ export class MockBlockSource implements L2BlockSource {
     for (const block of this.l2Blocks) {
       for (const txEffect of block.body.txEffects) {
         if (txEffect.txHash.equals(txHash)) {
-          return Promise.resolve(new TxReceipt(txHash, TxStatus.MINED, '', block.hash().toBuffer(), block.number));
+          return Promise.resolve(
+            new TxReceipt(
+              txHash,
+              TxStatus.MINED,
+              '',
+              txEffect.transactionFee.toBigInt(),
+              block.hash().toBuffer(),
+              block.number,
+            ),
+          );
         }
       }
     }

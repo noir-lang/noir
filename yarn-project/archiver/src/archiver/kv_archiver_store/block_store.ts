@@ -140,6 +140,7 @@ export class BlockStore {
       txHash,
       tx.revertCode.isOK() ? TxStatus.MINED : TxStatus.REVERTED,
       '',
+      tx.transactionFee.toBigInt(),
       block.hash().toBuffer(),
       block.number,
     );

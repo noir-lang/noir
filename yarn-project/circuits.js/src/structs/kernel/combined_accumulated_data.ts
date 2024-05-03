@@ -2,6 +2,8 @@ import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { inspect } from 'util';
+
 import {
   type MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -115,5 +117,31 @@ export class CombinedAccumulatedData {
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       Gas.empty(),
     );
+  }
+
+  [inspect.custom]() {
+    return `CombinedAccumulatedData {
+      newNoteHashes: [${this.newNoteHashes
+        .filter(x => !x.isZero())
+        .map(x => inspect(x))
+        .join(', ')}],
+      newNullifiers: [${this.newNullifiers
+        .filter(x => !x.isZero())
+        .map(x => inspect(x))
+        .join(', ')}],
+      newL2ToL1Msgs: [${this.newL2ToL1Msgs
+        .filter(x => !x.isZero())
+        .map(x => inspect(x))
+        .join(', ')}],
+      encryptedLogsHash: ${this.encryptedLogsHash.toString()},
+      unencryptedLogsHash: ${this.unencryptedLogsHash.toString()},
+      encryptedLogPreimagesLength: ${this.encryptedLogPreimagesLength.toString()},
+      unencryptedLogPreimagesLength: ${this.unencryptedLogPreimagesLength.toString()},
+      publicDataUpdateRequests: [${this.publicDataUpdateRequests
+        .filter(x => !x.isEmpty())
+        .map(x => inspect(x))
+        .join(', ')}],
+      gasUsed: ${inspect(this.gasUsed)}
+    }`;
   }
 }
