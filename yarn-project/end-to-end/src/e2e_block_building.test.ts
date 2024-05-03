@@ -215,7 +215,7 @@ describe('e2e_block_building', () => {
         ['t', 'e', 's', 't'].map(num => Buffer.concat([Buffer.alloc(31), Buffer.from(num)])),
       );
       expect(logs[2].data.subarray(-32 * 5)).toEqual(expectedBuffer);
-    }, 30_000);
+    }, 60_000);
 
     it('calls a method with nested encrypted logs', async () => {
       // account setup

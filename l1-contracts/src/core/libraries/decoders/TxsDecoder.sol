@@ -21,18 +21,19 @@ import {Hash} from "../Hash.sol";
  *  | 0x0                                                                                       | 0x4        | len(numTxs) (denoted t)
  *  |                                                                                           |            | TxEffect 0 {
  *  | 0x4                                                                                       | 0x1        |   revertCode
- *  | 0x5                                                                                       | 0x1        |   len(newNoteHashes) (denoted b)
- *  | 0x5 + 0x1                                                                                 | b * 0x20   |   newNoteHashes
- *  | 0x5 + 0x1 + b * 0x20                                                                      | 0x1        |   len(newNullifiers) (denoted c)
- *  | 0x5 + 0x1 + b * 0x20 + 0x1                                                                | c * 0x20   |   newNullifiers
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                     | 0x1        |   len(newL2ToL1Msgs) (denoted d)
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                               | d * 0x20   |   newL2ToL1Msgs
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                    | 0x1        |   len(newPublicDataWrites) (denoted e)
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                             | e * 0x40   |   newPublicDataWrites
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                  | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4            | f          |   newEncryptedLogs
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f        | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
- *  | 0x5 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4  | g          |   newUnencryptedLogs
+ *  | 0x5                                                                                       | 0x20       |   transactionFee
+ *  | 0x25                                                                                      | 0x1        |   len(newNoteHashes) (denoted b)
+ *  | 0x25 + 0x1                                                                                | b * 0x20   |   newNoteHashes
+ *  | 0x25 + 0x1 + b * 0x20                                                                     | 0x1        |   len(newNullifiers) (denoted c)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1                                                               | c * 0x20   |   newNullifiers
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                    | 0x1        |   len(newL2ToL1Msgs) (denoted d)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                              | d * 0x20   |   newL2ToL1Msgs
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                   | 0x1        |   len(newPublicDataWrites) (denoted e)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                            | e * 0x40   |   newPublicDataWrites
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                 | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4           | f          |   newEncryptedLogs
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f       | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4 | g          |   newUnencryptedLogs
  *  |                                                                                           |            | },
  *  |                                                                                           |            | TxEffect 1 {
  *  |                                                                                           |            |   ...
@@ -45,6 +46,7 @@ import {Hash} from "../Hash.sol";
 library TxsDecoder {
   struct ArrayOffsets {
     uint256 revertCode;
+    uint256 transactionFee;
     uint256 noteHash;
     uint256 nullifier;
     uint256 l2ToL1Msgs;
@@ -90,6 +92,7 @@ library TxsDecoder {
          * Compute the leaf to insert.
          * Leaf_i = (
          *    revertCode,
+         *    transactionFee,
          *    newNoteHashesKernel,
          *    newNullifiersKernel,
          *    newL2ToL1MsgsKernel,
@@ -104,6 +107,10 @@ library TxsDecoder {
         // Revert Code
         offsets.revertCode = offset;
         offset += 0x1;
+
+        // Transaction Fee
+        offsets.transactionFee = offset;
+        offset += 0x20;
 
         // Note hashes
         uint256 count = read1(_body, offset);
@@ -143,7 +150,10 @@ library TxsDecoder {
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
           // pad the revert code to 32 bytes to match the hash preimage
-          sliceAndPadLeft(_body, offsets.revertCode, 0x1, 0x20),
+          bytes.concat(
+            sliceAndPadLeft(_body, offsets.revertCode, 0x1, 0x20),
+            slice(_body, offsets.transactionFee, 0x20)
+          ),
           bytes.concat(
             sliceAndPadRight(
               _body,
@@ -179,7 +189,7 @@ library TxsDecoder {
       // We pad base leaves with hashes of empty tx effect.
       for (uint256 i = numTxEffects; i < vars.baseLeaves.length; i++) {
         // Value taken from tx_effect.test.ts "hash of empty tx effect matches snapshot" test case
-        vars.baseLeaves[i] = hex"0071f7630d28ce02cc1ca8b15c44953f84a39e1478445395247ae04dfa213c0e";
+        vars.baseLeaves[i] = hex"00822c2cdfbc7a6e5f4dd355251f4dfc9af1b1a64152464b9b83c5007eeed0f3";
       }
     }
 

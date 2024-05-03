@@ -107,7 +107,8 @@ impl BaseRollupInputs {
         // Calculate the tx effects hash of the transaction
         let tx_effects_hash = compute_tx_effects_hash(
             self.kernel_data.public_inputs.end,
-            self.kernel_data.public_inputs.revert_code
+            self.kernel_data.public_inputs.revert_code,
+            self.kernel_data.public_inputs.compute_transaction_fee()
         );
         let out_hash = compute_kernel_out_hash(self.kernel_data.public_inputs.end);
 

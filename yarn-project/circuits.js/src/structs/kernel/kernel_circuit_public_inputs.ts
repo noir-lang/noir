@@ -1,3 +1,4 @@
+import type { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
@@ -38,6 +39,16 @@ export class KernelCircuitPublicInputs {
 
   getNonEmptyNullifiers() {
     return this.end.newNullifiers.filter(n => !n.isZero());
+  }
+
+  // Note: it is safe to compute this method in typescript
+  // because we compute the transaction_fee ourselves in the base rollup.
+  // This value must match the value computed in the base rollup,
+  // otherwise the content commitment of the block will be invalid.
+  get transactionFee(): Fr {
+    return this.end.gasUsed
+      .computeFee(this.constants.globalVariables.gasFees)
+      .add(this.constants.txContext.gasSettings.inclusionFee);
   }
 
   toBuffer() {

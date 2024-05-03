@@ -124,13 +124,19 @@ pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -
     )
 }
 
-global TX_EFFECTS_HASH_INPUT_FIELDS = 197;
+global TX_EFFECTS_HASH_INPUT_FIELDS = 198;
 
 // Computes the tx effects hash for a base rollup (a single transaction)
 // TODO(Alvaro): This is too slow for brillig without the array optimization
-pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData, revert_code: u8) -> Field {
+pub fn compute_tx_effects_hash(
+    combined: CombinedAccumulatedData,
+    revert_code: u8,
+    transaction_fee: Field
+) -> Field {
     // Compute tx effect hash
     // Consist of
+    // 1 field for revert code
+    // 1 field for transaction fee
     // MAX_NEW_NOTE_HASHES_PER_TX fields for note hashes
     // MAX_NEW_NULLIFIERS_PER_TX fields for nullifiers
     // 2 l2 -> l1 messages -> 2 fields
@@ -151,6 +157,9 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData, revert_code: u
 
     // upcast to Field to have the same size for the purposes of the hash
     txs_effects_hash_input[offset] = revert_code as Field;
+    offset += 1;
+
+    txs_effects_hash_input[offset] = transaction_fee;
     offset += 1;
 
     for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {
@@ -200,7 +209,9 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData, revert_code: u
 #[test]
 fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
     // 1 for revert_code
+    // 1 for transaction_fee
     let expected_size = 1
+        + 1
         + MAX_NEW_NOTE_HASHES_PER_TX
         + MAX_NEW_NULLIFIERS_PER_TX
         + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2
