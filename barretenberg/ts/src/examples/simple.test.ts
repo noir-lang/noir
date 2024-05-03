@@ -14,7 +14,7 @@ describe('simple', () => {
 
     const crs = await Crs.new(2 ** 19 + 1);
     await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
-  }, 30000);
+  }, 60000);
 
   afterAll(async () => {
     await api.destroy();

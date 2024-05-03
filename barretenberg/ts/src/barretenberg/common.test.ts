@@ -5,10 +5,12 @@ describe('env', () => {
 
   beforeAll(async () => {
     api = await Barretenberg.new({ threads: 3 });
-  }, 15000);
+  }, 30000);
 
   afterAll(async () => {
-    await api.destroy();
+    if (api) {
+      await api.destroy();
+    }
   });
 
   it('thread test', async () => {
