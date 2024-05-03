@@ -1200,7 +1200,14 @@ impl<'a> Context<'a> {
             !res_typ.contains_slice_element(),
             "ICE: Nested slice result found during ACIR generation"
         );
-        let value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
+        let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
+        if let AcirValue::Var(value_var, typ) = value {
+            // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
+            value = AcirValue::Var(
+                self.acir_context.mul_var(value_var, self.current_side_effects_enabled_var)?,
+                typ,
+            );
+        }
 
         self.define_result(dfg, instruction, value.clone());
 
