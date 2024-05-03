@@ -2,6 +2,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { countAccumulatedItems, mergeAccumulatedData } from '../../utils/index.js';
 import { AggregationObject } from '../aggregation_object.js';
+import { CallRequest } from '../call_request.js';
 import { PartialStateReference } from '../partial_state_reference.js';
 import { RevertCode } from '../revert_code.js';
 import { RollupValidationRequests } from '../rollup_validation_requests.js';
@@ -26,6 +27,10 @@ export class PartialPrivateTailPublicInputsForPublic {
      * Data accumulated from both public and private circuits.
      */
     public end: PublicAccumulatedData,
+    /**
+     * Call request for the public teardown function.
+     */
+    public publicTeardownCallRequest: CallRequest,
   ) {}
 
   get needsSetup() {
@@ -46,11 +51,17 @@ export class PartialPrivateTailPublicInputsForPublic {
       reader.readObject(ValidationRequests),
       reader.readObject(PublicAccumulatedData),
       reader.readObject(PublicAccumulatedData),
+      reader.readObject(CallRequest),
     );
   }
 
   toBuffer() {
-    return serializeToBuffer(this.validationRequests, this.endNonRevertibleData, this.end);
+    return serializeToBuffer(
+      this.validationRequests,
+      this.endNonRevertibleData,
+      this.end,
+      this.publicTeardownCallRequest,
+    );
   }
 
   static empty() {
@@ -58,6 +69,7 @@ export class PartialPrivateTailPublicInputsForPublic {
       ValidationRequests.empty(),
       PublicAccumulatedData.empty(),
       PublicAccumulatedData.empty(),
+      CallRequest.empty(),
     );
   }
 }
@@ -123,6 +135,7 @@ export class PrivateKernelTailCircuitPublicInputs {
       this.forPublic.end,
       this.constants,
       this.revertCode,
+      this.forPublic.publicTeardownCallRequest,
     );
   }
 

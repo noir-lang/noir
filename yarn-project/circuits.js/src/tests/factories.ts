@@ -470,6 +470,7 @@ export function makePublicKernelCircuitPublicInputs(
     makePublicAccumulatedData(seed, fullAccumulatedData),
     makeConstantData(seed + 0x100),
     RevertCode.OK,
+    makeCallRequest(seed + 0x200),
   );
 }
 
@@ -485,6 +486,7 @@ export function makePrivateKernelCircuitPublicInputs(seed = 1, full = true): Pri
     makeValidationRequests(seed),
     makePrivateAccumulatedData(seed, full),
     makeConstantData(seed + 0x100),
+    makeCallRequest(seed + 0x200),
   );
 }
 
@@ -502,6 +504,7 @@ export function makePrivateKernelTailCircuitPublicInputs(
         ValidationRequests.empty(),
         makePublicAccumulatedData(seed + 0x100, false),
         makePublicAccumulatedData(seed + 0x200, false),
+        makeCallRequest(seed + 0x300),
       )
     : undefined;
   const forRollup = !isForPublic

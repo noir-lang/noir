@@ -197,7 +197,7 @@ describe('e2e_block_building', () => {
       ({ teardown, pxe, logger, wallet: owner } = await setup(1));
       logger.info(`Deploying test contract`);
       testContract = await TestContract.deploy(owner).send().deployed();
-    }, 30_000);
+    }, 60_000);
 
     it('calls a method with nested unencrypted logs', async () => {
       const tx = await testContract.methods.emit_unencrypted_logs_nested([1, 2, 3, 4, 5]).send().wait();

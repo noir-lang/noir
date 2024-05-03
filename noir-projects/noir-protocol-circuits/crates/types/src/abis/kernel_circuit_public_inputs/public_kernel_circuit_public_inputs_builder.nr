@@ -3,7 +3,7 @@ use crate::{
     accumulated_data::{CombinedAccumulatedData, PublicAccumulatedDataBuilder},
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs},
-    validation_requests::ValidationRequestsBuilder
+    validation_requests::ValidationRequestsBuilder, call_request::CallRequest
 },
     mocked::AggregationObject, traits::Empty
 };
@@ -15,6 +15,7 @@ struct PublicKernelCircuitPublicInputsBuilder {
     end: PublicAccumulatedDataBuilder,
     constants: CombinedConstantData,
     revert_code: u8,
+    public_teardown_call_request: CallRequest,
 }
 
 impl PublicKernelCircuitPublicInputsBuilder {
@@ -28,7 +29,8 @@ impl PublicKernelCircuitPublicInputsBuilder {
             end_non_revertible: self.end_non_revertible.finish(),
             end: self.end.finish(),
             constants: self.constants,
-            revert_code: self.revert_code
+            revert_code: self.revert_code,
+            public_teardown_call_request: self.public_teardown_call_request
         }
     }
 }
@@ -42,6 +44,7 @@ impl Empty for PublicKernelCircuitPublicInputsBuilder {
             end: PublicAccumulatedDataBuilder::empty(),
             constants: CombinedConstantData::empty(),
             revert_code: 0 as u8,
+            public_teardown_call_request: CallRequest::empty()
         }
     }
 }

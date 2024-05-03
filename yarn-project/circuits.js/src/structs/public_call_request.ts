@@ -132,4 +132,18 @@ export class PublicCallRequest {
   getArgsHash() {
     return computeVarArgsHash(this.args);
   }
+
+  static empty() {
+    return new PublicCallRequest(AztecAddress.ZERO, FunctionData.empty(), CallContext.empty(), CallContext.empty(), []);
+  }
+
+  isEmpty(): boolean {
+    return (
+      this.contractAddress.isZero() &&
+      this.functionData.isEmpty() &&
+      this.callContext.isEmpty() &&
+      this.parentCallContext.isEmpty() &&
+      this.args.length === 0
+    );
+  }
 }

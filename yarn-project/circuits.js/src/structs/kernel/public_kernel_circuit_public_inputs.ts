@@ -3,6 +3,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { inspect } from 'util';
 
 import { AggregationObject } from '../aggregation_object.js';
+import { CallRequest } from '../call_request.js';
 import { RevertCode } from '../revert_code.js';
 import { ValidationRequests } from '../validation_requests.js';
 import { CombinedConstantData } from './combined_constant_data.js';
@@ -38,6 +39,10 @@ export class PublicKernelCircuitPublicInputs {
      * Indicates whether execution of the public circuit reverted.
      */
     public revertCode: RevertCode,
+    /**
+     * The call request for the public teardown function
+     */
+    public publicTeardownCallRequest: CallRequest,
   ) {}
 
   toBuffer() {
@@ -48,6 +53,7 @@ export class PublicKernelCircuitPublicInputs {
       this.end,
       this.constants,
       this.revertCode,
+      this.publicTeardownCallRequest,
     );
   }
 
@@ -85,6 +91,7 @@ export class PublicKernelCircuitPublicInputs {
       reader.readObject(PublicAccumulatedData),
       reader.readObject(CombinedConstantData),
       reader.readObject(RevertCode),
+      reader.readObject(CallRequest),
     );
   }
 
@@ -96,6 +103,7 @@ export class PublicKernelCircuitPublicInputs {
       PublicAccumulatedData.empty(),
       CombinedConstantData.empty(),
       RevertCode.OK,
+      CallRequest.empty(),
     );
   }
 
@@ -106,7 +114,8 @@ export class PublicKernelCircuitPublicInputs {
       endNonRevertibleData: ${inspect(this.endNonRevertibleData)},
       end: ${inspect(this.end)},
       constants: ${inspect(this.constants)},
-      revertCode: ${this.revertCode}
+      revertCode: ${this.revertCode},
+      publicTeardownCallRequest: ${inspect(this.publicTeardownCallRequest)}
       }`;
   }
 }

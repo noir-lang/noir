@@ -6,7 +6,8 @@ use crate::{
     private_kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs
 },
-    gas::Gas, validation_requests::validation_requests_builder::ValidationRequestsBuilder
+    gas::Gas, validation_requests::validation_requests_builder::ValidationRequestsBuilder,
+    call_request::CallRequest
 },
     mocked::AggregationObject, partial_state_reference::PartialStateReference, traits::Empty
 };
@@ -21,6 +22,7 @@ struct PrivateKernelCircuitPublicInputsBuilder {
     validation_requests: ValidationRequestsBuilder,
     end: PrivateAccumulatedDataBuilder,
     constants: CombinedConstantData,
+    public_teardown_call_request: CallRequest,
 }
 
 impl PrivateKernelCircuitPublicInputsBuilder {
@@ -30,7 +32,8 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             validation_requests: self.validation_requests.finish(),
             end: self.end.finish(),
-            constants: self.constants
+            constants: self.constants,
+            public_teardown_call_request: self.public_teardown_call_request
         }
     }
 
@@ -58,7 +61,8 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             end_non_revertible,
             end,
             constants: self.constants,
-            revert_code: 0
+            revert_code: 0,
+            public_teardown_call_request: self.public_teardown_call_request
         }
     }
 }
@@ -71,6 +75,7 @@ impl Empty for PrivateKernelCircuitPublicInputsBuilder {
             validation_requests: ValidationRequestsBuilder::empty(),
             end: PrivateAccumulatedDataBuilder::empty(),
             constants: CombinedConstantData::empty(),
+            public_teardown_call_request: CallRequest::empty()
         }
     }
 }

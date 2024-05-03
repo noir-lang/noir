@@ -7,7 +7,7 @@ import {
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
   Proof,
-  type PublicCallRequest,
+  PublicCallRequest,
   SideEffect,
   computeContractClassId,
   getContractClassFromArtifact,
@@ -46,11 +46,13 @@ export const mockTx = (
     numberOfNonRevertiblePublicCallRequests = MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX / 2,
     numberOfRevertiblePublicCallRequests = MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX / 2,
     publicCallRequests = [],
+    publicTeardownCallRequest = PublicCallRequest.empty(),
   }: {
     hasLogs?: boolean;
     numberOfNonRevertiblePublicCallRequests?: number;
     numberOfRevertiblePublicCallRequests?: number;
     publicCallRequests?: PublicCallRequest[];
+    publicTeardownCallRequest?: PublicCallRequest;
   } = {},
 ) => {
   const totalPublicCallRequests =
@@ -78,11 +80,17 @@ export const mockTx = (
       ? publicCallRequests.slice().sort((a, b) => b.callContext.sideEffectCounter - a.callContext.sideEffectCounter)
       : times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x100 + i));
 
+    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
+      i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
+    );
     data.forPublic.endNonRevertibleData.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
       i < numberOfNonRevertiblePublicCallRequests
         ? publicCallRequests[numberOfRevertiblePublicCallRequests + i].toCallRequest()
         : CallRequest.empty(),
     );
+
+    data.forPublic.publicTeardownCallRequest = publicTeardownCallRequest.toCallRequest();
+
     if (hasLogs) {
       let i = 1; // 0 used in first nullifier
       encryptedLogs.functionLogs.forEach((log, j) => {
@@ -97,17 +105,20 @@ export const mockTx = (
         }
       });
     }
-
-    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-      i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
-    );
   } else {
     data.forRollup!.end.newNullifiers[0] = firstNullifier.value;
     data.forRollup!.end.encryptedLogsHash = Fr.fromBuffer(encryptedLogs.hash());
     data.forRollup!.end.unencryptedLogsHash = Fr.fromBuffer(unencryptedLogs.hash());
   }
 
-  const tx = new Tx(data, new Proof(Buffer.alloc(0)), encryptedLogs, unencryptedLogs, publicCallRequests);
+  const tx = new Tx(
+    data,
+    new Proof(Buffer.alloc(0)),
+    encryptedLogs,
+    unencryptedLogs,
+    publicCallRequests,
+    publicTeardownCallRequest,
+  );
 
   return tx;
 };

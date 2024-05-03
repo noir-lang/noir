@@ -1251,6 +1251,7 @@ export function mapPublicKernelCircuitPublicInputsToNoir(
     end: mapPublicAccumulatedDataToNoir(inputs.end),
     end_non_revertible: mapPublicAccumulatedDataToNoir(inputs.endNonRevertibleData),
     revert_code: mapRevertCodeToNoir(inputs.revertCode),
+    public_teardown_call_request: mapCallRequestToNoir(inputs.publicTeardownCallRequest),
   };
 }
 
@@ -1317,6 +1318,7 @@ export function mapPrivateKernelCircuitPublicInputsFromNoir(
     mapValidationRequestsFromNoir(inputs.validation_requests),
     mapPrivateAccumulatedDataFromNoir(inputs.end),
     mapCombinedConstantDataFromNoir(inputs.constants),
+    mapCallRequestFromNoir(inputs.public_teardown_call_request),
   );
 }
 
@@ -1329,6 +1331,7 @@ export function mapPrivateKernelCircuitPublicInputsToNoir(
     validation_requests: mapValidationRequestsToNoir(inputs.validationRequests),
     end: mapPrivateAccumulatedDataToNoir(inputs.end),
     min_revertible_side_effect_counter: mapFieldToNoir(inputs.minRevertibleSideEffectCounter),
+    public_teardown_call_request: mapCallRequestToNoir(inputs.publicTeardownCallRequest),
   };
 }
 
@@ -1370,6 +1373,7 @@ export function mapPrivateKernelTailCircuitPublicInputsForPublicFromNoir(
     mapValidationRequestsFromNoir(inputs.validation_requests),
     mapPublicAccumulatedDataFromNoir(inputs.end_non_revertible),
     mapPublicAccumulatedDataFromNoir(inputs.end),
+    mapCallRequestFromNoir(inputs.public_teardown_call_request),
   );
   return new PrivateKernelTailCircuitPublicInputs(
     AggregationObject.makeFake(),
@@ -1487,6 +1491,7 @@ export function mapPublicKernelCircuitPublicInputsFromNoir(
     mapPublicAccumulatedDataFromNoir(inputs.end),
     mapCombinedConstantDataFromNoir(inputs.constants),
     mapRevertCodeFromNoir(inputs.revert_code),
+    mapCallRequestFromNoir(inputs.public_teardown_call_request),
   );
 }
 

@@ -48,7 +48,7 @@ PrivateCircuitPublicInputs --> Header
 class PrivateKernelCircuitPublicInputs {
     +u32 min_revertible_side_effect_counter
     +AztecAddress fee_payer
-    +Field public_teardown_function_hash
+    +CallRequest public_teardown_call_request
     +PrivateAccumulatedData end
     +CombinedConstantData constants
 }
@@ -208,6 +208,7 @@ It must:
 - compute gas used for the revertible and non-revertible. Both sets can have a DA component, but the revertible set will also include the teardown gas allocations the user specified (if any). This ensures that the user effectively pre-pays for the gas consumed in teardown.
 - ensure the gas used (across revertible and non-revertible) is less than the gas limits
 - ensure that `fee_payer` is set, and set it in the `PublicKernelCircuitPublicInputs`
+- set the `public_teardown_call_request` in the `PublicKernelCircuitPublicInputs`
 - copy the constants from the `PrivateKernelData` to the `PublicKernelCircuitPublicInputs.constants`
 
 # Mempool/Node Validation
@@ -292,7 +293,8 @@ class PublicKernelCircuitPublicInputs {
   +PublicAccumulatedData end_non_revertible
   +PublicAccumulatedData end
   +CombinedConstantData constants
-  +PublicConstantData public_constants
+  +AztecAddress fee_payer
+  +CallRequest public_teardown_call_request
   +u8 revert_code
 }
 PublicKernelCircuitPublicInputs --> PublicAccumulatedData
@@ -302,11 +304,6 @@ class CombinedConstantData {
     +Header historical_header
     +TxContext tx_context
     +GlobalVariables global_variables
-}
-
-class PublicConstantData {
-    +AztecAddress fee_payer
-    +Field public_teardown_function_hash
 }
 
 class PublicAccumulatedData {

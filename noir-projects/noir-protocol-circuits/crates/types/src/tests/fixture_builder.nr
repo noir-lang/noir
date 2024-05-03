@@ -34,6 +34,7 @@ struct FixtureBuilder {
     historical_header: Header,
     tx_context: TxContext,
     global_variables: GlobalVariables,
+    public_teardown_call_request: CallRequest,
     
     // Accumulated data.
     new_note_hashes: BoundedVec<NoteHashContext, MAX_NEW_NOTE_HASHES_PER_TX>,
@@ -111,7 +112,8 @@ impl FixtureBuilder {
             start_state: PartialStateReference::empty(),
             gas_used: Gas::empty(),
             non_revertible_gas_used: Gas::empty(),
-            global_variables: GlobalVariables::empty()
+            global_variables: GlobalVariables::empty(),
+            public_teardown_call_request: CallRequest::empty()
         }
     }
 
@@ -189,7 +191,8 @@ impl FixtureBuilder {
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             end,
             validation_requests,
-            constants
+            constants,
+            public_teardown_call_request: self.public_teardown_call_request
         }
     }
 
@@ -219,7 +222,8 @@ impl FixtureBuilder {
             end,
             validation_requests,
             constants,
-            revert_code: self.revert_code
+            revert_code: self.revert_code,
+            public_teardown_call_request: self.public_teardown_call_request
         }
     }
 
@@ -479,6 +483,7 @@ impl Empty for FixtureBuilder {
             start_state: PartialStateReference::empty(),
             gas_used: Gas::empty(),
             non_revertible_gas_used: Gas::empty(),
+            public_teardown_call_request: CallRequest::empty()
         }
     }
 }
