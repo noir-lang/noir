@@ -132,7 +132,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
       signal.addEventListener('abort', () => reject(new AbortedError('Operation has been aborted')));
     }
 
-    this.log.info(
+    this.log.debug(
       `Adding id=${item.id} type=${ProvingRequestType[request.type]} proving job to queue depth=${this.queue.length()}`,
     );
     // TODO (alexg) remove the `any`

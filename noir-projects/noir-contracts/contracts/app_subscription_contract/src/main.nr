@@ -31,6 +31,7 @@ contract AppSubscription {
         subscription_price: SharedImmutable<Field>,
         subscriptions: Map<AztecAddress, PrivateMutable<SubscriptionNote>>,
         gas_token_address: SharedImmutable<AztecAddress>,
+        gas_token_limit_per_tx: SharedImmutable<Field>,
     }
 
     global SUBSCRIPTION_DURATION_IN_BLOCKS = 5;
@@ -47,7 +48,8 @@ contract AppSubscription {
         note.remaining_txs -= 1;
         storage.subscriptions.at(user_address).replace(&mut note, true);
 
-        GasToken::at(storage.gas_token_address.read_private()).pay_fee(42).enqueue(&mut context);
+        let gas_limit = storage.gas_token_limit_per_tx.read_private();
+        GasToken::at(storage.gas_token_address.read_private()).pay_fee(gas_limit).enqueue(&mut context);
 
         context.end_setup();
 
@@ -63,14 +65,15 @@ contract AppSubscription {
         subscription_recipient_address: AztecAddress,
         subscription_token_address: AztecAddress,
         subscription_price: Field,
-        gas_token_address: AztecAddress
+        gas_token_address: AztecAddress,
+        gas_token_limit_per_tx: Field
     ) {
         storage.target_address.initialize(target_address);
         storage.subscription_token_address.initialize(subscription_token_address);
         storage.subscription_recipient_address.initialize(subscription_recipient_address);
         storage.subscription_price.initialize(subscription_price);
-
         storage.gas_token_address.initialize(gas_token_address);
+        storage.gas_token_limit_per_tx.initialize(gas_token_limit_per_tx);
     }
 
     #[aztec(public)]

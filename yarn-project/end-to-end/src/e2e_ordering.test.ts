@@ -7,10 +7,12 @@ import { jest } from '@jest/globals';
 
 import { setup } from './fixtures/utils.js';
 
-jest.setTimeout(30_000);
+const TIMEOUT = 300_000;
 
 // See https://github.com/AztecProtocol/aztec-packages/issues/1601
 describe('e2e_ordering', () => {
+  jest.setTimeout(TIMEOUT);
+
   let pxe: PXE;
   let wallet: Wallet;
   let teardown: () => Promise<void>;
@@ -29,7 +31,7 @@ describe('e2e_ordering', () => {
 
   beforeEach(async () => {
     ({ teardown, pxe, wallet } = await setup());
-  }, 200_000);
+  }, TIMEOUT);
 
   afterEach(() => teardown());
 
@@ -42,7 +44,7 @@ describe('e2e_ordering', () => {
       parent = await ParentContract.deploy(wallet).send().deployed();
       child = await ChildContract.deploy(wallet).send().deployed();
       pubSetValueSelector = child.methods.pub_set_value.selector;
-    });
+    }, TIMEOUT);
 
     describe('enqueued public calls ordering', () => {
       const nestedValue = 10n;

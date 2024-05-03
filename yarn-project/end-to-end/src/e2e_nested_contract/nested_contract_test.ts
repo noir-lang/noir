@@ -9,16 +9,17 @@ import {
 import { ChildContract, ParentContract } from '@aztec/noir-contracts.js';
 
 import {
-  SnapshotManager,
+  type ISnapshotManager,
   type SubsystemsContext,
   addAccounts,
+  createSnapshotManager,
   publicDeployAccounts,
 } from '../fixtures/snapshot_manager.js';
 
 const { E2E_DATA_PATH: dataPath } = process.env;
 
 export class NestedContractTest {
-  private snapshotManager: SnapshotManager;
+  private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
   wallets: AccountWallet[] = [];
   accounts: CompleteAddress[] = [];
@@ -29,7 +30,7 @@ export class NestedContractTest {
 
   constructor(testName: string) {
     this.logger = createDebugLogger(`aztec:e2e_nested_contract:${testName}`);
-    this.snapshotManager = new SnapshotManager(`e2e_nested_contract/${testName}`, dataPath);
+    this.snapshotManager = createSnapshotManager(`e2e_nested_contract/${testName}`, dataPath);
   }
 
   /**

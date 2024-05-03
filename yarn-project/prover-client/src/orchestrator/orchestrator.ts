@@ -197,7 +197,7 @@ export class ProvingOrchestrator {
     }
 
     // we need to pad the rollup with empty transactions
-    logger.info(
+    logger.debug(
       `Padding rollup with ${
         this.provingState.totalNumTxs - this.provingState.transactionsReceived
       } empty transactions`,

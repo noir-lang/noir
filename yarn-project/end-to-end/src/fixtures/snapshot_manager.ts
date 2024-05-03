@@ -12,7 +12,7 @@ import {
 } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import { asyncMap } from '@aztec/foundation/async-map';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
 import { resolver, reviver } from '@aztec/foundation/serialize';
 import { type PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
@@ -43,14 +43,72 @@ type SnapshotEntry = {
   snapshotPath: string;
 };
 
-export class SnapshotManager {
+export function createSnapshotManager(testName: string, dataPath?: string) {
+  return dataPath ? new SnapshotManager(testName, dataPath) : new MockSnapshotManager(testName);
+}
+
+export interface ISnapshotManager {
+  snapshot<T>(
+    name: string,
+    apply: (context: SubsystemsContext) => Promise<T>,
+    restore?: (snapshotData: T, context: SubsystemsContext) => Promise<void>,
+  ): Promise<void>;
+
+  setup(): Promise<SubsystemsContext>;
+
+  teardown(): Promise<void>;
+}
+
+/** Snapshot manager that does not perform snapshotting, it just applies transition and restoration functions as it receives them. */
+class MockSnapshotManager implements ISnapshotManager {
+  private context?: SubsystemsContext;
+  private logger: DebugLogger;
+
+  constructor(testName: string) {
+    this.logger = createDebugLogger(`aztec:snapshot_manager:${testName}`);
+    this.logger.warn(`No data path given, will not persist any snapshots.`);
+  }
+
+  public async snapshot<T>(
+    name: string,
+    apply: (context: SubsystemsContext) => Promise<T>,
+    restore: (snapshotData: T, context: SubsystemsContext) => Promise<void> = () => Promise.resolve(),
+  ) {
+    // We are running in disabled mode. Just apply the state.
+    const context = await this.setup();
+    this.logger.verbose(`Applying state transition for ${name}...`);
+    const snapshotData = await apply(context);
+    this.logger.verbose(`State transition for ${name} complete.`);
+    // Execute the restoration function.
+    await restore(snapshotData, context);
+    return;
+  }
+
+  public async setup() {
+    if (!this.context) {
+      this.context = await setupFromFresh(undefined, this.logger);
+    }
+    return this.context;
+  }
+
+  public async teardown() {
+    await teardown(this.context);
+    this.context = undefined;
+  }
+}
+
+/**
+ * Snapshot engine for local e2e tests. Read more:
+ * https://github.com/AztecProtocol/aztec-packages/pull/5526
+ */
+class SnapshotManager implements ISnapshotManager {
   private snapshotStack: SnapshotEntry[] = [];
   private context?: SubsystemsContext;
   private livePath: string;
   private logger: DebugLogger;
 
-  constructor(testName: string, private dataPath?: string) {
-    this.livePath = this.dataPath ? join(this.dataPath, 'live', testName) : '';
+  constructor(testName: string, private dataPath: string) {
+    this.livePath = join(this.dataPath, 'live', testName);
     this.logger = createDebugLogger(`aztec:snapshot_manager:${testName}`);
   }
 
@@ -59,18 +117,6 @@ export class SnapshotManager {
     apply: (context: SubsystemsContext) => Promise<T>,
     restore: (snapshotData: T, context: SubsystemsContext) => Promise<void> = () => Promise.resolve(),
   ) {
-    if (!this.dataPath) {
-      // We are running in disabled mode. Just apply the state.
-      this.logger.verbose(`No data path given, will not persist any snapshots.`);
-      this.context = await this.setupFromFresh();
-      this.logger.verbose(`Applying state transition for ${name}...`);
-      const snapshotData = await apply(this.context);
-      this.logger.verbose(`State transition for ${name} complete.`);
-      // Execute the restoration function.
-      await restore(snapshotData, this.context);
-      return;
-    }
-
     const snapshotPath = join(this.dataPath, 'snapshots', ...this.snapshotStack.map(e => e.name), name, 'snapshot');
 
     if (existsSync(snapshotPath)) {
@@ -82,24 +128,21 @@ export class SnapshotManager {
     }
 
     // Snapshot didn't exist at snapshotPath, and by definition none of the child snapshots can exist.
-
-    if (!this.context) {
-      // We have no subsystem context yet, create it from the top of the snapshot stack (if it exists).
-      this.context = await this.setup();
-    }
+    // If we have no subsystem context yet, create it from the top of the snapshot stack (if it exists).
+    const context = await this.setup();
 
     this.snapshotStack.push({ name, apply, restore, snapshotPath });
 
     // Apply current state transition.
     this.logger.verbose(`Applying state transition for ${name}...`);
-    const snapshotData = await apply(this.context);
+    const snapshotData = await apply(context);
     this.logger.verbose(`State transition for ${name} complete.`);
 
     // Execute the restoration function.
-    await restore(snapshotData, this.context);
+    await restore(snapshotData, context);
 
     // Save the snapshot data.
-    const ethCheatCodes = new EthCheatCodes(this.context.aztecNodeConfig.rpcUrl);
+    const ethCheatCodes = new EthCheatCodes(context.aztecNodeConfig.rpcUrl);
     const anvilStateFile = `${this.livePath}/anvil.dat`;
     await ethCheatCodes.dumpChainState(anvilStateFile);
     writeFileSync(`${this.livePath}/${name}.json`, JSON.stringify(snapshotData || {}, resolver));
@@ -132,7 +175,7 @@ export class SnapshotManager {
       if (previousSnapshotPath) {
         this.logger.verbose(`Copying snapshot from ${previousSnapshotPath} to ${this.livePath}...`);
         copySync(previousSnapshotPath, this.livePath);
-        this.context = await this.setupFromState(this.livePath);
+        this.context = await setupFromState(this.livePath, this.logger);
         // Execute each of the previous snapshots restoration functions in turn.
         await asyncMap(this.snapshotStack, async e => {
           const snapshotData = JSON.parse(readFileSync(`${e.snapshotPath}/${e.name}.json`, 'utf-8'), reviver);
@@ -141,7 +184,7 @@ export class SnapshotManager {
           this.logger.verbose(`Restoration of ${e.name} complete.`);
         });
       } else {
-        this.context = await this.setupFromFresh(this.livePath);
+        this.context = await setupFromFresh(this.livePath, this.logger);
       }
     }
     return this.context;
@@ -151,128 +194,135 @@ export class SnapshotManager {
    * Destroys the current subsystem context.
    */
   public async teardown() {
-    if (!this.context) {
-      return;
-    }
-    await this.context.aztecNode.stop();
-    await this.context.pxe.stop();
-    await this.context.acvmConfig?.cleanup();
-    await this.context.anvil.stop();
+    await teardown(this.context);
     this.context = undefined;
     removeSync(this.livePath);
   }
+}
 
-  /**
-   * Initializes a fresh set of subsystems.
-   * If given a statePath, the state will be written to the path.
-   * If there is no statePath, in-memory and temporary state locations will be used.
-   */
-  private async setupFromFresh(statePath?: string): Promise<SubsystemsContext> {
-    this.logger.verbose(`Initializing state...`);
+/**
+ * Destroys the current subsystem context.
+ */
+async function teardown(context: SubsystemsContext | undefined) {
+  if (!context) {
+    return;
+  }
+  await context.aztecNode.stop();
+  await context.pxe.stop();
+  await context.acvmConfig?.cleanup();
+  await context.anvil.stop();
+}
 
-    // Fetch the AztecNode config.
-    // TODO: For some reason this is currently the union of a bunch of subsystems. That needs fixing.
-    const aztecNodeConfig: AztecNodeConfig = getConfigEnvVars();
-    aztecNodeConfig.dataDirectory = statePath;
+/**
+ * Initializes a fresh set of subsystems.
+ * If given a statePath, the state will be written to the path.
+ * If there is no statePath, in-memory and temporary state locations will be used.
+ */
+async function setupFromFresh(statePath: string | undefined, logger: Logger): Promise<SubsystemsContext> {
+  logger.verbose(`Initializing state...`);
 
-    // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
-    this.logger.verbose('Starting anvil...');
-    const anvil = await retry(
-      async () => {
-        const ethereumHostPort = await getPort();
-        aztecNodeConfig.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
-        const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
-        await anvil.start();
-        return anvil;
-      },
-      'Start anvil',
-      makeBackoff([5, 5, 5]),
-    );
+  // Fetch the AztecNode config.
+  // TODO: For some reason this is currently the union of a bunch of subsystems. That needs fixing.
+  const aztecNodeConfig: AztecNodeConfig = getConfigEnvVars();
+  aztecNodeConfig.dataDirectory = statePath;
 
-    // Deploy our L1 contracts.
-    this.logger.verbose('Deploying L1 contracts...');
-    const hdAccount = mnemonicToAccount(MNEMONIC);
-    const privKeyRaw = hdAccount.getHdKey().privateKey;
-    const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
-    const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, this.logger);
-    aztecNodeConfig.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
-    aztecNodeConfig.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
-    aztecNodeConfig.l1BlockPublishRetryIntervalMS = 100;
+  // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
+  logger.verbose('Starting anvil...');
+  const anvil = await retry(
+    async () => {
+      const ethereumHostPort = await getPort();
+      aztecNodeConfig.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
+      const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+      await anvil.start();
+      return anvil;
+    },
+    'Start anvil',
+    makeBackoff([5, 5, 5]),
+  );
 
-    const acvmConfig = await getACVMConfig(this.logger);
-    if (acvmConfig) {
-      aztecNodeConfig.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
-      aztecNodeConfig.acvmBinaryPath = acvmConfig.expectedAcvmPath;
-    }
+  // Deploy our L1 contracts.
+  logger.verbose('Deploying L1 contracts...');
+  const hdAccount = mnemonicToAccount(MNEMONIC);
+  const privKeyRaw = hdAccount.getHdKey().privateKey;
+  const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
+  const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, logger);
+  aztecNodeConfig.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
+  aztecNodeConfig.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
+  aztecNodeConfig.l1BlockPublishRetryIntervalMS = 100;
 
-    this.logger.verbose('Creating and synching an aztec node...');
-    const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
-
-    this.logger.verbose('Creating pxe...');
-    const pxeConfig = getPXEServiceConfig();
-    pxeConfig.dataDirectory = statePath;
-    const pxe = await createPXEService(aztecNode, pxeConfig);
-
-    if (statePath) {
-      writeFileSync(`${statePath}/aztec_node_config.json`, JSON.stringify(aztecNodeConfig));
-    }
-
-    return {
-      aztecNodeConfig,
-      anvil,
-      aztecNode,
-      pxe,
-      acvmConfig,
-    };
+  const acvmConfig = await getACVMConfig(logger);
+  if (acvmConfig) {
+    aztecNodeConfig.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
+    aztecNodeConfig.acvmBinaryPath = acvmConfig.expectedAcvmPath;
   }
 
-  /**
-   * Given a statePath, setup the system starting from that state.
-   */
-  private async setupFromState(statePath: string): Promise<SubsystemsContext> {
-    this.logger.verbose(`Initializing with saved state at ${statePath}...`);
+  logger.verbose('Creating and synching an aztec node...');
+  const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
 
-    // Load config.
-    // TODO: For some reason this is currently the union of a bunch of subsystems. That needs fixing.
-    const aztecNodeConfig: AztecNodeConfig = JSON.parse(
-      readFileSync(`${statePath}/aztec_node_config.json`, 'utf-8'),
-      reviver,
-    );
-    aztecNodeConfig.dataDirectory = statePath;
+  logger.verbose('Creating pxe...');
+  const pxeConfig = getPXEServiceConfig();
+  pxeConfig.dataDirectory = statePath;
+  const pxe = await createPXEService(aztecNode, pxeConfig);
 
-    // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
-    const ethereumHostPort = await getPort();
-    aztecNodeConfig.rpcUrl = `http://localhost:${ethereumHostPort}`;
-    const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
-    await anvil.start();
-    // Load anvil state.
-    const anvilStateFile = `${statePath}/anvil.dat`;
-    const ethCheatCodes = new EthCheatCodes(aztecNodeConfig.rpcUrl);
-    await ethCheatCodes.loadChainState(anvilStateFile);
-
-    // TODO: Encapsulate this in a NativeAcvm impl.
-    const acvmConfig = await getACVMConfig(this.logger);
-    if (acvmConfig) {
-      aztecNodeConfig.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
-      aztecNodeConfig.acvmBinaryPath = acvmConfig.expectedAcvmPath;
-    }
-
-    this.logger.verbose('Creating aztec node...');
-    const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
-
-    this.logger.verbose('Creating pxe...');
-    const pxeConfig = getPXEServiceConfig();
-    pxeConfig.dataDirectory = statePath;
-    const pxe = await createPXEService(aztecNode, pxeConfig);
-
-    return {
-      aztecNodeConfig,
-      anvil,
-      aztecNode,
-      pxe,
-      acvmConfig,
-    };
+  if (statePath) {
+    writeFileSync(`${statePath}/aztec_node_config.json`, JSON.stringify(aztecNodeConfig));
   }
+
+  return {
+    aztecNodeConfig,
+    anvil,
+    aztecNode,
+    pxe,
+    acvmConfig,
+  };
+}
+
+/**
+ * Given a statePath, setup the system starting from that state.
+ */
+async function setupFromState(statePath: string, logger: Logger): Promise<SubsystemsContext> {
+  logger.verbose(`Initializing with saved state at ${statePath}...`);
+
+  // Load config.
+  // TODO: For some reason this is currently the union of a bunch of subsystems. That needs fixing.
+  const aztecNodeConfig: AztecNodeConfig = JSON.parse(
+    readFileSync(`${statePath}/aztec_node_config.json`, 'utf-8'),
+    reviver,
+  );
+  aztecNodeConfig.dataDirectory = statePath;
+
+  // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
+  const ethereumHostPort = await getPort();
+  aztecNodeConfig.rpcUrl = `http://localhost:${ethereumHostPort}`;
+  const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+  await anvil.start();
+  // Load anvil state.
+  const anvilStateFile = `${statePath}/anvil.dat`;
+  const ethCheatCodes = new EthCheatCodes(aztecNodeConfig.rpcUrl);
+  await ethCheatCodes.loadChainState(anvilStateFile);
+
+  // TODO: Encapsulate this in a NativeAcvm impl.
+  const acvmConfig = await getACVMConfig(logger);
+  if (acvmConfig) {
+    aztecNodeConfig.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
+    aztecNodeConfig.acvmBinaryPath = acvmConfig.expectedAcvmPath;
+  }
+
+  logger.verbose('Creating aztec node...');
+  const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
+
+  logger.verbose('Creating pxe...');
+  const pxeConfig = getPXEServiceConfig();
+  pxeConfig.dataDirectory = statePath;
+  const pxe = await createPXEService(aztecNode, pxeConfig);
+
+  return {
+    aztecNodeConfig,
+    anvil,
+    aztecNode,
+    pxe,
+    acvmConfig,
+  };
 }
 
 /**

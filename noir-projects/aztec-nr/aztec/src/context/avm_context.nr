@@ -78,6 +78,11 @@ impl PublicContextInterface for AvmContext {
         0
     }
 
+    fn transaction_fee(self) -> Field {
+        assert(false, "'transaction_fee' not implemented!");
+        0
+    }
+
     fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool {
         nullifier_exists(unsiloed_nullifier, address.to_field()) == 1
     }

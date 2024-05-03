@@ -17,7 +17,7 @@ describe('e2e_public_cross_chain_messaging failures', () => {
     ({ crossChainTestHarness, user1Wallet, user2Wallet } = t);
     ethAccount = crossChainTestHarness.ethAccount;
     l2Bridge = crossChainTestHarness.l2Bridge;
-  }, 200_000);
+  }, 300_000);
 
   afterAll(async () => {
     await t.teardown();

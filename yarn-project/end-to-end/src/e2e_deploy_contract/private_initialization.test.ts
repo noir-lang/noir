@@ -29,7 +29,6 @@ describe('e2e_deploy_contract private initialization', () => {
       const expected = siloNullifier(contract.address, new Fr(10));
       expect(receipt.debugInfo?.nullifiers[1]).toEqual(expected);
     },
-    30_000,
   );
 
   // Tests privately initializing an undeployed contract. Also requires pxe registration in advance.
@@ -51,7 +50,6 @@ describe('e2e_deploy_contract private initialization', () => {
       await contract.methods.create_note(owner, 10).send().wait();
       expect(await contract.methods.summed_values(owner).simulate()).toEqual(52n);
     },
-    30_000,
   );
 
   // Tests privately initializing multiple undeployed contracts on the same tx through an account contract.

@@ -19,9 +19,10 @@ import * as fs from 'fs/promises';
 
 import { waitRegisteredAccountSynced } from '../benchmarks/utils.js';
 import {
-  SnapshotManager,
+  type ISnapshotManager,
   type SubsystemsContext,
   addAccounts,
+  createSnapshotManager,
   publicDeployAccounts,
 } from '../fixtures/snapshot_manager.js';
 import { getBBConfig, setupPXEService } from '../fixtures/utils.js';
@@ -42,7 +43,7 @@ export class ClientProverTest {
   static TOKEN_NAME = 'Aztec Token';
   static TOKEN_SYMBOL = 'AZT';
   static TOKEN_DECIMALS = 18n;
-  private snapshotManager: SnapshotManager;
+  private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
   keys: Array<[Fr, Fq]> = [];
   wallets: AccountWalletWithSecretKey[] = [];
@@ -59,7 +60,7 @@ export class ClientProverTest {
 
   constructor(testName: string) {
     this.logger = createDebugLogger(`aztec:client_prover_test:${testName}`);
-    this.snapshotManager = new SnapshotManager(`client_prover_integration/${testName}`, dataPath);
+    this.snapshotManager = createSnapshotManager(`client_prover_integration/${testName}`, dataPath);
   }
 
   /**

@@ -54,6 +54,7 @@ trait PublicContextInterface {
         args: [Field]
     ) -> FunctionReturns<RETURNS_COUNT>;
     fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool;
+    fn transaction_fee(self) -> Field;
 }
 
 struct PrivateCallInterface<T> {

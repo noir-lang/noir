@@ -13,9 +13,10 @@ import {
 import { DocsExampleContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import {
-  SnapshotManager,
+  type ISnapshotManager,
   type SubsystemsContext,
   addAccounts,
+  createSnapshotManager,
   publicDeployAccounts,
 } from '../fixtures/snapshot_manager.js';
 import { TokenSimulator } from '../simulators/token_simulator.js';
@@ -26,7 +27,7 @@ export class TokenContractTest {
   static TOKEN_NAME = 'Aztec Token';
   static TOKEN_SYMBOL = 'AZT';
   static TOKEN_DECIMALS = 18n;
-  private snapshotManager: SnapshotManager;
+  private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
   wallets: AccountWallet[] = [];
   accounts: CompleteAddress[] = [];
@@ -36,7 +37,7 @@ export class TokenContractTest {
 
   constructor(testName: string) {
     this.logger = createDebugLogger(`aztec:e2e_token_contract:${testName}`);
-    this.snapshotManager = new SnapshotManager(`e2e_token_contract/${testName}`, dataPath);
+    this.snapshotManager = createSnapshotManager(`e2e_token_contract/${testName}`, dataPath);
   }
 
   /**

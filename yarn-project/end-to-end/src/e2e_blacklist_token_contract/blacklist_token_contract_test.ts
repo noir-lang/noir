@@ -13,9 +13,10 @@ import {
 import { DocsExampleContract, TokenBlacklistContract, type TokenContract } from '@aztec/noir-contracts.js';
 
 import {
-  SnapshotManager,
+  type ISnapshotManager,
   type SubsystemsContext,
   addAccounts,
+  createSnapshotManager,
   publicDeployAccounts,
 } from '../fixtures/snapshot_manager.js';
 import { TokenSimulator } from '../simulators/token_simulator.js';
@@ -54,7 +55,7 @@ export class BlacklistTokenContractTest {
   // This value MUST match the same value that we have in the contract
   static DELAY = 2;
 
-  private snapshotManager: SnapshotManager;
+  private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
   wallets: AccountWallet[] = [];
   accounts: CompleteAddress[] = [];
@@ -68,7 +69,7 @@ export class BlacklistTokenContractTest {
 
   constructor(testName: string) {
     this.logger = createDebugLogger(`aztec:e2e_blacklist_token_contract:${testName}`);
-    this.snapshotManager = new SnapshotManager(`e2e_blacklist_token_contract/${testName}`, dataPath);
+    this.snapshotManager = createSnapshotManager(`e2e_blacklist_token_contract/${testName}`, dataPath);
   }
 
   async mineBlocks(amount: number = BlacklistTokenContractTest.DELAY) {

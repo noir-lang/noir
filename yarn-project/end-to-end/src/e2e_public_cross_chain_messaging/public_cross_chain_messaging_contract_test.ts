@@ -10,26 +10,18 @@ import {
   type PXE,
   createDebugLogger,
 } from '@aztec/aztec.js';
+import { createL1Clients } from '@aztec/ethereum';
 import { InboxAbi, OutboxAbi, PortalERC20Abi, TokenPortalAbi } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts.js';
 
-import {
-  type Chain,
-  type HttpTransport,
-  type PublicClient,
-  createPublicClient,
-  createWalletClient,
-  getContract,
-  http,
-} from 'viem';
-import { mnemonicToAccount } from 'viem/accounts';
-import { foundry } from 'viem/chains';
+import { type Chain, type HttpTransport, type PublicClient, getContract } from 'viem';
 
 import { MNEMONIC } from '../fixtures/fixtures.js';
 import {
-  SnapshotManager,
+  type ISnapshotManager,
   type SubsystemsContext,
   addAccounts,
+  createSnapshotManager,
   publicDeployAccounts,
 } from '../fixtures/snapshot_manager.js';
 import { CrossChainTestHarness } from '../shared/cross_chain_test_harness.js';
@@ -37,7 +29,7 @@ import { CrossChainTestHarness } from '../shared/cross_chain_test_harness.js';
 const { E2E_DATA_PATH: dataPath } = process.env;
 
 export class PublicCrossChainMessagingContractTest {
-  private snapshotManager: SnapshotManager;
+  private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
   wallets: AccountWallet[] = [];
   accounts: CompleteAddress[] = [];
@@ -60,7 +52,7 @@ export class PublicCrossChainMessagingContractTest {
 
   constructor(testName: string) {
     this.logger = createDebugLogger(`aztec:e2e_public_cross_chain_messaging:${testName}`);
-    this.snapshotManager = new SnapshotManager(`e2e_public_cross_chain_messaging/${testName}`, dataPath);
+    this.snapshotManager = createSnapshotManager(`e2e_public_cross_chain_messaging/${testName}`, dataPath);
   }
 
   async setup() {
@@ -78,22 +70,6 @@ export class PublicCrossChainMessagingContractTest {
 
   async teardown() {
     await this.snapshotManager.teardown();
-  }
-
-  viemStuff(rpcUrl: string) {
-    const hdAccount = mnemonicToAccount(MNEMONIC);
-
-    const walletClient = createWalletClient({
-      account: hdAccount,
-      chain: foundry,
-      transport: http(rpcUrl),
-    });
-    const publicClient = createPublicClient({
-      chain: foundry,
-      transport: http(rpcUrl),
-    });
-
-    return { walletClient, publicClient };
   }
 
   async applyBaseSnapshots() {
@@ -126,7 +102,7 @@ export class PublicCrossChainMessagingContractTest {
         this.logger.verbose(`Public deploy accounts...`);
         await publicDeployAccounts(this.wallets[0], this.accounts.slice(0, 3));
 
-        const { publicClient, walletClient } = this.viemStuff(this.aztecNodeConfig.rpcUrl);
+        const { publicClient, walletClient } = createL1Clients(this.aztecNodeConfig.rpcUrl, MNEMONIC);
 
         this.logger.verbose(`Setting up cross chain harness...`);
         this.crossChainTestHarness = await CrossChainTestHarness.new(
@@ -151,7 +127,7 @@ export class PublicCrossChainMessagingContractTest {
         this.ownerAddress = AztecAddress.fromString(crossChainContext.ownerAddress.toString());
         const tokenPortalAddress = EthAddress.fromString(crossChainContext.tokenPortal.toString());
 
-        const { publicClient, walletClient } = this.viemStuff(this.aztecNodeConfig.rpcUrl);
+        const { publicClient, walletClient } = createL1Clients(this.aztecNodeConfig.rpcUrl, MNEMONIC);
 
         const inbox = getContract({
           address: this.aztecNodeConfig.l1Contracts.inboxAddress.toString(),

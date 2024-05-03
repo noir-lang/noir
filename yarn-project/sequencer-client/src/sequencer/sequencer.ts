@@ -160,7 +160,7 @@ export class Sequencer {
       if (pendingTxs.length < this.minTxsPerBLock) {
         return;
       }
-      this.log.info(`Retrieved ${pendingTxs.length} txs from P2P pool`);
+      this.log.debug(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
       const historicalHeader = (await this.l2BlockSource.getBlock(-1))?.header;
       const newBlockNumber =

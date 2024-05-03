@@ -2,12 +2,17 @@ import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { type AccountWallet, type DebugLogger, createDebugLogger } from '@aztec/aztec.js';
 import { DelegatedOnContract, DelegatorContract } from '@aztec/noir-contracts.js';
 
-import { SnapshotManager, type SubsystemsContext, addAccounts } from '../fixtures/snapshot_manager.js';
+import {
+  type ISnapshotManager,
+  type SubsystemsContext,
+  addAccounts,
+  createSnapshotManager,
+} from '../fixtures/snapshot_manager.js';
 
 const { E2E_DATA_PATH: dataPath } = process.env;
 
 export class DelegateCallsTest {
-  private snapshotManager: SnapshotManager;
+  private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
   wallet!: AccountWallet;
   delegatorContract!: DelegatorContract;
@@ -15,7 +20,7 @@ export class DelegateCallsTest {
 
   constructor(testName: string) {
     this.logger = createDebugLogger(`aztec:e2e_delegate_calls:${testName}`);
-    this.snapshotManager = new SnapshotManager(`e2e_delegate_calls/${testName}`, dataPath);
+    this.snapshotManager = createSnapshotManager(`e2e_delegate_calls/${testName}`, dataPath);
   }
 
   /**
@@ -27,7 +32,7 @@ export class DelegateCallsTest {
     await this.snapshotManager.snapshot('accounts', addAccounts(1, this.logger), async ({ accountKeys }, { pxe }) => {
       const accountManager = getSchnorrAccount(pxe, accountKeys[0][0], accountKeys[0][1], 1);
       this.wallet = await accountManager.getWallet();
-      this.logger.verbose(`Wallet  address: ${this.wallet.getAddress()}`);
+      this.logger.verbose(`Wallet address: ${this.wallet.getAddress()}`);
     });
 
     await this.snapshotManager.snapshot(

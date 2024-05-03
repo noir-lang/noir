@@ -601,8 +601,9 @@ export function getBalancesFn(
   symbol: string,
   method: ContractMethod,
   logger: any,
-): (...addresses: AztecAddress[]) => Promise<bigint[]> {
-  const balances = async (...addresses: AztecAddress[]) => {
+): (...addresses: (AztecAddress | { address: AztecAddress })[]) => Promise<bigint[]> {
+  const balances = async (...addressLikes: (AztecAddress | { address: AztecAddress })[]) => {
+    const addresses = addressLikes.map(addressLike => ('address' in addressLike ? addressLike.address : addressLike));
     const b = await Promise.all(addresses.map(address => method(address).simulate()));
     const debugString = `${symbol} balances: ${addresses.map((address, i) => `${address}: ${b[i]}`).join(', ')}`;
     logger.verbose(debugString);
@@ -624,6 +625,20 @@ export async function expectMapping<K, V>(
   expect(outputs).toEqual(expectedOutputs);
 }
 
+export async function expectMappingDelta<K, V extends number | bigint>(
+  initialValues: V[],
+  fn: (...k: K[]) => Promise<V[]>,
+  inputs: K[],
+  expectedDiffs: V[],
+): Promise<void> {
+  expect(inputs.length).toBe(expectedDiffs.length);
+
+  const outputs = await fn(...inputs);
+  const diffs = outputs.map((output, i) => output - initialValues[i]);
+
+  expect(diffs).toEqual(expectedDiffs);
+}
+
 /**
  * Deploy the protocol contracts to a running instance.
  */
@@ -633,12 +648,16 @@ export async function deployCanonicalGasToken(deployer: Wallet) {
   const canonicalGasToken = getCanonicalGasToken(gasPortalAddress);
 
   if (await deployer.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
+    getLogger().debug('Gas token already deployed');
+    await expect(deployer.isContractPubliclyDeployed(canonicalGasToken.address)).resolves.toBe(true);
     return;
   }
 
   const gasToken = await GasTokenContract.deploy(deployer, gasPortalAddress)
     .send({ contractAddressSalt: canonicalGasToken.instance.salt, universalDeploy: true })
     .deployed();
+
+  getLogger().info(`Gas token publicly deployed at ${gasToken.address}`);
 
   await expect(deployer.isContractClassPubliclyRegistered(gasToken.instance.contractClassId)).resolves.toBe(true);
   await expect(deployer.getContractInstance(gasToken.address)).resolves.toBeDefined();

@@ -40,7 +40,7 @@ export class ProverAgent {
       try {
         const [time, result] = await elapsed(() => this.work(job.request));
         await queue.resolveProvingJob(job.id, result);
-        this.log.info(
+        this.log.debug(
           `Processed proving job id=${job.id} type=${ProvingRequestType[job.request.type]} duration=${time}ms`,
         );
       } catch (err) {

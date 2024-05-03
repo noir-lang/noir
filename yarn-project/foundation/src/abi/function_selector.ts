@@ -3,6 +3,7 @@ import { keccak256, randomBytes } from '../crypto/index.js';
 import { type Fr } from '../fields/fields.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
 import { FieldReader } from '../serialize/field_reader.js';
+import { TypeRegistry } from '../serialize/type_registry.js';
 import { type ABIParameter } from './abi.js';
 import { decodeFunctionSignature } from './decoder.js';
 import { Selector } from './selector.js';
@@ -126,4 +127,14 @@ export class FunctionSelector extends Selector {
   static random() {
     return FunctionSelector.fromBuffer(randomBytes(Selector.SIZE));
   }
+
+  toJSON() {
+    return {
+      type: 'FunctionSelector',
+      value: this.toString(),
+    };
+  }
 }
+
+// For deserializing JSON.
+TypeRegistry.register('FunctionSelector', FunctionSelector);

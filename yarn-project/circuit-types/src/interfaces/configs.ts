@@ -33,10 +33,8 @@ export interface SequencerConfig {
   acvmWorkingDirectory?: string;
   /** The path to the ACVM binary */
   acvmBinaryPath?: string;
-
   /** The list of functions calls allowed to run in setup */
   allowedFunctionsInSetup?: AllowedFunction[];
-
   /** The list of functions calls allowed to run teardown */
   allowedFunctionsInTeardown?: AllowedFunction[];
 }

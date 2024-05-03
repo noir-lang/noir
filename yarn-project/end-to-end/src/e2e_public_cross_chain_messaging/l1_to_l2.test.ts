@@ -27,7 +27,7 @@ describe('e2e_public_cross_chain_messaging l1_to_l2', () => {
 
     aztecNode = crossChainTestHarness.aztecNode;
     inbox = crossChainTestHarness.inbox;
-  }, 200_000);
+  }, 300_000);
 
   afterAll(async () => {
     await t.teardown();

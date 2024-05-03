@@ -40,7 +40,7 @@ const TOKEN_SYMBOL = 'BC';
 const TOKEN_DECIMALS = 18n;
 const BRIDGED_FPC_GAS = BigInt(10e12);
 
-jest.setTimeout(1000_000);
+jest.setTimeout(1_000_000);
 
 describe('e2e_fees_account_init', () => {
   let ctx: EndToEndContext;

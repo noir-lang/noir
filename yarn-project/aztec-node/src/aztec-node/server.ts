@@ -676,7 +676,7 @@ export class AztecNodeService implements AztecNode {
       this.log.warn(`Simulated tx ${tx.getTxHash()} reverts: ${reverted[0].revertReason}`);
       throw reverted[0].revertReason;
     }
-    this.log.info(`Simulated tx ${tx.getTxHash()} succeeds`);
+    this.log.debug(`Simulated tx ${tx.getTxHash()} succeeds`);
     const [processedTx] = processedTxs;
     return {
       constants: processedTx.data.constants,

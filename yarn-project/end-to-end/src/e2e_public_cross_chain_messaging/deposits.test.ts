@@ -33,7 +33,7 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
     ownerAddress = crossChainTestHarness.ownerAddress;
     l2Bridge = crossChainTestHarness.l2Bridge;
     l2Token = crossChainTestHarness.l2Token;
-  }, 200_000);
+  }, 300_000);
 
   afterEach(async () => {
     await t.teardown();

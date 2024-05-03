@@ -15,7 +15,8 @@ import {
   getContract,
   http,
 } from 'viem';
-import { type HDAccount, type PrivateKeyAccount } from 'viem/accounts';
+import { type HDAccount, type PrivateKeyAccount, mnemonicToAccount } from 'viem/accounts';
+import { foundry } from 'viem/chains';
 
 import { type L1ContractAddresses } from './l1_contract_addresses.js';
 
@@ -83,6 +84,34 @@ export interface L1ContractArtifactsForDeployment {
    * Gas portal contract artifacts. Optional for now as gas is not strictly enforced
    */
   gasPortal: ContractArtifacts;
+}
+
+/**
+ * Creates a wallet and a public viem client for interacting with L1.
+ * @param rpcUrl - RPC URL to connect to L1.
+ * @param mnemonicOrHdAccount - Mnemonic or account for the wallet client.
+ * @param chain - Optional chain spec (defaults to local foundry).
+ * @returns - A wallet and a public client.
+ */
+export function createL1Clients(
+  rpcUrl: string,
+  mnemonicOrHdAccount: string | HDAccount,
+  chain: Chain = foundry,
+): { publicClient: PublicClient<HttpTransport, Chain>; walletClient: WalletClient<HttpTransport, Chain, Account> } {
+  const hdAccount =
+    typeof mnemonicOrHdAccount === 'string' ? mnemonicToAccount(mnemonicOrHdAccount) : mnemonicOrHdAccount;
+
+  const walletClient = createWalletClient({
+    account: hdAccount,
+    chain,
+    transport: http(rpcUrl),
+  });
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(rpcUrl),
+  });
+
+  return { walletClient, publicClient };
 }
 
 /**

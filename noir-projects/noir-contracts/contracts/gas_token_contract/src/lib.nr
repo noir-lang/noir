@@ -2,8 +2,8 @@ use dep::aztec::prelude::{AztecAddress, EthAddress};
 use dep::aztec::context::interface::PublicContextInterface;
 use dep::aztec::protocol_types::hash::sha256_to_field;
 
-pub fn calculate_fee<TPublicContext>(_context: TPublicContext) -> U128 where TPublicContext: PublicContextInterface {
-    U128::from_integer(1)
+pub fn calculate_fee<TPublicContext>(context: TPublicContext) -> Field where TPublicContext: PublicContextInterface {
+    context.transaction_fee()
 }
 
 pub fn get_bridge_gas_msg_hash(owner: AztecAddress, amount: Field) -> Field {
