@@ -243,7 +243,7 @@ impl Instruction {
     }
 
     /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    pub(crate) fn can_be_replaced(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
         match self {
