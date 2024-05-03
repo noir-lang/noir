@@ -20,16 +20,14 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
     echo "Attempt #$ATTEMPT_COUNT failed."
 
     # Check the output for specific errors
-    if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null; then
+    if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null || grep 'failed to get state for index' $OUTPUT_FILE >/dev/null ; then
       INCONSISTENT_GRAPH_STATE_COUNT=$((INCONSISTENT_GRAPH_STATE_COUNT + 1))
-      echo "Got 'inconsistent graph state'."
       if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq 2 ]; then
-        echo "Performing 'earthly prune' due to repeated 'inconsistent graph state' errors."
-        earthly prune
-        if earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
-          exit 0 # Post-prune success
-        fi
+        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Connect to spot runner and run 'earthly prune'."
+        exit 1
       fi
+      echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 20 seconds and retrying."
+      sleep 20
     elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null; then
       echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker"
     elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null; then
