@@ -147,7 +147,6 @@ impl Context {
                 }
 
                 if let Type::Array(_, length) = dfg.type_of_value(value) {
-                    let length = length;
                     return *entry.insert(length);
                 }
             }

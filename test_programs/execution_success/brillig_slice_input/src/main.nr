@@ -25,6 +25,9 @@ fn main() {
             y: 8,
         }
     ]);
+    let brillig_sum = sum_slice(slice);
+    assert_eq(brillig_sum, 55);
+
     slice = slice.push_back([
         Point {
             x: 15,

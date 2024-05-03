@@ -1,4 +1,4 @@
-use super::to_u8_vec;
+use super::{to_u8_array, to_u8_vec};
 use crate::{
     pwg::{insert_value, witness_to_value, OpcodeResolutionError},
     BlackBoxFunctionSolver,
@@ -15,15 +15,14 @@ pub(crate) fn schnorr_verify(
     initial_witness: &mut WitnessMap,
     public_key_x: FunctionInput,
     public_key_y: FunctionInput,
-    signature: &[FunctionInput],
+    signature: &[FunctionInput; 64],
     message: &[FunctionInput],
     output: Witness,
 ) -> Result<(), OpcodeResolutionError> {
     let public_key_x: &FieldElement = witness_to_value(initial_witness, public_key_x.witness)?;
     let public_key_y: &FieldElement = witness_to_value(initial_witness, public_key_y.witness)?;
 
-    let signature = to_u8_vec(initial_witness, signature)?;
-
+    let signature = to_u8_array(initial_witness, signature)?;
     let message = to_u8_vec(initial_witness, message)?;
 
     let valid_signature =

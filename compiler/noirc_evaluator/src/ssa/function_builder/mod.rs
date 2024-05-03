@@ -4,6 +4,7 @@ use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -17,7 +18,7 @@ use super::{
     ir::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
-        function::{InlineType, RuntimeType},
+        function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -229,7 +230,12 @@ impl FunctionBuilder {
     ) -> ValueId {
         let lhs_type = self.type_of_value(lhs);
         let rhs_type = self.type_of_value(rhs);
-        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
+        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
+            assert_eq!(
+                lhs_type, rhs_type,
+                "ICE - Binary instruction operands must have the same type"
+            );
+        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
@@ -324,6 +330,12 @@ impl FunctionBuilder {
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
+    }
+
+    /// Insert an enable_side_effects_if instruction. These are normally only automatically
+    /// inserted during the flattening pass when branching is removed.
+    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
+        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
     }
 
     /// Terminates the current block with the given terminator instruction

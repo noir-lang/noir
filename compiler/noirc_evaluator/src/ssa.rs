@@ -9,20 +9,18 @@
 
 use std::collections::BTreeSet;
 
-use crate::{
-    brillig::Brillig,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::errors::{RuntimeError, SsaReport};
 use acvm::acir::{
-    circuit::{Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs},
+    circuit::{
+        brillig::BrilligBytecode, Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs,
+    },
     native_types::Witness,
 };
 
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
-use noirc_frontend::{
-    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
-};
+use noirc_frontend::ast::Visibility;
+use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
 use tracing::{span, Level};
 
 use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
@@ -35,16 +33,16 @@ pub mod ssa_gen;
 
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
-/// convert the final SSA into ACIR and return it.
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
 pub(crate) fn optimize_into_acir(
     program: Program,
     print_passes: bool,
     print_brillig_trace: bool,
     force_brillig_output: bool,
     print_timings: bool,
-) -> Result<Vec<GeneratedAcir>, RuntimeError> {
-    let abi_distinctness = program.return_distinctness;
-
+) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
@@ -55,14 +53,18 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
         .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
-        .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
+        .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
+        .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
         .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
@@ -72,7 +74,7 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig, abi_distinctness))
+    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig))
 }
 
 // Helper to time SSA passes
@@ -88,6 +90,41 @@ fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
     result
 }
 
+#[derive(Default)]
+pub struct SsaProgramArtifact {
+    pub program: AcirProgram,
+    pub debug: Vec<DebugInfo>,
+    pub warnings: Vec<SsaReport>,
+    pub main_input_witnesses: Vec<Witness>,
+    pub main_return_witnesses: Vec<Witness>,
+    pub names: Vec<String>,
+}
+
+impl SsaProgramArtifact {
+    fn new(unconstrained_functions: Vec<BrilligBytecode>) -> Self {
+        let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
+        Self {
+            program,
+            debug: Vec::default(),
+            warnings: Vec::default(),
+            main_input_witnesses: Vec::default(),
+            main_return_witnesses: Vec::default(),
+            names: Vec::default(),
+        }
+    }
+
+    fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
+        self.program.functions.push(circuit_artifact.circuit);
+        self.debug.push(circuit_artifact.debug_info);
+        self.warnings.append(&mut circuit_artifact.warnings);
+        if is_main {
+            self.main_input_witnesses = circuit_artifact.input_witnesses;
+            self.main_return_witnesses = circuit_artifact.return_witnesses;
+        }
+        self.names.push(circuit_artifact.name);
+    }
+}
+
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
@@ -99,8 +136,7 @@ pub fn create_program(
     enable_brillig_logging: bool,
     force_brillig_output: bool,
     print_codegen_timings: bool,
-) -> Result<(AcirProgram, Vec<DebugInfo>, Vec<SsaReport>, Vec<Witness>, Vec<Witness>), RuntimeError>
-{
+) -> Result<SsaProgramArtifact, RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
@@ -108,7 +144,7 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let generated_acirs = optimize_into_acir(
+    let (generated_acirs, generated_brillig) = optimize_into_acir(
         program,
         enable_ssa_logging,
         enable_brillig_logging,
@@ -121,37 +157,33 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let mut functions = vec![];
-    let mut debug_infos = vec![];
-    let mut warning_infos = vec![];
-    let mut main_input_witnesses = Vec::new();
-    let mut main_return_witnesses = Vec::new();
+    let mut program_artifact = SsaProgramArtifact::new(generated_brillig);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
-        let (circuit, debug_info, warnings, input_witnesses, return_witnesses) =
-            convert_generated_acir_into_circuit(
-                acir,
-                func_sig,
-                recursive,
-                // TODO: get rid of these clones
-                debug_variables.clone(),
-                debug_functions.clone(),
-                debug_types.clone(),
-            );
-        functions.push(circuit);
-        debug_infos.push(debug_info);
-        warning_infos.extend(warnings);
-        if is_main {
-            main_input_witnesses = input_witnesses;
-            main_return_witnesses = return_witnesses;
-        }
+        let circuit_artifact = convert_generated_acir_into_circuit(
+            acir,
+            func_sig,
+            recursive,
+            // TODO: get rid of these clones
+            debug_variables.clone(),
+            debug_functions.clone(),
+            debug_types.clone(),
+        );
+        program_artifact.add_circuit(circuit_artifact, is_main);
         is_main = false;
     }
 
-    let program = AcirProgram { functions };
+    Ok(program_artifact)
+}
 
-    Ok((program, debug_infos, warning_infos, main_input_witnesses, main_return_witnesses))
+pub struct SsaCircuitArtifact {
+    name: String,
+    circuit: Circuit,
+    debug_info: DebugInfo,
+    warnings: Vec<SsaReport>,
+    input_witnesses: Vec<Witness>,
+    return_witnesses: Vec<Witness>,
 }
 
 fn convert_generated_acir_into_circuit(
@@ -161,7 +193,7 @@ fn convert_generated_acir_into_circuit(
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
-) -> (Circuit, DebugInfo, Vec<SsaReport>, Vec<Witness>, Vec<Witness>) {
+) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
@@ -170,6 +202,7 @@ fn convert_generated_acir_into_circuit(
         input_witnesses,
         assert_messages,
         warnings,
+        name,
         ..
     } = generated_acir;
 
@@ -202,7 +235,14 @@ fn convert_generated_acir_into_circuit(
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
     debug_info.update_acir(transformation_map);
 
-    (optimized_circuit, debug_info, warnings, input_witnesses, return_witnesses)
+    SsaCircuitArtifact {
+        name,
+        circuit: optimized_circuit,
+        debug_info,
+        warnings,
+        input_witnesses,
+        return_witnesses,
+    }
 }
 
 // Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
@@ -275,10 +315,6 @@ impl SsaBuilder {
     ) -> Result<Self, RuntimeError> {
         self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
-    }
-
-    fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
-        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {

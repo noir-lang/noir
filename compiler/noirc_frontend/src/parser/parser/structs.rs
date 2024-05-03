@@ -1,18 +1,16 @@
 use chumsky::prelude::*;
-use noirc_errors::Span;
 
+use crate::ast::{Ident, NoirStruct, UnresolvedType};
 use crate::{
-    macros_api::SecondaryAttribute,
     parser::{
         parser::{
-            attributes::attributes,
+            attributes::{attributes, validate_secondary_attributes},
             function, parse_type,
             primitives::{ident, keyword},
         },
-        NoirParser, ParserError, ParserErrorReason, TopLevelStatement,
+        NoirParser, TopLevelStatement,
     },
-    token::{Attribute, Keyword, Token},
-    Ident, NoirStruct, UnresolvedType,
+    token::{Keyword, Token},
 };
 
 pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
@@ -35,7 +33,7 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .then(function::generics())
         .then(fields)
         .validate(|(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes = validate_struct_attributes(raw_attributes, span, emit);
+            let attributes = validate_secondary_attributes(raw_attributes, span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
         })
 }
@@ -46,28 +44,6 @@ fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
         .then(parse_type())
         .separated_by(just(Token::Comma))
         .allow_trailing()
-}
-
-fn validate_struct_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Vec<SecondaryAttribute> {
-    let mut struct_attributes = vec![];
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(..) => {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
-                    span,
-                ));
-            }
-            Attribute::Secondary(attr) => struct_attributes.push(attr),
-        }
-    }
-
-    struct_attributes
 }
 
 #[cfg(test)]

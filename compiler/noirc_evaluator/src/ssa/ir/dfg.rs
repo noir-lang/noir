@@ -595,11 +595,11 @@ impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
             InsertInstructionResult::SimplifiedTo(result) => {
                 assert_eq!(index, 0);
                 result
-            },
+            }
             InsertInstructionResult::SimplifiedToMultiple(results) => &results[index],
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Cannot index into InsertInstructionResult::InstructionRemoved")
-            },
+            }
         }
     }
 }

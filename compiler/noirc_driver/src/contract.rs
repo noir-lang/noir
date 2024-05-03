@@ -1,13 +1,19 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use acvm::acir::circuit::Program;
 use fm::FileId;
-use noirc_abi::{Abi, ContractEvent};
+use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompiledContractOutputs {
+    pub structs: HashMap<String, Vec<AbiType>>,
+    pub globals: HashMap<String, Vec<AbiValue>>,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompiledContract {
@@ -19,10 +25,7 @@ pub struct CompiledContract {
     /// stored in this `Vector`.
     pub functions: Vec<ContractFunction>,
 
-    /// All the events defined inside the contract scope.
-    /// An event is a struct value that can be emitted via oracles
-    /// by any contract function during execution.
-    pub events: Vec<ContractEvent>,
+    pub outputs: CompiledContractOutputs,
 
     pub file_map: BTreeMap<FileId, DebugFile>,
     pub warnings: Vec<SsaReport>,
@@ -50,5 +53,8 @@ pub struct ContractFunction {
     )]
     pub bytecode: Program,
 
-    pub debug: DebugInfo,
+    pub debug: Vec<DebugInfo>,
+
+    /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
+    pub names: Vec<String>,
 }

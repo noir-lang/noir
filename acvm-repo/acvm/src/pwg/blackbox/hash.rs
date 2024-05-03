@@ -1,7 +1,7 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    BlackBoxFunc, FieldElement,
+    FieldElement,
 };
 use acvm_blackbox_solver::{sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
 
@@ -14,22 +14,13 @@ pub(super) fn solve_generic_256_hash_opcode(
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     var_message_size: Option<&FunctionInput>,
-    outputs: &[Witness],
+    outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-    black_box_func: BlackBoxFunc,
 ) -> Result<(), OpcodeResolutionError> {
     let message_input = get_hash_input(initial_witness, inputs, var_message_size)?;
     let digest: [u8; 32] = hash_function(&message_input)?;
 
-    let outputs: [Witness; 32] = outputs.try_into().map_err(|_| {
-        OpcodeResolutionError::BlackBoxFunctionFailed(
-            black_box_func,
-            format!("Expected 32 outputs but encountered {}", outputs.len()),
-        )
-    })?;
-    write_digest_to_outputs(initial_witness, outputs, digest)?;
-
-    Ok(())
+    write_digest_to_outputs(initial_witness, outputs, digest)
 }
 
 /// Reads the hash function input from a [`WitnessMap`].
@@ -73,7 +64,7 @@ fn get_hash_input(
 /// Writes a `digest` to the [`WitnessMap`] at witness indices `outputs`.
 fn write_digest_to_outputs(
     initial_witness: &mut WitnessMap,
-    outputs: [Witness; 32],
+    outputs: &[Witness; 32],
     digest: [u8; 32],
 ) -> Result<(), OpcodeResolutionError> {
     for (output_witness, value) in outputs.iter().zip(digest.into_iter()) {
@@ -87,44 +78,29 @@ fn write_digest_to_outputs(
     Ok(())
 }
 
+fn to_u32_array<const N: usize>(
+    initial_witness: &WitnessMap,
+    inputs: &[FunctionInput; N],
+) -> Result<[u32; N], OpcodeResolutionError> {
+    let mut result = [0; N];
+    for (it, input) in result.iter_mut().zip(inputs) {
+        let witness_value = witness_to_value(initial_witness, input.witness)?;
+        *it = witness_value.to_u128() as u32;
+    }
+    Ok(result)
+}
+
 pub(crate) fn solve_sha_256_permutation_opcode(
     initial_witness: &mut WitnessMap,
-    inputs: &[FunctionInput],
-    hash_values: &[FunctionInput],
-    outputs: &[Witness],
-    black_box_func: BlackBoxFunc,
+    inputs: &[FunctionInput; 16],
+    hash_values: &[FunctionInput; 8],
+    outputs: &[Witness; 8],
 ) -> Result<(), OpcodeResolutionError> {
-    let mut message = [0; 16];
-    if inputs.len() != 16 {
-        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-            black_box_func,
-            format!("Expected 16 inputs but encountered {}", &message.len()),
-        ));
-    }
-    for (i, input) in inputs.iter().enumerate() {
-        let value = witness_to_value(initial_witness, input.witness)?;
-        message[i] = value.to_u128() as u32;
-    }
-
-    if hash_values.len() != 8 {
-        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-            black_box_func,
-            format!("Expected 8 values but encountered {}", hash_values.len()),
-        ));
-    }
-    let mut state = [0; 8];
-    for (i, hash) in hash_values.iter().enumerate() {
-        let value = witness_to_value(initial_witness, hash.witness)?;
-        state[i] = value.to_u128() as u32;
-    }
+    let message = to_u32_array(initial_witness, inputs)?;
+    let mut state = to_u32_array(initial_witness, hash_values)?;
 
     sha256compression(&mut state, &message);
-    let outputs: [Witness; 8] = outputs.try_into().map_err(|_| {
-        OpcodeResolutionError::BlackBoxFunctionFailed(
-            black_box_func,
-            format!("Expected 8 outputs but encountered {}", outputs.len()),
-        )
-    })?;
+
     for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
         insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
     }

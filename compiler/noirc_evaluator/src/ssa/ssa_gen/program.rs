@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use iter_extended::btree_map;
 
 use crate::ssa::ir::{
-    function::{Function, FunctionId},
+    function::{Function, FunctionId, RuntimeType},
     map::AtomicCounter,
 };
 
@@ -12,7 +12,11 @@ pub(crate) struct Ssa {
     pub(crate) functions: BTreeMap<FunctionId, Function>,
     pub(crate) main_id: FunctionId,
     pub(crate) next_id: AtomicCounter<Function>,
-    pub(crate) id_to_index: BTreeMap<FunctionId, u32>,
+    /// Maps SSA entry point function ID -> Final generated ACIR artifact index.
+    /// There can be functions specified in SSA which do not act as ACIR entry points.
+    /// This mapping is necessary to use the correct function pointer for an ACIR call,
+    /// as the final program artifact will be a list of only entry point functions.
+    pub(crate) entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
 }
 
 impl Ssa {
@@ -27,9 +31,26 @@ impl Ssa {
             (f.id(), f)
         });
 
-        let id_to_index = btree_map(functions.iter().enumerate(), |(i, (id, _))| (*id, i as u32));
+        let entry_point_to_generated_index = btree_map(
+            functions
+                .iter()
+                .filter(|(_, func)| {
+                    let runtime = func.runtime();
+                    match func.runtime() {
+                        RuntimeType::Acir(_) => runtime.is_entry_point() || func.id() == main_id,
+                        RuntimeType::Brillig => false,
+                    }
+                })
+                .enumerate(),
+            |(i, (id, _))| (*id, i as u32),
+        );
 
-        Self { functions, main_id, next_id: AtomicCounter::starting_after(max_id), id_to_index }
+        Self {
+            functions,
+            main_id,
+            next_id: AtomicCounter::starting_after(max_id),
+            entry_point_to_generated_index,
+        }
     }
 
     /// Returns the entry-point function of the program

@@ -14,6 +14,13 @@ function run_or_fail {
     exit $status
   fi
 }
+function run_if_available {
+  if command -v "$1" >/dev/null 2>&1; then
+    "$@"
+  else
+    echo "$1 is not installed. Please install it to use this feature." >&2
+  fi
+}
 
 require_command jq
 require_command cargo
@@ -42,5 +49,5 @@ BROWSER_WASM=${BROWSER_DIR}/${pname}_bg.wasm
 run_or_fail cargo build --lib --release --target $TARGET --package ${pname}
 run_or_fail wasm-bindgen $WASM_BINARY --out-dir $NODE_DIR --typescript --target nodejs
 run_or_fail wasm-bindgen $WASM_BINARY --out-dir $BROWSER_DIR --typescript --target web
-run_or_fail wasm-opt $NODE_WASM -o $NODE_WASM -O
-run_or_fail wasm-opt $BROWSER_WASM -o $BROWSER_WASM -O
+run_if_available wasm-opt $NODE_WASM -o $NODE_WASM -O
+run_if_available wasm-opt $BROWSER_WASM -o $BROWSER_WASM -O

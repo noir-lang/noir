@@ -6,7 +6,9 @@ use acir::{
     FieldElement,
 };
 
-use super::{arithmetic::ExpressionSolver, get_value, insert_value, witness_to_value};
+use super::{
+    arithmetic::ExpressionSolver, get_value, insert_value, is_predicate_false, witness_to_value,
+};
 use super::{ErrorLocation, OpcodeResolutionError};
 
 type MemoryIndex = u32;
@@ -80,11 +82,8 @@ impl MemoryOpSolver {
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
 
-        // If the predicate is `None`, then we simply return the value 1
-        let pred_value = match predicate {
-            Some(pred) => get_value(pred, initial_witness),
-            None => Ok(FieldElement::one()),
-        }?;
+        // Fetch whether or not the predicate is false (e.g. equal to zero)
+        let skip_operation = is_predicate_false(initial_witness, predicate)?;
 
         if is_read_operation {
             // `value_read = arr[memory_index]`
@@ -97,7 +96,7 @@ impl MemoryOpSolver {
 
             // A zero predicate indicates that we should skip the read operation
             // and zero out the operation's output.
-            let value_in_array = if pred_value.is_zero() {
+            let value_in_array = if skip_operation {
                 FieldElement::zero()
             } else {
                 self.read_memory_index(memory_index)?
@@ -111,7 +110,7 @@ impl MemoryOpSolver {
             let value_write = value;
 
             // A zero predicate indicates that we should skip the write operation.
-            if pred_value.is_zero() {
+            if skip_operation {
                 // We only want to write to already initialized memory.
                 // Do nothing if the predicate is zero.
                 Ok(())

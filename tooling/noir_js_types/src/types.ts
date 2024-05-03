@@ -29,7 +29,17 @@ export type Abi = {
   return_witnesses: number[];
 };
 
-export interface Backend {
+export interface VerifierBackend {
+  /**
+   * @description Verifies a proof */
+  verifyProof(proofData: ProofData): Promise<boolean>;
+
+  /**
+   * @description Destroys the backend */
+  destroy(): Promise<void>;
+}
+
+export interface Backend extends VerifierBackend {
   /**
    * @description Generates a proof */
   generateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
@@ -49,14 +59,6 @@ export interface Backend {
     /** @description A Field containing the verification key hash */
     vkHash: string;
   }>;
-
-  /**
-   * @description Verifies a proof */
-  verifyProof(proofData: ProofData): Promise<boolean>;
-
-  /**
-   * @description Destroys the backend */
-  destroy(): Promise<void>;
 }
 
 /**

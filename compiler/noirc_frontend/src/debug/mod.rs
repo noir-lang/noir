@@ -145,6 +145,8 @@ impl DebugInstrumenter {
                         pattern: ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
                         r#type: ast::UnresolvedType::unspecified(),
                         expression: ret_expr.clone(),
+                        comptime: false,
+                        attributes: vec![],
                     }),
                     span: ret_expr.span,
                 };
@@ -242,12 +244,14 @@ impl DebugInstrumenter {
             kind: ast::StatementKind::Let(ast::LetStatement {
                 pattern: ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
                 r#type: ast::UnresolvedType::unspecified(),
+                comptime: false,
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
                     }),
                     span: let_stmt.expression.span,
                 },
+                attributes: vec![],
             }),
             span: *span,
         }
@@ -273,6 +277,8 @@ impl DebugInstrumenter {
             pattern: ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
             r#type: ast::UnresolvedType::unspecified(),
             expression: assign_stmt.expression.clone(),
+            comptime: false,
+            attributes: vec![],
         });
         let expression_span = assign_stmt.expression.span;
         let new_assign_stmt = match &assign_stmt.lvalue {

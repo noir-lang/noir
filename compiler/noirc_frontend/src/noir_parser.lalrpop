@@ -1,0 +1,164 @@
+use noirc_errors::Span;
+
+use crate::lexer::token::BorrowedToken;
+use crate::lexer::token as noir_token;
+use crate::lexer::errors::LexerErrorKind;
+use crate::parser::TopLevelStatement;
+use crate::ast::{Ident, Path, PathKind, UseTree, UseTreeKind};
+
+use lalrpop_util::ErrorRecovery;
+
+grammar<'input, 'err>(input: &'input str, errors: &'err mut [ErrorRecovery<usize, BorrowedToken<'input>, &'static str>]);
+
+extern {
+    type Location = usize;
+
+    type Error = LexerErrorKind;
+
+    // NOTE: each token needs a terminal defined
+    enum BorrowedToken<'input> {
+        string => BorrowedToken::Str(<&'input str>),
+        ident => BorrowedToken::Ident(<&'input str>),
+
+        // symbols
+        "<" => BorrowedToken::Less,
+        "<=" => BorrowedToken::LessEqual,
+        ">" => BorrowedToken::Greater,
+        ">=" => BorrowedToken::GreaterEqual,
+        "==" => BorrowedToken::Equal,
+        "!=" => BorrowedToken::NotEqual,
+        "+" => BorrowedToken::Plus,
+        "-" => BorrowedToken::Minus,
+        "*" => BorrowedToken::Star,
+        "/" => BorrowedToken::Slash,
+        "%" => BorrowedToken::Percent,
+        "&" => BorrowedToken::Ampersand,
+        "^" => BorrowedToken::Caret,
+        "<<" => BorrowedToken::ShiftLeft,
+        ">>" => BorrowedToken::ShiftRight,
+        "." => BorrowedToken::Dot,
+        ".." => BorrowedToken::DoubleDot,
+        "(" => BorrowedToken::LeftParen,
+        ")" => BorrowedToken::RightParen,
+        "{" => BorrowedToken::LeftBrace,
+        "}" => BorrowedToken::RightBrace,
+        "[" => BorrowedToken::LeftBracket,
+        "]" => BorrowedToken::RightBracket,
+        "->" => BorrowedToken::Arrow,
+        "|" => BorrowedToken::Pipe,
+        "#" => BorrowedToken::Pound,
+        "," => BorrowedToken::Comma,
+        ":" => BorrowedToken::Colon,
+        "::" => BorrowedToken::DoubleColon,
+        ";" => BorrowedToken::Semicolon,
+        "!" => BorrowedToken::Bang,
+        "=" => BorrowedToken::Assign,
+        // keywords
+        "as" => BorrowedToken::Keyword(noir_token::Keyword::As),
+        "assert" => BorrowedToken::Keyword(noir_token::Keyword::Assert),
+        "assert_eq" => BorrowedToken::Keyword(noir_token::Keyword::AssertEq),
+        "bool" => BorrowedToken::Keyword(noir_token::Keyword::Bool),
+        "break" => BorrowedToken::Keyword(noir_token::Keyword::Break),
+        "call_data" => BorrowedToken::Keyword(noir_token::Keyword::CallData),
+        "char" => BorrowedToken::Keyword(noir_token::Keyword::Char),
+        "comptime" => BorrowedToken::Keyword(noir_token::Keyword::Comptime),
+        "constrain" => BorrowedToken::Keyword(noir_token::Keyword::Constrain),
+        "continue" => BorrowedToken::Keyword(noir_token::Keyword::Continue),
+        "contract" => BorrowedToken::Keyword(noir_token::Keyword::Contract),
+        "crate" => BorrowedToken::Keyword(noir_token::Keyword::Crate),
+        "dep" => BorrowedToken::Keyword(noir_token::Keyword::Dep),
+        "distinct" => BorrowedToken::Keyword(noir_token::Keyword::Distinct),
+        "else" => BorrowedToken::Keyword(noir_token::Keyword::Else),
+        "Field" => BorrowedToken::Keyword(noir_token::Keyword::Field),
+        "fn" => BorrowedToken::Keyword(noir_token::Keyword::Fn),
+        "for" => BorrowedToken::Keyword(noir_token::Keyword::For),
+        "fmtstr" => BorrowedToken::Keyword(noir_token::Keyword::FormatString),
+        "global" => BorrowedToken::Keyword(noir_token::Keyword::Global),
+        "if" => BorrowedToken::Keyword(noir_token::Keyword::If),
+        "impl" => BorrowedToken::Keyword(noir_token::Keyword::Impl),
+        "in" => BorrowedToken::Keyword(noir_token::Keyword::In),
+        "let" => BorrowedToken::Keyword(noir_token::Keyword::Let),
+        "mod" => BorrowedToken::Keyword(noir_token::Keyword::Mod),
+        "mut" => BorrowedToken::Keyword(noir_token::Keyword::Mut),
+        "pub" => BorrowedToken::Keyword(noir_token::Keyword::Pub),
+        "quote" => BorrowedToken::Keyword(noir_token::Keyword::Quote),
+        "return" => BorrowedToken::Keyword(noir_token::Keyword::Return),
+        "return_data" => BorrowedToken::Keyword(noir_token::Keyword::ReturnData),
+        "str" => BorrowedToken::Keyword(noir_token::Keyword::String),
+        "struct" => BorrowedToken::Keyword(noir_token::Keyword::Struct),
+        "trait" => BorrowedToken::Keyword(noir_token::Keyword::Trait),
+        "type" => BorrowedToken::Keyword(noir_token::Keyword::Type),
+        "unchecked" => BorrowedToken::Keyword(noir_token::Keyword::Unchecked),
+        "unconstrained" => BorrowedToken::Keyword(noir_token::Keyword::Unconstrained),
+        "use" => BorrowedToken::Keyword(noir_token::Keyword::Use),
+        "where" => BorrowedToken::Keyword(noir_token::Keyword::Where),
+        "while" => BorrowedToken::Keyword(noir_token::Keyword::While),
+        // bool
+        "true" => BorrowedToken::Bool(true),
+        "false" => BorrowedToken::Bool(false),
+
+        r"[\t\r\n ]+" => BorrowedToken::Whitespace(_),
+
+        EOF => BorrowedToken::EOF,
+    }
+}
+
+pub(crate) TopLevelStatement: TopLevelStatement = {
+    "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
+        TopLevelStatement::Import(use_tree)
+    }
+}
+
+UseTree: UseTree = {
+    // path::to::ident as SomeAlias
+    <mut prefix:Path> <alias:Alias?> => {
+        let ident = prefix.pop();
+        let kind = UseTreeKind::Path(ident, alias);
+        UseTree { prefix, kind }
+    },
+}
+
+pub(crate) Path: Path = {
+    <lo:@L> "crate" "::" <segments:PathSegments> <hi:@R> => {
+        let kind = PathKind::Crate;
+        let span = Span::from(lo as u32..hi as u32);
+        Path { segments, kind, span }
+    },
+
+    <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
+        let kind = PathKind::Dep;
+        let span = Span::from(lo as u32..hi as u32);
+        Path { segments, kind, span }
+    },
+
+    <lo:@L> <id:Ident> <mut segments:PathSegments> <hi:@R> => {
+        segments.insert(0, id);
+        let kind = PathKind::Plain;
+        let span = Span::from(lo as u32..hi as u32);
+        Path { segments, kind, span }
+    },
+}
+
+PathSegments: Vec<Ident> = {
+    <lo:@L> <segments:("::" <Ident>)*> <hi:@R> => {
+        segments
+    }
+}
+
+Alias: Ident = {
+    r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
+}
+
+Ident: Ident = {
+    <lo:@L> <i:ident> <hi:@R> => {
+        let token = noir_token::Token::Ident(i.to_string());
+        let span = Span::from(lo as u32..hi as u32);
+        Ident::from_token(token, span)
+    },
+}
+
+Bool: BorrowedToken<'input> = {
+    "true" => BorrowedToken::Bool(true),
+    "false" => BorrowedToken::Bool(false),
+};
+

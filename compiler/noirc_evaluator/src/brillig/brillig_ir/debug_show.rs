@@ -113,10 +113,14 @@ impl DebugShow {
         DebugShow { enable_debug_trace }
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false.
-    pub(crate) fn constrain_instruction(&self, condition: MemoryAddress) {
-        debug_println!(self.enable_debug_trace, "  ASSERT {} != 0", condition);
+    /// Emits a `trap` instruction.
+    pub(crate) fn trap_instruction(&self, revert_data_offset: usize, revert_data_size: usize) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  TRAP {}..{}",
+            revert_data_offset,
+            revert_data_offset + revert_data_size
+        );
     }
 
     /// Emits a `mov` instruction.

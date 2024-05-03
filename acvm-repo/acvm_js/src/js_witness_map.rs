@@ -2,13 +2,23 @@ use acvm::{
     acir::native_types::{Witness, WitnessMap},
     FieldElement,
 };
-use js_sys::{JsString, Map};
+use js_sys::{JsString, Map, Object};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 #[wasm_bindgen(typescript_custom_section)]
 const WITNESS_MAP: &'static str = r#"
 // Map from witness index to hex string value of witness.
 export type WitnessMap = Map<number, string>;
+
+/**
+ * An execution result containing two witnesses.
+ * 1. The full solved witness of the execution.
+ * 2. The return witness which contains the given public return values within the full witness.
+ */
+export type SolvedAndReturnWitness = {
+    solvedWitness: WitnessMap;
+    returnWitness: WitnessMap;
+}
 "#;
 
 // WitnessMap
@@ -21,9 +31,21 @@ extern "C" {
     #[wasm_bindgen(constructor, js_class = "Map")]
     pub fn new() -> JsWitnessMap;
 
+    #[wasm_bindgen(extends = Object, js_name = "SolvedAndReturnWitness", typescript_type = "SolvedAndReturnWitness")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsSolvedAndReturnWitness;
+
+    #[wasm_bindgen(constructor, js_class = "Object")]
+    pub fn new() -> JsSolvedAndReturnWitness;
 }
 
 impl Default for JsWitnessMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for JsSolvedAndReturnWitness {
     fn default() -> Self {
         Self::new()
     }
@@ -51,6 +73,20 @@ impl From<JsWitnessMap> for WitnessMap {
             witness_map.insert(witness_index, witness_value);
         });
         witness_map
+    }
+}
+
+impl From<(WitnessMap, WitnessMap)> for JsSolvedAndReturnWitness {
+    fn from(witness_maps: (WitnessMap, WitnessMap)) -> Self {
+        let js_solved_witness = JsWitnessMap::from(witness_maps.0);
+        let js_return_witness = JsWitnessMap::from(witness_maps.1);
+
+        let entry_map = Map::new();
+        entry_map.set(&JsValue::from_str("solvedWitness"), &js_solved_witness);
+        entry_map.set(&JsValue::from_str("returnWitness"), &js_return_witness);
+
+        let solved_and_return_witness = Object::from_entries(&entry_map).unwrap();
+        JsSolvedAndReturnWitness { obj: solved_and_return_witness }
     }
 }
 

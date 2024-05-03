@@ -266,12 +266,7 @@ impl Instruction {
                 // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
                 bin.operator != BinaryOp::Div
             }
-            Cast(_, _)
-            | Truncate { .. }
-            | Not(_)
-            | ArrayGet { .. }
-            | ArraySet { .. }
-            | IfElse { .. } => true,
+            Cast(_, _) | Truncate { .. } | Not(_) | IfElse { .. } => true,
 
             // These either have side-effects or interact with memory
             Constrain(..)
@@ -282,6 +277,12 @@ impl Instruction {
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Enabling constant folding for these potentially enables replacing an enabled
+            // array get with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            ArrayGet { .. } | ArraySet { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
@@ -359,9 +360,11 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
-                    ConstrainError::Dynamic(call_instr) => {
+                    ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(call_instr)) => {
                         let new_instr = call_instr.map_values(f);
-                        Box::new(ConstrainError::Dynamic(new_instr))
+                        Box::new(ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                            new_instr,
+                        )))
                     }
                     _ => error.clone(),
                 });
@@ -431,7 +434,10 @@ impl Instruction {
                 f(*lhs);
                 f(*rhs);
                 if let Some(error) = assert_error.as_ref() {
-                    if let ConstrainError::Dynamic(call_instr) = error.as_ref() {
+                    if let ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                        call_instr,
+                    )) = error.as_ref()
+                    {
                         call_instr.for_each_value(f);
                     }
                 }
@@ -653,6 +659,14 @@ impl Instruction {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
+    Intrinsic(String),
+    // These are errors issued by the user
+    UserDefined(UserDefinedConstrainError),
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub(crate) enum UserDefinedConstrainError {
+    // These are errors which come from static strings specified by a Noir program
     Static(String),
     // These are errors which come from runtime expressions specified by a Noir program
     // We store an `Instruction` as we want this Instruction to be atomic in SSA with
@@ -662,7 +676,7 @@ pub(crate) enum ConstrainError {
 
 impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        ConstrainError::Static(value)
+        ConstrainError::Intrinsic(value)
     }
 }
 

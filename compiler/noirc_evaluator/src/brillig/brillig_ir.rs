@@ -86,6 +86,8 @@ pub(crate) struct BrilligContext {
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
+    /// Counter for generating bigint ids in unconstrained functions
+    bigint_new_id: u32,
 }
 
 impl BrilligContext {
@@ -98,9 +100,15 @@ impl BrilligContext {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
+            bigint_new_id: 0,
         }
     }
 
+    pub(crate) fn get_new_bigint_id(&mut self) -> u32 {
+        let result = self.bigint_new_id;
+        self.bigint_new_id += 1;
+        result
+    }
     /// Adds a brillig instruction to the brillig byte code
     fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.obj.push_opcode(opcode);
@@ -140,7 +148,7 @@ pub(crate) mod tests {
             &self,
             _public_key_x: &FieldElement,
             _public_key_y: &FieldElement,
-            _signature: &[u8],
+            _signature: &[u8; 64],
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
@@ -262,7 +270,7 @@ pub(crate) mod tests {
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap);
+        context.push_opcode(BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 });
 
         context.stop_instruction();
 

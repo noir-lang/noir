@@ -214,3 +214,31 @@ input#docsearch-input {
   background-color: transparent;
 }
 
+
+#optout-form {
+  position: sticky;
+  bottom: 10px;
+  flex-direction: column;
+  display: flex;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: var(--ifm-breadcrumb-color-active);
+}
+
+
+
+.homepage_footer {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #BEC2C3;
+  border-radius: 12px;
+}
+
+.homepage_cta_footer_container {
+  display: flex;
+  justify-content: center;
+}
+

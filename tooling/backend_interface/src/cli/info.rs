@@ -56,7 +56,7 @@ fn info_command() -> Result<(), BackendError> {
 
     let expression_width = InfoCommand { crs_path }.run(backend.binary_path())?;
 
-    assert!(matches!(expression_width, ExpressionWidth::Bounded { width: 3 }));
+    assert!(matches!(expression_width, ExpressionWidth::Bounded { width: 4 }));
 
     Ok(())
 }

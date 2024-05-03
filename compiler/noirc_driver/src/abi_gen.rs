@@ -2,12 +2,13 @@ use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType};
+use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiValue};
+use noirc_frontend::ast::Visibility;
 use noirc_frontend::{
     hir::Context,
-    hir_def::{function::Param, stmt::HirPattern},
+    hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern},
+    macros_api::{HirExpression, HirLiteral},
     node_interner::{FuncId, NodeInterner},
-    Visibility,
 };
 use std::ops::Range;
 
@@ -107,6 +108,60 @@ fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
     wit.push(last_wit..Witness(last_witness + 1));
 
     wit
+}
+
+pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpression) -> AbiValue {
+    match expression {
+        HirExpression::Tuple(expr_ids) => {
+            let fields = expr_ids
+                .iter()
+                .map(|expr_id| {
+                    value_from_hir_expression(context, context.def_interner.expression(expr_id))
+                })
+                .collect();
+            AbiValue::Tuple { fields }
+        }
+        HirExpression::Constructor(constructor) => {
+            let fields = constructor
+                .fields
+                .iter()
+                .map(|(ident, expr_id)| {
+                    (
+                        ident.0.contents.to_string(),
+                        value_from_hir_expression(
+                            context,
+                            context.def_interner.expression(expr_id),
+                        ),
+                    )
+                })
+                .collect();
+            AbiValue::Struct { fields }
+        }
+        HirExpression::Literal(literal) => match literal {
+            HirLiteral::Array(hir_array) => match hir_array {
+                HirArrayLiteral::Standard(expr_ids) => {
+                    let value = expr_ids
+                        .iter()
+                        .map(|expr_id| {
+                            value_from_hir_expression(
+                                context,
+                                context.def_interner.expression(expr_id),
+                            )
+                        })
+                        .collect();
+                    AbiValue::Array { value }
+                }
+                _ => unreachable!("Repeated arrays cannot be used in the abi"),
+            },
+            HirLiteral::Bool(value) => AbiValue::Boolean { value },
+            HirLiteral::Str(value) => AbiValue::String { value },
+            HirLiteral::Integer(field, sign) => {
+                AbiValue::Integer { value: field.to_string(), sign }
+            }
+            _ => unreachable!("Literal cannot be used in the abi"),
+        },
+        _ => unreachable!("Type cannot be used in the abi {:?}", expression),
+    }
 }
 
 #[cfg(test)]
