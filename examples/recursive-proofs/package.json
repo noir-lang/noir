@@ -1,4 +1,5 @@
 {
+  "private": true,
   "license": "(MIT OR Apache-2.0)",
   "scripts": {
     "clean": "rm -rf build",
