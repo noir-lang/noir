@@ -1218,10 +1218,13 @@ impl<'a> Context<'a> {
         var_index: &mut AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
-        let result = match ssa_type.clone() {
+        match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
+
+                // Increment the var_index in case of a nested array
+                *var_index = self.acir_context.add_var(*var_index, one)?;
 
                 let typ = AcirType::NumericType(numeric_type);
                 Ok(AcirValue::Var(read, typ))
@@ -1236,11 +1239,7 @@ impl<'a> Context<'a> {
                 Ok(AcirValue::Array(values))
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
-        };
-
-        // Increment the var_index in case of a nested array
-        *var_index = self.acir_context.add_var(*var_index, one)?;
-        result
+        }
     }
 
     /// If `mutate_array` is:
@@ -1340,6 +1339,8 @@ impl<'a> Context<'a> {
             AcirValue::Var(store_var, _) => {
                 // Write the new value into the new array at the specified index
                 self.acir_context.write_to_memory(block_id, var_index, store_var)?;
+                // Increment the var_index in case of a nested array
+                *var_index = self.acir_context.add_var(*var_index, one)?;
             }
             AcirValue::Array(values) => {
                 for value in values {
@@ -1356,8 +1357,6 @@ impl<'a> Context<'a> {
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
         }
-        // Increment the var_index in case of a nested array
-        *var_index = self.acir_context.add_var(*var_index, one)?;
         Ok(())
     }
 
