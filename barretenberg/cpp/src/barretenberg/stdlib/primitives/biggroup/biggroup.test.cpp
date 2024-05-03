@@ -827,7 +827,7 @@ using TestTypes = testing::Types<TestType<stdlib::bn254<bb::StandardCircuitBuild
 TYPED_TEST_SUITE(stdlib_biggroup, TestTypes);
 
 template <typename T>
-concept HasGoblinBuilder = IsGoblinBuilder<typename T::Curve::Builder>;
+concept HasGoblinBuilder = IsGoblinUltraBuilder<typename T::Curve::Builder>;
 
 TYPED_TEST(stdlib_biggroup, add)
 {

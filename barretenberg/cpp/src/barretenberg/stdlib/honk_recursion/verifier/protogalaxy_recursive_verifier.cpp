@@ -165,42 +165,17 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
     next_accumulator->verification_key->pcs_verification_key = accumulator->verification_key->pcs_verification_key;
     next_accumulator->verification_key->pub_inputs_offset = accumulator->verification_key->pub_inputs_offset;
     next_accumulator->public_inputs = accumulator->public_inputs;
-    size_t vk_idx = 0;
-    for (auto& expected_vk : next_accumulator->verification_key->get_all()) {
-        size_t inst = 0;
-        std::vector<FF> scalars;
-        std::vector<Commitment> commitments;
-        for (auto& instance : instances) {
-            scalars.emplace_back(lagranges[inst]);
-            commitments.emplace_back(instance->verification_key->get_all()[vk_idx]);
-            inst++;
-        }
-        expected_vk = Commitment::batch_mul(commitments, scalars);
-        vk_idx++;
-    }
+
     next_accumulator->is_accumulator = true;
 
-    // Compute next folding parameters and verify against the ones received from the prover
+    // Compute next folding parameters
     next_accumulator->target_sum =
         perturbator_at_challenge * lagranges[0] + vanishing_polynomial_at_challenge * combiner_quotient_at_challenge;
     next_accumulator->gate_challenges =
         update_gate_challenges(perturbator_challenge, accumulator->gate_challenges, deltas);
 
-    // Compute ϕ and verify against the data received from the prover
-    auto& acc_witness_commitments = next_accumulator->witness_commitments;
-    size_t comm_idx = 0;
-    for (auto& comm : acc_witness_commitments.get_all()) {
-        std::vector<FF> scalars;
-        std::vector<Commitment> commitments;
-        size_t inst = 0;
-        for (auto& instance : instances) {
-            scalars.emplace_back(lagranges[inst]);
-            commitments.emplace_back(instance->witness_commitments.get_all()[comm_idx]);
-            inst++;
-        }
-        comm = Commitment::batch_mul(commitments, scalars);
-        comm_idx++;
-    }
+    // Compute ϕ
+    fold_commitments(lagranges, instances, next_accumulator);
 
     next_accumulator->public_inputs =
         std::vector<FF>(static_cast<size_t>(next_accumulator->verification_key->num_public_inputs), 0);
@@ -248,4 +223,12 @@ template class ProtoGalaxyRecursiveVerifier_<
     RecursiveVerifierInstances_<UltraRecursiveFlavor_<UltraCircuitBuilder>, 2>>;
 template class ProtoGalaxyRecursiveVerifier_<
     RecursiveVerifierInstances_<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<
+    RecursiveVerifierInstances_<UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<
+    RecursiveVerifierInstances_<GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<
+    RecursiveVerifierInstances_<UltraRecursiveFlavor_<CircuitSimulatorBN254>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<
+    RecursiveVerifierInstances_<GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>, 2>>;
 } // namespace bb::stdlib::recursion::honk

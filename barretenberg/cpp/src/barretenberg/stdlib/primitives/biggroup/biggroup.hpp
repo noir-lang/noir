@@ -14,7 +14,7 @@
 // designed to have efficient bb::g1 operations, a developer might accidentally write inefficient circuits
 // using biggroup functions that do not use the OpQueue. We use this concept to prevent compilation of such functions.
 template <typename Builder, typename NativeGroup>
-concept IsNotGoblinInefficiencyTrap = !(IsGoblinBuilder<Builder> && std::same_as<NativeGroup, bb::g1>);
+concept IsNotGoblinInefficiencyTrap = !(IsGoblinUltraBuilder<Builder> && std::same_as<NativeGroup, bb::g1>);
 
 namespace bb::stdlib {
 
@@ -210,7 +210,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     // i.e. for the bn254 curve, the template param is `typename = void`
     // for any other curve, there is no template param
     template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, bb::g1>::value>>
-        requires(IsNotGoblinBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
+        requires(IsNotGoblinUltraBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
     static element bn254_endo_batch_mul(const std::vector<element>& big_points,
                                         const std::vector<Fr>& big_scalars,
                                         const std::vector<element>& small_points,
@@ -218,7 +218,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
                                         const size_t max_num_small_bits);
 
     template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, bb::g1>::value>>
-        requires(IsNotGoblinBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
+        requires(IsNotGoblinUltraBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
     static element bn254_endo_batch_mul_with_generator(const std::vector<element>& big_points,
                                                        const std::vector<Fr>& big_scalars,
                                                        const std::vector<element>& small_points,

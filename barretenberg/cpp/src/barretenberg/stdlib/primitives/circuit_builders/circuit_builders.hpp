@@ -14,12 +14,11 @@ concept HasPlookup = bb::IsAnyOf<T, bb::UltraCircuitBuilder, bb::GoblinUltraCirc
 template <typename T>
 concept IsStandardBuilder = bb::IsAnyOf<T, bb::StandardCircuitBuilder_<bb::fr>, bb::StandardCircuitBuilder_<bb::fq>>;
 template <typename T>
-concept IsUltraBuilder = bb::IsAnyOf<T, bb::UltraCircuitBuilder, bb::GoblinUltraCircuitBuilder>;
-
+concept IsUltraBuilder = bb::IsAnyOf<T, bb::UltraCircuitBuilder>;
 template <typename T>
-concept IsGoblinBuilder = bb::IsAnyOf<T, bb::GoblinUltraCircuitBuilder>;
+concept IsGoblinUltraBuilder = bb::IsAnyOf<T, bb::GoblinUltraCircuitBuilder>;
 template <typename T>
-concept IsNotGoblinBuilder = !IsGoblinBuilder<T>;
+concept IsNotGoblinUltraBuilder = !IsGoblinUltraBuilder<T>;
 
 template <typename T>
 concept IsSimulator = bb::IsAnyOf<T, bb::CircuitSimulatorBN254>;

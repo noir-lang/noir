@@ -21,7 +21,7 @@ namespace bb::stdlib {
  **/
 template <class C, class Fq, class Fr, class G>
 template <typename, typename>
-    requires(IsNotGoblinBuilder<C>)
+    requires(IsNotGoblinUltraBuilder<C>)
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator(
     const std::vector<element>& big_points,
     const std::vector<Fr>& big_scalars,
@@ -216,7 +216,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
  **/
 template <typename C, class Fq, class Fr, class G>
 template <typename, typename>
-    requires(IsNotGoblinBuilder<C>)
+    requires(IsNotGoblinUltraBuilder<C>)
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vector<element>& big_points,
                                                                   const std::vector<Fr>& big_scalars,
                                                                   const std::vector<element>& small_points,

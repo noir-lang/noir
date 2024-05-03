@@ -119,7 +119,7 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for UGH for now since we're not yet
     // dealing with proper recursion
-    if constexpr (IsGoblinBuilder<Builder>) {
+    if constexpr (IsGoblinUltraBuilder<Builder>) {
         if (!constraint_system.recursion_constraints.empty()) {
             info("WARNING: this circuit contains recursion_constraints!");
         }

@@ -44,4 +44,8 @@ std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::
 
 template class DeciderRecursiveVerifier_<bb::UltraRecursiveFlavor_<UltraCircuitBuilder>>;
 template class DeciderRecursiveVerifier_<bb::GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
+template class DeciderRecursiveVerifier_<bb::UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
+template class DeciderRecursiveVerifier_<bb::GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>>;
+template class DeciderRecursiveVerifier_<bb::UltraRecursiveFlavor_<CircuitSimulatorBN254>>;
+template class DeciderRecursiveVerifier_<bb::GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>>;
 } // namespace bb::stdlib::recursion::honk

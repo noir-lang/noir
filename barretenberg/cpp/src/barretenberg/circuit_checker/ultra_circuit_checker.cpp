@@ -102,7 +102,7 @@ bool UltraCircuitChecker::check_block(Builder& builder,
             info("Failed Lookup check relation at row idx = ", idx);
             return false;
         }
-        if constexpr (IsGoblinBuilder<Builder>) {
+        if constexpr (IsGoblinUltraBuilder<Builder>) {
             result = result && check_relation<PoseidonInternal>(values, params);
             if (result == false) {
                 info("Failed PoseidonInternal relation at row idx = ", idx);
@@ -285,7 +285,7 @@ void UltraCircuitChecker::populate_values(
     values.q_elliptic = block.q_elliptic()[idx];
     values.q_aux = block.q_aux()[idx];
     values.q_lookup = block.q_lookup_type()[idx];
-    if constexpr (IsGoblinBuilder<Builder>) {
+    if constexpr (IsGoblinUltraBuilder<Builder>) {
         values.q_busread = block.q_busread()[idx];
         values.q_poseidon2_internal = block.q_poseidon2_internal()[idx];
         values.q_poseidon2_external = block.q_poseidon2_external()[idx];

@@ -24,8 +24,7 @@ class CircuitChecker {
     template <typename Builder> static bool check(const Builder& builder)
     {
         static_assert(IsCheckable<Builder>);
-
-        if constexpr (IsUltraBuilder<Builder>) {
+        if constexpr (IsUltraBuilder<Builder> || IsGoblinUltraBuilder<Builder>) {
             return UltraCircuitChecker::check(builder);
         } else if constexpr (IsStandardBuilder<Builder>) {
             return StandardCircuitChecker::check(builder);
