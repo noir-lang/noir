@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.29.0](https://github.com/noir-lang/noir/compare/v0.28.0...v0.29.0) (2024-05-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* use `distinct` return value witnesses by default ([#4951](https://github.com/noir-lang/noir/issues/4951))
+* Bit shift is restricted to u8 right operand ([#4907](https://github.com/noir-lang/noir/issues/4907))
+
+### Features
+
+* Add `#[inline(tag)]` attribute and codegen ([#4913](https://github.com/noir-lang/noir/issues/4913)) ([1ec9cdc](https://github.com/noir-lang/noir/commit/1ec9cdc7013e867db3672d27e3a6104e4b7e7eef))
+* Add de-sugaring for `impl Trait` in function parameters ([#4919](https://github.com/noir-lang/noir/issues/4919)) ([8aad2e4](https://github.com/noir-lang/noir/commit/8aad2e45acbe08afc3902db95a83324f822c35eb))
+* Add variable size sha256 ([#4920](https://github.com/noir-lang/noir/issues/4920)) ([dbfca58](https://github.com/noir-lang/noir/commit/dbfca58a817ee1f1512e3e02138119f363c3d12b))
+* Bit shift is restricted to u8 right operand ([#4907](https://github.com/noir-lang/noir/issues/4907)) ([c4b0369](https://github.com/noir-lang/noir/commit/c4b03691feca17ef268acab523292f3051f672ea))
+* Complex outputs from acir call ([#4952](https://github.com/noir-lang/noir/issues/4952)) ([2e085b9](https://github.com/noir-lang/noir/commit/2e085b935b143c1305b70cd7ae86907b61a45fc0))
+* **experimental:** `comptime` globals ([#4918](https://github.com/noir-lang/noir/issues/4918)) ([8a3c7f1](https://github.com/noir-lang/noir/commit/8a3c7f1c11666ed5140a63a5aa296ef417c97bfa))
+* Handle `BrilligCall` opcodes in the debugger ([#4897](https://github.com/noir-lang/noir/issues/4897)) ([b380dc4](https://github.com/noir-lang/noir/commit/b380dc44de5c9f8de278ece3d531ebbc2c9238ba))
+* Handle `no_predicates` attribute ([#4942](https://github.com/noir-lang/noir/issues/4942)) ([0ce04d3](https://github.com/noir-lang/noir/commit/0ce04d3ea8734b76d96f5dd0fb2a6cdd4081969e))
+* Handle empty response foreign calls without an external resolver ([#4959](https://github.com/noir-lang/noir/issues/4959)) ([0154bde](https://github.com/noir-lang/noir/commit/0154bdef9f6dfe45497d77ecbf3904dcc138b8d7))
+* Optimize array sets in if conditions (alternate version) ([#4716](https://github.com/noir-lang/noir/issues/4716)) ([a87c655](https://github.com/noir-lang/noir/commit/a87c655c6c8c077c71e3372cc9181b7870348a3d))
+* Use `distinct` return value witnesses by default ([#4951](https://github.com/noir-lang/noir/issues/4951)) ([5f1b584](https://github.com/noir-lang/noir/commit/5f1b58470779e977293323d10ab9a8f0857ea29e))
+
+
+### Bug Fixes
+
+* Ban self-referential structs ([#4883](https://github.com/noir-lang/noir/issues/4883)) ([800f670](https://github.com/noir-lang/noir/commit/800f670b63a5a2ae08f09a86dae767089f7f67af))
+* Discard ref counts during unrolling ([#4923](https://github.com/noir-lang/noir/issues/4923)) ([91062db](https://github.com/noir-lang/noir/commit/91062db84a749bf191eae9ce487a2315cc74bfb2))
+* Ensure where clauses propagated to trait default definitions ([#4894](https://github.com/noir-lang/noir/issues/4894)) ([aaac0f6](https://github.com/noir-lang/noir/commit/aaac0f6bffbe11eb090145354f1b82919bb93cb7))
+* Move remove_if_else pass after second inlining  ([#4976](https://github.com/noir-lang/noir/issues/4976)) ([96fb3e9](https://github.com/noir-lang/noir/commit/96fb3e94b3a2f7b586d17ea9445f44267f5d9c6d))
+* Nested array equality ([#4903](https://github.com/noir-lang/noir/issues/4903)) ([0cf2e2a](https://github.com/noir-lang/noir/commit/0cf2e2a1b8d247bed03ba5b7b1be5cd30f0d51b2))
+* Require for all foldable functions to use distinct return  ([#4949](https://github.com/noir-lang/noir/issues/4949)) ([d4c6806](https://github.com/noir-lang/noir/commit/d4c68066ab35ce1c52510cf0c038fb627a0677c3))
+* Use annotated type when checking declaration ([#4966](https://github.com/noir-lang/noir/issues/4966)) ([f7fa696](https://github.com/noir-lang/noir/commit/f7fa69661006e1e10ddeecee1cdf8f024d6bc3e9))
+
 ## [0.28.0](https://github.com/noir-lang/noir/compare/v0.27.0...v0.28.0) (2024-04-24)
 
 
