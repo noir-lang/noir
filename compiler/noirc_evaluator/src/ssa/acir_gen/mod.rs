@@ -1339,6 +1339,8 @@ impl<'a> Context<'a> {
             AcirValue::Var(store_var, _) => {
                 // Write the new value into the new array at the specified index
                 self.acir_context.write_to_memory(block_id, var_index, store_var)?;
+                // Increment the var_index in case of a nested array
+                *var_index = self.acir_context.add_var(*var_index, one)?;
             }
             AcirValue::Array(values) => {
                 for value in values {
@@ -1355,8 +1357,6 @@ impl<'a> Context<'a> {
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
         }
-        // Increment the var_index in case of a nested array
-        *var_index = self.acir_context.add_var(*var_index, one)?;
         Ok(())
     }
 
