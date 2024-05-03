@@ -459,9 +459,9 @@ class UltraFlavor {
             }
         }
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/964): Clean the boilerplate up.
-        VerificationKey(const size_t circuit_size,
-                        const size_t num_public_inputs,
-                        const size_t pub_inputs_offset,
+        VerificationKey(const uint64_t circuit_size,
+                        const uint64_t num_public_inputs,
+                        const uint64_t pub_inputs_offset,
                         const Commitment& q_m,
                         const Commitment& q_c,
                         const Commitment& q_l,

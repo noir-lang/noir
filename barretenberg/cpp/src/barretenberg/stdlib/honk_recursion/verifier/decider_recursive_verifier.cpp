@@ -24,7 +24,8 @@ std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::
 
     VerifierCommitments commitments{ accumulator->verification_key, accumulator->witness_commitments };
 
-    auto sumcheck = Sumcheck(accumulator->verification_key->log_circuit_size, transcript, accumulator->target_sum);
+    auto sumcheck = Sumcheck(
+        static_cast<size_t>(accumulator->verification_key->log_circuit_size), transcript, accumulator->target_sum);
 
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(accumulator->relation_parameters, accumulator->alphas, accumulator->gate_challenges);

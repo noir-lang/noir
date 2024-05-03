@@ -85,9 +85,9 @@ namespace bb {
  */
 class PrecomputedEntitiesBase {
   public:
-    size_t circuit_size;
-    size_t log_circuit_size;
-    size_t num_public_inputs;
+    uint64_t circuit_size;
+    uint64_t log_circuit_size;
+    uint64_t num_public_inputs;
     CircuitType circuit_type; // TODO(#392)
 };
 
@@ -181,7 +181,7 @@ template <typename PrecomputedCommitments, typename VerifierCommitmentKey>
 class VerificationKey_ : public PrecomputedCommitments {
   public:
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
-    size_t pub_inputs_offset = 0;
+    uint64_t pub_inputs_offset = 0;
 
     VerificationKey_() = default;
     VerificationKey_(const size_t circuit_size, const size_t num_public_inputs)

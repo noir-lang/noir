@@ -358,6 +358,56 @@ export async function vkAsFields(vkPath: string, vkeyOutputPath: string) {
   }
 }
 
+export async function proveUltraHonk(bytecodePath: string, witnessPath: string, crsPath: string, outputPath: string) {
+  const { api } = await init(bytecodePath, crsPath);
+  try {
+    debug(`creating proof...`);
+    const bytecode = getBytecode(bytecodePath);
+    const witness = getWitness(witnessPath);
+    const proof = await api.acirProveUltraHonk(bytecode, witness);
+    debug(`done.`);
+
+    if (outputPath === '-') {
+      process.stdout.write(proof);
+      debug(`proof written to stdout`);
+    } else {
+      writeFileSync(outputPath, proof);
+      debug(`proof written to: ${outputPath}`);
+    }
+  } finally {
+    await api.destroy();
+  }
+}
+
+export async function writeVkUltraHonk(bytecodePath: string, crsPath: string, outputPath: string) {
+  const { api } = await init(bytecodePath, crsPath);
+  try {
+    const bytecode = getBytecode(bytecodePath);
+    debug('initing verification key...');
+    const vk = await api.acirWriteVkUltraHonk(bytecode);
+
+    if (outputPath === '-') {
+      process.stdout.write(vk);
+      debug(`vk written to stdout`);
+    } else {
+      writeFileSync(outputPath, vk);
+      debug(`vk written to: ${outputPath}`);
+    }
+  } finally {
+    await api.destroy();
+  }
+}
+
+export async function verifyUltraHonk(proofPath: string, vkPath: string) {
+  const { api } = await initLite();
+  try {
+    const verified = await api.acirVerifyUltraHonk(readFileSync(proofPath), new RawBuffer(readFileSync(vkPath)));
+    debug(`verified: ${verified}`);
+    return verified;
+  } finally {
+    await api.destroy();
+  }
+}
 const program = new Command();
 
 program.option('-v, --verbose', 'enable verbose logging', false);
@@ -503,6 +553,38 @@ program
   .action(({ outputPath }) => {
     handleGlobalOptions();
     acvmInfo(outputPath);
+  });
+
+program
+  .command('prove_ultra_honk')
+  .description('Generate a proof and write it to a file.')
+  .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
+  .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
+  .option('-o, --output-path <path>', 'Specify the proof output path', './proofs/proof')
+  .action(async ({ bytecodePath, witnessPath, outputPath, crsPath }) => {
+    handleGlobalOptions();
+    await proveUltraHonk(bytecodePath, witnessPath, crsPath, outputPath);
+  });
+
+program
+  .command('write_vk_ultra_honk')
+  .description('Output verification key.')
+  .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
+  .requiredOption('-o, --output-path <path>', 'Specify the path to write the key')
+  .action(async ({ bytecodePath, outputPath, crsPath }) => {
+    handleGlobalOptions();
+    await writeVkUltraHonk(bytecodePath, crsPath, outputPath);
+  });
+
+program
+  .command('verify_ultra_honk')
+  .description('Verify a proof. Process exists with success or failure code.')
+  .requiredOption('-p, --proof-path <path>', 'Specify the path to the proof')
+  .requiredOption('-k, --vk <path>', 'path to a verification key. avoids recomputation.')
+  .action(async ({ proofPath, vk }) => {
+    handleGlobalOptions();
+    const result = await verifyUltraHonk(proofPath, vk);
+    process.exit(result ? 0 : 1);
   });
 
 program.name('bb.js').parse(process.argv);

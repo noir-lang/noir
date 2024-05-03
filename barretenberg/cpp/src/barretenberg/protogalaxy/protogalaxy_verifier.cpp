@@ -26,7 +26,7 @@ void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(const std::vec
     if (!inst->is_accumulator) {
         receive_and_finalise_instance(inst, domain_separator);
         inst->target_sum = 0;
-        inst->gate_challenges = std::vector<FF>(inst->verification_key->log_circuit_size, 0);
+        inst->gate_challenges = std::vector<FF>(static_cast<size_t>(inst->verification_key->log_circuit_size), 0);
     }
     index++;
 
@@ -45,11 +45,12 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
 
     auto delta = transcript->template get_challenge<FF>("delta");
     auto accumulator = get_accumulator();
-    auto deltas = compute_round_challenge_pows(accumulator->verification_key->log_circuit_size, delta);
+    auto deltas =
+        compute_round_challenge_pows(static_cast<size_t>(accumulator->verification_key->log_circuit_size), delta);
 
-    std::vector<FF> perturbator_coeffs(accumulator->verification_key->log_circuit_size + 1, 0);
+    std::vector<FF> perturbator_coeffs(static_cast<size_t>(accumulator->verification_key->log_circuit_size) + 1, 0);
     if (accumulator->is_accumulator) {
-        for (size_t idx = 1; idx <= accumulator->verification_key->log_circuit_size; idx++) {
+        for (size_t idx = 1; idx <= static_cast<size_t>(accumulator->verification_key->log_circuit_size); idx++) {
             perturbator_coeffs[idx] =
                 transcript->template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
         }
@@ -112,7 +113,8 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
         vk_idx++;
     }
     next_accumulator->verification_key->num_public_inputs = accumulator->verification_key->num_public_inputs;
-    next_accumulator->public_inputs = std::vector<FF>(next_accumulator->verification_key->num_public_inputs, 0);
+    next_accumulator->public_inputs =
+        std::vector<FF>(static_cast<size_t>(next_accumulator->verification_key->num_public_inputs), 0);
     size_t public_input_idx = 0;
     for (auto& public_input : next_accumulator->public_inputs) {
         size_t inst = 0;
