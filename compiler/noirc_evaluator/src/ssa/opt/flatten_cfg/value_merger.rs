@@ -306,7 +306,7 @@ impl<'a> ValueMerger<'a> {
 
         // Arbitrarily limit this to looking at at most 10 past ArraySet operations.
         // If there are more than that, we assume 2 completely separate arrays are being merged.
-        let max_iters = 1;
+        let max_iters = 2;
         let mut seen_then = Vec::with_capacity(max_iters);
         let mut seen_else = Vec::with_capacity(max_iters);
 
