@@ -178,7 +178,7 @@ describe('e2e_note_getter', () => {
       await expect(contract.methods.call_view_notes(storageSlot, activeOrNullified).simulate()).rejects.toThrow(
         'is_some',
       );
-      await expect(contract.methods.call_get_notes(storageSlot, activeOrNullified).send().wait()).rejects.toThrow(
+      await expect(contract.methods.call_get_notes(storageSlot, activeOrNullified).prove()).rejects.toThrow(
         `Assertion failed: Cannot return zero notes`,
       );
     }

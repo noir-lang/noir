@@ -80,7 +80,7 @@ describe('e2e_state_vars', () => {
     it('initializing SharedImmutable the second time should fail', async () => {
       // Jest executes the tests sequentially and the first call to initialize_shared_immutable was executed
       // in the previous test, so the call bellow should fail.
-      await expect(contract.methods.initialize_shared_immutable(1).send().wait()).rejects.toThrow(
+      await expect(contract.methods.initialize_shared_immutable(1).prove()).rejects.toThrow(
         "Assertion failed: SharedImmutable already initialized 'fields_read[0] == 0'",
       );
     });
@@ -100,7 +100,7 @@ describe('e2e_state_vars', () => {
     it('initializing PublicImmutable the second time should fail', async () => {
       // Jest executes the tests sequentially and the first call to initialize_public_immutable was executed
       // in the previous test, so the call bellow should fail.
-      await expect(contract.methods.initialize_public_immutable(1).send().wait()).rejects.toThrow(
+      await expect(contract.methods.initialize_public_immutable(1).prove()).rejects.toThrow(
         "Assertion failed: PublicImmutable already initialized 'fields_read[0] == 0'",
       );
     });

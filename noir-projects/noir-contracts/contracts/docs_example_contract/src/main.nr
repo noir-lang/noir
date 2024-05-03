@@ -113,7 +113,7 @@ contract DocsExample {
         // and returns the response.
         // Used to test that we can retrieve values through calls and 
         // correctly return them in the simulation
-        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_private().call(&mut context);
+        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_private().static_call(&mut context);
         leader.points += 1;
         leader
     }
@@ -124,7 +124,7 @@ contract DocsExample {
         // and returns the response.
         // Used to test that we can retrieve values through calls and 
         // correctly return them in the simulation
-        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_public().call(&mut context);
+        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_public().static_call(&mut context);
         leader.points += 1;
         leader
     }
