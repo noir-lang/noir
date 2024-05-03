@@ -33,7 +33,10 @@ type ProvingJobWithResolvers<T extends ProvingRequest = ProvingRequest> = {
   id: string;
   request: T;
   signal?: AbortSignal;
+  attempts: number;
 } & PromiseWithResolvers<ProvingRequestResult<T['type']>>;
+
+const MAX_RETRIES = 3;
 
 export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
   private jobId = 0;
@@ -95,7 +98,18 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
       return Promise.resolve();
     }
 
-    job.reject(err);
+    if (job.attempts < MAX_RETRIES) {
+      job.attempts++;
+      this.log.warn(
+        `Job id=${job.id} type=${ProvingRequestType[job.request.type]} failed with error: ${err}. Retry ${
+          job.attempts
+        }/${MAX_RETRIES}`,
+      );
+      this.queue.put(job);
+    } else {
+      this.log.error(`Job id=${job.id} type=${ProvingRequestType[job.request.type]} failed with error: ${err}`);
+      job.reject(err);
+    }
     return Promise.resolve();
   }
 
@@ -111,13 +125,16 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
       promise,
       resolve,
       reject,
+      attempts: 1,
     };
 
     if (signal) {
       signal.addEventListener('abort', () => reject(new AbortedError('Operation has been aborted')));
     }
 
-    this.log.info(`Adding ${ProvingRequestType[request.type]} proving job to queue`);
+    this.log.info(
+      `Adding id=${item.id} type=${ProvingRequestType[request.type]} proving job to queue depth=${this.queue.length()}`,
+    );
     // TODO (alexg) remove the `any`
     if (!this.queue.put(item as any)) {
       throw new Error();

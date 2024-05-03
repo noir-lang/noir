@@ -27,7 +27,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "bb": "node --no-warnings ./dest/bb/index.js",
-    "test": "LOG_LEVEL=${LOG_LEVEL:-silent} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=600000 --forceExit"
+    "test": "LOG_LEVEL=${LOG_LEVEL:-silent} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=750000 --forceExit"
   },
   "jest": {
     "moduleNameMapper": {

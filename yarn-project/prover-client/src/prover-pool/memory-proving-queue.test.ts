@@ -45,14 +45,27 @@ describe('MemoryProvingQueue', () => {
     await expect(promise).resolves.toEqual(new RootParityInput(proof, vk, publicInputs));
   });
 
-  it('notifies of errors', async () => {
+  it('retries failed jobs', async () => {
     const inputs = makeBaseParityInputs();
-    const promise = queue.getBaseParityProof(inputs);
+    void queue.getBaseParityProof(inputs);
+
     const job = await queue.getProvingJob();
     expect(job?.request.inputs).toEqual(inputs);
 
     const error = new Error('test error');
+
     await queue.rejectProvingJob(job!.id, error);
+    await expect(queue.getProvingJob()).resolves.toEqual(job);
+  });
+
+  it('notifies errors', async () => {
+    const promise = queue.getBaseParityProof(makeBaseParityInputs());
+
+    const error = new Error('test error');
+    await queue.rejectProvingJob((await queue.getProvingJob())!.id, error);
+    await queue.rejectProvingJob((await queue.getProvingJob())!.id, error);
+    await queue.rejectProvingJob((await queue.getProvingJob())!.id, error);
+
     await expect(promise).rejects.toEqual(error);
   });
 });
