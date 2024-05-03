@@ -348,8 +348,10 @@ impl<'interner> TypeChecker<'interner> {
             if annotated_type.is_unsigned() {
                 self.lint_overflowing_uint(&rhs_expr, &annotated_type);
             }
+            annotated_type
+        } else {
+            expr_type
         }
-        expr_type
     }
 
     /// Check if an assignment is overflowing with respect to `annotated_type`
