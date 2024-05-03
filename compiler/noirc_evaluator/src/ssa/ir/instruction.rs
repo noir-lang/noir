@@ -254,20 +254,11 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
-    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
-    /// i.e. there are no interactions with memory.
-    ///
-    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
-    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
         match self {
-            Binary(bin) => {
-                // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
-                bin.operator != BinaryOp::Div
-            }
-            Cast(_, _) | Truncate { .. } | Not(_) | IfElse { .. } => true,
-
             // These either have side-effects or interact with memory
             Constrain(..)
             | EnableSideEffects { .. }
@@ -278,31 +269,37 @@ impl Instruction {
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
 
-            // These can have different behavior depending on the EnableSideEffectsIf context.
-            // Enabling constant folding for these potentially enables replacing an enabled
-            // array get with one that was disabled. See
-            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-            ArrayGet { .. } | ArraySet { .. } => false,
-
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
         }
     }
 
-    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs == FieldElement::zero()
+                        rhs != FieldElement::zero()
                     } else {
-                        true
+                        false
                     }
                 } else {
-                    false
+                    true
                 }
             }
             Cast(_, _)
@@ -311,30 +308,64 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | ArrayGet { .. }
-            | ArraySet { .. }
-            | IfElse { .. } => false,
+            | IfElse { .. }
+            | ArraySet { .. } => true,
 
             Constrain(..)
             | Store { .. }
             | EnableSideEffects { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
-            | RangeCheck { .. } => true,
+            | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
                 // This is because they can be used to pass information
                 // from the ACVM to the external world during execution.
-                Value::ForeignFunction(_) => true,
+                Value::ForeignFunction(_) => false,
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => true,
+                Value::Function(_) => false,
 
                 _ => false,
             },
+        }
+    }
+
+    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self {
+            Instruction::Binary(binary)
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
+            {
+                true
+            }
+            Instruction::EnableSideEffects { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. } => true,
+
+            Instruction::Call { func, .. } => match dfg[*func] {
+                Value::Function(_) => true,
+                Value::Intrinsic(intrinsic) => {
+                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                }
+                _ => false,
+            },
+            Instruction::Cast(_, _)
+            | Instruction::Binary(_)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(_, _, _)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => false,
         }
     }
 
