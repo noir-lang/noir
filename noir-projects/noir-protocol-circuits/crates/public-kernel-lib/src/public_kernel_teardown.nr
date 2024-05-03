@@ -24,11 +24,18 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
     // Validates that the start gas injected into the app circuit matches the teardown gas limits set by the user
     fn validate_start_gas(self) {
-        let public_call_start_gas = self.public_call.call_stack_item.public_inputs.start_gas_left;
-        let teardown_gas_limit = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.teardown_gas_limits;
-        assert(
-            public_call_start_gas == teardown_gas_limit, "Start gas for teardown phase does not match teardown gas allocation"
-        );
+        // If this is a nested call (not an execution request), the start gas is correct as long as the
+        // call being processed by this kernel iteration matches the call at the top of the callstack
+        // as per the previous kernel's outputs.
+        // An execution request's start gas is the remaining gas left in the transaction after the previous kernel.
+        // A nested call's start gas is the gas allocated to it by its caller and placed in the callstack.
+        if (self.public_call.call_stack_item.is_execution_request) {
+            let public_call_start_gas = self.public_call.call_stack_item.public_inputs.start_gas_left;
+            let teardown_gas_limit = self.previous_kernel.public_inputs.constants.tx_context.gas_settings.teardown_gas_limits;
+            assert(
+                public_call_start_gas == teardown_gas_limit, "Start gas for teardown phase does not match teardown gas allocation"
+            );
+        }
     }
 
     // Validates the transaction fee injected into the app circuit is properly computed from gas_used and block gas_fees
@@ -416,6 +423,8 @@ mod tests {
     #[test(should_fail_with="Start gas for teardown phase does not match teardown gas allocation")]
     fn validates_start_gas() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+
+        builder.public_call.is_execution_request = true; // don't need to check start gas for nested calls
         builder.public_call.public_inputs.start_gas_left = Gas::new(10, 30);
 
         builder.failed();

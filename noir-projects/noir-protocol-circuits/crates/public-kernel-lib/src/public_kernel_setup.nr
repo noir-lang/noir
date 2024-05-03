@@ -531,6 +531,7 @@ mod tests {
     fn validates_start_gas() {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
 
+        builder.public_call.is_execution_request = true; // don't need to check start gas for nested calls
         builder.public_call.public_inputs.start_gas_left = Gas::new(100, 100);
 
         builder.failed();
