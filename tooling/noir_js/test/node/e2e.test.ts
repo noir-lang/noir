@@ -1,10 +1,12 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
+import fold_fibonacci_json from '../noir_compiled_examples/fold_fibonacci/target/fold_fibonacci.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend as Backend, BarretenbergVerifier as Verifier } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
+const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
 
 it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
@@ -148,4 +150,25 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   // We can also try verifying an inner proof and it will fail.
   const isValidInner = await prover.verifyProof(_proofInner);
   expect(isValidInner).to.be.true;
+});
+
+it('end-to-end proof creation and verification for multiple ACIR circuits (inner)', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '10',
+  };
+
+  const program = new Noir(fold_fibonacci_program);
+
+  const { witness } = await program.execute(inputs);
+
+  // bb.js part
+  //
+  // Proof creation
+  const backend = new Backend(fold_fibonacci_program);
+  const proof = await backend.generateProof(witness);
+
+  // Proof verification
+  const isValid = await backend.verifyProof(proof);
+  expect(isValid).to.be.true;
 });
