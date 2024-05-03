@@ -29,3 +29,13 @@ test:
   RUN cd noir-protocol-circuits && nargo test --silence-warnings
   RUN cd aztec-nr && nargo test --silence-warnings
   RUN cd noir-contracts && nargo test --silence-warnings
+
+gates-report:
+  FROM +build
+  WORKDIR /usr/src/noir-projects/noir-protocol-circuits
+
+  COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+
+  RUN  NARGO_BACKEND_PATH=/usr/src/barretenberg/cpp/build/bin/bb nargo info --json > gates_report.json
+   
+  SAVE ARTIFACT gates_report.json gates_report.json

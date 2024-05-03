@@ -348,6 +348,41 @@ jobs:
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 15
         run: earthly-ci --no-output +bench-ultra-honk --bench_mode=cache
+  
+  protocol-circuits-gates-report:
+    needs: setup
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      # Only allow one memory-hunger prover test to use this runner
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: protocol-circuits-gates-report-${{ inputs.username || github.actor }}-x86
+      - name: "Noir Protocol Circuits Report"
+        working-directory: ./noir-projects/
+        timeout-minutes: 25
+        run: |
+          earthly-ci --artifact +gates-report/gates_report.json
+          mv gates_report.json ../protocol_circuits_report.json
+
+      - name: Compare gates reports
+        id: gates_diff
+        uses: vezenovm/noir-gates-diff@acf12797860f237117e15c0d6e08d64253af52b6
+        with:
+          report: protocol_circuits_report.json
+          summaryQuantile: 0 # Display any diff in gate count
+
+      - name: Add gates diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact circuit sizes
+          delete: ${{ !steps.gates_diff.outputs.markdown }}
+          message: ${{ steps.gates_diff.outputs.markdown }}
 
   merge-check:
     runs-on: ubuntu-latest
