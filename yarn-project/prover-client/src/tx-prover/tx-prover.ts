@@ -68,9 +68,9 @@ export class TxProver implements ProverClient {
         throw new Error();
       }
 
-      pool = ProverPool.nativePool(config, config.proverAgents, 10);
+      pool = ProverPool.nativePool(config, config.proverAgents, 50);
     } else {
-      pool = ProverPool.testPool(simulationProvider, config.proverAgents, 10);
+      pool = ProverPool.testPool(simulationProvider, config.proverAgents, 50);
     }
 
     const prover = new TxProver(worldStateSynchronizer, getVerificationKeys(), pool);

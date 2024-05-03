@@ -6,9 +6,11 @@ E2E_COMPOSE_TEST:
   ARG compose_file=./scripts/docker-compose.yml
   ARG debug="aztec:*"
   ARG EARTHLY_TARGET_NAME
+  ARG prover_agents=10
   LOCALLY
   ENV TEST=$test
   ENV DEBUG=$debug
+  ENV PROVER_AGENTS=$prover_agents
   LET project_name=$(echo $test | sed 's/\./_/g')
   IF docker compose > /dev/null 2>&1
     LET CMD="docker compose"

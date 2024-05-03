@@ -1,4 +1,5 @@
 import { type ProvingJobSource } from '@aztec/circuit-types';
+import { sleep } from '@aztec/foundation/sleep';
 import { type SimulationProvider } from '@aztec/simulator';
 
 import { mkdtemp } from 'fs/promises';
@@ -33,6 +34,8 @@ export class ProverPool {
 
     for (const agent of this.agents) {
       agent.start(source);
+      // stagger that start of each agent to avoid contention
+      await sleep(10);
     }
   }
 
