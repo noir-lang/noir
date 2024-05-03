@@ -184,7 +184,7 @@ fn display_instruction_inner(
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}",)
+            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}")
         }
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
@@ -194,6 +194,16 @@ fn display_instruction_inner(
         }
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+        }
+        Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+            let then_condition = show(*then_condition);
+            let then_value = show(*then_value);
+            let else_condition = show(*else_condition);
+            let else_value = show(*else_value);
+            writeln!(
+                f,
+                "if {then_condition} then {then_value} else if {else_condition} then {else_value}"
+            )
         }
     }
 }
