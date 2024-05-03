@@ -248,7 +248,7 @@ export abstract class AbstractPhaseManager {
         const isExecutionRequest = !isPublicExecutionResult(current);
         // TODO(6052): Extract correct new counter from nested calls
         const sideEffectCounter = lastSideEffectCounter(tx) + 1;
-        const availableGas = this.getAvailableGas(tx, previousPublicKernelOutput);
+        const availableGas = this.getAvailableGas(tx, kernelOutput);
 
         const result = isExecutionRequest
           ? await this.publicExecutor.simulate(
