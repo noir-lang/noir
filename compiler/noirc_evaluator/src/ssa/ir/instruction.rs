@@ -263,10 +263,15 @@ impl Instruction {
             },
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
-            // Enabling constant folding for these potentially enables replacing an instruction
+            // Replacing them with a similar instruction potentially enables replacing an instruction
             // with one that was disabled. See
             // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-            _ => !self.requires_acir_gen_predicate(dfg),
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
         }
     }
 
@@ -276,7 +281,7 @@ impl Instruction {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs == FieldElement::zero()
+                        rhs != FieldElement::zero()
                     } else {
                         false
                     }
@@ -335,7 +340,17 @@ impl Instruction {
                 }
                 _ => false,
             },
-            _ => false,
+            Instruction::Cast(_, _)
+            | Instruction::Binary(_)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(_, _, _)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => false,
         }
     }
 

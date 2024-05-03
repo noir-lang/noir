@@ -256,8 +256,8 @@ impl Context {
             }
         }
 
-        // If the instruction doesn't have side-effects, cache the results so we can reuse them if
-        // the same instruction appears again later in the block.
+        // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
+        // we cache the results so we can reuse them if the same instruction appears again later in the block.
         if instruction.can_be_replaced(dfg) {
             instruction_result_cache.insert(instruction, instruction_results);
         }
