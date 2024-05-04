@@ -22,3 +22,5 @@ no_predicates_numeric_generic_poseidon
 regression_4709
 fold_distinct_return
 fold_fibonacci
+fold_complex_outputs
+slice_init_with_complex_type

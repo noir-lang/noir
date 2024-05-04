@@ -108,12 +108,12 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.has_side_effects(&function.dfg) {
-            // If the instruction has side effects we should never remove it.
-            false
-        } else {
+        if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
+        } else {
+            // If the instruction has side effects we should never remove it.
+            false
         }
     }
 

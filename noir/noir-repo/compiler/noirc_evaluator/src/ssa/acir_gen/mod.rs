@@ -705,6 +705,9 @@ impl<'a> Context<'a> {
                     assert_message.clone(),
                 )?;
             }
+            Instruction::IfElse { .. } => {
+                unreachable!("IfElse instruction remaining in acir-gen")
+            }
         }
 
         self.acir_context.set_call_stack(CallStack::new());
@@ -732,11 +735,10 @@ impl<'a> Context<'a> {
                                 assert!(!matches!(inline_type, InlineType::Inline), "ICE: Got an ACIR function named {} that should have already been inlined", func.name());
 
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-                                // TODO(https://github.com/noir-lang/noir/issues/4608): handle complex return types from ACIR functions
-                                let output_count =
-                                    result_ids.iter().fold(0usize, |sum, result_id| {
-                                        sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
-                                    });
+                                let output_count = result_ids
+                                    .iter()
+                                    .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
+                                    .sum();
 
                                 let acir_function_id = ssa
                                     .entry_point_to_generated_index
@@ -748,6 +750,7 @@ impl<'a> Context<'a> {
                                     output_count,
                                     self.current_side_effects_enabled_var,
                                 )?;
+
                                 let output_values =
                                     self.convert_vars_to_values(output_vars, dfg, result_ids);
 
@@ -1028,6 +1031,7 @@ impl<'a> Context<'a> {
                             });
                         }
                     };
+
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
                         if index >= array_size {

@@ -125,6 +125,7 @@ impl Context {
             | Truncate { .. }
             | Constrain(..)
             | RangeCheck { .. }
+            | IfElse { .. }
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
