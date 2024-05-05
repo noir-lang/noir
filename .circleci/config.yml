@@ -254,18 +254,6 @@ jobs:
           command: cond_spot_run_build noir-packages 32
           aztec_manifest_key: noir-packages
 
-  noir-packages-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir-packages-tests 32
-          aztec_manifest_key: noir-packages-tests
-
   avm-transpiler:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -521,12 +509,6 @@ workflows:
           requires:
             - bb-js
           <<: *defaults
-      - noir-packages-tests:
-          requires:
-            - bb-js
-            - noir-ecr-manifest
-            - noir-packages
-          <<: *defaults
 
       # Transpiler
       - avm-transpiler: *defaults
@@ -588,7 +570,6 @@ workflows:
             - barretenberg-x86_64-linux-clang-fuzzing
             - barretenberg-wasm-linux-clang
             - barretenberg-docs
-            - noir-packages-tests
             - e2e-join
             - aztec-builder
           <<: *defaults

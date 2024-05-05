@@ -1,6 +1,7 @@
 VERSION 0.8
 
-nargo:
+nargo-src:
+
     FROM ../build-images/+build
     WORKDIR /usr/src
     # Relevant source (TODO finer-grained 'tooling')
@@ -14,26 +15,58 @@ nargo:
       noir-repo/utils \
       noir-repo/Cargo.lock \
       noir-repo/Cargo.toml \
+      noir-repo/.github \
       noir-repo
 
-    # TODO(AD) is this OK as a content hash?
+    # NOTE: we use a fake commit hash here
+    # we don't want Noir to rebuild everytime the parent repo changes
+    # just only when it changes
+    # the commit hash gets injected into version strings
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
+    RUN echo $COMMIT_HASH > .content-hash
+
+    # # borrow Nix's approach to build everything in 1970
+    ENV SOURCE_TIMESTAMP=1
+    ENV SOURCE_DATE_EPOCH=1
+
+nargo:
+    FROM +nargo-src
+    RUN ./noir-repo/.github/scripts/wasm-bindgen-install.sh
     COPY ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
     RUN ./scripts/bootstrap_native.sh
-    RUN echo CONTENT HASH $COMMIT_HASH | tee .content-hash
     SAVE ARTIFACT /usr/src/noir-repo/target/release/nargo nargo
     SAVE ARTIFACT /usr/src/noir-repo/target/release/acvm acvm
     SAVE IMAGE aztecprotocol/nargo
 
-packages:
+packages-deps:
     BUILD ../barretenberg/ts/+build # prefetch
-    FROM ../build-images/+build
 
-    # `noir-repo` is nested inside of `noir` so we copy `bb.js` as such to account
-    # for the extra nested folder specified in portalled package paths
-    COPY ../barretenberg/ts/+build/build /usr/src/../barretenberg/ts
+    LOCALLY
+    LET packages = $(git ls-files "**/package*.json" package*.json)
+    LET tsconfigs = $(git ls-files "**/tsconfig*.json" tsconfig*.json)
 
-    WORKDIR /usr/src
+    FROM +nargo-src
+
+    COPY ../barretenberg/ts/+build/build /usr/src/barretenberg/ts
+
+    WORKDIR /usr/src/noir
+
+    COPY --dir \
+      ./noir-repo/package.json \
+      ./noir-repo/yarn.lock \
+      ./noir-repo/.yarnrc.yml \
+      ./noir-repo/.yarn \
+      ./noir-repo
+
+    FOR file IN $packages
+        COPY $file $file
+    END
+
+    RUN cd noir-repo && yarn install --immutable && cd ../
+
+    FOR file IN $tsconfigs
+      COPY $file $file
+    END
 
     # Relevant source (TODO finer-grained)
     COPY --dir \
@@ -45,7 +78,7 @@ packages:
       noir-repo/scripts \
       noir-repo/test_programs \
       noir-repo/tooling \
-      noir-repo/utils \      
+      noir-repo/utils \
       noir-repo/Cargo.lock \
       noir-repo/.yarnrc.yml \
       noir-repo/.yarn \
@@ -58,15 +91,73 @@ packages:
       noir-repo/.github \
       noir-repo
 
-    COPY noir-repo/.github/scripts noir-repo/.github/scripts
-    COPY ./scripts/bootstrap_packages.sh ./scripts/bootstrap_packages.sh
+packages:
+    FROM +packages-deps
 
-    # TODO(AD) is this OK as a content hash?
-    ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
-    RUN echo CONTENT HASH $COMMIT_HASH | tee .content-hash
+    COPY ./scripts/bootstrap_packages.sh ./scripts/bootstrap_packages.sh
     RUN ./scripts/bootstrap_packages.sh
     SAVE ARTIFACT packages
     SAVE IMAGE --cache-hint
+
+packages-test-build:
+  FROM +packages-deps
+
+  COPY +nargo/nargo /usr/src/noir/noir-repo/target/release/nargo
+  COPY +nargo/acvm /usr/src/noir/noir-repo/target/release/acvm
+
+  ENV NARGO_BACKEND_PATH=/usr/src/barretenberg/ts/dest/node/main.js
+  ENV PATH=$PATH:/usr/src/noir/noir-repo/target/release
+
+  WORKDIR /usr/src/barretenberg/ts
+  RUN yarn --immutable
+
+  WORKDIR /usr/src/noir/noir-repo
+  COPY --dir noir-repo/.github/scripts/wasm-bindgen-install.sh ./.github/scripts/wasm-bindgen-install.sh
+  RUN ./.github/scripts/wasm-bindgen-install.sh
+
+  ENV SOURCE_DATE_EPOCH=$(date +%s)
+  ENV GIT_DIRTY=false
+  ENV GIT_COMMIT=$COMMIT_HASH
+  RUN yarn build
+  # this builds text fixtures to be used in tests
+  RUN yarn workspace @noir-lang/noir_wasm run test:build_fixtures
+
+  SAVE ARTIFACT /usr/src /usr/src
+
+packages-test-node:
+  FROM +packages-test-build
+  ENV NODE_OPTIONS=--max_old_space_size=8192
+  WORKDIR /usr/src/noir/noir-repo
+  RUN yarn workspaces foreach \
+    --parallel \
+    --verbose \
+    --exclude @noir-lang/root \ # foreach includes the root workspace, ignore it
+    --exclude @noir-lang/noir_js \ # noir_js OOMs
+    --exclude integration-tests \ # separate node and browser tests
+    --exclude @noir-lang/noir_wasm \
+    run test
+  RUN yarn workspaces foreach \
+    --parallel \
+    --verbose \
+    --include integration-tests \
+    --include @noir-lang/noir_wasm \
+    run test:node
+
+packages-test-browser:
+  FROM node:18
+  COPY --dir +packages-test-build/usr/src /usr
+  WORKDIR /usr/src/noir/noir-repo
+  RUN ./.github/scripts/playwright-install.sh
+  RUN yarn workspaces foreach \
+    --parallel \
+    --verbose \
+    --include integration-tests \
+    --include @noir-lang/noir_wasm \
+    run test:browser
+
+packages-test:
+  BUILD +packages-test-node
+  BUILD +packages-test-browser
 
 run:
     # When running the container, mount the users home directory to same location.

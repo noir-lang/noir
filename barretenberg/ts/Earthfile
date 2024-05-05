@@ -16,7 +16,7 @@ COPY --dir src *.json *.js *.cjs .
 COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg-threads.wasm
 COPY ../cpp/+preset-wasm/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg.wasm
 COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm dest/node/barretenberg_wasm/barretenberg-threads.wasm
-COPY ../cpp/+preset-wasm/bin/barretenberg.wasm dest/node-cjs/barretenberg_wasm/barretenberg-threads.wasm
+COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm dest/node-cjs/barretenberg_wasm/barretenberg-threads.wasm
 
 esm:
     RUN yarn build:esm
