@@ -145,6 +145,21 @@ jobs:
         timeout-minutes: 25
         run: earthly-ci --no-output ./+test
 
+  noir-test:
+    needs: setup
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: noir-${{ inputs.username || github.actor }}-x86
+      - name: "Test Noir JS packages"
+        run: earthly-ci --no-output ./noir+test
+
   noir-packages-test:
     needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
@@ -409,6 +424,7 @@ jobs:
       - yarn-project-test
       - prover-client-test
       - noir-packages-test
+      - noir-test
     if: always()
     steps:
       - run: |

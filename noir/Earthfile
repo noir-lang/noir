@@ -38,6 +38,12 @@ nargo:
     SAVE ARTIFACT /usr/src/noir-repo/target/release/acvm acvm
     SAVE IMAGE aztecprotocol/nargo
 
+test:
+  FROM +nargo
+  COPY ./scripts/test_native.sh ./scripts/test_native.sh
+  COPY noir-repo/.rustfmt.toml noir-repo/.rustfmt.toml
+  RUN ./scripts/test_native.sh
+
 packages-deps:
     BUILD ../barretenberg/ts/+build # prefetch
 
@@ -269,45 +275,6 @@ barretenberg-acir-tests-bb.js:
   # See https://github.com/AztecProtocol/aztec-packages/issues/2104
   #RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
 
-
-# TOOD
-# test-packages
-# FROM aztecprotocol/noir AS noir
-
-# FROM node:20 AS builder
-# COPY --from=noir /usr/src/noir/noir-repo/target/release /usr/src/noir/noir-repo/target/release
-# ENV PATH=${PATH}:/usr/src/noir/noir-repo/target/release
-# RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-# RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
-# ENV PATH=/root/.cargo/bin:${PATH}
-# RUN apt update && apt install -y jq libc++1
-# ARG COMMIT_HASH
-# ENV COMMIT_HASH=${COMMIT_HASH}
-
-# WORKDIR /usr/src/noir
-# COPY . .
-# RUN ./scripts/test_js_packages.sh
-
-# # Don't waste time pushing a huge container back to ECR as nothing needs the output.
-# FROM scratch
-# COPY --from=builder /usr/src/noir/README.md /usr/src/noir/README.md
-
-# TODO
-# test:
-# FROM rust:bullseye
-# ARG COMMIT_HASH
-# ENV COMMIT_HASH=${COMMIT_HASH}
-# RUN apt update && apt install -y libc++1
-# WORKDIR /usr/src/noir
-# COPY . .
-# RUN ./scripts/test_native.sh
-
-# # Don't waste time pushing a huge container back to ECR as nothing needs the output.
-# FROM scratch
-# COPY --from=0 /usr/src/noir/README.md /usr/src/noir/README.md
-
-
-
 #* Analysis of compiling Acir tests inside/outside Earthly
 # Each test run compiles the full suite, either in series or in parallel, either inside or outside Earthly.
 # Each test prints the contents of the target directory of the eddsa circuit after compilation
@@ -337,9 +304,9 @@ barretenberg-acir-tests-bb.js:
 #    +build-acir-tests | total 2472
 #    +build-acir-tests | -rw-r--r-- 1 root root  830340 May  3 10:47 acir.gz
 #    +build-acir-tests | -rw-r--r-- 1 root root 1696442 May  3 10:47 witness.gz
-   
+
 #  Inside Earthly Series
- 
+
 #     +build-acir-tests | [eddsa] Circuit witness successfully solved
 #    +build-acir-tests | [eddsa] Witness saved to /usr/src/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
 #    +build-acir-tests | total 2544
