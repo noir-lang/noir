@@ -6,7 +6,7 @@ use acvm_blackbox_solver::blake3;
 
 use super::hash_to_curve::hash_to_curve;
 
-/// Derives generator points via hash-to-curve
+/// Derives generator points via [hash-to-curve][hash_to_curve].
 ///
 /// # ALGORITHM DESCRIPTION
 ///
@@ -14,37 +14,12 @@ use super::hash_to_curve::hash_to_curve;
 /// 2. a 64-byte preimage buffer is generated with the following structure:
 ///     - bytes 0-31: BLAKE3 hash of domain_separator
 ///     - bytes 32-63: generator index in big-endian form
-/// 3. The hash-to-curve algorithm is used to hash the above into a group element:
-///     
-///     a. Iterate `count` upwards from `0`
+/// 3. The [hash-to-curve algorithm][hash_to_curve] is used to hash the above into a curve point.
 ///
-///     b. Append `count` to the preimage buffer as a 1-byte integer in big-endian form
-///     
-///     c. Compute `hi = BLAKE3(preimage buffer | 0)`
-///     
-///     d. Compute `low = BLAKE3(preimage buffer | 1)`
-///     
-///     e. Interpret `(hi, low)` as limbs of a 512-bit integer
-///     
-///     f. Reduce 512-bit integer modulo coordinate_field to produce x-coordinate
-///     
-///     g. Attempt to derive y-coordinate. If not successful go to step (a) and continue
-///     
-///     h. If parity of y-coordinate's least significant bit does not match parity of most significant bit of
-///        (d), invert y-coordinate.
-///     
-///     j. Return `(x, y)`
-///
-/// NOTE: In step 3b it is sufficient to use 1 byte to store `count`.
-///       Step 3 has a 50% chance of returning, the probability of `count` exceeding 256 is 1 in 2^256
 /// NOTE: The domain separator is included to ensure that it is possible to derive independent sets of
 /// index-addressable generators.
-/// NOTE: we produce 64 bytes of BLAKE3 output when producing x-coordinate field
-/// element, to ensure that x-coordinate is uniformly randomly distributed in the field. Using a 256-bit input adds
-/// significant bias when reducing modulo a ~256-bit coordinate_field
-/// NOTE: We ensure y-parity is linked to preimage
-/// hash because there is no canonical deterministic square root algorithm (i.e. if a field element has a square
-/// root, there are two of them and `field::sqrt` may return either one)
+///
+/// [hash_to_curve]: super::hash_to_curve::hash_to_curve
 pub(crate) fn derive_generators<E: SWCurveConfig>(
     domain_separator_bytes: &[u8],
     num_generators: u32,
