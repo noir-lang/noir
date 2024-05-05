@@ -3,7 +3,7 @@
 use acvm_blackbox_solver::blake3;
 
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
-use ark_ff::Field;
+use ark_ff::{Field, PrimeField};
 
 /// Hash a seed buffer into a point
 ///
@@ -52,16 +52,14 @@ pub(crate) fn hash_to_curve<E: SWCurveConfig>(seed: &[u8], attempt_count: u8) ->
 
     let mut hash = hash_hi.to_vec();
     hash.extend_from_slice(&hash_lo);
-    if let Some(x) = E::BaseField::from_random_bytes(&hash) {
-        let sign_bit = hash_hi[0] > 127;
-        if let Some(res) = Affine::get_point_from_x_unchecked(x, sign_bit) {
-            res
-        } else {
-            hash_to_curve(seed, attempt_count + 1)
-        }
-    } else {
-        hash_to_curve(seed, attempt_count + 1)
-    }
+
+    // Here we reduce the 512 bit number modulo the base field modulus to calculate `x`
+    let x = <E::BaseField as Field>::BasePrimeField::from_be_bytes_mod_order(&hash);
+    let x = E::BaseField::from_base_prime_field(x);
+
+    let parity_bit = hash_hi[0] > 127;
+    Affine::get_point_from_x_unchecked(x, parity_bit)
+        .unwrap_or_else(|| hash_to_curve(seed, attempt_count + 1))
 }
 
 #[cfg(test)]
@@ -78,24 +76,24 @@ mod test {
                 &[],
                 0,
                 (
-                    "15438301111419613682326485500296565426422599273113990340744393358036656182298",
-                    "15066231519297765468214811000625377804446448682562673817844412647425235265754",
+                    "16630969835852596693293552682274346428810960863289591405364736021328503685422",
+                    "2898904879751428755315857271136646918777181217826622916610882064326950914862",
                 ),
             ),
             (
                 &[],
                 1,
                 (
-                    "11160790032913623338486215764792634663295827616463659385219429623803366672381",
-                    "12758691381125683379000979886391432575683958275657258381114933677979946860616",
+                    "16630969835852596693293552682274346428810960863289591405364736021328503685422",
+                    "2898904879751428755315857271136646918777181217826622916610882064326950914862",
                 ),
             ),
             (
                 &[42],
                 0,
                 (
-                    "4089244622675092895231715601045494990393179656118214530182684755585786168822",
-                    "13201656830459730190234714570396481523049991863856219427417574483450907106352",
+                    "10062871819776274344541726704728265607389658727752533003234345551987599533646",
+                    "4336697243017116919088392067104139397869626428691238548002362745837171062453",
                 ),
             ),
         ];
