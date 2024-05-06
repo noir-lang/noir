@@ -30,6 +30,7 @@ pub struct HirLetStatement {
     pub r#type: Type,
     pub expression: ExprId,
     pub attributes: Vec<SecondaryAttribute>,
+    pub comptime: bool,
 }
 
 impl HirLetStatement {

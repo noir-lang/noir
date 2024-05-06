@@ -554,7 +554,10 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
-            InsertInstructionResult::Results(_, results) => results[0],
+            InsertInstructionResult::Results(_, results) => {
+                assert_eq!(results.len(), 1);
+                results[0]
+            }
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
             }
@@ -579,6 +582,24 @@ impl<'dfg> InsertInstructionResult<'dfg> {
             InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
             InsertInstructionResult::Results(_, results) => results.len(),
             InsertInstructionResult::InstructionRemoved => 0,
+        }
+    }
+}
+
+impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
+    type Output = ValueId;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match self {
+            InsertInstructionResult::Results(_, results) => &results[index],
+            InsertInstructionResult::SimplifiedTo(result) => {
+                assert_eq!(index, 0);
+                result
+            }
+            InsertInstructionResult::SimplifiedToMultiple(results) => &results[index],
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("Cannot index into InsertInstructionResult::InstructionRemoved")
+            }
         }
     }
 }

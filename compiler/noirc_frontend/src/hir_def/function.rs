@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::ast::{Distinctness, FunctionKind, FunctionReturnType, Visibility};
+use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{Type, TypeVariable};
 
@@ -99,8 +99,6 @@ pub struct FuncMeta {
 
     pub return_visibility: Visibility,
 
-    pub return_distinctness: Distinctness,
-
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
     pub typ: Type,
@@ -126,8 +124,9 @@ pub struct FuncMeta {
     pub is_entry_point: bool,
 
     /// True if this function is marked with an attribute
-    /// that indicates it should not be inlined, such as `fold` or `inline(never)`
-    pub has_inline_or_fold_attribute: bool,
+    /// that indicates it should be inlined differently than the default (inline everything).
+    /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
+    pub has_inline_attribute: bool,
 }
 
 impl FuncMeta {

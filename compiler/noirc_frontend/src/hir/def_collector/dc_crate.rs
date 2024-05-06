@@ -158,8 +158,15 @@ pub enum CompilationError {
     InterpreterError(InterpreterError),
 }
 
-impl From<CompilationError> for CustomDiagnostic {
-    fn from(value: CompilationError) -> Self {
+impl CompilationError {
+    fn is_error(&self) -> bool {
+        let diagnostic = CustomDiagnostic::from(self);
+        diagnostic.is_error()
+    }
+}
+
+impl<'a> From<&'a CompilationError> for CustomDiagnostic {
+    fn from(value: &'a CompilationError) -> Self {
         match value {
             CompilationError::ParseError(error) => error.into(),
             CompilationError::DefinitionError(error) => error.into(),
@@ -404,10 +411,15 @@ impl DefCollector {
             );
         }
 
-        resolved_module.errors.extend(context.def_interner.check_for_dependency_cycles());
+        let cycle_errors = context.def_interner.check_for_dependency_cycles();
+        let cycles_present = !cycle_errors.is_empty();
+        resolved_module.errors.extend(cycle_errors);
 
         resolved_module.type_check(context);
-        resolved_module.evaluate_comptime(&mut context.def_interner);
+
+        if !cycles_present {
+            resolved_module.evaluate_comptime(&mut context.def_interner);
+        }
 
         resolved_module.errors
     }
@@ -503,13 +515,21 @@ impl ResolvedModule {
 
     /// Evaluate all `comptime` expressions in this module
     fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
-        let mut interpreter = Interpreter::new(interner);
+        if self.count_errors() == 0 {
+            let mut interpreter = Interpreter::new(interner);
 
-        for (_file, function) in &self.functions {
-            // The file returned by the error may be different than the file the
-            // function is in so only use the error's file id.
-            if let Err(error) = interpreter.scan_function(*function) {
-                self.errors.push(error.into_compilation_error_pair());
+            for (_file, global) in &self.globals {
+                if let Err(error) = interpreter.scan_global(*global) {
+                    self.errors.push(error.into_compilation_error_pair());
+                }
+            }
+
+            for (_file, function) in &self.functions {
+                // The file returned by the error may be different than the file the
+                // function is in so only use the error's file id.
+                if let Err(error) = interpreter.scan_function(*function) {
+                    self.errors.push(error.into_compilation_error_pair());
+                }
             }
         }
     }
@@ -523,5 +543,10 @@ impl ResolvedModule {
         let globals = resolve_globals(context, literal_globals, crate_id);
         self.globals.extend(globals.globals);
         self.errors.extend(globals.errors);
+    }
+
+    /// Counts the number of errors (minus warnings) this program currently has
+    fn count_errors(&self) -> usize {
+        self.errors.iter().filter(|(error, _)| error.is_error()).count()
     }
 }
