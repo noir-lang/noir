@@ -186,7 +186,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
         }
-        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. }) => {
+        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
+        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
             if *is_slice {
                 output.push('&')
             }
