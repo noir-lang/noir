@@ -149,6 +149,17 @@ export default {
       },
     }),
     [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {
+            to: 'docs/',
+            from: '/',
+          },
+        ],
+      },
+    ],
+    [
       'docusaurus-plugin-typedoc',
       {
         id: 'noir_js',

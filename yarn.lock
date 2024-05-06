@@ -2389,7 +2389,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/core@npm:3.0.1, @docusaurus/core@npm:^3.0.1":
+"@docusaurus/core@npm:3.0.1":
   version: 3.0.1
   resolution: "@docusaurus/core@npm:3.0.1"
   dependencies:
@@ -2599,7 +2599,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/module-type-aliases@npm:3.0.1, @docusaurus/module-type-aliases@npm:^3.0.1":
+"@docusaurus/module-type-aliases@npm:3.0.1":
   version: 3.0.1
   resolution: "@docusaurus/module-type-aliases@npm:3.0.1"
   dependencies:
@@ -2615,6 +2615,26 @@ __metadata:
     react: "*"
     react-dom: "*"
   checksum: 08895f8b100df772bb9c9a8fcf9cd3ee83f0deafeb76fb9b14efd5cdd3313abb4a02032868bd458cb3a5f345942fd9f4c44833ce5042279b2241d462a1bf4cc2
+  languageName: node
+  linkType: hard
+
+"@docusaurus/plugin-client-redirects@npm:3.0.1":
+  version: 3.0.1
+  resolution: "@docusaurus/plugin-client-redirects@npm:3.0.1"
+  dependencies:
+    "@docusaurus/core": 3.0.1
+    "@docusaurus/logger": 3.0.1
+    "@docusaurus/utils": 3.0.1
+    "@docusaurus/utils-common": 3.0.1
+    "@docusaurus/utils-validation": 3.0.1
+    eta: ^2.2.0
+    fs-extra: ^11.1.1
+    lodash: ^4.17.21
+    tslib: ^2.6.0
+  peerDependencies:
+    react: ^18.0.0
+    react-dom: ^18.0.0
+  checksum: 7d65322d17d28945766e508d8bf276fd60a5d22a8b95cc761747a33d0f88b8a470db51fcf7303c2a979b32e29c5f390d8c12d7bd050972c208d1069c34e035bb
   languageName: node
   linkType: hard
 
@@ -2801,7 +2821,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/preset-classic@npm:^3.0.1":
+"@docusaurus/preset-classic@npm:3.0.1":
   version: 3.0.1
   resolution: "@docusaurus/preset-classic@npm:3.0.1"
   dependencies:
@@ -2946,7 +2966,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/tsconfig@npm:^3.0.1":
+"@docusaurus/tsconfig@npm:3.0.1":
   version: 3.0.1
   resolution: "@docusaurus/tsconfig@npm:3.0.1"
   checksum: a191e527740ea09cc4783ab45f106989f692d100e83768a4398fc08d3d41f0645afdce83aa89a1b251d5899544105af09e795af4d0db54247403a180f3c43098
@@ -2972,7 +2992,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/types@npm:3.0.1, @docusaurus/types@npm:^3.0.1":
+"@docusaurus/types@npm:3.0.1":
   version: 3.0.1
   resolution: "@docusaurus/types@npm:3.0.1"
   dependencies:
@@ -10033,11 +10053,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "docs@workspace:docs"
   dependencies:
-    "@docusaurus/core": ^3.0.1
-    "@docusaurus/module-type-aliases": ^3.0.1
-    "@docusaurus/preset-classic": ^3.0.1
-    "@docusaurus/tsconfig": ^3.0.1
-    "@docusaurus/types": ^3.0.1
+    "@docusaurus/core": 3.0.1
+    "@docusaurus/module-type-aliases": 3.0.1
+    "@docusaurus/plugin-client-redirects": 3.0.1
+    "@docusaurus/preset-classic": 3.0.1
+    "@docusaurus/tsconfig": 3.0.1
+    "@docusaurus/types": 3.0.1
     "@easyops-cn/docusaurus-search-local": ^0.35.0
     "@mdx-js/react": ^3.0.0
     "@noir-lang/noir_js": "workspace:*"
