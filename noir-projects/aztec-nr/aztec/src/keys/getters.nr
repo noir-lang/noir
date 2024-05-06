@@ -1,79 +1,99 @@
-use dep::protocol_types::{
-  address::{
-    AztecAddress,
-    PartialAddress
-  }, 
-  constants::{
-    GENERATOR_INDEX__PUBLIC_KEYS_HASH,
-    GENERATOR_INDEX__CONTRACT_ADDRESS_V1,
-    CANONICAL_KEY_REGISTRY_ADDRESS
-  },
-  grumpkin_point::GrumpkinPoint,
+use dep::protocol_types::{address::AztecAddress, constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint};
+use crate::{
+    context::PrivateContext, oracle::keys::get_public_keys_and_partial_address,
+    state_vars::{
+    map::derive_storage_slot_in_map,
+    shared_mutable::shared_mutable_private_getter::SharedMutablePrivateGetter
+}
 };
 
-use crate::context::PrivateContext;
-use crate::hash::{
-  pedersen_hash, 
-  poseidon2_hash,
-};
-use crate::oracle::keys::get_public_keys_and_partial_address;
-use crate::state_vars::{
-  map::derive_storage_slot_in_map,
-  shared_mutable::shared_mutable_private_getter::SharedMutablePrivateGetter,
-};
+// Note: In fetch_key_from_registry we expect that the shared mutable slot is index * 2 + 1 for the x coordinate and
+// index * 2 + 2 for the y coordinate. For example, the npk_m x coordinates will be stored in a map at storage slot
+// 0 * 2 + 1 = 1, and the npk_m y coordinates at 2 * 2 + 2 = 6. If this changes the function will need to be
+// refactored.
+global NULLIFIER_INDEX = 0;
+global INCOMING_INDEX = 1;
+global OUTGOING_INDEX = 2;
+global TAGGING_INDEX = 3;
 
-struct PublicKeyTypeEnum {
-  NULLIFIER: u8,
+global DELAY = 5;
+
+pub fn get_npk_m(context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
+    get_master_key(context, address, NULLIFIER_INDEX)
 }
 
-global PublicKeyType = PublicKeyTypeEnum {
-  NULLIFIER: 0,
-};
-
-pub fn get_fresh_nullifier_public_key_hash(
-  context: &mut PrivateContext,
-  address: AztecAddress, 
-) -> Field {
-  // This is the storage slot of the nullifier_public_key inside the key registry contract
-  // TODO: (#6133) We should have this be directly imported from the other contract if possible, or at least this should not be this brittle
-  let storage_slot_of_nullifier_public_key = 1;
-
-  let derived_slot = derive_storage_slot_in_map(storage_slot_of_nullifier_public_key, address);
-
-  // We read from the canonical Key Registry
-  // TODO: (#6134) It's a bit wonky because we need to know the delay for get_current_value_in_private to work correctly.
-  // We should allow for this usecase without needing to hard code it here.
-  let registry_private_getter: SharedMutablePrivateGetter<Field, 5> = SharedMutablePrivateGetter::new(*context, AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS), derived_slot);
-  let nullifier_public_key_hash_in_registry = registry_private_getter.get_current_value_in_private();
-
-  let nullifier_public_key_hash = if nullifier_public_key_hash_in_registry == 0 {
-    let keys = get_original_public_keys_internal(address);
-    poseidon2_hash(keys[PublicKeyType.NULLIFIER].serialize())
-  } else {
-    nullifier_public_key_hash_in_registry
-  };
-
-  nullifier_public_key_hash
+pub fn get_ivpk_m(context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
+    get_master_key(context, address, INCOMING_INDEX)
 }
 
-// This constraint only works on keys that have not been rotated, otherwise this call will fail as the public keys are not constrained
-fn get_original_public_keys_internal(address: AztecAddress) -> [GrumpkinPoint; 4] {
-  let (public_keys, partial_address) = get_public_keys_and_partial_address(address);
+// Commented out as it's currently not enabled in key registry
+// pub fn get_ovpk_m(context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
+//     get_master_key(context, address, OUTGOING_INDEX)
+// }
+// 
+// pub fn get_tpk_m(context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
+//     get_master_key(context, address, TAGGING_INDEX)
+// }
 
-  let nullifier_pub_key = public_keys[0];
-  let incoming_pub_key = public_keys[1];
-  let outgoing_pub_key = public_keys[2];
-  let tagging_pub_key = public_keys[3];
+fn get_master_key(
+    context: &mut PrivateContext,
+    address: AztecAddress,
+    key_index: Field
+) -> GrumpkinPoint {
+    let key = fetch_key_from_registry(context, key_index, address);
+    if key.is_zero() {
+        // Keys were not registered in registry yet --> fetch key from PXE
+        fetch_and_constrain_keys(address)[key_index]
+    } else {
+        // Keys were registered --> return the key
+        key
+    }
+}
 
-  let computed_address = AztecAddress::compute_from_public_keys_and_partial_address(
-    nullifier_pub_key,
-    incoming_pub_key,
-    outgoing_pub_key,
-    tagging_pub_key,
-    partial_address,
-  );
+fn fetch_key_from_registry(
+    context: &mut PrivateContext,
+    key_index: Field,
+    address: AztecAddress
+) -> GrumpkinPoint {
+    let x_coordinate_map_slot = key_index * 2 + 1;
+    let y_coordinate_map_slot = x_coordinate_map_slot + 1;
+    let x_coordinate_derived_slot = derive_storage_slot_in_map(x_coordinate_map_slot, address);
+    let y_coordinate_derived_slot = derive_storage_slot_in_map(y_coordinate_map_slot, address);
 
-  assert(computed_address.eq(address));
+    let x_coordinate_registry: SharedMutablePrivateGetter<Field, DELAY> = SharedMutablePrivateGetter::new(
+        *context,
+        AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
+        x_coordinate_derived_slot
+    );
+    let y_coordinate_registry: SharedMutablePrivateGetter<Field, DELAY> = SharedMutablePrivateGetter::new(
+        *context,
+        AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
+        y_coordinate_derived_slot
+    );
+    let x_coordinate = x_coordinate_registry.get_current_value_in_private();
+    let y_coordinate = y_coordinate_registry.get_current_value_in_private();
 
-  [nullifier_pub_key, incoming_pub_key, outgoing_pub_key, tagging_pub_key]
+    GrumpkinPoint::new(x_coordinate, y_coordinate)
+}
+
+// Passes only when keys were not rotated - is expected to be called only when keys were not registered yet
+fn fetch_and_constrain_keys(address: AztecAddress) -> [GrumpkinPoint; 4] {
+    let (public_keys, partial_address) = get_public_keys_and_partial_address(address);
+
+    let nullifier_pub_key = public_keys[0];
+    let incoming_pub_key = public_keys[1];
+    let outgoing_pub_key = public_keys[2];
+    let tagging_pub_key = public_keys[3];
+
+    let computed_address = AztecAddress::compute_from_public_keys_and_partial_address(
+        nullifier_pub_key,
+        incoming_pub_key,
+        outgoing_pub_key,
+        tagging_pub_key,
+        partial_address
+    );
+
+    assert(computed_address.eq(address));
+
+    [nullifier_pub_key, incoming_pub_key, outgoing_pub_key, tagging_pub_key]
 }

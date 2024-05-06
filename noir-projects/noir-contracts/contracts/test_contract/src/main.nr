@@ -19,7 +19,7 @@ contract Test {
     use dep::aztec::state_vars::{shared_mutable::SharedMutablePrivateGetter, map::derive_storage_slot_in_map};
 
     use dep::aztec::{
-        keys::getters::get_fresh_nullifier_public_key_hash,
+        keys::getters::get_npk_m,
         context::{Context, inputs::private_context_inputs::PrivateContextInputs},
         hash::{pedersen_hash, poseidon2_hash, compute_secret_hash, ArgsHasher},
         note::{
@@ -425,9 +425,7 @@ contract Test {
 
         // It's a bit wonky because we need to know the delay for get_current_value_in_private to work correctly
         let registry_private_getter: SharedMutablePrivateGetter<Field, 5> = SharedMutablePrivateGetter::new(context, AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS), derived_slot);
-        let nullifier_public_key = registry_private_getter.get_current_value_in_private();
-
-        nullifier_public_key
+        registry_private_getter.get_current_value_in_private()
     }
 
     #[aztec(private)]
@@ -435,13 +433,7 @@ contract Test {
         address: AztecAddress,
         public_nullifying_key: GrumpkinPoint,
     ) {
-        assert_eq(get_fresh_nullifier_public_key_hash(&mut context, address), poseidon2_hash(public_nullifying_key.serialize()));
-    }
-
-    #[aztec(public)]
-    fn delay() {
-        // We use this as a util function to "mine a block"
-        context.emit_unencrypted_log("dummy");
+        assert_eq(get_npk_m(&mut context, address), public_nullifying_key);
     }
 
     // Purely exists for testing
