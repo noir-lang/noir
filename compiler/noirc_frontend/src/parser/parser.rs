@@ -1374,7 +1374,7 @@ mod test {
                 fresh_statement(),
                 true,
             ),
-            vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
+            vec!["x as u8", "x as u16", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
             atom_or_right_unary(
@@ -1546,7 +1546,10 @@ mod test {
         // Let statements are not type checked here, so the parser will accept as
         // long as it is a type. Other statements such as Public are type checked
         // Because for now, they can only have one type
-        parse_all(declaration(expression()), vec!["let _ = 42", "let x = y", "let x : u8 = y"]);
+        parse_all(
+            declaration(expression()),
+            vec!["let _ = 42", "let x = y", "let x : u8 = y", "let x: u16 = y"],
+        );
     }
 
     #[test]
