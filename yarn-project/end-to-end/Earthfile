@@ -1,24 +1,27 @@
 VERSION 0.8
+ARG --global skip_build=false
 
 E2E_COMPOSE_TEST:
   FUNCTION
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
   ARG debug="aztec:*"
-  ARG EARTHLY_TARGET_NAME
-  ARG prover_agents=10
   LOCALLY
   ENV TEST=$test
   ENV DEBUG=$debug
-  ENV PROVER_AGENTS=$prover_agents
   LET project_name=$(echo $test | sed 's/\./_/g')
   IF docker compose > /dev/null 2>&1
     LET CMD="docker compose"
   ELSE
     LET CMD="docker-compose"
   END
-  WAIT
-    BUILD ../+export-e2e-test-images
+  # In CI, we do an optimization to push these images to docker once
+  # We still want the default code path to work with no faff locally
+  # To not rebuild unnecessarily, we pass --skip_build=true in CI
+  IF [ $skip_build != "true" ]
+    WAIT
+      BUILD ../+export-e2e-test-images
+    END
   END
   # Let docker compose know about the pushed tags above
   ENV AZTEC_DOCKER_TAG=$(git rev-parse HEAD)

@@ -75,7 +75,11 @@ jobs:
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 25
-        run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --no-output +${{ matrix.test }}
+        run: earthly-ci -P \
+          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          --no-output \
+          +${{ matrix.test }} --skip_build=true
 
   # bench-summary:
   #   needs: e2e
@@ -108,7 +112,7 @@ jobs:
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
-    needs: setup
+    needs: build
     runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
       - {
@@ -326,7 +330,7 @@ jobs:
 
   # push benchmarking binaries to dockerhub registry
   bb-bench-binaries:
-    needs: setup
+    needs: build
     runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
       - {
