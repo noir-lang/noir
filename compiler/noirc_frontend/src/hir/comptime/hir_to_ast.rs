@@ -300,9 +300,10 @@ impl Type {
     fn to_type_expression(&self) -> UnresolvedTypeExpression {
         let span = Span::default();
 
+        // NOTE: hir_to_ast deprecated
         match self.follow_bindings() {
-            Type::Constant(length) => UnresolvedTypeExpression::Constant(length, span),
-            Type::NamedGeneric(_, name) => {
+            Type::GenericArith(GenericArith::Constant(length), _) => UnresolvedTypeExpression::Constant(length, span),
+            Type::GenericArith(GenericArith::NamedGeneric(_, name), _) => {
                 let path = Path::from_single(name.as_ref().clone(), span);
                 UnresolvedTypeExpression::Variable(path)
             }
@@ -342,7 +343,8 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_ast(interner));
                 let length = match length {
-                    Type::Constant(length) => {
+                    // NOTE: hir_to_ast deprecated
+                    Type::GenericArith(GenericArith::Constant(length), _) => {
                         let literal = Literal::Integer((length as u128).into(), false);
                         let kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(kind, span))

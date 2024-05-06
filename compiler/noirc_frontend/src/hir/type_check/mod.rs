@@ -22,7 +22,7 @@ use crate::{
         traits::TraitConstraint,
     },
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
-    Type, TypeBindings,
+    Type, TypeBindings, GenericArith,
 };
 
 use self::errors::Source;
@@ -272,7 +272,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         for ((_, trait_fn_generic), (name, impl_fn_generic)) in
             trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::GenericArith(GenericArith::NamedGeneric(impl_fn_generic.clone(), name.clone()), vec![].into());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 

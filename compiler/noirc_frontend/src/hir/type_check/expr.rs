@@ -85,7 +85,7 @@ impl<'interner> TypeChecker<'interner> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let elem_type = self.check_expression(&repeated_element);
                 let length = match length {
-                    Type::Constant(length) => Ok(length),
+                    Type::GenericArith(GenericArith::Constant(length), Shared::new(vec![])) => Ok(length),
                     other => Err(Box::new(other)),
                 };
                 (length, Box::new(elem_type))
@@ -130,11 +130,11 @@ impl<'interner> TypeChecker<'interner> {
                 HirLiteral::Bool(_) => Type::Bool,
                 HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
                 HirLiteral::Str(string) => {
-                    let len = Type::Constant(string.len() as u64);
+                    let len = Type::GenericArith(GenericArith::Constant(string.len() as u64), vec![].into());
                     Type::String(Box::new(len))
                 }
                 HirLiteral::FmtStr(string, idents) => {
-                    let len = Type::Constant(string.len() as u64);
+                    let len = Type::GenericArith(GenericArith::Constant(string.len() as u64), vec![].into());
                     let types = vecmap(&idents, |elem| self.check_expression(elem));
                     Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
                 }
@@ -934,7 +934,7 @@ impl<'interner> TypeChecker<'interner> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
+            Type::GenericArith(GenericArith::NamedGeneric(_, _), _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
                 );

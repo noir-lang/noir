@@ -51,7 +51,7 @@ impl Value {
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
-                let length = Type::Constant(value.len() as u64);
+                let length = Type::GenericArith(GenericArith::Constant(value.len() as u64), vec![].into());
                 Type::String(Box::new(length))
             }
             Value::Function(_, typ) => return Cow::Borrowed(typ),

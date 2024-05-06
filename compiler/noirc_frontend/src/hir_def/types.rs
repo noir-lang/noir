@@ -146,7 +146,7 @@ impl std::fmt::Display for GenericArith {
 }
 
 // TODO: relocate
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum GenericArithOpKind {
     Mul,
     Add,
@@ -198,7 +198,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::GenericArith(_)
+            | Type::GenericArith(..)
             | Type::Code
             | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
@@ -669,10 +669,11 @@ impl Type {
         )
     }
 
+    // TODO: update to recurse on GenericArith
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
         // True if the given type is a NamedGeneric with the target_id
         let named_generic_id_matches_target = |typ: &Type| {
-            if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, _)) = typ {
+            if let Type::GenericArith(GenericArith::NamedGeneric(type_variable, _), _) = typ {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(_) => {
                         unreachable!("Named generics should not be bound until monomorphization")
@@ -691,7 +692,7 @@ impl Type {
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
-            | Type::GenericArith(_)
+            | Type::GenericArith(..)
             | Type::Forall(_, _)
             | Type::Code => false,
 
@@ -750,12 +751,12 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::GenericArith(GenericArith::Constant(_))
+            | Type::GenericArith(GenericArith::Constant(_), _)
             | Type::Error => true,
 
             Type::FmtString(_, _)
             | Type::TypeVariable(_, _)
-            | Type::GenericArith(_)
+            | Type::GenericArith(..)
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -796,8 +797,8 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::TypeVariable(_, _)
-            // TODO
-            | Type::GenericArith(_)
+            // TODO ensure cases valid for program input
+            | Type::GenericArith(..)
             | Type::Error => true,
 
             Type::FmtString(_, _)
@@ -834,7 +835,8 @@ impl Type {
     pub fn generic_count(&self) -> usize {
         match self {
             Type::Forall(generics, _) => generics.len(),
-            Type::TypeVariable(type_variable, _) | Type::GenericArith(GenericArith::NamedGeneric(type_variable, _)) => {
+            // TODO recurse on GenericArith
+            Type::TypeVariable(type_variable, _) | Type::GenericArith(GenericArith::NamedGeneric(type_variable, _), _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
                     TypeBinding::Unbound(_) => 0,
@@ -948,7 +950,7 @@ impl std::fmt::Display for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::GenericArith(generic_arith) => write!(f, "{}", generic_arith),
+            Type::GenericArith(generic_arith, equiv_generics) => write!(f, "{}({:?})", generic_arith, equiv_generics),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -1018,7 +1020,7 @@ impl Type {
         let this = self.substitute(bindings).follow_bindings();
 
         match &this {
-            Type::GenericArith(GenericArith::Constant(length)) if *length == target_length => {
+            Type::GenericArith(GenericArith::Constant(length), _) if *length == target_length => {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
@@ -1183,7 +1185,7 @@ impl Type {
 
     fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
         match self {
-            Type::TypeVariable(var, _) | Type::GenericArith(GenericArith::NamedGeneric(var, _)) => Some(var.1.clone()),
+            Type::TypeVariable(var, _) | Type::GenericArith(GenericArith::NamedGeneric(var, _), _) => Some(var.1.clone()),
             _ => None,
         }
     }
@@ -1315,20 +1317,25 @@ impl Type {
                     Ok(())
                 } else {
                     // Err(UnificationError)
-                    (*equiv_a).push(GenericArith::NamedGeneric(binding_b, name_b));
+
+                    // TODO: before PR: these clone()'s detach GenericArith from the equiv_generics
+                    // ensure that they're kept up to date + included as part of the expression
+                    equiv_a.borrow_mut().push(GenericArith::NamedGeneric(binding_b.clone(), name_b.clone()));
                     Ok(())
                 }
             }
 
-            (GenericArith(GenericArith::Op { kind: kind_a, lhs: lhs_a, rhs: rhs_a }, equiv_a), GenericArith(GenericArith::Op { kind: kind_b, lhs: lhs_b, rhs: rhs_b }, equiv_b)) => {
-
-                ()
-            }
-
-            (GenericArith(GenericArith::Op { kind, lhs, rhs }, equiv), other) | (other, GenericArith(GenericArith::Op { kind, lhs, rhs }, equiv)) => {
-
-                ()
-            }
+            // TODO
+            //
+            // (GenericArith(GenericArith::Op { kind: kind_a, lhs: lhs_a, rhs: rhs_a }, equiv_a), GenericArith(GenericArith::Op { kind: kind_b, lhs: lhs_b, rhs: rhs_b }, equiv_b)) => {
+            //
+            //     ()
+            // }
+            //
+            // (GenericArith(GenericArith::Op { kind, lhs, rhs }, equiv), other) | (other, GenericArith(GenericArith::Op { kind, lhs, rhs }, equiv)) => {
+            //
+            //     ()
+            // }
 
             (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
@@ -1453,7 +1460,7 @@ impl Type {
         match self {
             Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
             Type::Array(len, _elem) => len.evaluate_to_u64(),
-            Type::GenericArith(GenericArith::Constant(x)) => Some(*x),
+            Type::GenericArith(GenericArith::Constant(x), _) => Some(*x),
             _ => None,
         }
     }
@@ -1608,7 +1615,7 @@ impl Type {
                 let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
-            Type::GenericArith(GenericArith::NamedGeneric(binding, _)) | Type::TypeVariable(binding, _) => {
+            Type::GenericArith(GenericArith::NamedGeneric(binding, _), _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
             }
             // Do not substitute_helper fields, it can lead to infinite recursion
@@ -1662,7 +1669,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::GenericArith(GenericArith::Constant(_))
+            | Type::GenericArith(GenericArith::Constant(_), _)
             | Type::Error
             | Type::Code
             | Type::Unit => self.clone(),
@@ -1686,7 +1693,7 @@ impl Type {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::GenericArith(GenericArith::NamedGeneric(binding, _)) | Type::TypeVariable(binding, _) => {
+            Type::GenericArith(GenericArith::NamedGeneric(binding, _), _) | Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(binding) => binding.occurs(target_id),
                     TypeBinding::Unbound(id) => *id == target_id,
@@ -1705,7 +1712,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::GenericArith(GenericArith::Constant(_))
+            | Type::GenericArith(GenericArith::Constant(_), _)
             | Type::Error
             | Type::Code
             | Type::Unit => false,
@@ -1828,7 +1835,7 @@ impl TypeVariableKind {
         match self {
             TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
             TypeVariableKind::Integer => Some(Type::default_int_type()),
-            TypeVariableKind::Constant(length) => Some(Type::GenericArith(GenericArith::Constant(*length))),
+            TypeVariableKind::Constant(length) => Some(Type::GenericArith(GenericArith::Constant(*length), vec![].into())),
             TypeVariableKind::Normal => None,
         }
     }
@@ -1879,7 +1886,7 @@ impl From<&Type> for PrintableType {
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
-            Type::GenericArith(GenericArith::Constant(_)) => unreachable!(),
+            Type::GenericArith(GenericArith::Constant(_), _) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -1890,7 +1897,7 @@ impl From<&Type> for PrintableType {
             Type::TraitAsType(_, _, _) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
-            Type::GenericArith(GenericArith::NamedGeneric(..)) => unreachable!(),
+            Type::GenericArith(GenericArith::NamedGeneric(..), _) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(arguments, return_type, env) => PrintableType::Function {
                 arguments: arguments.iter().map(|arg| arg.into()).collect(),
@@ -1967,7 +1974,11 @@ impl std::fmt::Debug for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::GenericArith(GenericArith::NamedGeneric(binding, name), equiv) => {
-                (write!(f, "{}{:?}", name, binding), equiv)
+                if equiv.borrow().len() == 0 {
+                    write!(f, "{}{:?}", name, binding)
+                } else {
+                    write!(f, "{}{:?}({:?})", name, binding, equiv.borrow())
+                }
             },
             Type::GenericArith(GenericArith::Constant(x), equiv) => {
                 if equiv.borrow().len() == 0 {
