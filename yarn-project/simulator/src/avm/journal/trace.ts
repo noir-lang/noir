@@ -29,6 +29,7 @@ export class WorldStateAccessTrace {
 
   constructor(parentTrace?: WorldStateAccessTrace) {
     this.accessCounter = parentTrace ? parentTrace.accessCounter : 0;
+    // TODO(4805): consider tracking the parent's trace vector lengths so we can enforce limits
   }
 
   public getAccessCounter() {

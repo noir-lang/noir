@@ -26,7 +26,7 @@ import { PackedValuesCache } from '../common/packed_values_cache.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
 import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { PublicExecutionContext } from './public_execution_context.js';
-import { convertAvmResults, createAvmExecutionEnvironment, isAvmBytecode } from './transitional_adaptors.js';
+import { convertAvmResultsToPxResult, createAvmExecutionEnvironment, isAvmBytecode } from './transitional_adaptors.js';
 
 /**
  * Execute a public function and return the execution result.
@@ -46,15 +46,22 @@ export async function executePublicFunction(
   }
 
   if (isAvmBytecode(bytecode)) {
-    return await executePublicFunctionAvm(context);
+    return await executeTopLevelPublicFunctionAvm(context);
   } else {
     return await executePublicFunctionAcvm(context, bytecode, nested);
   }
 }
 
-async function executePublicFunctionAvm(executionContext: PublicExecutionContext): Promise<PublicExecutionResult> {
+/**
+ * Execute a top-level public function call (the first call in an enqueued-call/execution-request) in the AVM.
+ * Translate the results back to the PublicExecutionResult format.
+ */
+async function executeTopLevelPublicFunctionAvm(
+  executionContext: PublicExecutionContext,
+): Promise<PublicExecutionResult> {
   const address = executionContext.execution.contractAddress;
   const selector = executionContext.execution.functionData.selector;
+  const startGas = executionContext.availableGas;
   const log = createDebugLogger('aztec:simulator:public_execution');
   log.verbose(`[AVM] Executing public external function ${address.toString()}:${selector}.`);
 
@@ -65,7 +72,12 @@ async function executePublicFunctionAvm(executionContext: PublicExecutionContext
     executionContext.contractsDb,
     executionContext.commitmentsDb,
   );
+
+  // TODO(6207): add sideEffectCounter to persistableState construction
+  // or modify the PersistableStateManager to manage rollbacks across enqueued-calls and transactions.
   const worldStateJournal = new AvmPersistableStateManager(hostStorage);
+  const startSideEffectCounter = executionContext.execution.callContext.sideEffectCounter;
+  worldStateJournal.trace.accessCounter = startSideEffectCounter;
 
   const executionEnv = createAvmExecutionEnvironment(
     executionContext.execution,
@@ -75,18 +87,21 @@ async function executePublicFunctionAvm(executionContext: PublicExecutionContext
     executionContext.transactionFee,
   );
 
-  const machineState = new AvmMachineState(executionContext.availableGas);
-  const context = new AvmContext(worldStateJournal, executionEnv, machineState);
-  const simulator = new AvmSimulator(context);
+  const machineState = new AvmMachineState(startGas);
+  const avmContext = new AvmContext(worldStateJournal, executionEnv, machineState);
+  const simulator = new AvmSimulator(avmContext);
 
-  const result = await simulator.execute();
-  const newWorldState = context.persistableState.flush();
+  const avmResult = await simulator.execute();
 
   log.verbose(
-    `[AVM] ${address.toString()}:${selector} returned, reverted: ${result.reverted}, reason: ${result.revertReason}.`,
+    `[AVM] ${address.toString()}:${selector} returned, reverted: ${avmResult.reverted}, reason: ${
+      avmResult.revertReason
+    }.`,
   );
 
-  return await convertAvmResults(executionContext, newWorldState, result, machineState);
+  return Promise.resolve(
+    convertAvmResultsToPxResult(avmResult, startSideEffectCounter, executionContext.execution, startGas, avmContext),
+  );
 }
 
 async function executePublicFunctionAcvm(

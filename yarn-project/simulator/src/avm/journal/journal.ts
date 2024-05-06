@@ -1,3 +1,4 @@
+// TODO(5818): Rename file and all uses of "journal"
 import { UnencryptedL2Log } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -30,6 +31,7 @@ import {
   type TracedUnencryptedL2Log,
 } from './trace_types.js';
 
+// TODO:(5818): do we need this type anymore?
 /**
  * Data held within the journal
  */
@@ -81,7 +83,7 @@ export class AvmPersistableStateManager {
   /** Reference to node storage */
   public readonly hostStorage: HostStorage;
 
-  // TODO: make members private once this is not used in transitional_adaptors.ts.
+  // TODO(5818): make members private once this is not used in transitional_adaptors.ts.
   /** World State */
   /** Public storage, including cached writes */
   public publicStorage: PublicStorage;
@@ -327,6 +329,7 @@ export class AvmPersistableStateManager {
     this.trace.acceptAndMerge(nestedJournal.trace);
   }
 
+  // TODO:(5818): do we need this type anymore?
   /**
    * Access the current state of the journal
    *

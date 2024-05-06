@@ -5,7 +5,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   FunctionData,
-  Gas,
+  type Gas,
   type GasSettings,
   type GlobalVariables,
   type Header,
@@ -24,9 +24,8 @@ import { AvmContractCallResults } from '../avm/avm_message_call_result.js';
 import { type JournalData } from '../avm/journal/journal.js';
 import { Mov } from '../avm/opcodes/memory.js';
 import { createSimulationError } from '../common/errors.js';
-import { PackedValuesCache, SideEffectCounter } from '../index.js';
 import { type PublicExecution, type PublicExecutionResult } from './execution.js';
-import { PublicExecutionContext } from './public_execution_context.js';
+import { type PublicExecutionContext } from './public_execution_context.js';
 
 /**
  * Convert a PublicExecution(Environment) object to an AvmExecutionEnvironment
@@ -60,40 +59,54 @@ export function createAvmExecutionEnvironment(
   );
 }
 
-export function createPublicExecutionContext(avmContext: AvmContext, calldata: Fr[]): PublicExecutionContext {
-  const sideEffectCounter = avmContext.persistableState.trace.accessCounter;
+export function createPublicExecution(
+  startSideEffectCounter: number,
+  avmEnvironment: AvmExecutionEnvironment,
+  calldata: Fr[],
+): PublicExecution {
   const callContext = CallContext.from({
-    msgSender: avmContext.environment.sender,
-    storageContractAddress: avmContext.environment.storageAddress,
-    functionSelector: avmContext.environment.temporaryFunctionSelector,
-    isDelegateCall: avmContext.environment.isDelegateCall,
-    isStaticCall: avmContext.environment.isStaticCall,
-    sideEffectCounter: sideEffectCounter,
+    msgSender: avmEnvironment.sender,
+    storageContractAddress: avmEnvironment.storageAddress,
+    functionSelector: avmEnvironment.temporaryFunctionSelector,
+    isDelegateCall: avmEnvironment.isDelegateCall,
+    isStaticCall: avmEnvironment.isStaticCall,
+    sideEffectCounter: startSideEffectCounter,
   });
-  const functionData = new FunctionData(avmContext.environment.temporaryFunctionSelector, /*isPrivate=*/ false);
+  const functionData = new FunctionData(avmEnvironment.temporaryFunctionSelector, /*isPrivate=*/ false);
   const execution: PublicExecution = {
-    contractAddress: avmContext.environment.address,
+    contractAddress: avmEnvironment.address,
     callContext,
     args: calldata,
     functionData,
   };
-  const packedArgs = PackedValuesCache.create([]);
+  return execution;
+}
 
-  const context = new PublicExecutionContext(
-    execution,
-    avmContext.environment.header,
-    avmContext.environment.globals,
-    packedArgs,
-    new SideEffectCounter(sideEffectCounter),
-    avmContext.persistableState.hostStorage.publicStateDb,
-    avmContext.persistableState.hostStorage.contractsDb,
-    avmContext.persistableState.hostStorage.commitmentsDb,
-    Gas.from(avmContext.machineState.gasLeft),
-    avmContext.environment.transactionFee,
-    avmContext.environment.gasSettings,
-  );
-
-  return context;
+export function convertAvmResultsToPxResult(
+  avmResult: AvmContractCallResults,
+  startSideEffectCounter: number,
+  fromPx: PublicExecution,
+  startGas: Gas,
+  endAvmContext: AvmContext,
+): PublicExecutionResult {
+  const endPersistableState = endAvmContext.persistableState;
+  const endMachineState = endAvmContext.machineState;
+  return {
+    ...endPersistableState.transitionalExecutionResult, // includes nestedExecutions
+    execution: fromPx,
+    returnValues: avmResult.output,
+    startSideEffectCounter: new Fr(startSideEffectCounter),
+    endSideEffectCounter: new Fr(endPersistableState.trace.accessCounter),
+    unencryptedLogs: new UnencryptedFunctionL2Logs(endPersistableState.transitionalExecutionResult.unencryptedLogs),
+    allUnencryptedLogs: new UnencryptedFunctionL2Logs(
+      endPersistableState.transitionalExecutionResult.allUnencryptedLogs,
+    ),
+    reverted: avmResult.reverted,
+    revertReason: avmResult.revertReason ? createSimulationError(avmResult.revertReason) : undefined,
+    startGasLeft: startGas,
+    endGasLeft: endMachineState.gasLeft,
+    transactionFee: endAvmContext.environment.transactionFee,
+  };
 }
 
 /**
@@ -185,60 +198,6 @@ export async function convertAvmResults(
 
 export function convertPublicExecutionResult(res: PublicExecutionResult): AvmContractCallResults {
   return new AvmContractCallResults(res.reverted, res.returnValues, res.revertReason);
-}
-
-export function updateAvmContextFromPublicExecutionResult(ctx: AvmContext, result: PublicExecutionResult): void {
-  // We have to push these manually and not use the trace* functions
-  // so that we respect the side effect counters.
-  for (const readRequest of result.contractStorageReads) {
-    ctx.persistableState.trace.publicStorageReads.push({
-      storageAddress: ctx.environment.storageAddress,
-      exists: true, // FIXME
-      slot: readRequest.storageSlot,
-      value: readRequest.currentValue,
-      counter: new Fr(readRequest.sideEffectCounter ?? Fr.ZERO),
-    });
-  }
-
-  for (const updateRequest of result.contractStorageUpdateRequests) {
-    ctx.persistableState.trace.publicStorageWrites.push({
-      storageAddress: ctx.environment.storageAddress,
-      slot: updateRequest.storageSlot,
-      value: updateRequest.newValue,
-      counter: new Fr(updateRequest.sideEffectCounter ?? Fr.ZERO),
-    });
-
-    // We need to manually populate the cache.
-    ctx.persistableState.publicStorage.write(
-      ctx.environment.storageAddress,
-      updateRequest.storageSlot,
-      updateRequest.newValue,
-    );
-  }
-
-  for (const nullifier of result.newNullifiers) {
-    ctx.persistableState.trace.newNullifiers.push({
-      storageAddress: ctx.environment.storageAddress,
-      nullifier: nullifier.value,
-      counter: new Fr(nullifier.counter),
-    });
-  }
-
-  for (const noteHash of result.newNoteHashes) {
-    ctx.persistableState.trace.newNoteHashes.push({
-      storageAddress: ctx.environment.storageAddress,
-      noteHash: noteHash.value,
-      counter: new Fr(noteHash.counter),
-    });
-  }
-
-  for (const message of result.newL2ToL1Messages) {
-    ctx.persistableState.newL1Messages.push(message);
-  }
-
-  for (const log of result.unencryptedLogs.logs) {
-    ctx.persistableState.newLogs.push(new UnencryptedL2Log(log.contractAddress, log.selector, log.data));
-  }
 }
 
 const AVM_MAGIC_SUFFIX = Buffer.from([
