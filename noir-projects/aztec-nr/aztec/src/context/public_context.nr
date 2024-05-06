@@ -72,7 +72,7 @@ impl PublicContext {
             unencrypted_logs_hashes: BoundedVec::new(),
             unencrypted_log_preimages_length: 0,
             historical_header: inputs.historical_header,
-            prover_address: AztecAddress::zero(),
+            prover_address: AztecAddress::zero()
         }
     }
 
@@ -144,7 +144,6 @@ impl PublicContext {
     }
 
     pub fn finish(self) -> PublicCircuitPublicInputs {
-
         // Compute the public call stack hashes
         let pub_circuit_pub_inputs = PublicCircuitPublicInputs {
             call_context: self.inputs.call_context, // Done
@@ -358,7 +357,7 @@ fn emit_unencrypted_log_oracle<T>(
     _contract_address: AztecAddress,
     _event_selector: Field,
     _message: T,
-    _counter: u32,
+    _counter: u32
 ) -> Field {}
 
 struct FunctionReturns<N> {

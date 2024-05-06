@@ -30,6 +30,7 @@ trait PublicContextInterface {
     fn fee_recipient(self) -> AztecAddress;
     fn fee_per_da_gas(self) -> Field;
     fn fee_per_l2_gas(self) -> Field;
+    fn transaction_fee(self) -> Field;
     fn message_portal(&mut self, recipient: EthAddress, content: Field);
     fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, leaf_index: Field);
     fn emit_unencrypted_log<T,N,M>(&mut self, log: T);
@@ -54,7 +55,6 @@ trait PublicContextInterface {
         args: [Field]
     ) -> FunctionReturns<RETURNS_COUNT>;
     fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool;
-    fn transaction_fee(self) -> Field;
 }
 
 struct PrivateCallInterface<T> {

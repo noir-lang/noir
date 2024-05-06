@@ -199,6 +199,11 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       await testEnvGetter('feePerDaGas', fee, 'get_fee_per_da_gas');
     });
 
+    it('getTransactionFee', async () => {
+      const fee = new Fr(1);
+      await testEnvGetter('transactionFee', fee, 'get_transaction_fee');
+    });
+
     it('chainId', async () => {
       const chainId = new Fr(1);
       await testEnvGetter('chainId', chainId, 'get_chain_id', /*globalVar=*/ true);

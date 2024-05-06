@@ -43,6 +43,7 @@ enum class OpCode : uint8_t {
     SENDER,
     FEEPERL2GAS,
     FEEPERDAGAS,
+    TRANSACTIONFEE,
     CONTRACTCALLDEPTH,
     // Execution Environment - Globals
     CHAINID,

@@ -218,6 +218,11 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
+    fn get_transaction_fee() -> pub Field {
+        context.transaction_fee()
+    }
+
+    #[aztec(public-vm)]
     fn get_chain_id() -> pub Field {
         context.chain_id()
     }

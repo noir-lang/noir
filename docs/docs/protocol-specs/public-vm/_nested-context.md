@@ -19,6 +19,7 @@ nestedExecutionEnvironment = ExecutionEnvironment {
     storageAddress: isDelegateCall ? context.storageAddress : M[addrOffset],
     feePerL2Gas: context.environment.feePerL2Gas,
     feePerDaGas: context.environment.feePerDaGas,
+    transactionFee: context.environment.transactionFee,
     contractCallDepth: context.contractCallDepth + 1,
     contractCallPointer: context.worldStateAccessTrace.contractCalls.length + 1,
     globals: context.globals,

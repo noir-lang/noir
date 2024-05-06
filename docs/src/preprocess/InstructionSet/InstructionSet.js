@@ -588,6 +588,25 @@ const INSTRUCTION_SET_RAW = [
     "Tag updates": "`T[dstOffset] = u32`",
   },
   {
+    id: "transactionfee",
+    Name: "`TRANSACTIONFEE`",
+    Category: "Execution Environment",
+    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
+    Args: [
+      {
+        name: "dstOffset",
+        description:
+          "memory offset specifying where to store operation's result",
+      },
+    ],
+    Expression: "`M[dstOffset] = context.environment.transactionFee`",
+    Summary:
+      "Get the computed transaction fee during teardown phase, zero otherwise",
+    Details: "",
+    "Tag checks": "",
+    "Tag updates": "`T[dstOffset] = u32`",
+  },
+  {
     id: "contractcalldepth",
     Name: "`CONTRACTCALLDEPTH`",
     Category: "Execution Environment",

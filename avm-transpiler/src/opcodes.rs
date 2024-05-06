@@ -24,6 +24,7 @@ pub enum AvmOpcode {
     SENDER,
     FEEPERL2GAS,
     FEEPERDAGAS,
+    TRANSACTIONFEE,
     CONTRACTCALLDEPTH,
     CHAINID,
     VERSION,
@@ -100,6 +101,7 @@ impl AvmOpcode {
             AvmOpcode::SENDER => "SENDER",
             AvmOpcode::FEEPERL2GAS => "FEEPERL2GAS",
             AvmOpcode::FEEPERDAGAS => "FEEPERDAGAS",
+            AvmOpcode::TRANSACTIONFEE => "TRANSACTIONFEE",
             AvmOpcode::CONTRACTCALLDEPTH => "CONTRACTCALLDEPTH",
             // Execution Environment - Globals
             AvmOpcode::CHAINID => "CHAINID",

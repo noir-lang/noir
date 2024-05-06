@@ -7,8 +7,9 @@ Many terms and definitions here are borrowed from the [Ethereum Yellow Paper](ht
 An **execution context** contains the information and state relevant to a contract call's execution. When a contract call is made, an execution context is [initialized](#context-initialization) before the contract code's execution begins.
 
 #### _AvmContext_
+
 | Field                                                     | Type                    |
-| ---                                                       | ---                     |
+| --------------------------------------------------------- | ----------------------- |
 | environment                                               | `ExecutionEnvironment`  |
 | [machineState](./state#machine-state)                     | `MachineState`          |
 | [worldState](./state#avm-world-state)                     | `AvmWorldState`         |
@@ -21,30 +22,33 @@ An **execution context** contains the information and state relevant to a contra
 A context's **execution environment** remains constant throughout a contract call's execution. When a contract call initializes its execution context, it [fully specifies the execution environment](#context-initialization).
 
 ### _ExecutionEnvironment_
-| Field                 | Type                         | Description |
-| ---                   | ---                          | ---         |
-| address               | `AztecAddress`               |  |
-| storageAddress        | `AztecAddress`               |  |
-| sender                | `AztecAddress`               |  |
-| portal                | `EthAddress`                 |  |
-| feePerL2Gas           | `field`                      |  |
-| feePerDaGas           | `field`                      |  |
-| contractCallDepth     | `field`                      | Depth of the current call (how many nested calls deep is it). |
-| contractCallPointer   | `field`                      | Uniquely identifies each contract call processed by an AVM session. An initial call is assigned pointer value of 1 (expanded on in the AVM circuit section's ["Call Pointer"](./avm-circuit#call-pointer) subsection). |
-| globals               | `PublicGlobalVariables`      |  |
-| isStaticCall          | `boolean`                    |  |
-| isDelegateCall        | `boolean`                    |  |
-| calldata              | `[field; <calldata-length>]` |  |
+
+| Field               | Type                         | Description                                                                                                                                                                                                            |
+| ------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| address             | `AztecAddress`               |                                                                                                                                                                                                                        |
+| storageAddress      | `AztecAddress`               |                                                                                                                                                                                                                        |
+| sender              | `AztecAddress`               |                                                                                                                                                                                                                        |
+| portal              | `EthAddress`                 |                                                                                                                                                                                                                        |
+| feePerL2Gas         | `field`                      |                                                                                                                                                                                                                        |
+| feePerDaGas         | `field`                      |                                                                                                                                                                                                                        |
+| transactionFee      | `field`                      | Computed transaction fee based on gas fees, inclusion fee, and gas usage. Zero in all phases but teardown.                                                                                                             |
+| contractCallDepth   | `field`                      | Depth of the current call (how many nested calls deep is it).                                                                                                                                                          |
+| contractCallPointer | `field`                      | Uniquely identifies each contract call processed by an AVM session. An initial call is assigned pointer value of 1 (expanded on in the AVM circuit section's ["Call Pointer"](./avm-circuit#call-pointer) subsection). |
+| globals             | `PublicGlobalVariables`      |                                                                                                                                                                                                                        |
+| isStaticCall        | `boolean`                    |                                                                                                                                                                                                                        |
+| isDelegateCall      | `boolean`                    |                                                                                                                                                                                                                        |
+| calldata            | `[field; <calldata-length>]` |                                                                                                                                                                                                                        |
 
 ## Contract Call Results
 
 When a contract call halts, it sets the context's **contract call results** to communicate results to the caller.
 
 ### _ContractCallResults_
-| Field        | Type                       | Description |
-| ---          | ---                        | ---         |
-| reverted     | `boolean`                  |  |
-| output       | `[field; <output-length>]` |  |
+
+| Field    | Type                       | Description |
+| -------- | -------------------------- | ----------- |
+| reverted | `boolean`                  |             |
+| output   | `[field; <output-length>]` |             |
 
 ## Context initialization
 

@@ -743,6 +743,7 @@ fn handle_getter_instruction(
         "avmOpcodeSender" => AvmOpcode::SENDER,
         "avmOpcodeFeePerL2Gas" => AvmOpcode::FEEPERL2GAS,
         "avmOpcodeFeePerDaGas" => AvmOpcode::FEEPERDAGAS,
+        "avmOpcodeTransactionFee" => AvmOpcode::TRANSACTIONFEE,
         "avmOpcodeChainId" => AvmOpcode::CHAINID,
         "avmOpcodeVersion" => AvmOpcode::VERSION,
         "avmOpcodeBlockNumber" => AvmOpcode::BLOCKNUMBER,

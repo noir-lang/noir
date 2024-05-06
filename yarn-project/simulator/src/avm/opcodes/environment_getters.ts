@@ -59,6 +59,15 @@ export class FeePerDAGas extends EnvironmentGetterInstruction {
   }
 }
 
+export class TransactionFee extends EnvironmentGetterInstruction {
+  static type: string = 'TRANSACTIONFEE';
+  static readonly opcode: Opcode = Opcode.TRANSACTIONFEE;
+
+  protected getEnvironmentValue(env: AvmExecutionEnvironment) {
+    return env.transactionFee;
+  }
+}
+
 export class ChainId extends EnvironmentGetterInstruction {
   static type: string = 'CHAINID';
   static readonly opcode: Opcode = Opcode.CHAINID;
