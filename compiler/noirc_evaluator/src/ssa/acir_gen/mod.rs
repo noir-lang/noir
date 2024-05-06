@@ -956,14 +956,42 @@ impl<'a> Context<'a> {
         if self.handle_constant_index(instruction, dfg, index, array, store_value)? {
             return Ok(());
         }
-
-        let (new_index, new_value) =
-            self.convert_array_operation_inputs(array, dfg, index, store_value)?;
+        let mut offset = None;
+        let array_id = dfg.resolve(array);
+        let array_typ = dfg.type_of_value(array_id);
+        if dfg.instruction_results(instruction).len() == 1 {
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            if let Type::Array(item_type, _) = array_typ {
+                // For simplicity we compute the offset only for simple arrays
+                let mut contains_an_array = false;
+                for typ in item_type.iter() {
+                    if typ.contains_an_array() {
+                        contains_an_array = true;
+                        break;
+                    }
+                }
+                if !contains_an_array {
+                    for (i, typ) in item_type.iter().enumerate() {
+                        if result_type == *typ {
+                            offset = Some(i);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        let (new_index, new_value) = self.convert_array_operation_inputs(
+            array,
+            dfg,
+            index,
+            store_value,
+            offset.unwrap_or_default(),
+        )?;
 
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg)?;
+            self.array_get(instruction, array, new_index, dfg, offset.is_some())?;
         }
 
         Ok(())
@@ -1054,6 +1082,7 @@ impl<'a> Context<'a> {
     ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///     Thus internal array element type sizes need to be computed to accurately transform the index.
     /// - predicate_index is 0, or the index if the predicate is true
+    /// if an offset is specified, predicate_index is index*predicate + (1-predicate)*offset
     /// - new_value is the optional value when the operation is an array_set
     ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
     ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
@@ -1063,14 +1092,21 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
         index: ValueId,
         store_value: Option<ValueId>,
+        offset: usize,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         let index_var = self.convert_numeric_value(index, dfg)?;
         let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
-        let predicate_index =
-            self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
+        let predicate_index = if offset != 0 {
+            let offset = self.acir_context.add_constant(offset);
+            let sub = self.acir_context.sub_var(index_var, offset)?;
+            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
+            self.acir_context.add_var(pred, offset)?
+        } else {
+            self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?
+        };
 
         let new_value = if let Some(store) = store_value {
             let store_value = self.convert_value(store, dfg);
@@ -1171,12 +1207,14 @@ impl<'a> Context<'a> {
     }
 
     /// Generates a read opcode for the array
+    /// side_effect_free true means that we ensured index will have a type matching the value in the array
     fn array_get(
         &mut self,
         instruction: InstructionId,
         array: ValueId,
         mut var_index: AcirVar,
         dfg: &DataFlowGraph,
+        mut side_effect_free: bool,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
@@ -1195,7 +1233,7 @@ impl<'a> Context<'a> {
                     self.data_bus.call_data_map[&array_id] as i128,
                 ));
                 let new_index = self.acir_context.add_var(offset, bus_index)?;
-                return self.array_get(instruction, call_data, new_index, dfg);
+                return self.array_get(instruction, call_data, new_index, dfg, side_effect_free);
             }
         }
 
@@ -1205,12 +1243,26 @@ impl<'a> Context<'a> {
             "ICE: Nested slice result found during ACIR generation"
         );
         let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
-        if let AcirValue::Var(value_var, typ) = value {
-            // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
-            value = AcirValue::Var(
-                self.acir_context.mul_var(value_var, self.current_side_effects_enabled_var)?,
-                typ,
-            );
+
+        if let AcirValue::Var(value_var, typ) = &value {
+            let array_id = dfg.resolve(array_id);
+            let array_typ = dfg.type_of_value(array_id);
+            if let Type::Numeric(numeric_type) = array_typ.first() {
+                if let AcirType::NumericType(num) = typ {
+                    if numeric_type.bit_size() <= num.bit_size() {
+                        // first element is compatible
+                        side_effect_free = true;
+                    }
+                }
+            }
+            // Fallback to multiplication if side_effect has not already been handled
+            if !side_effect_free {
+                // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
+                value = AcirValue::Var(
+                    self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
+                    typ.clone(),
+                );
+            }
         }
 
         self.define_result(dfg, instruction, value.clone());
