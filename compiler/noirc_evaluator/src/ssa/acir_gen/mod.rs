@@ -956,26 +956,23 @@ impl<'a> Context<'a> {
         if self.handle_constant_index(instruction, dfg, index, array, store_value)? {
             return Ok(());
         }
+
+        // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
+        // If we find one, we will use it when computing the index under the enable_side_effect predicate
+        // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
         let mut offset = None;
         let array_id = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array_id);
-        if dfg.instruction_results(instruction).len() == 1 {
+        // For simplicity we compute the offset only for simple arrays
+        if dfg.instruction_results(instruction).len() == 1
+            && can_omit_element_sizes_array(&array_typ)
+        {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            if let Type::Array(item_type, _) = array_typ {
-                // For simplicity we compute the offset only for simple arrays
-                let mut contains_an_array = false;
-                for typ in item_type.iter() {
-                    if typ.contains_an_array() {
-                        contains_an_array = true;
+            if let Type::Array(item_type, _) | Type::Slice(item_type) = array_typ {
+                for (i, typ) in item_type.iter().enumerate() {
+                    if result_type == *typ {
+                        offset = Some(i);
                         break;
-                    }
-                }
-                if !contains_an_array {
-                    for (i, typ) in item_type.iter().enumerate() {
-                        if result_type == *typ {
-                            offset = Some(i);
-                            break;
-                        }
                     }
                 }
             }
@@ -991,7 +988,7 @@ impl<'a> Context<'a> {
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg, offset.is_some())?;
+            self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
         }
 
         Ok(())
@@ -1207,14 +1204,14 @@ impl<'a> Context<'a> {
     }
 
     /// Generates a read opcode for the array
-    /// side_effect_free true means that we ensured index will have a type matching the value in the array
+    /// index_side_effect false means that we ensured index will have a type matching the value in the array
     fn array_get(
         &mut self,
         instruction: InstructionId,
         array: ValueId,
         mut var_index: AcirVar,
         dfg: &DataFlowGraph,
-        mut side_effect_free: bool,
+        mut index_side_effect: bool,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
@@ -1233,7 +1230,7 @@ impl<'a> Context<'a> {
                     self.data_bus.call_data_map[&array_id] as i128,
                 ));
                 let new_index = self.acir_context.add_var(offset, bus_index)?;
-                return self.array_get(instruction, call_data, new_index, dfg, side_effect_free);
+                return self.array_get(instruction, call_data, new_index, dfg, index_side_effect);
             }
         }
 
@@ -1247,16 +1244,16 @@ impl<'a> Context<'a> {
         if let AcirValue::Var(value_var, typ) = &value {
             let array_id = dfg.resolve(array_id);
             let array_typ = dfg.type_of_value(array_id);
-            if let Type::Numeric(numeric_type) = array_typ.first() {
-                if let AcirType::NumericType(num) = typ {
-                    if numeric_type.bit_size() <= num.bit_size() {
-                        // first element is compatible
-                        side_effect_free = true;
-                    }
+            if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =
+                (array_typ.first(), typ)
+            {
+                if numeric_type.bit_size() <= num.bit_size() {
+                    // first element is compatible
+                    index_side_effect = false;
                 }
             }
-            // Fallback to multiplication if side_effect has not already been handled
-            if !side_effect_free {
+            // Fallback to multiplication if the index side_effects have not already been handled
+            if index_side_effect {
                 // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
                 value = AcirValue::Var(
                     self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
