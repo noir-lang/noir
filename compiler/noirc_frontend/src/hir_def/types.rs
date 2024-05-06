@@ -1423,14 +1423,14 @@ impl Type {
 
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
-    pub fn get_field_type(&self, field_name: &str) -> Type {
+    pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
         match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap().0,
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).map(|(typ, _)| typ),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
+                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ).cloned()
             }
-            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
+            _ => None,
         }
     }
 
