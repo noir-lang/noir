@@ -196,6 +196,20 @@ Example:
 
 #include_code bounded-vec-extend-from-bounded-vec-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
+### from_array
+
+```rust
+pub fn from_array<Len>(array: [T; Len]) -> Self
+```
+
+Creates a new vector, populating it with values derived from an array input. 
+The maximum length of the vector is determined based on the type signature.
+
+Example:
+```rust
+let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
+```
+
 ### any
 
 ```rust
