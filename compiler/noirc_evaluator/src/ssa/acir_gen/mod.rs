@@ -960,6 +960,7 @@ impl<'a> Context<'a> {
         // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
         // If we find one, we will use it when computing the index under the enable_side_effect predicate
         // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
+        // cf. https://github.com/noir-lang/noir/pull/4971
         let mut offset = None;
         let array_id = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array_id);
