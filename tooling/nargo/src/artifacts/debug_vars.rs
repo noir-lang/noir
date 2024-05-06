@@ -108,7 +108,7 @@ impl DebugVars {
                     PrintableValue::Vec { array_elements, is_slice },
                     PrintableType::Slice { typ },
                 ) => {
-                    assert!(*is_slice, "array has slice type");
+                    assert!(*is_slice, "slice doesn't have slice type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
                 (
