@@ -71,6 +71,8 @@ fn main(x: Field, y: pub Field) {
     let closured_lambda = |x| x + one;
     println(f"closured_lambda: {closured_lambda}, sentinel: {sentinel}");
     println(closured_lambda);
+
+    regression_4967();
 }
 
 fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Field)> {
@@ -122,3 +124,14 @@ fn regression_2906() {
     println(f"array_five_vals: {array_five_vals}, label_five_vals: {label_five_vals}");
 }
 
+fn regression_4967() {
+    let sentinel: u32 = 8888;
+
+    let slice_of_tuples: [(i32, u8)] = &[(11, 22), (33, 44)];
+    println(f"slice_of_tuples: {slice_of_tuples}, sentinel: {sentinel}");
+    println(slice_of_tuples);
+
+    let slice_of_tuples_coerced: [(i32, u8)] = [(11, 22), (33, 44)];
+    println(f"slice_of_tuples: {slice_of_tuples_coerced}, sentinel: {sentinel}");
+    println(slice_of_tuples_coerced);
+}
