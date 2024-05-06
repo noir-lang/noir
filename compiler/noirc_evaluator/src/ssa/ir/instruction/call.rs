@@ -87,8 +87,18 @@ pub(super) fn simplify_call(
         Intrinsic::AsSlice => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {
-                let slice_length = dfg.make_constant(array.len().into(), Type::length_type());
+                // Compute the resulting slice length by dividing the flattened
+                // array length by the size of each array element
+                let elements_size = array_type.element_size();
                 let inner_element_types = array_type.element_types();
+                assert_eq!(
+                    0,
+                    array.len() % elements_size,
+                    "expected array length to be multiple of its elements size"
+                );
+                let slice_length_value = array.len() / elements_size;
+                let slice_length =
+                    dfg.make_constant(slice_length_value.into(), Type::length_type());
                 let new_slice = dfg.make_array(array, Type::Slice(inner_element_types));
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
             } else {
