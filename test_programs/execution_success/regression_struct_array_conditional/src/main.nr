@@ -14,9 +14,9 @@ struct bar_field {
     counter: u8,
 }
 fn main(x: [foo; 3], y: u32, z: u32) -> pub u8 {
-    let a = [y,z, x[y].counter as u32];
-    let mut b = [bar{value: 0, counter: 0, dummy: [0;3]}; 3];
-    let mut c = [bar_field{value: 0, counter: 0, dummy: [0;3]}; 3];
+    let a = [y, z, x[y].counter as u32];
+    let mut b = [bar { value: 0, counter: 0, dummy: [0; 3] }; 3];
+    let mut c = [bar_field { value: 0, counter: 0, dummy: [0; 3] }; 3];
     for i in 0..3 {
         b[i].value = x[i].value;
         b[i].counter = x[i].counter;
