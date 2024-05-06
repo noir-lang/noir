@@ -7,6 +7,9 @@ mod file_map;
 
 pub use file_map::{File, FileId, FileMap, PathString};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
@@ -17,6 +20,7 @@ use std::{
 
 pub const FILE_EXTENSION: &str = "nr";
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FileManager {
     root: PathBuf,
     file_map: FileMap,

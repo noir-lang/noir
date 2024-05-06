@@ -11,12 +11,12 @@ use crate::backends::get_active_backend;
 mod fs;
 
 mod backend_cmd;
-mod check_cmd;
+pub mod check_cmd;
 mod codegen_verifier_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
-mod execute_cmd;
+pub mod execute_cmd;
 mod export_cmd;
 mod fmt_cmd;
 mod info_cmd;
@@ -51,7 +51,7 @@ struct NargoCli {
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./")]
     program_dir: PathBuf,
@@ -112,7 +112,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
-        NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+        NargoCommand::Execute(args) => execute_cmd::run(backend, args, config),
         NargoCommand::Export(args) => export_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),

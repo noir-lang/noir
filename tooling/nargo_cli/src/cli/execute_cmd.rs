@@ -1,6 +1,7 @@
 use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
+use fm::FileManager;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
@@ -24,7 +25,7 @@ use crate::errors::CliError;
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "e")]
-pub(crate) struct ExecuteCommand {
+pub struct ExecuteCommand {
     /// Write the execution witness to named file
     witness_name: Option<String>,
 
@@ -49,31 +50,53 @@ pub(crate) struct ExecuteCommand {
 }
 
 pub(crate) fn run(
-    backend: &Backend,
+    backend: Backend,
     args: ExecuteCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args
+        .package
+        .as_ref()
+        .map_or(default_selection, |package| PackageSelection::Selected(package.clone()));
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
-    let target_dir = &workspace.target_directory_path();
-
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
+    let target_dir = &workspace.target_directory_path();
+    for result_or_err in run_pure(backend, workspace.into_iter(), workspace_file_manager, args) {
+        let result = result_or_err?;
+        if let Some((witness_stack, witness_name, package_name)) = result {
+            let witness_path = save_witness_to_dir(witness_stack, &witness_name, target_dir)?;
+            println!("[{}] Witness saved to {}", package_name, witness_path.display());
+        }
+    }
+    Ok(())
+}
+
+// run without file access
+pub fn run_pure<'a, I>(
+    backend: Backend,
+    workspace: I,
+    workspace_file_manager: FileManager,
+    args: ExecuteCommand,
+) -> impl Iterator<Item = Result<Option<(WitnessStack, String, CrateName)>, CliError>> + 'a
+where
+    I: Iterator<Item = &'a Package> + 'a,
+{
     let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = args
         .compile_options
         .expression_width
         .unwrap_or_else(|| backend.get_backend_info_or_default());
-    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
-    for package in binary_packages {
+    workspace.filter(|package| package.is_binary()).map(move |package| {
         let compilation_result = compile_program(
             &workspace_file_manager,
             &parsed_files,
@@ -102,13 +125,14 @@ pub(crate) fn run(
         if let Some(return_value) = return_value {
             println!("[{}] Circuit output: {return_value:?}", package.name);
         }
-        if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(witness_stack, witness_name, target_dir)?;
 
-            println!("[{}] Witness saved to {}", package.name, witness_path.display());
+        // TODO: make into map
+        if let Some(witness_name) = &args.witness_name {
+            Ok(Some((witness_stack, witness_name.clone(), package.name.clone())))
+        } else {
+            Ok(None)
         }
-    }
-    Ok(())
+    })
 }
 
 fn execute_program_and_decode(

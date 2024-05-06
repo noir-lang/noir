@@ -1,10 +1,14 @@
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use noirc_frontend::graph::CrateName;
 
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PackageType {
     Library,
     Binary,
@@ -22,6 +26,7 @@ impl Display for PackageType {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Dependency {
     Local { package: Package },
     Remote { package: Package },
@@ -42,6 +47,7 @@ impl Dependency {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Package {
     pub version: Option<String>,
     // A semver string which specifies the compiler version required to compile this package

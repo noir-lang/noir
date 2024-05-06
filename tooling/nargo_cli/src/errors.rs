@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum FilesystemError {
+pub enum FilesystemError {
     #[error("Error: {} is not a valid path\nRun either `nargo compile` to generate missing build artifacts or `nargo prove` to construct a proof", .0.display())]
     PathNotValid(PathBuf),
     #[error("Error: could not parse hex build artifact (proof, proving and/or verification keys, ACIR checksum) ({0})")]
@@ -31,7 +31,7 @@ pub(crate) enum FilesystemError {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError {
+pub enum CliError {
     #[error("{0}")]
     Generic(String),
     #[error("Error: destination {} already exists", .0.display())]
@@ -79,7 +79,7 @@ pub(crate) enum CliError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum BackendError {
+pub enum BackendError {
     #[error("No backend is installed with the name {0}")]
     UnknownBackend(String),
 
