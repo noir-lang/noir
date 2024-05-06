@@ -207,146 +207,143 @@ class ECCVMMSMMBuilder {
         // we start the accumulator at the point at infinity
         accumulator_trace[0] = (CycleGroup::affine_point_at_infinity);
 
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/973): Reinstate multitreading?
         // populate point trace data, and the components of the MSM execution trace that do not relate to affine point
         // operations
-        run_loop_in_parallel(msms.size(), [&](size_t start, size_t end) {
-            for (size_t i = start; i < end; i++) {
-                Element accumulator = CycleGroup::affine_point_at_infinity;
-                const auto& msm = msms[i];
-                size_t msm_row_index = msm_row_indices[i];
-                const size_t msm_size = msm.size();
-                const size_t rows_per_round =
-                    (msm_size / ADDITIONS_PER_ROW) + (msm_size % ADDITIONS_PER_ROW != 0 ? 1 : 0);
-                size_t trace_index = (msm_row_indices[i] - 1) * 4;
+        for (size_t i = 0; i < msms.size(); i++) {
+            Element accumulator = CycleGroup::affine_point_at_infinity;
+            const auto& msm = msms[i];
+            size_t msm_row_index = msm_row_indices[i];
+            const size_t msm_size = msm.size();
+            const size_t rows_per_round = (msm_size / ADDITIONS_PER_ROW) + (msm_size % ADDITIONS_PER_ROW != 0 ? 1 : 0);
+            size_t trace_index = (msm_row_indices[i] - 1) * 4;
 
-                for (size_t j = 0; j < num_rounds; ++j) {
-                    const uint32_t pc = static_cast<uint32_t>(pc_indices[i]);
+            for (size_t j = 0; j < num_rounds; ++j) {
+                const uint32_t pc = static_cast<uint32_t>(pc_indices[i]);
 
+                for (size_t k = 0; k < rows_per_round; ++k) {
+                    const size_t points_per_row =
+                        (k + 1) * ADDITIONS_PER_ROW > msm_size ? msm_size % ADDITIONS_PER_ROW : ADDITIONS_PER_ROW;
+                    auto& row = msm_state[msm_row_index];
+                    const size_t idx = k * ADDITIONS_PER_ROW;
+                    row.msm_transition = (j == 0) && (k == 0);
+                    for (size_t m = 0; m < ADDITIONS_PER_ROW; ++m) {
+
+                        auto& add_state = row.add_state[m];
+                        add_state.add = points_per_row > m;
+                        int slice = add_state.add ? msm[idx + m].wnaf_slices[j] : 0;
+                        // In the MSM columns in the ECCVM circuit, we can add up to 4 points per row.
+                        // if `row.add_state[m].add = 1`, this indicates that we want to add the `m`'th point in
+                        // the MSM columns into the MSM accumulator `add_state.slice` = A 4-bit WNAF slice of
+                        // the scalar multiplier associated with the point we are adding (the specific slice
+                        // chosen depends on the value of msm_round) (WNAF = windowed-non-adjacent-form. Value
+                        // range is `-15, -13,
+                        // ..., 15`) If `add_state.add = 1`, we want `add_state.slice` to be the *compressed*
+                        // form of the WNAF slice value. (compressed = no gaps in the value range. i.e. -15,
+                        // -13, ..., 15 maps to 0, ... , 15)
+                        add_state.slice = add_state.add ? (slice + 15) / 2 : 0;
+                        add_state.point = add_state.add
+                                              ? msm[idx + m].precomputed_table[static_cast<size_t>(add_state.slice)]
+                                              : AffineElement{ 0, 0 };
+
+                        // predicate logic:
+                        // add_predicate should normally equal add_state.add
+                        // However! if j == 0 AND k == 0 AND m == 0 this implies we are examing the 1st point
+                        // addition of a new MSM In this case, we do NOT add the 1st point into the accumulator,
+                        // instead we SET the accumulator to equal the 1st point. add_predicate is used to
+                        // determine whether we add the output of a point addition into the accumulator,
+                        // therefore if j == 0 AND k == 0 AND m == 0, add_predicate = 0 even if add_state.add =
+                        // true
+                        bool add_predicate = (m == 0 ? (j != 0 || k != 0) : add_state.add);
+
+                        Element p1 = (m == 0) ? Element(add_state.point) : accumulator;
+                        Element p2 = (m == 0) ? accumulator : Element(add_state.point);
+
+                        accumulator = add_predicate ? (accumulator + add_state.point) : Element(p1);
+                        p1_trace[trace_index] = p1;
+                        p2_trace[trace_index] = p2;
+                        p3_trace[trace_index] = accumulator;
+                        operation_trace[trace_index] = false;
+                        trace_index++;
+                    }
+                    accumulator_trace[msm_row_index] = accumulator;
+                    row.q_add = true;
+                    row.q_double = false;
+                    row.q_skew = false;
+                    row.msm_round = static_cast<uint32_t>(j);
+                    row.msm_size = static_cast<uint32_t>(msm_size);
+                    row.msm_count = static_cast<uint32_t>(idx);
+                    row.pc = pc;
+                    msm_row_index++;
+                }
+                // doubling
+                if (j < num_rounds - 1) {
+                    auto& row = msm_state[msm_row_index];
+                    row.msm_transition = false;
+                    row.msm_round = static_cast<uint32_t>(j + 1);
+                    row.msm_size = static_cast<uint32_t>(msm_size);
+                    row.msm_count = static_cast<uint32_t>(0);
+                    row.q_add = false;
+                    row.q_double = true;
+                    row.q_skew = false;
+                    for (size_t m = 0; m < 4; ++m) {
+
+                        auto& add_state = row.add_state[m];
+                        add_state.add = false;
+                        add_state.slice = 0;
+                        add_state.point = { 0, 0 };
+                        add_state.collision_inverse = 0;
+
+                        p1_trace[trace_index] = accumulator;
+                        p2_trace[trace_index] = accumulator;
+                        accumulator = accumulator.dbl();
+                        p3_trace[trace_index] = accumulator;
+                        operation_trace[trace_index] = true;
+                        trace_index++;
+                    }
+                    accumulator_trace[msm_row_index] = accumulator;
+                    msm_row_index++;
+                } else {
                     for (size_t k = 0; k < rows_per_round; ++k) {
+                        auto& row = msm_state[msm_row_index];
+
                         const size_t points_per_row =
                             (k + 1) * ADDITIONS_PER_ROW > msm_size ? msm_size % ADDITIONS_PER_ROW : ADDITIONS_PER_ROW;
-                        auto& row = msm_state[msm_row_index];
                         const size_t idx = k * ADDITIONS_PER_ROW;
-                        row.msm_transition = (j == 0) && (k == 0);
-                        for (size_t m = 0; m < ADDITIONS_PER_ROW; ++m) {
+                        row.msm_transition = false;
 
+                        Element acc_expected = accumulator;
+
+                        for (size_t m = 0; m < 4; ++m) {
                             auto& add_state = row.add_state[m];
                             add_state.add = points_per_row > m;
-                            int slice = add_state.add ? msm[idx + m].wnaf_slices[j] : 0;
-                            // In the MSM columns in the ECCVM circuit, we can add up to 4 points per row.
-                            // if `row.add_state[m].add = 1`, this indicates that we want to add the `m`'th point in
-                            // the MSM columns into the MSM accumulator `add_state.slice` = A 4-bit WNAF slice of
-                            // the scalar multiplier associated with the point we are adding (the specific slice
-                            // chosen depends on the value of msm_round) (WNAF = windowed-non-adjacent-form. Value
-                            // range is `-15, -13,
-                            // ..., 15`) If `add_state.add = 1`, we want `add_state.slice` to be the *compressed*
-                            // form of the WNAF slice value. (compressed = no gaps in the value range. i.e. -15,
-                            // -13, ..., 15 maps to 0, ... , 15)
-                            add_state.slice = add_state.add ? (slice + 15) / 2 : 0;
+                            add_state.slice = add_state.add ? msm[idx + m].wnaf_skew ? 7 : 0 : 0;
+
                             add_state.point = add_state.add
                                                   ? msm[idx + m].precomputed_table[static_cast<size_t>(add_state.slice)]
                                                   : AffineElement{ 0, 0 };
-
-                            // predicate logic:
-                            // add_predicate should normally equal add_state.add
-                            // However! if j == 0 AND k == 0 AND m == 0 this implies we are examing the 1st point
-                            // addition of a new MSM In this case, we do NOT add the 1st point into the accumulator,
-                            // instead we SET the accumulator to equal the 1st point. add_predicate is used to
-                            // determine whether we add the output of a point addition into the accumulator,
-                            // therefore if j == 0 AND k == 0 AND m == 0, add_predicate = 0 even if add_state.add =
-                            // true
-                            bool add_predicate = (m == 0 ? (j != 0 || k != 0) : add_state.add);
-
-                            Element p1 = (m == 0) ? Element(add_state.point) : accumulator;
-                            Element p2 = (m == 0) ? accumulator : Element(add_state.point);
-
-                            accumulator = add_predicate ? (accumulator + add_state.point) : Element(p1);
+                            bool add_predicate = add_state.add ? msm[idx + m].wnaf_skew : false;
+                            auto p1 = accumulator;
+                            accumulator = add_predicate ? accumulator + add_state.point : accumulator;
                             p1_trace[trace_index] = p1;
-                            p2_trace[trace_index] = p2;
+                            p2_trace[trace_index] = add_state.point;
                             p3_trace[trace_index] = accumulator;
                             operation_trace[trace_index] = false;
                             trace_index++;
                         }
-                        accumulator_trace[msm_row_index] = accumulator;
-                        row.q_add = true;
+                        row.q_add = false;
                         row.q_double = false;
-                        row.q_skew = false;
-                        row.msm_round = static_cast<uint32_t>(j);
+                        row.q_skew = true;
+                        row.msm_round = static_cast<uint32_t>(j + 1);
                         row.msm_size = static_cast<uint32_t>(msm_size);
                         row.msm_count = static_cast<uint32_t>(idx);
                         row.pc = pc;
-                        msm_row_index++;
-                    }
-                    // doubling
-                    if (j < num_rounds - 1) {
-                        auto& row = msm_state[msm_row_index];
-                        row.msm_transition = false;
-                        row.msm_round = static_cast<uint32_t>(j + 1);
-                        row.msm_size = static_cast<uint32_t>(msm_size);
-                        row.msm_count = static_cast<uint32_t>(0);
-                        row.q_add = false;
-                        row.q_double = true;
-                        row.q_skew = false;
-                        for (size_t m = 0; m < 4; ++m) {
-
-                            auto& add_state = row.add_state[m];
-                            add_state.add = false;
-                            add_state.slice = 0;
-                            add_state.point = { 0, 0 };
-                            add_state.collision_inverse = 0;
-
-                            p1_trace[trace_index] = accumulator;
-                            p2_trace[trace_index] = accumulator;
-                            accumulator = accumulator.dbl();
-                            p3_trace[trace_index] = accumulator;
-                            operation_trace[trace_index] = true;
-                            trace_index++;
-                        }
                         accumulator_trace[msm_row_index] = accumulator;
                         msm_row_index++;
-                    } else {
-                        for (size_t k = 0; k < rows_per_round; ++k) {
-                            auto& row = msm_state[msm_row_index];
-
-                            const size_t points_per_row = (k + 1) * ADDITIONS_PER_ROW > msm_size
-                                                              ? msm_size % ADDITIONS_PER_ROW
-                                                              : ADDITIONS_PER_ROW;
-                            const size_t idx = k * ADDITIONS_PER_ROW;
-                            row.msm_transition = false;
-
-                            Element acc_expected = accumulator;
-
-                            for (size_t m = 0; m < 4; ++m) {
-                                auto& add_state = row.add_state[m];
-                                add_state.add = points_per_row > m;
-                                add_state.slice = add_state.add ? msm[idx + m].wnaf_skew ? 7 : 0 : 0;
-
-                                add_state.point =
-                                    add_state.add ? msm[idx + m].precomputed_table[static_cast<size_t>(add_state.slice)]
-                                                  : AffineElement{ 0, 0 };
-                                bool add_predicate = add_state.add ? msm[idx + m].wnaf_skew : false;
-                                auto p1 = accumulator;
-                                accumulator = add_predicate ? accumulator + add_state.point : accumulator;
-                                p1_trace[trace_index] = p1;
-                                p2_trace[trace_index] = add_state.point;
-                                p3_trace[trace_index] = accumulator;
-                                operation_trace[trace_index] = false;
-                                trace_index++;
-                            }
-                            row.q_add = false;
-                            row.q_double = false;
-                            row.q_skew = true;
-                            row.msm_round = static_cast<uint32_t>(j + 1);
-                            row.msm_size = static_cast<uint32_t>(msm_size);
-                            row.msm_count = static_cast<uint32_t>(idx);
-                            row.pc = pc;
-                            accumulator_trace[msm_row_index] = accumulator;
-                            msm_row_index++;
-                        }
                     }
                 }
             }
-        });
+        }
 
         // Normalize the points in the point trace
         run_loop_in_parallel(point_trace.size(), [&](size_t start, size_t end) {
@@ -369,22 +366,65 @@ class ECCVMMSMMBuilder {
         // complete the computation of the ECCVM execution trace, by adding the affine intermediate point data
         // i.e. row.accumulator_x, row.accumulator_y, row.add_state[0...3].collision_inverse,
         // row.add_state[0...3].lambda
-        run_loop_in_parallel(msms.size(), [&](size_t start, size_t end) {
-            for (size_t i = start; i < end; i++) {
-                const auto& msm = msms[i];
-                size_t trace_index = ((msm_row_indices[i] - 1) * ADDITIONS_PER_ROW);
-                size_t msm_row_index = msm_row_indices[i];
-                // 1st MSM row will have accumulator equal to the previous MSM output
-                // (or point at infinity for 1st MSM)
-                size_t accumulator_index = msm_row_indices[i] - 1;
-                const size_t msm_size = msm.size();
-                const size_t rows_per_round =
-                    (msm_size / ADDITIONS_PER_ROW) + (msm_size % ADDITIONS_PER_ROW != 0 ? 1 : 0);
+        for (size_t i = 0; i < msms.size(); i++) {
+            const auto& msm = msms[i];
+            size_t trace_index = ((msm_row_indices[i] - 1) * ADDITIONS_PER_ROW);
+            size_t msm_row_index = msm_row_indices[i];
+            // 1st MSM row will have accumulator equal to the previous MSM output
+            // (or point at infinity for 1st MSM)
+            size_t accumulator_index = msm_row_indices[i] - 1;
+            const size_t msm_size = msm.size();
+            const size_t rows_per_round = (msm_size / ADDITIONS_PER_ROW) + (msm_size % ADDITIONS_PER_ROW != 0 ? 1 : 0);
 
-                for (size_t j = 0; j < num_rounds; ++j) {
+            for (size_t j = 0; j < num_rounds; ++j) {
+                for (size_t k = 0; k < rows_per_round; ++k) {
+                    auto& row = msm_state[msm_row_index];
+                    const Element& normalized_accumulator = accumulator_trace[accumulator_index];
+                    const FF& acc_x = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.x;
+                    const FF& acc_y = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.y;
+                    row.accumulator_x = acc_x;
+                    row.accumulator_y = acc_y;
+
+                    for (size_t m = 0; m < ADDITIONS_PER_ROW; ++m) {
+                        auto& add_state = row.add_state[m];
+                        bool add_predicate = (m == 0 ? (j != 0 || k != 0) : add_state.add);
+
+                        const auto& inverse = inverse_trace[trace_index];
+                        const auto& p1 = p1_trace[trace_index];
+                        const auto& p2 = p2_trace[trace_index];
+                        add_state.collision_inverse = add_predicate ? inverse : 0;
+                        add_state.lambda = add_predicate ? (p2.y - p1.y) * inverse : 0;
+                        trace_index++;
+                    }
+                    accumulator_index++;
+                    msm_row_index++;
+                }
+
+                if (j < num_rounds - 1) {
+                    MSMState& row = msm_state[msm_row_index];
+                    const Element& normalized_accumulator = accumulator_trace[accumulator_index];
+                    const FF& acc_x = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.x;
+                    const FF& acc_y = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.y;
+                    row.accumulator_x = acc_x;
+                    row.accumulator_y = acc_y;
+
+                    for (size_t m = 0; m < 4; ++m) {
+                        auto& add_state = row.add_state[m];
+                        add_state.collision_inverse = 0;
+                        const FF& dx = p1_trace[trace_index].x;
+                        const FF& inverse = inverse_trace[trace_index];
+                        add_state.lambda = ((dx + dx + dx) * dx) * inverse;
+                        trace_index++;
+                    }
+                    accumulator_index++;
+                    msm_row_index++;
+                } else {
                     for (size_t k = 0; k < rows_per_round; ++k) {
-                        auto& row = msm_state[msm_row_index];
+                        MSMState& row = msm_state[msm_row_index];
                         const Element& normalized_accumulator = accumulator_trace[accumulator_index];
+
+                        const size_t idx = k * ADDITIONS_PER_ROW;
+
                         const FF& acc_x = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.x;
                         const FF& acc_y = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.y;
                         row.accumulator_x = acc_x;
@@ -392,7 +432,7 @@ class ECCVMMSMMBuilder {
 
                         for (size_t m = 0; m < ADDITIONS_PER_ROW; ++m) {
                             auto& add_state = row.add_state[m];
-                            bool add_predicate = (m == 0 ? (j != 0 || k != 0) : add_state.add);
+                            bool add_predicate = add_state.add ? msm[idx + m].wnaf_skew : false;
 
                             const auto& inverse = inverse_trace[trace_index];
                             const auto& p1 = p1_trace[trace_index];
@@ -404,57 +444,9 @@ class ECCVMMSMMBuilder {
                         accumulator_index++;
                         msm_row_index++;
                     }
-
-                    if (j < num_rounds - 1) {
-                        MSMState& row = msm_state[msm_row_index];
-                        const Element& normalized_accumulator = accumulator_trace[accumulator_index];
-                        const FF& acc_x = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.x;
-                        const FF& acc_y = normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.y;
-                        row.accumulator_x = acc_x;
-                        row.accumulator_y = acc_y;
-
-                        for (size_t m = 0; m < 4; ++m) {
-                            auto& add_state = row.add_state[m];
-                            add_state.collision_inverse = 0;
-                            const FF& dx = p1_trace[trace_index].x;
-                            const FF& inverse = inverse_trace[trace_index];
-                            add_state.lambda = ((dx + dx + dx) * dx) * inverse;
-                            trace_index++;
-                        }
-                        accumulator_index++;
-                        msm_row_index++;
-                    } else {
-                        for (size_t k = 0; k < rows_per_round; ++k) {
-                            MSMState& row = msm_state[msm_row_index];
-                            const Element& normalized_accumulator = accumulator_trace[accumulator_index];
-
-                            const size_t idx = k * ADDITIONS_PER_ROW;
-
-                            const FF& acc_x =
-                                normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.x;
-                            const FF& acc_y =
-                                normalized_accumulator.is_point_at_infinity() ? 0 : normalized_accumulator.y;
-                            row.accumulator_x = acc_x;
-                            row.accumulator_y = acc_y;
-
-                            for (size_t m = 0; m < ADDITIONS_PER_ROW; ++m) {
-                                auto& add_state = row.add_state[m];
-                                bool add_predicate = add_state.add ? msm[idx + m].wnaf_skew : false;
-
-                                const auto& inverse = inverse_trace[trace_index];
-                                const auto& p1 = p1_trace[trace_index];
-                                const auto& p2 = p2_trace[trace_index];
-                                add_state.collision_inverse = add_predicate ? inverse : 0;
-                                add_state.lambda = add_predicate ? (p2.y - p1.y) * inverse : 0;
-                                trace_index++;
-                            }
-                            accumulator_index++;
-                            msm_row_index++;
-                        }
-                    }
                 }
             }
-        });
+        }
 
         // populate the final row in the MSM execution trace.
         // we always require 1 extra row at the end of the trace, because the accumulator x/y coordinates for row `i`

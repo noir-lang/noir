@@ -33,12 +33,10 @@ class GoblinRecursionTests : public ::testing::Test {
 };
 
 /**
- * @brief A full Goblin test that mimicks the basic aztec client architecture
- * @details
+ * @brief Test illustrating a Goblin-based IVC scheme
+ * @details Goblin is usd to accumulate recursive verifications of the GoblinUltraHonk proving system.
  */
-// TODO fix with https://github.com/AztecProtocol/barretenberg/issues/930
-// intermittent failures, presumably due to uninitialized memory
-TEST_F(GoblinRecursionTests, DISABLED_Vanilla)
+TEST_F(GoblinRecursionTests, Vanilla)
 {
     Goblin goblin;
 
