@@ -151,9 +151,6 @@ export class WorldStateAccessTrace {
   /**
    * Merges another trace into this one
    *
-   * - Public state journals (r/w logs), with the accessing being appended in chronological order
-   * - Utxo objects are concatenated
-   *
    * @param incomingTrace - the incoming trace to merge into this instance
    */
   public acceptAndMerge(incomingTrace: WorldStateAccessTrace) {

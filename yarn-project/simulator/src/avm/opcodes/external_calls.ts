@@ -79,6 +79,8 @@ abstract class ExternalCall extends Instruction {
     );
     const pxContext = createPublicExecutionContext(nestedContext, calldata);
     const pxResults = await executePublicFunction(pxContext, /*nested=*/ true);
+    // store the old PublicExecutionResult object to maintain a recursive data structure for the old kernel
+    context.persistableState.transitionalExecutionResult.nestedExecutions.push(pxResults);
     const nestedCallResults: AvmContractCallResults = convertPublicExecutionResult(pxResults);
     updateAvmContextFromPublicExecutionResult(nestedContext, pxResults);
     const nestedPersistableState = nestedContext.persistableState;
