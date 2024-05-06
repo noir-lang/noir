@@ -126,9 +126,8 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     r
 }
 
-struct MimcHasher{
+struct MimcHasher {
     _state: [Field],
-    _len: u64,
 }
 
 impl Hasher for MimcHasher {
@@ -136,24 +135,22 @@ impl Hasher for MimcHasher {
     fn finish(self) -> Field {
         let exponent = 7;
         let mut r = 0;
-        for i in 0..self._len {
+        for i in 0..self._state.len() {
             let h = mimc(self._state[i], r, MIMC_BN254_CONSTANTS, exponent);
             r = r + self._state[i] + h;
         }
         r
     }
 
-    fn write(&mut self, input: [Field]){
-        self._state = self._state.append(input);
-        self._len += input.len();
+    fn write(&mut self, input: Field){
+        self._state = self._state.push_back(input);
     }
 }
 
 impl Default for MimcHasher{
     fn default() -> Self{
-        MimcHasher{
+        MimcHasher {
             _state: &[],
-            _len: 0,
         }
     }
 }

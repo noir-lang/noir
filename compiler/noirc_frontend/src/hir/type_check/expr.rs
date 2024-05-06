@@ -1,17 +1,19 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
+use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
+use crate::macros_api::Signedness;
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
-            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirExpression, HirIdent,
+            HirLiteral, HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
-    BinaryOpKind, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
+    TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -126,7 +128,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
                 HirLiteral::Bool(_) => Type::Bool,
-                HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
+                HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
                 HirLiteral::Str(string) => {
                     let len = Type::Constant(string.len() as u64);
                     Type::String(Box::new(len))
@@ -152,14 +154,16 @@ impl<'interner> TypeChecker<'interner> {
                     Ok((typ, use_impl)) => {
                         if use_impl {
                             let id = infix_expr.trait_method_id;
-                            // Assume operators have no trait generics
-                            self.verify_trait_constraint(
-                                &lhs_type,
-                                id.trait_id,
-                                &[],
-                                *expr_id,
-                                span,
-                            );
+
+                            // Delay checking the trait constraint until the end of the function.
+                            // Checking it now could bind an unbound type variable to any type
+                            // that implements the trait.
+                            let constraint = crate::hir_def::traits::TraitConstraint {
+                                typ: lhs_type.clone(),
+                                trait_id: id.trait_id,
+                                trait_generics: Vec::new(),
+                            };
+                            self.trait_constraints.push((constraint, *expr_id));
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
@@ -217,7 +221,7 @@ impl<'interner> TypeChecker<'interner> {
                         });
                         return Type::Error;
                     }
-                }
+                };
 
                 return_type
             }
@@ -268,34 +272,7 @@ impl<'interner> TypeChecker<'interner> {
                 let span = self.interner.expr_span(expr_id);
                 self.check_cast(lhs_type, cast_expr.r#type, span)
             }
-            HirExpression::Block(block_expr) => {
-                let mut block_type = Type::Unit;
-
-                let statements = block_expr.statements();
-                for (i, stmt) in statements.iter().enumerate() {
-                    let expr_type = self.check_statement(stmt);
-
-                    if let crate::hir_def::stmt::HirStatement::Semi(expr) =
-                        self.interner.statement(stmt)
-                    {
-                        let inner_expr_type = self.interner.id_type(expr);
-                        let span = self.interner.expr_span(&expr);
-
-                        self.unify(&inner_expr_type, &Type::Unit, || {
-                            TypeCheckError::UnusedResultError {
-                                expr_type: inner_expr_type.clone(),
-                                expr_span: span,
-                            }
-                        });
-                    }
-
-                    if i + 1 == statements.len() {
-                        block_type = expr_type;
-                    }
-                }
-
-                block_type
-            }
+            HirExpression::Block(block_expr) => self.check_block(block_expr),
             HirExpression::Prefix(prefix_expr) => {
                 let rhs_type = self.check_expression(&prefix_expr.rhs);
                 let span = self.interner.expr_span(&prefix_expr.rhs);
@@ -333,10 +310,42 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
             HirExpression::Quote(_) => Type::Code,
+            HirExpression::Comptime(block) => self.check_block(block),
+
+            // Unquote should be inserted & removed by the comptime interpreter.
+            // Even if we allowed it here, we wouldn't know what type to give to the result.
+            HirExpression::Unquote(block) => {
+                unreachable!("Unquote remaining during type checking {block}")
+            }
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());
         typ
+    }
+
+    fn check_block(&mut self, block: HirBlockExpression) -> Type {
+        let mut block_type = Type::Unit;
+
+        let statements = block.statements();
+        for (i, stmt) in statements.iter().enumerate() {
+            let expr_type = self.check_statement(stmt);
+
+            if let crate::hir_def::stmt::HirStatement::Semi(expr) = self.interner.statement(stmt) {
+                let inner_expr_type = self.interner.id_type(expr);
+                let span = self.interner.expr_span(&expr);
+
+                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
+                    expr_type: inner_expr_type.clone(),
+                    expr_span: span,
+                });
+            }
+
+            if i + 1 == statements.len() {
+                block_type = expr_type;
+            }
+        }
+
+        block_type
     }
 
     /// Returns the type of the given identifier
@@ -416,23 +425,28 @@ impl<'interner> TypeChecker<'interner> {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
             Err(erroring_constraints) => {
-                // Don't show any errors where try_get_trait returns None.
-                // This can happen if a trait is used that was never declared.
-                let constraints = erroring_constraints
-                    .into_iter()
-                    .map(|constraint| {
-                        let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                        let mut name = r#trait.name.to_string();
-                        if !constraint.trait_generics.is_empty() {
-                            let generics = vecmap(&constraint.trait_generics, ToString::to_string);
-                            name += &format!("<{}>", generics.join(", "));
-                        }
-                        Some((constraint.typ, name))
-                    })
-                    .collect::<Option<Vec<_>>>();
+                if erroring_constraints.is_empty() {
+                    self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                } else {
+                    // Don't show any errors where try_get_trait returns None.
+                    // This can happen if a trait is used that was never declared.
+                    let constraints = erroring_constraints
+                        .into_iter()
+                        .map(|constraint| {
+                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                            let mut name = r#trait.name.to_string();
+                            if !constraint.trait_generics.is_empty() {
+                                let generics =
+                                    vecmap(&constraint.trait_generics, ToString::to_string);
+                                name += &format!("<{}>", generics.join(", "));
+                            }
+                            Some((constraint.typ, name))
+                        })
+                        .collect::<Option<Vec<_>>>();
 
-                if let Some(constraints) = constraints {
-                    self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    if let Some(constraints) = constraints {
+                        self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    }
                 }
             }
         }
@@ -558,15 +572,13 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(
-            &Type::polymorphic_integer_or_field(self.interner),
-            &mut self.errors,
-            || TypeCheckError::TypeMismatch {
+        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            },
-        );
+            }
+        });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -712,7 +724,7 @@ impl<'interner> TypeChecker<'interner> {
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                operator: crate::UnaryOp::Dereference { implicitly_added: true },
+                operator: crate::ast::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
             this.interner.push_expr_type(old_lhs, lhs_type);
@@ -836,6 +848,10 @@ impl<'interner> TypeChecker<'interner> {
         match (lhs_type, rhs_type) {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok((Bool, false)),
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.comparator_operand_type_rules(&alias, other, op, span)
+            }
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
@@ -844,12 +860,8 @@ impl<'interner> TypeChecker<'interner> {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
-                Ok((Bool, false))
-            }
-            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
-                self.comparator_operand_type_rules(&alias, other, op, span)
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((Bool, use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -879,36 +891,6 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
-            // Special-case == and != for arrays
-            (Array(x_size, x_type), Array(y_size, y_type))
-                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
-            {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::ArrayLen,
-                    span: op.location.span,
-                });
-
-                let (_, use_impl) = self.comparator_operand_type_rules(x_type, y_type, op, span)?;
-
-                // If the size is not constant, we must fall back to a user-provided impl for
-                // equality on slices.
-                let size = x_size.follow_bindings();
-                let use_impl = use_impl || size.evaluate_to_u64().is_none();
-                Ok((Bool, use_impl))
-            }
-
-            (String(x_size), String(y_size)) => {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: *x_size.clone(),
-                    actual: *y_size.clone(),
-                    span: op.location.span,
-                    source: Source::StringLen,
-                });
-
-                Ok((Bool, false))
-            }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
@@ -1079,13 +1061,16 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    /// Handles the TypeVariable case for checking binary operators.
+    /// Returns true if we should use the impl for the operator instead of the primitive
+    /// version of it.
     fn bind_type_variables_for_infix(
         &mut self,
         lhs_type: &Type,
         op: &HirBinaryOp,
         rhs_type: &Type,
         span: Span,
-    ) {
+    ) -> bool {
         self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
             expected: lhs_type.clone(),
             actual: rhs_type.clone(),
@@ -1093,22 +1078,26 @@ impl<'interner> TypeChecker<'interner> {
             span,
         });
 
-        // In addition to unifying both types, we also have to bind either
-        // the lhs or rhs to an integer type variable. This ensures if both lhs
-        // and rhs are type variables, that they will have the correct integer
-        // type variable kind instead of TypeVariableKind::Normal.
-        let target = if op.kind.is_valid_for_field_type() {
-            Type::polymorphic_integer_or_field(self.interner)
-        } else {
-            Type::polymorphic_integer(self.interner)
-        };
+        let use_impl = !lhs_type.is_numeric();
 
-        self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
-            expected: lhs_type.clone(),
-            actual: rhs_type.clone(),
-            source: Source::Binary,
-            span,
-        });
+        // If this operator isn't valid for fields we have to possibly narrow
+        // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
+        // Doing so also ensures a type error if Field is used.
+        // The is_numeric check is to allow impls for custom types to bypass this.
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
+            let target = Type::polymorphic_integer(self.interner);
+
+            use crate::ast::BinaryOpKind::*;
+            use TypeCheckError::*;
+            self.unify(lhs_type, &target, || match op.kind {
+                Less | LessEqual | Greater | GreaterEqual => FieldComparison { span },
+                And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { span },
+                Modulo => FieldModulo { span },
+                other => unreachable!("Operator {other:?} should be valid for Field"),
+            });
+        }
+
+        use_impl
     }
 
     // Given a binary operator and another type. This method will produce the output type
@@ -1130,6 +1119,10 @@ impl<'interner> TypeChecker<'interner> {
         match (lhs_type, rhs_type) {
             // An error type on either side will always return an error
             (Error, _) | (_, Error) => Ok((Error, false)),
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.infix_operand_type_rules(&alias, op, other, span)
+            }
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
@@ -1137,17 +1130,30 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
-                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
-
-                // Both types are unified so the choice of which to return is arbitrary
-                Ok((other.clone(), false))
-            }
-            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
-                self.infix_operand_type_rules(&alias, op, other, span)
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    self.unify(
+                        rhs_type,
+                        &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+                        || TypeCheckError::InvalidShiftSize { span },
+                    );
+                    let use_impl = if lhs_type.is_numeric() {
+                        let integer_type = Type::polymorphic_integer(self.interner);
+                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
+                    } else {
+                        true
+                    };
+                    return Ok((lhs_type.clone(), use_impl));
+                }
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
+                        return Err(TypeCheckError::InvalidShiftSize { span });
+                    }
+                    return Ok((Integer(*sign_x, *bit_width_x), false));
+                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -1170,7 +1176,7 @@ impl<'interner> TypeChecker<'interner> {
                     if op.kind == BinaryOpKind::Modulo {
                         return Err(TypeCheckError::FieldModulo { span });
                     } else {
-                        return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                        return Err(TypeCheckError::FieldBitwiseOp { span });
                     }
                 }
                 Ok((FieldElement, false))
@@ -1179,6 +1185,12 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if rhs == &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
+                        return Ok((lhs.clone(), true));
+                    }
+                    return Err(TypeCheckError::InvalidShiftSize { span });
+                }
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
@@ -1192,7 +1204,7 @@ impl<'interner> TypeChecker<'interner> {
 
     fn type_check_prefix_operand(
         &mut self,
-        op: &crate::UnaryOp,
+        op: &crate::ast::UnaryOp,
         rhs_type: &Type,
         span: Span,
     ) -> Type {
@@ -1206,19 +1218,19 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         match op {
-            crate::UnaryOp::Minus => {
+            crate::ast::UnaryOp::Minus => {
                 if rhs_type.is_unsigned() {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,
                 });
                 expected
             }
-            crate::UnaryOp::Not => {
+            crate::ast::UnaryOp::Not => {
                 let rhs_type = rhs_type.follow_bindings();
 
                 // `!` can work on booleans or integers
@@ -1228,10 +1240,10 @@ impl<'interner> TypeChecker<'interner> {
 
                 unify(Type::Bool)
             }
-            crate::UnaryOp::MutableReference => {
+            crate::ast::UnaryOp::MutableReference => {
                 Type::MutableReference(Box::new(rhs_type.follow_bindings()))
             }
-            crate::UnaryOp::Dereference { implicitly_added: _ } => {
+            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type

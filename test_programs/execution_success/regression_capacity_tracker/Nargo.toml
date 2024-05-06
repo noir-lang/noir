@@ -1,0 +1,7 @@
+[package]
+name = "regression_capacity_tracker"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

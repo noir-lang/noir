@@ -1,0 +1,18 @@
+contract Foo {
+    use crate::times_10;
+
+    fn double(x: Field) -> pub Field {
+        x * 2
+    }
+    fn triple(x: Field) -> pub Field {
+        x * 3
+    }
+    fn times_40(x: Field) -> pub Field {
+        times_10(x) * 4
+    }
+}
+
+#[fold]
+fn times_10(x: Field) -> Field {
+    x * 10
+}

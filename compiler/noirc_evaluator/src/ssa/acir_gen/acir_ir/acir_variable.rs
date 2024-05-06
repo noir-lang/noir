@@ -1,5 +1,5 @@
 use super::big_int::BigIntContext;
-use super::generated_acir::GeneratedAcir;
+use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError, SsaReport};
@@ -11,7 +11,7 @@ use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
 use acvm::blackbox_solver;
-use acvm::brillig_vm::{brillig::Value, VMStatus, VM};
+use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
     acir::{
         brillig::Opcode as BrilligOpcode,
@@ -326,13 +326,15 @@ impl AcirContext {
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
 
-        let results = self.brillig(
+        let results = self.brillig_call(
             predicate,
-            inverse_code,
+            &inverse_code,
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
             false,
+            PLACEHOLDER_BRILLIG_INDEX,
+            Some(BrilligStdlibFunc::Inverse),
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -711,9 +713,9 @@ impl AcirContext {
         }
 
         let [q_value, r_value]: [AcirValue; 2] = self
-            .brillig(
+            .brillig_call(
                 predicate,
-                brillig_directive::directive_quotient(bit_size + 1),
+                &brillig_directive::directive_quotient(bit_size + 1),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
@@ -721,6 +723,8 @@ impl AcirContext {
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
                 false,
+                PLACEHOLDER_BRILLIG_INDEX,
+                Some(BrilligStdlibFunc::Quotient(bit_size + 1)),
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1261,7 +1265,8 @@ impl AcirContext {
                 let modulus = self.big_int_ctx.modulus(bigint.modulus_id());
                 let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
                 output_count = bytes_len as usize;
-                (field_inputs, vec![FieldElement::from(bytes_len as u128)])
+                assert!(bytes_len == 32);
+                (field_inputs, vec![])
             }
             BlackBoxFunc::BigIntFromLeBytes => {
                 let invalid_input = "ICE - bigint operation requires 2 inputs";
@@ -1463,16 +1468,19 @@ impl AcirContext {
         id
     }
 
-    pub(crate) fn brillig(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn brillig_call(
         &mut self,
         predicate: AcirVar,
-        generated_brillig: GeneratedBrillig,
+        generated_brillig: &GeneratedBrillig,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
         unsafe_return_values: bool,
+        brillig_function_index: u32,
+        brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let b_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
+        let brillig_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
             match i {
                 AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
                 AcirValue::Array(vars) => {
@@ -1495,29 +1503,37 @@ impl AcirContext {
         // the entire program will be replaced with witness constraints to its outputs.
         if attempt_execution {
             if let Some(brillig_outputs) =
-                self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
+                self.execute_brillig(&generated_brillig.byte_code, &brillig_inputs, &outputs)
             {
                 return Ok(brillig_outputs);
             }
         }
 
         // Otherwise we must generate ACIR for it and execute at runtime.
-        let mut b_outputs = Vec::new();
+        let mut brillig_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
             AcirType::NumericType(_) => {
                 let witness_index = self.acir_ir.next_witness_index();
-                b_outputs.push(BrilligOutputs::Simple(witness_index));
+                brillig_outputs.push(BrilligOutputs::Simple(witness_index));
                 let var = self.add_data(AcirVarData::Witness(witness_index));
                 AcirValue::Var(var, output.clone())
             }
             AcirType::Array(element_types, size) => {
                 let (acir_value, witnesses) = self.brillig_array_output(&element_types, size);
-                b_outputs.push(BrilligOutputs::Array(witnesses));
+                brillig_outputs.push(BrilligOutputs::Array(witnesses));
                 acir_value
             }
         });
         let predicate = self.var_to_expression(predicate)?;
-        self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
+
+        self.acir_ir.brillig_call(
+            Some(predicate),
+            generated_brillig,
+            brillig_inputs,
+            brillig_outputs,
+            brillig_function_index,
+            brillig_stdlib_func,
+        );
 
         fn range_constraint_value(
             context: &mut AcirContext,
@@ -1640,7 +1656,7 @@ impl AcirContext {
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory_iter: &mut impl Iterator<Item = Value>,
+        memory_iter: &mut impl Iterator<Item = MemoryValue>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
@@ -1757,6 +1773,32 @@ impl AcirContext {
         }
         Ok(())
     }
+
+    pub(crate) fn call_acir_function(
+        &mut self,
+        id: u32,
+        inputs: Vec<AcirValue>,
+        output_count: usize,
+        predicate: AcirVar,
+    ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
+        let inputs = inputs
+            .iter()
+            .flat_map(|input| vecmap(input, |input| input.witness))
+            .collect::<Vec<_>>();
+        let outputs = vecmap(0..output_count, |_| self.acir_ir.next_witness_index());
+
+        // Convert `Witness` values which are now constrained to be the output of the
+        // ACIR function call into `AcirVar`s.
+        // Similar to black box functions, we do not apply range information on the output of the  function.
+        // See issue https://github.com/noir-lang/noir/issues/1439
+        let results =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+
+        let predicate = Some(self.var_to_expression(predicate)?);
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
+        Ok(results)
+    }
 }
 
 /// Enum representing the possible values that a
@@ -1839,21 +1881,21 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<Value>> {
+fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<MemoryValue>> {
     // Set input values
-    let mut calldata: Vec<Value> = Vec::new();
+    let mut calldata: Vec<FieldElement> = Vec::new();
 
     // Each input represents a constant or array of constants.
     // Iterate over each input and push it into registers and/or memory.
     for input in inputs {
         match input {
             BrilligInputs::Single(expr) => {
-                calldata.push(expr.to_const()?.into());
+                calldata.push(expr.to_const()?);
             }
             BrilligInputs::Array(expr_arr) => {
                 // Attempt to fetch all array input values
                 for expr in expr_arr.iter() {
-                    calldata.push(expr.to_const()?.into());
+                    calldata.push(expr.to_const()?);
                 }
             }
             BrilligInputs::MemoryArray(_) => {

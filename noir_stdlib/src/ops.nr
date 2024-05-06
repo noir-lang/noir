@@ -6,9 +6,9 @@ trait Add {
 
 impl Add for Field { fn add(self, other: Field) -> Field { self + other } }
 
-impl Add for u8 { fn add(self, other: u8) -> u8 { self + other } }
-impl Add for u32 { fn add(self, other: u32) -> u32 { self + other } }
 impl Add for u64 { fn add(self, other: u64) -> u64 { self + other } }
+impl Add for u32 { fn add(self, other: u32) -> u32 { self + other } }
+impl Add for u8 { fn add(self, other: u8) -> u8 { self + other } }
 
 impl Add for i8 { fn add(self, other: i8) -> i8 { self + other } }
 impl Add for i32 { fn add(self, other: i32) -> i32 { self + other } }
@@ -22,9 +22,9 @@ trait Sub {
 
 impl Sub for Field { fn sub(self, other: Field) -> Field { self - other } }
 
-impl Sub for u8 { fn sub(self, other: u8) -> u8 { self - other } }
-impl Sub for u32 { fn sub(self, other: u32) -> u32 { self - other } }
 impl Sub for u64 { fn sub(self, other: u64) -> u64 { self - other } }
+impl Sub for u32 { fn sub(self, other: u32) -> u32 { self - other } }
+impl Sub for u8 { fn sub(self, other: u8) -> u8 { self - other } }
 
 impl Sub for i8 { fn sub(self, other: i8) -> i8 { self - other } }
 impl Sub for i32 { fn sub(self, other: i32) -> i32 { self - other } }
@@ -38,9 +38,9 @@ trait Mul {
 
 impl Mul for Field { fn mul(self, other: Field) -> Field { self * other } }
 
-impl Mul for u8 { fn mul(self, other: u8) -> u8 { self * other } }
-impl Mul for u32 { fn mul(self, other: u32) -> u32 { self * other } }
 impl Mul for u64 { fn mul(self, other: u64) -> u64 { self * other } }
+impl Mul for u32 { fn mul(self, other: u32) -> u32 { self * other } }
+impl Mul for u8 { fn mul(self, other: u8) -> u8 { self * other } }
 
 impl Mul for i8 { fn mul(self, other: i8) -> i8 { self * other } }
 impl Mul for i32 { fn mul(self, other: i32) -> i32 { self * other } }
@@ -54,9 +54,9 @@ trait Div {
 
 impl Div for Field { fn div(self, other: Field) -> Field { self / other } }
 
-impl Div for u8 { fn div(self, other: u8) -> u8 { self / other } }
-impl Div for u32 { fn div(self, other: u32) -> u32 { self / other } }
 impl Div for u64 { fn div(self, other: u64) -> u64 { self / other } }
+impl Div for u32 { fn div(self, other: u32) -> u32 { self / other } }
+impl Div for u8 { fn div(self, other: u8) -> u8 { self / other } }
 
 impl Div for i8 { fn div(self, other: i8) -> i8 { self / other } }
 impl Div for i32 { fn div(self, other: i32) -> i32 { self / other } }
@@ -68,13 +68,27 @@ trait Rem{
 }
 // docs:end:rem-trait
 
-impl Rem for u8 { fn rem(self, other: u8) -> u8 { self % other } }
-impl Rem for u32 { fn rem(self, other: u32) -> u32 { self % other } }
 impl Rem for u64 { fn rem(self, other: u64) -> u64 { self % other } }
+impl Rem for u32 { fn rem(self, other: u32) -> u32 { self % other } }
+impl Rem for u8 { fn rem(self, other: u8) -> u8 { self % other } }
 
 impl Rem for i8 { fn rem(self, other: i8) -> i8 { self % other } }
 impl Rem for i32 { fn rem(self, other: i32) -> i32 { self % other } }
 impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
+
+// docs:start:neg-trait
+trait Neg {
+    fn neg(self) -> Self;
+}
+// docs:end:neg-trait
+
+// docs:start:neg-trait-impls
+impl Neg for Field { fn neg(self) -> Field { -self } }
+
+impl Neg for i8 { fn neg(self) -> i8 { -self } }
+impl Neg for i32 { fn neg(self) -> i32 { -self } }
+impl Neg for i64 { fn neg(self) -> i64 { -self } }
+// docs:end:neg-trait-impls
 
 // docs:start:bitor-trait
 trait BitOr {
@@ -84,9 +98,9 @@ trait BitOr {
 
 impl BitOr for bool { fn bitor(self, other: bool) -> bool { self | other } }
 
-impl BitOr for u8 { fn bitor(self, other: u8) -> u8 { self | other } }
-impl BitOr for u32 { fn bitor(self, other: u32) -> u32 { self | other } }
 impl BitOr for u64 { fn bitor(self, other: u64) -> u64 { self | other } }
+impl BitOr for u32 { fn bitor(self, other: u32) -> u32 { self | other } }
+impl BitOr for u8 { fn bitor(self, other: u8) -> u8 { self | other } }
 
 impl BitOr for i8 { fn bitor(self, other: i8) -> i8 { self | other } }
 impl BitOr for i32 { fn bitor(self, other: i32) -> i32 { self | other } }
@@ -100,9 +114,9 @@ trait BitAnd {
 
 impl BitAnd for bool { fn bitand(self, other: bool) -> bool { self & other } }
 
-impl BitAnd for u8 { fn bitand(self, other: u8) -> u8 { self & other } }
-impl BitAnd for u32 { fn bitand(self, other: u32) -> u32 { self & other } }
 impl BitAnd for u64 { fn bitand(self, other: u64) -> u64 { self & other } }
+impl BitAnd for u32 { fn bitand(self, other: u32) -> u32 { self & other } }
+impl BitAnd for u8 { fn bitand(self, other: u8) -> u8 { self & other } }
 
 impl BitAnd for i8 { fn bitand(self, other: i8) -> i8 { self & other } }
 impl BitAnd for i32 { fn bitand(self, other: i32) -> i32 { self & other } }
@@ -116,9 +130,9 @@ trait BitXor {
 
 impl BitXor for bool { fn bitxor(self, other: bool) -> bool { self ^ other } }
 
-impl BitXor for u8 { fn bitxor(self, other: u8) -> u8 { self ^ other } }
-impl BitXor for u32 { fn bitxor(self, other: u32) -> u32 { self ^ other } }
 impl BitXor for u64 { fn bitxor(self, other: u64) -> u64 { self ^ other } }
+impl BitXor for u32 { fn bitxor(self, other: u32) -> u32 { self ^ other } }
+impl BitXor for u8 { fn bitxor(self, other: u8) -> u8 { self ^ other } }
 
 impl BitXor for i8 { fn bitxor(self, other: i8) -> i8 { self ^ other } }
 impl BitXor for i32 { fn bitxor(self, other: i32) -> i32 { self ^ other } }
@@ -126,30 +140,31 @@ impl BitXor for i64 { fn bitxor(self, other: i64) -> i64 { self ^ other } }
 
 // docs:start:shl-trait
 trait Shl {
-    fn shl(self, other: Self) -> Self;
+    fn shl(self, other: u8) -> Self;
 }
 // docs:end:shl-trait
 
+impl Shl for u32 { fn shl(self, other: u8) -> u32 { self << other } }
+impl Shl for u64 { fn shl(self, other: u8) -> u64 { self << other } }
 impl Shl for u8 { fn shl(self, other: u8) -> u8 { self << other } }
-impl Shl for u32 { fn shl(self, other: u32) -> u32 { self << other } }
-impl Shl for u64 { fn shl(self, other: u64) -> u64 { self << other } }
+impl Shl for u1 { fn shl(self, other: u8) -> u1 { self << other } }
 
-// Bit shifting is not currently supported for signed integer types
-// impl Shl for i8 { fn shl(self, other: i8) -> i8 { self << other } }
-// impl Shl for i32 { fn shl(self, other: i32) -> i32 { self << other } }
-// impl Shl for i64 { fn shl(self, other: i64) -> i64 { self << other } }
+impl Shl for i8 { fn shl(self, other: u8) -> i8 { self << other } }
+impl Shl for i32 { fn shl(self, other: u8) -> i32 { self << other } }
+impl Shl for i64 { fn shl(self, other: u8) -> i64 { self << other } }
 
 // docs:start:shr-trait
 trait Shr {
-    fn shr(self, other: Self) -> Self;
+    fn shr(self, other: u8) -> Self;
 }
 // docs:end:shr-trait
 
+impl Shr for u64 { fn shr(self, other: u8) -> u64 { self >> other } }
+impl Shr for u32 { fn shr(self, other: u8) -> u32 { self >> other } }
 impl Shr for u8 { fn shr(self, other: u8) -> u8 { self >> other } }
-impl Shr for u32 { fn shr(self, other: u32) -> u32 { self >> other } }
-impl Shr for u64 { fn shr(self, other: u64) -> u64 { self >> other } }
+impl Shr for u1 { fn shr(self, other: u8) -> u1 { self >> other } }
 
-// Bit shifting is not currently supported for signed integer types
-// impl Shr for i8 { fn shr(self, other: i8) -> i8 { self >> other } }
-// impl Shr for i32 { fn shr(self, other: i32) -> i32 { self >> other } }
-// impl Shr for i64 { fn shr(self, other: i64) -> i64 { self >> other } }
+impl Shr for i8 { fn shr(self, other: u8) -> i8 { self >> other } }
+impl Shr for i32 { fn shr(self, other: u8) -> i32 { self >> other } }
+impl Shr for i64 { fn shr(self, other: u8) -> i64 { self >> other } }
+

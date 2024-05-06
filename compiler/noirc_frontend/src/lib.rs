@@ -28,9 +28,6 @@ pub use lexer::token;
 // Parser API
 pub use parser::{parse_program, ParsedModule};
 
-// AST API
-pub use ast::*;
-
 // Type API
 pub use hir_def::types::*;
 
@@ -45,7 +42,6 @@ pub mod macros_api {
     pub use noirc_errors::Span;
 
     pub use crate::graph::CrateId;
-    use crate::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
     pub use crate::hir::def_collector::errors::MacroError;
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
@@ -53,17 +49,18 @@ pub mod macros_api {
     pub use crate::parser::{parse_program, SortedModule};
     pub use crate::token::SecondaryAttribute;
 
-    pub use crate::hir::def_map::ModuleDefId;
-    pub use crate::{
-        hir::Context as HirContext, BlockExpression, CallExpression, CastExpression, Distinctness,
-        Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, ItemVisibility,
-        LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path,
-        PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+    pub use crate::ast::{
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind,
+        FunctionReturnType, Ident, IndexExpression, ItemVisibility, LetStatement, Literal,
+        MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern,
+        Statement, UnresolvedType, UnresolvedTypeData, Visibility,
     };
-    pub use crate::{
+    pub use crate::ast::{
         ForLoopStatement, ForRange, FunctionDefinition, ImportStatement, NoirStruct, Param,
-        PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+        PrefixExpression, Signedness, StatementKind, TypeImpl, UnaryOp,
     };
+    pub use crate::hir::{def_map::ModuleDefId, Context as HirContext};
+    pub use crate::{StructType, Type};
 
     /// Methods to process the AST before and after type checking
     pub trait MacroProcessor {
@@ -72,17 +69,9 @@ pub mod macros_api {
             &self,
             ast: SortedModule,
             crate_id: &CrateId,
+            file_id: FileId,
             context: &HirContext,
         ) -> Result<SortedModule, (MacroError, FileId)>;
-
-        // TODO(#4653): generalize this function
-        fn process_collected_defs(
-            &self,
-            _crate_id: &CrateId,
-            _context: &mut HirContext,
-            _collected_trait_impls: &[UnresolvedTraitImpl],
-            _collected_functions: &mut [UnresolvedFunctions],
-        ) -> Result<(), (MacroError, FileId)>;
 
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.

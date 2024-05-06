@@ -20,9 +20,6 @@ pub(crate) enum FilesystemError {
 
     #[error(" Error: failed to create output witness file {0}.")]
     OutputWitnessCreationFailed(String),
-
-    #[error(" Error: failed to write output witness file {0}.")]
-    OutputWitnessWriteFailed(String),
 }
 
 #[derive(Debug, Error)]
@@ -32,7 +29,7 @@ pub(crate) enum CliError {
     FilesystemError(#[from] FilesystemError),
 
     /// Error related to circuit deserialization
-    #[error("Error: failed to deserialize circuit")]
+    #[error("Error: failed to deserialize circuit in ACVM CLI")]
     CircuitDeserializationError(),
 
     /// Error related to circuit execution

@@ -6,10 +6,10 @@ trait Eq {
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
-impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
-impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
-impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
+impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
+impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
+impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
 
 impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
@@ -107,8 +107,8 @@ trait Ord {
 
 // Note: Field deliberately does not implement Ord
 
-impl Ord for u8 {
-    fn cmp(self, other: u8) -> Ordering {
+impl Ord for u64 {
+    fn cmp(self, other: u64) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -131,8 +131,8 @@ impl Ord for u32 {
     }
 }
 
-impl Ord for u64 {
-    fn cmp(self, other: u64) -> Ordering {
+impl Ord for u8 {
+    fn cmp(self, other: u8) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -312,5 +312,57 @@ impl<A, B, C, D, E> Ord for (A, B, C, D, E) where A: Ord, B: Ord, C: Ord, D: Ord
         }
 
         result
+    }
+}
+
+// Compares and returns the maximum of two values.
+//
+// Returns the second argument if the comparison determines them to be equal.
+//
+// # Examples
+//
+// ```
+// use std::cmp;
+//
+// assert_eq(cmp::max(1, 2), 2);
+// assert_eq(cmp::max(2, 2), 2);
+// ```
+pub fn max<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v1 } else { v2 }
+}
+
+// Compares and returns the minimum of two values.
+//
+// Returns the first argument if the comparison determines them to be equal.
+//
+// # Examples
+//
+// ```
+// use std::cmp;
+//
+// assert_eq(cmp::min(1, 2), 1);
+// assert_eq(cmp::min(2, 2), 2);
+// ```
+pub fn min<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v2 } else { v1 }
+}
+
+mod cmp_tests {
+    use crate::cmp::{min, max};
+
+    #[test]
+    fn sanity_check_min() {
+        assert_eq(min(0 as u64, 1 as u64), 0);
+        assert_eq(min(0 as u64, 0 as u64), 0);
+        assert_eq(min(1 as u64, 1 as u64), 1);
+        assert_eq(min(255 as u8, 0 as u8), 0);
+    }
+
+    #[test]
+    fn sanity_check_max() {
+        assert_eq(max(0 as u64, 1 as u64), 1);
+        assert_eq(max(0 as u64, 0 as u64), 0);
+        assert_eq(max(1 as u64, 1 as u64), 1);
+        assert_eq(max(255 as u8, 0 as u8), 255);
     }
 }

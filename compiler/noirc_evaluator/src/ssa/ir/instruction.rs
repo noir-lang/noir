@@ -1,6 +1,8 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
+use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
+
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
@@ -189,8 +191,9 @@ pub(crate) enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId },
+    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -205,6 +208,14 @@ pub(crate) enum Instruction {
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
     DecrementRc { value: ValueId },
+
+    /// Merge two values returned from opposite branches of a conditional into one.
+    IfElse {
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+    },
 }
 
 impl Instruction {
@@ -218,10 +229,12 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Not(value) | Instruction::Truncate { value, .. } => {
+            Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::ArraySet { array: value, .. }
+            | Instruction::IfElse { then_value: value, .. } => {
                 InstructionResultType::Operand(*value)
             }
-            Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
@@ -241,20 +254,11 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
-    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
-    /// i.e. there are no interactions with memory.
-    ///
-    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
-    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
         match self {
-            Binary(bin) => {
-                // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
-                bin.operator != BinaryOp::Div
-            }
-            Cast(_, _) | Truncate { .. } | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
-
             // These either have side-effects or interact with memory
             Constrain(..)
             | EnableSideEffects { .. }
@@ -269,21 +273,33 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
         }
     }
 
-    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs == FieldElement::zero()
+                        rhs != FieldElement::zero()
                     } else {
-                        true
+                        false
                     }
                 } else {
-                    false
+                    true
                 }
             }
             Cast(_, _)
@@ -292,29 +308,64 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => false,
+            | IfElse { .. }
+            | ArraySet { .. } => true,
 
             Constrain(..)
             | Store { .. }
             | EnableSideEffects { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
-            | RangeCheck { .. } => true,
+            | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
                 // This is because they can be used to pass information
                 // from the ACVM to the external world during execution.
-                Value::ForeignFunction(_) => true,
+                Value::ForeignFunction(_) => false,
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => true,
+                Value::Function(_) => false,
 
                 _ => false,
             },
+        }
+    }
+
+    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self {
+            Instruction::Binary(binary)
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
+            {
+                true
+            }
+            Instruction::EnableSideEffects { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. } => true,
+
+            Instruction::Call { func, .. } => match dfg[*func] {
+                Value::Function(_) => true,
+                Value::Intrinsic(intrinsic) => {
+                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                }
+                _ => false,
+            },
+            Instruction::Cast(_, _)
+            | Instruction::Binary(_)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(_, _, _)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => false,
         }
     }
 
@@ -340,9 +391,11 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
-                    ConstrainError::Dynamic(call_instr) => {
+                    ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(call_instr)) => {
                         let new_instr = call_instr.map_values(f);
-                        Box::new(ConstrainError::Dynamic(new_instr))
+                        Box::new(ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                            new_instr,
+                        )))
                     }
                     _ => error.clone(),
                 });
@@ -363,9 +416,12 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value } => {
-                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
-            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -373,6 +429,14 @@ impl Instruction {
                     value: f(*value),
                     max_bit_size: *max_bit_size,
                     assert_message: assert_message.clone(),
+                }
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                Instruction::IfElse {
+                    then_condition: f(*then_condition),
+                    then_value: f(*then_value),
+                    else_condition: f(*else_condition),
+                    else_value: f(*else_value),
                 }
             }
         }
@@ -401,7 +465,10 @@ impl Instruction {
                 f(*lhs);
                 f(*rhs);
                 if let Some(error) = assert_error.as_ref() {
-                    if let ConstrainError::Dynamic(call_instr) = error.as_ref() {
+                    if let ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                        call_instr,
+                    )) = error.as_ref()
+                    {
                         call_instr.for_each_value(f);
                     }
                 }
@@ -416,7 +483,7 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -428,6 +495,12 @@ impl Instruction {
             | Instruction::DecrementRc { value }
             | Instruction::RangeCheck { value, .. } => {
                 f(*value);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                f(*then_condition);
+                f(*then_value);
+                f(*else_condition);
+                f(*else_value);
             }
         }
     }
@@ -573,12 +646,42 @@ impl Instruction {
             Instruction::IncrementRc { .. } => None,
             Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
-                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
-                    if numeric_constant.num_bits() < *max_bit_size {
-                        return Remove;
+                let max_potential_bits = dfg.get_value_max_num_bits(*value);
+                if max_potential_bits < *max_bit_size {
+                    Remove
+                } else {
+                    None
+                }
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                let typ = dfg.type_of_value(*then_value);
+
+                if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
+                    if constant.is_one() {
+                        return SimplifiedTo(*then_value);
+                    } else if constant.is_zero() {
+                        return SimplifiedTo(*else_value);
                     }
                 }
-                None
+
+                if matches!(&typ, Type::Numeric(_)) {
+                    let then_condition = *then_condition;
+                    let then_value = *then_value;
+                    let else_condition = *else_condition;
+                    let else_value = *else_value;
+
+                    let result = ValueMerger::merge_numeric_values(
+                        dfg,
+                        block,
+                        then_condition,
+                        else_condition,
+                        then_value,
+                        else_value,
+                    );
+                    SimplifiedTo(result)
+                } else {
+                    None
+                }
             }
         }
     }
@@ -587,6 +690,14 @@ impl Instruction {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
+    Intrinsic(String),
+    // These are errors issued by the user
+    UserDefined(UserDefinedConstrainError),
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub(crate) enum UserDefinedConstrainError {
+    // These are errors which come from static strings specified by a Noir program
     Static(String),
     // These are errors which come from runtime expressions specified by a Noir program
     // We store an `Instruction` as we want this Instruction to be atomic in SSA with
@@ -596,7 +707,7 @@ pub(crate) enum ConstrainError {
 
 impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        ConstrainError::Static(value)
+        ConstrainError::Intrinsic(value)
     }
 }
 

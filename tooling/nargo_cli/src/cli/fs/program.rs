@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 use nargo::artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 use noirc_frontend::graph::CrateName;
 
@@ -18,13 +18,10 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
 }
 
 /// Writes the bytecode as acir.gz
-pub(crate) fn only_acir<P: AsRef<Path>>(
-    program_artifact: &ProgramArtifact,
-    circuit_dir: P,
-) -> PathBuf {
+pub(crate) fn only_acir<P: AsRef<Path>>(program: Program, circuit_dir: P) -> PathBuf {
     create_named_dir(circuit_dir.as_ref(), "target");
     let circuit_path = circuit_dir.as_ref().join("acir").with_extension("gz");
-    let bytes = Circuit::serialize_circuit(&program_artifact.bytecode);
+    let bytes = Program::serialize_program(&program);
     write_to_file(&bytes, &circuit_path);
 
     circuit_path

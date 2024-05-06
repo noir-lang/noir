@@ -30,11 +30,16 @@ export type DependencyGraph = {
     library_dependencies: Readonly<Record<string, readonly string[]>>;
 }
 
+export type ContractOutputsArtifact = {
+    structs: Record<string, Array<any>>;
+    globals: Record<string, Array<any>>;
+}
+
 export type ContractArtifact = {
     noir_version: string;
     name: string;
     functions: Array<any>;
-    events: Array<any>;
+    outputs: ContractOutputsArtifact;
     file_map: Record<number, any>;
 };
 
@@ -218,7 +223,7 @@ pub fn compile_contract(
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: optimized_contract.name,
         functions,
-        events: optimized_contract.events,
+        outputs: optimized_contract.outputs.into(),
         file_map: optimized_contract.file_map,
     };
 

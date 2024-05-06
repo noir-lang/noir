@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use acir::{
-    brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, Value, ValueOrArray},
+    brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
         opcodes::{BlockId, MemOp},
@@ -70,9 +70,9 @@ fn inversion_brillig_oracle_equivalence() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
-                destination_value_types: vec![HeapValueType::Simple],
+                destination_value_types: vec![HeapValueType::field()],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                input_value_types: vec![HeapValueType::Simple],
+                input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 3 },
         ],
@@ -104,8 +104,9 @@ fn inversion_brillig_oracle_equivalence() {
         (Witness(2), FieldElement::from(3u128)),
     ])
     .into();
-
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
 
@@ -120,8 +121,7 @@ fn inversion_brillig_oracle_equivalence() {
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
     // As caller of VM, need to resolve foreign calls
-    let foreign_call_result =
-        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
+    let foreign_call_result = foreign_call_wait_info.inputs[0].unwrap_field().inverse();
     // Alter Brillig oracle opcode with foreign call resolution
     acvm.resolve_pending_foreign_call(foreign_call_result.into());
 
@@ -199,16 +199,16 @@ fn double_inversion_brillig_oracle() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
-                destination_value_types: vec![HeapValueType::Simple],
+                destination_value_types: vec![HeapValueType::field()],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                input_value_types: vec![HeapValueType::Simple],
+                input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
-                destination_value_types: vec![HeapValueType::Simple],
+                destination_value_types: vec![HeapValueType::field()],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
-                input_value_types: vec![HeapValueType::Simple],
+                input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 5 },
         ],
@@ -242,8 +242,9 @@ fn double_inversion_brillig_oracle() {
         (Witness(9), FieldElement::from(10u128)),
     ])
     .into();
-
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -257,8 +258,7 @@ fn double_inversion_brillig_oracle() {
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
-    let x_plus_y_inverse =
-        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
+    let x_plus_y_inverse = foreign_call_wait_info.inputs[0].unwrap_field().inverse();
 
     // Resolve Brillig foreign call
     acvm.resolve_pending_foreign_call(x_plus_y_inverse.into());
@@ -275,8 +275,7 @@ fn double_inversion_brillig_oracle() {
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
-    let i_plus_j_inverse =
-        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
+    let i_plus_j_inverse = foreign_call_wait_info.inputs[0].unwrap_field().inverse();
     assert_ne!(x_plus_y_inverse, i_plus_j_inverse);
 
     // Alter Brillig oracle opcode
@@ -334,16 +333,16 @@ fn oracle_dependent_execution() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
-                destination_value_types: vec![HeapValueType::Simple],
+                destination_value_types: vec![HeapValueType::field()],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                input_value_types: vec![HeapValueType::Simple],
+                input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
-                destination_value_types: vec![HeapValueType::Simple],
+                destination_value_types: vec![HeapValueType::field()],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
-                input_value_types: vec![HeapValueType::Simple],
+                input_value_types: vec![HeapValueType::field()],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 4 },
         ],
@@ -373,8 +372,9 @@ fn oracle_dependent_execution() {
 
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
-
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -389,8 +389,7 @@ fn oracle_dependent_execution() {
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
     // Resolve Brillig foreign call
-    let x_inverse =
-        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
+    let x_inverse = foreign_call_wait_info.inputs[0].unwrap_field().inverse();
     acvm.resolve_pending_foreign_call(x_inverse.into());
 
     // After filling data request, continue solving
@@ -406,8 +405,7 @@ fn oracle_dependent_execution() {
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
     // Resolve Brillig foreign call
-    let y_inverse =
-        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
+    let y_inverse = foreign_call_wait_info.inputs[0].unwrap_field().inverse();
     acvm.resolve_pending_foreign_call(y_inverse.into());
 
     // We've resolved all the brillig foreign calls so we should be able to complete execution now.
@@ -464,9 +462,9 @@ fn brillig_oracle_predicate() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
-                destination_value_types: vec![HeapValueType::Simple],
+                destination_value_types: vec![HeapValueType::field()],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                input_value_types: vec![HeapValueType::Simple],
+                input_value_types: vec![HeapValueType::field()],
             },
         ],
         predicate: Some(Expression::default()),
@@ -479,8 +477,9 @@ fn brillig_oracle_predicate() {
         (Witness(2), FieldElement::from(3u128)),
     ])
     .into();
-
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &unconstrained_functions);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
@@ -514,7 +513,8 @@ fn unsatisfied_opcode_resolved() {
     values.insert(d, FieldElement::from(2_i128));
 
     let opcodes = vec![Opcode::AssertZero(opcode_a)];
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values);
+    let unconstrained_functions = vec![];
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -554,7 +554,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     let jmp_if_opcode =
         BrilligOpcode::JumpIf { condition: MemoryAddress::from(2), location: location_of_stop };
 
-    let trap_opcode = BrilligOpcode::Trap;
+    let trap_opcode = BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 };
     let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_opcode = Opcode::Brillig(Brillig {
@@ -596,13 +596,13 @@ fn unsatisfied_opcode_resolved_brillig() {
     values.insert(w_result, FieldElement::from(0_i128));
 
     let opcodes = vec![brillig_opcode, Opcode::AssertZero(opcode_a)];
-
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values);
+    let unconstrained_functions = vec![];
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
-            message: "explicit trap hit in brillig".to_string(),
+            message: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
@@ -640,8 +640,9 @@ fn memory_operations() {
     });
 
     let opcodes = vec![init, read_op, expression];
-
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness);
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();

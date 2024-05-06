@@ -1,39 +1,41 @@
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
+use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{BlackBoxFunc, FieldElement};
+use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
     blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, keccakf1600,
     sha256, sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
+use crate::memory::MemoryValue;
 use crate::Memory;
 
-fn read_heap_vector<'a>(memory: &'a Memory, vector: &HeapVector) -> &'a [Value] {
-    memory.read_slice(memory.read_ref(vector.pointer), memory.read(vector.size).to_usize())
+fn read_heap_vector<'a>(memory: &'a Memory, vector: &HeapVector) -> &'a [MemoryValue] {
+    let size = memory.read(vector.size);
+    memory.read_slice(memory.read_ref(vector.pointer), size.to_usize())
 }
 
-fn read_heap_array<'a>(memory: &'a Memory, array: &HeapArray) -> &'a [Value] {
+fn read_heap_array<'a>(memory: &'a Memory, array: &HeapArray) -> &'a [MemoryValue] {
     memory.read_slice(memory.read_ref(array.pointer), array.size)
 }
 
 /// Extracts the last byte of every value
-fn to_u8_vec(inputs: &[Value]) -> Vec<u8> {
+fn to_u8_vec(inputs: &[MemoryValue]) -> Vec<u8> {
     let mut result = Vec::with_capacity(inputs.len());
     for input in inputs {
-        let field_bytes = input.to_field().to_be_bytes();
-        let byte = field_bytes.last().unwrap();
-        result.push(*byte);
+        result.push(input.try_into().unwrap());
     }
     result
 }
 
-fn to_value_vec(input: &[u8]) -> Vec<Value> {
-    input.iter().map(|x| Value::from(*x as usize)).collect()
+fn to_value_vec(input: &[u8]) -> Vec<MemoryValue> {
+    input.iter().map(|&x| x.into()).collect()
 }
 
 pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
     op: &BlackBoxOp,
     solver: &Solver,
     memory: &mut Memory,
+    bigint_solver: &mut BigIntSolver,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {
         BlackBoxOp::Sha256 { message, output } => {
@@ -63,14 +65,13 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::Keccakf1600 { message, output } => {
             let state_vec: Vec<u64> = read_heap_vector(memory, message)
                 .iter()
-                .map(|value| value.to_field().try_to_u64().unwrap())
+                .map(|memory_value| memory_value.try_into().unwrap())
                 .collect();
             let state: [u64; 25] = state_vec.try_into().unwrap();
 
             let new_state = keccakf1600(state)?;
 
-            let new_state: Vec<Value> =
-                new_state.into_iter().map(|x| Value::from(x as usize)).collect();
+            let new_state: Vec<MemoryValue> = new_state.into_iter().map(|x| x.into()).collect();
             memory.write_slice(memory.read_ref(output.pointer), &new_state);
             Ok(())
         }
@@ -125,36 +126,37 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             Ok(())
         }
         BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
-            let public_key_x = memory.read(*public_key_x).to_field();
-            let public_key_y = memory.read(*public_key_y).to_field();
+            let public_key_x = memory.read(*public_key_x).try_into().unwrap();
+            let public_key_y = memory.read(*public_key_y).try_into().unwrap();
             let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, message));
-            let signature: Vec<u8> = to_u8_vec(read_heap_vector(memory, signature));
+            let signature: [u8; 64] =
+                to_u8_vec(read_heap_vector(memory, signature)).try_into().unwrap();
             let verified =
                 solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)?;
             memory.write(*result, verified.into());
             Ok(())
         }
         BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
-            let low = memory.read(*low).to_field();
-            let high = memory.read(*high).to_field();
+            let low = memory.read(*low).try_into().unwrap();
+            let high = memory.read(*high).try_into().unwrap();
             let (x, y) = solver.fixed_base_scalar_mul(&low, &high)?;
             memory.write_slice(memory.read_ref(result.pointer), &[x.into(), y.into()]);
             Ok(())
         }
         BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
-            let input1_x = memory.read(*input1_x).to_field();
-            let input1_y = memory.read(*input1_y).to_field();
-            let input2_x = memory.read(*input2_x).to_field();
-            let input2_y = memory.read(*input2_y).to_field();
+            let input1_x = memory.read(*input1_x).try_into().unwrap();
+            let input1_y = memory.read(*input1_y).try_into().unwrap();
+            let input2_x = memory.read(*input2_x).try_into().unwrap();
+            let input2_y = memory.read(*input2_y).try_into().unwrap();
             let (x, y) = solver.ec_add(&input1_x, &input1_y, &input2_x, &input2_y)?;
             memory.write_slice(memory.read_ref(result.pointer), &[x.into(), y.into()]);
             Ok(())
         }
         BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
-                read_heap_vector(memory, inputs).iter().map(|x| x.to_field()).collect();
+                read_heap_vector(memory, inputs).iter().map(|x| x.try_into().unwrap()).collect();
             let domain_separator: u32 =
-                memory.read(*domain_separator).to_u128().try_into().map_err(|_| {
+                memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
                         "Invalid signature length".to_string(),
@@ -166,9 +168,9 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         }
         BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
-                read_heap_vector(memory, inputs).iter().map(|x| x.to_field()).collect();
+                read_heap_vector(memory, inputs).iter().map(|x| x.try_into().unwrap()).collect();
             let domain_separator: u32 =
-                memory.read(*domain_separator).to_u128().try_into().map_err(|_| {
+                memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
                         "Invalid signature length".to_string(),
@@ -178,20 +180,65 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write(*output, hash.into());
             Ok(())
         }
-        BlackBoxOp::BigIntAdd { .. } => todo!(),
-        BlackBoxOp::BigIntSub { .. } => todo!(),
-        BlackBoxOp::BigIntMul { .. } => todo!(),
-        BlackBoxOp::BigIntDiv { .. } => todo!(),
-        BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
-        BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
+        BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
+            let lhs = memory.read(*lhs).try_into().unwrap();
+            let rhs = memory.read(*rhs).try_into().unwrap();
+            let output = memory.read(*output).try_into().unwrap();
+            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntAdd)?;
+            Ok(())
+        }
+        BlackBoxOp::BigIntSub { lhs, rhs, output } => {
+            let lhs = memory.read(*lhs).try_into().unwrap();
+            let rhs = memory.read(*rhs).try_into().unwrap();
+            let output = memory.read(*output).try_into().unwrap();
+            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntSub)?;
+            Ok(())
+        }
+        BlackBoxOp::BigIntMul { lhs, rhs, output } => {
+            let lhs = memory.read(*lhs).try_into().unwrap();
+            let rhs = memory.read(*rhs).try_into().unwrap();
+            let output = memory.read(*output).try_into().unwrap();
+            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntMul)?;
+            Ok(())
+        }
+        BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
+            let lhs = memory.read(*lhs).try_into().unwrap();
+            let rhs = memory.read(*rhs).try_into().unwrap();
+            let output = memory.read(*output).try_into().unwrap();
+            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntDiv)?;
+            Ok(())
+        }
+        BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
+            let input = read_heap_vector(memory, inputs);
+            let input: Vec<u8> = input.iter().map(|x| x.try_into().unwrap()).collect();
+            let modulus = read_heap_vector(memory, modulus);
+            let modulus: Vec<u8> = modulus.iter().map(|x| x.try_into().unwrap()).collect();
+            let output = memory.read(*output).try_into().unwrap();
+            bigint_solver.bigint_from_bytes(&input, &modulus, output)?;
+            Ok(())
+        }
+        BlackBoxOp::BigIntToLeBytes { input, output } => {
+            let input: u32 = memory.read(*input).try_into().unwrap();
+            let bytes = bigint_solver.bigint_to_bytes(input)?;
+            let mut values = Vec::new();
+            for i in 0..32 {
+                if i < bytes.len() {
+                    values.push(bytes[i].into());
+                } else {
+                    values.push(0_u8.into());
+                }
+            }
+            memory.write_slice(memory.read_ref(output.pointer), &values);
+            Ok(())
+        }
         BlackBoxOp::Poseidon2Permutation { message, output, len } => {
             let input = read_heap_vector(memory, message);
-            let input: Vec<FieldElement> = input.iter().map(|x| x.to_field()).collect();
-            let len = memory.read(*len).to_u128() as u32;
+            let input: Vec<FieldElement> = input.iter().map(|x| x.try_into().unwrap()).collect();
+            let len = memory.read(*len).try_into().unwrap();
             let result = solver.poseidon2_permutation(&input, len)?;
             let mut values = Vec::new();
             for i in result {
-                values.push(Value::from(i));
+                values.push(i.into());
             }
             memory.write_slice(memory.read_ref(output.pointer), &values);
             Ok(())
@@ -206,7 +253,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                 ));
             }
             for (i, input) in inputs.iter().enumerate() {
-                message[i] = input.to_u128() as u32;
+                message[i] = input.try_into().unwrap();
             }
             let mut state = [0; 8];
             let values = read_heap_vector(memory, hash_values);
@@ -217,11 +264,11 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                 ));
             }
             for (i, value) in values.iter().enumerate() {
-                state[i] = value.to_u128() as u32;
+                state[i] = value.try_into().unwrap();
             }
 
             sha256compression(&mut state, &message);
-            let state = state.map(|x| Value::from(x as u128));
+            let state = state.map(|x| x.into());
 
             memory.write_slice(memory.read_ref(output.pointer), &state);
             Ok(())
@@ -257,10 +304,11 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
 #[cfg(test)]
 mod test {
     use acir::brillig::{BlackBoxOp, MemoryAddress};
+    use acvm_blackbox_solver::{BigIntSolver, StubbedBlackBoxSolver};
 
     use crate::{
         black_box::{evaluate_black_box, to_u8_vec, to_value_vec},
-        DummyBlackBoxSolver, HeapArray, HeapVector, Memory,
+        HeapArray, HeapVector, Memory,
     };
 
     #[test]
@@ -281,7 +329,8 @@ mod test {
             output: HeapArray { pointer: 2.into(), size: 32 },
         };
 
-        evaluate_black_box(&op, &DummyBlackBoxSolver, &mut memory).unwrap();
+        evaluate_black_box(&op, &StubbedBlackBoxSolver, &mut memory, &mut BigIntSolver::default())
+            .unwrap();
 
         let result = memory.read_slice(MemoryAddress(result_pointer), 32);
 

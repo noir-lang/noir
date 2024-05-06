@@ -72,7 +72,8 @@ export class NoirWasmCompiler {
     const dependencyManager = new DependencyManager(
       [
         new LocalDependencyResolver(fileManager),
-        new GithubCodeArchiveDependencyResolver(fileManager),
+        // use node's global fetch
+        new GithubCodeArchiveDependencyResolver(fileManager, fetch),
         // TODO support actual Git repositories
       ],
       noirPackage,

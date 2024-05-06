@@ -1,12 +1,12 @@
 import { abiEncode, InputMap } from '@noir-lang/noirc_abi';
 import { base64Decode } from './base64_decode.js';
 import {
-  WitnessMap,
+  WitnessStack,
   ForeignCallHandler,
   ForeignCallInput,
   createBlackBoxSolver,
   WasmBlackBoxFunctionSolver,
-  executeCircuitWithBlackBoxSolver,
+  executeProgramWithBlackBoxSolver,
 } from '@noir-lang/acvm_js';
 import { CompiledCircuit } from '@noir-lang/types';
 
@@ -41,14 +41,14 @@ export async function generateWitness(
   compiledProgram: CompiledCircuit,
   inputs: InputMap,
   foreignCallHandler: ForeignCallHandler = defaultForeignCallHandler,
-): Promise<WitnessMap> {
+): Promise<WitnessStack> {
   // Throws on ABI encoding error
   const witnessMap = abiEncode(compiledProgram.abi, inputs);
 
   // Execute the circuit to generate the rest of the witnesses and serialize
   // them into a Uint8Array.
   try {
-    const solvedWitness = await executeCircuitWithBlackBoxSolver(
+    const solvedWitness = await executeProgramWithBlackBoxSolver(
       await getSolver(),
       base64Decode(compiledProgram.bytecode),
       witnessMap,

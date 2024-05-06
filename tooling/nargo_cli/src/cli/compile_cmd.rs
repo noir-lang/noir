@@ -214,10 +214,10 @@ pub(super) fn save_program(
     circuit_dir: &Path,
     only_acir_opt: bool,
 ) {
-    let program_artifact = ProgramArtifact::from(program.clone());
     if only_acir_opt {
-        only_acir(&program_artifact, circuit_dir);
+        only_acir(program.program, circuit_dir);
     } else {
+        let program_artifact = ProgramArtifact::from(program.clone());
         save_program_to_file(&program_artifact, &package.name, circuit_dir);
     }
 }

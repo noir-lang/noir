@@ -1,4 +1,4 @@
-use noirc_frontend::{UnresolvedType, UnresolvedTypeData};
+use noirc_frontend::ast::{UnresolvedType, UnresolvedTypeData};
 
 use crate::{
     utils::span_is_empty,
@@ -64,6 +64,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::FormatString(_, _)
+        | UnresolvedTypeData::Code
         | UnresolvedTypeData::TraitAsType(_, _) => visitor.slice(typ.span.unwrap()).into(),
         UnresolvedTypeData::Error => unreachable!(),
     }

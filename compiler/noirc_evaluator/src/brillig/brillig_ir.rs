@@ -86,6 +86,8 @@ pub(crate) struct BrilligContext {
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
+    /// Counter for generating bigint ids in unconstrained functions
+    bigint_new_id: u32,
 }
 
 impl BrilligContext {
@@ -98,9 +100,15 @@ impl BrilligContext {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
+            bigint_new_id: 0,
         }
     }
 
+    pub(crate) fn get_new_bigint_id(&mut self) -> u32 {
+        let result = self.bigint_new_id;
+        self.bigint_new_id += 1;
+        result
+    }
     /// Adds a brillig instruction to the brillig byte code
     fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.obj.push_opcode(opcode);
@@ -122,7 +130,7 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, Value, ValueOrArray,
+        ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -140,7 +148,7 @@ pub(crate) mod tests {
             &self,
             _public_key_x: &FieldElement,
             _public_key_y: &FieldElement,
-            _signature: &[u8],
+            _signature: &[u8; 64],
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
@@ -205,7 +213,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn create_and_run_vm(
-        calldata: Vec<Value>,
+        calldata: Vec<FieldElement>,
         bytecode: &[BrilligOpcode],
     ) -> (VM<'_, DummyBlackBoxSolver>, usize, usize) {
         let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver);
@@ -234,20 +242,20 @@ pub(crate) mod tests {
         let mut context = BrilligContext::new(true);
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
-        context.usize_const_instruction(r_stack, Value::from(ReservedRegisters::len() + 3));
+        context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
         let r_input_size = MemoryAddress::from(ReservedRegisters::len());
         let r_array_ptr = MemoryAddress::from(ReservedRegisters::len() + 1);
         let r_output_size = MemoryAddress::from(ReservedRegisters::len() + 2);
         let r_equality = MemoryAddress::from(ReservedRegisters::len() + 3);
-        context.usize_const_instruction(r_input_size, Value::from(12_usize));
+        context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
         // copy our stack frame to r_array_ptr
         context.mov_instruction(r_array_ptr, r_stack);
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
-            &[HeapValueType::Simple],
+            &[HeapValueType::Simple(32)],
             &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
-            &[HeapValueType::Vector { value_types: vec![HeapValueType::Simple] }],
+            &[HeapValueType::Vector { value_types: vec![HeapValueType::Simple(32)] }],
         );
         // push stack frame by r_returned_size
         context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
@@ -262,12 +270,13 @@ pub(crate) mod tests {
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap);
+        context.push_opcode(BrilligOpcode::Trap { revert_data_offset: 0, revert_data_size: 0 });
 
         context.stop_instruction();
 
-        let bytecode = context.artifact().finish().byte_code;
-        let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
+        let bytecode: Vec<BrilligOpcode> = context.artifact().finish().byte_code;
+        let number_sequence: Vec<FieldElement> =
+            (0_usize..12_usize).map(FieldElement::from).collect();
         let mut vm = VM::new(
             vec![],
             &bytecode,

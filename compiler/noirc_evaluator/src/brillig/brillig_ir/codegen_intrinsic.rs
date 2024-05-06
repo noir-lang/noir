@@ -39,6 +39,7 @@ impl BrilligContext {
         radix: SingleAddrVariable,
         limb_count: SingleAddrVariable,
         big_endian: bool,
+        limb_bit_size: u32,
     ) {
         assert!(source_field.bit_size == FieldElement::max_num_bits());
         assert!(radix.bit_size == 32);
@@ -55,19 +56,23 @@ impl BrilligContext {
             SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
         self.mov_instruction(shifted_field.address, source_field.address);
 
-        let modulus_field =
+        let limb_field =
             SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
+
+        let limb_casted = SingleAddrVariable::new(self.allocate_register(), limb_bit_size);
 
         self.codegen_loop(target_vector.size, |ctx, iterator_register| {
             // Compute the modulus
             ctx.binary_instruction(
                 shifted_field,
                 radix_as_field,
-                modulus_field,
+                limb_field,
                 BrilligBinaryOp::Modulo,
             );
+            // Cast it
+            ctx.cast_instruction(limb_casted, limb_field);
             // Write it
-            ctx.codegen_array_set(target_vector.pointer, iterator_register, modulus_field.address);
+            ctx.codegen_array_set(target_vector.pointer, iterator_register, limb_casted.address);
             // Integer div the field
             ctx.binary_instruction(
                 shifted_field,
@@ -79,7 +84,8 @@ impl BrilligContext {
 
         // Deallocate our temporary registers
         self.deallocate_single_addr(shifted_field);
-        self.deallocate_single_addr(modulus_field);
+        self.deallocate_single_addr(limb_field);
+        self.deallocate_single_addr(limb_casted);
         self.deallocate_single_addr(radix_as_field);
 
         if big_endian {

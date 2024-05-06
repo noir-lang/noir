@@ -1,4 +1,4 @@
-use crate::ops::Add;
+use crate::ops::{Add, Sub, Neg};
 
 struct EmbeddedCurvePoint {
     x: Field,
@@ -17,6 +17,21 @@ impl Add for EmbeddedCurvePoint {
     }
 }
 
+impl Sub for EmbeddedCurvePoint {
+    fn sub(self, other: EmbeddedCurvePoint) -> EmbeddedCurvePoint { 
+        self + other.neg()
+    }
+}
+
+impl Neg for EmbeddedCurvePoint {
+    fn neg(self) -> EmbeddedCurvePoint { 
+        EmbeddedCurvePoint {
+            x: self.x,
+            y: -self.y
+        }
+    }
+}
+
 // Computes a fixed base scalar multiplication over the embedded curve.
 // For bn254, We have Grumpkin and Baby JubJub.
 // For bls12-381, we have JubJub and Bandersnatch.
@@ -25,10 +40,7 @@ impl Add for EmbeddedCurvePoint {
 // underlying proof system.
 #[foreign(fixed_base_scalar_mul)]
 // docs:start:fixed_base_embedded_curve
-pub fn fixed_base_embedded_curve(
-    low: Field,
-    high: Field
-) -> [Field; 2]
+pub fn fixed_base_embedded_curve(low: Field, high: Field) -> [Field; 2]
 // docs:end:fixed_base_embedded_curve
 {}
 

@@ -2,7 +2,9 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{
+        token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
+    },
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -20,6 +22,21 @@ pub struct Lexer<'a> {
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
+
+pub(crate) fn from_spanned_token_result(
+    token_result: &SpannedTokenResult,
+) -> Result<(usize, BorrowedToken<'_>, usize), LexerErrorKind> {
+    token_result
+        .as_ref()
+        .map(|spanned_token| {
+            (
+                spanned_token.to_span().start() as usize,
+                token_to_borrowed_token(spanned_token.into()),
+                spanned_token.to_span().end() as usize,
+            )
+        })
+        .map_err(Clone::clone)
+}
 
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
@@ -94,7 +111,7 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
-            Some(x) if x.is_whitespace() => {
+            Some(x) if Self::is_code_whitespace(x) => {
                 let spanned = self.eat_whitespace(x);
                 if self.skip_whitespaces {
                     self.next_token()
@@ -560,16 +577,21 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn is_code_whitespace(c: char) -> bool {
+        c == '\t' || c == '\n' || c == '\r' || c == ' '
+    }
+
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
         let start = self.position;
-        let whitespace = self.eat_while(initial_char.into(), |ch| ch.is_whitespace());
+        let whitespace = self.eat_while(initial_char.into(), Self::is_code_whitespace);
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
@@ -578,10 +600,12 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -724,6 +748,16 @@ mod tests {
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
         );
+    }
+
+    #[test]
+    fn fold_attribute() {
+        let input = r#"#[fold]"#;
+
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next_token().unwrap();
+
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Function(FunctionAttribute::Fold)));
     }
 
     #[test]
@@ -1085,6 +1119,116 @@ mod tests {
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
+        }
+    }
+
+    // returns a vector of:
+    //   (expected_token_discriminator, strings_to_lex)
+    // expected_token_discriminator matches a given token when
+    // std::mem::discriminant returns the same discriminant for both.
+    fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
+        use base64::engine::general_purpose;
+        use std::borrow::Cow;
+        use std::io::Cursor;
+        use std::io::Read;
+
+        let mut wrapped_reader = Cursor::new(base64_str);
+        let mut decoder =
+            base64::read::DecoderReader::new(&mut wrapped_reader, &general_purpose::STANDARD);
+        let mut base64_decoded = Vec::new();
+        decoder.read_to_end(&mut base64_decoded).unwrap();
+
+        // NOTE: when successful, this is the same conversion method as used in
+        // noirc_driver::stdlib::stdlib_paths_with_source, viz.
+        //
+        // let source = std::str::from_utf8(..).unwrap().to_string();
+        let s: Cow<'_, str> = match std::str::from_utf8(&base64_decoded) {
+            Ok(s) => std::borrow::Cow::Borrowed(s),
+            Err(_err) => {
+                // recover as much of the string as possible
+                // when str::from_utf8 fails
+                String::from_utf8_lossy(&base64_decoded)
+            }
+        };
+
+        vec![
+            // Token::Ident(_)
+            (None, vec![format!("let \"{s}\" = ();")]),
+            (Some(Token::Str("".to_string())), vec![format!("let s = \"{s}\";")]),
+            (
+                Some(Token::RawStr("".to_string(), 0)),
+                vec![
+                    // let s = r"Hello world";
+                    format!("let s = r\"{s}\";"),
+                    // let s = r#"Simon says "hello world""#;
+                    format!("let s = r#\"{s}\"#;"),
+                    // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+                    // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####;
+                    format!("let s = r##\"{s}\"##;"),
+                    format!("let s = r###\"{s}\"###;"),
+                    format!("let s = r####\"{s}\"####; "),
+                    format!("let s = r#####\"{s}\"#####;"),
+                ],
+            ),
+            (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
+            // expected token not found
+            // (Some(Token::LineComment("".to_string(), None)), vec![
+            (None, vec![format!("//{s}"), format!("// {s}")]),
+            // expected token not found
+            // (Some(Token::BlockComment("".to_string(), None)), vec![
+            (None, vec![format!("/*{s}*/"), format!("/* {s} */"), format!("/*\n{s}\n*/")]),
+        ]
+    }
+
+    #[test]
+    fn test_big_list_of_naughty_strings() {
+        use std::mem::discriminant;
+
+        let blns_contents = include_str!("./blns/blns.base64.json");
+        let blns_base64: Vec<String> =
+            serde_json::from_str(blns_contents).expect("BLNS json invalid");
+        for blns_base64_str in blns_base64 {
+            let statements = blns_base64_to_statements(blns_base64_str);
+            for (token_discriminator_opt, blns_program_strs) in statements {
+                for blns_program_str in blns_program_strs {
+                    let mut expected_token_found = false;
+                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut result_tokens = Vec::new();
+                    loop {
+                        match lexer.next_token() {
+                            Ok(next_token) => {
+                                result_tokens.push(next_token.clone());
+                                expected_token_found |= token_discriminator_opt
+                                    .as_ref()
+                                    .map(|token_discriminator| {
+                                        discriminant(token_discriminator)
+                                            == discriminant(next_token.token())
+                                    })
+                                    .unwrap_or(true);
+
+                                if next_token == Token::EOF {
+                                    assert!(lexer.done, "lexer not done when EOF emitted!");
+                                    break;
+                                }
+                            }
+
+                            Err(LexerErrorKind::InvalidIntegerLiteral { .. })
+                            | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                            | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                                expected_token_found = true;
+                            }
+                            Err(err) => {
+                                panic!("Unexpected lexer error found: {:?}", err)
+                            }
+                        }
+                    }
+
+                    assert!(
+                        expected_token_found,
+                        "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
+                    );
+                }
+            }
         }
     }
 }

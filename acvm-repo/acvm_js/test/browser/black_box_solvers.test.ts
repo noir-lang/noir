@@ -4,7 +4,6 @@ import initACVM, {
   blake2s256,
   ecdsa_secp256k1_verify,
   ecdsa_secp256r1_verify,
-  initLogLevel,
   keccak256,
   sha256,
   xor,
@@ -12,8 +11,6 @@ import initACVM, {
 
 beforeEach(async () => {
   await initACVM();
-
-  initLogLevel('INFO');
 });
 
 it('successfully calculates the bitwise AND of two fields', async () => {

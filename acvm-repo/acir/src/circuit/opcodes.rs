@@ -1,4 +1,7 @@
-use super::{brillig::Brillig, directives::Directive};
+use super::{
+    brillig::{Brillig, BrilligInputs, BrilligOutputs},
+    directives::Directive,
+};
 use crate::native_types::{Expression, Witness};
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +32,18 @@ pub enum Opcode {
         block_id: BlockId,
         init: Vec<Witness>,
     },
+    /// Calls to unconstrained functions
+    BrilligCall {
+        /// Id for the function being called. It is the responsibility of the executor
+        /// to fetch the appropriate Brillig bytecode from this id.
+        id: u32,
+        /// Inputs to the function call
+        inputs: Vec<BrilligInputs>,
+        /// Outputs to the function call
+        outputs: Vec<BrilligOutputs>,
+        /// Predicate of the Brillig execution - indicates if it should be skipped
+        predicate: Option<Expression>,
+    },
     /// Calls to functions represented as a separate circuit. A call opcode allows us
     /// to build a call stack when executing the outer-most circuit.
     Call {
@@ -39,6 +54,8 @@ pub enum Opcode {
         inputs: Vec<Witness>,
         /// Outputs of the function call
         outputs: Vec<Witness>,
+        /// Predicate of the circuit execution - indicates if it should be skipped
+        predicate: Option<Expression>,
     },
 }
 
@@ -97,10 +114,23 @@ impl std::fmt::Display for Opcode {
                 write!(f, "INIT ")?;
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
             }
-            Opcode::Call { id, inputs, outputs } => {
+            // We keep the display for a BrilligCall and circuit Call separate as they
+            // are distinct in their functionality and we should maintain this separation for debugging.
+            Opcode::BrilligCall { id, inputs, outputs, predicate } => {
+                write!(f, "BRILLIG CALL func {}: ", id)?;
+                if let Some(pred) = predicate {
+                    writeln!(f, "PREDICATE = {pred}")?;
+                }
+                write!(f, "inputs: {:?}, ", inputs)?;
+                write!(f, "outputs: {:?}", outputs)
+            }
+            Opcode::Call { id, inputs, outputs, predicate } => {
                 write!(f, "CALL func {}: ", id)?;
-                writeln!(f, "inputs: {:?}", inputs)?;
-                writeln!(f, "outputs: {:?}", outputs)
+                if let Some(pred) = predicate {
+                    writeln!(f, "PREDICATE = {pred}")?;
+                }
+                write!(f, "inputs: {:?}, ", inputs)?;
+                write!(f, "outputs: {:?}", outputs)
             }
         }
     }

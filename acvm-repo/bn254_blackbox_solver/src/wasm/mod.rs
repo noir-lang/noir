@@ -45,7 +45,7 @@ pub(crate) struct BackendError(#[from] Error);
 
 impl From<FeatureError> for BackendError {
     fn from(value: FeatureError) -> Self {
-        value.into()
+        BackendError(Error::FromFeature(value))
     }
 }
 
@@ -76,10 +76,7 @@ use wasmer::{
 pub(super) const WASM_SCRATCH_BYTES: usize = 1024;
 
 /// Embed the Barretenberg WASM file
-#[derive(rust_embed::RustEmbed)]
-#[folder = "$BARRETENBERG_BIN_DIR"]
-#[include = "acvm_backend.wasm"]
-struct Wasm;
+const WASM_BIN: &[u8] = include_bytes!("./acvm_backend.wasm");
 
 impl Barretenberg {
     #[cfg(not(target_arch = "wasm32"))]
@@ -287,7 +284,7 @@ fn instance_load() -> (Instance, Memory, Store) {
 
     let (memory, mut store, custom_imports) = init_memory_and_state();
 
-    let module = Module::new(&store, Wasm::get("acvm_backend.wasm").unwrap().data).unwrap();
+    let module = Module::new(&store, WASM_BIN).unwrap();
 
     (Instance::new(&mut store, &module, &custom_imports).unwrap(), memory, store)
 }
@@ -299,9 +296,7 @@ async fn instance_load() -> (Instance, Memory, Store) {
 
     let (memory, mut store, custom_imports) = init_memory_and_state();
 
-    let wasm_binary = Wasm::get("acvm_backend.wasm").unwrap().data;
-
-    let js_bytes = unsafe { js_sys::Uint8Array::view(&wasm_binary) };
+    let js_bytes = unsafe { js_sys::Uint8Array::view(&WASM_BIN) };
     let js_module_promise = WebAssembly::compile(&js_bytes);
     let js_module: js_sys::WebAssembly::Module =
         wasm_bindgen_futures::JsFuture::from(js_module_promise).await.unwrap().into();
@@ -309,7 +304,7 @@ async fn instance_load() -> (Instance, Memory, Store) {
     let js_instance_promise =
         WebAssembly::instantiate_module(&js_module, &custom_imports.as_jsvalue(&store).into());
     let js_instance = wasm_bindgen_futures::JsFuture::from(js_instance_promise).await.unwrap();
-    let module: wasmer::Module = (js_module, wasm_binary).into();
+    let module = wasmer::Module::from((js_module, WASM_BIN));
     let instance: wasmer::Instance = Instance::from_jsvalue(&mut store, &module, &js_instance)
         .map_err(|_| "Error while creating BlackBox Functions vendor instance")
         .unwrap();

@@ -140,6 +140,8 @@ impl<A, B, C, D, E> Eq for (A, B, C, D, E)
 Implementing this trait on a type allows `<`, `<=`, `>`, and `>=` to be
 used on values of the type.
 
+`std::cmp` also provides `max` and `min` functions for any type which implements the `Ord` trait.
+
 Implementations:
 
 ```rust
@@ -229,6 +231,15 @@ impl Rem for i16 { fn rem(self, other: i16) -> i16 { self % other } }
 impl Rem for i32 { fn rem(self, other: i32) -> i32 { self % other } }
 impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 ```
+
+### `std::ops::Neg`
+
+#include_code neg-trait noir_stdlib/src/ops.nr rust
+
+`Neg::neg` is equivalent to the unary negation operator `-`.
+
+Implementations:
+#include_code neg-trait-impls noir_stdlib/src/ops.nr rust
 
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 

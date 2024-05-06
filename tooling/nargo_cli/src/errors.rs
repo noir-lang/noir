@@ -1,4 +1,4 @@
-use acvm::acir::native_types::WitnessMapError;
+use acvm::acir::native_types::WitnessStackError;
 use hex::FromHexError;
 use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
@@ -22,9 +22,9 @@ pub(crate) enum FilesystemError {
     #[error(transparent)]
     InputParserError(#[from] InputParserError),
 
-    /// WitnessMap serialization error
+    /// WitnessStack serialization error
     #[error(transparent)]
-    WitnessMapSerialization(#[from] WitnessMapError),
+    WitnessStackSerialization(#[from] WitnessStackError),
 
     #[error("Error: could not deserialize build program: {0}")]
     ProgramSerializationError(String),

@@ -1,7 +1,8 @@
-use noirc_frontend::{
-    hir::resolution::errors::Span, lexer::Lexer, token::Token, BlockExpression,
-    ConstructorExpression, Expression, ExpressionKind, IfExpression, Statement, StatementKind,
+use noirc_frontend::ast::Expression;
+use noirc_frontend::ast::{
+    BlockExpression, ConstructorExpression, ExpressionKind, IfExpression, Statement, StatementKind,
 };
+use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
 use super::{ExpressionType, FmtVisitor, Shape};
 use crate::{
@@ -119,11 +120,11 @@ impl FmtVisitor<'_> {
         self.last_position = block_span.start() + 1; // `{`
         self.push_str("{");
 
-        self.trim_spaces_after_opening_brace(&block.0);
+        self.trim_spaces_after_opening_brace(&block.statements);
 
         self.indent.block_indent(self.config);
 
-        self.visit_stmts(block.0);
+        self.visit_stmts(block.statements);
 
         let span = (self.last_position..block_span.end() - 1).into();
         self.close_block(span);

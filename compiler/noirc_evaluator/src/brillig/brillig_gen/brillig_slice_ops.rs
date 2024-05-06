@@ -354,7 +354,7 @@ impl<'block> BrilligBlock<'block> {
 mod tests {
     use std::vec;
 
-    use acvm::acir::brillig::Value;
+    use acvm::FieldElement;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
@@ -373,8 +373,9 @@ mod tests {
     use crate::ssa::ssa_gen::Ssa;
 
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext) {
-        let builder =
-            FunctionBuilder::new("main".to_string(), Id::test_new(0), RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
+        builder.set_runtime(RuntimeType::Brillig);
+
         let ssa = builder.finish();
         let mut brillig_context = create_context();
 
@@ -400,9 +401,9 @@ mod tests {
     fn test_slice_push_operation() {
         fn test_case_push(
             push_back: bool,
-            array: Vec<Value>,
-            item_to_push: Value,
-            expected_return: Vec<Value>,
+            array: Vec<FieldElement>,
+            item_to_push: FieldElement,
+            expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
                 BrilligParameter::Array(
@@ -462,44 +463,65 @@ mod tests {
                 create_and_run_vm(array.into_iter().chain(vec![item_to_push]).collect(), &bytecode);
             assert_eq!(return_data_size, expected_return.len());
             assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
+                    .iter()
+                    .map(|mem_val| mem_val.to_field())
+                    .collect::<Vec<_>>(),
                 expected_return
             );
         }
 
         test_case_push(
             true,
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(27_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(27_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(27_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+                FieldElement::from(27_usize),
             ],
         );
-        test_case_push(true, vec![], Value::from(27_usize), vec![Value::from(27_usize)]);
+        test_case_push(
+            true,
+            vec![],
+            FieldElement::from(27_usize),
+            vec![FieldElement::from(27_usize)],
+        );
         test_case_push(
             false,
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(27_usize),
             vec![
-                Value::from(27_usize),
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(27_usize),
+            vec![
+                FieldElement::from(27_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
             ],
         );
-        test_case_push(false, vec![], Value::from(27_usize), vec![Value::from(27_usize)]);
+        test_case_push(
+            false,
+            vec![],
+            FieldElement::from(27_usize),
+            vec![FieldElement::from(27_usize)],
+        );
     }
 
     #[test]
     fn test_slice_pop_back_operation() {
         fn test_case_pop(
             pop_back: bool,
-            array: Vec<Value>,
-            expected_return_array: Vec<Value>,
-            expected_return_item: Value,
+            array: Vec<FieldElement>,
+            expected_return_array: Vec<FieldElement>,
+            expected_return_item: FieldElement,
         ) {
             let arguments = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
@@ -566,33 +588,44 @@ mod tests {
             assert_eq!(return_data_size, expected_return.len());
 
             assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
+                    .iter()
+                    .map(|mem_val| mem_val.to_field())
+                    .collect::<Vec<_>>(),
                 expected_return
             );
         }
 
         test_case_pop(
             true,
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![Value::from(1_usize), Value::from(2_usize)],
-            Value::from(3_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            vec![FieldElement::from(1_usize), FieldElement::from(2_usize)],
+            FieldElement::from(3_usize),
         );
-        test_case_pop(true, vec![Value::from(1_usize)], vec![], Value::from(1_usize));
+        test_case_pop(true, vec![FieldElement::from(1_usize)], vec![], FieldElement::from(1_usize));
         test_case_pop(
             false,
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![Value::from(2_usize), Value::from(3_usize)],
-            Value::from(1_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            vec![FieldElement::from(2_usize), FieldElement::from(3_usize)],
+            FieldElement::from(1_usize),
         );
     }
 
     #[test]
     fn test_slice_insert_operation() {
         fn test_case_insert(
-            array: Vec<Value>,
-            item: Value,
-            index: Value,
-            expected_return: Vec<Value>,
+            array: Vec<FieldElement>,
+            item: FieldElement,
+            index: FieldElement,
+            expected_return: Vec<FieldElement>,
         ) {
             let arguments = vec![
                 BrilligParameter::Array(
@@ -651,71 +684,90 @@ mod tests {
             assert_eq!(return_data_size, expected_return.len());
 
             assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
+                    .iter()
+                    .map(|mem_val| mem_val.to_field())
+                    .collect::<Vec<_>>(),
                 expected_return
             );
         }
 
         test_case_insert(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(27_usize),
-            Value::from(1_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(27_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(27_usize),
+            FieldElement::from(1_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(27_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
             ],
         );
 
         test_case_insert(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(27_usize),
-            Value::from(0_usize),
             vec![
-                Value::from(27_usize),
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(27_usize),
+            FieldElement::from(0_usize),
+            vec![
+                FieldElement::from(27_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
             ],
         );
         test_case_insert(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(27_usize),
-            Value::from(2_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(27_usize),
-                Value::from(3_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(27_usize),
+            FieldElement::from(2_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(27_usize),
+                FieldElement::from(3_usize),
             ],
         );
         test_case_insert(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(27_usize),
-            Value::from(3_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(27_usize),
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(27_usize),
+            FieldElement::from(3_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+                FieldElement::from(27_usize),
             ],
         );
         test_case_insert(
             vec![],
-            Value::from(27_usize),
-            Value::from(0_usize),
-            vec![Value::from(27_usize)],
+            FieldElement::from(27_usize),
+            FieldElement::from(0_usize),
+            vec![FieldElement::from(27_usize)],
         );
     }
 
     #[test]
     fn test_slice_remove_operation() {
         fn test_case_remove(
-            array: Vec<Value>,
-            index: Value,
-            expected_array: Vec<Value>,
-            expected_removed_item: Value,
+            array: Vec<FieldElement>,
+            index: FieldElement,
+            expected_array: Vec<FieldElement>,
+            expected_removed_item: FieldElement,
         ) {
             let arguments = vec![
                 BrilligParameter::Array(
@@ -784,36 +836,51 @@ mod tests {
             assert_eq!(return_data_size, expected_return.len());
 
             assert_eq!(
-                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())]
+                    .iter()
+                    .map(|mem_val| mem_val.to_field())
+                    .collect::<Vec<_>>(),
                 expected_return
             );
         }
 
         test_case_remove(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(0_usize),
-            vec![Value::from(2_usize), Value::from(3_usize)],
-            Value::from(1_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(0_usize),
+            vec![FieldElement::from(2_usize), FieldElement::from(3_usize)],
+            FieldElement::from(1_usize),
         );
 
         test_case_remove(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(1_usize),
-            vec![Value::from(1_usize), Value::from(3_usize)],
-            Value::from(2_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(1_usize),
+            vec![FieldElement::from(1_usize), FieldElement::from(3_usize)],
+            FieldElement::from(2_usize),
         );
 
         test_case_remove(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            Value::from(2_usize),
-            vec![Value::from(1_usize), Value::from(2_usize)],
-            Value::from(3_usize),
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            FieldElement::from(2_usize),
+            vec![FieldElement::from(1_usize), FieldElement::from(2_usize)],
+            FieldElement::from(3_usize),
         );
         test_case_remove(
-            vec![Value::from(1_usize)],
-            Value::from(0_usize),
+            vec![FieldElement::from(1_usize)],
+            FieldElement::from(0_usize),
             vec![],
-            Value::from(1_usize),
+            FieldElement::from(1_usize),
         );
     }
 }

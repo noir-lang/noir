@@ -6,10 +6,8 @@ use acir::{
 use indexmap::IndexMap;
 
 mod csat;
-mod r1cs;
 
 pub(crate) use csat::CSatTransformer;
-pub(crate) use r1cs::R1CSTransformer;
 
 use super::{transform_assert_messages, AcirTransformationMap};
 
@@ -43,8 +41,7 @@ pub(super) fn transform_internal(
 ) -> (Circuit, Vec<usize>) {
     let mut transformer = match &expression_width {
         ExpressionWidth::Unbounded => {
-            let transformer = R1CSTransformer::new(acir);
-            return (transformer.transform(), acir_opcode_positions);
+            return (acir, acir_opcode_positions);
         }
         ExpressionWidth::Bounded { width } => {
             let mut csat = CSatTransformer::new(*width);
@@ -145,7 +142,31 @@ pub(super) fn transform_internal(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
-            Opcode::Call { .. } => todo!("Handle Call opcodes in the ACVM"),
+            Opcode::BrilligCall { ref outputs, .. } => {
+                for output in outputs {
+                    match output {
+                        BrilligOutputs::Simple(w) => transformer.mark_solvable(*w),
+                        BrilligOutputs::Array(v) => {
+                            for witness in v {
+                                transformer.mark_solvable(*witness);
+                            }
+                        }
+                    }
+                }
+
+                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+                transformed_opcodes.push(opcode);
+            }
+            Opcode::Call { ref outputs, .. } => {
+                for witness in outputs {
+                    transformer.mark_solvable(*witness);
+                }
+
+                // `Call` does not write values to the `WitnessMap`
+                // A separate ACIR function should have its own respective `WitnessMap`
+                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+                transformed_opcodes.push(opcode);
+            }
         }
     }
 

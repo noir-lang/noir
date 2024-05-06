@@ -47,7 +47,9 @@ export default {
       },
     ],
   ],
-
+  customFields: {
+    MATOMO_ENV: process.env.MATOMO_ENV,
+  },
   themeConfig: {
     colorMode: {
       respectPrefersColorScheme: true,

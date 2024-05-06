@@ -146,7 +146,7 @@ impl CompilerContext {
             noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
             name: optimized_contract.name,
             functions,
-            events: optimized_contract.events,
+            outputs: optimized_contract.outputs.into(),
             file_map: optimized_contract.file_map,
         };
 

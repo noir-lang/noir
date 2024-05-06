@@ -1,12 +1,11 @@
 use chumsky::{primitive::just, Parser};
 
+use super::{parse_type, pattern};
+use crate::ast::{Expression, ExpressionKind, Lambda, Pattern, UnresolvedType};
 use crate::{
     parser::{labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery, NoirParser},
     token::Token,
-    Expression, ExpressionKind, Lambda, Pattern, UnresolvedType,
 };
-
-use super::{parse_type, pattern};
 
 pub(super) fn lambda<'a>(
     expr_parser: impl NoirParser<Expression> + 'a,

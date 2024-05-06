@@ -85,10 +85,11 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::AsSlice => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((slice, element_type)) = slice {
-                let slice_length = dfg.make_constant(slice.len().into(), Type::length_type());
-                let new_slice = dfg.make_array(slice, element_type);
+            let array = dfg.get_array_constant(arguments[0]);
+            if let Some((array, array_type)) = array {
+                let slice_length = dfg.make_constant(array.len().into(), Type::length_type());
+                let inner_element_types = array_type.element_types();
+                let new_slice = dfg.make_array(array, Type::Slice(inner_element_types));
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
             } else {
                 SimplifyResult::None
@@ -239,11 +240,16 @@ pub(super) fn simplify_call(
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
                 let max_bit_size = max_bit_size.to_u128() as u32;
-                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
-                    value,
-                    max_bit_size,
-                    assert_message: Some("call to assert_max_bit_size".to_owned()),
-                })
+                let max_potential_bits = dfg.get_value_max_num_bits(value);
+                if max_potential_bits < max_bit_size {
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                        value,
+                        max_bit_size,
+                        assert_message: Some("call to assert_max_bit_size".to_owned()),
+                    })
+                }
             } else {
                 SimplifyResult::None
             }
@@ -333,8 +339,13 @@ fn simplify_slice_push_back(
     let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
 
-    let set_last_slice_value_instr =
-        Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
+    let set_last_slice_value_instr = Instruction::ArraySet {
+        array: new_slice,
+        index: arguments[0],
+        value: arguments[2],
+        mutable: false,
+    };
+
     let set_last_slice_value = dfg
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
@@ -343,7 +354,9 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes);
+    let unknown = &mut HashMap::default();
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None);
+
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,

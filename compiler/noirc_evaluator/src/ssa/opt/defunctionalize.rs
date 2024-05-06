@@ -13,8 +13,8 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, ConstrainError, Instruction},
+        function::{Function, FunctionId, Signature},
+        instruction::{BinaryOp, ConstrainError, Instruction, UserDefinedConstrainError},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -93,10 +93,9 @@ impl DefunctionalizationContext {
                     // Constrain instruction potentially hold a call instruction themselves
                     // thus we need to account for them.
                     Instruction::Constrain(_, _, Some(constrain_error)) => {
-                        if let ConstrainError::Dynamic(Instruction::Call {
-                            func: target_func_id,
-                            arguments,
-                        }) = constrain_error.as_ref()
+                        if let ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(
+                            Instruction::Call { func: target_func_id, arguments },
+                        )) = constrain_error.as_ref()
                         {
                             (*target_func_id, arguments)
                         } else {
@@ -138,9 +137,11 @@ impl DefunctionalizationContext {
                     if let Instruction::Constrain(lhs, rhs, constrain_error_call) = instruction {
                         let new_error_call = if let Some(error) = constrain_error_call {
                             match error.as_ref() {
-                                ConstrainError::Dynamic(_) => {
-                                    Some(Box::new(ConstrainError::Dynamic(new_instruction)))
-                                }
+                                ConstrainError::UserDefined(
+                                    UserDefinedConstrainError::Dynamic(_),
+                                ) => Some(Box::new(ConstrainError::UserDefined(
+                                    UserDefinedConstrainError::Dynamic(new_instruction),
+                                ))),
                                 _ => None,
                             }
                         } else {
@@ -304,7 +305,7 @@ fn create_apply_function(
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
     ssa.add_fn(|id| {
-        let mut function_builder = FunctionBuilder::new("apply".to_string(), id, RuntimeType::Acir);
+        let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 

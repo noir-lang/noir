@@ -48,7 +48,10 @@ The available operations for each big integer are:
 Construct a big integer from its little-endian bytes representation. Example:
 
 ```rust
+ // Construct a big integer from a slice of bytes
  let a = Secpk1Fq::from_le_bytes(&[x, y, 0, 45, 2]);
+ // Construct a big integer from an array of 32 bytes
+ let a = Secpk1Fq::from_le_bytes_32([1;32]);
  ```
 
 Sure, here's the formatted version of the remaining methods:

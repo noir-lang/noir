@@ -28,10 +28,11 @@ jobs:
         run: |
           npm i wasm-opt -g
       
+      - name: Query active docs versions
+        run: yarn workspace docs version::stables
+
       - name: Build docs for deploying
-        working-directory: docs
-        run: 
-          yarn workspaces foreach -Rt run build
+        run: yarn workspaces foreach -Rpt --from docs run build
 
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
