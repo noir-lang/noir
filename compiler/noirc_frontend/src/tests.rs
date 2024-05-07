@@ -49,9 +49,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(
-    src: &str,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -576,9 +574,7 @@ fn check_trait_impl_for_non_type() {
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
     for (err, _file_id) in errors {
         match &err {
-            CompilationError::ResolverError(ResolverError::Expected {
-                expected, got, ..
-            }) => {
+            CompilationError::ResolverError(ResolverError::Expected { expected, got, .. }) => {
                 assert_eq!(expected, "type");
                 assert_eq!(got, "function");
             }
@@ -841,20 +837,12 @@ fn get_program_captures(src: &str) -> Vec<Vec<String>> {
         let func_id = interner.find_function(func.name()).unwrap();
         let hir_func = interner.function(&func_id);
         // Iterate over function statements and apply filtering function
-        find_lambda_captures(
-            hir_func.block(&interner).statements(),
-            &interner,
-            &mut all_captures,
-        );
+        find_lambda_captures(hir_func.block(&interner).statements(), &interner, &mut all_captures);
     }
     all_captures
 }
 
-fn find_lambda_captures(
-    stmts: &[StmtId],
-    interner: &NodeInterner,
-    result: &mut Vec<Vec<String>>,
-) {
+fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut Vec<Vec<String>>) {
     for stmt_id in stmts.iter() {
         let hir_stmt = interner.statement(stmt_id);
         let expr_id = match hir_stmt {
@@ -947,10 +935,9 @@ fn resolve_unresolved_var() {
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
     // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
     match &errors[0].0 {
-        CompilationError::ResolverError(ResolverError::VariableNotDeclared {
-            name,
-            span: _,
-        }) => assert_eq!(name, "z"),
+        CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, span: _ }) => {
+            assert_eq!(name, "z")
+        }
         _ => unimplemented!("we should only have an unresolved variable"),
     }
 }
@@ -968,9 +955,7 @@ fn unresolved_path() {
         match compilation_error {
             CompilationError::ResolverError(err) => {
                 match err {
-                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(
-                        name,
-                    )) => {
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
                         assert_eq!(name.to_string(), "some");
                     }
                     _ => unimplemented!("we should only have an unresolved function"),
@@ -1018,9 +1003,7 @@ fn multiple_resolution_errors() {
                     ResolverError::VariableNotDeclared { name, .. } => {
                         assert_eq!(name, "a");
                     }
-                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(
-                        name,
-                    )) => {
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
                         assert_eq!(name.to_string(), "foo");
                     }
                     _ => unimplemented!(),
@@ -1150,13 +1133,7 @@ fn resolve_complex_closures() {
         vec!["x".to_string()],
         vec!["b".to_string()],
         vec!["x".to_string(), "b".to_string(), "a".to_string()],
-        vec![
-            "x".to_string(),
-            "b".to_string(),
-            "a".to_string(),
-            "y".to_string(),
-            "d".to_string(),
-        ],
+        vec!["x".to_string(), "b".to_string(), "a".to_string(), "y".to_string(), "d".to_string()],
         vec!["x".to_string(), "b".to_string()],
     ];
 
@@ -1188,8 +1165,7 @@ fn resolve_fmt_strings() {
     for (err, _file_id) in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::VariableNotDeclared {
-                name,
-                ..
+                name, ..
             }) => {
                 assert_eq!(name, "i");
             }
@@ -1232,7 +1208,7 @@ fn simple_closure_with_no_captured_variables() {
     }
     "#;
 
-let expected_rewrite = r#"fn main$f0() -> Field {
+    let expected_rewrite = r#"fn main$f0() -> Field {
     let x$0 = 1;
     let closure$3 = {
         let closure_variable$2 = {
@@ -1382,9 +1358,7 @@ fn deny_inline_attribute_on_unconstrained() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(
-            ResolverError::NoPredicatesAttributeOnUnconstrained { .. }
-        )
+        CompilationError::ResolverError(ResolverError::NoPredicatesAttributeOnUnconstrained { .. })
     ));
 }
 
