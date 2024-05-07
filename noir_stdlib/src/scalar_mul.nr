@@ -1,4 +1,4 @@
-use crate::ops::{Add, Sub, Neg};
+use crate::ops::arith::{Add, Sub, Neg};
 
 struct EmbeddedCurvePoint {
     x: Field,

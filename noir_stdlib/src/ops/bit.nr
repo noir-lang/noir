@@ -1,0 +1,78 @@
+// docs:start:bitor-trait
+trait BitOr {
+    fn bitor(self, other: Self) -> Self;
+}
+// docs:end:bitor-trait
+
+impl BitOr for bool { fn bitor(self, other: bool) -> bool { self | other } }
+
+impl BitOr for u64 { fn bitor(self, other: u64) -> u64 { self | other } }
+impl BitOr for u32 { fn bitor(self, other: u32) -> u32 { self | other } }
+impl BitOr for u8 { fn bitor(self, other: u8) -> u8 { self | other } }
+
+impl BitOr for i8 { fn bitor(self, other: i8) -> i8 { self | other } }
+impl BitOr for i32 { fn bitor(self, other: i32) -> i32 { self | other } }
+impl BitOr for i64 { fn bitor(self, other: i64) -> i64 { self | other } }
+
+// docs:start:bitand-trait
+trait BitAnd {
+    fn bitand(self, other: Self) -> Self;
+}
+// docs:end:bitand-trait
+
+impl BitAnd for bool { fn bitand(self, other: bool) -> bool { self & other } }
+
+impl BitAnd for u64 { fn bitand(self, other: u64) -> u64 { self & other } }
+impl BitAnd for u32 { fn bitand(self, other: u32) -> u32 { self & other } }
+impl BitAnd for u8 { fn bitand(self, other: u8) -> u8 { self & other } }
+
+impl BitAnd for i8 { fn bitand(self, other: i8) -> i8 { self & other } }
+impl BitAnd for i32 { fn bitand(self, other: i32) -> i32 { self & other } }
+impl BitAnd for i64 { fn bitand(self, other: i64) -> i64 { self & other } }
+
+// docs:start:bitxor-trait
+trait BitXor {
+    fn bitxor(self, other: Self) -> Self;
+}
+// docs:end:bitxor-trait
+
+impl BitXor for bool { fn bitxor(self, other: bool) -> bool { self ^ other } }
+
+impl BitXor for u64 { fn bitxor(self, other: u64) -> u64 { self ^ other } }
+impl BitXor for u32 { fn bitxor(self, other: u32) -> u32 { self ^ other } }
+impl BitXor for u8 { fn bitxor(self, other: u8) -> u8 { self ^ other } }
+
+impl BitXor for i8 { fn bitxor(self, other: i8) -> i8 { self ^ other } }
+impl BitXor for i32 { fn bitxor(self, other: i32) -> i32 { self ^ other } }
+impl BitXor for i64 { fn bitxor(self, other: i64) -> i64 { self ^ other } }
+
+// docs:start:shl-trait
+trait Shl {
+    fn shl(self, other: u8) -> Self;
+}
+// docs:end:shl-trait
+
+impl Shl for u32 { fn shl(self, other: u8) -> u32 { self << other } }
+impl Shl for u64 { fn shl(self, other: u8) -> u64 { self << other } }
+impl Shl for u8 { fn shl(self, other: u8) -> u8 { self << other } }
+impl Shl for u1 { fn shl(self, other: u8) -> u1 { self << other } }
+
+impl Shl for i8 { fn shl(self, other: u8) -> i8 { self << other } }
+impl Shl for i32 { fn shl(self, other: u8) -> i32 { self << other } }
+impl Shl for i64 { fn shl(self, other: u8) -> i64 { self << other } }
+
+// docs:start:shr-trait
+trait Shr {
+    fn shr(self, other: u8) -> Self;
+}
+// docs:end:shr-trait
+
+impl Shr for u64 { fn shr(self, other: u8) -> u64 { self >> other } }
+impl Shr for u32 { fn shr(self, other: u8) -> u32 { self >> other } }
+impl Shr for u8 { fn shr(self, other: u8) -> u8 { self >> other } }
+impl Shr for u1 { fn shr(self, other: u8) -> u1 { self >> other } }
+
+impl Shr for i8 { fn shr(self, other: u8) -> i8 { self >> other } }
+impl Shr for i32 { fn shr(self, other: u8) -> i32 { self >> other } }
+impl Shr for i64 { fn shr(self, other: u8) -> i64 { self >> other } }
+
