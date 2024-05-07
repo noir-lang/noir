@@ -123,6 +123,7 @@ export {
   mockTx,
   Comparator,
   SiblingPath,
+  EncryptedLogHeader,
 } from '@aztec/circuit-types';
 export { NodeInfo } from '@aztec/types/interfaces';
 

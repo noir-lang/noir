@@ -1,9 +1,9 @@
-use dep::protocol_types::{constants::GENERATOR_INDEX__SYMMETRIC_KEY, grumpkin_point::GrumpkinPoint, utils::arr_copy_slice};
+use dep::protocol_types::{constants::GENERATOR_INDEX__SYMMETRIC_KEY, grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, utils::arr_copy_slice};
 use dep::std::{hash::sha256, grumpkin_scalar::GrumpkinScalar, scalar_mul::variable_base_embedded_curve};
 
 // TODO(#5726): This function is called deriveAESSecret in TS. I don't like point_to_symmetric_key name much since
 // point is not the only input of the function. Unify naming with TS once we have a better name.
-pub fn point_to_symmetric_key(secret: GrumpkinScalar, point: GrumpkinPoint) -> [u8; 32] {
+pub fn point_to_symmetric_key(secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 32] {
     let shared_secret_fields = variable_base_embedded_curve(point.x, point.y, secret.low, secret.high);
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6061): make the func return Point struct directly
     let shared_secret = GrumpkinPoint::new(shared_secret_fields[0], shared_secret_fields[1]);
@@ -16,9 +16,9 @@ pub fn point_to_symmetric_key(secret: GrumpkinScalar, point: GrumpkinPoint) -> [
 #[test]
 fn check_point_to_symmetric_key() {
     // Value taken from "derive shared secret" test in encrypt_buffer.test.ts
-    let secret = GrumpkinScalar::new(
-        0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd,
-        0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06
+    let secret = GrumpkinPrivateKey::new(
+        0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06,
+        0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd
     );
     let point = GrumpkinPoint::new(
         0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,

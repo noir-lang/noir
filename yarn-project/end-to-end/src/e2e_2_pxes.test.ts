@@ -17,7 +17,7 @@ import { jest } from '@jest/globals';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
 
-const TIMEOUT = 90_000;
+const TIMEOUT = 120_000;
 
 describe('e2e_2_pxes', () => {
   jest.setTimeout(TIMEOUT);

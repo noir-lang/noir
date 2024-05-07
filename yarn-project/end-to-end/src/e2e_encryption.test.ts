@@ -1,5 +1,5 @@
-import { type Wallet } from '@aztec/aztec.js';
-import { Aes128 } from '@aztec/circuits.js/barretenberg';
+import { EncryptedLogHeader, GrumpkinScalar, type Wallet } from '@aztec/aztec.js';
+import { Aes128, Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestContract } from '@aztec/noir-contracts.js';
 
 import { randomBytes } from 'crypto';
@@ -8,6 +8,7 @@ import { setup } from './fixtures/utils.js';
 
 describe('e2e_encryption', () => {
   const aes128 = new Aes128();
+  let grumpkin: Grumpkin;
 
   let wallet: Wallet;
   let teardown: () => Promise<void>;
@@ -17,7 +18,8 @@ describe('e2e_encryption', () => {
   beforeAll(async () => {
     ({ teardown, wallet } = await setup());
     contract = await TestContract.deploy(wallet).send().deployed();
-  });
+    grumpkin = new Grumpkin();
+  }, 120_000);
 
   afterAll(() => teardown());
 
@@ -51,5 +53,19 @@ describe('e2e_encryption', () => {
     const ciphertext = Buffer.from(ciphertextAsBigInts.map((x: bigint) => Number(x)));
 
     expect(ciphertext).toEqual(expectedCiphertext);
+  });
+
+  it('encrypts header', async () => {
+    const ephSecretKey = GrumpkinScalar.random();
+    const viewingSecretKey = GrumpkinScalar.random();
+
+    const ephPubKey = grumpkin.mul(Grumpkin.generator, ephSecretKey);
+    const viewingPubKey = grumpkin.mul(Grumpkin.generator, viewingSecretKey);
+
+    const encrypted = await contract.methods.compute_note_header_ciphertext(ephSecretKey, viewingPubKey).simulate();
+
+    const recreated = EncryptedLogHeader.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
+
+    expect(recreated.address).toEqual(contract.address);
   });
 });

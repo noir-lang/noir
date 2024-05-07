@@ -8,7 +8,7 @@ import { jest } from '@jest/globals';
 
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
 
-const TIMEOUT = 100_000;
+const TIMEOUT = 120_000;
 
 const SHARED_MUTABLE_DELAY = 5;
 

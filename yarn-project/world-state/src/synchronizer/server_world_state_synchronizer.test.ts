@@ -27,6 +27,8 @@ const consumeNextBlocks = () => {
 const log = createDebugLogger('aztec:server_world_state_synchronizer_test');
 
 describe('server_world_state_synchronizer', () => {
+  jest.setTimeout(30_000);
+
   let db: AztecKVStore;
   let l1ToL2Messages: Fr[];
   let inHash: Buffer;

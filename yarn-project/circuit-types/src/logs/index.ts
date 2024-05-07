@@ -10,3 +10,4 @@ export * from './l1_note_payload/index.js';
 export * from './tx_l2_logs.js';
 export * from './unencrypted_l2_log.js';
 export * from './extended_unencrypted_l2_log.js';
+export * from './encrypted_log_header.js';

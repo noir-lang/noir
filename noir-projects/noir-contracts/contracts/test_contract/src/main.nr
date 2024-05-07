@@ -10,9 +10,11 @@ contract Test {
 
     use dep::aztec::protocol_types::{
         abis::private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, CANONICAL_KEY_REGISTRY_ADDRESS}, traits::{Serialize, ToField, FromField},
-        grumpkin_point::GrumpkinPoint
+        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, CANONICAL_KEY_REGISTRY_ADDRESS},
+        traits::{Serialize, ToField, FromField}, grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey
     };
+
+    use dep::aztec::encrypted_logs::header::EncryptedLogHeader;
 
     use dep::aztec::note::constants::MAX_NOTES_PER_PAGE;
 
@@ -340,6 +342,11 @@ contract Test {
     #[aztec(private)]
     fn encrypt_with_padding(input: [u8; 65], iv: [u8; 16], key: [u8; 16]) -> [u8; 80] {
         aes128_encrypt(input, iv, key)
+    }
+
+    #[aztec(private)]
+    fn compute_note_header_ciphertext(secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 32] {
+        EncryptedLogHeader::new(context.this_address()).compute_ciphertext(secret, point)
     }
 
     #[aztec(public)]
