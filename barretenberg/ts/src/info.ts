@@ -9,6 +9,7 @@ export const acvmInfoJson = {
     'and',
     'xor',
     'range',
+    'aes128_encrypt',
     'sha256',
     'blake2s',
     'keccak256',

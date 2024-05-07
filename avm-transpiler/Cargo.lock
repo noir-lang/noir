@@ -51,6 +51,7 @@ dependencies = [
  "blake3",
  "k256",
  "keccak",
+ "libaes",
  "num-bigint",
  "p256",
  "sha2",
@@ -1126,6 +1127,12 @@ checksum = "507460a910eb7b32ee961886ff48539633b788a36b65692b95f225b844c82553"
 dependencies = [
  "regex-automata",
 ]
+
+[[package]]
+name = "libaes"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82903360c009b816f5ab72a9b68158c27c301ee2c3f20655b55c5e589e7d3bb7"
 
 [[package]]
 name = "libc"

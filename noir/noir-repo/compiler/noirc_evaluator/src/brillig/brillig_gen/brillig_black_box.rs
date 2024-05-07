@@ -401,6 +401,28 @@ pub(crate) fn convert_black_box_call(
                 unreachable!("ICE: Sha256Compression expects two array argument, one array result")
             }
         }
+        BlackBoxFunc::AES128Encrypt => {
+            if let (
+                [inputs, BrilligVariable::BrilligArray(iv), BrilligVariable::BrilligArray(key)],
+                [BrilligVariable::SingleAddr(out_len), outputs],
+            ) = (function_arguments, function_results)
+            {
+                let inputs = convert_array_or_vector(brillig_context, inputs, bb_func);
+                let outputs = convert_array_or_vector(brillig_context, outputs, bb_func);
+                let output_vec = outputs.to_heap_vector();
+                brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
+                    inputs: inputs.to_heap_vector(),
+                    iv: iv.to_heap_array(),
+                    key: key.to_heap_array(),
+                    outputs: output_vec,
+                });
+                brillig_context.mov_instruction(out_len.address, output_vec.size);
+                // Returns slice, so we need to allocate memory for it after the fact
+                brillig_context.increase_free_memory_pointer_instruction(output_vec.size);
+            } else {
+                unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
+            }
+        }
     }
 }
 

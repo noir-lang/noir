@@ -1,4 +1,5 @@
 mod hash;
+mod aes128;
 mod array;
 mod slice;
 mod merkle;

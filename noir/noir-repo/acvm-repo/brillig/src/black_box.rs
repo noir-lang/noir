@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 /// They are implemented as native functions in the VM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlackBoxOp {
+    /// Encrypts a message using AES128.
+    AES128Encrypt {
+        inputs: HeapVector,
+        iv: HeapArray,
+        key: HeapArray,
+        outputs: HeapVector,
+    },
     /// Calculates the SHA256 hash of the inputs.
     Sha256 {
         message: HeapVector,

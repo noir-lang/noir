@@ -188,6 +188,18 @@ impl GeneratedAcir {
         let outputs_clone = outputs.clone();
 
         let black_box_func_call = match func_name {
+            BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
+                inputs: inputs[0].clone(),
+                iv: inputs[1]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                key: inputs[2]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs,
+            },
             BlackBoxFunc::AND => {
                 BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
@@ -642,7 +654,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
-        BlackBoxFunc::Keccak256
+        BlackBoxFunc::AES128Encrypt
+        | BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Blake3
@@ -736,6 +749,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
+
+        // AES encryption returns a variable number of outputs
+        BlackBoxFunc::AES128Encrypt => None,
     }
 }
 

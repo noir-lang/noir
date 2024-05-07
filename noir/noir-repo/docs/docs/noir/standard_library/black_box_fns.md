@@ -12,6 +12,7 @@ The ACVM spec defines a set of blackbox functions which backends will be expecte
 
 Here is a list of the current black box functions:
 
+- [AES128](./cryptographic_primitives/ciphers.mdx#aes128)
 - [SHA256](./cryptographic_primitives/hashes.mdx#sha256)
 - [Schnorr signature verification](./cryptographic_primitives/schnorr.mdx)
 - [Blake2s](./cryptographic_primitives/hashes.mdx#blake2s)

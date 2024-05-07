@@ -6,12 +6,14 @@ use acir::{
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
 use self::{
-    bigint::AcvmBigIntSolver, hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
+    aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
+    hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
 };
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
 
+mod aes128;
 pub(crate) mod bigint;
 mod embedded_curve_ops;
 mod hash;
@@ -19,6 +21,7 @@ mod logic;
 mod pedersen;
 mod range;
 mod signature;
+pub(crate) mod utils;
 
 use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
@@ -68,6 +71,9 @@ pub(crate) fn solve(
     }
 
     match bb_func {
+        BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
+            solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
+        }
         BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),

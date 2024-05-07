@@ -266,6 +266,16 @@ impl DebugShow {
     /// Debug function for black_box_op
     pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
+            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  AES128 ENCRYPT {} {} {}  -> {}",
+                    inputs,
+                    iv,
+                    key,
+                    outputs
+                );
+            }
             BlackBoxOp::Sha256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
             }

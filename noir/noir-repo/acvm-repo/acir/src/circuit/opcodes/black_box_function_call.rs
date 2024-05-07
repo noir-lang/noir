@@ -12,6 +12,12 @@ pub struct FunctionInput {
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlackBoxFuncCall {
+    AES128Encrypt {
+        inputs: Vec<FunctionInput>,
+        iv: Box<[FunctionInput; 16]>,
+        key: Box<[FunctionInput; 16]>,
+        outputs: Vec<Witness>,
+    },
     AND {
         lhs: FunctionInput,
         rhs: FunctionInput,
@@ -177,6 +183,7 @@ pub enum BlackBoxFuncCall {
 impl BlackBoxFuncCall {
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
+            BlackBoxFuncCall::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
             BlackBoxFuncCall::AND { .. } => BlackBoxFunc::AND,
             BlackBoxFuncCall::XOR { .. } => BlackBoxFunc::XOR,
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
@@ -210,7 +217,8 @@ impl BlackBoxFuncCall {
 
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput> {
         match self {
-            BlackBoxFuncCall::SHA256 { inputs, .. }
+            BlackBoxFuncCall::AES128Encrypt { inputs, .. }
+            | BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
@@ -326,7 +334,8 @@ impl BlackBoxFuncCall {
 
             BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
 
-            BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+            BlackBoxFuncCall::AES128Encrypt { outputs, .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
 
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }

@@ -9,6 +9,8 @@ use strum_macros::EnumIter;
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(EnumIter))]
 pub enum BlackBoxFunc {
+    /// Encrypts the input using AES128.
+    AES128Encrypt,
     /// Bitwise AND.
     AND,
     /// Bitwise XOR.
@@ -74,6 +76,7 @@ impl std::fmt::Display for BlackBoxFunc {
 impl BlackBoxFunc {
     pub fn name(&self) -> &'static str {
         match self {
+            BlackBoxFunc::AES128Encrypt => "aes128_encrypt",
             BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
@@ -103,6 +106,7 @@ impl BlackBoxFunc {
 
     pub fn lookup(op_name: &str) -> Option<BlackBoxFunc> {
         match op_name {
+            "aes128_encrypt" => Some(BlackBoxFunc::AES128Encrypt),
             "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),

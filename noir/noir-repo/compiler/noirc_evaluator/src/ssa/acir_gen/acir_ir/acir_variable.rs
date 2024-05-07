@@ -1324,6 +1324,21 @@ impl AcirContext {
                     self.big_int_ctx.new_big_int(FieldElement::from(modulus_id as u128));
                 (modulus, vec![result_id.bigint_id(), result_id.modulus_id()])
             }
+            BlackBoxFunc::AES128Encrypt => {
+                let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
+                let input_size = match inputs.first().expect(invalid_input) {
+                    AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
+                    AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError>(dyn_array.len),
+                    _ => {
+                        return Err(RuntimeError::InternalError(InternalError::General {
+                            message: "aes128_encrypt requires an array of inputs".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }));
+                    }
+                }?;
+                output_count = input_size + (16 - input_size % 16);
+                (vec![], vec![FieldElement::from(output_count as u128)])
+            }
             _ => (vec![], vec![]),
         };
 

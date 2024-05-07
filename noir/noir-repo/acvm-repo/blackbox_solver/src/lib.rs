@@ -10,11 +10,13 @@
 use acir::BlackBoxFunc;
 use thiserror::Error;
 
+mod aes128;
 mod bigint;
 mod curve_specific_solver;
 mod ecdsa;
 mod hash;
 
+pub use aes128::aes128_encrypt;
 pub use bigint::BigIntSolver;
 pub use curve_specific_solver::{BlackBoxFunctionSolver, StubbedBlackBoxSolver};
 pub use ecdsa::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};

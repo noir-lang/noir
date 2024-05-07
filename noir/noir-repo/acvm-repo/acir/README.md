@@ -76,6 +76,12 @@ Some more advanced computations assume that the proving system has an 'embedded 
 
 The black box functions supported by ACIR are:
 
+**AES128Encrypt**: ciphers the provided plaintext using AES128 in CBC mode, padding the input using PKCS#7.
+- inputs: byte array [u8; N]
+- iv: initialization vector [u8; 16]
+- key: user key [u8; 16]
+- outputs: byte vector [u8] of length `input.len() + (16 - input.len() % 16)``
+
 **AND**: performs the bitwise AND of lhs and rhs. bit_size must be the same for both inputs.
 - lhs: (witness, bit_size)
 - rhs: (witness, bit_size)
