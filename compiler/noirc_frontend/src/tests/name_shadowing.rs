@@ -1,5 +1,5 @@
 #![cfg(test)]
-use super::tests::get_program_errors;
+use super::get_program_errors;
 use std::collections::HashSet;
 
 #[test]
@@ -412,7 +412,7 @@ fn test_name_shadowing() {
 
                 let modified_src = src.replace(x, y);
                 let errors = get_program_errors(&modified_src);
-                assert!(errors.len() != 0, "Expected errors, got: {:?}", errors);
+                assert!(!errors.is_empty(), "Expected errors, got: {:?}", errors);
             }
         }
     }
