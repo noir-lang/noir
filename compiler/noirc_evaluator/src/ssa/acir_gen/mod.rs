@@ -1079,8 +1079,7 @@ impl<'a> Context<'a> {
     /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
     ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///     Thus internal array element type sizes need to be computed to accurately transform the index.
-    /// - predicate_index is 0, or the index if the predicate is true
-    /// if an offset is specified, predicate_index is index*predicate + (1-predicate)*offset
+    /// - predicate_index is offset, or the index if the predicate is true
     /// - new_value is the optional value when the operation is an array_set
     ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
     ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
@@ -1097,14 +1096,11 @@ impl<'a> Context<'a> {
         let index_var = self.convert_numeric_value(index, dfg)?;
         let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
-        let predicate_index = if offset != 0 {
-            let offset = self.acir_context.add_constant(offset);
-            let sub = self.acir_context.sub_var(index_var, offset)?;
-            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-            self.acir_context.add_var(pred, offset)?
-        } else {
-            self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?
-        };
+        // predicate_index = index*predicate + (1-predicate)*offset
+        let offset = self.acir_context.add_constant(offset);
+        let sub = self.acir_context.sub_var(index_var, offset)?;
+        let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
+        let predicate_index = self.acir_context.add_var(pred, offset)?;
 
         let new_value = if let Some(store) = store_value {
             let store_value = self.convert_value(store, dfg);
