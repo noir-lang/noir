@@ -24,7 +24,6 @@ use noirc_frontend::hir::ParsedFiles;
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 /// Executes a circuit in debug mode
@@ -53,11 +52,7 @@ pub(crate) struct DebugCommand {
     skip_instrumentation: Option<bool>,
 }
 
-pub(crate) fn run(
-    backend: &Backend,
-    args: DebugCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliError> {
     let acir_mode = args.acir_mode;
     let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
 
@@ -69,10 +64,6 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
     let target_dir = &workspace.target_directory_path();
-    let expression_width = args
-        .compile_options
-        .expression_width
-        .unwrap_or_else(|| backend.get_backend_info_or_default());
 
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
@@ -89,7 +80,8 @@ pub(crate) fn run(
         args.compile_options.clone(),
     )?;
 
-    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+    let compiled_program =
+        nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }
