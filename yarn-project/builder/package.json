@@ -10,7 +10,7 @@
     "entryPoints": [
       "./src/index.ts"
     ],
-    "name": "Aztec.nr compiler",
+    "name": "Aztec builder",
     "tsconfig": "./tsconfig.json"
   },
   "bin": {

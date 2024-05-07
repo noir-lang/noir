@@ -15,7 +15,6 @@ const UPDATE_DOCS_URL = 'https://docs.aztec.network/developers/updating';
 export async function update(
   projectPath: string,
   contracts: string[],
-  pxeUrl: string,
   aztecVersion: string,
   log: LogFn,
 ): Promise<void> {

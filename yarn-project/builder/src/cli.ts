@@ -1,30 +1,13 @@
 #!/usr/bin/env node
 import { createConsoleLogger } from '@aztec/foundation/log';
 
-import { Command, Option } from 'commander';
-import { lookup } from 'dns/promises';
+import { Command } from 'commander';
 import { dirname } from 'path';
 
 const program = new Command();
-const log = createConsoleLogger('aztec:compiler-cli');
-
-/**
- * If we can successfully resolve 'host.docker.internal', then we are running in a container, and we should treat
- * localhost as being host.docker.internal.
- */
-const getLocalhost = () =>
-  lookup('host.docker.internal')
-    .then(() => 'host.docker.internal')
-    .catch(() => 'localhost');
-
-const LOCALHOST = await getLocalhost();
+const log = createConsoleLogger('aztec:builder');
 
 const main = async () => {
-  const pxeOption = new Option('-u, --rpc-url <string>', 'URL of the PXE')
-    .env('PXE_URL')
-    .default(`http://${LOCALHOST}:8080`)
-    .makeOptionMandatory(true);
-
   program.name('aztec-builder');
   program
     .command('codegen')
@@ -43,14 +26,16 @@ const main = async () => {
     .argument('[projectPath]', 'Path to the project directory', process.cwd())
     .option('--contract [paths...]', 'Paths to contracts to update dependencies', [])
     .option('--aztec-version <semver>', 'The version to update Aztec packages to. Defaults to latest', 'latest')
-    .addOption(pxeOption)
     .action(async (projectPath: string, options) => {
       const { update } = await import('./cli/update/update.js');
-      const { contract, aztecVersion, rpcUrl } = options;
-      await update(projectPath, contract, rpcUrl, aztecVersion, log);
+      const { contract, aztecVersion } = options;
+      await update(projectPath, contract, aztecVersion, log);
     });
 
   await program.parseAsync(process.argv);
+  // I force exit here because spawnSync in npm.ts just blocks the process from exiting. Spent a bit of time debugging
+  // it without success and I think it doesn't make sense to invest more time in this.
+  process.exit(0);
 };
 
 main().catch(err => {
