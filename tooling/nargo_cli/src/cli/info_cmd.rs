@@ -70,10 +70,6 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = args
-        .compile_options
-        .expression_width
-        .unwrap_or_else(|| backend.get_backend_info_or_default());
     let compiled_workspace = compile_workspace(
         &workspace_file_manager,
         &parsed_files,
@@ -89,10 +85,10 @@ pub(crate) fn run(
     )?;
 
     let compiled_programs = vecmap(compiled_programs, |program| {
-        nargo::ops::transform_program(program, expression_width)
+        nargo::ops::transform_program(program, args.compile_options.expression_width)
     });
     let compiled_contracts = vecmap(compiled_contracts, |contract| {
-        nargo::ops::transform_contract(contract, expression_width)
+        nargo::ops::transform_contract(contract, args.compile_options.expression_width)
     });
 
     if args.profile_info {
@@ -122,13 +118,24 @@ pub(crate) fn run(
     let program_info = binary_packages
         .par_bridge()
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(backend, program, package, expression_width)
+            count_opcodes_and_gates_in_program(
+                backend,
+                program,
+                package,
+                args.compile_options.expression_width,
+            )
         })
         .collect::<Result<_, _>>()?;
 
     let contract_info = compiled_contracts
         .into_par_iter()
-        .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, expression_width))
+        .map(|contract| {
+            count_opcodes_and_gates_in_contract(
+                backend,
+                contract,
+                args.compile_options.expression_width,
+            )
+        })
         .collect::<Result<_, _>>()?;
 
     let info_report = InfoReport { programs: program_info, contracts: contract_info };
