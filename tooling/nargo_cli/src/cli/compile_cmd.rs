@@ -28,8 +28,6 @@ use super::fs::program::{read_program_from_file, save_contract_to_file, save_pro
 use super::NargoConfig;
 use rayon::prelude::*;
 
-pub(super) const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
-
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {

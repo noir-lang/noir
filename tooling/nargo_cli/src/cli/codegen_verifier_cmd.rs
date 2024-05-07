@@ -1,7 +1,6 @@
 use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
 use crate::backends::Backend;
-use crate::cli::compile_cmd::DEFAULT_EXPRESSION_WIDTH;
 use crate::errors::CliError;
 
 use clap::Args;
@@ -62,7 +61,7 @@ pub(crate) fn run(
             args.compile_options.silence_warnings,
         )?;
 
-        let program = nargo::ops::transform_program(program, DEFAULT_EXPRESSION_WIDTH);
+        let program = nargo::ops::transform_program(program, args.compile_options.expression_width);
 
         // TODO(https://github.com/noir-lang/noir/issues/4428):
         // We do not expect to have a smart contract verifier for a foldable program with multiple circuits.
