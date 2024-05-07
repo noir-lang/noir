@@ -1,14 +1,16 @@
 use dep::types::{
-    abis::{membership_witness::NullifierMembershipWitness, nullifier_leaf_preimage::NullifierLeafPreimage},
+    abis::{nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
     MAX_NEW_NULLIFIERS_PER_TX, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-    NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH
-}
+    NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
+    NULLIFIER_TREE_HEIGHT
+},
+    merkle_tree::MembershipWitness
 };
 
 struct StateDiffHints {
     nullifier_predecessor_preimages: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX],
-    nullifier_predecessor_membership_witnesses: [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX],
+    nullifier_predecessor_membership_witnesses: [MembershipWitness<NULLIFIER_TREE_HEIGHT>; MAX_NEW_NULLIFIERS_PER_TX],
 
     sorted_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_nullifier_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],

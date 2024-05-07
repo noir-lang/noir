@@ -1,5 +1,4 @@
 import {
-  type ARCHIVE_HEIGHT,
   AggregationObject,
   AppendOnlyTreeSnapshot,
   AztecAddress,
@@ -16,7 +15,6 @@ import {
   type ContractStorageRead,
   type ContractStorageUpdateRequest,
   EthAddress,
-  type FUNCTION_TREE_HEIGHT,
   Fr,
   FunctionData,
   FunctionSelector,
@@ -119,120 +117,101 @@ import {
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { type Tuple, mapTuple, toTruncField } from '@aztec/foundation/serialize';
 
-import { type BaseParityInputs as BaseParityInputsNoir } from './types/parity_base_types.js';
-import {
-  type RootParityInput as ParityRootParityInputNoir,
-  type RootParityInputs as RootParityInputsNoir,
-} from './types/parity_root_types.js';
-import {
-  type CallContext as CallContextNoir,
-  type CallRequest as CallRequestNoir,
-  type CallerContext as CallerContextNoir,
-  type CombinedConstantData as CombinedConstantDataNoir,
-  type FunctionData as FunctionDataNoir,
-  type FunctionLeafMembershipWitness as FunctionLeafMembershipWitnessNoir,
-  type FunctionSelector as FunctionSelectorNoir,
-  type GasFees as GasFeesNoir,
-  type GasSettings as GasSettingsNoir,
-  type L2ToL1Message as L2ToL1MessageNoir,
-  type MaxBlockNumber as MaxBlockNumberNoir,
-  type AztecAddress as NoirAztecAddress,
-  type EthAddress as NoirEthAddress,
-  type Field as NoirField,
-  type GrumpkinPoint as NoirPoint,
-  type NoteHashContext as NoteHashContextNoir,
-  type NoteHash as NoteHashNoir,
-  type NullifierKeyValidationRequestContext as NullifierKeyValidationRequestContextNoir,
-  type NullifierKeyValidationRequest as NullifierKeyValidationRequestNoir,
-  type Nullifier as NullifierNoir,
-  type PrivateAccumulatedData as PrivateAccumulatedDataNoir,
-  type PrivateCallData as PrivateCallDataNoir,
-  type PrivateCallStackItem as PrivateCallStackItemNoir,
-  type PrivateCircuitPublicInputs as PrivateCircuitPublicInputsNoir,
-  type PrivateKernelCircuitPublicInputs as PrivateKernelCircuitPublicInputsNoir,
-  type PrivateKernelInitCircuitPrivateInputs as PrivateKernelInitCircuitPrivateInputsNoir,
-  type PublicDataRead as PublicDataReadNoir,
-  type ReadRequestContext as ReadRequestContextNoir,
-  type ReadRequest as ReadRequestNoir,
-  type RollupValidationRequests as RollupValidationRequestsNoir,
-  type SideEffect as SideEffectNoir,
-  type TxContext as TxContextNoir,
-  type TxRequest as TxRequestNoir,
-  type ValidationRequests as ValidationRequestsNoir,
-} from './types/private_kernel_init_types.js';
-import {
-  type PrivateKernelInnerCircuitPrivateInputs as PrivateKernelInnerCircuitPrivateInputsNoir,
-  type PrivateKernelInnerHints as PrivateKernelInnerHintsNoir,
-} from './types/private_kernel_inner_types.js';
-import { type PrivateKernelTailToPublicCircuitPrivateInputs as PrivateKernelTailToPublicCircuitPrivateInputsNoir } from './types/private_kernel_tail_to_public_types.js';
-import {
-  type CombinedAccumulatedData as CombinedAccumulatedDataNoir,
-  type Gas as GasNoir,
-  type GrumpkinPrivateKey as GrumpkinPrivateKeyNoir,
-  type NoteHashLeafPreimage as NoteHashLeafPreimageNoir,
-  type NoteHashMembershipWitness as NoteHashMembershipWitnessNoir,
-  type NoteHashReadRequestHints as NoteHashReadRequestHintsNoir,
-  type NoteHashSettledReadHint as NoteHashSettledReadHintNoir,
-  type NullifierReadRequestHints as NullifierReadRequestHintsNoir,
-  type NullifierSettledReadHint as NullifierSettledReadHintNoir,
-  type PendingReadHint as PendingReadHintNoir,
-  type PrivateKernelData as PrivateKernelDataNoir,
-  type PrivateKernelTailCircuitPrivateInputs as PrivateKernelTailCircuitPrivateInputsNoir,
-  type PrivateKernelTailHints as PrivateKernelTailHintsNoir,
-  type PrivateKernelTailOutputs as PrivateKernelTailOutputsNoir,
-  type ReadRequestStatus as ReadRequestStatusNoir,
-} from './types/private_kernel_tail_types.js';
-import {
-  type PublicAccumulatedData as PublicAccumulatedDataNoir,
-  type PublicKernelData as PublicKernelDataNoir,
-} from './types/public_kernel_app_logic_types.js';
-import {
-  type PublicCallData as PublicCallDataNoir,
-  type PublicCallStackItem as PublicCallStackItemNoir,
-  type PublicCircuitPublicInputs as PublicCircuitPublicInputsNoir,
-  type PublicKernelCircuitPublicInputs as PublicKernelCircuitPublicInputsNoir,
-  type PublicKernelSetupCircuitPrivateInputs as PublicKernelSetupCircuitPrivateInputsNoir,
-  type StorageRead as StorageReadNoir,
-  type StorageUpdateRequest as StorageUpdateRequestNoir,
-} from './types/public_kernel_setup_types.js';
-import {
-  type LeafDataReadHint as LeafDataReadHintNoir,
-  type NullifierNonExistentReadRequestHints as NullifierNonExistentReadRequestHintsNoir,
-  type NullifierNonMembershipHint as NullifierNonMembershipHintNoir,
-  type PublicDataHint as PublicDataHintNoir,
-  type PublicDataReadRequestHints as PublicDataReadRequestHintsNoir,
-  type PublicDataUpdateRequest as PublicDataUpdateRequestNoir,
-  type PublicKernelTailCircuitPrivateInputs as PublicKernelTailCircuitPrivateInputsNoir,
-} from './types/public_kernel_tail_types.js';
-import {
-  type ArchiveRootMembershipWitness as ArchiveRootMembershipWitnessNoir,
-  type BaseRollupInputs as BaseRollupInputsNoir,
-  type KernelCircuitPublicInputs as KernelCircuitPublicInputsNoir,
-  type KernelData as KernelDataNoir,
-  type NullifierLeafPreimage as NullifierLeafPreimageNoir,
-  type NullifierMembershipWitness as NullifierMembershipWitnessNoir,
-  type PublicDataMembershipWitness as PublicDataMembershipWitnessNoir,
-  type PublicDataTreeLeaf as PublicDataTreeLeafNoir,
-  type PublicDataTreeLeafPreimage as PublicDataTreeLeafPreimageNoir,
-  type StateDiffHints as StateDiffHintsNoir,
-} from './types/rollup_base_types.js';
-import { type MergeRollupInputs as MergeRollupInputsNoir } from './types/rollup_merge_types.js';
-import {
-  type AppendOnlyTreeSnapshot as AppendOnlyTreeSnapshotNoir,
-  type BaseOrMergeRollupPublicInputs as BaseOrMergeRollupPublicInputsNoir,
-  type ConstantRollupData as ConstantRollupDataNoir,
-  type ContentCommitment as ContentCommitmentNoir,
-  type Field,
-  type GlobalVariables as GlobalVariablesNoir,
-  type Header as HeaderNoir,
-  type ParityPublicInputs as ParityPublicInputsNoir,
-  type PartialStateReference as PartialStateReferenceNoir,
-  type PreviousRollupData as PreviousRollupDataNoir,
-  type RootRollupInputs as RootRollupInputsNoir,
-  type RootRollupParityInput as RootRollupParityInputNoir,
-  type RootRollupPublicInputs as RootRollupPublicInputsNoir,
-  type StateReference as StateReferenceNoir,
-} from './types/rollup_root_types.js';
+import type {
+  AppendOnlyTreeSnapshot as AppendOnlyTreeSnapshotNoir,
+  BaseOrMergeRollupPublicInputs as BaseOrMergeRollupPublicInputsNoir,
+  BaseParityInputs as BaseParityInputsNoir,
+  BaseRollupInputs as BaseRollupInputsNoir,
+  CallContext as CallContextNoir,
+  CallRequest as CallRequestNoir,
+  CallerContext as CallerContextNoir,
+  CombinedAccumulatedData as CombinedAccumulatedDataNoir,
+  CombinedConstantData as CombinedConstantDataNoir,
+  ConstantRollupData as ConstantRollupDataNoir,
+  ContentCommitment as ContentCommitmentNoir,
+  Field,
+  FixedLengthArray,
+  FunctionData as FunctionDataNoir,
+  FunctionSelector as FunctionSelectorNoir,
+  GasFees as GasFeesNoir,
+  Gas as GasNoir,
+  GasSettings as GasSettingsNoir,
+  GlobalVariables as GlobalVariablesNoir,
+  GrumpkinPrivateKey as GrumpkinPrivateKeyNoir,
+  Header as HeaderNoir,
+  KernelCircuitPublicInputs as KernelCircuitPublicInputsNoir,
+  KernelData as KernelDataNoir,
+  L2ToL1Message as L2ToL1MessageNoir,
+  LeafDataReadHint as LeafDataReadHintNoir,
+  MaxBlockNumber as MaxBlockNumberNoir,
+  MembershipWitness as MembershipWitnessNoir,
+  MergeRollupInputs as MergeRollupInputsNoir,
+  AztecAddress as NoirAztecAddress,
+  EthAddress as NoirEthAddress,
+  Field as NoirField,
+  GrumpkinPoint as NoirPoint,
+  NoteHashContext as NoteHashContextNoir,
+  NoteHashLeafPreimage as NoteHashLeafPreimageNoir,
+  NoteHash as NoteHashNoir,
+  NoteHashReadRequestHints as NoteHashReadRequestHintsNoir,
+  NoteHashSettledReadHint as NoteHashSettledReadHintNoir,
+  NullifierKeyValidationRequestContext as NullifierKeyValidationRequestContextNoir,
+  NullifierKeyValidationRequest as NullifierKeyValidationRequestNoir,
+  NullifierLeafPreimage as NullifierLeafPreimageNoir,
+  Nullifier as NullifierNoir,
+  NullifierNonExistentReadRequestHints as NullifierNonExistentReadRequestHintsNoir,
+  NullifierNonMembershipHint as NullifierNonMembershipHintNoir,
+  NullifierReadRequestHints as NullifierReadRequestHintsNoir,
+  NullifierSettledReadHint as NullifierSettledReadHintNoir,
+  ParityPublicInputs as ParityPublicInputsNoir,
+  RootParityInput as ParityRootParityInputNoir,
+  PartialStateReference as PartialStateReferenceNoir,
+  PendingReadHint as PendingReadHintNoir,
+  PreviousRollupData as PreviousRollupDataNoir,
+  PrivateAccumulatedData as PrivateAccumulatedDataNoir,
+  PrivateCallData as PrivateCallDataNoir,
+  PrivateCallStackItem as PrivateCallStackItemNoir,
+  PrivateCircuitPublicInputs as PrivateCircuitPublicInputsNoir,
+  PrivateKernelCircuitPublicInputs as PrivateKernelCircuitPublicInputsNoir,
+  PrivateKernelData as PrivateKernelDataNoir,
+  PrivateKernelInitCircuitPrivateInputs as PrivateKernelInitCircuitPrivateInputsNoir,
+  PrivateKernelInnerCircuitPrivateInputs as PrivateKernelInnerCircuitPrivateInputsNoir,
+  PrivateKernelInnerHints as PrivateKernelInnerHintsNoir,
+  PrivateKernelTailCircuitPrivateInputs as PrivateKernelTailCircuitPrivateInputsNoir,
+  PrivateKernelTailHints as PrivateKernelTailHintsNoir,
+  PrivateKernelTailOutputs as PrivateKernelTailOutputsNoir,
+  PrivateKernelTailToPublicCircuitPrivateInputs as PrivateKernelTailToPublicCircuitPrivateInputsNoir,
+  PublicAccumulatedData as PublicAccumulatedDataNoir,
+  PublicCallData as PublicCallDataNoir,
+  PublicCallStackItem as PublicCallStackItemNoir,
+  PublicCircuitPublicInputs as PublicCircuitPublicInputsNoir,
+  PublicDataHint as PublicDataHintNoir,
+  PublicDataRead as PublicDataReadNoir,
+  PublicDataReadRequestHints as PublicDataReadRequestHintsNoir,
+  PublicDataTreeLeaf as PublicDataTreeLeafNoir,
+  PublicDataTreeLeafPreimage as PublicDataTreeLeafPreimageNoir,
+  PublicDataUpdateRequest as PublicDataUpdateRequestNoir,
+  PublicKernelCircuitPublicInputs as PublicKernelCircuitPublicInputsNoir,
+  PublicKernelData as PublicKernelDataNoir,
+  PublicKernelSetupCircuitPrivateInputs as PublicKernelSetupCircuitPrivateInputsNoir,
+  PublicKernelTailCircuitPrivateInputs as PublicKernelTailCircuitPrivateInputsNoir,
+  ReadRequestContext as ReadRequestContextNoir,
+  ReadRequest as ReadRequestNoir,
+  ReadRequestStatus as ReadRequestStatusNoir,
+  RollupValidationRequests as RollupValidationRequestsNoir,
+  RootParityInputs as RootParityInputsNoir,
+  RootRollupInputs as RootRollupInputsNoir,
+  RootRollupParityInput as RootRollupParityInputNoir,
+  RootRollupPublicInputs as RootRollupPublicInputsNoir,
+  SideEffect as SideEffectNoir,
+  StateDiffHints as StateDiffHintsNoir,
+  StateReference as StateReferenceNoir,
+  StorageRead as StorageReadNoir,
+  StorageUpdateRequest as StorageUpdateRequestNoir,
+  TxContext as TxContextNoir,
+  TxRequest as TxRequestNoir,
+  ValidationRequests as ValidationRequestsNoir,
+} from './types/index.js';
 
 /* eslint-disable camelcase */
 
@@ -776,20 +755,6 @@ export function mapPrivateCallStackItemToNoir(privateCallStackItem: PrivateCallS
 }
 
 /**
- * Maps a function leaf membership witness to a noir function leaf membership witness.
- * @param membershipWitness - The membership witness.
- * @returns The noir function leaf membership witness.
- */
-function mapFunctionLeafMembershipWitnessToNoir(
-  membershipWitness: MembershipWitness<typeof FUNCTION_TREE_HEIGHT>,
-): FunctionLeafMembershipWitnessNoir {
-  return {
-    leaf_index: membershipWitness.leafIndex.toString(),
-    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
-  };
-}
-
-/**
  * Maps a private call data to a noir private call data.
  * @param privateCallData - The private call data.
  * @returns The noir private call data.
@@ -801,9 +766,7 @@ export function mapPrivateCallDataToNoir(privateCallData: PrivateCallData): Priv
     public_call_stack: mapTuple(privateCallData.publicCallStack, mapCallRequestToNoir),
     proof: {},
     vk: {},
-    function_leaf_membership_witness: mapFunctionLeafMembershipWitnessToNoir(
-      privateCallData.functionLeafMembershipWitness,
-    ),
+    function_leaf_membership_witness: mapMembershipWitnessToNoir(privateCallData.functionLeafMembershipWitness),
     contract_class_artifact_hash: mapFieldToNoir(privateCallData.contractClassArtifactHash),
     contract_class_public_bytecode_commitment: mapFieldToNoir(privateCallData.contractClassPublicBytecodeCommitment),
     public_keys_hash: mapWrappedFieldToNoir(privateCallData.publicKeysHash),
@@ -931,7 +894,7 @@ function mapNoteHashSettledReadHintToNoir(
 ): NoteHashSettledReadHintNoir {
   return {
     read_request_index: mapNumberToNoir(hint.readRequestIndex),
-    membership_witness: mapNoteHashMembershipWitnessToNoir(hint.membershipWitness),
+    membership_witness: mapMembershipWitnessToNoir(hint.membershipWitness),
     leaf_preimage: mapNoteHashLeafPreimageToNoir(hint.leafPreimage),
   };
 }
@@ -941,7 +904,7 @@ function mapNullifierSettledReadHintToNoir(
 ): NullifierSettledReadHintNoir {
   return {
     read_request_index: mapNumberToNoir(hint.readRequestIndex),
-    membership_witness: mapNullifierMembershipWitnessToNoir(hint.membershipWitness),
+    membership_witness: mapMembershipWitnessToNoir(hint.membershipWitness),
     leaf_preimage: mapNullifierLeafPreimageToNoir(hint.leafPreimage),
   };
 }
@@ -967,7 +930,7 @@ function mapNullifierNonMembershipHintToNoir(
 ): NullifierNonMembershipHintNoir {
   return {
     low_leaf_preimage: mapNullifierLeafPreimageToNoir(hint.leafPreimage),
-    membership_witness: mapNullifierMembershipWitnessToNoir(hint.membershipWitness),
+    membership_witness: mapMembershipWitnessToNoir(hint.membershipWitness),
   };
 }
 
@@ -987,7 +950,7 @@ function mapPublicDataHintToNoir(hint: PublicDataHint): PublicDataHintNoir {
     leaf_slot: mapFieldToNoir(hint.leafSlot),
     value: mapFieldToNoir(hint.value),
     override_counter: mapNumberToNoir(hint.overrideCounter),
-    membership_witness: mapPublicDataMembershipWitnessToNoir(hint.membershipWitness),
+    membership_witness: mapMembershipWitnessToNoir(hint.membershipWitness),
     leaf_preimage: mapPublicDataTreePreimageToNoir(hint.leafPreimage),
   };
 }
@@ -1957,52 +1920,11 @@ export function mapNullifierLeafPreimageToNoir(
   };
 }
 
-function mapNoteHashMembershipWitnessToNoir(
-  membershipWitness: MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>,
-): NoteHashMembershipWitnessNoir {
+function mapMembershipWitnessToNoir<N extends number>(witness: MembershipWitness<N>): MembershipWitnessNoir<N> {
+  const siblingPath = mapTuple(witness.siblingPath, mapFieldToNoir) as FixedLengthArray<NoirField, N>;
   return {
-    leaf_index: membershipWitness.leafIndex.toString(),
-    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
-  };
-}
-
-/**
- * Maps a nullifier membership witness to noir.
- * @param membershipWitness - The nullifier membership witness.
- * @returns The noir nullifier membership witness.
- */
-export function mapNullifierMembershipWitnessToNoir(
-  membershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>,
-): NullifierMembershipWitnessNoir {
-  return {
-    leaf_index: membershipWitness.leafIndex.toString(),
-    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
-  };
-}
-
-/**
- * Maps a membership witness of the public data tree to noir.
- */
-export function mapPublicDataMembershipWitnessToNoir(
-  membershipWitness: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
-): PublicDataMembershipWitnessNoir {
-  return {
-    leaf_index: membershipWitness.leafIndex.toString(),
-    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
-  };
-}
-
-/**
- * Maps a membership witness of the blocks tree to noir.
- * @param membershipWitness - The membership witness.
- * @returns The noir membership witness.
- */
-export function mapArchiveRootMembershipWitnessToNoir(
-  membershipWitness: MembershipWitness<typeof ARCHIVE_HEIGHT>,
-): ArchiveRootMembershipWitnessNoir {
-  return {
-    leaf_index: membershipWitness.leafIndex.toString(),
-    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
+    leaf_index: witness.leafIndex.toString(),
+    sibling_path: siblingPath,
   };
 }
 
@@ -2053,7 +1975,7 @@ export function mapStateDiffHintsToNoir(hints: StateDiffHints): StateDiffHintsNo
     nullifier_predecessor_preimages: mapTuple(hints.nullifierPredecessorPreimages, mapNullifierLeafPreimageToNoir),
     nullifier_predecessor_membership_witnesses: mapTuple(
       hints.nullifierPredecessorMembershipWitnesses,
-      mapNullifierMembershipWitnessToNoir,
+      (witness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>) => mapMembershipWitnessToNoir(witness),
     ),
     sorted_nullifiers: mapTuple(hints.sortedNullifiers, mapFieldToNoir),
     sorted_nullifier_indexes: mapTuple(hints.sortedNullifierIndexes, (index: number) => mapNumberToNoir(index)),
@@ -2104,10 +2026,10 @@ export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupI
 
     low_public_data_writes_witnesses: mapTuple(
       inputs.lowPublicDataWritesMembershipWitnesses,
-      mapPublicDataMembershipWitnessToNoir,
+      (witness: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>) => mapMembershipWitnessToNoir(witness),
     ),
 
-    archive_root_membership_witness: mapArchiveRootMembershipWitnessToNoir(inputs.archiveRootMembershipWitness),
+    archive_root_membership_witness: mapMembershipWitnessToNoir(inputs.archiveRootMembershipWitness),
     constants: mapConstantRollupDataToNoir(inputs.constants),
   };
 }

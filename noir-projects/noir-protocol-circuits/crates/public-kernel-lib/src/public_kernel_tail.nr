@@ -57,7 +57,7 @@ impl PublicKernelTailCircuitPrivateInputs {
                     hint.leaf_slot,
                     exists_in_tree,
                     hint.leaf_preimage,
-                    MembershipWitness { leaf_index: hint.membership_witness.leaf_index, sibling_path: hint.membership_witness.sibling_path },
+                    hint.membership_witness,
                     public_data_tree_root
                 );
             }
@@ -115,19 +115,20 @@ mod tests {
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, kernel_data::PublicKernelData,
-        nullifier_leaf_preimage::NullifierLeafPreimage, membership_witness::PublicDataMembershipWitness
+        nullifier_leaf_preimage::NullifierLeafPreimage
     },
         constants::{
         MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_HINTS,
         MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
         NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_HEIGHT,
         PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX,
-        MAX_UNENCRYPTED_LOGS_PER_TX,
+        MAX_UNENCRYPTED_LOGS_PER_TX
     },
         hash::{silo_nullifier, sha256_to_field},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree},
-        partial_state_reference::PartialStateReference, utils::arrays::array_merge
+        partial_state_reference::PartialStateReference, utils::arrays::array_merge,
+        merkle_tree::MembershipWitness
     };
 
     fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {
@@ -264,7 +265,7 @@ mod tests {
 
         pub fn add_public_data_hint_for_settled_public_data(&mut self, leaf_index: u64) {
             let leaf_preimage = get_settled_public_data_leaves()[leaf_index];
-            let membership_witness = PublicDataMembershipWitness { leaf_index: leaf_index as Field, sibling_path: self.public_data_tree.get_sibling_path(leaf_index) };
+            let membership_witness = MembershipWitness { leaf_index: leaf_index as Field, sibling_path: self.public_data_tree.get_sibling_path(leaf_index) };
             let hint = PublicDataHint {
                 leaf_slot: leaf_preimage.slot,
                 value: leaf_preimage.value,
@@ -277,7 +278,7 @@ mod tests {
 
         pub fn add_public_data_hint_for_non_existent_public_data(&mut self, leaf_slot: Field, low_leaf_index: u64) {
             let leaf_preimage = get_settled_public_data_leaves()[low_leaf_index];
-            let membership_witness = PublicDataMembershipWitness {
+            let membership_witness = MembershipWitness {
                 leaf_index: low_leaf_index as Field,
                 sibling_path: self.public_data_tree.get_sibling_path(low_leaf_index)
             };
@@ -360,18 +361,11 @@ mod tests {
             public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
         );
 
-        let hash_bytes: [u8; MAX_ENCRYPTED_LOGS_PER_TX * 32] = prev_encrypted_logs_hash
-            .to_be_bytes(32)
-            .append(&[0; MAX_ENCRYPTED_LOGS_PER_TX * 32 - 32])
-            .as_array();
+        let hash_bytes: [u8; MAX_ENCRYPTED_LOGS_PER_TX * 32] = prev_encrypted_logs_hash.to_be_bytes(32).append(&[0; MAX_ENCRYPTED_LOGS_PER_TX * 32 - 32]).as_array();
         let expected_encrypted_logs_hash = sha256_to_field(hash_bytes);
         assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
 
-        let hash_bytes: [u8; MAX_UNENCRYPTED_LOGS_PER_TX * 32] = prev_unencrypted_logs_hash
-            .to_be_bytes(32)
-            .append(unencrypted_logs_hash.to_be_bytes(32))
-            .append(&[0; MAX_UNENCRYPTED_LOGS_PER_TX * 32 - 64])
-            .as_array();
+        let hash_bytes: [u8; MAX_UNENCRYPTED_LOGS_PER_TX * 32] = prev_unencrypted_logs_hash.to_be_bytes(32).append(unencrypted_logs_hash.to_be_bytes(32)).append(&[0; MAX_UNENCRYPTED_LOGS_PER_TX * 32 - 64]).as_array();
         let expected_unencrypted_logs_hash = sha256_to_field(hash_bytes);
         assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
     }

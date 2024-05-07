@@ -1,14 +1,14 @@
 // This will be moved to a separate Read Request Reset Circuit.
 use crate::reset::read_request::{PendingReadHint, ReadRequestStatus, ReadValueHint, SettledReadHint};
 use dep::types::{
-    abis::{membership_witness::NoteHashMembershipWitness, note_hash_leaf_preimage::NoteHashLeafPreimage},
+    abis::{note_hash_leaf_preimage::NoteHashLeafPreimage},
     constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_TX, NOTE_HASH_TREE_HEIGHT},
     merkle_tree::MembershipWitness
 };
 
 struct NoteHashSettledReadHint {
     read_request_index: u64,
-    membership_witness: NoteHashMembershipWitness, // Should be MembershipWitness<NOTE_HASH_TREE_HEIGHT> when we can handle generics when converting to ts types.
+    membership_witness: MembershipWitness<NOTE_HASH_TREE_HEIGHT>,
     leaf_preimage: NoteHashLeafPreimage,
 }
 
@@ -20,7 +20,7 @@ impl ReadValueHint for NoteHashSettledReadHint {
 
 impl SettledReadHint<NOTE_HASH_TREE_HEIGHT, NoteHashLeafPreimage> for NoteHashSettledReadHint {
     fn membership_witness(self) -> MembershipWitness<NOTE_HASH_TREE_HEIGHT> {
-        MembershipWitness { leaf_index: self.membership_witness.leaf_index, sibling_path: self.membership_witness.sibling_path }
+        self.membership_witness
     }
 
     fn leaf_preimage(self) -> NoteHashLeafPreimage {
@@ -30,7 +30,7 @@ impl SettledReadHint<NOTE_HASH_TREE_HEIGHT, NoteHashLeafPreimage> for NoteHashSe
     fn nada(read_request_len: u64) -> Self {
         NoteHashSettledReadHint {
             read_request_index: read_request_len,
-            membership_witness: NoteHashMembershipWitness::empty(),
+            membership_witness: MembershipWitness::empty(),
             leaf_preimage: NoteHashLeafPreimage::empty()
         }
     }
@@ -46,10 +46,10 @@ mod tests {
     use crate::note_hash_read_request_reset::NoteHashSettledReadHint;
     use crate::reset::read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus, reset_read_requests};
     use dep::types::{
-        address::AztecAddress,
+        address::AztecAddress, merkle_tree::MembershipWitness,
         abis::{
-        membership_witness::NoteHashMembershipWitness, note_hash::NoteHashContext,
-        note_hash_leaf_preimage::NoteHashLeafPreimage, read_request::ReadRequestContext
+        note_hash::NoteHashContext, note_hash_leaf_preimage::NoteHashLeafPreimage,
+        read_request::ReadRequestContext
     },
         constants::NOTE_HASH_TREE_HEIGHT, hash::silo_note_hash,
         tests::merkle_tree_utils::NonEmptyMerkleTree
@@ -108,12 +108,12 @@ mod tests {
         let hints = [
             NoteHashSettledReadHint {
                 read_request_index: 0,
-                membership_witness: NoteHashMembershipWitness { leaf_index: 1, sibling_path: tree.get_sibling_path(1) },
+                membership_witness: MembershipWitness { leaf_index: 1, sibling_path: tree.get_sibling_path(1) },
                 leaf_preimage: leaf_preimages[1]
             },
             NoteHashSettledReadHint {
                 read_request_index: 3,
-                membership_witness: NoteHashMembershipWitness { leaf_index: 0, sibling_path: tree.get_sibling_path(0) },
+                membership_witness: MembershipWitness { leaf_index: 0, sibling_path: tree.get_sibling_path(0) },
                 leaf_preimage: leaf_preimages[0]
             }
         ];

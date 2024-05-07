@@ -9,10 +9,9 @@ use crate::{
 use dep::types::{
     hash::sha256_to_field,
     abis::{
-    append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-    membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
-    nullifier_leaf_preimage::NullifierLeafPreimage, public_data_update_request::PublicDataUpdateRequest,
-    public_data_read::PublicDataRead, kernel_data::KernelData
+    append_only_tree_snapshot::AppendOnlyTreeSnapshot, nullifier_leaf_preimage::NullifierLeafPreimage,
+    public_data_update_request::PublicDataUpdateRequest, public_data_read::PublicDataRead,
+    kernel_data::KernelData
 },
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
@@ -20,7 +19,7 @@ use dep::types::{
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
     NUM_ENCRYPTED_LOGS_HASHES_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_UNENCRYPTED_LOGS_HASHES_PER_TX,
     NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
-    PUBLIC_DATA_SUBTREE_HEIGHT
+    PUBLIC_DATA_SUBTREE_HEIGHT, ARCHIVE_HEIGHT
 },
     merkle_tree::{
     append_only_tree, assert_check_membership, calculate_empty_tree_root, calculate_subtree_root,
@@ -43,9 +42,9 @@ struct BaseRollupInputs {
     sorted_public_data_writes: [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     sorted_public_data_writes_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    low_public_data_writes_witnesses: [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
 
-    archive_root_membership_witness: ArchiveRootMembershipWitness,
+    archive_root_membership_witness: MembershipWitness<ARCHIVE_HEIGHT>,
 
     constants: ConstantRollupData,
 }
@@ -148,7 +147,7 @@ impl BaseRollupInputs {
             self.state_diff_hints.nullifier_subtree_sibling_path,
             self.state_diff_hints.nullifier_predecessor_preimages,
             self.state_diff_hints.nullifier_predecessor_membership_witnesses.map(
-                |witness: NullifierMembershipWitness| {
+                |witness: MembershipWitness<NULLIFIER_TREE_HEIGHT>| {
                 MembershipWitness {
                     leaf_index: witness.leaf_index,
                     sibling_path: witness.sibling_path,
@@ -266,7 +265,7 @@ fn insert_public_data_update_requests(
     sorted_public_data_writes: [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     sorted_public_data_writes_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    low_public_data_writes_witnesses: [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     public_data_writes_subtree_sibling_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH]
 ) -> AppendOnlyTreeSnapshot {
     indexed_tree::batch_insert(
@@ -277,7 +276,7 @@ fn insert_public_data_update_requests(
         public_data_writes_subtree_sibling_path,
         low_public_data_writes_preimages,
         low_public_data_writes_witnesses.map(
-            |witness: PublicDataMembershipWitness| {
+            |witness: MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>| {
             MembershipWitness {
                 leaf_index: witness.leaf_index,
                 sibling_path: witness.sibling_path,
@@ -369,12 +368,11 @@ mod tests {
     use dep::types::{
         abis::{
         append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-        membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
         nullifier_leaf_preimage::NullifierLeafPreimage, public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest, kernel_data::KernelData,
         side_effect::SideEffect, accumulated_data::CombinedAccumulatedData
     },
-        address::{AztecAddress, EthAddress},
+        merkle_tree::MembershipWitness, address::{AztecAddress, EthAddress},
         constants::{
         ARCHIVE_HEIGHT, MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
@@ -409,12 +407,12 @@ mod tests {
         snapshot: AppendOnlyTreeSnapshot,
         public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), 2>,
         mut pre_existing_public_data: [PublicDataTreeLeafPreimage; EXISTING_LEAVES]
-    ) -> ([Field; 35], [PublicDataTreeLeaf; 32], [u64; 32], [PublicDataTreeLeafPreimage; 32], [PublicDataMembershipWitness; 32], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
+    ) -> ([Field; 35], [PublicDataTreeLeaf; 32], [u64; 32], [PublicDataTreeLeafPreimage; 32], [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; 32], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
         let mut subtree_path = [0; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH];
         let mut sorted_public_data_writes = [PublicDataTreeLeaf::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         let mut sorted_public_data_writes_indexes = [0 as u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         let mut low_public_data_writes_preimages = [PublicDataTreeLeafPreimage::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
-        let mut low_public_data_writes_witnesses = [PublicDataMembershipWitness::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+        let mut low_public_data_writes_witnesses = [MembershipWitness::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         let mut new_subtree = [PublicDataTreeLeafPreimage::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
 
         for i in 0..MAX_PUBLIC_DATA_WRITES_PER_TEST {
@@ -458,7 +456,7 @@ mod tests {
                         };
                     }
                     low_public_data_writes_preimages[i] = low_leaf;
-                    low_public_data_writes_witnesses[i] = PublicDataMembershipWitness {
+                    low_public_data_writes_witnesses[i] = MembershipWitness {
                         leaf_index: low_leaf_index as Field,
                         sibling_path: public_data_tree.get_sibling_path(low_leaf_index)
                     };
@@ -526,9 +524,9 @@ mod tests {
             nullifier_tree: &mut NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
             kernel_data: &mut KernelData,
             start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot
-        ) -> ([NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX], [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX], [Field; MAX_NEW_NULLIFIERS_PER_TX], [u64; MAX_NEW_NULLIFIERS_PER_TX]) {
+        ) -> ([NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX], [MembershipWitness<NULLIFIER_TREE_HEIGHT>; MAX_NEW_NULLIFIERS_PER_TX], [Field; MAX_NEW_NULLIFIERS_PER_TX], [u64; MAX_NEW_NULLIFIERS_PER_TX]) {
             let mut nullifier_predecessor_preimages = [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX];
-            let mut low_nullifier_membership_witness = [NullifierMembershipWitness::empty(); MAX_NEW_NULLIFIERS_PER_TX];
+            let mut low_nullifier_membership_witness = [MembershipWitness::empty(); MAX_NEW_NULLIFIERS_PER_TX];
 
             let sorted_new_nullifier_tuples = sort_high_to_low(
                 self.new_nullifiers.storage.map(|insertion: NullifierInsertion| insertion.value),
@@ -562,7 +560,7 @@ mod tests {
 
                     let mut low_preimage = pre_existing_nullifiers[low_index];
                     nullifier_predecessor_preimages[i] = low_preimage;
-                    low_nullifier_membership_witness[i] = NullifierMembershipWitness {
+                    low_nullifier_membership_witness[i] = MembershipWitness {
                         leaf_index: low_index as Field,
                         sibling_path: nullifier_tree.get_sibling_path(low_index)
                     };
@@ -687,7 +685,7 @@ mod tests {
                 sorted_public_data_writes_indexes,
                 low_public_data_writes_preimages,
                 low_public_data_writes_witnesses,
-                archive_root_membership_witness: ArchiveRootMembershipWitness { leaf_index: 0, sibling_path: start_archive.get_sibling_path(0) },
+                archive_root_membership_witness: MembershipWitness { leaf_index: 0, sibling_path: start_archive.get_sibling_path(0) },
                 constants: self.constants
             }
         }

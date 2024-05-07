@@ -2,16 +2,16 @@ use crate::{
     abis::{
     gas_settings::GasSettings, call_request::{CallerContext, CallRequest},
     private_call_stack_item::PrivateCallStackItem, function_data::FunctionData,
-    max_block_number::MaxBlockNumber, membership_witness::FunctionLeafMembershipWitness,
-    private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    max_block_number::MaxBlockNumber, private_circuit_public_inputs::PrivateCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect
 },
+    merkle_tree::membership::MembershipWitness,
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
     mocked::{Proof, VerificationKey},
     tests::{fixtures, private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder},
     transaction::{tx_request::TxRequest, tx_context::TxContext}
 };
-use crate::constants::{MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL};
+use crate::constants::{MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, FUNCTION_TREE_HEIGHT};
 
 struct PrivateCallDataBuilder {
     // Values of PrivateCallStackItem.
@@ -28,7 +28,7 @@ struct PrivateCallDataBuilder {
     public_keys_hash: PublicKeysHash,
     contract_class_artifact_hash: Field,
     contract_class_public_bytecode_commitment: Field,
-    function_leaf_membership_witness: FunctionLeafMembershipWitness,
+    function_leaf_membership_witness: MembershipWitness<FUNCTION_TREE_HEIGHT>,
     acir_hash: Field,
     gas_settings: GasSettings,
 }

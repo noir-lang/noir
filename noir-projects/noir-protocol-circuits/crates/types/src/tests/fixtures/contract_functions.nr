@@ -1,13 +1,12 @@
-use crate::abis::{
-    function_data::FunctionData, function_selector::FunctionSelector,
-    membership_witness::FunctionLeafMembershipWitness
-};
+use crate::abis::{function_data::FunctionData, function_selector::FunctionSelector};
+use crate::merkle_tree::membership::MembershipWitness;
+use crate::constants::FUNCTION_TREE_HEIGHT;
 
 struct ContractFunction {
     data: FunctionData,
     vk_hash: Field,
     acir_hash: Field,
-    membership_witness: FunctionLeafMembershipWitness,
+    membership_witness: MembershipWitness<FUNCTION_TREE_HEIGHT>,
 }
 
 // sibling_path taken from __snapshots__/noir_test_gen.test.ts.snap
@@ -18,7 +17,7 @@ global default_private_function = ContractFunction {
     },
     vk_hash: 0,
     acir_hash: 1111,
-    membership_witness: FunctionLeafMembershipWitness {
+    membership_witness: MembershipWitness {
         leaf_index: 0,
         sibling_path: [
             0x1e5cebe7a50c5c8fd1ebe19ed6bbf80f77819b12a2a28f334e895501e1cda574,
@@ -37,7 +36,7 @@ global default_public_function = ContractFunction {
     },
     vk_hash: 0,
     acir_hash: 3333,
-    membership_witness: FunctionLeafMembershipWitness {
+    membership_witness: MembershipWitness {
         leaf_index: 2,
         sibling_path: [
             0x2d72ef5ebb7c974e1f5a8bed092f1cf1bf0a0cb1eda28516221ca7e5811ecf15,

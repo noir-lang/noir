@@ -6,9 +6,6 @@ mod function_selector;
 mod function_data;
 
 mod global_variables;
-
-mod membership_witness;
-
 mod note_hash_leaf_preimage;
 mod nullifier_leaf_preimage;
 
