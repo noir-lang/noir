@@ -19,10 +19,10 @@ impl<'a> SliceCapacityTracker<'a> {
 
     /// Determine how the slice sizes map needs to be updated according to the provided instruction.
     pub(crate) fn collect_slice_information(
-        &mut self,
+        &self,
         instruction: &Instruction,
         slice_sizes: &mut HashMap<ValueId, usize>,
-        results: Vec<ValueId>,
+        results: &[ValueId],
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
