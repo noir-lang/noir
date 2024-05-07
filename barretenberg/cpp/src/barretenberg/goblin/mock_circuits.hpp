@@ -17,6 +17,7 @@
 #include "barretenberg/stdlib_circuit_builders/mock_circuits.hpp"
 
 namespace bb {
+
 class GoblinMockCircuits {
   public:
     using Curve = curve::BN254;
@@ -120,8 +121,8 @@ class GoblinMockCircuits {
     {
         // Add some arbitrary ecc op gates
         for (size_t i = 0; i < 3; ++i) {
-            auto point = Point::random_element();
-            auto scalar = FF::random_element();
+            auto point = Point::random_element(&engine);
+            auto scalar = FF::random_element(&engine);
             builder.queue_ecc_add_accum(point);
             builder.queue_ecc_mul_accum(point, scalar);
         }

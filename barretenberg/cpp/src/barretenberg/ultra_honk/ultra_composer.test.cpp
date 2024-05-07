@@ -16,10 +16,6 @@
 
 using namespace bb;
 
-namespace {
-auto& engine = numeric::get_debug_randomness();
-}
-
 using ProverInstance = ProverInstance_<UltraFlavor>;
 using VerificationKey = UltraFlavor::VerificationKey;
 

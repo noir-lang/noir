@@ -92,7 +92,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_goblin_gates_to_
         this->blocks.poseidon_internal, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
 
     // add dummy mul accum op and an equality op
-    this->queue_ecc_mul_accum(bb::g1::affine_element::one() * FF::random_element(), FF::random_element());
+    this->queue_ecc_mul_accum(bb::g1::affine_element::one(), 2);
     this->queue_ecc_eq();
 }
 

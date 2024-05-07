@@ -9,10 +9,10 @@ using Builder = typename ECCVMFlavor::CircuitBuilder;
 using FF = typename ECCVMFlavor::FF;
 using ProverPolynomials = typename ECCVMFlavor::ProverPolynomials;
 
-bool ECCVMTraceChecker::check(Builder& builder)
+bool ECCVMTraceChecker::check(Builder& builder, numeric::RNG* engine_ptr)
 {
-    const FF gamma = FF::random_element();
-    const FF beta = FF::random_element();
+    const FF gamma = FF::random_element(engine_ptr);
+    const FF beta = FF::random_element(engine_ptr);
     const FF beta_sqr = beta.sqr();
     const FF beta_cube = beta_sqr * beta;
     auto eccvm_set_permutation_delta =

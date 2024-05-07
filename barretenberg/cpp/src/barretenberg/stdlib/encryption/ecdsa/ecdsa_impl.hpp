@@ -7,6 +7,10 @@
 
 namespace bb::stdlib {
 
+namespace {
+auto& engine = numeric::get_debug_randomness();
+}
+
 /**
  * @brief Verify ECDSA signature. Produces unsatisfiable constraints if signature fails
  *
@@ -241,7 +245,7 @@ template <typename Builder> void generate_ecdsa_verification_test_circuit(Builde
     crypto::ecdsa_key_pair<fr, g1> account;
     for (size_t i = 0; i < num_iterations; i++) {
         // Generate unique signature for each iteration
-        account.private_key = curve::fr::random_element();
+        account.private_key = curve::fr::random_element(&engine);
         account.public_key = curve::g1::one * account.private_key;
 
         crypto::ecdsa_signature signature =

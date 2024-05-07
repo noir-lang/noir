@@ -3,6 +3,9 @@
 
 namespace bb {
 
+namespace {
+auto& engine = numeric::get_debug_randomness();
+}
 class MockCircuits {
   public:
     using Curve = curve::BN254;
@@ -20,9 +23,9 @@ class MockCircuits {
     {
         // For good measure, include a gate with some public inputs
         for (size_t i = 0; i < num_gates; ++i) {
-            FF a = FF::random_element();
-            FF b = FF::random_element();
-            FF c = FF::random_element();
+            FF a = FF::random_element(&engine);
+            FF b = FF::random_element(&engine);
+            FF c = FF::random_element(&engine);
             FF d = a + b + c;
             uint32_t a_idx = builder.add_public_variable(a);
             uint32_t b_idx = builder.add_variable(b);
@@ -43,9 +46,9 @@ class MockCircuits {
     {
         // For good measure, include a gate with some public inputs
         for (size_t i = 0; i < num_gates; ++i) {
-            FF a = FF::random_element();
-            FF b = FF::random_element();
-            FF c = FF::random_element();
+            FF a = FF::random_element(&engine);
+            FF b = FF::random_element(&engine);
+            FF c = FF::random_element(&engine);
             FF d = a + b + c;
             uint32_t a_idx = builder.add_variable(a);
             uint32_t b_idx = builder.add_variable(b);
@@ -98,8 +101,8 @@ class MockCircuits {
     static void construct_goblin_ecc_op_circuit(GoblinUltraCircuitBuilder& builder)
     {
         // Add a mul accum op, an add accum op and an equality op
-        builder.queue_ecc_add_accum(Point::one() * FF::random_element());
-        builder.queue_ecc_mul_accum(Point::one() * FF::random_element(), FF::random_element());
+        builder.queue_ecc_add_accum(Point::one() * FF::random_element(&engine));
+        builder.queue_ecc_mul_accum(Point::one() * FF::random_element(&engine), FF::random_element(&engine));
         builder.queue_ecc_eq();
     }
 };

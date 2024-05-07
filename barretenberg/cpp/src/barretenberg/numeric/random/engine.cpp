@@ -79,7 +79,7 @@ class DebugEngine : public RNG {
         : engine(std::mt19937_64(12345))
     {}
 
-    DebugEngine(std::seed_seq& seed)
+    DebugEngine(std::uint_fast64_t seed)
         : engine(std::mt19937_64(seed))
     {}
 
@@ -116,12 +116,12 @@ class DebugEngine : public RNG {
 /**
  * Used by tests to ensure consistent behavior.
  */
-RNG& get_debug_randomness(bool reset)
+RNG& get_debug_randomness(bool reset, std::uint_fast64_t seed)
 {
     // static std::seed_seq seed({ 1, 2, 3, 4, 5 });
-    static DebugEngine debug_engine;
+    static DebugEngine debug_engine = DebugEngine();
     if (reset) {
-        debug_engine = DebugEngine();
+        debug_engine = DebugEngine(seed);
     }
     return debug_engine;
 }

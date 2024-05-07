@@ -52,21 +52,24 @@ class Goblin {
         HonkProof eccvm_proof;
         HonkProof translator_proof;
         TranslationEvaluations translation_evaluations;
-        std::vector<Fr> to_buffer()
+
+        size_t size() const
+        {
+            return merge_proof.size() + eccvm_proof.size() + translator_proof.size() + TranslationEvaluations::size();
+        };
+
+        std::vector<Fr> to_buffer() const
         {
             // ACIRHACK: so much copying and duplication added here and elsewhere
-            std::vector<Fr> translation_evaluations_buf; // = translation_evaluations.to_buffer();
-            size_t proof_size =
-                merge_proof.size() + eccvm_proof.size() + translator_proof.size() + translation_evaluations_buf.size();
-
-            std::vector<Fr> result(proof_size);
+            std::vector<Fr> result;
+            result.reserve(size());
             const auto insert = [&result](const std::vector<Fr>& buf) {
                 result.insert(result.end(), buf.begin(), buf.end());
             };
             insert(merge_proof);
             insert(eccvm_proof);
             insert(translator_proof);
-            insert(translation_evaluations_buf);
+            insert(translation_evaluations.to_buffer());
             return result;
         }
     };

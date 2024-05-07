@@ -39,7 +39,7 @@ TEST(ECCVMCircuitBuilderTests, BaseCase)
     op_queue->mul_accumulate(c, x);
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -53,7 +53,7 @@ TEST(ECCVMCircuitBuilderTests, Add)
     op_queue->add_accumulate(a);
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -68,7 +68,7 @@ TEST(ECCVMCircuitBuilderTests, Mul)
     op_queue->mul_accumulate(a, x);
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -89,7 +89,7 @@ TEST(ECCVMCircuitBuilderTests, ShortMul)
     op_queue->eq_and_reset();
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -106,7 +106,7 @@ TEST(ECCVMCircuitBuilderTests, EqFails)
     op_queue->add_erroneous_equality_op_for_testing();
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, false);
 }
 
@@ -117,7 +117,7 @@ TEST(ECCVMCircuitBuilderTests, EmptyRow)
     op_queue->empty_row_for_testing();
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -134,7 +134,7 @@ TEST(ECCVMCircuitBuilderTests, EmptyRowBetweenOps)
     op_queue->eq_and_reset();
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -150,7 +150,7 @@ TEST(ECCVMCircuitBuilderTests, EndWithEq)
     op_queue->eq_and_reset();
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -167,7 +167,7 @@ TEST(ECCVMCircuitBuilderTests, EndWithAdd)
     op_queue->add_accumulate(a);
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -184,7 +184,7 @@ TEST(ECCVMCircuitBuilderTests, EndWithMul)
     op_queue->mul_accumulate(a, x);
 
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -202,7 +202,7 @@ TEST(ECCVMCircuitBuilderTests, EndWithNoop)
 
     op_queue->empty_row_for_testing();
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }
 
@@ -240,6 +240,6 @@ TEST(ECCVMCircuitBuilderTests, MSM)
         compute_msms(j, op_queue);
     }
     ECCVMCircuitBuilder circuit{ op_queue };
-    bool result = ECCVMTraceChecker::check(circuit);
+    bool result = ECCVMTraceChecker::check(circuit, &engine);
     EXPECT_EQ(result, true);
 }

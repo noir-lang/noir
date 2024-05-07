@@ -53,7 +53,7 @@ bool ClientIVC::verify(Proof& proof, const std::vector<VerifierAccumulator>& ver
 
     // Decider verification
     ClientIVC::FoldingVerifier folding_verifier({ verifier_instances[0], verifier_instances[1] });
-    auto verifier_accumulator = folding_verifier.verify_folding_proof(proof.fold_proof);
+    auto verifier_accumulator = folding_verifier.verify_folding_proof(proof.folding_proof);
 
     ClientIVC::DeciderVerifier decider_verifier(verifier_accumulator);
     bool decision = decider_verifier.verify_proof(proof.decider_proof);

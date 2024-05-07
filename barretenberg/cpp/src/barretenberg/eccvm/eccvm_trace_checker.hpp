@@ -4,6 +4,6 @@
 namespace bb {
 class ECCVMTraceChecker {
   public:
-    static bool check(ECCVMCircuitBuilder&);
+    static bool check(ECCVMCircuitBuilder&, numeric::RNG* engine_ptr = nullptr);
 };
 } // namespace bb
