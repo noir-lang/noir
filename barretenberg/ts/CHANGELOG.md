@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.38.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.37.0...barretenberg.js-v0.38.0) (2024-05-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* AES blackbox ([#6016](https://github.com/AztecProtocol/aztec-packages/issues/6016))
+
+### Features
+
+* `multi_scalar_mul` blackbox func ([#6097](https://github.com/AztecProtocol/aztec-packages/issues/6097)) ([f6b1ba6](https://github.com/AztecProtocol/aztec-packages/commit/f6b1ba60daf37a5a6466ca1e5ee7be70354af485))
+* AES blackbox ([#6016](https://github.com/AztecProtocol/aztec-packages/issues/6016)) ([e4b97a8](https://github.com/AztecProtocol/aztec-packages/commit/e4b97a8cd7574a828c2a54b4a93b5ced79df6abf))
+* Honk flows exposed through wasm ([#6096](https://github.com/AztecProtocol/aztec-packages/issues/6096)) ([c9b3206](https://github.com/AztecProtocol/aztec-packages/commit/c9b32061b2849442516ff0395b69d9a230191234))
+* Run noir-packages-test in Earthly ([#6174](https://github.com/AztecProtocol/aztec-packages/issues/6174)) ([58e40c9](https://github.com/AztecProtocol/aztec-packages/commit/58e40c9125e6d7b30abf7a4cbb170bbfc15e2037))
+
+
+### Miscellaneous
+
+* Bump bb.js timeouts ([#6196](https://github.com/AztecProtocol/aztec-packages/issues/6196)) ([acab3de](https://github.com/AztecProtocol/aztec-packages/commit/acab3de86aae9ce5078795ba1ed0626d0c018565))
+* Migrate acir tests to earthly ([#6142](https://github.com/AztecProtocol/aztec-packages/issues/6142)) ([18c8ea8](https://github.com/AztecProtocol/aztec-packages/commit/18c8ea8eb5f9fd1cb51c116d6d1976c774d51bc1))
+
 ## [0.37.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.36.0...barretenberg.js-v0.37.0) (2024-05-02)
 
 
