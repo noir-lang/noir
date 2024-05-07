@@ -5,7 +5,8 @@ deps:
     LET packages = $(git ls-files "**/package*.json" package*.json)
     LET tsconfigs = $(git ls-files "**/tsconfig*.json" tsconfig*.json)
     FROM ../build-images+build
-    # copy bb-js and noir-packages
+    # copy bb, bb-js and noir-packages
+    COPY ../barretenberg/cpp/+preset-release/bin /usr/src/barretenberg/cpp/build/
     COPY ../barretenberg/ts/+build/build /usr/src/barretenberg/ts
     COPY ../noir/+packages/packages /usr/src/noir/packages
     WORKDIR /usr/src/yarn-project
@@ -100,7 +101,7 @@ end-to-end:
     RUN apt-get update && apt-get install -y wget gnupg \
         && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
         && echo "deb [arch=$(dpkg --print-architecture)] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
-        && apt update && apt install nodejs jq google-chrome-stable netcat-openbsd -y \
+        && apt update && apt install curl nodejs jq google-chrome-stable netcat-openbsd -y \
         && rm -rf /var/lib/apt/lists/*
     ENV CHROME_BIN="/usr/bin/google-chrome-stable"
     ENV PATH=/opt/foundry/bin:$PATH

@@ -50,16 +50,16 @@ export function executeBB(
 ) {
   return new Promise<BB_RESULT.SUCCESS | BB_RESULT.FAILURE>((resolve, reject) => {
     // spawn the bb process
-    const acvm = proc.spawn(pathToBB, [command, ...args]);
-    acvm.stdout.on('data', data => {
+    const bb = proc.spawn(pathToBB, [command, ...args]);
+    bb.stdout.on('data', data => {
       const message = data.toString('utf-8').replace(/\n$/, '');
       logger(message);
     });
-    acvm.stderr.on('data', data => {
+    bb.stderr.on('data', data => {
       const message = data.toString('utf-8').replace(/\n$/, '');
       logger(message);
     });
-    acvm.on('close', (code: number) => {
+    bb.on('close', (code: number) => {
       if (resultParser(code)) {
         resolve(BB_RESULT.SUCCESS);
       } else {

@@ -22,7 +22,6 @@ import {
   createDebugLogger,
   createPXEClient,
   deployL1Contracts,
-  fileURLToPath,
   makeFetch,
   waitForPXE,
 } from '@aztec/aztec.js';
@@ -33,7 +32,6 @@ import {
   computeContractAddressFromInstance,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
@@ -55,6 +53,7 @@ import { KeyRegistryContract } from '@aztec/noir-contracts.js';
 import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
 import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
+import { type ProverClient } from '@aztec/prover-client';
 import {
   type BBNativeProofCreator,
   PXEService,
@@ -65,7 +64,6 @@ import {
 import { type SequencerClient } from '@aztec/sequencer-client';
 
 import { type Anvil, createAnvil } from '@viem/anvil';
-import * as fs from 'fs/promises';
 import getPort from 'get-port';
 import * as path from 'path';
 import {
@@ -83,67 +81,15 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
 import { MNEMONIC } from './fixtures.js';
+import { getACVMConfig } from './get_acvm_config.js';
 import { isMetricsLoggingRequested, setupMetricsLogger } from './logging.js';
 
 export { deployAndInitializeTokenAndBridgeContracts } from '../shared/cross_chain_test_harness.js';
 
-const {
-  PXE_URL = '',
-  NOIR_RELEASE_DIR = 'noir-repo/target/release',
-  TEMP_DIR = '/tmp',
-  ACVM_BINARY_PATH = '',
-  ACVM_WORKING_DIRECTORY = '',
-  BB_BINARY_PATH = '',
-  BB_WORKING_DIRECTORY = '',
-  BB_RELEASE_DIR = 'cpp/build/bin',
-} = process.env;
+const { PXE_URL = '' } = process.env;
 
 const getAztecUrl = () => {
   return PXE_URL;
-};
-
-// Determines if we have access to the acvm binary and a tmp folder for temp files
-const getACVMConfig = async (logger: DebugLogger) => {
-  try {
-    const expectedAcvmPath = ACVM_BINARY_PATH
-      ? ACVM_BINARY_PATH
-      : `${path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../noir/', NOIR_RELEASE_DIR)}/acvm`;
-    await fs.access(expectedAcvmPath, fs.constants.R_OK);
-    const tempWorkingDirectory = `${TEMP_DIR}/${randomBytes(4).toString('hex')}`;
-    const acvmWorkingDirectory = ACVM_WORKING_DIRECTORY ? ACVM_WORKING_DIRECTORY : `${tempWorkingDirectory}/acvm`;
-    await fs.mkdir(acvmWorkingDirectory, { recursive: true });
-    logger.info(`Using native ACVM binary at ${expectedAcvmPath} with working directory ${acvmWorkingDirectory}`);
-    return {
-      acvmWorkingDirectory,
-      expectedAcvmPath,
-      directoryToCleanup: ACVM_WORKING_DIRECTORY ? undefined : tempWorkingDirectory,
-    };
-  } catch (err) {
-    logger.error(`Native ACVM not available, error: ${err}`);
-    return undefined;
-  }
-};
-
-// Determines if we have access to the bb binary and a tmp folder for temp files
-export const getBBConfig = async (logger: DebugLogger) => {
-  try {
-    const expectedBBPath = BB_BINARY_PATH
-      ? BB_BINARY_PATH
-      : `${path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../barretenberg/', BB_RELEASE_DIR)}/bb`;
-    await fs.access(expectedBBPath, fs.constants.R_OK);
-    const tempWorkingDirectory = `${TEMP_DIR}/${randomBytes(4).toString('hex')}`;
-    const bbWorkingDirectory = BB_WORKING_DIRECTORY ? BB_WORKING_DIRECTORY : `${tempWorkingDirectory}/bb`;
-    await fs.mkdir(bbWorkingDirectory, { recursive: true });
-    logger.info(`Using native BB binary at ${expectedBBPath} with working directory ${bbWorkingDirectory}`);
-    return {
-      bbWorkingDirectory,
-      expectedBBPath,
-      directoryToCleanup: BB_WORKING_DIRECTORY ? undefined : tempWorkingDirectory,
-    };
-  } catch (err) {
-    logger.error(`Native BB not available, error: ${err}`);
-    return undefined;
-  }
 };
 
 export const setupL1Contracts = async (
@@ -312,7 +258,7 @@ async function setupWithRemoteEnvironment(
 
   const { chainId, protocolVersion } = await pxeClient.getNodeInfo();
   // this contract might already have been deployed
-  // the following deployin functions are idempotent
+  // the following deploying functions are idempotent
   await deployCanonicalKeyRegistry(
     new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(chainId, protocolVersion)),
   );
@@ -326,6 +272,7 @@ async function setupWithRemoteEnvironment(
   return {
     aztecNode,
     sequencer: undefined,
+    prover: undefined,
     pxe: pxeClient,
     deployL1ContractsValues,
     accounts: await pxeClient!.getRegisteredAccounts(),
@@ -366,6 +313,8 @@ export type EndToEndContext = {
   logger: DebugLogger;
   /** The cheat codes. */
   cheatCodes: CheatCodes;
+  /** Proving jobs */
+  prover: ProverClient | undefined;
   /** Function to stop the started services. */
   teardown: () => Promise<void>;
 };
@@ -383,6 +332,7 @@ export async function setup(
   enableGas = false,
 ): Promise<EndToEndContext> {
   const config = { ...getConfigEnvVars(), ...opts };
+  const logger = getLogger();
 
   let anvil: Anvil | undefined;
 
@@ -413,6 +363,7 @@ export async function setup(
   // Enable logging metrics to a local file named after the test suite
   if (isMetricsLoggingRequested()) {
     const filename = path.join('log', getJobName() + '.jsonl');
+    logger.info(`Logging metrics to ${filename}`);
     setupMetricsLogger(filename);
   }
 
@@ -421,7 +372,6 @@ export async function setup(
     await ethCheatCodes.loadChainState(opts.stateLoad);
   }
 
-  const logger = getLogger();
   const hdAccount = mnemonicToAccount(MNEMONIC);
   const privKeyRaw = hdAccount.getHdKey().privateKey;
   const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
@@ -442,11 +392,12 @@ export async function setup(
   const acvmConfig = await getACVMConfig(logger);
   if (acvmConfig) {
     config.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
-    config.acvmBinaryPath = acvmConfig.expectedAcvmPath;
+    config.acvmBinaryPath = acvmConfig.acvmBinaryPath;
   }
   config.l1BlockPublishRetryIntervalMS = 100;
   const aztecNode = await AztecNodeService.createAndSync(config);
   const sequencer = aztecNode.getSequencer();
+  const prover = aztecNode.getProver();
 
   logger.verbose('Creating a pxe...');
   const { pxe, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
@@ -473,10 +424,10 @@ export async function setup(
       await pxe?.stop();
     }
 
-    if (acvmConfig?.directoryToCleanup) {
+    if (acvmConfig?.cleanup) {
       // remove the temp directory created for the acvm
-      logger.verbose(`Cleaning up ACVM temp directory ${acvmConfig.directoryToCleanup}`);
-      await fs.rm(acvmConfig.directoryToCleanup, { recursive: true, force: true });
+      logger.verbose(`Cleaning up ACVM state`);
+      await acvmConfig.cleanup();
     }
 
     await anvil?.stop();
@@ -492,6 +443,7 @@ export async function setup(
     logger,
     cheatCodes,
     sequencer,
+    prover,
     teardown,
   };
 }

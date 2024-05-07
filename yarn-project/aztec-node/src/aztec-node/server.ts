@@ -15,6 +15,7 @@ import {
   NullifierMembershipWitness,
   type ProcessOutput,
   type ProverClient,
+  type ProverConfig,
   PublicDataWitness,
   type SequencerConfig,
   type SiblingPath,
@@ -688,9 +689,9 @@ export class AztecNodeService implements AztecNode {
     };
   }
 
-  public setConfig(config: Partial<SequencerConfig>): Promise<void> {
+  public async setConfig(config: Partial<SequencerConfig & ProverConfig>): Promise<void> {
     this.sequencer?.updateSequencerConfig(config);
-    return Promise.resolve();
+    await this.prover.updateProverConfig(config);
   }
 
   /**

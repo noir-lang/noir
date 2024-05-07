@@ -1,6 +1,8 @@
 import { type ProvingJobSource } from '@aztec/circuit-types';
 import { ProverPool, createProvingJobSourceClient } from '@aztec/prover-client/prover-pool';
 
+import { tmpdir } from 'node:os';
+
 import { type ServiceStarter, parseModuleOptions } from '../util.js';
 
 type ProverOptions = Partial<{
@@ -35,6 +37,8 @@ export const startProver: ServiceStarter = async (options, signalHandlers, logge
       {
         acvmBinaryPath: proverOptions.acvmBinaryPath,
         bbBinaryPath: proverOptions.bbBinaryPath,
+        acvmWorkingDirectory: tmpdir(),
+        bbWorkingDirectory: tmpdir(),
       },
       agentCount,
     );

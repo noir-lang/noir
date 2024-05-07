@@ -15,9 +15,8 @@ import {
 import { TokenContract } from '@aztec/noir-contracts.js';
 import { BBNativeProofCreator, type PXEService } from '@aztec/pxe';
 
-import * as fs from 'fs/promises';
-
 import { waitRegisteredAccountSynced } from '../benchmarks/utils.js';
+import { getBBConfig } from '../fixtures/get_bb_config.js';
 import {
   type ISnapshotManager,
   type SubsystemsContext,
@@ -25,7 +24,7 @@ import {
   createSnapshotManager,
   publicDeployAccounts,
 } from '../fixtures/snapshot_manager.js';
-import { getBBConfig, setupPXEService } from '../fixtures/utils.js';
+import { setupPXEService } from '../fixtures/utils.js';
 import { TokenSimulator } from '../simulators/token_simulator.js';
 
 const { E2E_DATA_PATH: dataPath } = process.env;
@@ -55,7 +54,7 @@ export class ClientProverTest {
   fullProverPXE!: PXEService;
   provenAsset!: TokenContract;
   provenPXETeardown?: () => Promise<void>;
-  private directoryToCleanup?: string;
+  private bbConfigCleanup?: () => Promise<void>;
   proofCreator?: BBNativeProofCreator;
 
   constructor(testName: string) {
@@ -121,13 +120,13 @@ export class ClientProverTest {
 
     // Configure a full prover PXE
     const bbConfig = await getBBConfig(this.logger);
-    this.directoryToCleanup = bbConfig?.directoryToCleanup;
+    this.bbConfigCleanup = bbConfig?.cleanup;
 
-    if (!bbConfig?.bbWorkingDirectory || !bbConfig?.expectedBBPath) {
+    if (!bbConfig?.bbWorkingDirectory || !bbConfig?.bbBinaryPath) {
       throw new Error(`Test must be run with BB native configuration`);
     }
 
-    this.proofCreator = new BBNativeProofCreator(bbConfig?.expectedBBPath, bbConfig?.bbWorkingDirectory);
+    this.proofCreator = new BBNativeProofCreator(bbConfig.bbBinaryPath, bbConfig.bbWorkingDirectory);
 
     this.logger.debug(`Main setup completed, initializing full prover PXE...`);
     ({ pxe: this.fullProverPXE, teardown: this.provenPXETeardown } = await setupPXEService(
@@ -135,7 +134,7 @@ export class ClientProverTest {
       this.aztecNode,
       {
         proverEnabled: false,
-        bbBinaryPath: bbConfig?.expectedBBPath,
+        bbBinaryPath: bbConfig?.bbBinaryPath,
         bbWorkingDirectory: bbConfig?.bbWorkingDirectory,
       },
       undefined,
@@ -180,9 +179,7 @@ export class ClientProverTest {
     // Cleanup related to the second 'full prover' PXE
     await this.provenPXETeardown?.();
 
-    if (this.directoryToCleanup) {
-      await fs.rm(this.directoryToCleanup, { recursive: true, force: true });
-    }
+    await this.bbConfigCleanup?.();
   }
 
   async addPendingShieldNoteToPXE(accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) {

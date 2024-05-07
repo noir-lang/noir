@@ -1,6 +1,6 @@
 import { type ArchiverConfig, getConfigEnvVars as getArchiverVars } from '@aztec/archiver';
 import { type P2PConfig, getP2PConfigEnvVars } from '@aztec/p2p';
-import { type ProverConfig, getProverEnvVars } from '@aztec/prover-client';
+import { type ProverClientConfig, getProverEnvVars } from '@aztec/prover-client';
 import { type SequencerClientConfig, getConfigEnvVars as getSequencerVars } from '@aztec/sequencer-client';
 import { getConfigEnvVars as getWorldStateVars } from '@aztec/world-state';
 
@@ -9,7 +9,7 @@ import { getConfigEnvVars as getWorldStateVars } from '@aztec/world-state';
  */
 export type AztecNodeConfig = ArchiverConfig &
   SequencerClientConfig &
-  ProverConfig &
+  ProverClientConfig &
   P2PConfig & {
     /** Whether the sequencer is disabled for this node. */
     disableSequencer: boolean;

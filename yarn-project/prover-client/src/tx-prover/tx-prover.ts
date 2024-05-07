@@ -2,6 +2,7 @@ import { type ProcessedTx } from '@aztec/circuit-types';
 import {
   type BlockResult,
   type ProverClient,
+  type ProverConfig,
   type ProvingJobSource,
   type ProvingTicket,
 } from '@aztec/circuit-types/interfaces';
@@ -9,7 +10,7 @@ import { type Fr, type GlobalVariables } from '@aztec/circuits.js';
 import { type SimulationProvider } from '@aztec/simulator';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
-import { type ProverConfig } from '../config.js';
+import { type ProverClientConfig } from '../config.js';
 import { type VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
 import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
@@ -28,6 +29,12 @@ export class TxProver implements ProverClient {
     private proverPool?: ProverPool,
   ) {
     this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.queue);
+  }
+
+  async updateProverConfig(config: Partial<ProverConfig>): Promise<void> {
+    if (typeof config.proverAgents === 'number') {
+      await this.proverPool?.rescale(config.proverAgents);
+    }
   }
 
   /**
@@ -51,7 +58,7 @@ export class TxProver implements ProverClient {
    * @returns An instance of the prover, constructed and started.
    */
   public static async new(
-    config: ProverConfig,
+    config: ProverClientConfig,
     simulationProvider: SimulationProvider,
     worldStateSynchronizer: WorldStateSynchronizer,
   ) {
@@ -68,9 +75,9 @@ export class TxProver implements ProverClient {
         throw new Error();
       }
 
-      pool = ProverPool.nativePool(config, config.proverAgents, 50);
+      pool = ProverPool.nativePool(config, config.proverAgents, config.proverAgentPollInterval);
     } else {
-      pool = ProverPool.testPool(simulationProvider, config.proverAgents, 50);
+      pool = ProverPool.testPool(simulationProvider, config.proverAgents, config.proverAgentPollInterval);
     }
 
     const prover = new TxProver(worldStateSynchronizer, getVerificationKeys(), pool);

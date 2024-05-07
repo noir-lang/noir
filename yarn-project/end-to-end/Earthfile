@@ -103,3 +103,11 @@ bench-tx-size:
   ARG COMMIT_HASH
   DO +E2E_COMPOSE_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml
   DO +UPLOAD_LOGS --e2e_mode=$e2e_mode --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
+
+bench-proving:
+  ARG e2e_mode=local
+  ARG PULL_REQUEST
+  ARG BRANCH
+  ARG COMMIT_HASH
+  DO +E2E_COMPOSE_TEST --test=bench_proving --debug="aztec:benchmarks:*,aztec:prover*,aztec:bb*" --e2e_mode=$e2e_mode --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml
+  DO +UPLOAD_LOGS --e2e_mode=$e2e_mode --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH

@@ -253,7 +253,7 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
   const acvmConfig = await getACVMConfig(logger);
   if (acvmConfig) {
     aztecNodeConfig.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
-    aztecNodeConfig.acvmBinaryPath = acvmConfig.expectedAcvmPath;
+    aztecNodeConfig.acvmBinaryPath = acvmConfig.acvmBinaryPath;
   }
 
   logger.verbose('Creating and synching an aztec node...');
@@ -305,7 +305,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   const acvmConfig = await getACVMConfig(logger);
   if (acvmConfig) {
     aztecNodeConfig.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
-    aztecNodeConfig.acvmBinaryPath = acvmConfig.expectedAcvmPath;
+    aztecNodeConfig.acvmBinaryPath = acvmConfig.acvmBinaryPath;
   }
 
   logger.verbose('Creating aztec node...');

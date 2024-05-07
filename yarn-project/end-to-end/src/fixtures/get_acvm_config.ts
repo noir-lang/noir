@@ -13,14 +13,21 @@ const {
 } = process.env;
 
 // Determines if we have access to the acvm binary and a tmp folder for temp files
-export async function getACVMConfig(logger: DebugLogger) {
+export async function getACVMConfig(logger: DebugLogger): Promise<
+  | {
+      acvmWorkingDirectory: string;
+      acvmBinaryPath: string;
+      cleanup: () => Promise<void>;
+    }
+  | undefined
+> {
   try {
-    const expectedAcvmPath = ACVM_BINARY_PATH ? ACVM_BINARY_PATH : `../../noir/${NOIR_RELEASE_DIR}/acvm`;
-    await fs.access(expectedAcvmPath, fs.constants.R_OK);
+    const acvmBinaryPath = ACVM_BINARY_PATH ? ACVM_BINARY_PATH : `../../noir/${NOIR_RELEASE_DIR}/acvm`;
+    await fs.access(acvmBinaryPath, fs.constants.R_OK);
     const tempWorkingDirectory = `${TEMP_DIR}/${randomBytes(4).toString('hex')}`;
     const acvmWorkingDirectory = ACVM_WORKING_DIRECTORY ? ACVM_WORKING_DIRECTORY : `${tempWorkingDirectory}/acvm`;
     await fs.mkdir(acvmWorkingDirectory, { recursive: true });
-    logger.verbose(`Using native ACVM binary at ${expectedAcvmPath} with working directory ${acvmWorkingDirectory}`);
+    logger.verbose(`Using native ACVM binary at ${acvmBinaryPath} with working directory ${acvmWorkingDirectory}`);
 
     const directoryToCleanup = ACVM_WORKING_DIRECTORY ? undefined : tempWorkingDirectory;
 
@@ -33,7 +40,7 @@ export async function getACVMConfig(logger: DebugLogger) {
 
     return {
       acvmWorkingDirectory,
-      expectedAcvmPath,
+      acvmBinaryPath,
       cleanup,
     };
   } catch (err) {

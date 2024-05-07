@@ -26,6 +26,7 @@ import { type TxEffect } from '../tx_effect.js';
 import { type SequencerConfig } from './configs.js';
 import { type L2BlockNumber } from './l2_block_number.js';
 import { type NullifierMembershipWitness } from './nullifier_tree.js';
+import { type ProverConfig } from './prover-client.js';
 import { type PublicDataWitness } from './public_data_tree.js';
 
 /**
@@ -288,7 +289,7 @@ export interface AztecNode {
    * Updates the configuration of this node.
    * @param config - Updated configuration to be merged with the current one.
    */
-  setConfig(config: Partial<SequencerConfig>): Promise<void>;
+  setConfig(config: Partial<SequencerConfig & ProverConfig>): Promise<void>;
 
   /**
    * Returns a registered contract class given its id.
