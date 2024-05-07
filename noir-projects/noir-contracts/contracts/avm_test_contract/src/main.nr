@@ -60,10 +60,11 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn read_storage_single() -> pub Field {
+    fn read_storage_single() -> Field {
         storage.single.read()
     }
 
+    // should still be able to use ` -> pub *` for return type even though macro forces `pub`
     #[aztec(public-vm)]
     fn set_read_storage_single(a: Field) -> pub Field {
         storage.single.write(a);
@@ -76,20 +77,20 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn read_storage_list() -> pub [Field; 2] {
+    fn read_storage_list() -> [Field; 2] {
         let note: Note = storage.list.read();
         note.serialize()
     }
 
     #[aztec(public-vm)]
-    fn set_storage_map(to: AztecAddress, amount: u32) -> pub Field {
+    fn set_storage_map(to: AztecAddress, amount: u32) -> Field {
         storage.map.at(to).write(amount);
         // returns storage slot for key
         dep::std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
     }
 
     #[aztec(public-vm)]
-    fn add_storage_map(to: AztecAddress, amount: u32) -> pub Field {
+    fn add_storage_map(to: AztecAddress, amount: u32) -> Field {
         let new_balance = storage.map.at(to).read().add(amount);
         storage.map.at(to).write(new_balance);
         // returns storage slot for key
@@ -97,12 +98,12 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn read_storage_map(address: AztecAddress) -> pub u32 {
+    fn read_storage_map(address: AztecAddress) -> u32 {
         storage.map.at(address).read()
     }
 
     #[aztec(public-vm)]
-    fn add_args_return(arg_a: Field, arg_b: Field) -> pub Field {
+    fn add_args_return(arg_a: Field, arg_b: Field) -> Field {
         arg_a + arg_b
     }
 
@@ -110,32 +111,32 @@ contract AvmTest {
      * General Opcodes
      ************************************************************************/
     #[aztec(public-vm)]
-    fn set_opcode_u8() -> pub u8 {
+    fn set_opcode_u8() -> u8 {
         8 as u8
     }
 
     #[aztec(public-vm)]
-    fn set_opcode_u32() -> pub u32 {
+    fn set_opcode_u32() -> u32 {
         1 << 30 as u8
     }
 
     #[aztec(public-vm)]
-    fn set_opcode_u64() -> pub u64 {
+    fn set_opcode_u64() -> u64 {
         1 << 60 as u8
     }
 
     #[aztec(public-vm)]
-    fn set_opcode_small_field() -> pub Field {
+    fn set_opcode_small_field() -> Field {
         big_field_128_bits
     }
 
     #[aztec(public-vm)]
-    fn set_opcode_big_field() -> pub Field {
+    fn set_opcode_big_field() -> Field {
         big_field_136_bits
     }
 
     #[aztec(public-vm)]
-    fn add_u128(a: U128, b: U128) -> pub U128 {
+    fn add_u128(a: U128, b: U128) -> U128 {
         a + b
     }
 
@@ -143,27 +144,27 @@ contract AvmTest {
      * Hashing functions
      ************************************************************************/
     #[aztec(public-vm)]
-    fn keccak_hash(data: [u8; 10]) -> pub [u8; 32] {
+    fn keccak_hash(data: [u8; 10]) -> [u8; 32] {
         dep::std::hash::keccak256(data, data.len() as u32)
     }
 
     #[aztec(public-vm)]
-    fn poseidon2_hash(data: [Field; 10]) -> pub Field {
+    fn poseidon2_hash(data: [Field; 10]) -> Field {
         dep::std::hash::poseidon2::Poseidon2::hash(data, data.len())
     }
 
     #[aztec(public-vm)]
-    fn sha256_hash(data: [u8; 10]) -> pub [u8; 32] {
+    fn sha256_hash(data: [u8; 10]) -> [u8; 32] {
         dep::std::hash::sha256(data)
     }
 
     #[aztec(public-vm)]
-    fn pedersen_hash(data: [Field; 10]) -> pub Field {
+    fn pedersen_hash(data: [Field; 10]) -> Field {
         dep::std::hash::pedersen_hash(data)
     }
 
     #[aztec(public-vm)]
-    fn pedersen_hash_with_index(data: [Field; 10]) -> pub Field {
+    fn pedersen_hash_with_index(data: [Field; 10]) -> Field {
         dep::std::hash::pedersen_hash_with_separator(data, /*index=*/ 20)
     }
 
@@ -193,57 +194,57 @@ contract AvmTest {
      * AvmContext functions
      ************************************************************************/
     #[aztec(public-vm)]
-    fn get_address() -> pub AztecAddress {
+    fn get_address() -> AztecAddress {
         context.this_address()
     }
 
     #[aztec(public-vm)]
-    fn get_storage_address() -> pub AztecAddress {
+    fn get_storage_address() -> AztecAddress {
         context.storage_address()
     }
 
     #[aztec(public-vm)]
-    fn get_sender() -> pub AztecAddress {
+    fn get_sender() -> AztecAddress {
         context.msg_sender()
     }
 
     #[aztec(public-vm)]
-    fn get_fee_per_l2_gas() -> pub Field {
+    fn get_fee_per_l2_gas() -> Field {
         context.fee_per_l2_gas()
     }
 
     #[aztec(public-vm)]
-    fn get_fee_per_da_gas() -> pub Field {
+    fn get_fee_per_da_gas() -> Field {
         context.fee_per_da_gas()
     }
 
     #[aztec(public-vm)]
-    fn get_transaction_fee() -> pub Field {
+    fn get_transaction_fee() -> Field {
         context.transaction_fee()
     }
 
     #[aztec(public-vm)]
-    fn get_chain_id() -> pub Field {
+    fn get_chain_id() -> Field {
         context.chain_id()
     }
 
     #[aztec(public-vm)]
-    fn get_version() -> pub Field {
+    fn get_version() -> Field {
         context.version()
     }
 
     #[aztec(public-vm)]
-    fn get_block_number() -> pub Field {
+    fn get_block_number() -> Field {
         context.block_number()
     }
 
     #[aztec(public-vm)]
-    fn get_timestamp() -> pub u64 {
+    fn get_timestamp() -> u64 {
         context.timestamp()
     }
 
     // #[aztec(public-vm)]
-    // fn get_contract_call_depth() -> pub Field {
+    // fn get_contract_call_depth() -> Field {
     //     context.contract_call_depth()
     // }
 
@@ -255,7 +256,7 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn get_args_hash(_a: u8, _fields: [Field; 3]) -> pub Field {
+    fn get_args_hash(_a: u8, _fields: [Field; 3]) -> Field {
         context.get_args_hash()
     }
 
@@ -268,7 +269,7 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn note_hash_exists(note_hash: Field, leaf_index: Field) -> pub bool {
+    fn note_hash_exists(note_hash: Field, leaf_index: Field) -> bool {
         context.note_hash_exists(note_hash, leaf_index)
     }
 
@@ -286,7 +287,7 @@ contract AvmTest {
 
     // Use the standard context interface to check for a nullifier
     #[aztec(public-vm)]
-    fn nullifier_exists(nullifier: Field) -> pub bool {
+    fn nullifier_exists(nullifier: Field) -> bool {
         context.nullifier_exists(nullifier, context.this_address())
     }
 
@@ -312,7 +313,7 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> pub bool {
+    fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> bool {
         context.l1_to_l2_msg_exists(msg_hash, msg_leaf_index)
     }
 

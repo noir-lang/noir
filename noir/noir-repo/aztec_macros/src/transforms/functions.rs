@@ -103,6 +103,8 @@ pub fn transform_function(
         let return_type = create_return_type(&return_type_name);
         func.def.return_type = return_type;
         func.def.return_visibility = Visibility::Public;
+    } else {
+        func.def.return_visibility = Visibility::Public;
     }
 
     // Public functions should have unconstrained auto-inferred
