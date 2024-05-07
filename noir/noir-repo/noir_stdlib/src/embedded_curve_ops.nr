@@ -18,42 +18,39 @@ impl Add for EmbeddedCurvePoint {
     }
 }
 
-// Computes a fixed base scalar multiplication over the embedded curve.
+// Computes a multi scalar multiplication over the embedded curve.
 // For bn254, We have Grumpkin and Baby JubJub.
 // For bls12-381, we have JubJub and Bandersnatch.
 //
 // The embedded curve being used is decided by the 
 // underlying proof system.
-#[foreign(fixed_base_scalar_mul)]
-// docs:start:fixed_base_embedded_curve
-pub fn fixed_base_embedded_curve(
-    low: Field, // low limb of the scalar
-    high: Field // high limb of the scalar
+#[foreign(multi_scalar_mul)]
+// docs:start:multi_scalar_mul
+pub fn multi_scalar_mul<N>(
+    points: [Field; N], // points represented as x and y coordinates [x1, y1, x2, y2, ...]
+    scalars: [Field; N] // scalars represented as low and high limbs [low1, high1, low2, high2, ...]
 ) -> [Field; 2]
-// docs:end:fixed_base_embedded_curve
+// docs:end:multi_scalar_mul
 {}
 
-// Computes a variable base scalar multiplication over the embedded curve.
-// For bn254, We have Grumpkin and Baby JubJub.
-// For bls12-381, we have JubJub and Bandersnatch.
-//
-// The embedded curve being used is decided by the 
-// underlying proof system.
-// TODO(https://github.com/noir-lang/noir/issues/4931): use a point struct instead of two fields
-#[foreign(variable_base_scalar_mul)]
-// docs:start:variable_base_embedded_curve
-pub fn variable_base_embedded_curve(
-    point_x: Field, // x coordinate of a point to multiply the scalar with
-    point_y: Field, // y coordinate of a point to multiply the scalar with
-    scalar_low: Field, // low limb of the scalar
-    scalar_high: Field // high limb of the scalar
+// docs:start:fixed_base_scalar_mul
+pub fn fixed_base_scalar_mul(
+    scalar_low: Field,
+    scalar_high: Field
 ) -> [Field; 2]
-// docs:end:variable_base_embedded_curve
-{}
+// docs:end:fixed_base_scalar_mul
+{
+    let g1_x = 1;
+    let g1_y = 17631683881184975370165255887551781615748388533673675138860;
+    multi_scalar_mul([g1_x, g1_y], [scalar_low, scalar_high])
+}
 
 // This is a hack as returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
 // as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
-fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
+// docs:start:embedded_curve_add
+fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint
+// docs:end:embedded_curve_add
+{
     let point_array = embedded_curve_add_array_return(point1, point2);
     let x = point_array[0];
     let y = point_array[1];

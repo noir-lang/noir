@@ -84,14 +84,10 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
     for (const auto& constraint : constraint_system.poseidon2_constraints) {
         create_poseidon2_permutations(builder, constraint);
     }
-    // Add fixed base scalar mul constraints
-    for (const auto& constraint : constraint_system.fixed_base_scalar_mul_constraints) {
-        create_fixed_base_constraint(builder, constraint);
-    }
 
-    // Add variable base scalar mul constraints
-    for (const auto& constraint : constraint_system.variable_base_scalar_mul_constraints) {
-        create_variable_base_constraint(builder, constraint);
+    // Add multi scalar mul constraints
+    for (const auto& constraint : constraint_system.multi_scalar_mul_constraints) {
+        create_multi_scalar_mul_constraint(builder, constraint);
     }
 
     // Add ec add constraints

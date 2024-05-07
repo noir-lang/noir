@@ -139,18 +139,11 @@ Inputs and outputs are similar to SchnorrVerify, except that because we use a di
 
 **EcdsaSecp256r1**: Same as EcdsaSecp256k1, but done over another curve.
 
-**FixedBaseScalarMul**: scalar multiplication with a fixed generator of the embedded curve
-- input: low, high are 2 (field , 254), representing the low and high part of the input. For Barretenberg, they must both be less than 128 bits.
-- output: x and y coordinates of $low*G+high*2^{128}*G$, where G is a fixed generator
-
-Because the Grumpkin scalar field is bigger than the ACIR field, we provide 2 ACIR fields representing the low and high parts of the Grumpkin scalar $a$:
-$a=low+high*2^{128},$ with $low, high < 2^{128}$
-
-**VariableBaseScalarMul**: scalar multiplication with a variable base/input point (P) of the embedded curve
+**MultiScalarMul**: scalar multiplication with a variable base/input point (P) of the embedded curve
 - input:
-    point_x, point_y representing x and y coordinates of input point P
-    scalar_low, scalar_high are 2 (field , 254), representing the low and high part of the input scalar. For Barretenberg, they must both be less than 128 bits.
-- output: x and y coordinates of $low*P+high*2^{128}*P$, where P is the input point P
+    points (FieldElement, N) a vector of x and y coordinates of input points [x1, y1, x2, y2,...].
+    scalars (FieldElement, N) a vector of low and high limbs of input scalars [s1_low, s1_high, s2_low, s2_high, ...]. (FieldElement, N) For Barretenberg, they must both be less than 128 bits.
+- output: (FieldElement, N) a vector of x and y coordinates of output points [op1_x, op1_y, op2_x, op2_y, ...]. Points computed as $s_low*P+s_high*2^{128}*P$
 
 Because the Grumpkin scalar field is bigger than the ACIR field, we provide 2 ACIR fields representing the low and high parts of the Grumpkin scalar $a$:
 $a=low+high*2^{128},$ with $low, high < 2^{128}$

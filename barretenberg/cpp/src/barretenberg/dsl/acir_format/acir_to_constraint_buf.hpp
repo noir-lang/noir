@@ -310,19 +310,10 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output.value,
                     .signature = map(arg.signature, [](auto& e) { return e.witness.value; }),
                 });
-            } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::FixedBaseScalarMul>) {
-                af.fixed_base_scalar_mul_constraints.push_back(FixedBaseScalarMul{
-                    .low = arg.low.witness.value,
-                    .high = arg.high.witness.value,
-                    .pub_key_x = arg.outputs[0].value,
-                    .pub_key_y = arg.outputs[1].value,
-                });
-            } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::VariableBaseScalarMul>) {
-                af.variable_base_scalar_mul_constraints.push_back(VariableBaseScalarMul{
-                    .point_x = arg.point_x.witness.value,
-                    .point_y = arg.point_y.witness.value,
-                    .scalar_low = arg.scalar_low.witness.value,
-                    .scalar_high = arg.scalar_high.witness.value,
+            } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::MultiScalarMul>) {
+                af.multi_scalar_mul_constraints.push_back(MultiScalarMul{
+                    .points = map(arg.points, [](auto& e) { return e.witness.value; }),
+                    .scalars = map(arg.scalars, [](auto& e) { return e.witness.value; }),
                     .out_point_x = arg.outputs[0].value,
                     .out_point_y = arg.outputs[1].value,
                 });

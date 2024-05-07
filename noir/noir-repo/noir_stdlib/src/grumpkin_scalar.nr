@@ -1,3 +1,4 @@
+// TODO(https://github.com/noir-lang/noir/issues/4968): move to aztec noir-protocol-circuits
 struct GrumpkinScalar {
     low: Field,
     high: Field,

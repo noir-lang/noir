@@ -21,7 +21,7 @@ const INFO_RESPONSE: &str = r#"{
         "pedersen_hash",
         "ecdsa_secp256k1",
         "ecdsa_secp256r1",
-        "fixed_base_scalar_mul",
+        "multi_scalar_mul",
         "recursive_aggregation"
     ]
 }"#;
