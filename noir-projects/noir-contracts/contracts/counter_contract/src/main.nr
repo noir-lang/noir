@@ -26,6 +26,7 @@ contract Counter {
     // docs:start:increment
     #[aztec(private)]
     fn increment(owner: AztecAddress) {
+        dep::aztec::oracle::debug_log::debug_log_format("Incrementing counter for owner {0}", [owner.to_field()]);
         let counters = storage.counters;
         counters.at(owner).add(1, owner);
     }

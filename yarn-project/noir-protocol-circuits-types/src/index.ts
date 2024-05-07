@@ -2,7 +2,6 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
-  Fr,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type ParityPublicInputs,
@@ -25,6 +24,7 @@ import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import {
   type ForeignCallInput,
+  type ForeignCallOutput,
   type WasmBlackBoxFunctionSolver,
   createBlackBoxSolver,
   executeCircuitWithBlackBoxSolver,
@@ -755,7 +755,7 @@ async function executePrivateKernelTailToPublicWithACVM(
   return decodedInputs.return_value as PublicPublicPreviousReturnType;
 }
 
-export const foreignCallHandler = (name: string, args: ForeignCallInput[]) => {
+export function foreignCallHandler(name: string, args: ForeignCallInput[]): Promise<ForeignCallOutput[]> {
   const log = createDebugLogger('aztec:noir-protocol-circuits:oracle');
 
   if (name === 'debugLog') {
@@ -766,5 +766,5 @@ export const foreignCallHandler = (name: string, args: ForeignCallInput[]) => {
     throw Error(`unexpected oracle during execution: ${name}`);
   }
 
-  return Promise.resolve([`0x${Buffer.alloc(Fr.SIZE_IN_BYTES).toString('hex')}`]);
-};
+  return Promise.resolve([]);
+}
