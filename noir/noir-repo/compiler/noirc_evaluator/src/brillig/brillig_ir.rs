@@ -167,22 +167,12 @@ pub(crate) mod tests {
         ) -> Result<FieldElement, BlackBoxResolutionError> {
             Ok(6_u128.into())
         }
-        fn fixed_base_scalar_mul(
+        fn multi_scalar_mul(
             &self,
-            _low: &FieldElement,
-            _high: &FieldElement,
+            _points: &[FieldElement],
+            _scalars: &[FieldElement],
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into()))
-        }
-
-        fn variable_base_scalar_mul(
-            &self,
-            _point_x: &FieldElement,
-            _point_y: &FieldElement,
-            _scalar_low: &FieldElement,
-            _scalar_high: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((7_u128.into(), 8_u128.into()))
         }
 
         fn ec_add(

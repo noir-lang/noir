@@ -1,4 +1,4 @@
-use dep::std::{cmp::Eq, grumpkin_scalar::GrumpkinScalar, grumpkin_scalar_mul::grumpkin_fixed_base};
+use dep::std::{cmp::Eq, grumpkin_scalar::GrumpkinScalar, embedded_curve_ops::fixed_base_scalar_mul};
 use crate::{
     grumpkin_point::GrumpkinPoint,
     traits::Empty
@@ -41,7 +41,7 @@ impl GrumpkinPrivateKey {
     }
 
     pub fn derive_public_key(self) -> GrumpkinPoint {
-        let public_key = grumpkin_fixed_base(GrumpkinScalar { high: self.high, low: self.low });
+        let public_key = fixed_base_scalar_mul(self.low, self.high);
         GrumpkinPoint { x: public_key[0], y: public_key[1] }
     }
 }

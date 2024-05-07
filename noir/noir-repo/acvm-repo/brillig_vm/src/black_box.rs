@@ -136,24 +136,14 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write(*result, verified.into());
             Ok(())
         }
-        BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
-            let low = memory.read(*low).try_into().unwrap();
-            let high = memory.read(*high).try_into().unwrap();
-            let (x, y) = solver.fixed_base_scalar_mul(&low, &high)?;
+        BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
+            let points: Vec<FieldElement> =
+                read_heap_vector(memory, points).iter().map(|x| x.try_into().unwrap()).collect();
+            let scalars: Vec<FieldElement> =
+                read_heap_vector(memory, scalars).iter().map(|x| x.try_into().unwrap()).collect();
+
+            let (x, y) = solver.multi_scalar_mul(&points, &scalars)?;
             memory.write_slice(memory.read_ref(result.pointer), &[x.into(), y.into()]);
-            Ok(())
-        }
-        BlackBoxOp::VariableBaseScalarMul { point_x, point_y, scalar_low, scalar_high, result } => {
-            let point_x = memory.read(*point_x).try_into().unwrap();
-            let point_y = memory.read(*point_y).try_into().unwrap();
-            let scalar_low = memory.read(*scalar_low).try_into().unwrap();
-            let scalar_high = memory.read(*scalar_high).try_into().unwrap();
-            let (out_point_x, out_point_y) =
-                solver.variable_base_scalar_mul(&point_x, &point_y, &scalar_low, &scalar_high)?;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
-                &[out_point_x.into(), out_point_y.into()],
-            );
             Ok(())
         }
         BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
@@ -301,8 +291,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
         BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
         BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
-        BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
-        BlackBoxOp::VariableBaseScalarMul { .. } => BlackBoxFunc::VariableBaseScalarMul,
+        BlackBoxOp::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
         BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
         BlackBoxOp::BigIntSub { .. } => BlackBoxFunc::BigIntSub,

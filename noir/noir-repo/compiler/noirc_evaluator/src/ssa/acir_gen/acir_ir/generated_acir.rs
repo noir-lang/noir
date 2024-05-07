@@ -278,16 +278,9 @@ impl GeneratedAcir {
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                low: inputs[0][0],
-                high: inputs[1][0],
-                outputs: (outputs[0], outputs[1]),
-            },
-            BlackBoxFunc::VariableBaseScalarMul => BlackBoxFuncCall::VariableBaseScalarMul {
-                point_x: inputs[0][0],
-                point_y: inputs[1][0],
-                scalar_low: inputs[2][0],
-                scalar_high: inputs[3][0],
+            BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
+                points: inputs[0].clone(),
+                scalars: inputs[1].clone(),
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -672,13 +665,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => None,
 
-        // Inputs for fixed based scalar multiplication
-        // is the low and high limbs of the scalar
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
-
-        // Inputs for variable based scalar multiplication are the x and y coordinates of the base point and low
-        // and high limbs of the scalar
-        BlackBoxFunc::VariableBaseScalarMul => Some(4),
+        // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
+        BlackBoxFunc::MultiScalarMul => None,
 
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
@@ -734,9 +722,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul
-        | BlackBoxFunc::VariableBaseScalarMul
-        | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd
