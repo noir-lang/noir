@@ -54,8 +54,8 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
+    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
+    pub expression_width: ExpressionWidth,
 
     /// Force a full recompilation.
     #[arg(long = "force")]
@@ -252,7 +252,7 @@ pub fn check_crate(
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
-        let diagnostic: CustomDiagnostic = error.into();
+        let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
     }));
 

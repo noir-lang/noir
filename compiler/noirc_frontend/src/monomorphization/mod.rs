@@ -30,6 +30,7 @@ use std::{
     unreachable,
 };
 
+use self::ast::InlineType;
 use self::debug_types::DebugTypeTracker;
 use self::{
     ast::{Definition, FuncId, Function, LocalId, Program},
@@ -132,7 +133,7 @@ pub fn monomorphize_debug(
         .finished_functions
         .iter()
         .flat_map(|(_, f)| {
-            if f.should_fold || f.id == Program::main_id() {
+            if f.inline_type.is_entry_point() || f.id == Program::main_id() {
                 Some(f.func_sig.clone())
             } else {
                 None
@@ -141,8 +142,7 @@ pub fn monomorphize_debug(
         .collect();
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, return_visibility, kind, .. } =
-        monomorphizer.interner.function_meta(&main);
+    let FuncMeta { return_visibility, kind, .. } = monomorphizer.interner.function_meta(&main);
 
     let (debug_variables, debug_functions, debug_types) =
         monomorphizer.debug_type_tracker.extract_vars_and_types();
@@ -150,7 +150,6 @@ pub fn monomorphize_debug(
         functions,
         func_sigs,
         function_sig,
-        *return_distinctness,
         monomorphizer.return_location,
         *return_visibility,
         *kind == FunctionKind::Recursive,
@@ -304,7 +303,8 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(return_type, meta.location)?;
         let unconstrained = modifiers.is_unconstrained;
 
-        let should_fold = meta.should_fold;
+        let attributes = self.interner.function_attributes(&f);
+        let inline_type = InlineType::from(attributes);
 
         let parameters = self.parameters(&meta.parameters)?;
         let body = self.expr(body_expr_id)?;
@@ -315,7 +315,7 @@ impl<'interner> Monomorphizer<'interner> {
             body,
             return_type,
             unconstrained,
-            should_fold,
+            inline_type,
             func_sig,
         };
 
@@ -521,6 +521,12 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
             HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
+            HirExpression::Unquote(_) => {
+                unreachable!("unquote expression remaining in runtime code")
+            }
+            HirExpression::Comptime(_) => {
+                unreachable!("comptime expression remaining in runtime code")
+            }
         };
 
         Ok(expr)
@@ -1392,7 +1398,7 @@ impl<'interner> Monomorphizer<'interner> {
             body,
             return_type,
             unconstrained,
-            should_fold: false,
+            inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
         self.push_function(id, function);
@@ -1518,7 +1524,7 @@ impl<'interner> Monomorphizer<'interner> {
             body,
             return_type,
             unconstrained,
-            should_fold: false,
+            inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
         self.push_function(id, function);
@@ -1643,7 +1649,7 @@ impl<'interner> Monomorphizer<'interner> {
             body,
             return_type,
             unconstrained,
-            should_fold: false,
+            inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
         self.push_function(id, function);

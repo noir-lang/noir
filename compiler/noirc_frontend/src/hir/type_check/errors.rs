@@ -80,6 +80,8 @@ pub enum TypeCheckError {
     FieldModulo { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
+    #[error("The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first")]
+    InvalidShiftSize { span: Span },
     #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
     AmbiguousBitWidth { span: Span },
     #[error("Error with additional context")]
@@ -145,36 +147,36 @@ impl TypeCheckError {
     }
 }
 
-impl From<TypeCheckError> for Diagnostic {
-    fn from(error: TypeCheckError) -> Diagnostic {
+impl<'a> From<&'a TypeCheckError> for Diagnostic {
+    fn from(error: &'a TypeCheckError) -> Diagnostic {
         match error {
             TypeCheckError::TypeCannotBeUsed { typ, place, span } => Diagnostic::simple_error(
                 format!("The type {} cannot be used in a {}", &typ, place),
                 String::new(),
-                span,
+                *span,
             ),
             TypeCheckError::Context { err, ctx } => {
-                let mut diag = Diagnostic::from(*err);
-                diag.add_note(ctx.to_owned());
+                let mut diag = Diagnostic::from(err.as_ref());
+                diag.add_note(ctx.to_string());
                 diag
             }
             TypeCheckError::OpCannotBeUsed { op, place, span } => Diagnostic::simple_error(
                 format!("The operator {op:?} cannot be used in a {place}"),
                 String::new(),
-                span,
+                *span,
             ),
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
-                    expr_span,
+                    *expr_span,
                 )
             }
             TypeCheckError::TraitMethodParameterTypeMismatch { method_name, expected_typ, actual_typ, parameter_index, parameter_span } => {
                 Diagnostic::simple_error(
                     format!("Parameter #{parameter_index} of method `{method_name}` must be of type {expected_typ}, not {actual_typ}"),
                     String::new(),
-                    parameter_span,
+                    *parameter_span,
                 )
             }
             TypeCheckError::NonHomogeneousArray {
@@ -190,27 +192,27 @@ impl From<TypeCheckError> for Diagnostic {
                         "Non homogeneous array, different element types found at indices ({first_index},{second_index})"
                     ),
                     format!("Found type {first_type}"),
-                    first_span,
+                    *first_span,
                 );
-                diag.add_secondary(format!("but then found type {second_type}"), second_span);
+                diag.add_secondary(format!("but then found type {second_type}"), *second_span);
                 diag
             }
             TypeCheckError::ArityMisMatch { expected, found, span } => {
-                let plural = if expected == 1 { "" } else { "s" };
+                let plural = if *expected == 1 { "" } else { "s" };
                 let msg = format!("Expected {expected} argument{plural}, but found {found}");
-                Diagnostic::simple_error(msg, String::new(), span)
+                Diagnostic::simple_error(msg, String::new(), *span)
             }
             TypeCheckError::ParameterCountMismatch { expected, found, span } => {
-                let empty_or_s = if expected == 1 { "" } else { "s" };
-                let was_or_were = if found == 1 { "was" } else { "were" };
+                let empty_or_s = if *expected == 1 { "" } else { "s" };
+                let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
-                Diagnostic::simple_error(msg, String::new(), span)
+                Diagnostic::simple_error(msg, String::new(), *span)
             }
             TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
-                let empty_or_s = if expected == 1 { "" } else { "s" };
-                let was_or_were = if found == 1 { "was" } else { "were" };
+                let empty_or_s = if *expected == 1 { "" } else { "s" };
+                let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
-                Diagnostic::simple_error(msg, String::new(), span)
+                Diagnostic::simple_error(msg, String::new(), *span)
             }
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
@@ -234,18 +236,19 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
             | TypeCheckError::NonConstantSliceLength { span }
-            | TypeCheckError::StringIndexAssign { span } => {
-                Diagnostic::simple_error(error.to_string(), String::new(), span)
+            | TypeCheckError::StringIndexAssign { span }
+            | TypeCheckError::InvalidShiftSize { span } => {
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),
-                span,
+                *span,
             ),
             TypeCheckError::TypeAnnotationsNeeded { span } => Diagnostic::simple_error(
                 "Expression type is ambiguous".to_string(),
                 "Type must be known at this point".to_string(),
-                span,
+                *span,
             ),
             TypeCheckError::ResolverError(error) => error.into(),
             TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
@@ -271,30 +274,30 @@ impl From<TypeCheckError> for Diagnostic {
                             diagnostic.add_note(format!("help: try adding a return type: `-> {actual}`"));
                         }
 
-                        diagnostic.add_secondary(format!("{actual} returned here"), expr_span);
+                        diagnostic.add_secondary(format!("{actual} returned here"), *expr_span);
 
                         return diagnostic
                     },
                 };
 
-                Diagnostic::simple_error(message, String::new(), span)
+                Diagnostic::simple_error(message, String::new(), *span)
             }
             TypeCheckError::CallDeprecated { span, ref note, .. } => {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 
-                Diagnostic::simple_warning(primary_message, secondary_message, span)
+                Diagnostic::simple_warning(primary_message, secondary_message, *span)
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
                 let msg = format!("Unused expression result of type {expr_type}");
-                Diagnostic::simple_warning(msg, String::new(), expr_span)
+                Diagnostic::simple_warning(msg, String::new(), *expr_span)
             }
             TypeCheckError::NoMatchingImplFound { constraints, span } => {
                 assert!(!constraints.is_empty());
                 let msg = format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
                 let mut diagnostic = Diagnostic::from_message(&msg);
 
-                diagnostic.add_secondary(format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1), span);
+                diagnostic.add_secondary(format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1), *span);
 
                 // These must be notes since secondaries are unordered
                 for (typ, trait_name) in &constraints[1..] {
@@ -305,11 +308,11 @@ impl From<TypeCheckError> for Diagnostic {
             }
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, span } => {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
-                Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), span)
+                Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), *span)
             }
             TypeCheckError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), span),
+                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), *span),
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,
@@ -317,10 +320,10 @@ impl From<TypeCheckError> for Diagnostic {
                 method_name,
                 span,
             } => {
-                let plural = if expected_num_parameters == 1 { "" } else { "s" };
+                let plural = if *expected_num_parameters == 1 { "" } else { "s" };
                 let primary_message = format!(
                     "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
-                Diagnostic::simple_error(primary_message, "".to_string(), span)
+                Diagnostic::simple_error(primary_message, "".to_string(), *span)
             }
         }
     }

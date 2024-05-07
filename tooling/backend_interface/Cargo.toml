@@ -13,7 +13,6 @@ license.workspace = true
 acvm.workspace = true
 dirs.workspace = true
 thiserror.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 bb_abstraction_leaks.workspace = true
 tracing.workspace = true

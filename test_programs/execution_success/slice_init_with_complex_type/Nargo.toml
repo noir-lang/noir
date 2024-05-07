@@ -1,0 +1,7 @@
+[package]
+name = "slice_init_with_complex_type"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]

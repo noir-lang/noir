@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::ast::{
-    Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
+    Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::token::{Attributes, Token};
@@ -28,6 +28,7 @@ pub enum ExpressionKind {
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
     Quote(BlockExpression),
+    Comptime(BlockExpression),
     Error,
 }
 
@@ -400,7 +401,6 @@ pub struct FunctionDefinition {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
-    pub return_distinctness: Distinctness,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -504,6 +504,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Quote(block) => write!(f, "quote {block}"),
+            Comptime(block) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
         }
     }
@@ -696,7 +697,6 @@ impl FunctionDefinition {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
         }
     }
 }
