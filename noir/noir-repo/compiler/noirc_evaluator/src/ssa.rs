@@ -68,6 +68,8 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        // This pass must come immediately following `mem2reg` as the succeeding passes
+        // may create an SSA which inlining fails to handle.
         .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
         .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")

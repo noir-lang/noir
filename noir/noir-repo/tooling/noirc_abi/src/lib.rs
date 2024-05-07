@@ -221,7 +221,7 @@ impl From<&AbiType> for PrintableType {
             }
             AbiType::Array { length, typ } => {
                 let borrowed: &AbiType = typ.borrow();
-                PrintableType::Array { length: Some(*length), typ: Box::new(borrowed.into()) }
+                PrintableType::Array { length: *length, typ: Box::new(borrowed.into()) }
             }
             AbiType::Boolean => PrintableType::Boolean,
             AbiType::Struct { path, fields } => {

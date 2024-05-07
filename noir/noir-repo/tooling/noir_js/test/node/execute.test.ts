@@ -93,3 +93,27 @@ it('successfully executes a program with multiple acir circuits', async () => {
     expect(knownError.message).to.equal('Circuit execution failed: Error: Cannot satisfy constraint');
   }
 });
+
+it('successfully executes a program with multiple acir circuits', async () => {
+  const inputs = {
+    x: '10',
+  };
+  try {
+    await new Noir(fold_fibonacci_program).execute(inputs);
+  } catch (error) {
+    const knownError = error as Error;
+    expect(knownError.message).to.equal('Circuit execution failed: Error: Cannot satisfy constraint');
+  }
+});
+
+it('successfully executes a program with multiple acir circuits', async () => {
+  const inputs = {
+    x: '10',
+  };
+  try {
+    await new Noir(fold_fibonacci_program).execute(inputs);
+  } catch (error) {
+    const knownError = error as Error;
+    expect(knownError.message).to.equal('Circuit execution failed: Error: Cannot satisfy constraint');
+  }
+});

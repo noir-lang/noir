@@ -5,12 +5,13 @@ use noirc_errors::{
     Location,
 };
 
-use super::HirType;
 use crate::hir_def::function::FunctionSignature;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
+
+use super::HirType;
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized

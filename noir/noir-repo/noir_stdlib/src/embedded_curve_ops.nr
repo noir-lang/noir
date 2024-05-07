@@ -1,4 +1,4 @@
-use crate::ops::Add;
+use crate::ops::{Add, Sub, Neg};
 
 // TODO(https://github.com/noir-lang/noir/issues/4931)
 struct EmbeddedCurvePoint {
@@ -15,6 +15,21 @@ impl EmbeddedCurvePoint {
 impl Add for EmbeddedCurvePoint {
     fn add(self, other: EmbeddedCurvePoint) -> EmbeddedCurvePoint { 
         embedded_curve_add(self, other)
+    }
+}
+
+impl Sub for EmbeddedCurvePoint {
+    fn sub(self, other: EmbeddedCurvePoint) -> EmbeddedCurvePoint { 
+        self + other.neg()
+    }
+}
+
+impl Neg for EmbeddedCurvePoint {
+    fn neg(self) -> EmbeddedCurvePoint { 
+        EmbeddedCurvePoint {
+            x: self.x,
+            y: -self.y
+        }
     }
 }
 
@@ -48,7 +63,10 @@ pub fn fixed_base_scalar_mul(
 // This is a hack as returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
 // as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
 // docs:start:embedded_curve_add
-fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint
+fn embedded_curve_add(
+    point1: EmbeddedCurvePoint,
+    point2: EmbeddedCurvePoint
+) -> EmbeddedCurvePoint
 // docs:end:embedded_curve_add
 {
     let point_array = embedded_curve_add_array_return(point1, point2);
@@ -58,4 +76,7 @@ fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) ->
 }
 
 #[foreign(embedded_curve_add)]
-fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 2] {}
+fn embedded_curve_add_array_return(
+    _point1: EmbeddedCurvePoint,
+    _point2: EmbeddedCurvePoint
+) -> [Field; 2] {}

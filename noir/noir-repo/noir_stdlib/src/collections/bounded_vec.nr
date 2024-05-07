@@ -1,4 +1,4 @@
-use crate::cmp::Eq;
+use crate::{cmp::Eq, convert::From};
 
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
@@ -74,6 +74,13 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len = new_len;
     }
 
+    pub fn from_array<Len>(array: [T; Len]) -> Self {
+        assert(Len <= MaxLen, "from array out of bounds");
+        let mut vec: BoundedVec<T, MaxLen> = BoundedVec::new();
+        vec.extend_from_array(array);
+        vec
+    }
+
     pub fn pop(&mut self) -> T {
         assert(self.len > 0);
         self.len -= 1;
@@ -107,6 +114,12 @@ impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     }
 }
 
+impl<T, MaxLen, Len> From<[T; Len]> for BoundedVec<T, MaxLen> {
+    fn from(array: [T; Len]) -> BoundedVec<T, MaxLen>  {
+        BoundedVec::from_array(array)
+    }
+}
+
 mod bounded_vec_tests {
     // TODO: Allow imports from "super"
     use crate::collections::bounded_vec::BoundedVec;
@@ -127,5 +140,61 @@ mod bounded_vec_tests {
         bounded_vec2.push(2);
 
         assert(bounded_vec1 != bounded_vec2);
+    }
+
+    mod from_array {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn empty() {
+            let empty_array: [Field; 0] = [];
+            let bounded_vec = BoundedVec::from_array([]);
+
+            assert_eq(bounded_vec.max_len(), 0);
+            assert_eq(bounded_vec.len(), 0);
+            assert_eq(bounded_vec.storage(), empty_array);
+        }
+
+        #[test]
+        fn equal_len() {
+            let array = [1, 2, 3];
+            let bounded_vec = BoundedVec::from_array(array);
+
+            assert_eq(bounded_vec.max_len(), 3);
+            assert_eq(bounded_vec.len(), 3);
+            assert_eq(bounded_vec.storage(), array);
+        }
+
+        #[test]
+        fn max_len_greater_then_array_len() {
+            let array = [1, 2, 3];
+            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array(array);
+
+            assert_eq(bounded_vec.max_len(), 10);
+            assert_eq(bounded_vec.len(), 3);
+            assert_eq(bounded_vec.storage()[0], 1);
+            assert_eq(bounded_vec.storage()[1], 2);
+            assert_eq(bounded_vec.storage()[2], 3);
+        }
+
+        #[test(should_fail_with="from array out of bounds")]
+        fn max_len_lower_then_array_len() {
+            let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
+        }
+    }
+
+    mod trait_from {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn simple() {
+            let array = [1, 2];
+            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from(array);
+
+            assert_eq(bounded_vec.max_len(), 10);
+            assert_eq(bounded_vec.len(), 2);
+            assert_eq(bounded_vec.storage()[0], 1);
+            assert_eq(bounded_vec.storage()[1], 2);
+        }
     }
 }
