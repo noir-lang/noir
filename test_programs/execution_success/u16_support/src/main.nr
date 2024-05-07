@@ -1,4 +1,13 @@
 fn main(x: u16) {
+    test_u16(x);
+    test_u16_unconstrained(x);
+}
+
+unconstrained fn test_u16_unconstrained(x: u16) {
+    test_u16(x)
+}
+
+fn test_u16(x: u16) {
     let t1: u16 = 1234;
     let t2: u16 = 4321;
     let t = t1 + t2;
