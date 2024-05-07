@@ -1,5 +1,5 @@
 import { type FunctionData } from '@aztec/circuits.js';
-import { type DecodedReturn, type FunctionArtifactWithDebugMetadata, decodeReturnValues } from '@aztec/foundation/abi';
+import { type DecodedReturn, type FunctionArtifact, decodeReturnValues } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -16,7 +16,7 @@ import { type ViewDataOracle } from './view_data_oracle.js';
  */
 export async function executeUnconstrainedFunction(
   oracle: ViewDataOracle,
-  artifact: FunctionArtifactWithDebugMetadata,
+  artifact: FunctionArtifact,
   contractAddress: AztecAddress,
   functionData: FunctionData,
   args: Fr[],

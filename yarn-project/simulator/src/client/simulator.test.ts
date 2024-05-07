@@ -6,11 +6,7 @@ import {
   computeUniqueNoteHash,
   siloNoteHash,
 } from '@aztec/circuits.js/hash';
-import {
-  ABIParameterVisibility,
-  type FunctionArtifactWithDebugMetadata,
-  getFunctionArtifact,
-} from '@aztec/foundation/abi';
+import { ABIParameterVisibility, type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -100,7 +96,7 @@ describe('Simulator', () => {
     it('throw if "compute_note_hash_and_nullifier" has the wrong number of parameters', async () => {
       const note = createNote();
 
-      const modifiedArtifact: FunctionArtifactWithDebugMetadata = {
+      const modifiedArtifact: FunctionArtifact = {
         ...artifact,
         parameters: artifact.parameters.slice(1),
       };
@@ -119,7 +115,7 @@ describe('Simulator', () => {
       const note = createNote();
       const wrongPreimageLength = note.length - 1;
 
-      const modifiedArtifact: FunctionArtifactWithDebugMetadata = {
+      const modifiedArtifact: FunctionArtifact = {
         ...artifact,
         parameters: [
           ...artifact.parameters.slice(0, -1),

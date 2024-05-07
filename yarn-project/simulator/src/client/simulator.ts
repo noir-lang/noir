@@ -2,7 +2,7 @@ import { type AztecNode, type FunctionCall, type Note, type TxExecutionRequest }
 import { CallContext, FunctionData } from '@aztec/circuits.js';
 import {
   type ArrayType,
-  type FunctionArtifactWithDebugMetadata,
+  type FunctionArtifact,
   FunctionSelector,
   FunctionType,
   encodeArguments,
@@ -65,7 +65,7 @@ export class AcirSimulator {
    */
   public async run(
     request: TxExecutionRequest,
-    entryPointArtifact: FunctionArtifactWithDebugMetadata,
+    entryPointArtifact: FunctionArtifact,
     contractAddress: AztecAddress,
     msgSender = AztecAddress.ZERO,
   ): Promise<ExecutionResult> {
@@ -129,7 +129,7 @@ export class AcirSimulator {
    */
   public async runUnconstrained(
     request: FunctionCall,
-    entryPointArtifact: FunctionArtifactWithDebugMetadata,
+    entryPointArtifact: FunctionArtifact,
     contractAddress: AztecAddress,
   ) {
     if (entryPointArtifact.functionType !== FunctionType.UNCONSTRAINED) {
@@ -167,7 +167,7 @@ export class AcirSimulator {
     noteTypeId: Fr,
     note: Note,
   ) {
-    const artifact: FunctionArtifactWithDebugMetadata | undefined = await this.db.getFunctionArtifactByName(
+    const artifact: FunctionArtifact | undefined = await this.db.getFunctionArtifactByName(
       contractAddress,
       'compute_note_hash_and_nullifier',
     );
