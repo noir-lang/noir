@@ -22,6 +22,7 @@ import type {
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { AbortedError, TimeoutError } from '@aztec/foundation/error';
 import { MemoryFifo } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -38,11 +39,14 @@ type ProvingJobWithResolvers<T extends ProvingRequest = ProvingRequest> = {
 
 const MAX_RETRIES = 3;
 
+const defaultIdGenerator = () => randomBytes(4).toString('hex');
+
 export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
-  private jobId = 0;
   private log = createDebugLogger('aztec:prover-client:prover-pool:queue');
   private queue = new MemoryFifo<ProvingJobWithResolvers>();
   private jobsInProgress = new Map<string, ProvingJobWithResolvers>();
+
+  constructor(private generateId = defaultIdGenerator) {}
 
   async getProvingJob({ timeoutSec = 1 } = {}): Promise<ProvingJob<ProvingRequest> | undefined> {
     try {
@@ -119,7 +123,7 @@ export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
   ): Promise<ProvingRequestResult<T['type']>> {
     const { promise, resolve, reject } = promiseWithResolvers<ProvingRequestResult<T['type']>>();
     const item: ProvingJobWithResolvers<T> = {
-      id: String(this.jobId++),
+      id: this.generateId(),
       request,
       signal,
       promise,
