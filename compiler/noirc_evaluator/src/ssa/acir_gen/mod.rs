@@ -961,23 +961,23 @@ impl<'a> Context<'a> {
         // If we find one, we will use it when computing the index under the enable_side_effect predicate
         // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
         // cf. https://github.com/noir-lang/noir/pull/4971
-        let mut offset = None;
         let array_id = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array_id);
         // For simplicity we compute the offset only for simple arrays
-        if dfg.instruction_results(instruction).len() == 1
-            && can_omit_element_sizes_array(&array_typ)
-        {
+        let is_simple_array = dfg.instruction_results(instruction).len() == 1
+            && can_omit_element_sizes_array(&array_typ);
+        let offset = if is_simple_array {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            if let Type::Array(item_type, _) | Type::Slice(item_type) = array_typ {
-                for (i, typ) in item_type.iter().enumerate() {
-                    if result_type == *typ {
-                        offset = Some(i);
-                        break;
-                    }
-                }
+            match array_typ {
+                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                _ => None,
             }
-        }
+        } else {
+            None
+        };
         let (new_index, new_value) = self.convert_array_operation_inputs(
             array,
             dfg,
@@ -1205,7 +1205,7 @@ impl<'a> Context<'a> {
     }
 
     /// Generates a read opcode for the array
-    /// index_side_effect false means that we ensured index will have a type matching the value in the array
+    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array
     fn array_get(
         &mut self,
         instruction: InstructionId,
