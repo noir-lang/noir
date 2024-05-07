@@ -1,4 +1,4 @@
-use dep::std::{cmp::Eq, grumpkin_scalar::GrumpkinScalar, embedded_curve_ops::fixed_base_scalar_mul};
+use dep::std::{cmp::Eq, embedded_curve_ops::fixed_base_scalar_mul};
 use crate::{
     grumpkin_point::GrumpkinPoint,
     traits::Empty

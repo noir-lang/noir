@@ -3,12 +3,11 @@ use crate::{
     address::AztecAddress,
     constants::{NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH, NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH},
     traits::{Empty, Serialize, Deserialize}, grumpkin_point::GrumpkinPoint,
-    grumpkin_private_key::GrumpkinPrivateKey
 };
 
 struct NullifierKeyValidationRequest {
     master_nullifier_public_key: GrumpkinPoint,
-    app_nullifier_secret_key: Field, // not a GrumpkinScalar because it's output of poseidon2
+    app_nullifier_secret_key: Field, // not a grumpkin scalar because it's output of poseidon2
 }
 
 impl Eq for NullifierKeyValidationRequest {

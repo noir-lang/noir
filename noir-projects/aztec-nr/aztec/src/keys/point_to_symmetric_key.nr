@@ -1,5 +1,5 @@
 use dep::protocol_types::{constants::GENERATOR_INDEX__SYMMETRIC_KEY, grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, utils::arr_copy_slice};
-use dep::std::{hash::sha256, grumpkin_scalar::GrumpkinScalar, embedded_curve_ops::multi_scalar_mul};
+use dep::std::{hash::sha256, embedded_curve_ops::multi_scalar_mul};
 
 // TODO(#5726): This function is called deriveAESSecret in TS. I don't like point_to_symmetric_key name much since
 // point is not the only input of the function. Unify naming with TS once we have a better name.
