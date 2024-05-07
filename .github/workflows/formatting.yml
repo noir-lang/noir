@@ -44,7 +44,7 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run `cargo clippy`
-        run: cargo clippy --workspace --locked --release
+        run: cargo clippy --all-targets --workspace --locked --release
 
       - name: Run `cargo fmt`
         run: cargo fmt --all --check
