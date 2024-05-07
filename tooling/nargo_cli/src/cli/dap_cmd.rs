@@ -28,7 +28,7 @@ use noir_debugger::errors::{DapError, LoadError};
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
+    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
     expression_width: ExpressionWidth,
 
     #[clap(long)]
