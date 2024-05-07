@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use crate::monomorphization::ast::Type;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
 #[derive(Debug, Error)]
@@ -9,13 +10,17 @@ pub enum MonomorphizationError {
 
     #[error("Type annotations needed")]
     TypeAnnotationsNeeded { location: Location },
+
+    #[error("Type annotations needed: {expected_result} != {found_type}")]
+    GenericArithIncomplete { location: Location, expected_result: Type, found_type: Type },
 }
 
 impl MonomorphizationError {
     fn location(&self) -> Location {
         match self {
             MonomorphizationError::UnknownArrayLength { location }
-            | MonomorphizationError::TypeAnnotationsNeeded { location } => *location,
+            | MonomorphizationError::TypeAnnotationsNeeded { location } 
+            | MonomorphizationError::GenericArithIncomplete { location, .. } => *location,
         }
     }
 }

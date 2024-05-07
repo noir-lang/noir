@@ -11,7 +11,7 @@ use crate::ast::{
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
-use crate::hir_def::types::Type;
+use crate::hir_def::types::{GenericArith, Type};
 use crate::macros_api::HirLiteral;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
@@ -270,10 +270,6 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_, name) => {
-                let name = Path::from_single(name.as_ref().clone(), Span::default());
-                UnresolvedTypeData::TraitAsType(name, Vec::new())
-            }
             Type::Function(args, ret, env) => {
                 let args = vecmap(args, |arg| arg.to_ast());
                 let ret = Box::new(ret.to_ast());
@@ -289,9 +285,9 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_ast(),
-            Type::Constant(_) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Code => UnresolvedTypeData::Code,
             Type::Error => UnresolvedTypeData::Error,
+            _ => unimplemented!("TODO: hir_to_ast deprecated"),
         };
 
         UnresolvedType { typ, span: None }

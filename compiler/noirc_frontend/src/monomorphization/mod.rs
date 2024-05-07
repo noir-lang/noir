@@ -19,7 +19,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
+    Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind, GenericArith,
 };
 use acvm::FieldElement;
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -915,16 +915,31 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return Self::convert_type(binding, location);
+
+            // TODO: review whether sufficient
+            HirType::GenericArith(GenericArith::NamedGeneric(binding, _), constraints) => {
+                let expected_result = if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    Self::convert_type(&binding, location)?
+                } else {                    
+                    // Default any remaining unbound type variables.
+                    // This should only happen if the variable in question is unused
+                    // and within a larger generic type.
+                    binding.bind(HirType::default_int_or_field_type());
+                    ast::Type::Field
+                };
+
+                if expected_result == ast::Type::Field {
+                    for constraint in constraints.borrow().iter() {
+                        let constraint_as_type = HirType::GenericArith(constraint.clone(), vec![].into());
+                        let found_type = Self::convert_type(&constraint_as_type, location)?;
+
+                        if expected_result != found_type {
+                            return Err(MonomorphizationError::GenericArithIncomplete { location, expected_result, found_type })
+                        }
+                    }
                 }
 
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                binding.bind(HirType::default_int_or_field_type());
-                ast::Type::Field
+                expected_result
             }
 
             HirType::TypeVariable(binding, kind) => {
@@ -983,7 +998,11 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
+            HirType::GenericArith(GenericArith::Op { .. }, _) => {
+                return Err(MonomorphizationError::TypeAnnotationsNeeded { location })
+            }
+
+            HirType::Forall(_, _) | HirType::GenericArith(GenericArith::Constant(_), _) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
             HirType::Code => unreachable!("Tried to translate Code type into runtime code"),

@@ -13,7 +13,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
-    TypeBinding, TypeBindings, TypeVariableKind,
+    TypeBinding, TypeBindings, TypeVariableKind, GenericArith,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -84,8 +84,9 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let elem_type = self.check_expression(&repeated_element);
+                // TODO: before PR: support other cases here?
                 let length = match length {
-                    Type::GenericArith(GenericArith::Constant(length), Shared::new(vec![])) => Ok(length),
+                    Type::GenericArith(GenericArith::Constant(length), _) => Ok(length),
                     other => Err(Box::new(other)),
                 };
                 (length, Box::new(elem_type))

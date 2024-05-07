@@ -30,7 +30,7 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, GenericArith,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -1771,7 +1771,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
-        Type::NamedGeneric(_, _) => Some(Generic),
+        Type::GenericArith(GenericArith::NamedGeneric(_, _), _) => Some(Generic),
         Type::Code => Some(Code),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
@@ -1779,7 +1779,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
-        | Type::Constant(_)
+        | Type::GenericArith(..)
         | Type::Error
         | Type::Struct(_, _)
         | Type::TraitAsType(..) => None,

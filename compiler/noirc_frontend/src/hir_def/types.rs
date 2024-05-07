@@ -1564,6 +1564,7 @@ impl Type {
         self.substitute_helper(type_bindings, true)
     }
 
+
     /// This helper function only differs in the additional parameter which, if set,
     /// allows substitutions on already-bound type variables. This should be `false`
     /// for most uses, but is currently needed during monomorphization when instantiating
@@ -1617,6 +1618,15 @@ impl Type {
             }
             Type::GenericArith(GenericArith::NamedGeneric(binding, _), _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
+            }
+            Type::GenericArith(GenericArith::Op { kind, lhs, rhs }, constraints) => {
+                let lhs = Self::substitute_generic_arith_helper(*lhs.clone(), type_bindings, substitute_bound_typevars);
+                let rhs = Self::substitute_generic_arith_helper(*rhs.clone(), type_bindings, substitute_bound_typevars);
+                for constraint in constraints.borrow_mut().iter_mut() {
+                    *constraint = Self::substitute_generic_arith_helper(constraint.clone(), type_bindings, substitute_bound_typevars)
+                }
+
+                Type::GenericArith(GenericArith::Op { kind: kind.clone(), lhs: Box::new(lhs), rhs: Box::new(rhs) }, constraints.clone())
             }
             // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
@@ -1676,6 +1686,28 @@ impl Type {
         }
     }
 
+    fn substitute_generic_arith_helper(
+        generic_arith: GenericArith,
+        type_bindings: &TypeBindings,
+        substitute_bound_typevars: bool,
+    ) -> GenericArith {
+        // TODO: it appears that this could be incorrect when
+        // 1. substitute_helper is run on a NamedGeneric
+        // 2. it then unwraps to a non-GenericArith
+        //
+        // ^ but can that actually happen? (i.e. does the kind of the NamedGeneric prevent it?)
+
+        let result = Type::GenericArith(generic_arith, vec![].into()).substitute_helper(type_bindings, substitute_bound_typevars);
+        if let Type::GenericArith(generic_arith, constraints) = result {
+            if !constraints.borrow().is_empty() {
+                unreachable!("ICE: substitute_helper not expected to add GenericArith constraints: {:?}", constraints)
+            }
+            generic_arith
+        } else {
+            unreachable!("ICE: substitute_helper not expected to return non-GenericArith when run on GenericArith: {:?}", result)
+        }
+    }
+
     /// True if the given TypeVariableId is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
@@ -1693,12 +1725,22 @@ impl Type {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::GenericArith(GenericArith::NamedGeneric(binding, _), _) | Type::TypeVariable(binding, _) => {
+            Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(binding) => binding.occurs(target_id),
                     TypeBinding::Unbound(id) => *id == target_id,
                 }
             }
+
+            Type::GenericArith(GenericArith::NamedGeneric(binding, _), constraints) => {
+
+                todo!("follow TypeVariable case and recurse on constraints")
+            }
+            Type::GenericArith(GenericArith::Op { lhs, rhs, .. }, constraints) => {
+
+                todo!("recurse on lhs, rhs, constraints")
+            }
+
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
@@ -1749,11 +1791,20 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            TypeVariable(var, _) | GenericArith(GenericArith::NamedGeneric(var, _), _) => {
+            TypeVariable(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
                 }
                 self.clone()
+            }
+
+            GenericArith(GenericArith::NamedGeneric(var, _), constraints) => {
+
+                todo!("need to follow TypeVariable case for (var) and recurse on (constraints)")                
+            }
+            GenericArith(GenericArith::Op { lhs, rhs, .. }, constraints) => {
+
+                todo!("need to recurse on lhs, rhs, constraints")                
             }
 
             Function(args, ret, env) => {
@@ -1887,6 +1938,7 @@ impl From<&Type> for PrintableType {
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
             Type::GenericArith(GenericArith::Constant(_), _) => unreachable!(),
+            Type::GenericArith(GenericArith::Op { .. }, _) => unreachable!("generic arithmetic operations cannot be printed"),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -1985,6 +2037,13 @@ impl std::fmt::Debug for Type {
                     x.fmt(f)
                 } else {
                     write!(f, "{}({:?})", x, equiv.borrow())
+                }
+            },
+            Type::GenericArith(GenericArith::Op { kind, lhs, rhs }, equiv) => {
+                if equiv.borrow().len() == 0 {
+                    write!(f, "{} {} {}", lhs, kind, rhs)
+                } else {
+                    write!(f, "({} {} {})({:?})", lhs, kind, rhs, equiv.borrow())
                 }
             },
             Type::Forall(typevars, typ) => {

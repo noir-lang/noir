@@ -10,7 +10,7 @@ use crate::{
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{HirExpression, HirLiteral, NodeInterner},
     node_interner::{ExprId, FuncId},
-    Shared, Type,
+    Shared, Type, GenericArith,
 };
 use rustc_hash::FxHashMap as HashMap;
 
