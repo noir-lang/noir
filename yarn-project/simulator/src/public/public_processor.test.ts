@@ -764,6 +764,7 @@ describe('public_processor', () => {
         expect.anything(), // GlobalVariables
         Gas.from(availableGas),
         expect.anything(), // TxContext
+        expect.anything(), // pendingNullifiers
         new Fr(txFee),
         expect.anything(), // SideEffectCounter
       ];

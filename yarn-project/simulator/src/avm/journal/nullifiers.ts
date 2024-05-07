@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -10,7 +11,7 @@ import type { CommitmentsDB } from '../../index.js';
  */
 export class Nullifiers {
   /** Cached nullifiers. */
-  private cache: NullifierCache;
+  public cache: NullifierCache;
   /** Parent's nullifier cache. Checked on cache-miss. */
   private readonly parentCache: NullifierCache | undefined;
   /** Reference to node storage. Checked on parent cache-miss. */
@@ -95,6 +96,7 @@ export class NullifierCache {
    * each entry being a nullifier.
    */
   private cachePerContract: Map<bigint, Set<bigint>> = new Map();
+  private siloedNullifiers: Set<bigint> = new Set();
 
   /**
    * Check whether a nullifier exists in the cache.
@@ -104,8 +106,10 @@ export class NullifierCache {
    * @returns whether the nullifier is found in the cache
    */
   public exists(storageAddress: Fr, nullifier: Fr): boolean {
-    const exists = this.cachePerContract.get(storageAddress.toBigInt())?.has(nullifier.toBigInt());
-    return exists ? true : false;
+    const exists =
+      this.cachePerContract.get(storageAddress.toBigInt())?.has(nullifier.toBigInt()) ||
+      this.siloedNullifiers.has(siloNullifier(AztecAddress.fromField(storageAddress), nullifier).toBigInt());
+    return !!exists;
   }
 
   /**
@@ -115,18 +119,23 @@ export class NullifierCache {
    * @param nullifier - the nullifier to stage
    */
   public append(storageAddress: Fr, nullifier: Fr) {
+    if (this.exists(storageAddress, nullifier)) {
+      throw new NullifierCollisionError(
+        `Nullifier ${nullifier} at contract ${storageAddress} already exists in cache.`,
+      );
+    }
+
     let nullifiersForContract = this.cachePerContract.get(storageAddress.toBigInt());
     // If this contract's nullifier set has no cached nullifiers, create a new Set to store them
     if (!nullifiersForContract) {
       nullifiersForContract = new Set();
       this.cachePerContract.set(storageAddress.toBigInt(), nullifiersForContract);
     }
-    if (nullifiersForContract.has(nullifier.toBigInt())) {
-      throw new NullifierCollisionError(
-        `Nullifier ${nullifier} at contract ${storageAddress} already exists in cache.`,
-      );
-    }
     nullifiersForContract.add(nullifier.toBigInt());
+  }
+
+  public appendSiloed(siloedNullifier: Fr) {
+    this.siloedNullifiers.add(siloedNullifier.toBigInt());
   }
 
   /**
@@ -139,6 +148,8 @@ export class NullifierCache {
    * @param incomingNullifiers - the incoming cached nullifiers to merge into this instance's
    */
   public acceptAndMerge(incomingNullifiers: NullifierCache) {
+    // Merge siloed nullifiers.
+    this.siloedNullifiers = new Set([...this.siloedNullifiers, ...incomingNullifiers.siloedNullifiers]);
     // Iterate over all contracts with staged writes in the child.
     for (const [incomingAddress, incomingCacheAtContract] of incomingNullifiers.cachePerContract) {
       const thisCacheAtContract = this.cachePerContract.get(incomingAddress);

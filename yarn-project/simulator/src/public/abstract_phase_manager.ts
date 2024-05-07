@@ -249,6 +249,7 @@ export abstract class AbstractPhaseManager {
         // TODO(6052): Extract correct new counter from nested calls
         const sideEffectCounter = lastSideEffectCounter(tx) + 1;
         const availableGas = this.getAvailableGas(tx, kernelOutput);
+        const pendingNullifiers = this.getSiloedPendingNullifiers(kernelOutput);
 
         const result = isExecutionRequest
           ? await this.publicExecutor.simulate(
@@ -256,6 +257,7 @@ export abstract class AbstractPhaseManager {
               this.globalVariables,
               availableGas,
               tx.data.constants.txContext,
+              pendingNullifiers,
               transactionFee,
               sideEffectCounter,
             )
@@ -321,6 +323,11 @@ export abstract class AbstractPhaseManager {
     removeRedundantPublicDataWrites(kernelOutput, this.phase);
 
     return [publicKernelInputs, kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns];
+  }
+
+  /** Returns all pending private and public nullifiers.  */
+  private getSiloedPendingNullifiers(ko: PublicKernelCircuitPublicInputs) {
+    return [...ko.end.newNullifiers, ...ko.endNonRevertibleData.newNullifiers].filter(n => !n.isEmpty());
   }
 
   protected getAvailableGas(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {

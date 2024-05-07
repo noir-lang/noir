@@ -99,7 +99,7 @@ describe('ACIR public execution simulator', () => {
     });
 
   const simulate = (execution: PublicExecution, globalVariables: GlobalVariables) =>
-    executor.simulate(execution, globalVariables, Gas.test(), makeTxContext(), Fr.ZERO);
+    executor.simulate(execution, globalVariables, Gas.test(), makeTxContext(), /*pendingNullifiers=*/ [], Fr.ZERO);
 
   describe('Token contract', () => {
     let recipient: AztecAddress;

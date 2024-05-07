@@ -4,6 +4,7 @@ import {
   Gas,
   type GlobalVariables,
   type Header,
+  type Nullifier,
   PublicCircuitPublicInputs,
   type TxContext,
 } from '@aztec/circuits.js';
@@ -78,6 +79,9 @@ async function executeTopLevelPublicFunctionAvm(
   // or modify the PersistableStateManager to manage rollbacks across enqueued-calls and transactions.
   const worldStateJournal = new AvmPersistableStateManager(hostStorage);
   const startSideEffectCounter = executionContext.execution.callContext.sideEffectCounter;
+  for (const nullifier of executionContext.pendingNullifiers) {
+    worldStateJournal.nullifiers.cache.appendSiloed(nullifier.value);
+  }
   worldStateJournal.trace.accessCounter = startSideEffectCounter;
 
   const executionEnv = createAvmExecutionEnvironment(
@@ -289,6 +293,7 @@ export class PublicExecutor {
     globalVariables: GlobalVariables,
     availableGas: Gas,
     txContext: TxContext,
+    pendingNullifiers: Nullifier[],
     transactionFee: Fr = Fr.ZERO,
     sideEffectCounter: number = 0,
   ): Promise<PublicExecutionResult> {
@@ -308,6 +313,7 @@ export class PublicExecutor {
       availableGas,
       transactionFee,
       txContext.gasSettings,
+      pendingNullifiers,
     );
 
     const executionResult = await executePublicFunction(context, /*nested=*/ false);

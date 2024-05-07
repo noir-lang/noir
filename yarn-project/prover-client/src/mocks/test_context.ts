@@ -1,5 +1,5 @@
 import { type BlockProver, type ProcessedTx, type Tx, type TxValidator } from '@aztec/circuit-types';
-import { type Gas, GlobalVariables, Header, type TxContext } from '@aztec/circuits.js';
+import { type Gas, GlobalVariables, Header, type Nullifier, type TxContext } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
 import { type DebugLogger } from '@aztec/foundation/log';
 import { openTmpStore } from '@aztec/kv-store/utils';
@@ -129,6 +129,7 @@ export class TestContext {
       _globalVariables: GlobalVariables,
       availableGas: Gas,
       _txContext: TxContext,
+      _pendingNullifiers: Nullifier[],
       transactionFee?: Fr,
       _sideEffectCounter?: number,
     ) => {
@@ -166,6 +167,7 @@ export class TestContext {
       globalVariables: GlobalVariables,
       availableGas: Gas,
       txContext: TxContext,
+      pendingNullifiers: Nullifier[],
       transactionFee?: Fr,
       sideEffectCounter?: number,
     ) => Promise<PublicExecutionResult>,
