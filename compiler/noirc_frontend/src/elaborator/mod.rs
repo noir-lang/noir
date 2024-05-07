@@ -1,18 +1,51 @@
-use std::{rc::Rc, collections::{BTreeMap, BTreeSet}};
+#![allow(unused)]
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
-use crate::{macros_api::{NoirFunction, Expression, BlockExpression, Statement, StatementKind, ExpressionKind, NodeInterner, HirExpression, HirStatement, StructId, Literal, PrefixExpression, IndexExpression, CallExpression, MethodCallExpression, MemberAccessExpression, CastExpression, HirLiteral}, node_interner::{FuncId, StmtId, ExprId, DependencyId, TraitId, DefinitionKind}, ast::{FunctionKind, UnresolvedTraitConstraint, ConstructorExpression, InfixExpression, IfExpression, Lambda, ArrayLiteral, UnresolvedTypeExpression}, hir_def::{expr::{HirBlockExpression, HirIdent, HirArrayLiteral, HirLambda, HirIfExpression, HirPrefixExpression, HirIndexExpression, HirCallExpression}, traits::TraitConstraint}, hir::{resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext}, def_collector::dc_crate::CompilationError, type_check::TypeCheckError, scope::ScopeForest as GenericScopeForest}, Type, TypeVariable};
 use crate::graph::CrateId;
 use crate::hir::def_map::CrateDefMap;
+use crate::{
+    ast::{
+        ArrayLiteral, ConstructorExpression, FunctionKind, IfExpression, InfixExpression, Lambda,
+        UnresolvedTraitConstraint, UnresolvedTypeExpression,
+    },
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
+        scope::ScopeForest as GenericScopeForest,
+        type_check::TypeCheckError,
+    },
+    hir_def::{
+        expr::{
+            HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
+            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
+            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirMethodReference, HirPrefixExpression,
+        },
+        traits::TraitConstraint,
+    },
+    macros_api::{
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
+        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
+        MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
+        StatementKind, StructId,
+    },
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId},
+    Shared, StructType, Type, TypeVariable,
+};
 
-mod scope;
-mod types;
 mod patterns;
+mod scope;
 mod statements;
+mod types;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Span, Location};
+use noirc_errors::{Location, Span};
 use regex::Regex;
+use rustc_hash::FxHashSet as HashSet;
 use scope::Scope;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -86,6 +119,8 @@ struct Elaborator {
 
     trait_bounds: Vec<UnresolvedTraitConstraint>,
 
+    current_function: Option<FuncId>,
+
     /// All type variables created in the current function.
     /// This map is used to default any integer type variables at the end of
     /// a function (before checking trait constraints) if a type wasn't already chosen.
@@ -99,7 +134,8 @@ struct Elaborator {
 }
 
 impl Elaborator {
-    fn elaborate_function(&mut self, function: NoirFunction, id: FuncId) {
+    fn elaborate_function(&mut self, function: NoirFunction, _id: FuncId) {
+        // This is a stub until the elaborator is connected to dc_crate
         match function.kind {
             FunctionKind::LowLevel => todo!(),
             FunctionKind::Builtin => todo!(),
@@ -107,7 +143,7 @@ impl Elaborator {
             FunctionKind::Recursive => todo!(),
             FunctionKind::Normal => {
                 let _body = self.elaborate_block(function.def.body);
-            },
+            }
         }
     }
 
@@ -118,11 +154,13 @@ impl Elaborator {
             ExpressionKind::Prefix(prefix) => self.elaborate_prefix(*prefix),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
-            ExpressionKind::MethodCall(methodCall) => self.elaborate_method_call(*methodCall),
+            ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
-            ExpressionKind::MemberAccess(memberAccess) => self.elaborate_member_access(*memberAccess),
-            ExpressionKind::Cast(cast) => self.elaborate_cast(*cast),
-            ExpressionKind::Infix(infix) => self.elaborate_infix(*infix),
+            ExpressionKind::MemberAccess(access) => {
+                return self.elaborate_member_access(*access, expr.span)
+            }
+            ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
+            ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
@@ -150,7 +188,7 @@ impl Elaborator {
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression(expr);
                 (HirStatement::Expression(expr), typ)
-            },
+            }
             StatementKind::Semi(expr) => {
                 let (expr, _typ) = self.elaborate_expression(expr);
                 (HirStatement::Semi(expr), Type::Unit)
@@ -160,9 +198,10 @@ impl Elaborator {
     }
 
     fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+        let span = statement.span;
         let (hir_statement, typ) = self.elaborate_statement_value(statement);
         let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, statement.span, self.file);
+        self.interner.push_stmt_location(id, span, self.file);
         (id, typ)
     }
 
@@ -173,6 +212,7 @@ impl Elaborator {
 
         for (i, statement) in block.statements.into_iter().enumerate() {
             let (id, stmt_type) = self.elaborate_statement(statement);
+            statements.push(id);
 
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {
                 let inner_expr_type = self.interner.id_type(expr);
@@ -209,11 +249,7 @@ impl Elaborator {
             self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
         }
 
-        let expr = if is_break {
-            HirStatement::Break
-        } else {
-            HirStatement::Continue
-        };
+        let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
         (expr, self.interner.next_type_variable())
     }
 
@@ -235,15 +271,24 @@ impl Elaborator {
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
-            Literal::Array(array_literal) => self.elaborate_array_literal(array_literal, span, true),
-            Literal::Slice(array_literal) => self.elaborate_array_literal(array_literal, span, false),
+            Literal::Array(array_literal) => {
+                self.elaborate_array_literal(array_literal, span, true)
+            }
+            Literal::Slice(array_literal) => {
+                self.elaborate_array_literal(array_literal, span, false)
+            }
         }
     }
 
-    fn elaborate_array_literal(&mut self, array_literal: ArrayLiteral, span: Span, is_array: bool) -> (HirExpression, Type) {
+    fn elaborate_array_literal(
+        &mut self,
+        array_literal: ArrayLiteral,
+        span: Span,
+        is_array: bool,
+    ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
-                let mut first_elem_type = self.interner.next_type_variable();
+                let first_elem_type = self.interner.next_type_variable();
                 let first_span = elements.first().map(|elem| elem.span).unwrap_or(span);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -284,7 +329,11 @@ impl Elaborator {
         };
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Slice };
         let elem_type = Box::new(elem_type);
-        let typ = if is_array { Type::Array(Box::new(length), elem_type) } else { Type::Slice(elem_type) };
+        let typ = if is_array {
+            Type::Array(Box::new(length), elem_type)
+        } else {
+            Type::Slice(elem_type)
+        };
         (HirExpression::Literal(constructor(expr)), typ)
     }
 
@@ -306,6 +355,10 @@ impl Elaborator {
                 let ident = HirExpression::Ident(old_value.ident.clone());
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
+                let ident = old_value.ident.clone();
+                let typ = self.type_check_variable(ident, expr_id);
+                self.interner.push_expr_type(expr_id, typ.clone());
+                capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             } else if ident_name.parse::<usize>().is_ok() {
                 self.push_err(ResolverError::NumericConstantInFormatString {
@@ -329,20 +382,18 @@ impl Elaborator {
         let span = prefix.rhs.span;
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let ret_type = self.type_check_prefix_operand(&prefix.operator, &rhs_type, span);
-        (HirExpression::Prefix(HirPrefixExpression { operator: prefix.operator, rhs  }), ret_type)
+        (HirExpression::Prefix(HirPrefixExpression { operator: prefix.operator, rhs }), ret_type)
     }
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
-        let (index, index_type) = self.elaborate_expression(index_expr.index);
         let span = index_expr.index.span;
+        let (index, index_type) = self.elaborate_expression(index_expr.index);
 
         let expected = self.polymorphic_integer_or_field();
-        self.unify(&index_type, &expected, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: "an integer".to_owned(),
-                expr_typ: index_type.to_string(),
-                expr_span: span,
-            }
+        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
+            expected_typ: "an integer".to_owned(),
+            expr_typ: index_type.to_string(),
+            expr_span: span,
         });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
@@ -372,83 +423,278 @@ impl Elaborator {
     }
 
     fn elaborate_call(&mut self, call: CallExpression, span: Span) -> (HirExpression, Type) {
-        // Get the span and name of path for error reporting
         let (func, func_type) = self.elaborate_expression(*call.func);
 
-        let arguments = vecmap(call.arguments, |arg| self.elaborate_expression(arg));
-        let location = Location::new(span, self.file);
-        let expr = HirExpression::Call(HirCallExpression { func, arguments, location });
-        (expr, typ)
-
-
-        // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
-        // These flags are later used to type check calls to unconstrained functions from constrained functions
-        let current_func = self.current_function;
-        let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
-        let is_current_func_constrained =
-            func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
-        let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
-
-        self.check_if_deprecated(&call_expr.func);
-
-        let function = self.check_expression(&call_expr.func);
-
-        let args = vecmap(&call_expr.arguments, |arg| {
-            let typ = self.check_expression(arg);
-            (typ, *arg, self.interner.expr_span(arg))
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+        let args = vecmap(call.arguments, |arg| {
+            let span = arg.span;
+            let (arg, typ) = self.elaborate_expression(arg);
+            arguments.push(arg);
+            (typ, arg, span)
         });
 
-        // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
-        if is_current_func_constrained && is_unconstrained_call {
-            for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
-                    self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
-                        span: self.interner.expr_span(expr_id),
+        let location = Location::new(span, self.file);
+        let call = HirCallExpression { func, arguments, location };
+        let typ = self.type_check_call(&call, func_type, args, span);
+        (HirExpression::Call(call), typ)
+    }
+
+    fn check_if_deprecated(&mut self, expr: ExprId) {
+        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }) =
+            self.interner.expression(&expr)
+        {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let attributes = self.interner.function_attributes(func_id);
+                if let Some(note) = attributes.get_deprecated_note() {
+                    self.push_err(TypeCheckError::CallDeprecated {
+                        name: self.interner.definition_name(id).to_string(),
+                        note,
+                        span: location.span,
                     });
-                    return Type::Error;
                 }
             }
         }
+    }
 
-        let span = self.interner.expr_span(expr_id);
-        let return_type = self.bind_function_type(function, args, span);
+    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
+        if let HirExpression::Ident(HirIdent { id, .. }) = self.interner.expression(&expr) {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let modifiers = self.interner.function_modifiers(func_id);
+                return modifiers.is_unconstrained;
+            }
+        }
+        false
+    }
 
-        // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-        if is_current_func_constrained && is_unconstrained_call {
-            if return_type.contains_slice() {
-                self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
-                    span: self.interner.expr_span(expr_id),
+    fn elaborate_method_call(
+        &mut self,
+        method_call: MethodCallExpression,
+        span: Span,
+    ) -> (HirExpression, Type) {
+        let object_span = method_call.object.span;
+        let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
+        object_type = object_type.follow_bindings();
+
+        let method_name = method_call.method_name.0.contents.as_str();
+        match self.lookup_method(&object_type, method_name, span) {
+            Some(method_ref) => {
+                // Automatically add `&mut` if the method expects a mutable reference and
+                // the object is not already one.
+                if let HirMethodReference::FuncId(func_id) = &method_ref {
+                    if *func_id != FuncId::dummy_id() {
+                        let function_type = self.interner.function_meta(func_id).typ.clone();
+
+                        self.try_add_mutable_reference_to_object(
+                            &function_type,
+                            &mut object_type,
+                            &mut object,
+                        );
+                    }
+                }
+
+                // These arguments will be given to the desugared function call.
+                // Compared to the method arguments, they also contain the object.
+                let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
+                let mut arguments = Vec::with_capacity(method_call.arguments.len());
+
+                function_args.push((object_type.clone(), object, object_span));
+
+                for arg in method_call.arguments {
+                    let span = arg.span;
+                    let (arg, typ) = self.elaborate_expression(arg);
+                    arguments.push(arg);
+                    function_args.push((typ, arg, span));
+                }
+
+                let location = Location::new(span, self.file);
+                let method = method_call.method_name;
+                let method_call = HirMethodCallExpression { method, object, arguments, location };
+
+                // Desugar the method call into a normal, resolved function call
+                // so that the backend doesn't need to worry about methods
+                // TODO: update object_type here?
+                let ((function_id, function_name), function_call) = method_call.into_function_call(
+                    &method_ref,
+                    object_type,
+                    location,
+                    &mut self.interner,
+                );
+
+                let func_type = self.type_check_variable(function_name, function_id);
+
+                // Type check the new call now that it has been changed from a method call
+                // to a function call. This way we avoid duplicating code.
+                let typ = self.type_check_call(&function_call, func_type, function_args, span);
+                (HirExpression::Call(function_call), typ)
+            }
+            None => (HirExpression::Error, Type::Error),
+        }
+    }
+
+    fn elaborate_constructor(
+        &mut self,
+        constructor: ConstructorExpression,
+    ) -> (HirExpression, Type) {
+        let span = constructor.type_name.span();
+
+        match self.lookup_type_or_error(constructor.type_name) {
+            Some(Type::Struct(r#type, struct_generics)) => {
+                let struct_type = r#type.clone();
+                let generics = struct_generics.clone();
+
+                let fields = constructor.fields;
+                let field_types = r#type.borrow().get_fields(&struct_generics);
+                let fields = self.resolve_constructor_expr_fields(
+                    struct_type.clone(),
+                    field_types,
+                    fields,
+                    span,
+                );
+                let expr = HirExpression::Constructor(HirConstructorExpression {
+                    fields,
+                    r#type,
+                    struct_generics,
                 });
-                return Type::Error;
-            } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
-                self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained {
-                    span: self.interner.expr_span(expr_id),
+                (expr, Type::Struct(struct_type, generics))
+            }
+            Some(typ) => {
+                self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                (HirExpression::Error, Type::Error)
+            }
+            None => (HirExpression::Error, Type::Error),
+        }
+    }
+
+    /// Resolve all the fields of a struct constructor expression.
+    /// Ensures all fields are present, none are repeated, and all
+    /// are part of the struct.
+    fn resolve_constructor_expr_fields(
+        &mut self,
+        struct_type: Shared<StructType>,
+        field_types: Vec<(String, Type)>,
+        fields: Vec<(Ident, Expression)>,
+        span: Span,
+    ) -> Vec<(Ident, ExprId)> {
+        let mut ret = Vec::with_capacity(fields.len());
+        let mut seen_fields = HashSet::default();
+        let mut unseen_fields = struct_type.borrow().field_names();
+
+        for (field_name, field) in fields {
+            let expected_type = field_types.iter().find(|(name, _)| name == &field_name.0.contents);
+            let expected_type = expected_type.map(|(_, typ)| typ).unwrap_or(&Type::Error);
+
+            let field_span = field.span;
+            let (resolved, field_type) = self.elaborate_expression(field);
+
+            if unseen_fields.contains(&field_name) {
+                unseen_fields.remove(&field_name);
+                seen_fields.insert(field_name.clone());
+
+                self.unify_with_coercions(&field_type, expected_type, resolved, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: expected_type.to_string(),
+                        expr_typ: field_type.to_string(),
+                        expr_span: field_span,
+                    }
                 });
-                return Type::Error;
+            } else if seen_fields.contains(&field_name) {
+                // duplicate field
+                self.push_err(ResolverError::DuplicateField { field: field_name.clone() });
+            } else {
+                // field not required by struct
+                self.push_err(ResolverError::NoSuchField {
+                    field: field_name.clone(),
+                    struct_definition: struct_type.borrow().name.clone(),
+                });
+            }
+
+            ret.push((field_name, resolved));
+        }
+
+        if !unseen_fields.is_empty() {
+            self.push_err(ResolverError::MissingFields {
+                span,
+                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
+                struct_definition: struct_type.borrow().name.clone(),
+            });
+        }
+
+        ret
+    }
+
+    fn elaborate_member_access(
+        &mut self,
+        access: MemberAccessExpression,
+        span: Span,
+    ) -> (ExprId, Type) {
+        let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
+        let rhs = access.rhs;
+        // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
+        let access = HirMemberAccess { lhs, rhs, is_offset: false };
+        let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), span);
+        let typ = self.type_check_member_access(access, expr_id, lhs_type, span);
+        self.interner.push_expr_type(expr_id, typ.clone());
+        (expr_id, typ)
+    }
+
+    fn intern_expr(&mut self, expr: HirExpression, span: Span) -> ExprId {
+        let id = self.interner.push_expr(expr);
+        self.interner.push_expr_location(id, span, self.file);
+        id
+    }
+
+    fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
+        let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
+        let r#type = self.resolve_type(cast.r#type);
+        let result = self.check_cast(lhs_type, &r#type, span);
+        let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
+        (expr, result)
+    }
+
+    fn elaborate_infix(&mut self, infix: InfixExpression, span: Span) -> (ExprId, Type) {
+        let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
+        let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
+        let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
+
+        let operator = HirBinaryOp::new(infix.operator, self.file);
+        let expr = HirExpression::Infix(HirInfixExpression {
+            lhs,
+            operator,
+            trait_method_id: trait_id,
+            rhs,
+        });
+
+        let expr_id = self.interner.push_expr(expr);
+        self.interner.push_expr_location(expr_id, span, self.file);
+
+        let typ = match self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, span) {
+            Ok((typ, use_impl)) => {
+                if use_impl {
+                    // Delay checking the trait constraint until the end of the function.
+                    // Checking it now could bind an unbound type variable to any type
+                    // that implements the trait.
+                    let constraint = TraitConstraint {
+                        typ: lhs_type.clone(),
+                        trait_id: trait_id.trait_id,
+                        trait_generics: Vec::new(),
+                    };
+                    self.trait_constraints.push((constraint, expr_id));
+                    self.type_check_operator_method(expr_id, trait_id, &lhs_type, span);
+                }
+                typ
+            }
+            Err(error) => {
+                self.push_err(error);
+                Type::Error
             }
         };
 
-        return_type
-    }
-
-    fn elaborate_method_call(&mut self, method_call: MethodCallExpression) -> (HirExpression, Type) {
-        todo!()
-    }
-
-    fn elaborate_constructor(&mut self, constructor: ConstructorExpression) -> (HirExpression, Type) {
-        todo!()
-    }
-
-    fn elaborate_member_access(&mut self, member_access: MemberAccessExpression) -> (HirExpression, Type) {
-        todo!()
-    }
-
-    fn elaborate_cast(&mut self, cast: CastExpression) -> (HirExpression, Type) {
-        todo!()
-    }
-
-    fn elaborate_infix(&mut self, infix: InfixExpression) -> (HirExpression, Type) {
-        todo!()
+        self.interner.push_expr_type(expr_id, typ.clone());
+        (expr_id, typ)
     }
 
     fn elaborate_if(&mut self, if_expr: IfExpression) -> (HirExpression, Type) {
@@ -461,7 +707,7 @@ impl Elaborator {
             expr_typ: cond_type.to_string(),
             expr_span,
         });
-        
+
         let alternative = if_expr.alternative.map(|alternative| {
             let expr_span = alternative.span;
             let (else_, else_type) = self.elaborate_expression(alternative);
@@ -550,7 +796,7 @@ impl Elaborator {
         (HirExpression::Quote(block), Type::Code)
     }
 
-    fn elaborate_comptime_block(&mut self, comptime: BlockExpression) -> (HirExpression, Type) {
+    fn elaborate_comptime_block(&mut self, _comptime: BlockExpression) -> (HirExpression, Type) {
         todo!("Elaborate comptime block")
     }
 }

@@ -1,13 +1,31 @@
 use iter_extended::vecmap;
-use noirc_errors::{Span, Location};
+use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::{macros_api::{Pattern, Ident, Path, HirExpression}, Type, node_interner::{DefinitionKind, DefinitionId, ExprId, TraitImplKind}, hir_def::{stmt::HirPattern, expr::{HirIdent, ImplKind}}, hir::{resolution::errors::ResolverError, type_check::{TypeCheckError, Source}}, ast::ERROR_IDENT, Shared, StructType, TypeBindings};
+use crate::{
+    ast::ERROR_IDENT,
+    hir::{
+        resolution::errors::ResolverError,
+        type_check::{Source, TypeCheckError},
+    },
+    hir_def::{
+        expr::{HirIdent, ImplKind},
+        stmt::HirPattern,
+    },
+    macros_api::{HirExpression, Ident, Path, Pattern},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, TraitImplKind},
+    Shared, StructType, Type, TypeBindings,
+};
 
 use super::{Elaborator, ResolverMeta};
 
 impl Elaborator {
-    pub fn elaborate_pattern(&mut self, pattern: Pattern, expected_type: Type, definition_kind: DefinitionKind) -> HirPattern {
+    pub(super) fn elaborate_pattern(
+        &mut self,
+        pattern: Pattern,
+        expected_type: Type,
+        definition_kind: DefinitionKind,
+    ) -> HirPattern {
         self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None)
     }
 
@@ -35,7 +53,8 @@ impl Elaborator {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
-                let pattern = self.elaborate_pattern_mut(*pattern, expected_type, definition, Some(span));
+                let pattern =
+                    self.elaborate_pattern_mut(*pattern, expected_type, definition, Some(span));
                 let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
             }
@@ -45,7 +64,7 @@ impl Elaborator {
                     Type::Error => Vec::new(),
                     expected_type => {
                         let tuple =
-                            Type::Tuple(vecmap(fields, |_| self.interner.next_type_variable()));
+                            Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
 
                         self.push_err(TypeCheckError::TypeMismatchWithSource {
                             expected: expected_type,
@@ -64,9 +83,14 @@ impl Elaborator {
                 let location = Location::new(span, self.file);
                 HirPattern::Tuple(fields, location)
             }
-            Pattern::Struct(name, fields, span) => {
-                self.elaborate_struct_pattern(name, fields, span, pattern, expected_type, definition, mutable)
-            }
+            Pattern::Struct(name, fields, span) => self.elaborate_struct_pattern(
+                name,
+                fields,
+                span,
+                expected_type,
+                definition,
+                mutable,
+            ),
         }
     }
 
@@ -75,7 +99,6 @@ impl Elaborator {
         name: Path,
         fields: Vec<(Ident, Pattern)>,
         span: Span,
-        pattern: Pattern,
         expected_type: Type,
         definition: DefinitionKind,
         mutable: Option<Span>,
@@ -98,18 +121,25 @@ impl Elaborator {
             }
         };
 
-        let actual_type = Type::Struct(struct_type, generics);
+        let actual_type = Type::Struct(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
 
         self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
             expected: expected_type.clone(),
-            actual: actual_type,
+            actual: actual_type.clone(),
             span: location.span,
             source: Source::Assignment,
         });
 
         let typ = struct_type.clone();
-        let fields = self.resolve_constructor_pattern_fields(typ, fields, span, expected_type, definition, mutable);
+        let fields = self.resolve_constructor_pattern_fields(
+            typ,
+            fields,
+            span,
+            expected_type.clone(),
+            definition,
+            mutable,
+        );
 
         HirPattern::Struct(expected_type, fields, location)
     }
@@ -132,7 +162,8 @@ impl Elaborator {
 
         for (field, pattern) in fields {
             let field_type = expected_type.get_field_type(&field.0.contents).unwrap_or(Type::Error);
-            let resolved = self.elaborate_pattern_mut(pattern, field_type, definition, mutable);
+            let resolved =
+                self.elaborate_pattern_mut(pattern, field_type, definition.clone(), mutable);
 
             if unseen_fields.contains(&field) {
                 unseen_fields.remove(&field);
@@ -162,7 +193,7 @@ impl Elaborator {
         ret
     }
 
-    pub fn add_variable_decl(
+    pub(super) fn add_variable_decl(
         &mut self,
         name: Ident,
         mutable: bool,
@@ -257,7 +288,7 @@ impl Elaborator {
     //
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
-    pub fn find_variable_or_default(&mut self, name: &Ident) -> (HirIdent, usize) {
+    pub(super) fn find_variable_or_default(&mut self, name: &Ident) -> (HirIdent, usize) {
         self.find_variable(name).unwrap_or_else(|error| {
             self.push_err(error);
             let id = DefinitionId::dummy_id();
@@ -266,7 +297,10 @@ impl Elaborator {
         })
     }
 
-    pub fn find_variable(&mut self, name: &Ident) -> Result<(HirIdent, usize), ResolverError> {
+    pub(super) fn find_variable(
+        &mut self,
+        name: &Ident,
+    ) -> Result<(HirIdent, usize), ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
@@ -284,7 +318,7 @@ impl Elaborator {
         }
     }
 
-    pub fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone()));
@@ -295,8 +329,7 @@ impl Elaborator {
     }
 
     fn resolve_variable(&mut self, path: Path) -> HirIdent {
-        if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
-        {
+        if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path) {
             HirIdent {
                 location: Location::new(path.span, self.file),
                 id: self.interner.trait_method_id(method),
@@ -342,7 +375,7 @@ impl Elaborator {
         }
     }
 
-    fn type_check_variable(&mut self, ident: HirIdent, expr_id: ExprId) -> Type {
+    pub(super) fn type_check_variable(&mut self, ident: HirIdent, expr_id: ExprId) -> Type {
         let mut bindings = TypeBindings::new();
 
         // Add type bindings from any constraints that were used.
@@ -370,7 +403,7 @@ impl Elaborator {
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = t.instantiate_with_bindings(bindings, &mut self.interner);
+        let (typ, bindings) = t.instantiate_with_bindings(bindings, &self.interner);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.

@@ -1,7 +1,19 @@
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::{macros_api::{StructId, Path}, node_interner::{TypeAliasId, DefinitionId, TraitId}, hir::{def_map::{TryFromModuleDefId, ModuleDefId}, resolution::errors::ResolverError}, Shared, StructType, hir_def::{traits::Trait, expr::{HirIdent, HirCapturedVar}}};
 use crate::hir::comptime::Value;
+use crate::{
+    hir::{
+        def_map::{ModuleDefId, TryFromModuleDefId},
+        resolution::errors::ResolverError,
+    },
+    hir_def::{
+        expr::{HirCapturedVar, HirIdent},
+        traits::Trait,
+    },
+    macros_api::{Path, StructId},
+    node_interner::{DefinitionId, TraitId, TypeAliasId},
+    Shared, StructType,
+};
 
 use super::Elaborator;
 
@@ -18,7 +30,7 @@ pub(super) enum TypeId {
 }
 
 impl Elaborator {
-    pub fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
+    pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
         T::try_from(id).ok_or_else(|| ResolverError::Expected {
@@ -28,7 +40,7 @@ impl Elaborator {
         })
     }
 
-    pub fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
+    pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
         let path_resolution = self.path_resolver.resolve(&self.def_maps, path)?;
 
         if let Some(error) = path_resolution.error {
@@ -38,15 +50,15 @@ impl Elaborator {
         Ok(path_resolution.module_def_id)
     }
 
-    pub fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
+    pub(super) fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
+    pub(super) fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
         self.interner.get_trait_mut(trait_id)
     }
 
-    pub fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
+    pub(super) fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
         let mut transitive_capture_index: Option<usize> = None;
 
         for lambda_index in 0..self.lambda_stack.len() {
@@ -80,7 +92,7 @@ impl Elaborator {
         }
     }
 
-    pub fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
+    pub(super) fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
 

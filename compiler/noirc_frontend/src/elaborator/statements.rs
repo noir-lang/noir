@@ -1,11 +1,23 @@
-use noirc_errors::{Span, Location};
+use noirc_errors::{Location, Span};
 
-use crate::{macros_api::{LetStatement, HirStatement, ForLoopStatement, ForRange, Statement}, Type, node_interner::{DefinitionKind, DefinitionId}, hir::type_check::{TypeCheckError, Source}, hir_def::{stmt::{HirLetStatement, HirConstrainStatement, HirAssignStatement, HirForStatement, HirLValue}, expr::HirIdent}, ast::{ConstrainStatement, AssignStatement, LValue}};
+use crate::{
+    ast::{AssignStatement, ConstrainStatement, LValue},
+    hir::type_check::{Source, TypeCheckError},
+    hir_def::{
+        expr::HirIdent,
+        stmt::{
+            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
+        },
+    },
+    macros_api::{ForLoopStatement, ForRange, HirStatement, LetStatement, Statement},
+    node_interner::{DefinitionId, DefinitionKind},
+    Type,
+};
 
 use super::Elaborator;
 
 impl Elaborator {
-    pub fn elaborate_let(&self, let_stmt: LetStatement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
         let definition = DefinitionKind::Local(Some(expression));
@@ -32,7 +44,7 @@ impl Elaborator {
         };
 
         let let_ = HirLetStatement {
-            pattern: self.elaborate_pattern(let_stmt.pattern, r#type, definition),
+            pattern: self.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition),
             r#type,
             expression,
             attributes: let_stmt.attributes,
@@ -41,7 +53,7 @@ impl Elaborator {
         (HirStatement::Let(let_), Type::Unit)
     }
 
-    pub fn elaborate_constrain(&mut self, stmt: ConstrainStatement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_constrain(&mut self, stmt: ConstrainStatement) -> (HirStatement, Type) {
         let expr_span = stmt.0.span;
         let (expr_id, expr_type) = self.elaborate_expression(stmt.0);
 
@@ -57,7 +69,7 @@ impl Elaborator {
         (HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, msg)), Type::Unit)
     }
 
-    pub fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let span = assign.expression.span;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
         let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue, span);
@@ -80,7 +92,7 @@ impl Elaborator {
         (HirStatement::Assign(stmt), Type::Unit)
     }
 
-    pub fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
         let (start, end) = match for_loop.range {
             ForRange::Range(start, end) => (start, end),
             ForRange::Array(_) => {
@@ -129,12 +141,8 @@ impl Elaborator {
         self.pop_scope();
         self.nested_loops -= 1;
 
-        let statement = HirStatement::For(HirForStatement {
-            start_range,
-            end_range,
-            block,
-            identifier,
-        });
+        let statement =
+            HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
 
         (statement, Type::Unit)
     }
@@ -170,7 +178,7 @@ impl Elaborator {
                         mutable = definition.mutable;
                     }
 
-                    let typ = self.interner.definition_type(ident.id).instantiate(&mut self.interner).0;
+                    let typ = self.interner.definition_type(ident.id).instantiate(&self.interner).0;
                     typ.follow_bindings()
                 };
 
@@ -215,12 +223,10 @@ impl Elaborator {
                 let location = Location::new(span, self.file);
 
                 let expected = self.polymorphic_integer_or_field();
-                self.unify(&index_type, &expected, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "an integer".to_owned(),
-                        expr_typ: index_type.to_string(),
-                        expr_span,
-                    }
+                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
+                    expected_typ: "an integer".to_owned(),
+                    expr_typ: index_type.to_string(),
+                    expr_span,
                 });
 
                 let (mut lvalue, mut lvalue_type, mut mutable) =
@@ -284,7 +290,7 @@ impl Elaborator {
     }
 
     /// Type checks a field access, adding dereference operators as necessary
-    pub fn check_field_access(
+    pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
         field_name: &str,
@@ -351,7 +357,7 @@ impl Elaborator {
         None
     }
 
-    pub fn elaborate_comptime(&self, statement: Statement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_comptime(&self, _statement: Statement) -> (HirStatement, Type) {
         todo!("Comptime scanning")
     }
 }
