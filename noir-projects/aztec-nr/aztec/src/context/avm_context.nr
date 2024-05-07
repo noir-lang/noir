@@ -38,7 +38,7 @@ impl AvmContext {
     * Should be automatically convertible to [Field; N]. For example str<N> works with
     * one char per field. Otherwise you can use CompressedString.
     */
-    pub fn emit_unencrypted_log<T>(&mut self, event_selector: Field, log: T) {
+    pub fn emit_unencrypted_log_with_selector<T>(&mut self, event_selector: Field, log: T) {
         emit_unencrypted_log(event_selector, log);
     }
     pub fn note_hash_exists(self, note_hash: Field, leaf_index: Field) -> bool {
@@ -88,7 +88,7 @@ impl PublicContextInterface for AvmContext {
 
     fn emit_unencrypted_log<T,N,M>(&mut self, log: T) {
         let event_selector = 5;  // Matches current PublicContext.
-        self.emit_unencrypted_log(event_selector, log);
+        self.emit_unencrypted_log_with_selector(event_selector, log);
     }
 
     fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress, leaf_index: Field) {

@@ -507,28 +507,42 @@ fn handle_emit_unencrypted_log(
             inputs.len()
         );
     }
-    let (event_offset, message_array) = match &inputs[..] {
-        [ValueOrArray::MemoryAddress(offset), ValueOrArray::HeapArray(array)] => {
-            (offset.to_usize() as u32, array)
+    let event_offset = match &inputs[0] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!(
+            "Unexpected inputs[0] (event) for ForeignCall::EMITUNENCRYPTEDLOG: {:?}",
+            inputs[0]
+        ),
+    };
+    let (message_offset, message_size, message_offset_indirect) = match &inputs[1] {
+        ValueOrArray::HeapArray(array) => {
+            // Heap array, so offset to array is an indirect memory offset
+            (array.pointer.to_usize() as u32, array.size as u32, true)
         }
+        ValueOrArray::MemoryAddress(single_val) => (single_val.to_usize() as u32, 1 as u32, false),
         _ => panic!(
             "Unexpected inputs for ForeignCall::EMITUNENCRYPTEDLOG: {:?}",
             inputs
         ),
     };
+    let indirect_flag = if message_offset_indirect {
+        FIRST_OPERAND_INDIRECT
+    } else {
+        0
+    };
     avm_instrs.push(AvmInstruction {
         opcode: AvmOpcode::EMITUNENCRYPTEDLOG,
         // The message array from Brillig is indirect.
-        indirect: Some(FIRST_OPERAND_INDIRECT),
+        indirect: Some(indirect_flag),
         operands: vec![
             AvmOperand::U32 {
                 value: event_offset,
             },
             AvmOperand::U32 {
-                value: message_array.pointer.to_usize() as u32,
+                value: message_offset,
             },
             AvmOperand::U32 {
-                value: message_array.size as u32,
+                value: message_size,
             },
         ],
         ..Default::default()
