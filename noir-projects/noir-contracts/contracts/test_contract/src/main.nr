@@ -11,7 +11,8 @@ contract Test {
     use dep::aztec::protocol_types::{
         abis::private_circuit_public_inputs::PrivateCircuitPublicInputs,
         constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, CANONICAL_KEY_REGISTRY_ADDRESS},
-        traits::{Serialize, ToField, FromField}, grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey
+        traits::{Serialize, ToField, FromField}, grumpkin_point::GrumpkinPoint,
+        grumpkin_private_key::GrumpkinPrivateKey
     };
 
     use dep::aztec::encrypted_logs::header::EncryptedLogHeader;
@@ -375,10 +376,11 @@ contract Test {
         assert(context.historical_header.hash() == header_hash, "Invalid header hash");
     }
 
-    #[aztec(public)]
-    fn assert_header_public(header_hash: Field) {
-        assert(context.historical_header.hash() == header_hash, "Invalid header hash");
-    }
+    // TODO(4840): add AVM opcodes for getting header (members)
+    //#[aztec(public)]
+    //fn assert_header_public(header_hash: Field) {
+    //    assert(context.historical_header.hash() == header_hash, "Invalid header hash");
+    //}
 
     #[aztec(private)]
     fn deploy_contract(target: AztecAddress) {
@@ -431,15 +433,16 @@ contract Test {
         let derived_slot = derive_storage_slot_in_map(storage_slot_of_shared_mutable, address_to_get_in_registry);
 
         // It's a bit wonky because we need to know the delay for get_current_value_in_private to work correctly
-        let registry_private_getter: SharedMutablePrivateGetter<Field, 5> = SharedMutablePrivateGetter::new(context, AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS), derived_slot);
+        let registry_private_getter: SharedMutablePrivateGetter<Field, 5> = SharedMutablePrivateGetter::new(
+            context,
+            AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
+            derived_slot
+        );
         registry_private_getter.get_current_value_in_private()
     }
 
     #[aztec(private)]
-    fn test_nullifier_key_freshness(
-        address: AztecAddress,
-        public_nullifying_key: GrumpkinPoint,
-    ) {
+    fn test_nullifier_key_freshness(address: AztecAddress, public_nullifying_key: GrumpkinPoint) {
         assert_eq(get_npk_m(&mut context, address), public_nullifying_key);
     }
 

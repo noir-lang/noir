@@ -731,7 +731,8 @@ describe('ACIR public execution simulator', () => {
     });
   });
 
-  describe('Historical header in public context', () => {
+  // TODO(4840): add AVM opcodes for getting header (members)
+  describe.skip('Historical header in public context', () => {
     let contractAddress: AztecAddress;
     let callContext: CallContext;
     let assertHeaderPublicArtifact: FunctionArtifact;

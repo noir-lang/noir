@@ -1,7 +1,4 @@
-use dep::protocol_types::{
-    abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}, header::Header,
-    traits::Deserialize
-};
+use dep::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}, traits::Deserialize};
 
 use crate::context::private_context::PrivateContext;
 use crate::context::public_context::PublicContext;
