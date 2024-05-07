@@ -147,4 +147,6 @@ jobs:
           fi
 
       - name: Run Earthly Bootstrap
-        run: earthly bootstrap
+        run: |
+          earthly bootstrap
+          touch /run/.earthly-bootstrap # Used in `earthly-ci` wrapper to check that earthly has been bootstrapped ok

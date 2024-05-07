@@ -180,6 +180,9 @@ test-clang-format:
 
 test:
     ARG hardware_concurrency=""
+    # prefetch
+    BUILD +test-binaries
+    BUILD +preset-release-assert-test
     BUILD +test-clang-format
     BUILD ./srs_db/+build # prefetch
     FROM +source

@@ -3,6 +3,21 @@
 # The silver lining is if Earthly does crash, the cache can pick up the build.
 set -eu -o pipefail
 
+MAX_WAIT_TIME=300 # Maximum wait time in seconds
+WAIT_INTERVAL=10  # Interval between checks in seconds
+elapsed_time=0
+
+while ! [ -f  /run/.earthly-bootstrap ] ; do
+  echo "Did not detect .earthly-bootstrap. Waiting for runner to fully initialize..."
+  if [ $elapsed_time -ge $MAX_WAIT_TIME ]; then
+    echo "Earthly bootstrap did not become available within $MAX_WAIT_TIME seconds... did the runner start correctly?"
+    exit 1
+  fi
+
+  sleep $WAIT_INTERVAL
+  elapsed_time=$((elapsed_time + WAIT_INTERVAL))
+done
+
 OUTPUT_FILE=$(mktemp)
 INCONSISTENT_GRAPH_STATE_COUNT=0  # Counter for 'inconsistent graph state' errors
 
@@ -22,12 +37,12 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
     # Check the output for specific errors
     if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null || grep 'failed to get state for index' $OUTPUT_FILE >/dev/null ; then
       INCONSISTENT_GRAPH_STATE_COUNT=$((INCONSISTENT_GRAPH_STATE_COUNT + 1))
-      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq 2 ]; then
+      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq 3 ]; then
         echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Connect to spot runner and run 'earthly prune'."
         exit 1
       fi
-      echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 20 seconds and retrying."
-      sleep 20
+      echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 30 seconds and retrying."
+      sleep 30
     elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null; then
       echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker"
     elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null; then

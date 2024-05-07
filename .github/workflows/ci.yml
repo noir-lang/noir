@@ -52,11 +52,14 @@ jobs:
         run: earthly-ci ./yarn-project+export-e2e-test-images
       # We base our e2e list used in e2e-x86 off the targets in ./yarn-project/end-to-end
       # (Note ARM uses just 2 tests as a smoketest)
-      - name: Create list of end-to-end jobs
+      - name: Create list of non-bench end-to-end jobs
         id: e2e_list
-        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep -v '+base' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep -v '+base' | grep -v '+bench' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+      - name: Create list of bench end-to-end jobs
+        id: bench_list
+        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep '+bench' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
 
-  # all the end-to-end integration tests for aztec
+  # all the non-bench end-to-end integration tests for aztec
   e2e:
     needs: build
     runs-on: ${{ inputs.username || github.actor }}-x86
@@ -64,6 +67,31 @@ jobs:
       fail-fast: false
       matrix:
         test: ${{ fromJson( needs.build.outputs.e2e_list )}}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.pull_request.head.sha }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          # must be globally unique for build x runner
+          concurrency_key: e2e-${{ inputs.username || github.actor }}-x86-${{ matrix.test }}
+      - name: Test
+        working-directory: ./yarn-project/end-to-end/
+        timeout-minutes: 25
+        run: earthly-ci -P \
+          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          --no-output \
+          +${{ matrix.test }} --skip_build=true
+
+  # all the benchmarking end-to-end integration tests for aztec (not required to merge)
+  bench-e2e:
+    needs: build
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJson( needs.build.outputs.bench_list )}}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.pull_request.head.sha }}" }
@@ -112,7 +140,7 @@ jobs:
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
-    needs: build
+    needs: setup
     runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
       - {

@@ -1,2 +1,3 @@
 **/package.tgz
 packages
+.earthly-staging

@@ -106,64 +106,64 @@ packages:
     SAVE IMAGE --cache-hint
 
 packages-test-build:
-  FROM +packages-deps
+    FROM +packages-deps
 
-  COPY +nargo/nargo /usr/src/noir/noir-repo/target/release/nargo
-  COPY +nargo/acvm /usr/src/noir/noir-repo/target/release/acvm
+    COPY +nargo/nargo /usr/src/noir/noir-repo/target/release/nargo
+    COPY +nargo/acvm /usr/src/noir/noir-repo/target/release/acvm
 
-  ENV NARGO_BACKEND_PATH=/usr/src/barretenberg/ts/dest/node/main.js
-  ENV PATH=$PATH:/usr/src/noir/noir-repo/target/release
+    ENV NARGO_BACKEND_PATH=/usr/src/barretenberg/ts/dest/node/main.js
+    ENV PATH=$PATH:/usr/src/noir/noir-repo/target/release
 
-  WORKDIR /usr/src/barretenberg/ts
-  RUN yarn --immutable
+    WORKDIR /usr/src/barretenberg/ts
+    RUN yarn --immutable
 
-  WORKDIR /usr/src/noir/noir-repo
-  COPY --dir noir-repo/.github/scripts/wasm-bindgen-install.sh ./.github/scripts/wasm-bindgen-install.sh
-  RUN ./.github/scripts/wasm-bindgen-install.sh
+    WORKDIR /usr/src/noir/noir-repo
+    COPY --dir noir-repo/.github/scripts/wasm-bindgen-install.sh ./.github/scripts/wasm-bindgen-install.sh
+    RUN ./.github/scripts/wasm-bindgen-install.sh
 
-  ENV SOURCE_DATE_EPOCH=$(date +%s)
-  ENV GIT_DIRTY=false
-  ENV GIT_COMMIT=$COMMIT_HASH
-  RUN yarn build
-  # this builds text fixtures to be used in tests
-  RUN yarn workspace @noir-lang/noir_wasm run test:build_fixtures
+    ENV SOURCE_DATE_EPOCH=$(date +%s)
+    ENV GIT_DIRTY=false
+    ENV GIT_COMMIT=$COMMIT_HASH
+    RUN yarn build
+    # this builds text fixtures to be used in tests
+    RUN yarn workspace @noir-lang/noir_wasm run test:build_fixtures
 
-  SAVE ARTIFACT /usr/src /usr/src
+    SAVE ARTIFACT /usr/src /usr/src
 
 packages-test-node:
-  FROM +packages-test-build
-  ENV NODE_OPTIONS=--max_old_space_size=8192
-  WORKDIR /usr/src/noir/noir-repo
-  RUN yarn workspaces foreach \
-    --parallel \
-    --verbose \
-    --exclude @noir-lang/root \ # foreach includes the root workspace, ignore it
-    --exclude @noir-lang/noir_js \ # noir_js OOMs
-    --exclude integration-tests \ # separate node and browser tests
-    --exclude @noir-lang/noir_wasm \
-    run test
-  RUN yarn workspaces foreach \
-    --parallel \
-    --verbose \
-    --include integration-tests \
-    --include @noir-lang/noir_wasm \
-    run test:node
+    FROM +packages-test-build
+    ENV NODE_OPTIONS=--max_old_space_size=8192
+    WORKDIR /usr/src/noir/noir-repo
+    RUN yarn workspaces foreach \
+      --parallel \
+      --verbose \
+      --exclude @noir-lang/root \ # foreach includes the root workspace, ignore it
+      --exclude @noir-lang/noir_js \ # noir_js OOMs
+      --exclude integration-tests \ # separate node and browser tests
+      --exclude @noir-lang/noir_wasm \
+      run test
+    RUN yarn workspaces foreach \
+      --parallel \
+      --verbose \
+      --include integration-tests \
+      --include @noir-lang/noir_wasm \
+      run test:node
 
 packages-test-browser:
-  FROM node:18
-  COPY --dir +packages-test-build/usr/src /usr
-  WORKDIR /usr/src/noir/noir-repo
-  RUN ./.github/scripts/playwright-install.sh
-  RUN yarn workspaces foreach \
-    --parallel \
-    --verbose \
-    --include integration-tests \
-    --include @noir-lang/noir_wasm \
-    run test:browser
+    FROM node:18
+    COPY --dir +packages-test-build/usr/src /usr
+    WORKDIR /usr/src/noir/noir-repo
+    RUN ./.github/scripts/playwright-install.sh
+    RUN yarn workspaces foreach \
+      --parallel \
+      --verbose \
+      --include integration-tests \
+      --include @noir-lang/noir_wasm \
+      run test:browser
 
 packages-test:
-  BUILD +packages-test-node
-  BUILD +packages-test-browser
+    BUILD +packages-test-node
+    BUILD +packages-test-browser
 
 run:
     # When running the container, mount the users home directory to same location.
@@ -174,141 +174,101 @@ run:
     COPY +build/. /usr/src
     ENTRYPOINT ["/usr/bin/tini", "--", "/usr/src/nargo"]
 
-build:
-  BUILD +nargo
-  BUILD +packages
-
 build-acir-tests:
-  FROM ../build-images/+build
-  COPY +nargo/ /usr/src/noir-repo/target/release
-  ENV PATH="/usr/src/noir-repo/target/release:${PATH}"
-  WORKDIR /usr/src/noir-repo/test_programs
-  COPY ./noir-repo/test_programs/ /usr/src/noir-repo/test_programs/
-  RUN /usr/src/noir-repo/target/release/nargo --version
-  # We run this with parallel compilation switched off, which isn't ideal.
-  # There seems to be problems with this when running under Earthly, see bottom of this file*
-  RUN ./rebuild.sh true
-  SAVE ARTIFACT /usr/src/noir-repo/test_programs/acir_artifacts/*
+    LOCALLY
+    # Prepare our exact dependency formula, this avoids problems with copied empty folders or build artifacts
+    RUN rm -rf .earthly-staging && mkdir -p .earthly-staging
+    RUN cp --parents $(git ls-files "noir-repo/test_programs/*.toml" "noir-repo/test_programs/*.nr" "noir-repo/test_programs/rebuild.sh") .earthly-staging
+    FROM ../build-images/+build
+    COPY +nargo/ /usr/src/noir-repo/target/release
+    ENV PATH="/usr/src/noir-repo/target/release:${PATH}"
+    WORKDIR /usr/src/noir-repo/test_programs
+    COPY .earthly-staging/noir-repo/test_programs /usr/src/noir-repo/test_programs/
+    RUN /usr/src/noir-repo/target/release/nargo --version
+    # TODO(#6225): We have trouble with concurrency and pass 'true' to build in serial, see #6225 for details
+    RUN ./rebuild.sh true
+    SAVE ARTIFACT /usr/src/noir-repo/test_programs/acir_artifacts/*
 
 barretenberg-acir-tests-bb:
-  FROM ../build-images/+build
+    FROM ../build-images/+build
 
-  COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
-  COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
-  COPY +build-acir-tests/ /usr/src/acir_artifacts
+    COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+    COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
+    COPY +build-acir-tests/ /usr/src/acir_artifacts
 
-  WORKDIR /usr/src/barretenberg/acir_tests
-  RUN rm -rf ./acir_tests
+    WORKDIR /usr/src/barretenberg/acir_tests
+    RUN rm -rf ./acir_tests
 
-  ENV TEST_SRC /usr/src/acir_artifacts
-  ENV VERBOSE=1
-  # Run every acir test through native bb build prove_then_verify flow for UltraPlonk.
-  # This ensures we test independent pk construction through real/garbage witness data paths.
-  RUN FLOW=prove_then_verify ./run_acir_tests.sh
-  # Construct and separately verify a UltraHonk proof for a single program
-  RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
-  # Construct and separately verify a GoblinUltraHonk proof for all acir programs
-  RUN FLOW=prove_then_verify_goblin_ultra_honk ./run_acir_tests.sh
-  # Construct and verify a UltraHonk proof for a single program
-  RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
-  # Construct and verify a Goblin UltraHonk (GUH) proof for a single arbitrary program
-  RUN FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
-  # Construct and verify a UltraHonk proof for all ACIR programs using the new witness stack workflow
-  RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh
-  # This is a "full" Goblin flow. It constructs and verifies four proofs: GoblinUltraHonk, ECCVM, Translator, and merge
-  RUN FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
-  # Run 1_mul through native bb build, all_cmds flow, to test all cli args.
-  RUN FLOW=all_cmds ./run_acir_tests.sh 1_mul
-
+    ENV TEST_SRC /usr/src/acir_artifacts
+    ENV VERBOSE=1
+    # Run every acir test through native bb build prove_then_verify flow for UltraPlonk.
+    # This ensures we test independent pk construction through real/garbage witness data paths.
+    RUN FLOW=prove_then_verify ./run_acir_tests.sh
+    # Construct and separately verify a UltraHonk proof for a single program
+    RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+    # Construct and separately verify a GoblinUltraHonk proof for all acir programs
+    RUN FLOW=prove_then_verify_goblin_ultra_honk ./run_acir_tests.sh
+    # Construct and verify a UltraHonk proof for a single program
+    RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+    # Construct and verify a Goblin UltraHonk (GUH) proof for a single arbitrary program
+    RUN FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
+    # Construct and verify a UltraHonk proof for all ACIR programs using the new witness stack workflow
+    RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh
+    # This is a "full" Goblin flow. It constructs and verifies four proofs: GoblinUltraHonk, ECCVM, Translator, and merge
+    RUN FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
+    # Run 1_mul through native bb build, all_cmds flow, to test all cli args.
+    RUN FLOW=all_cmds ./run_acir_tests.sh 1_mul
 
 barretenberg-acir-tests-sol:
-  FROM ../build-images/+build
+    FROM ../build-images/+build
 
-  COPY ../barretenberg/cpp/+preset-sol/ /usr/src/barretenberg/cpp/build
-  COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
-  COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
-  COPY ../barretenberg/+sol/ /usr/src/barretenberg/sol
-  COPY +build-acir-tests/ /usr/src/acir_artifacts
+    COPY ../barretenberg/cpp/+preset-sol/ /usr/src/barretenberg/cpp/build
+    COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+    COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
+    COPY ../barretenberg/+sol/ /usr/src/barretenberg/sol
+    COPY +build-acir-tests/ /usr/src/acir_artifacts
 
-  WORKDIR /usr/src/barretenberg/acir_tests
+    WORKDIR /usr/src/barretenberg/acir_tests
 
-  ENV TEST_SRC /usr/src/acir_artifacts
-  ENV VERBOSE=1
+    ENV TEST_SRC /usr/src/acir_artifacts
+    ENV VERBOSE=1
 
-  RUN (cd sol-test && yarn)
-  RUN PARALLEL=1 FLOW=sol ./run_acir_tests.sh assert_statement double_verify_proof double_verify_nested_proof
+    RUN (cd sol-test && yarn)
+    RUN PARALLEL=1 FLOW=sol ./run_acir_tests.sh assert_statement double_verify_proof double_verify_nested_proof
 
 barretenberg-acir-tests-bb.js:
-  # Playwright not supported on base image ubuntu:noble, results in unmet dependencies
-  FROM node:18.19.0
-  RUN apt update && apt install -y curl jq lsof
+    # Playwright not supported on base image ubuntu:noble, results in unmet dependencies
+    FROM node:18.19.0
+    RUN apt update && apt install -y curl jq lsof
 
-  COPY ../barretenberg/ts/+build/build/ /usr/src/barretenberg/ts
-  COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
-  COPY +build-acir-tests/ /usr/src/acir_artifacts
+    COPY ../barretenberg/ts/+build/build/ /usr/src/barretenberg/ts
+    COPY ../barretenberg/+acir-tests/ /usr/src/barretenberg/acir_tests
+    COPY +build-acir-tests/ /usr/src/acir_artifacts
 
-  WORKDIR /usr/src/barretenberg/acir_tests
+    WORKDIR /usr/src/barretenberg/acir_tests
 
-  # Build/install ts apps.
-  RUN cd browser-test-app && yarn && yarn build
-  RUN cd headless-test && yarn && npx playwright install && npx playwright install-deps
-  RUN cd ../ts && yarn
-  ENV VERBOSE=1
-  ENV TEST_SRC /usr/src/acir_artifacts
+    # Build/install ts apps.
+    RUN cd browser-test-app && yarn && yarn build
+    RUN cd headless-test && yarn && npx playwright install && npx playwright install-deps
+    RUN cd ../ts && yarn
+    ENV VERBOSE=1
+    ENV TEST_SRC /usr/src/acir_artifacts
 
-  # Run double_verify_proof through bb.js on node to check 512k support.
-  RUN BIN=../ts/dest/node/main.js FLOW=prove_then_verify ./run_acir_tests.sh double_verify_proof
-  # Run a single arbitrary test not involving recursion through bb.js for UltraHonk
-  RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh 6_array
-  # Run a single arbitrary test not involving recursion through bb.js for GoblinUltraHonk
-  RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
-  # Run a single arbitrary test not involving recursion through bb.js for full Goblin
-  RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
-  # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.
-  RUN BIN=../ts/dest/node/main.js FLOW=all_cmds ./run_acir_tests.sh 1_mul
-  # Run double_verify_proof through bb.js on chrome testing multi-threaded browser support.
-  # TODO: Currently headless webkit doesn't seem to have shared memory so skipping multi-threaded test.
-  RUN BROWSER=chrome THREAD_MODEL=mt ./run_acir_tests_browser.sh double_verify_proof
-  # Run 1_mul through bb.js on chrome/webkit testing single threaded browser support.
-  RUN BROWSER=chrome THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
-  # Commenting for now as fails intermittently. Unreproducable on mainframe.
-  # See https://github.com/AztecProtocol/aztec-packages/issues/2104
-  #RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
-
-#* Analysis of compiling Acir tests inside/outside Earthly
-# Each test run compiles the full suite, either in series or in parallel, either inside or outside Earthly.
-# Each test prints the contents of the target directory of the eddsa circuit after compilation
-# You can see that the 'Inside Earthly Parallel' run has an acir.gz file of a different size
-# This results in a proof that fails verification
-#
-# Outside Earthly Parallel
-
-# [eddsa] Circuit witness successfully solved
-# [eddsa] Witness saved to /mnt/user-data/phil/aztec3-packages/noir/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
-# total 2544
-# -rw-rw-r-- 1 phil phil  904034 May  3 10:40 acir.gz
-# -rw-rw-r-- 1 phil phil 1696442 May  3 10:40 witness.gz
-
-# Outside Earthly Series
-
-# [eddsa] Circuit witness successfully solved
-# [eddsa] Witness saved to /mnt/user-data/phil/aztec3-packages/noir/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
-# total 2544
-# -rw-rw-r-- 1 phil phil  904034 May  3 10:43 acir.gz
-# -rw-rw-r-- 1 phil phil 1696442 May  3 10:43 witness.gz
-
-# Inside Earthly Parallel
-
-#    +build-acir-tests | [eddsa] Circuit witness successfully solved
-#    +build-acir-tests | [eddsa] Witness saved to /usr/src/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
-#    +build-acir-tests | total 2472
-#    +build-acir-tests | -rw-r--r-- 1 root root  830340 May  3 10:47 acir.gz
-#    +build-acir-tests | -rw-r--r-- 1 root root 1696442 May  3 10:47 witness.gz
-
-#  Inside Earthly Series
-
-#     +build-acir-tests | [eddsa] Circuit witness successfully solved
-#    +build-acir-tests | [eddsa] Witness saved to /usr/src/noir-repo/test_programs/execution_success/eddsa/target/witness.gz
-#    +build-acir-tests | total 2544
-#    +build-acir-tests | -rw-r--r-- 1 root root  904034 May  3 10:50 acir.gz
-#    +build-acir-tests | -rw-r--r-- 1 root root 1696442 May  3 10:51 witness.gz
+    # Run double_verify_proof through bb.js on node to check 512k support.
+    RUN BIN=../ts/dest/node/main.js FLOW=prove_then_verify ./run_acir_tests.sh double_verify_proof
+    # Run a single arbitrary test not involving recursion through bb.js for UltraHonk
+    RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh 6_array
+    # Run a single arbitrary test not involving recursion through bb.js for GoblinUltraHonk
+    RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
+    # Run a single arbitrary test not involving recursion through bb.js for full Goblin
+    RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
+    # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.
+    RUN BIN=../ts/dest/node/main.js FLOW=all_cmds ./run_acir_tests.sh 1_mul
+    # Run double_verify_proof through bb.js on chrome testing multi-threaded browser support.
+    # TODO: Currently headless webkit doesn't seem to have shared memory so skipping multi-threaded test.
+    RUN BROWSER=chrome THREAD_MODEL=mt ./run_acir_tests_browser.sh double_verify_proof
+    # Run 1_mul through bb.js on chrome/webkit testing single threaded browser support.
+    RUN BROWSER=chrome THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
+    # Commenting for now as fails intermittently. Unreproducable on mainframe.
+    # See https://github.com/AztecProtocol/aztec-packages/issues/2104
+    #RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
