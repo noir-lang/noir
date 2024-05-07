@@ -19,7 +19,7 @@ use noirc_frontend::{
 use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{backends::Backend, cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
 use super::NargoConfig;
 
@@ -54,11 +54,7 @@ pub(crate) struct TestCommand {
     oracle_resolver: Option<String>,
 }
 
-pub(crate) fn run(
-    _backend: &Backend,
-    args: TestCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
