@@ -2,7 +2,6 @@
 
 mod contract;
 mod gates;
-mod info;
 mod proof_as_fields;
 mod prove;
 mod verify;
@@ -12,7 +11,6 @@ mod write_vk;
 
 pub(crate) use contract::ContractCommand;
 pub(crate) use gates::GatesCommand;
-pub(crate) use info::InfoCommand;
 pub(crate) use proof_as_fields::ProofAsFieldsCommand;
 pub(crate) use prove::ProveCommand;
 pub(crate) use verify::VerifyCommand;

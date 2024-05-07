@@ -104,6 +104,19 @@ fn for_loop() {
 }
 
 #[test]
+fn for_loop_u16() {
+    let program = "fn main() -> pub u16 {
+        let mut x = 0;
+        for i in 0 .. 6 {
+            x += i;
+        }
+        x
+    }";
+    let result = interpret(program, vec!["main".into()]);
+    assert_eq!(result, Value::U16(15));
+}
+
+#[test]
 fn for_loop_with_break() {
     let program = "unconstrained fn main() -> pub u32 {
         let mut x = 0;
