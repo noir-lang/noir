@@ -110,7 +110,7 @@ describe('world state access trace', () => {
     let counter = 0;
     trace.tracePublicStorageWrite(contractAddress, slot, value);
     counter++;
-    trace.tracePublicStorageRead(contractAddress, slot, value, /*exists=*/ true);
+    trace.tracePublicStorageRead(contractAddress, slot, value, /*exists=*/ true, /*cached=*/ true);
     counter++;
     trace.traceNoteHashCheck(contractAddress, noteHash, noteHashExists, noteHashLeafIndex);
     counter++;
@@ -124,7 +124,7 @@ describe('world state access trace', () => {
     counter++;
     trace.tracePublicStorageWrite(contractAddress, slot, value);
     counter++;
-    trace.tracePublicStorageRead(contractAddress, slot, value, /*exists=*/ true);
+    trace.tracePublicStorageRead(contractAddress, slot, value, /*exists=*/ true, /*cached=*/ true);
     counter++;
     trace.traceNewNoteHash(contractAddress, noteHash);
     counter++;
@@ -178,7 +178,7 @@ describe('world state access trace', () => {
     };
 
     trace.tracePublicStorageWrite(contractAddress, slot, value);
-    trace.tracePublicStorageRead(contractAddress, slot, value, /*exists=*/ true);
+    trace.tracePublicStorageRead(contractAddress, slot, value, /*exists=*/ true, /*cached=*/ true);
     trace.traceNoteHashCheck(contractAddress, noteHash, noteHashExists, noteHashLeafIndex);
     trace.traceNewNoteHash(contractAddress, noteHash);
     trace.traceNullifierCheck(contractAddress, nullifier, nullifierExists, nullifierIsPending, nullifierLeafIndex);
@@ -187,7 +187,7 @@ describe('world state access trace', () => {
 
     const childTrace = new WorldStateAccessTrace(trace);
     childTrace.tracePublicStorageWrite(contractAddress, slot, valueT1);
-    childTrace.tracePublicStorageRead(contractAddress, slot, valueT1, /*exists=*/ true);
+    childTrace.tracePublicStorageRead(contractAddress, slot, valueT1, /*exists=*/ true, /*cached=*/ true);
     childTrace.traceNoteHashCheck(contractAddress, noteHashT1, noteHashExistsT1, noteHashLeafIndexT1);
     childTrace.traceNewNoteHash(contractAddress, nullifierT1);
     childTrace.traceNullifierCheck(
@@ -205,8 +205,20 @@ describe('world state access trace', () => {
     expect(trace.getAccessCounter()).toEqual(childCounterBeforeMerge);
 
     expect(trace.publicStorageReads).toEqual([
-      expect.objectContaining({ storageAddress: contractAddress, slot: slot, value: value, exists: true }),
-      expect.objectContaining({ storageAddress: contractAddress, slot: slot, value: valueT1, exists: true }),
+      expect.objectContaining({
+        storageAddress: contractAddress,
+        slot: slot,
+        value: value,
+        exists: true,
+        cached: true,
+      }),
+      expect.objectContaining({
+        storageAddress: contractAddress,
+        slot: slot,
+        value: valueT1,
+        exists: true,
+        cached: true,
+      }),
     ]);
     expect(trace.publicStorageWrites).toEqual([
       expect.objectContaining({ storageAddress: contractAddress, slot: slot, value: value }),

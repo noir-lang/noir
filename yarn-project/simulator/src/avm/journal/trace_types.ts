@@ -11,6 +11,7 @@ export type TracedPublicStorageRead = {
   //  callPointer: Fr;
   storageAddress: Fr;
   exists: boolean;
+  cached: boolean;
   slot: Fr;
   value: Fr;
   counter: Fr;

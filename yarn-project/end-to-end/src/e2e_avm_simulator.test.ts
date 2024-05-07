@@ -1,4 +1,4 @@
-import { type AccountWallet, AztecAddress, Fr, FunctionSelector, TxStatus } from '@aztec/aztec.js';
+import { type AccountWallet, AztecAddress, BatchCall, Fr, FunctionSelector, TxStatus } from '@aztec/aztec.js';
 import { GasSettings } from '@aztec/circuits.js';
 import {
   AvmAcvmInteropTestContract,
@@ -58,6 +58,19 @@ describe('e2e_avm_simulator', () => {
         const address = AztecAddress.fromBigInt(9090n);
         await avmContract.methods.set_storage_map(address, 100).send().wait();
         await avmContract.methods.add_storage_map(address, 100).send().wait();
+        expect(await avmContract.methods.view_storage_map(address).simulate()).toEqual(200n);
+      });
+
+      it('Preserves storage across enqueued public calls', async () => {
+        const address = AztecAddress.fromBigInt(9090n);
+        // This will create 1 tx with 2 public calls in it.
+        await new BatchCall(wallet, [
+          avmContract.methods.set_storage_map(address, 100).request(),
+          avmContract.methods.add_storage_map(address, 100).request(),
+        ])
+          .send()
+          .wait();
+        // On a separate tx, we check the result.
         expect(await avmContract.methods.view_storage_map(address).simulate()).toEqual(200n);
       });
     });

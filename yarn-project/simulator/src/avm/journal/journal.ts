@@ -50,6 +50,8 @@ export type JournalData = {
   newLogsHashes: TracedUnencryptedL2Log[];
   /** contract address -\> key -\> value */
   currentStorageValue: Map<bigint, Map<bigint, Fr>>;
+
+  sideEffectCounter: number;
 };
 
 // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
@@ -143,6 +145,15 @@ export class AvmPersistableStateManager {
     this.publicStorage.write(storageAddress, slot, value);
 
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
+    // The current info to the kernel clears any previous read or write request.
+    this.transitionalExecutionResult.contractStorageReads =
+      this.transitionalExecutionResult.contractStorageReads.filter(
+        read => !read.storageSlot.equals(slot) || !read.contractAddress!.equals(storageAddress),
+      );
+    this.transitionalExecutionResult.contractStorageUpdateRequests =
+      this.transitionalExecutionResult.contractStorageUpdateRequests.filter(
+        update => !update.storageSlot.equals(slot) || !update.contractAddress!.equals(storageAddress),
+      );
     this.transitionalExecutionResult.contractStorageUpdateRequests.push(
       new ContractStorageUpdateRequest(slot, value, this.trace.accessCounter, storageAddress),
     );
@@ -159,16 +170,24 @@ export class AvmPersistableStateManager {
    * @returns the latest value written to slot, or 0 if never written to before
    */
   public async readStorage(storageAddress: Fr, slot: Fr): Promise<Fr> {
-    const [exists, value] = await this.publicStorage.read(storageAddress, slot);
-    this.log.debug(`storage(${storageAddress})@${slot} ?? value: ${value}, exists: ${exists}.`);
+    const { value, exists, cached } = await this.publicStorage.read(storageAddress, slot);
+    this.log.debug(`storage(${storageAddress})@${slot} ?? value: ${value}, exists: ${exists}, cached: ${cached}.`);
 
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
-    this.transitionalExecutionResult.contractStorageReads.push(
-      new ContractStorageRead(slot, value, this.trace.accessCounter, storageAddress),
-    );
+    // The current info to the kernel kernel does not consider cached reads.
+    if (!cached) {
+      // The current info to the kernel removes any previous reads to the same slot.
+      this.transitionalExecutionResult.contractStorageReads =
+        this.transitionalExecutionResult.contractStorageReads.filter(
+          read => !read.storageSlot.equals(slot) || !read.contractAddress!.equals(storageAddress),
+        );
+      this.transitionalExecutionResult.contractStorageReads.push(
+        new ContractStorageRead(slot, value, this.trace.accessCounter, storageAddress),
+      );
+    }
 
     // We want to keep track of all performed reads (even reverted ones)
-    this.trace.tracePublicStorageRead(storageAddress, slot, value, exists);
+    this.trace.tracePublicStorageRead(storageAddress, slot, value, exists, cached);
     return Promise.resolve(value);
   }
 
@@ -348,6 +367,7 @@ export class AvmPersistableStateManager {
       currentStorageValue: this.publicStorage.getCache().cachePerContract,
       storageReads: this.trace.publicStorageReads,
       storageWrites: this.trace.publicStorageWrites,
+      sideEffectCounter: this.trace.accessCounter,
     };
   }
 }

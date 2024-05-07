@@ -19,22 +19,26 @@ describe('avm public storage', () => {
       const contractAddress = new Fr(1);
       const slot = new Fr(2);
       // never written!
-      const [exists, gotValue] = await publicStorage.read(contractAddress, slot);
+      const { exists, value: gotValue, cached } = await publicStorage.read(contractAddress, slot);
       // doesn't exist, value is zero
       expect(exists).toEqual(false);
       expect(gotValue).toEqual(Fr.ZERO);
+      expect(cached).toEqual(false);
     });
+
     it('Should cache storage write, reading works after write', async () => {
       const contractAddress = new Fr(1);
       const slot = new Fr(2);
       const value = new Fr(3);
       // Write to cache
       publicStorage.write(contractAddress, slot, value);
-      const [exists, gotValue] = await publicStorage.read(contractAddress, slot);
+      const { exists, value: gotValue, cached } = await publicStorage.read(contractAddress, slot);
       // exists because it was previously written
       expect(exists).toEqual(true);
       expect(gotValue).toEqual(value);
+      expect(cached).toEqual(true);
     });
+
     it('Reading works on fallback to host (gets value & exists)', async () => {
       const contractAddress = new Fr(1);
       const slot = new Fr(2);
@@ -42,11 +46,13 @@ describe('avm public storage', () => {
       // ensure that fallback to host gets a value
       publicDb.storageRead.mockResolvedValue(Promise.resolve(storedValue));
 
-      const [exists, gotValue] = await publicStorage.read(contractAddress, slot);
+      const { exists, value: gotValue, cached } = await publicStorage.read(contractAddress, slot);
       // it exists in the host, so it must've been written before
       expect(exists).toEqual(true);
       expect(gotValue).toEqual(storedValue);
+      expect(cached).toEqual(false);
     });
+
     it('Reading works on fallback to parent (gets value & exists)', async () => {
       const contractAddress = new Fr(1);
       const slot = new Fr(2);
@@ -54,11 +60,13 @@ describe('avm public storage', () => {
       const childStorage = new PublicStorage(publicDb, publicStorage);
 
       publicStorage.write(contractAddress, slot, value);
-      const [exists, gotValue] = await childStorage.read(contractAddress, slot);
+      const { exists, value: gotValue, cached } = await childStorage.read(contractAddress, slot);
       // exists because it was previously written!
       expect(exists).toEqual(true);
       expect(gotValue).toEqual(value);
+      expect(cached).toEqual(true);
     });
+
     it('When reading from storage, should check cache, then parent, then host', async () => {
       // Store a different value in storage vs the cache, and make sure the cache is returned
       const contractAddress = new Fr(1);
@@ -71,21 +79,24 @@ describe('avm public storage', () => {
       const childStorage = new PublicStorage(publicDb, publicStorage);
 
       // Cache miss falls back to host
-      const [, cacheMissResult] = await childStorage.read(contractAddress, slot);
-      expect(cacheMissResult).toEqual(storedValue);
+      const { cached: cachedCacheMiss, value: valueCacheMiss } = await childStorage.read(contractAddress, slot);
+      expect(valueCacheMiss).toEqual(storedValue);
+      expect(cachedCacheMiss).toEqual(false);
 
       // Write to storage
       publicStorage.write(contractAddress, slot, parentValue);
       // Reading from child should give value written in parent
-      const [, valueFromParent] = await childStorage.read(contractAddress, slot);
+      const { cached: cachedValueFromParent, value: valueFromParent } = await childStorage.read(contractAddress, slot);
       expect(valueFromParent).toEqual(parentValue);
+      expect(cachedValueFromParent).toEqual(true);
 
       // Now write a value directly in child
       childStorage.write(contractAddress, slot, cachedValue);
 
       // Reading should now give the value written in child
-      const [, cachedResult] = await childStorage.read(contractAddress, slot);
+      const { cached: cachedChild, value: cachedResult } = await childStorage.read(contractAddress, slot);
       expect(cachedResult).toEqual(cachedValue);
+      expect(cachedChild).toEqual(true);
     });
   });
 
@@ -109,7 +120,7 @@ describe('avm public storage', () => {
     publicStorage.acceptAndMerge(childStorage);
 
     // Read from parent gives latest value written in child before merge (valueT1)
-    const [exists, result] = await publicStorage.read(contractAddress, slot);
+    const { exists, value: result } = await publicStorage.read(contractAddress, slot);
     expect(exists).toEqual(true);
     expect(result).toEqual(valueT1);
   });

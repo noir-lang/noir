@@ -1,6 +1,13 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import type { PublicStateDB } from '../../index.js';
+
+type PublicStorageReadResult = {
+  value: Fr;
+  exists: boolean;
+  cached: boolean;
+};
 
 /**
  * A class to manage public storage reads and writes during a contract call's AVM simulation.
@@ -39,7 +46,8 @@ export class PublicStorage {
    * @param slot - the slot in the contract's storage being read from
    * @returns exists: whether the slot has EVER been written to before, value: the latest value written to slot, or 0 if never written to before
    */
-  public async read(storageAddress: Fr, slot: Fr): Promise<[/*exists=*/ boolean, /*value=*/ Fr]> {
+  public async read(storageAddress: Fr, slot: Fr): Promise<PublicStorageReadResult> {
+    let cached = false;
     // First try check this storage cache
     let value = this.cache.read(storageAddress, slot);
     // Then try parent's storage cache (if it exists / written to earlier in this TX)
@@ -49,11 +57,13 @@ export class PublicStorage {
     // Finally try the host's Aztec state (a trip to the database)
     if (!value) {
       value = await this.hostPublicStorage.storageRead(storageAddress, slot);
+    } else {
+      cached = true;
     }
     // if value is undefined, that means this slot has never been written to!
     const exists = value !== undefined;
     const valueOrZero = exists ? value : Fr.ZERO;
-    return Promise.resolve([exists, valueOrZero]);
+    return Promise.resolve({ value: valueOrZero, exists, cached });
   }
 
   /**
@@ -74,6 +84,17 @@ export class PublicStorage {
    */
   public acceptAndMerge(incomingPublicStorage: PublicStorage) {
     this.cache.acceptAndMerge(incomingPublicStorage.cache);
+  }
+
+  /**
+   * Commits ALL staged writes to the host's state.
+   */
+  public async commitToDB() {
+    for (const [storageAddress, cacheAtContract] of this.cache.cachePerContract) {
+      for (const [slot, value] of cacheAtContract) {
+        await this.hostPublicStorage.storageWrite(AztecAddress.fromBigInt(storageAddress), new Fr(slot), value);
+      }
+    }
   }
 }
 

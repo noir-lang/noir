@@ -36,7 +36,7 @@ export class WorldStateAccessTrace {
     return this.accessCounter;
   }
 
-  public tracePublicStorageRead(storageAddress: Fr, slot: Fr, value: Fr, exists: boolean) {
+  public tracePublicStorageRead(storageAddress: Fr, slot: Fr, value: Fr, exists: boolean, cached: boolean) {
     // TODO(4805): check if some threshold is reached for max storage reads
     // (need access to parent length, or trace needs to be initialized with parent's contents)
     const traced: TracedPublicStorageRead = {
@@ -45,6 +45,7 @@ export class WorldStateAccessTrace {
       slot,
       value,
       exists,
+      cached,
       counter: new Fr(this.accessCounter),
       //  endLifetime: Fr.ZERO,
     };
