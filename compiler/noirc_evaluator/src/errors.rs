@@ -7,7 +7,7 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::{acir::native_types::Expression, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
@@ -17,13 +17,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
-    #[error("{}", format_failed_constraint(.assert_message))]
-    FailedConstraint {
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-        call_stack: CallStack,
-        assert_message: Option<String>,
-    },
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {array_size}, but index was {index}")]
@@ -50,16 +43,6 @@ pub enum RuntimeError {
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
     #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
-}
-
-// We avoid showing the actual lhs and rhs since most of the time they are just 0
-// and 1 respectively. This would confuse users if a constraint such as
-// assert(foo < bar) fails with "failed constraint: 0 = 1."
-fn format_failed_constraint(message: &Option<String>) -> String {
-    match message {
-        Some(message) => format!("Failed constraint: '{message}'"),
-        None => "Failed constraint".to_owned(),
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,7 +112,6 @@ impl RuntimeError {
                 | InternalError::UndeclaredAcirVar { call_stack }
                 | InternalError::Unexpected { call_stack, .. },
             )
-            | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }

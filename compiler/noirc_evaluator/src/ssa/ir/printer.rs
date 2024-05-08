@@ -4,16 +4,15 @@ use std::{
     fmt::{Formatter, Result},
 };
 
+use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
 use iter_extended::vecmap;
 
 use super::{
     basic_block::BasicBlockId,
+    dfg::DataFlowGraph,
     function::Function,
-    instruction::{
-        ConstrainError, Instruction, InstructionId, TerminatorInstruction,
-        UserDefinedConstrainError,
-    },
-    value::ValueId,
+    instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
+    value::{Value, ValueId},
 };
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
@@ -63,7 +62,6 @@ pub(crate) fn display_block(
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
-    use super::value::Value;
     let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
@@ -159,7 +157,6 @@ fn display_instruction_inner(
         Instruction::Constrain(lhs, rhs, error) => {
             write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;
             if let Some(error) = error {
-                write!(f, " ")?;
                 display_constrain_error(function, error, f)
             } else {
                 writeln!(f)
@@ -208,18 +205,51 @@ fn display_instruction_inner(
     }
 }
 
+/// Tries to extract a constant string from an error payload.
+pub(crate) fn try_to_extract_string_from_error_payload(
+    error_selector: ErrorSelector,
+    values: &[ValueId],
+    dfg: &DataFlowGraph,
+) -> Option<String> {
+    ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
+        .then_some(())
+        .and_then(|()| {
+            let Value::Array { array: values, .. } = &dfg[values[0]] else {
+                return None;
+            };
+            let fields: Option<Vec<_>> =
+                values.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
+
+            fields
+        })
+        .map(|fields| {
+            fields
+                .iter()
+                .map(|field| {
+                    let as_u8 = field.try_to_u64().unwrap_or_default() as u8;
+                    as_u8 as char
+                })
+                .collect()
+        })
+}
+
 fn display_constrain_error(
     function: &Function,
     error: &ConstrainError,
     f: &mut Formatter,
 ) -> Result {
     match error {
-        ConstrainError::Intrinsic(assert_message_string)
-        | ConstrainError::UserDefined(UserDefinedConstrainError::Static(assert_message_string)) => {
-            writeln!(f, "{assert_message_string:?}")
+        ConstrainError::Intrinsic(assert_message_string) => {
+            writeln!(f, " '{assert_message_string:?}'")
         }
-        ConstrainError::UserDefined(UserDefinedConstrainError::Dynamic(assert_message_call)) => {
-            display_instruction_inner(function, assert_message_call, f)
+        ConstrainError::UserDefined(selector, values) => {
+            if let Some(constant_string) =
+                try_to_extract_string_from_error_payload(*selector, values, &function.dfg)
+            {
+                writeln!(f, " '{}'", constant_string)
+            } else {
+                writeln!(f, ", data {}", value_list(function, values))
+            }
         }
     }
 }

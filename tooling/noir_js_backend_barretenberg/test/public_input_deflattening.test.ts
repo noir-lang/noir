@@ -55,6 +55,7 @@ const abi: Abi = {
     visibility: 'public',
   },
   return_witnesses: [2, 13, 13],
+  error_types: {},
 };
 
 it('flattens a witness map in order of its witness indices', async () => {
