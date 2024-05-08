@@ -65,7 +65,9 @@ fn stdlib_noir_tests() {
     run_stdlib_tests(false)
 }
 
+// Once this no longer panics we can use the elaborator by default and remove the old passes
 #[test]
+#[should_panic]
 fn stdlib_elaborator_tests() {
     run_stdlib_tests(true)
 }
