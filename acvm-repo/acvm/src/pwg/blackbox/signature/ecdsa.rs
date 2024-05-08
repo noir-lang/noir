@@ -5,9 +5,13 @@ use acir::{
 };
 use acvm_blackbox_solver::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
 
-use crate::{pwg::insert_value, OpcodeResolutionError};
-
-use super::{to_u8_array, to_u8_vec};
+use crate::{
+    pwg::{
+        blackbox::utils::{to_u8_array, to_u8_vec},
+        insert_value,
+    },
+    OpcodeResolutionError,
+};
 
 pub(crate) fn secp256k1_prehashed(
     initial_witness: &mut WitnessMap,

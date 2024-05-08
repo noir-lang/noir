@@ -2,9 +2,9 @@ use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},
     BlackBoxFunctionSolver,
 };
+use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
-use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 
 use crate::{errors::try_to_diagnose_runtime_error, NargoError};
@@ -44,6 +44,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             );
             test_status_program_compile_pass(
                 test_function,
+                compiled_program.abi,
                 compiled_program.debug,
                 circuit_execution,
             )
@@ -64,18 +65,7 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
         return TestStatus::CompileError(err.into());
     }
 
-    // The test has failed compilation, extract the assertion message if present and check if it's expected.
-    let assert_message = if let CompileError::RuntimeError(RuntimeError::FailedConstraint {
-        assert_message,
-        ..
-    }) = &err
-    {
-        assert_message.clone()
-    } else {
-        None
-    };
-
-    check_expected_failure_message(test_function, assert_message, Some(err.into()))
+    check_expected_failure_message(test_function, None, Some(err.into()))
 }
 
 /// The test function compiled successfully.
@@ -84,6 +74,7 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
+    abi: Abi,
     debug: Vec<DebugInfo>,
     circuit_execution: Result<WitnessStack, NargoError>,
 ) -> TestStatus {
@@ -105,7 +96,7 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
-    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &debug);
+    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &abi, &debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
         return TestStatus::Fail {
@@ -116,7 +107,7 @@ fn test_status_program_compile_pass(
 
     check_expected_failure_message(
         test_function,
-        circuit_execution_err.user_defined_failure_message().map(|s| s.to_string()),
+        circuit_execution_err.user_defined_failure_message(&abi.error_types),
         diagnostic,
     )
 }

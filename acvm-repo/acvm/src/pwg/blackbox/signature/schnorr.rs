@@ -1,6 +1,8 @@
-use super::{to_u8_array, to_u8_vec};
 use crate::{
-    pwg::{insert_value, witness_to_value, OpcodeResolutionError},
+    pwg::{
+        blackbox::utils::{to_u8_array, to_u8_vec},
+        insert_value, witness_to_value, OpcodeResolutionError,
+    },
     BlackBoxFunctionSolver,
 };
 use acir::{
