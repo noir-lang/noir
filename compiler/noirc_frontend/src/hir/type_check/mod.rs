@@ -173,7 +173,7 @@ fn check_if_type_is_valid_for_program_input(
 ) {
     let meta = type_checker.interner.function_meta(&func_id);
     if (meta.is_entry_point && !param.1.is_valid_for_program_input())
-        || (meta.should_fold && !param.1.is_valid_non_inlined_function_input())
+        || (meta.has_inline_attribute && !param.1.is_valid_non_inlined_function_input())
     {
         let span = param.0.span();
         errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
@@ -433,9 +433,7 @@ pub mod test {
     use iter_extended::btree_map;
     use noirc_errors::{Location, Span};
 
-    use crate::ast::{
-        BinaryOpKind, Distinctness, FunctionKind, FunctionReturnType, Path, Visibility,
-    };
+    use crate::ast::{BinaryOpKind, FunctionKind, FunctionReturnType, Path, Visibility};
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::{
@@ -508,6 +506,7 @@ pub mod test {
             r#type: Type::FieldElement,
             expression: expr_id,
             attributes: vec![],
+            comptime: false,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner
@@ -538,14 +537,13 @@ pub mod test {
             ]
             .into(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
-            should_fold: false,
+            has_inline_attribute: false,
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -672,7 +670,7 @@ pub mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(arena::Index::unsafe_zeroed())
+            LocalModuleId(noirc_arena::Index::unsafe_zeroed())
         }
 
         fn module_id(&self) -> ModuleId {
@@ -724,7 +722,7 @@ pub mod test {
         let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
-        let mut modules = arena::Arena::default();
+        let mut modules = noirc_arena::Arena::default();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 

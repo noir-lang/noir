@@ -232,6 +232,15 @@ impl Rem for i32 { fn rem(self, other: i32) -> i32 { self % other } }
 impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 ```
 
+### `std::ops::Neg`
+
+#include_code neg-trait noir_stdlib/src/ops.nr rust
+
+`Neg::neg` is equivalent to the unary negation operator `-`.
+
+Implementations:
+#include_code neg-trait-impls noir_stdlib/src/ops.nr rust
+
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
 #include_code bitor-trait noir_stdlib/src/ops.nr rust

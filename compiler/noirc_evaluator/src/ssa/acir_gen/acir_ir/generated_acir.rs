@@ -7,12 +7,11 @@ use crate::{
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
-
 use acvm::acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        OpcodeLocation,
+        AssertionPayload, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -61,7 +60,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload>,
 
     pub(crate) warnings: Vec<SsaReport>,
 
@@ -189,6 +188,18 @@ impl GeneratedAcir {
         let outputs_clone = outputs.clone();
 
         let black_box_func_call = match func_name {
+            BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
+                inputs: inputs[0].clone(),
+                iv: inputs[1]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                key: inputs[2]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs,
+            },
             BlackBoxFunc::AND => {
                 BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
@@ -279,9 +290,9 @@ impl GeneratedAcir {
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                low: inputs[0][0],
-                high: inputs[1][0],
+            BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
+                points: inputs[0].clone(),
+                scalars: inputs[1].clone(),
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -418,55 +429,6 @@ impl GeneratedAcir {
         self.assert_is_zero(input_expr - &composed_limbs);
 
         Ok(limb_witnesses)
-    }
-
-    /// Returns an expression which represents `lhs * rhs`
-    ///
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates [intermediate variables][`Witness`] accordingly.
-    /// There are two cases where we can optimize the multiplication between two expressions:
-    /// 1. If the sum of the degrees of both expressions is at most 2, then we can just multiply them
-    /// as each term in the result will be degree-2.
-    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
-    ///
-    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
-    /// which is what you get when you multiply two degree-1 univariate polynomials.
-    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
-        use std::borrow::Cow;
-        let lhs_is_linear = lhs.is_linear();
-        let rhs_is_linear = rhs.is_linear();
-
-        // Case 1: The sum of the degrees of both expressions is at most 2.
-        //
-        // If one of the expressions is constant then it does not increase the degree when multiplying by another expression.
-        // If both of the expressions are linear (degree <=1) then the product will be at most degree 2.
-        let both_are_linear = lhs_is_linear && rhs_is_linear;
-        let either_is_const = lhs.is_const() || rhs.is_const();
-        if both_are_linear || either_is_const {
-            return (lhs * rhs).expect("Both expressions are degree <= 1");
-        }
-
-        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
-        let lhs_reduced = if lhs_is_linear {
-            Cow::Borrowed(lhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(lhs).into())
-        };
-
-        // If the lhs and rhs are the same, then we do not need to reduce
-        // rhs, we only need to square the lhs.
-        if lhs == rhs {
-            return (&*lhs_reduced * &*lhs_reduced)
-                .expect("Both expressions are reduced to be degree <= 1");
-        };
-
-        let rhs_reduced = if rhs_is_linear {
-            Cow::Borrowed(rhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(rhs).into())
-        };
-
-        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
     }
 
     /// Adds an inversion brillig opcode.
@@ -652,12 +614,12 @@ impl GeneratedAcir {
             );
         }
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
-            self.assert_messages.insert(
+            self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
                     acir_index: self.opcodes.len() - 1,
                     brillig_index: *brillig_index,
                 },
-                message.clone(),
+                AssertionPayload::StaticString(message.clone()),
             );
         }
     }
@@ -692,7 +654,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
-        BlackBoxFunc::Keccak256
+        BlackBoxFunc::AES128Encrypt
+        | BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Blake3
@@ -715,9 +678,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => None,
 
-        // Inputs for fixed based scalar multiplication
-        // is the low and high limbs of the scalar
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
+        BlackBoxFunc::MultiScalarMul => None,
 
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
@@ -773,7 +735,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd
@@ -787,6 +749,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
+
+        // AES encryption returns a variable number of outputs
+        BlackBoxFunc::AES128Encrypt => None,
     }
 }
 

@@ -6,7 +6,8 @@ use noirc_errors::Location;
 
 use crate::ast::{
     FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
-    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
+    TypeImpl,
 };
 use crate::{
     graph::CrateId,
@@ -109,6 +110,7 @@ impl<'a> ModCollector<'a> {
                 self.module_id,
                 self.file_id,
                 global.attributes.clone(),
+                matches!(global.pattern, Pattern::Mutable { .. }),
             );
 
             // Add the statement to the scope so its path can be looked up later
@@ -463,6 +465,7 @@ impl<'a> ModCollector<'a> {
                             trait_id.0.local_id,
                             self.file_id,
                             vec![],
+                            false,
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules

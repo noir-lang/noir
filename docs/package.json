@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "preprocess": "yarn workspace @noir-lang/acvm_js build && ./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
-    "start": "yarn preprocess && docusaurus start",
+    "start": "yarn preprocess && MATOMO_ENV=dev docusaurus start",
     "build": "yarn preprocess && docusaurus build",
     "clean": "rm -rf ./processed-docs ./processed-docs ./build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
+    "swizzle": "docusaurus swizzle",
     "version": "yarn version::stables && ./scripts/cut_version.sh"
   },
   "dependencies": {
