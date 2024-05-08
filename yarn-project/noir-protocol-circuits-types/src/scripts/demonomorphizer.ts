@@ -60,7 +60,7 @@ export class Demonomorphizer {
   }
 
   /**
-   * Demononomorphizes a struct, by demonomorphizing its dependencies first.
+   * Demonomorphizes a struct, by demonomorphizing its dependencies first.
    * Then it'll unify the types of the variants generating a unique generic type.
    * It'll also generate args that instantiate the generic type with the concrete arguments for each variant.
    */

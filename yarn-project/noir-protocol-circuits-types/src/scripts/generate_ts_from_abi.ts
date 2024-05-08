@@ -105,7 +105,7 @@ class TypingsGenerator {
         this.demonomorphizedAbis.push({ circuitName, params });
       }
     }
-    // Demononmorphize the types
+    // Demonomorphize the types
     Demonomorphizer.demonomorphize(this.allTypes);
   }
 
