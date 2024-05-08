@@ -3,7 +3,8 @@ pub mod brillig;
 pub mod directives;
 pub mod opcodes;
 
-use crate::native_types::Witness;
+use crate::native_types::{Expression, Witness};
+use acir_field::FieldElement;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -15,7 +16,7 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 
 use std::collections::BTreeSet;
 
-use self::brillig::BrilligBytecode;
+use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
 /// Specifies the maximum width of the expressions which will be constrained.
 ///
@@ -59,18 +60,14 @@ pub struct Circuit {
     pub public_parameters: PublicInputs,
     /// The set of public inputs calculated within the circuit.
     pub return_values: PublicInputs,
-    /// Maps opcode locations to failed assertion messages.
-    /// These messages are embedded in the circuit to provide useful feedback to users
+    /// Maps opcode locations to failed assertion payloads.
+    /// The data in the payload is embedded in the circuit to provide useful feedback to users
     /// when a constraint in the circuit is not satisfied.
     ///
     // Note: This should be a BTreeMap, but serde-reflect is creating invalid
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
-    //
-    // TODO: These are only used for constraints that are explicitly created during code generation (such as index out of bounds on slices)
-    // TODO: We should move towards having all the checks being evaluated in the same manner
-    // TODO: as runtime assert messages specified by the user. This will also be a breaking change as the `Circuit` structure will change.
-    pub assert_messages: Vec<(OpcodeLocation, String)>,
+    pub assert_messages: Vec<(OpcodeLocation, AssertionPayload)>,
 
     /// States whether the backend should use a SNARK recursion friendly prover.
     /// If implemented by a backend, this means that proofs generated with this circuit
@@ -78,15 +75,67 @@ pub struct Circuit {
     pub recursive: bool,
 }
 
-impl Circuit {
-    /// Returns the assert message associated with the provided [`OpcodeLocation`].
-    /// Returns `None` if no such assert message exists.
-    pub fn get_assert_message(&self, opcode_location: OpcodeLocation) -> Option<&str> {
-        self.assert_messages
-            .iter()
-            .find(|(loc, _)| *loc == opcode_location)
-            .map(|(_, message)| message.as_str())
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExpressionOrMemory {
+    Expression(Expression),
+    Memory(BlockId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AssertionPayload {
+    StaticString(String),
+    Dynamic(/* error_selector */ u64, Vec<ExpressionOrMemory>),
+}
+
+#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+pub struct ErrorSelector(u64);
+
+impl ErrorSelector {
+    pub fn new(integer: u64) -> Self {
+        ErrorSelector(integer)
     }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+}
+
+impl Serialize for ErrorSelector {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.to_string().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ErrorSelector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        let as_u64 = s.parse().map_err(serde::de::Error::custom)?;
+        Ok(ErrorSelector(as_u64))
+    }
+}
+
+/// This selector indicates that the payload is a string.
+/// This is used to parse any error with a string payload directly,
+/// to avoid users having to parse the error externally to the ACVM.
+/// Only non-string errors need to be parsed externally to the ACVM using the circuit ABI.
+pub const STRING_ERROR_SELECTOR: ErrorSelector = ErrorSelector(0);
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct RawAssertionPayload {
+    pub selector: ErrorSelector,
+    pub data: Vec<FieldElement>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ResolvedAssertionPayload {
+    String(String),
+    Raw(RawAssertionPayload),
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -1,6 +1,6 @@
 use convert_case::{Case, Casing};
 use noirc_errors::Span;
-use noirc_frontend::ast;
+use noirc_frontend::ast::{self, FunctionKind};
 use noirc_frontend::ast::{
     BlockExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
     ForLoopStatement, ForRange, FunctionReturnType, Ident, Literal, NoirFunction, NoirStruct,
@@ -38,6 +38,7 @@ pub fn transform_function(
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
     let is_avm = ty == "Avm";
+    let is_private = ty == "Private";
 
     // Add check that msg sender equals this address and flag function as internal
     if is_internal {
@@ -102,10 +103,17 @@ pub fn transform_function(
         let return_type = create_return_type(&return_type_name);
         func.def.return_type = return_type;
         func.def.return_visibility = Visibility::Public;
+    } else {
+        func.def.return_visibility = Visibility::Public;
     }
 
     // Public functions should have unconstrained auto-inferred
     func.def.is_unconstrained = matches!(ty, "Public" | "Avm");
+
+    // Private functions need to be recursive
+    if is_private {
+        func.kind = FunctionKind::Recursive;
+    }
 
     Ok(())
 }

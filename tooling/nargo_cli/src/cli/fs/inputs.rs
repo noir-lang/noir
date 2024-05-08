@@ -107,6 +107,7 @@ mod tests {
             // Neither of these should be relevant so we leave them empty.
             param_witnesses: BTreeMap::new(),
             return_witnesses: Vec::new(),
+            error_types: BTreeMap::new(),
         };
         let input_map = BTreeMap::from([
             ("foo".to_owned(), InputValue::Field(42u128.into())),

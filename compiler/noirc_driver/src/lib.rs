@@ -54,8 +54,8 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
+    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
+    pub expression_width: ExpressionWidth,
 
     /// Force a full recompilation.
     #[arg(long = "force")]
@@ -529,6 +529,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         names,
+        error_types,
     } = create_program(
         program,
         options.show_ssa,
@@ -543,6 +544,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         visibility,
+        error_types,
     );
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 

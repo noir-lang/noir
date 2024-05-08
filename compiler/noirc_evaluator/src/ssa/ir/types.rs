@@ -166,6 +166,14 @@ impl Type {
             other => panic!("element_types: Expected array or slice, found {other}"),
         }
     }
+
+    pub(crate) fn first(&self) -> Type {
+        match self {
+            Type::Numeric(_) | Type::Function => self.clone(),
+            Type::Reference(typ) => typ.first(),
+            Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.

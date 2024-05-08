@@ -40,6 +40,7 @@ fn sample_program(num_opcodes: usize) -> Program {
             assert_messages: Vec::new(),
             recursive: false,
         }],
+        unconstrained_functions: Vec::new(),
     }
 }
 

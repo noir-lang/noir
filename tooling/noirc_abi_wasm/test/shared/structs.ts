@@ -54,6 +54,7 @@ export const abi: Abi = {
   },
   return_type: null,
   return_witnesses: [],
+  error_types: {},
 };
 
 export const inputs: InputMap = {
