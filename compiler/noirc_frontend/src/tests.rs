@@ -81,6 +81,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
+                false,
                 &[], // No macro processors
             ));
         }
