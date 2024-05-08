@@ -16,7 +16,7 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
+            HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         traits::{Trait, TraitConstraint},
@@ -1292,6 +1292,37 @@ impl Elaborator {
         };
 
         return_type
+    }
+
+    fn check_if_deprecated(&mut self, expr: ExprId) {
+        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }) =
+            self.interner.expression(&expr)
+        {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let attributes = self.interner.function_attributes(func_id);
+                if let Some(note) = attributes.get_deprecated_note() {
+                    self.push_err(TypeCheckError::CallDeprecated {
+                        name: self.interner.definition_name(id).to_string(),
+                        note,
+                        span: location.span,
+                    });
+                }
+            }
+        }
+    }
+
+    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
+        if let HirExpression::Ident(HirIdent { id, .. }) = self.interner.expression(&expr) {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let modifiers = self.interner.function_modifiers(func_id);
+                return modifiers.is_unconstrained;
+            }
+        }
+        false
     }
 
     /// Check if the given method type requires a mutable reference to the object type, and check
