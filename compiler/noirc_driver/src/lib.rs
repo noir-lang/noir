@@ -54,7 +54,7 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
     pub expression_width: ExpressionWidth,
 
     /// Force a full recompilation.

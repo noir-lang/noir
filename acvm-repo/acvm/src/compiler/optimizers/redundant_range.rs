@@ -164,7 +164,7 @@ mod tests {
 
         Circuit {
             current_witness_index: 1,
-            expression_width: ExpressionWidth::Bounded { width: 3 },
+            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs::default(),
