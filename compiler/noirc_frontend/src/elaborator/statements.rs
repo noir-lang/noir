@@ -21,7 +21,7 @@ use crate::{
 
 use super::Elaborator;
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_let(let_stmt),

@@ -1,6 +1,12 @@
+use noirc_errors::Spanned;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ast::ERROR_IDENT;
 use crate::hir::comptime::Value;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::resolution::path_resolver::{StandardPathResolver, PathResolver};
+use crate::hir::scope::{ScopeTree as GenericScopeTree, Scope as GenericScope};
+use crate::macros_api::Ident;
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -15,21 +21,12 @@ use crate::{
     Shared, StructType,
 };
 
-use super::Elaborator;
+use super::{Elaborator, ResolverMeta};
 
-#[derive(Default)]
-pub(super) struct Scope {
-    types: HashMap<String, TypeId>,
-    values: HashMap<String, DefinitionId>,
-    comptime_values: HashMap<String, Value>,
-}
+type Scope = GenericScope<String, ResolverMeta>;
+type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
-pub(super) enum TypeId {
-    Struct(StructId),
-    Alias(TypeAliasId),
-}
-
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -40,8 +37,14 @@ impl Elaborator {
         })
     }
 
+    pub(super) fn module_id(&self) -> ModuleId {
+        assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
+        ModuleId { krate: self.crate_id, local_id: self.local_module }
+    }
+
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let path_resolution = self.path_resolver.resolve(&self.def_maps, path)?;
+        let resolver = StandardPathResolver::new(self.module_id());
+        let path_resolution = resolver.resolve(&self.def_maps, path)?;
 
         if let Some(error) = path_resolution.error {
             self.push_err(error);
@@ -108,5 +111,39 @@ impl Elaborator {
         let expected = "global variable".into();
         let got = "local variable".into();
         Err(ResolverError::Expected { span, expected, got })
+    }
+
+    pub fn push_scope(&mut self) {
+        self.scopes.start_scope();
+    }
+
+    pub fn pop_scope(&mut self) {
+        let scope = self.scopes.end_scope();
+        self.check_for_unused_variables_in_scope_tree(scope.into());
+    }
+
+    fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
+        let mut unused_vars = Vec::new();
+        for scope in scope_decls.0.into_iter() {
+            Self::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
+        }
+
+        for unused_var in unused_vars.iter() {
+            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
+            }
+        }
+    }
+
+    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<HirIdent>) {
+        let unused_variables = decl_map.filter(|(variable_name, metadata)| {
+            let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
+            metadata.warn_if_unused && metadata.num_times_used == 0 && !has_underscore_prefix
+        });
+        unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident.clone()));
     }
 }

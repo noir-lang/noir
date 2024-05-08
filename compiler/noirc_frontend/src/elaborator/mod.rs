@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::graph::CrateId;
+use crate::{graph::CrateId, hir::{Context, resolution::path_resolver::StandardPathResolver, def_map::{ModuleId, LocalModuleId}, def_collector::dc_crate::{DefCollector, CollectedItems}}};
 use crate::hir::def_map::CrateDefMap;
 use crate::{
     ast::{
@@ -47,7 +47,6 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
-use scope::Scope;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -59,14 +58,15 @@ struct ResolverMeta {
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
-struct Elaborator {
+pub struct Elaborator<'context> {
     scopes: ScopeForest,
-    globals: Scope,
-    local_scopes: Vec<Scope>,
 
-    errors: Vec<CompilationError>,
+    errors: Vec<(CompilationError, FileId)>,
 
-    interner: NodeInterner,
+    interner: &'context mut NodeInterner,
+
+    def_maps: &'context BTreeMap<CrateId, CrateDefMap>,
+
     file: FileId,
 
     in_unconstrained_fn: bool,
@@ -100,9 +100,6 @@ struct Elaborator {
 
     trait_id: Option<TraitId>,
 
-    path_resolver: Rc<dyn PathResolver>,
-    def_maps: BTreeMap<CrateId, CrateDefMap>,
-
     /// In-resolution names
     ///
     /// This needs to be a set because we can have multiple in-resolution
@@ -132,10 +129,94 @@ struct Elaborator {
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
     trait_constraints: Vec<(TraitConstraint, ExprId)>,
+
+    /// The current module this elaborator is in.
+    /// Initially empty, it is set whenever a new top-level item is resolved.
+    local_module: LocalModuleId,
+
+    crate_id: CrateId,
 }
 
-impl Elaborator {
-    fn elaborate_function(&mut self, function: NoirFunction, _id: FuncId) {
+impl<'context> Elaborator<'context> {
+    pub fn new(context: &'context mut Context, crate_id: CrateId) -> Self {
+        Self {
+            scopes: ScopeForest::default(),
+            errors: Vec::new(),
+            interner: &mut context.def_interner,
+            def_maps: &context.def_maps,
+            file: FileId::dummy(),
+            in_unconstrained_fn: false,
+            nested_loops: 0,
+            in_contract: false,
+            generics: Vec::new(),
+            lambda_stack: Vec::new(),
+            self_type: None,
+            current_item: None,
+            trait_id: None,
+            local_module: LocalModuleId::dummy_id(),
+            crate_id,
+            resolving_ids: BTreeSet::new(),
+            trait_bounds: Vec::new(),
+            current_function: None,
+            type_variables: Vec::new(),
+            trait_constraints: Vec::new(),
+        }
+    }
+
+    pub fn elaborate(context: &'context mut Context, crate_id: CrateId, items: CollectedItems) -> Vec<(CompilationError, FileId)> {
+        let mut this = Self::new(context, crate_id);
+
+        // the resolver filters literal globals first
+        for global in items.globals {
+
+        }
+
+        for alias in items.type_aliases {
+
+        }
+
+        for trait_ in items.traits {
+
+        }
+
+        for struct_ in items.types {
+
+        }
+
+        for trait_impl in &items.trait_impls {
+            // only collect now
+        }
+
+        for impl_ in &items.impls {
+            // only collect now
+        }
+
+        // resolver resolves non-literal globals here
+
+        for functions in items.functions {
+            this.file = functions.file_id;
+            for (local_module, id, func) in functions.functions {
+                this.local_module = local_module;
+                this.elaborate_function(func, id);
+            }
+        }
+
+        for impl_ in items.impls {
+
+        }
+
+        for trait_impl in items.trait_impls {
+
+        }
+
+        let cycle_errors = this.interner.check_for_dependency_cycles();
+        this.errors.extend(cycle_errors);
+
+        this.errors
+    }
+
+    fn elaborate_function(&mut self, function: NoirFunction, id: FuncId) {
+        self.current_function = Some(id);
         // This is a stub until the elaborator is connected to dc_crate
         match function.kind {
             FunctionKind::LowLevel => todo!(),
@@ -146,17 +227,10 @@ impl Elaborator {
                 let _body = self.elaborate_block(function.def.body);
             }
         }
-    }
-
-    fn push_scope(&mut self) {
-        self.local_scopes.push(Scope::default());
-    }
-
-    fn pop_scope(&mut self) {
-        self.local_scopes.pop();
+        self.current_function = None;
     }
 
     fn push_err(&mut self, error: impl Into<CompilationError>) {
-        self.errors.push(error.into());
+        self.errors.push((error.into(), self.file));
     }
 }

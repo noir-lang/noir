@@ -19,7 +19,7 @@ use crate::{
 
 use super::{Elaborator, ResolverMeta};
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
@@ -248,7 +248,7 @@ impl Elaborator {
         let global = self.interner.get_all_globals();
         for global_info in global {
             if global_info.ident == name
-                && global_info.local_id == self.path_resolver.local_module_id()
+                && global_info.local_id == self.local_module
             {
                 global_id = Some(global_info.id);
             }

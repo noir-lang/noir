@@ -31,7 +31,7 @@ use crate::{
 
 use super::Elaborator;
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
@@ -266,15 +266,12 @@ impl Elaborator {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.path_resolver.resolve(&self.def_maps, path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::GlobalId(id), error }) => {
+        match self.resolve_path(path.clone()) {
+            Ok(ModuleDefId::GlobalId(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
-                if let Some(error) = error {
-                    self.push_err(error);
-                }
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
@@ -623,7 +620,9 @@ impl Elaborator {
     ) {
         let mut errors = Vec::new();
         actual.unify(expected, &mut errors, make_error);
-        self.errors.extend(errors.into_iter().map(Into::into));
+        self.errors.extend(errors.into_iter().map(|error| {
+            (error.into(), self.file)
+        }));
     }
 
     /// Wrapper of Type::unify_with_coercions using self.errors
@@ -642,7 +641,9 @@ impl Elaborator {
             &mut errors,
             make_error,
         );
-        self.errors.extend(errors.into_iter().map(Into::into));
+        self.errors.extend(errors.into_iter().map(|error| {
+            (error.into(), self.file)
+        }));
     }
 
     /// Return a fresh integer or field type variable and log it
