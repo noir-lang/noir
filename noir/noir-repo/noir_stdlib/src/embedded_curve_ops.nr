@@ -1,4 +1,4 @@
-use crate::ops::{Add, Sub, Neg};
+use crate::ops::arith::{Add, Sub, Neg};
 
 // TODO(https://github.com/noir-lang/noir/issues/4931)
 struct EmbeddedCurvePoint {
@@ -76,7 +76,4 @@ fn embedded_curve_add(
 }
 
 #[foreign(embedded_curve_add)]
-fn embedded_curve_add_array_return(
-    _point1: EmbeddedCurvePoint,
-    _point2: EmbeddedCurvePoint
-) -> [Field; 2] {}
+fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 2] {}
