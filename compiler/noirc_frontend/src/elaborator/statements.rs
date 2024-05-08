@@ -2,21 +2,55 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
-    hir::type_check::{Source, TypeCheckError},
+    hir::{
+        resolution::errors::ResolverError,
+        type_check::{Source, TypeCheckError},
+    },
     hir_def::{
         expr::HirIdent,
         stmt::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
         },
     },
-    macros_api::{ForLoopStatement, ForRange, HirStatement, LetStatement, Statement},
-    node_interner::{DefinitionId, DefinitionKind},
+    macros_api::{
+        ForLoopStatement, ForRange, HirStatement, LetStatement, Statement, StatementKind,
+    },
+    node_interner::{DefinitionId, DefinitionKind, StmtId},
     Type,
 };
 
 use super::Elaborator;
 
 impl Elaborator {
+    fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
+        match statement.kind {
+            StatementKind::Let(let_stmt) => self.elaborate_let(let_stmt),
+            StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
+            StatementKind::Assign(assign) => self.elaborate_assign(assign),
+            StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
+            StatementKind::Break => self.elaborate_jump(true, statement.span),
+            StatementKind::Continue => self.elaborate_jump(false, statement.span),
+            StatementKind::Comptime(statement) => self.elaborate_comptime(*statement),
+            StatementKind::Expression(expr) => {
+                let (expr, typ) = self.elaborate_expression(expr);
+                (HirStatement::Expression(expr), typ)
+            }
+            StatementKind::Semi(expr) => {
+                let (expr, _typ) = self.elaborate_expression(expr);
+                (HirStatement::Semi(expr), Type::Unit)
+            }
+            StatementKind::Error => (HirStatement::Error, Type::Error),
+        }
+    }
+
+    pub(super) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+        let span = statement.span;
+        let (hir_statement, typ) = self.elaborate_statement_value(statement);
+        let id = self.interner.push_stmt(hir_statement);
+        self.interner.push_stmt_location(id, span, self.file);
+        (id, typ)
+    }
+
     pub(super) fn elaborate_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
@@ -145,6 +179,18 @@ impl Elaborator {
             HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
 
         (statement, Type::Unit)
+    }
+
+    fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
+        if !self.in_unconstrained_fn {
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
+        }
+        if self.nested_loops == 0 {
+            self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
+        }
+
+        let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
+        (expr, self.interner.next_type_variable())
     }
 
     fn get_lvalue_name_and_span(&self, lvalue: &HirLValue) -> (String, Span) {
