@@ -1,33 +1,38 @@
-import { AztecAddress, GrumpkinScalar } from '@aztec/circuits.js';
+import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
-import { EncryptedLogHeader } from './encrypted_log_header.js';
+import { EncryptedLogBody } from './encrypted_log_body.js';
+import { Note } from './l1_note_payload/note.js';
 
-describe('encrypt log header', () => {
+describe('encrypt log body', () => {
   let grumpkin: Grumpkin;
 
   beforeAll(() => {
     grumpkin = new Grumpkin();
   });
 
-  it('encrypt and decrypt a log header', () => {
+  it('encrypt and decrypt a log body', () => {
     const ephSecretKey = GrumpkinScalar.random();
     const viewingSecretKey = GrumpkinScalar.random();
 
     const ephPubKey = grumpkin.mul(Grumpkin.generator, ephSecretKey);
     const viewingPubKey = grumpkin.mul(Grumpkin.generator, viewingSecretKey);
 
-    const header = new EncryptedLogHeader(AztecAddress.random());
+    const note = Note.random();
+    const noteTypeId = Fr.random();
+    const storageSlot = Fr.random();
 
-    const encrypted = header.computeCiphertext(ephSecretKey, viewingPubKey);
+    const body = new EncryptedLogBody(noteTypeId, storageSlot, note);
 
-    const recreated = EncryptedLogHeader.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
+    const encrypted = body.computeCiphertext(ephSecretKey, viewingPubKey);
 
-    expect(recreated.toBuffer()).toEqual(header.toBuffer());
+    const recreated = EncryptedLogBody.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
+
+    expect(recreated.toBuffer()).toEqual(body.toBuffer());
   });
 
-  it('encrypt a log header, generate input for noir test', () => {
+  it('encrypt a log body, generate input for noir test', () => {
     // The following 2 are arbitrary fixed values - fixed in order to test a match with Noir
     const viewingSecretKey: GrumpkinScalar = new GrumpkinScalar(
       0x23b3127c127b1f29a7adff5cccf8fb06649e7ca01d9de27b21624098b897babdn,
@@ -38,9 +43,13 @@ describe('encrypt log header', () => {
 
     const viewingPubKey = grumpkin.mul(Grumpkin.generator, viewingSecretKey);
 
-    const header = new EncryptedLogHeader(AztecAddress.fromBigInt(BigInt('0xdeadbeef')));
+    const note = new Note([new Fr(1), new Fr(2), new Fr(3)]);
+    const noteTypeId = new Fr(1);
+    const storageSlot = new Fr(2);
 
-    const encrypted = header.computeCiphertext(ephSecretKey, viewingPubKey);
+    const body = new EncryptedLogBody(noteTypeId, storageSlot, note);
+
+    const encrypted = body.computeCiphertext(ephSecretKey, viewingPubKey);
 
     const byteArrayString = `[${encrypted
       .toString('hex')
@@ -49,8 +58,8 @@ describe('encrypt log header', () => {
 
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
     updateInlineTestData(
-      'noir-projects/aztec-nr/aztec/src/encrypted_logs/header.nr',
-      'expected_header_ciphertext',
+      'noir-projects/aztec-nr/aztec/src/encrypted_logs/body.nr',
+      'expected_body_ciphertext',
       byteArrayString,
     );
   });

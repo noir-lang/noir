@@ -11,3 +11,4 @@ export * from './tx_l2_logs.js';
 export * from './unencrypted_l2_log.js';
 export * from './extended_unencrypted_l2_log.js';
 export * from './encrypted_log_header.js';
+export * from './encrypted_log_body.js';

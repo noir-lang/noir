@@ -40,8 +40,7 @@ export class EncryptedLogHeader {
     const iv = aesSecret.subarray(16, 32);
 
     const aes128 = new Aes128();
-    const buffer = this.address.toBuffer();
-
+    const buffer = this.toBuffer();
     return aes128.encryptBufferCBC(buffer, iv, key);
   }
 
@@ -66,7 +65,6 @@ export class EncryptedLogHeader {
 
     const aes128 = new Aes128();
     const buffer = aes128.decryptBufferCBC(input, iv, key);
-    const address = AztecAddress.fromBuffer(buffer);
-    return new EncryptedLogHeader(address);
+    return EncryptedLogHeader.fromBuffer(buffer);
   }
 }

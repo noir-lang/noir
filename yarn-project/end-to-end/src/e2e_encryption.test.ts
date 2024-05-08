@@ -1,4 +1,4 @@
-import { EncryptedLogHeader, GrumpkinScalar, type Wallet } from '@aztec/aztec.js';
+import { EncryptedLogBody, EncryptedLogHeader, Fr, GrumpkinScalar, Note, type Wallet } from '@aztec/aztec.js';
 import { Aes128, Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestContract } from '@aztec/noir-contracts.js';
 
@@ -61,11 +61,42 @@ describe('e2e_encryption', () => {
 
     const ephPubKey = grumpkin.mul(Grumpkin.generator, ephSecretKey);
     const viewingPubKey = grumpkin.mul(Grumpkin.generator, viewingSecretKey);
+    const header = new EncryptedLogHeader(contract.address);
 
     const encrypted = await contract.methods.compute_note_header_ciphertext(ephSecretKey, viewingPubKey).simulate();
+    expect(Buffer.from(encrypted.map((x: bigint) => Number(x)))).toEqual(
+      header.computeCiphertext(ephSecretKey, viewingPubKey),
+    );
 
     const recreated = EncryptedLogHeader.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
 
     expect(recreated.address).toEqual(contract.address);
+  });
+
+  it('encrypted body', async () => {
+    const ephSecretKey = GrumpkinScalar.random();
+    const viewingSecretKey = GrumpkinScalar.random();
+
+    const ephPubKey = grumpkin.mul(Grumpkin.generator, ephSecretKey);
+    const viewingPubKey = grumpkin.mul(Grumpkin.generator, viewingSecretKey);
+
+    const storageSlot = new Fr(1);
+    const noteTypeId = TestContract.artifact.notes['TestNote'].id;
+    const value = Fr.random();
+    const note = new Note([value]);
+
+    const body = new EncryptedLogBody(storageSlot, noteTypeId, note);
+
+    const encrypted = await contract.methods
+      .compute_note_body_ciphertext(ephSecretKey, viewingPubKey, storageSlot, value)
+      .simulate();
+
+    expect(Buffer.from(encrypted.map((x: bigint) => Number(x)))).toEqual(
+      body.computeCiphertext(ephSecretKey, viewingPubKey),
+    );
+
+    const recreated = EncryptedLogBody.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
+
+    expect(recreated.toBuffer()).toEqual(body.toBuffer());
   });
 });
