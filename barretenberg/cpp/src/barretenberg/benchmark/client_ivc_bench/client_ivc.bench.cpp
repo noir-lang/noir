@@ -174,6 +174,25 @@ BENCHMARK_DEFINE_F(ClientIVCBench, Full)(benchmark::State& state)
 }
 
 /**
+ * @brief Benchmark the prover work for the full PG-Goblin IVC protocol
+ *
+ */
+BENCHMARK_DEFINE_F(ClientIVCBench, FullStructured)(benchmark::State& state)
+{
+    ClientIVC ivc;
+    ivc.structured_flag = true;
+    ivc.precompute_folding_verification_keys();
+    for (auto _ : state) {
+        BB_REPORT_OP_COUNT_IN_BENCH(state);
+        // Perform a specified number of iterations of function/kernel accumulation
+        perform_ivc_accumulation_rounds(state, ivc);
+
+        // Construct IVC scheme proof (fold, decider, merge, eccvm, translator)
+        ivc.prove();
+    }
+}
+
+/**
  * @brief Benchmark only the accumulation rounds
  *
  */
@@ -252,6 +271,7 @@ BENCHMARK_DEFINE_F(ClientIVCBench, Translator)(benchmark::State& state)
         ->Arg(1 << 6)
 
 BENCHMARK_REGISTER_F(ClientIVCBench, Full)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(ClientIVCBench, FullStructured)->Unit(benchmark::kMillisecond)->ARGS;
 BENCHMARK_REGISTER_F(ClientIVCBench, Accumulate)->Unit(benchmark::kMillisecond)->ARGS;
 BENCHMARK_REGISTER_F(ClientIVCBench, Decide)->Unit(benchmark::kMillisecond)->ARGS;
 BENCHMARK_REGISTER_F(ClientIVCBench, ECCVM)->Unit(benchmark::kMillisecond)->ARGS;

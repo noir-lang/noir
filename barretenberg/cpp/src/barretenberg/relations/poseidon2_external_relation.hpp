@@ -19,7 +19,7 @@ template <typename FF_> class Poseidon2ExternalRelationImpl {
      */
     template <typename AllEntities> inline static bool skip(const AllEntities& in)
     {
-        return (in.q_poseidon2_external.value_at(0).is_zero() && in.q_poseidon2_external.value_at(1).is_zero());
+        return in.q_poseidon2_external.is_zero();
     }
 
     /**
@@ -52,6 +52,7 @@ template <typename FF_> class Poseidon2ExternalRelationImpl {
                            const Parameters&,
                            const FF& scaling_factor)
     {
+        BB_OP_COUNT_TIME_NAME("PoseidonExt::accumulate");
         using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
         using View = typename Accumulator::View;
         auto w_l = View(in.w_l);

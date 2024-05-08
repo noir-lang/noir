@@ -53,10 +53,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
      *
      */
-    template <typename AllEntities> inline static bool skip(const AllEntities& in)
-    {
-        return (in.q_aux.value_at(0).is_zero() && in.q_aux.value_at(1).is_zero());
-    }
+    template <typename AllEntities> inline static bool skip(const AllEntities& in) { return in.q_aux.is_zero(); }
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -98,7 +95,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
                                   const Parameters& params,
                                   const FF& scaling_factor)
     {
-
+        BB_OP_COUNT_TIME_NAME("Auxiliary::accumulate");
         // All subrelations have the same length so we use the same length view for all calculations
         using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
         using View = typename Accumulator::View;

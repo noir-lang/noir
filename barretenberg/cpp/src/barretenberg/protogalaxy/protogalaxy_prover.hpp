@@ -323,8 +323,23 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                                          const FF& scaling_factor)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
-        Relation::accumulate(
-            std::get<relation_idx>(univariate_accumulators), extended_univariates, relation_parameters, scaling_factor);
+
+        //  Check if the relation is skippable to speed up accumulation
+        if constexpr (!isSkippable<Relation, decltype(extended_univariates)>) {
+            // If not, accumulate normally
+            Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
+                                 extended_univariates,
+                                 relation_parameters,
+                                 scaling_factor);
+        } else {
+            // If so, only compute the contribution if the relation is active
+            if (!Relation::skip(extended_univariates)) {
+                Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
+                                     extended_univariates,
+                                     relation_parameters,
+                                     scaling_factor);
+            }
+        }
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < Flavor::NUM_RELATIONS) {
@@ -349,9 +364,23 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                                          const FF& scaling_factor)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
-        Relation::accumulate(
-            std::get<relation_idx>(univariate_accumulators), extended_univariates, relation_parameters, scaling_factor);
-
+        // WORKTODO: disable skipping for the combiner for now..
+        //  Check if the relation is skippable to speed up accumulation
+        if constexpr (!isSkippable<Relation, decltype(extended_univariates)>) {
+            // If not, accumulate normally
+            Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
+                                 extended_univariates,
+                                 relation_parameters,
+                                 scaling_factor);
+        } else {
+            // If so, only compute the contribution if the relation is active
+            if (!Relation::skip(extended_univariates)) {
+                Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
+                                     extended_univariates,
+                                     relation_parameters,
+                                     scaling_factor);
+            }
+        }
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < Flavor::NUM_RELATIONS) {
             accumulate_relation_univariates<

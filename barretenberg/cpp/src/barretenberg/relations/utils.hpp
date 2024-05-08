@@ -151,14 +151,57 @@ template <typename Flavor> class RelationUtils {
      */
     template <typename Parameters, size_t relation_idx = 0>
     // TODO(#224)(Cody): Input should be an array?
+    inline static void accumulate_relation_evaluations_without_skipping(PolynomialEvaluations evaluations,
+                                                                        RelationEvaluations& relation_evaluations,
+                                                                        const Parameters& relation_parameters,
+                                                                        const FF& partial_evaluation_result)
+    {
+        using Relation = std::tuple_element_t<relation_idx, Relations>;
+
+        Relation::accumulate(
+            std::get<relation_idx>(relation_evaluations), evaluations, relation_parameters, partial_evaluation_result);
+
+        // Repeat for the next relation.
+        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
+            accumulate_relation_evaluations<Parameters, relation_idx + 1>(
+                evaluations, relation_evaluations, relation_parameters, partial_evaluation_result);
+        }
+    }
+
+    /**
+     * @brief Calculate the contribution of each relation to the expected value of the full Honk relation.
+     *
+     * @details For each relation, use the purported values (supplied by the prover) of the multivariates to
+     * calculate a contribution to the purported value of the full Honk relation. These are stored in `evaluations`.
+     * Adding these together, with appropriate scaling factors, produces the expected value of the full Honk
+     * relation. This value is checked against the final value of the target total sum (called sigma_0 in the
+     * thesis).
+     */
+    template <typename Parameters, size_t relation_idx = 0>
+    // TODO(#224)(Cody): Input should be an array?
     inline static void accumulate_relation_evaluations(PolynomialEvaluations evaluations,
                                                        RelationEvaluations& relation_evaluations,
                                                        const Parameters& relation_parameters,
                                                        const FF& partial_evaluation_result)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
-        Relation::accumulate(
-            std::get<relation_idx>(relation_evaluations), evaluations, relation_parameters, partial_evaluation_result);
+
+        // Check if the relation is skippable to speed up accumulation
+        if constexpr (!isSkippable<Relation, decltype(evaluations)> || !std::is_same_v<FF, bb::fr>) {
+            // If not, accumulate normally
+            Relation::accumulate(std::get<relation_idx>(relation_evaluations),
+                                 evaluations,
+                                 relation_parameters,
+                                 partial_evaluation_result);
+        } else {
+            // If so, only compute the contribution if the relation is active
+            if (!Relation::skip(evaluations)) {
+                Relation::accumulate(std::get<relation_idx>(relation_evaluations),
+                                     evaluations,
+                                     relation_parameters,
+                                     partial_evaluation_result);
+            }
+        }
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {

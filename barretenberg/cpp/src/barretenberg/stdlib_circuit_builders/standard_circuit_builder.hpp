@@ -15,7 +15,6 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     using Arithmetization = StandardArith<FF>;
     using GateBlocks = typename Arithmetization::TraceBlocks;
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
-    static constexpr size_t FIXED_BLOCK_SIZE = 0; // not used, for compatibility only
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;
     static constexpr size_t num_selectors = Arithmetization::NUM_SELECTORS;

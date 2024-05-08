@@ -18,10 +18,7 @@ template <typename FF_> class EllipticRelationImpl {
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
      *
      */
-    template <typename AllEntities> inline static bool skip(const AllEntities& in)
-    {
-        return (in.q_elliptic.value_at(0).is_zero() && in.q_elliptic.value_at(1).is_zero());
-    }
+    template <typename AllEntities> inline static bool skip(const AllEntities& in) { return in.q_elliptic.is_zero(); }
 
     // TODO(@zac-williamson #2609 find more generic way of doing this)
     static constexpr FF get_curve_b()
@@ -51,6 +48,7 @@ template <typename FF_> class EllipticRelationImpl {
                                   const Parameters&,
                                   const FF& scaling_factor)
     {
+        BB_OP_COUNT_TIME_NAME("Elliptic::accumulate");
         // TODO(@zac - williamson #2608 when Pedersen refactor is completed,
         // replace old addition relations with these ones and
         // remove endomorphism coefficient in ecc add gate(not used))

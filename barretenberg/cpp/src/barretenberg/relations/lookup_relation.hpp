@@ -184,7 +184,7 @@ template <typename FF_> class LookupRelationImpl {
                                   const Parameters& params,
                                   const FF& scaling_factor)
     {
-
+        BB_OP_COUNT_TIME_NAME("Lookup::accumulate");
         {
             using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
             using View = typename Accumulator::View;

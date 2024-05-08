@@ -18,6 +18,13 @@ template <typename FF_> class EccOpQueueRelationImpl {
         3  // op-queue-wire vanishes sub-relation 4
     };
 
+    template <typename AllEntities> inline static bool skip([[maybe_unused]] const AllEntities& in)
+    {
+        // The prover can skip execution of this relation altogether since an honest input will lead to a zero
+        // contribution at every row, even when the selector lagrange_ecc_op is on
+        return true;
+    }
+
     /**
      * @brief Expression for the generalized permutation sort gate.
      * @details The relation is defined as C(in(X)...) =
@@ -43,6 +50,7 @@ template <typename FF_> class EccOpQueueRelationImpl {
                                   const Parameters&,
                                   const FF& scaling_factor)
     {
+        BB_OP_COUNT_TIME_NAME("EccOp::accumulate");
         using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
         using View = typename Accumulator::View;
 

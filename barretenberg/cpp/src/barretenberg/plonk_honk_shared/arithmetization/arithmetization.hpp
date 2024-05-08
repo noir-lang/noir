@@ -51,6 +51,8 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
     bool has_ram_rom = false;   // does the block contain RAM/ROM gates
     bool is_pub_inputs = false; // is this the public inputs block
 
+    uint32_t fixed_size; // Fixed size for use in structured trace
+
     bool operator==(const ExecutionTraceBlock& other) const = default;
 
     size_t size() const { return std::get<0>(this->wires).size(); }
@@ -64,6 +66,9 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
             p.reserve(size_hint);
         }
     }
+
+    uint32_t get_fixed_size() const { return fixed_size; }
+    void set_fixed_size(uint32_t size_in) { fixed_size = size_in; }
 };
 
 // These are not magic numbers and they should not be written with global constants. These parameters are not
@@ -119,7 +124,6 @@ template <typename FF_> class UltraArith {
   public:
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 11;
-    static constexpr size_t FIXED_BLOCK_SIZE = 1 << 10; // Size of each block in a structured trace (arbitrary for now)
     using FF = FF_;
 
     class UltraTraceBlock : public ExecutionTraceBlock<FF, NUM_WIRES, NUM_SELECTORS> {
@@ -158,10 +162,24 @@ template <typename FF_> class UltraArith {
         UltraTraceBlock aux;
         UltraTraceBlock lookup;
 
+        static constexpr uint32_t FIXED_BLOCK_SIZE = 1 << 10; // (Arbitrary for now)
+        std::array<uint32_t, 6> fixed_block_sizes{
+            1 << 3,           // pub_inputs;
+            FIXED_BLOCK_SIZE, // arithmetic;
+            FIXED_BLOCK_SIZE, // delta_range;
+            FIXED_BLOCK_SIZE, // elliptic;
+            FIXED_BLOCK_SIZE, // aux;
+            FIXED_BLOCK_SIZE  // lookup;
+        };
+
         TraceBlocks()
         {
             aux.has_ram_rom = true;
             pub_inputs.is_pub_inputs = true;
+            // Set fixed block sizes for use in structured trace
+            for (auto [block, size] : zip_view(this->get(), fixed_block_sizes)) {
+                block.set_fixed_size(size);
+            }
         }
 
         auto get() { return RefArray{ pub_inputs, arithmetic, delta_range, elliptic, aux, lookup }; }
@@ -176,6 +194,31 @@ template <typename FF_> class UltraArith {
             info("auxiliary:\t", aux.size());
             info("lookups:\t", lookup.size());
             info("");
+        }
+
+        size_t get_total_structured_size()
+        {
+            size_t total_size = 0;
+            for (auto block : this->get()) {
+                total_size += block.get_fixed_size();
+            }
+            return total_size;
+        }
+
+        /**
+         * @brief Check that the number of rows populated in each block does not exceed the specified fixed size
+         * @note This check is only applicable when utilizing a structured trace
+         *
+         */
+        void check_within_fixed_sizes()
+        {
+            for (auto block : this->get()) {
+                if (block.size() > block.get_fixed_size()) {
+                    info("WARNING: Num gates in circuit block exceeds the specified fixed size - execution trace will "
+                         "not be constructed correctly!");
+                    ASSERT(false);
+                }
+            }
         }
 
         bool operator==(const TraceBlocks& other) const = default;
@@ -197,7 +240,6 @@ template <typename FF_> class UltraHonkArith {
   public:
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 14;
-    static constexpr size_t FIXED_BLOCK_SIZE = 1 << 10; // Size of each block in a structured trace (arbitrary for now)
 
     using FF = FF_;
 
@@ -270,10 +312,32 @@ template <typename FF_> class UltraHonkArith {
         UltraHonkTraceBlock poseidon_external;
         UltraHonkTraceBlock poseidon_internal;
 
+        // This is a set of fixed block sizes that accomodates the circuits currently processed in the ClientIvc bench.
+        // Note 1: The individual block sizes do NOT need to be powers of 2, this is just for conciseness.
+        // Note 2: Current sizes result in a full trace size of 2^18. It's not possible to define a fixed structure
+        // that accomdates both the kernel and the function circuit while remaining under 2^17. This is because the
+        // circuits differ in structure but are also both designed to be "full" within the 2^17 size.
+        std::array<uint32_t, 10> fixed_block_sizes{
+            1 << 10, // ecc_op;
+            1 << 7,  // pub_inputs;
+            1 << 16, // arithmetic;
+            1 << 15, // delta_range;
+            1 << 14, // elliptic;
+            1 << 16, // aux;
+            1 << 15, // lookup;
+            1 << 7,  // busread;
+            1 << 11, // poseidon_external;
+            1 << 14  // poseidon_internal;
+        };
+
         TraceBlocks()
         {
             aux.has_ram_rom = true;
             pub_inputs.is_pub_inputs = true;
+            // Set fixed block sizes for use in structured trace
+            for (auto [block, size] : zip_view(this->get(), fixed_block_sizes)) {
+                block.set_fixed_size(size);
+            }
         }
 
         auto get()
@@ -284,18 +348,38 @@ template <typename FF_> class UltraHonkArith {
 
         void summarize() const
         {
-            info("Gate blocks summary:");
-            info("goblin ecc op:\t", ecc_op.size());
-            info("pub inputs:\t", pub_inputs.size());
-            info("arithmetic:\t", arithmetic.size());
-            info("delta range:\t", delta_range.size());
-            info("elliptic:\t", elliptic.size());
-            info("auxiliary:\t", aux.size());
-            info("lookups:\t", lookup.size());
-            info("busread:\t", busread.size());
-            info("poseidon ext:\t", poseidon_external.size());
-            info("poseidon int:\t", poseidon_internal.size());
+            info("Gate blocks summary: (actual gates / fixed capacity)");
+            info("goblin ecc op:\t", ecc_op.size(), "/", ecc_op.get_fixed_size());
+            info("pub inputs:\t", pub_inputs.size(), "/", pub_inputs.get_fixed_size());
+            info("arithmetic:\t", arithmetic.size(), "/", arithmetic.get_fixed_size());
+            info("delta range:\t", delta_range.size(), "/", delta_range.get_fixed_size());
+            info("elliptic:\t", elliptic.size(), "/", elliptic.get_fixed_size());
+            info("auxiliary:\t", aux.size(), "/", aux.get_fixed_size());
+            info("lookups:\t", lookup.size(), "/", lookup.get_fixed_size());
+            info("busread:\t", busread.size(), "/", busread.get_fixed_size());
+            info("poseidon ext:\t", poseidon_external.size(), "/", poseidon_external.get_fixed_size());
+            info("poseidon int:\t", poseidon_internal.size(), "/", poseidon_internal.get_fixed_size());
             info("");
+        }
+
+        size_t get_total_structured_size()
+        {
+            size_t total_size = 0;
+            for (auto block : this->get()) {
+                total_size += block.get_fixed_size();
+            }
+            return total_size;
+        }
+
+        void check_within_fixed_sizes()
+        {
+            for (auto block : this->get()) {
+                if (block.size() > block.get_fixed_size()) {
+                    info("WARNING: Num gates in circuit block exceeds the specified fixed size - execution trace will "
+                         "not be constructed correctly!");
+                    ASSERT(false);
+                }
+            }
         }
 
         bool operator==(const TraceBlocks& other) const = default;

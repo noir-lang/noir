@@ -48,9 +48,7 @@ template <class Flavor> class ProverInstance_ {
 
         // If using a structured trace, ensure that no block exceeds the fixed size
         if (is_structured) {
-            for (auto& block : circuit.blocks.get()) {
-                ASSERT(block.size() <= circuit.FIXED_BLOCK_SIZE);
-            }
+            circuit.blocks.check_within_fixed_sizes();
         }
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/905): This is adding ops to the op queue but NOT to
@@ -109,8 +107,7 @@ template <class Flavor> class ProverInstance_ {
      */
     size_t compute_structured_dyadic_size(Circuit& builder)
     {
-        size_t num_blocks = builder.blocks.get().size();
-        size_t minimum_size = num_blocks * builder.FIXED_BLOCK_SIZE;
+        size_t minimum_size = builder.blocks.get_total_structured_size();
         return builder.get_circuit_subgroup_size(minimum_size);
     }
 

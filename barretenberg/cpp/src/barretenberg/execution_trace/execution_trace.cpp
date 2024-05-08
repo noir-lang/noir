@@ -118,7 +118,7 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
 
         // If the trace is structured, we populate the data from the next block at a fixed block size offset
         if (is_structured) {
-            offset += builder.FIXED_BLOCK_SIZE;
+            offset += block.get_fixed_size();
         } else { // otherwise, the next block starts immediately following the previous one
             offset += block_size;
         }
