@@ -377,6 +377,9 @@ impl<'context> Elaborator<'context> {
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    //
+    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(
         &mut self,
         path: &Path,
@@ -403,6 +406,9 @@ impl<'context> Elaborator<'context> {
     }
 
     // this resolves TraitName::some_static_method
+    //
+    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(
         &mut self,
         path: &Path,
@@ -818,7 +824,8 @@ impl<'context> Elaborator<'context> {
                 }
                 ret
             }
-            // ignoring env for subtype on purpose
+            // The closure env is ignored on purpose: call arguments never place
+            // constraints on closure environments.
             Type::Function(parameters, ret, _env) => {
                 self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
