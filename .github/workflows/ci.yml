@@ -272,6 +272,22 @@ jobs:
         timeout-minutes: 25
         run: earthly-ci --no-output ./yarn-project/+prover-client-test
 
+  client-proof-tests:
+    needs: build
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: client-proof-tests-${{ github.actor }}-x86
+      - name: "Client Proof Tests"
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./yarn-project/+run-e2e --test=client_prover_integration/client_prover_integration.test.ts
+
   build-acir-tests:
     needs: build
     runs-on: ${{ github.actor }}-x86
@@ -461,6 +477,7 @@ jobs:
         barretenberg-acir-tests-sol,
         noir-test,
         noir-packages-test,
+        client-proof-tests,
       ]
     if: always()
     steps:

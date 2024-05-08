@@ -8,7 +8,6 @@ import {
   type PrivateKernelTailCircuitPublicInputs,
   Proof,
   type VERIFICATION_KEY_LENGTH_IN_FIELDS,
-  makeEmptyProof,
 } from '@aztec/circuits.js';
 import { siloNoteHash } from '@aztec/circuits.js/hash';
 import { randomBytes, sha256 } from '@aztec/foundation/crypto';
@@ -23,9 +22,9 @@ import {
   convertPrivateKernelInnerInputsToWitnessMap,
   convertPrivateKernelInnerOutputsFromWitnessMap,
   convertPrivateKernelTailForPublicOutputsFromWitnessMap,
+  convertPrivateKernelTailInputsToWitnessMap,
   convertPrivateKernelTailOutputsFromWitnessMap,
-  executeTail,
-  executeTailForPublic,
+  convertPrivateKernelTailToPublicInputsToWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
 import { type ACVMField, WASMSimulator } from '@aztec/simulator';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
@@ -294,7 +293,7 @@ export async function generateKeyForNoirCircuit(
     await fs.writeFile(bytecodePath, bytecode);
 
     // args are the output path and the input bytecode path
-    const args = ['-o', outputPath, '-b', bytecodePath];
+    const args = ['-o', `${outputPath}/${VK_FILENAME}`, '-b', bytecodePath];
     const timer = new Timer();
     let result = await executeBB(pathToBB, `write_${key}`, args, log);
     // If we succeeded and the type of key if verification, have bb write the 'fields' version too
@@ -468,25 +467,12 @@ export class BBNativeProofCreator implements ProofCreator {
   public async createProofTail(
     inputs: PrivateKernelTailCircuitPrivateInputs,
   ): Promise<ProofOutput<PrivateKernelTailCircuitPublicInputs>> {
-    // if (!inputs.isForPublic()) {
-    //   const witnessMap = convertPrivateKernelTailInputsToWitnessMap(inputs);
-    //   return await this.createSafeProof(witnessMap, 'PrivateKernelTailArtifact');
-    // }
-
     if (!inputs.isForPublic()) {
-      const result = await executeTail(inputs);
-      return {
-        publicInputs: result,
-        proof: makeEmptyProof(),
-      };
+      const witnessMap = convertPrivateKernelTailInputsToWitnessMap(inputs);
+      return await this.createSafeProof(witnessMap, 'PrivateKernelTailArtifact');
     }
-    // const witnessMap = convertPrivateKernelTailToPublicInputsToWitnessMap(inputs);
-    // return await this.createSafeProof(witnessMap, 'PrivateKernelTailToPublicArtifact');
-    const result = await executeTailForPublic(inputs);
-    return {
-      publicInputs: result,
-      proof: makeEmptyProof(),
-    };
+    const witnessMap = convertPrivateKernelTailToPublicInputsToWitnessMap(inputs);
+    return await this.createSafeProof(witnessMap, 'PrivateKernelTailToPublicArtifact');
   }
 
   public async createAppCircuitProof(partialWitness: Map<number, ACVMField>, bytecode: Buffer): Promise<Proof> {
