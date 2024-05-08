@@ -26,6 +26,12 @@ contract AvmNestedCallsTest {
         arg_a + arg_b
     }
 
+    #[aztec(public-vm)]
+    fn assert_same(arg_a: Field, arg_b: Field) -> pub Field {
+        assert(arg_a == arg_b, "Values are not equal");
+        1
+    }
+
     // Use the standard context interface to emit a new nullifier
     #[aztec(public-vm)]
     fn new_nullifier(nullifier: Field) {

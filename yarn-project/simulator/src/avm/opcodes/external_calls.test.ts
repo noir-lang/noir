@@ -205,31 +205,25 @@ describe('External Calls', () => {
 
     it('Should fail if a static call attempts to touch storage', async () => {
       const gasOffset = 0;
-      const gas = new Field(0);
-      const addrOffset = 1;
+      const gas = [new Field(0n), new Field(0n), new Field(0n)];
+      const addrOffset = 10;
       const addr = new Field(123456n);
-      const argsOffset = 2;
+      const argsOffset = 20;
       const args = [new Field(1n), new Field(2n), new Field(3n)];
 
       const argsSize = args.length;
-      const argsSizeOffset = 20;
-      const retOffset = 8;
+      const argsSizeOffset = 40;
+      const retOffset = 80;
       const retSize = 2;
-      const successOffset = 7;
+      const successOffset = 70;
 
-      context.machineState.memory.set(0, gas);
-      context.machineState.memory.set(1, addr);
+      context.machineState.memory.setSlice(gasOffset, gas);
+      context.machineState.memory.set(addrOffset, addr);
       context.machineState.memory.set(argsSizeOffset, new Uint32(argsSize));
-      context.machineState.memory.setSlice(2, args);
+      context.machineState.memory.setSlice(argsOffset, args);
 
       const otherContextInstructions: Instruction[] = [
-        new CalldataCopy(
-          /*indirect=*/ 0,
-          /*csOffset=*/ adjustCalldataIndex(0),
-          /*copySize=*/ argsSize,
-          /*dstOffset=*/ 0,
-        ),
-        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 1, /*size=*/ 1, /*slotOffset=*/ 0),
+        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*size=*/ 0, /*slotOffset=*/ 0),
       ];
 
       const otherContextInstructionsBytecode = markBytecodeAsAvm(encodeToBytecode(otherContextInstructions));
@@ -249,11 +243,7 @@ describe('External Calls', () => {
         successOffset,
         /*temporaryFunctionSelectorOffset=*/ 0,
       );
-      await instruction.execute(context);
-
-      // No revert has occurred, but the nested execution has failed
-      const successValue = context.machineState.memory.get(successOffset);
-      expect(successValue).toEqual(new Uint8(0n));
+      await expect(() => instruction.execute(context)).rejects.toThrow(/Static calls cannot alter storage/);
     });
   });
 
