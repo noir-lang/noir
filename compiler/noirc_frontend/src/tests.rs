@@ -936,7 +936,7 @@ fn resolve_unresolved_var() {
     // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
     match &errors[0].0 {
         CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, span: _ }) => {
-            assert_eq!(name, "z")
+            assert_eq!(name, "z");
         }
         _ => unimplemented!("we should only have an unresolved variable"),
     }
