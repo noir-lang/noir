@@ -47,7 +47,6 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
-use scope::Scope;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -61,8 +60,6 @@ type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 struct Elaborator {
     scopes: ScopeForest,
-    globals: Scope,
-    local_scopes: Vec<Scope>,
 
     errors: Vec<CompilationError>,
 
@@ -149,11 +146,11 @@ impl Elaborator {
     }
 
     fn push_scope(&mut self) {
-        self.local_scopes.push(Scope::default());
+        // stub
     }
 
     fn pop_scope(&mut self) {
-        self.local_scopes.pop();
+        // stub
     }
 
     fn push_err(&mut self, error: impl Into<CompilationError>) {
