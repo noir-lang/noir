@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::Path;
 
 use acvm::acir::{
-    circuit::{ExpressionWidth, Program},
+    circuit::Program,
     native_types::{WitnessMap, WitnessStack},
 };
 use acvm::FieldElement;
@@ -11,8 +11,8 @@ use tempfile::tempdir;
 use tracing::warn;
 
 use crate::cli::{
-    GatesCommand, InfoCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand,
-    VkAsFieldsCommand, WriteVkCommand,
+    GatesCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand, VkAsFieldsCommand,
+    WriteVkCommand,
 };
 use crate::{Backend, BackendError};
 
@@ -31,25 +31,6 @@ impl Backend {
 
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(binary_path)
-    }
-
-    pub fn get_backend_info(&self) -> Result<ExpressionWidth, BackendError> {
-        let binary_path = self.assert_binary_exists()?;
-        self.assert_correct_version()?;
-        InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
-    }
-
-    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 4 }``
-    /// The function also prints a message saying we could not find a backend
-    pub fn get_backend_info_or_default(&self) -> ExpressionWidth {
-        if let Ok(expression_width) = self.get_backend_info() {
-            expression_width
-        } else {
-            warn!(
-                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 4"
-            );
-            ExpressionWidth::Bounded { width: 4 }
-        }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

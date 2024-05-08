@@ -1,4 +1,3 @@
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 use clap::Args;
@@ -42,11 +41,7 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(
-    _backend: &Backend,
-    args: CheckCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
