@@ -170,8 +170,8 @@ pub fn compile_program(
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
     let compile_options = CompileOptions::default();
-    // For now we default to a bounded width of 3, though we can add it as a parameter
-    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 3 };
+    // For now we default to a bounded width of 4, though we can add it as a parameter
+    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 4 };
 
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
@@ -200,8 +200,8 @@ pub fn compile_contract(
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
     let compile_options = CompileOptions::default();
-    // For now we default to a bounded width of 3, though we can add it as a parameter
-    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 3 };
+    // For now we default to a bounded width of 4, though we can add it as a parameter
+    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 4 };
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
