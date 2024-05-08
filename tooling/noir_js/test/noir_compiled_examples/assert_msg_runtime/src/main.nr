@@ -1,6 +1,4 @@
 fn main(x: u64, y: pub u64) {
-    // A dynamic assertion message is used to show that noirJS will ignore the call and continue execution
-    // We need this assertion to fail as the `assert_message` oracle in Noir is only called
-    // upon a failing condition in an assert.
+    // A fmtstr assertion message is used to show that noirJS will decode the error payload as a string.
     assert(x < y, f"Expected x < y but got {x} < {y}");
 }

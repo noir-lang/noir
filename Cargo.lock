@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acir_field",
  "base64 0.21.2",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -40,7 +40,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -56,13 +56,14 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acir",
  "blake2",
  "blake3",
  "k256",
  "keccak",
+ "libaes",
  "num-bigint",
  "p256",
  "sha2",
@@ -92,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -441,7 +442,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "aztec_macros"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "convert_case 0.6.0",
  "iter-extended",
@@ -452,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "backend-interface"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "bb_abstraction_leaks",
@@ -461,7 +462,6 @@ dependencies = [
  "dirs",
  "flate2",
  "reqwest",
- "serde",
  "serde_json",
  "tar",
  "tempfile",
@@ -608,7 +608,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -638,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1762,7 +1762,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2383,7 +2383,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.28.0"
+version = "0.29.0"
 
 [[package]]
 name = "itertools"
@@ -2617,6 +2617,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
 
 [[package]]
+name = "libaes"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82903360c009b816f5ab72a9b68158c27c301ee2c3f20655b55c5e589e7d3bb7"
+
+[[package]]
 name = "libc"
 version = "0.2.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2808,7 +2814,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2834,7 +2840,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2888,7 +2894,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2900,7 +2906,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2979,7 +2985,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3014,7 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3040,7 +3046,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -3063,11 +3069,12 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "iter-extended",
  "noirc_frontend",
+ "noirc_printable_type",
  "num-bigint",
  "num-traits",
  "serde",
@@ -3080,7 +3087,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -3097,11 +3104,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "0.28.0"
+version = "0.29.0"
 
 [[package]]
 name = "noirc_driver"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "aztec_macros",
@@ -3122,7 +3129,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "base64 0.21.2",
@@ -3140,7 +3147,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "chrono",
@@ -3157,7 +3164,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "base64 0.21.2",
@@ -3186,7 +3193,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "acvm",
  "iter-extended",

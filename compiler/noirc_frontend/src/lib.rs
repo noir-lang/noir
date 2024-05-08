@@ -50,7 +50,7 @@ pub mod macros_api {
     pub use crate::token::SecondaryAttribute;
 
     pub use crate::ast::{
-        BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind,
         FunctionReturnType, Ident, IndexExpression, ItemVisibility, LetStatement, Literal,
         MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern,
         Statement, UnresolvedType, UnresolvedTypeData, Visibility,

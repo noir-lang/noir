@@ -196,7 +196,7 @@ yarn docusaurus docs:version <new_version_tag>
 
 This should create a new version by copying the docs folder and the sidebars.js file to the relevant folders, as well as adding this version to versions.json.
 
-You can then open a Pull Request according to the the [PR section](#pull-requests)
+You can then open a Pull Request according to the [PR section](#pull-requests)
 
 ## Changelog
 

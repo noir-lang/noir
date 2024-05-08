@@ -5,7 +5,9 @@ keywords: [noir, integer types, methods, examples, arithmetic]
 sidebar_position: 1
 ---
 
-An integer type is a range constrained field type. The Noir frontend supports both unsigned and signed integer types. The allowed sizes are 1, 8, 32 and 64 bits.
+An integer type is a range constrained field type.
+The Noir frontend supports both unsigned and signed integer types.
+The allowed sizes are 1, 8, 16, 32 and 64 bits.
 
 :::info
 
