@@ -250,7 +250,12 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, use_elaborator, macro_processors));
+            errors.extend(CrateDefMap::collect_defs(
+                dep.crate_id,
+                context,
+                use_elaborator,
+                macro_processors,
+            ));
 
             let dep_def_root =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
@@ -285,12 +290,7 @@ impl DefCollector {
 
         inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
         for submodule in submodules {
-            inject_prelude(
-                crate_id,
-                context,
-                LocalModuleId(submodule),
-                &mut def_collector.imports,
-            );
+            inject_prelude(crate_id, context, LocalModuleId(submodule), &mut def_collector.imports);
         }
 
         // Resolve unresolved imports collected from the crate, one by one.
@@ -344,8 +344,7 @@ impl DefCollector {
         //
         // Additionally, we must resolve integer globals before structs since structs may refer to
         // the values of integer globals as numeric generics.
-        let (literal_globals, other_globals) =
-            filter_literal_globals(def_collector.items.globals);
+        let (literal_globals, other_globals) = filter_literal_globals(def_collector.items.globals);
 
         resolved_module.resolve_globals(context, literal_globals, crate_id);
 
@@ -382,11 +381,7 @@ impl DefCollector {
         //
         // These are resolved after trait impls so that struct methods are chosen
         // over trait methods if there are name conflicts.
-        resolved_module.errors.extend(collect_impls(
-            context,
-            crate_id,
-            &def_collector.items.impls,
-        ));
+        resolved_module.errors.extend(collect_impls(context, crate_id, &def_collector.items.impls));
 
         // We must wait to resolve non-integer globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
@@ -451,8 +446,11 @@ fn inject_prelude(
             .map(|segment| crate::ast::Ident::new(segment.into(), Span::default()))
             .collect();
 
-        let path =
-            Path { segments: segments.clone(), kind: crate::ast::PathKind::Dep, span: Span::default() };
+        let path = Path {
+            segments: segments.clone(),
+            kind: crate::ast::PathKind::Dep,
+            span: Span::default(),
+        };
 
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
             &context.def_maps,

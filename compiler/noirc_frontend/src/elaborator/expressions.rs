@@ -443,7 +443,7 @@ impl<'context> Elaborator<'context> {
         (expr_id, typ)
     }
 
-    fn intern_expr(&mut self, expr: HirExpression, span: Span) -> ExprId {
+    pub fn intern_expr(&mut self, expr: HirExpression, span: Span) -> ExprId {
         let id = self.interner.push_expr(expr);
         self.interner.push_expr_location(id, span, self.file);
         id

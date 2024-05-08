@@ -203,7 +203,7 @@ impl<'context> Elaborator<'context> {
         self.add_variable_decl_inner(name, mutable, allow_shadowing, true, definition)
     }
 
-    fn add_variable_decl_inner(
+    pub fn add_variable_decl_inner(
         &mut self,
         name: Ident,
         mutable: bool,
@@ -238,7 +238,11 @@ impl<'context> Elaborator<'context> {
         ident
     }
 
-    fn add_global_variable_decl(&mut self, name: Ident, definition: DefinitionKind) -> HirIdent {
+    pub fn add_global_variable_decl(
+        &mut self,
+        name: Ident,
+        definition: DefinitionKind,
+    ) -> HirIdent {
         let scope = self.scopes.get_mut_scope();
 
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
@@ -247,9 +251,7 @@ impl<'context> Elaborator<'context> {
         let mut global_id = None;
         let global = self.interner.get_all_globals();
         for global_info in global {
-            if global_info.ident == name
-                && global_info.local_id == self.local_module
-            {
+            if global_info.ident == name && global_info.local_id == self.local_module {
                 global_id = Some(global_info.id);
             }
         }
