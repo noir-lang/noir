@@ -248,7 +248,7 @@ Implementations:
 `Not::not` is equivalent to the unary bitwise NOT operator `!`.
 
 Implementations:
-#include_code neg-trait-impls noir_stdlib/src/ops/bit.nr rust
+#include_code not-trait-impls noir_stdlib/src/ops/bit.nr rust
 
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
