@@ -46,7 +46,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
         let resolver = StandardPathResolver::new(self.module_id());
-        let path_resolution = resolver.resolve(&self.def_maps, path)?;
+        let path_resolution = resolver.resolve(self.def_maps, path)?;
 
         if let Some(error) = path_resolution.error {
             self.push_err(error);
@@ -184,7 +184,7 @@ impl<'context> Elaborator<'context> {
         match self.lookup(path) {
             Ok(struct_id) => {
                 let struct_type = self.get_struct(struct_id);
-                let generics = struct_type.borrow().instantiate(&mut self.interner);
+                let generics = struct_type.borrow().instantiate(self.interner);
                 Some(Type::Struct(struct_type, generics))
             }
             Err(error) => {

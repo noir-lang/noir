@@ -323,7 +323,7 @@ impl<'context> Elaborator<'context> {
                     &method_ref,
                     object_type,
                     location,
-                    &mut self.interner,
+                    self.interner,
                 );
 
                 let func_type = self.type_check_variable(function_name, function_id);

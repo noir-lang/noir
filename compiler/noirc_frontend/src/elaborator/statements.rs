@@ -224,7 +224,7 @@ impl<'context> Elaborator<'context> {
                         mutable = definition.mutable;
                     }
 
-                    let typ = self.interner.definition_type(ident.id).instantiate(&self.interner).0;
+                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
 

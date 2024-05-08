@@ -594,20 +594,14 @@ impl<'context> Elaborator<'context> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut errors = Vec::new();
-        actual.unify_with_coercions(
-            expected,
-            expression,
-            &mut self.interner,
-            &mut errors,
-            make_error,
-        );
+        actual.unify_with_coercions(expected, expression, self.interner, &mut errors, make_error);
         self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
     }
 
     /// Return a fresh integer or field type variable and log it
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
-        let typ = Type::polymorphic_integer_or_field(&mut self.interner);
+        let typ = Type::polymorphic_integer_or_field(self.interner);
         self.type_variables.push(typ.clone());
         typ
     }
@@ -615,7 +609,7 @@ impl<'context> Elaborator<'context> {
     /// Return a fresh integer type variable and log it
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
-        let typ = Type::polymorphic_integer(&mut self.interner);
+        let typ = Type::polymorphic_integer(self.interner);
         self.type_variables.push(typ.clone());
         typ
     }
@@ -915,7 +909,7 @@ impl<'context> Elaborator<'context> {
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
-            let target = Type::polymorphic_integer(&mut self.interner);
+            let target = Type::polymorphic_integer(self.interner);
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -967,7 +961,7 @@ impl<'context> Elaborator<'context> {
                         || TypeCheckError::InvalidShiftSize { span },
                     );
                     let use_impl = if lhs_type.is_numeric() {
-                        let integer_type = Type::polymorphic_integer(&mut self.interner);
+                        let integer_type = Type::polymorphic_integer(self.interner);
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
@@ -1048,7 +1042,7 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.interner.get_trait(trait_method_id.trait_id);
 
         let method = &the_trait.methods[trait_method_id.method_index];
-        let (method_type, mut bindings) = method.typ.clone().instantiate(&self.interner);
+        let (method_type, mut bindings) = method.typ.clone().instantiate(self.interner);
 
         match method_type {
             Type::Function(args, _, _) => {
@@ -1315,7 +1309,7 @@ impl<'context> Elaborator<'context> {
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
-                    if let Err(error) = verify_mutable_reference(&self.interner, *object) {
+                    if let Err(error) = verify_mutable_reference(self.interner, *object) {
                         self.push_err(TypeCheckError::ResolverError(error));
                     }
 

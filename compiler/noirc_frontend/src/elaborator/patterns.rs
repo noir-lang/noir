@@ -365,7 +365,7 @@ impl<'context> Elaborator<'context> {
                         // does not check definition kinds and otherwise expects parameters to
                         // already be typed.
                         if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let typ = Type::polymorphic_integer_or_field(&mut self.interner);
+                            let typ = Type::polymorphic_integer_or_field(self.interner);
                             self.interner.push_definition_type(hir_ident.id, typ);
                         }
                     }
@@ -408,7 +408,7 @@ impl<'context> Elaborator<'context> {
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = t.instantiate_with_bindings(bindings, &self.interner);
+        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
