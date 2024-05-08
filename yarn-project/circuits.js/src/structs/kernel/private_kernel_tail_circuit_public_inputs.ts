@@ -124,6 +124,10 @@ export class PrivateKernelTailCircuitPublicInputs {
     }
   }
 
+  get publicInputs(): PartialPrivateTailPublicInputsForPublic | PartialPrivateTailPublicInputsForRollup {
+    return (this.forPublic ?? this.forRollup)!;
+  }
+
   toPublicKernelCircuitPublicInputs() {
     if (!this.forPublic) {
       throw new Error('Private tail public inputs is not for public circuit.');

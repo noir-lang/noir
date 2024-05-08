@@ -2,6 +2,7 @@ import {
   MerkleTreeId,
   type ProcessReturnValues,
   type PublicKernelRequest,
+  PublicKernelType,
   type SimulationError,
   type Tx,
   type UnencryptedFunctionL2Logs,
@@ -81,6 +82,20 @@ export const PhaseIsRevertible: Record<PublicKernelPhase, boolean> = {
   [PublicKernelPhase.TAIL]: false,
 };
 
+// REFACTOR: Unify both enums and move to types or circuit-types.
+export function publicKernelPhaseToKernelType(phase: PublicKernelPhase): PublicKernelType {
+  switch (phase) {
+    case PublicKernelPhase.SETUP:
+      return PublicKernelType.SETUP;
+    case PublicKernelPhase.APP_LOGIC:
+      return PublicKernelType.APP_LOGIC;
+    case PublicKernelPhase.TEARDOWN:
+      return PublicKernelType.TEARDOWN;
+    case PublicKernelPhase.TAIL:
+      return PublicKernelType.TAIL;
+  }
+}
+
 export abstract class AbstractPhaseManager {
   protected hintsBuilder: HintsBuilder;
   protected log: DebugLogger;
@@ -127,6 +142,8 @@ export abstract class AbstractPhaseManager {
      */
     revertReason: SimulationError | undefined;
     returnValues: ProcessReturnValues;
+    /** Gas used during the execution this particular phase. */
+    gasUsed: Gas | undefined;
   }>;
 
   public static extractEnqueuedPublicCallsByPhase(
@@ -202,6 +219,7 @@ export abstract class AbstractPhaseManager {
     return calls;
   }
 
+  // REFACTOR: Do not return an array and instead return a struct with similar shape to that returned by `handle`
   protected async processEnqueuedPublicCalls(
     tx: Tx,
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
@@ -214,6 +232,7 @@ export abstract class AbstractPhaseManager {
       UnencryptedFunctionL2Logs[],
       SimulationError | undefined,
       ProcessReturnValues,
+      Gas,
     ]
   > {
     let kernelOutput = previousPublicKernelOutput;
@@ -223,7 +242,7 @@ export abstract class AbstractPhaseManager {
     const enqueuedCalls = this.extractEnqueuedPublicCalls(tx);
 
     if (!enqueuedCalls || !enqueuedCalls.length) {
-      return [[], kernelOutput, kernelProof, [], undefined, undefined];
+      return [[], kernelOutput, kernelProof, [], undefined, undefined, Gas.empty()];
     }
 
     const newUnencryptedFunctionLogs: UnencryptedFunctionL2Logs[] = [];
@@ -236,6 +255,7 @@ export abstract class AbstractPhaseManager {
     // and submitted separately to the base rollup?
 
     let returns: ProcessReturnValues = undefined;
+    let gasUsed = Gas.empty();
 
     for (const enqueuedCall of enqueuedCalls) {
       const executionStack: (PublicExecution | PublicExecutionResult)[] = [enqueuedCall];
@@ -262,6 +282,9 @@ export abstract class AbstractPhaseManager {
               sideEffectCounter,
             )
           : current;
+
+        // Accumulate gas used in this execution
+        gasUsed = gasUsed.add(Gas.from(result.startGasLeft).sub(Gas.from(result.endGasLeft)));
 
         const functionSelector = result.execution.functionData.selector.toString();
         if (result.reverted && !PhaseIsRevertible[this.phase]) {
@@ -306,7 +329,8 @@ export abstract class AbstractPhaseManager {
               result.revertReason
             }`,
           );
-          return [[], kernelOutput, kernelProof, [], result.revertReason, undefined];
+          // TODO(@spalladino): Check gasUsed is correct. The AVM should take care of setting gasLeft to zero upon a revert.
+          return [[], kernelOutput, kernelProof, [], result.revertReason, undefined, gasUsed];
         }
 
         if (!enqueuedExecutionResult) {
@@ -322,7 +346,7 @@ export abstract class AbstractPhaseManager {
     // TODO(#3675): This should be done in a public kernel circuit
     removeRedundantPublicDataWrites(kernelOutput, this.phase);
 
-    return [publicKernelInputs, kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns];
+    return [publicKernelInputs, kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns, gasUsed];
   }
 
   /** Returns all pending private and public nullifiers.  */

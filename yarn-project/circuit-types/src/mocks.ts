@@ -136,6 +136,7 @@ export const mockSimulatedTx = (seed = 1, hasLogs = true) => {
     end: makeCombinedAccumulatedData(),
     revertReason: undefined,
     publicReturnValues: dec,
+    gasUsed: {},
   };
   return new SimulatedTx(tx, dec, output);
 };

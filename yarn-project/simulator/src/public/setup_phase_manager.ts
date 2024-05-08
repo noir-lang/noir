@@ -35,14 +35,21 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     previousPublicKernelProof: Proof,
   ) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
-    const [kernelInputs, publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs, revertReason] =
-      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof).catch(
-        // the abstract phase manager throws if simulation gives error in a non-revertible phase
-        async err => {
-          await this.publicStateDB.rollbackToCommit();
-          throw err;
-        },
-      );
+    const [
+      kernelInputs,
+      publicKernelOutput,
+      publicKernelProof,
+      newUnencryptedFunctionLogs,
+      revertReason,
+      _returnValues,
+      gasUsed,
+    ] = await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof).catch(
+      // the abstract phase manager throws if simulation gives error in a non-revertible phase
+      async err => {
+        await this.publicStateDB.rollbackToCommit();
+        throw err;
+      },
+    );
     tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
     await this.publicStateDB.checkpoint();
 
@@ -61,6 +68,7 @@ export class SetupPhaseManager extends AbstractPhaseManager {
       publicKernelProof,
       revertReason,
       returnValues: undefined,
+      gasUsed,
     };
   }
 }

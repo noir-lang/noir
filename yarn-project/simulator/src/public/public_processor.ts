@@ -20,7 +20,11 @@ import { PublicExecutor, type PublicStateDB, type SimulationProvider } from '@az
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { type AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
+import {
+  type AbstractPhaseManager,
+  PublicKernelPhase,
+  publicKernelPhaseToKernelType,
+} from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from './public_executor.js';
 import { RealPublicKernelCircuitSimulator } from './public_kernel.js';
@@ -169,8 +173,10 @@ export class PublicProcessor {
     let finalKernelOutput: KernelCircuitPublicInputs | undefined;
     let revertReason: SimulationError | undefined;
     const timer = new Timer();
+    const gasUsed: ProcessedTx['gasUsed'] = {};
     while (phase) {
       const output = await phase.handle(tx, publicKernelPublicInput, proof);
+      gasUsed[publicKernelPhaseToKernelType(phase.phase)] = output.gasUsed;
       if (phase.phase === PublicKernelPhase.APP_LOGIC) {
         returnValues = output.returnValues;
       }
@@ -196,7 +202,7 @@ export class PublicProcessor {
       throw new Error('Final public kernel was not executed.');
     }
 
-    const processedTx = makeProcessedTx(tx, finalKernelOutput, proof, publicRequests, revertReason);
+    const processedTx = makeProcessedTx(tx, finalKernelOutput, proof, publicRequests, revertReason, gasUsed);
 
     this.log.debug(`Processed public part of ${tx.getTxHash()}`, {
       eventName: 'tx-sequencer-processing',

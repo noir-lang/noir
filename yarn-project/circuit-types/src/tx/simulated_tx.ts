@@ -1,7 +1,8 @@
-import { CombinedAccumulatedData, CombinedConstantData, Fr } from '@aztec/circuits.js';
+import { CombinedAccumulatedData, CombinedConstantData, Fr, Gas } from '@aztec/circuits.js';
+import { mapValues } from '@aztec/foundation/collection';
 
 import { EncryptedTxL2Logs, UnencryptedTxL2Logs } from '../logs/index.js';
-import { type ProcessedTx } from './processed_tx.js';
+import { type ProcessedTx, PublicKernelType } from './processed_tx.js';
 import { Tx } from './tx.js';
 
 /** Return values of simulating a circuit. */
@@ -11,7 +12,7 @@ export type ProcessReturnValues = Fr[] | undefined;
  * Outputs of processing the public component of a transaction.
  * REFACTOR: Rename.
  */
-export type ProcessOutput = Pick<ProcessedTx, 'encryptedLogs' | 'unencryptedLogs' | 'revertReason'> &
+export type ProcessOutput = Pick<ProcessedTx, 'encryptedLogs' | 'unencryptedLogs' | 'revertReason' | 'gasUsed'> &
   Pick<ProcessedTx['data'], 'constants' | 'end'> & { publicReturnValues: ProcessReturnValues };
 
 function processOutputToJSON(output: ProcessOutput) {
@@ -22,6 +23,7 @@ function processOutputToJSON(output: ProcessOutput) {
     constants: output.constants.toBuffer().toString('hex'),
     end: output.end.toBuffer().toString('hex'),
     publicReturnValues: output.publicReturnValues?.map(fr => fr.toString()),
+    gasUsed: mapValues(output.gasUsed, gas => gas?.toJSON()),
   };
 }
 
@@ -33,6 +35,7 @@ function processOutputFromJSON(json: any): ProcessOutput {
     constants: CombinedConstantData.fromBuffer(Buffer.from(json.constants, 'hex')),
     end: CombinedAccumulatedData.fromBuffer(Buffer.from(json.end, 'hex')),
     publicReturnValues: json.publicReturnValues?.map(Fr.fromString),
+    gasUsed: mapValues(json.gasUsed, gas => (gas ? Gas.fromJSON(gas) : undefined)),
   };
 }
 
@@ -44,6 +47,29 @@ function processOutputFromJSON(json: any): ProcessOutput {
 // two: one with just private simulation, and one that also includes public simulation.
 export class SimulatedTx {
   constructor(public tx: Tx, public privateReturnValues?: ProcessReturnValues, public publicOutput?: ProcessOutput) {}
+
+  /**
+   * Returns suggested total and teardown gas limits for the simulated tx.
+   * Note that public gas usage is only accounted for if the publicOutput is present.
+   * @param pad - Percentage to pad the suggested gas limits by, defaults to 10%.
+   */
+  public getGasLimits(pad = 0.1) {
+    const privateGasUsed = this.tx.data.publicInputs.end.gasUsed;
+    if (this.publicOutput) {
+      const publicGasUsed = Object.values(this.publicOutput.gasUsed).reduce(
+        (total, current) => total.add(current),
+        Gas.empty(),
+      );
+      const teardownGas = this.publicOutput.gasUsed[PublicKernelType.TEARDOWN] ?? Gas.empty();
+
+      return {
+        totalGas: privateGasUsed.add(publicGasUsed).mul(1 + pad),
+        teardownGas: teardownGas.mul(1 + pad),
+      };
+    }
+
+    return { totalGas: privateGasUsed.mul(1 + pad), teardownGas: Gas.empty() };
+  }
 
   /**
    * Convert a SimulatedTx class object to a plain JSON object.

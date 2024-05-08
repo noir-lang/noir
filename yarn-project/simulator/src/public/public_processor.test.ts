@@ -2,6 +2,7 @@ import {
   type BlockProver,
   type ProcessedTx,
   PublicDataWrite,
+  PublicKernelType,
   SimulationError,
   type Tx,
   type TxValidator,
@@ -105,6 +106,7 @@ describe('public_processor', () => {
         isEmpty: false,
         revertReason: undefined,
         publicKernelRequests: [],
+        gasUsed: {},
       };
 
       // Jest is complaining that the two objects are not equal, but they are.
@@ -678,9 +680,12 @@ describe('public_processor', () => {
       let simulatorCallCount = 0;
 
       const initialGas = gasLimits.sub(teardownGas);
-      const afterSetupGas = initialGas.sub(Gas.from({ l2Gas: 1e6 }));
-      const afterAppGas = afterSetupGas.sub(Gas.from({ l2Gas: 2e6, daGas: 2e6 }));
-      const afterTeardownGas = teardownGas.sub(Gas.from({ l2Gas: 3e6, daGas: 3e6 }));
+      const setupGasUsed = Gas.from({ l2Gas: 1e6 });
+      const appGasUsed = Gas.from({ l2Gas: 2e6, daGas: 2e6 });
+      const teardownGasUsed = Gas.from({ l2Gas: 3e6, daGas: 3e6 });
+      const afterSetupGas = initialGas.sub(setupGasUsed);
+      const afterAppGas = afterSetupGas.sub(appGasUsed);
+      const afterTeardownGas = teardownGas.sub(teardownGasUsed);
 
       // Total gas used is the sum of teardown gas allocation plus all expenditures along the way,
       // without including the gas used in the teardown phase (since that's consumed entirely up front).
@@ -780,6 +785,11 @@ describe('public_processor', () => {
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
 
       expect(processed[0].data.end.gasUsed).toEqual(Gas.from(expectedTotalGasUsed));
+      expect(processed[0].gasUsed[PublicKernelType.SETUP]).toEqual(setupGasUsed);
+      expect(processed[0].gasUsed[PublicKernelType.APP_LOGIC]).toEqual(appGasUsed);
+      expect(processed[0].gasUsed[PublicKernelType.TEARDOWN]).toEqual(teardownGasUsed);
+      expect(processed[0].gasUsed[PublicKernelType.TAIL]).toBeUndefined();
+      expect(processed[0].gasUsed[PublicKernelType.NON_PUBLIC]).toBeUndefined();
 
       const txEffect = toTxEffect(processed[0]);
       expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(3);

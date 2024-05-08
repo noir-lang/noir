@@ -47,6 +47,7 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
       newUnencryptedFunctionLogs,
       revertReason,
       returnValues,
+      gasUsed,
     ] = await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof).catch(
       // if we throw for any reason other than simulation, we need to rollback and drop the TX
       async err => {
@@ -71,6 +72,6 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
       };
       return request;
     });
-    return { kernelRequests, publicKernelOutput, publicKernelProof, revertReason, returnValues };
+    return { kernelRequests, publicKernelOutput, publicKernelProof, revertReason, returnValues, gasUsed };
   }
 }

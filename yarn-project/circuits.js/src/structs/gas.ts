@@ -83,4 +83,12 @@ export class Gas {
     const reader = FieldReader.asReader(fields);
     return new Gas(reader.readU32(), reader.readU32());
   }
+
+  toJSON() {
+    return { daGas: this.daGas, l2Gas: this.l2Gas };
+  }
+
+  static fromJSON(json: any) {
+    return new Gas(json.daGas, json.l2Gas);
+  }
 }
