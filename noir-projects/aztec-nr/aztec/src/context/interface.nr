@@ -206,20 +206,22 @@ struct AvmCallInterface<T> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     args: [Field],
+    gas_opts: GasOpts,
 }
 
 impl<T> AvmCallInterface<T> {
-    pub fn call<N>(self, context: &mut AvmContext, gas_opts: GasOpts) -> T where T: Deserialize<N> {
-        let returns = context.call_public_function(self.target_contract, self.selector, self.args, gas_opts);
+    pub fn with_gas(self: &mut Self, gas_opts: GasOpts) -> &mut Self {
+        self.gas_opts = gas_opts;
+        self
+    }
+
+    pub fn call<N>(self, context: &mut AvmContext) -> T where T: Deserialize<N> {
+        let returns = context.call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         returns.deserialize_into()
     }
 
-    pub fn static_call<N>(
-        self,
-        context: &mut AvmContext,
-        gas_opts: GasOpts
-    ) -> T where T: Deserialize<N> {
-        let returns = context.static_call_public_function(self.target_contract, self.selector, self.args, gas_opts);
+    pub fn static_call<N>(self, context: &mut AvmContext) -> T where T: Deserialize<N> {
+        let returns = context.static_call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         returns.deserialize_into()
     }
 
@@ -233,16 +235,22 @@ struct AvmVoidCallInterface {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     args: [Field],
+    gas_opts: GasOpts,
 }
 
 impl AvmVoidCallInterface {
-    pub fn call<N>(self, context: &mut AvmContext, gas_opts: GasOpts) {
-        let returns = context.call_public_function(self.target_contract, self.selector, self.args, gas_opts);
+    pub fn with_gas(self: &mut Self, gas_opts: GasOpts) -> &mut Self {
+        self.gas_opts = gas_opts;
+        self
+    }
+
+    pub fn call<N>(self, context: &mut AvmContext) {
+        let returns = context.call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         returns.assert_empty()
     }
 
-    pub fn static_call<N>(self, context: &mut AvmContext, gas_opts: GasOpts) {
-        let returns = context.static_call_public_function(self.target_contract, self.selector, self.args, gas_opts);
+    pub fn static_call<N>(self, context: &mut AvmContext) {
+        let returns = context.static_call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         returns.assert_empty()
     }
 

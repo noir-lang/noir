@@ -40,36 +40,36 @@ contract AvmNestedCallsTest {
         l2_gas: Field,
         da_gas: Field
     ) -> pub Field {
-        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).call(&mut context, GasOpts::new(l2_gas, da_gas))
+        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).with_gas(GasOpts::new(l2_gas, da_gas)).call(&mut context)
     }
 
     // Use the `call_public_function` wrapper to initiate a nested call to the add function
     #[aztec(public-vm)]
     fn nested_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
-        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).call(&mut context, GasOpts::default())
+        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).call(&mut context)
     }
 
     // Indirectly call_static the external call opcode to initiate a nested call to the add function
     #[aztec(public-vm)]
     fn nested_static_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
-        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).static_call(&mut context, GasOpts::default())
+        AvmNestedCallsTest::at(context.this_address()).add_args_return(arg_a, arg_b).static_call(&mut context)
     }
 
     // Indirectly call_static `set_storage_single`. Should revert since it's accessing storage.
     #[aztec(public-vm)]
     fn nested_static_call_to_set_storage() {
-        AvmNestedCallsTest::at(context.this_address()).set_storage_single(20).static_call(&mut context, GasOpts::default());
+        AvmNestedCallsTest::at(context.this_address()).set_storage_single(20).static_call(&mut context);
     }
 
     #[aztec(public-vm)]
     fn create_same_nullifier_in_nested_call(nestedAddress: AztecAddress, nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
-        AvmNestedCallsTest::at(nestedAddress).new_nullifier(nullifier).call(&mut context, GasOpts::default());
+        AvmNestedCallsTest::at(nestedAddress).new_nullifier(nullifier).call(&mut context);
     }
 
     #[aztec(public-vm)]
     fn create_different_nullifier_in_nested_call(nestedAddress: AztecAddress, nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
-        AvmNestedCallsTest::at(nestedAddress).new_nullifier(nullifier + 1).call(&mut context, GasOpts::default());
+        AvmNestedCallsTest::at(nestedAddress).new_nullifier(nullifier + 1).call(&mut context);
     }
 }
