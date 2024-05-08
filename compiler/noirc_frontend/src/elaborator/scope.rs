@@ -17,18 +17,6 @@ use crate::{
 
 use super::Elaborator;
 
-#[derive(Default)]
-pub(super) struct Scope {
-    types: HashMap<String, TypeId>,
-    values: HashMap<String, DefinitionId>,
-    comptime_values: HashMap<String, Value>,
-}
-
-pub(super) enum TypeId {
-    Struct(StructId),
-    Alias(TypeAliasId),
-}
-
 impl Elaborator {
     pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
@@ -65,12 +53,12 @@ impl Elaborator {
             if self.lambda_stack[lambda_index].scope_index > var_scope_index {
                 // Beware: the same variable may be captured multiple times, so we check
                 // for its presence before adding the capture below.
-                let pos = self.lambda_stack[lambda_index]
+                let position = self.lambda_stack[lambda_index]
                     .captures
                     .iter()
                     .position(|capture| capture.ident.id == hir_ident.id);
 
-                if pos.is_none() {
+                if position.is_none() {
                     self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
                         ident: hir_ident.clone(),
                         transitive_capture_index,
@@ -82,7 +70,7 @@ impl Elaborator {
                     // the scope of the variable, so this is a propagated capture.
                     // We need to track the transitive capture index as we go up in
                     // the closure stack.
-                    transitive_capture_index = Some(pos.unwrap_or(
+                    transitive_capture_index = Some(position.unwrap_or(
                         // If this was a fresh capture, we added it to the end of
                         // the captures vector:
                         self.lambda_stack[lambda_index].captures.len() - 1,

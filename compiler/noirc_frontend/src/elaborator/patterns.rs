@@ -281,15 +281,15 @@ impl Elaborator {
         ident
     }
 
-    // Checks for a variable having been declared before
-    // variable declaration and definition cannot be separate in Noir
-    // Once the variable has been found, intern and link `name` to this definition
-    // return the IdentId of `name`
+    // Checks for a variable having been declared before.
+    // (Variable declaration and definition cannot be separate in Noir.)
+    // Once the variable has been found, intern and link `name` to this definition,
+    // returning (the ident, the IdentId of `name`)
     //
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
     pub(super) fn find_variable_or_default(&mut self, name: &Ident) -> (HirIdent, usize) {
-        self.find_variable(name).unwrap_or_else(|error| {
+        self.use_variable(name).unwrap_or_else(|error| {
             self.push_err(error);
             let id = DefinitionId::dummy_id();
             let location = Location::new(name.span(), self.file);
@@ -297,7 +297,10 @@ impl Elaborator {
         })
     }
 
-    pub(super) fn find_variable(
+    /// Lookup and use the specified variable.
+    /// This will increment its use counter by one and return the variable if found.
+    /// If the variable is not found, an error is returned.
+    pub(super) fn use_variable(
         &mut self,
         name: &Ident,
     ) -> Result<(HirIdent, usize), ResolverError> {
@@ -441,7 +444,7 @@ impl Elaborator {
     fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
         let location = Location::new(path.span(), self.file);
 
-        let error = match path.as_ident().map(|ident| self.find_variable(ident)) {
+        let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
