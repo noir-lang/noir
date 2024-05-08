@@ -4,6 +4,7 @@ trait Not {
 }
 // docs:end:not-trait
 
+// docs:start:not-trait-impls
 impl Not for bool { fn not(self) -> bool { !self } }
 
 impl Not for u64 { fn not(self) -> u64 { !self } }
@@ -16,6 +17,7 @@ impl Not for i8 { fn not(self) -> i8 { !self } }
 impl Not for i16 { fn not(self) -> i16 { !self } }
 impl Not for i32 { fn not(self) -> i32 { !self } }
 impl Not for i64 { fn not(self) -> i64 { !self } }
+// docs:end:not-trait-impls
 
 // docs:start:bitor-trait
 trait BitOr {
