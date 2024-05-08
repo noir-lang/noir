@@ -28,7 +28,7 @@ contract AvmAcvmInteropTest {
     }
 
     #[aztec(public)]
-    fn new_nullifier_acvm(nullifier: Field) -> pub Field {
+    fn new_nullifier_acvm(nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
     }
 

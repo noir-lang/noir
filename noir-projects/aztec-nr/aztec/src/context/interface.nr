@@ -1,5 +1,6 @@
 use dep::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}, traits::Deserialize};
 
+use crate::hash::hash_args;
 use crate::context::private_context::PrivateContext;
 use crate::context::public_context::PublicContext;
 use crate::context::avm_context::AvmContext;
@@ -229,6 +230,21 @@ impl<T> AvmCallInterface<T> {
         let returns = context.delegate_call_public_function(self.target_contract, self.selector, self.args);
         returns.deserialize_into()
     }
+
+    pub fn enqueue(self, context: &mut PrivateContext) {
+        let args_hash = hash_args(self.args);
+        context.call_public_function_with_packed_args(self.target_contract, self.selector, args_hash, false, false)
+    }
+
+    pub fn static_enqueue(self, context: &mut PrivateContext) {
+        let args_hash = hash_args(self.args);
+        context.call_public_function_with_packed_args(self.target_contract, self.selector, args_hash, true, false)
+    }
+
+    pub fn delegate_enqueue(self, context: &mut PrivateContext) {
+        let args_hash = hash_args(self.args);
+        context.call_public_function_with_packed_args(self.target_contract, self.selector, args_hash, false, true)
+    }
 }
 
 struct AvmVoidCallInterface {
@@ -257,5 +273,20 @@ impl AvmVoidCallInterface {
     pub fn delegate_call<N>(self, context: &mut AvmContext) {
         let returns = context.delegate_call_public_function(self.target_contract, self.selector, self.args);
         returns.assert_empty()
+    }
+
+    pub fn enqueue(self, context: &mut PrivateContext) {
+        let args_hash = hash_args(self.args);
+        context.call_public_function_with_packed_args(self.target_contract, self.selector, args_hash, false, false)
+    }
+
+    pub fn static_enqueue(self, context: &mut PrivateContext) {
+        let args_hash = hash_args(self.args);
+        context.call_public_function_with_packed_args(self.target_contract, self.selector, args_hash, true, false)
+    }
+
+    pub fn delegate_enqueue(self, context: &mut PrivateContext) {
+        let args_hash = hash_args(self.args);
+        context.call_public_function_with_packed_args(self.target_contract, self.selector, args_hash, false, true)
     }
 }
