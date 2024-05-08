@@ -66,7 +66,7 @@ impl Div for u16 { fn div(self, other: u16) -> u16 { self / other } }
 impl Div for u8 { fn div(self, other: u8) -> u8 { self / other } }
 
 impl Div for i8 { fn div(self, other: i8) -> i8 { self / other } }
-impl Mul for i16 { fn div(self, other: i16) -> i16 { self / other } }
+impl Div for i16 { fn div(self, other: i16) -> i16 { self / other } }
 impl Div for i32 { fn div(self, other: i32) -> i32 { self / other } }
 impl Div for i64 { fn div(self, other: i64) -> i64 { self / other } }
 
@@ -96,7 +96,7 @@ trait Neg {
 impl Neg for Field { fn neg(self) -> Field { -self } }
 
 impl Neg for i8 { fn neg(self) -> i8 { -self } }
-impl Mul for i16 { fn neg(self) -> i16 { -self } }
+impl Neg for i16 { fn neg(self) -> i16 { -self } }
 impl Neg for i32 { fn neg(self) -> i32 { -self } }
 impl Neg for i64 { fn neg(self) -> i64 { -self } }
 // docs:end:neg-trait-impls
