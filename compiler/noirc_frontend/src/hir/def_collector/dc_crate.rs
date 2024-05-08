@@ -38,6 +38,10 @@ pub struct ResolvedModule {
     pub trait_impl_functions: Vec<(FileId, FuncId)>,
 
     pub errors: Vec<(CompilationError, FileId)>,
+
+    /// True if the experimental elaborator should be used over the normal
+    /// name resolution and type checking passes.
+    pub use_elaborator: bool,
 }
 
 /// Stores all of the unresolved functions in a particular file/mod
@@ -229,6 +233,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
+        use_elaborator: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -242,7 +247,7 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, macro_processors));
+            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, use_elaborator, macro_processors));
 
             let dep_def_root =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
@@ -323,7 +328,7 @@ impl DefCollector {
             }
         }
 
-        let mut resolved_module = ResolvedModule { errors, ..Default::default() };
+        let mut resolved_module = ResolvedModule { errors, use_elaborator, ..Default::default() };
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -481,34 +486,42 @@ fn filter_literal_globals(
 
 impl ResolvedModule {
     fn type_check(&mut self, context: &mut Context) {
-        self.type_check_globals(&mut context.def_interner);
-        self.type_check_functions(&mut context.def_interner);
-        self.type_check_trait_impl_function(&mut context.def_interner);
+        if !self.use_elaborator {
+            self.type_check_globals(&mut context.def_interner);
+            self.type_check_functions(&mut context.def_interner);
+            self.type_check_trait_impl_function(&mut context.def_interner);
+        }
     }
 
     fn type_check_globals(&mut self, interner: &mut NodeInterner) {
-        for (file_id, global_id) in self.globals.iter() {
-            for error in TypeChecker::check_global(*global_id, interner) {
-                self.errors.push((error.into(), *file_id));
+        if !self.use_elaborator {
+            for (file_id, global_id) in self.globals.iter() {
+                for error in TypeChecker::check_global(*global_id, interner) {
+                    self.errors.push((error.into(), *file_id));
+                }
             }
         }
     }
 
     fn type_check_functions(&mut self, interner: &mut NodeInterner) {
-        for (file, func) in self.functions.iter() {
-            for error in type_check_func(interner, *func) {
-                self.errors.push((error.into(), *file));
+        if !self.use_elaborator {
+            for (file, func) in self.functions.iter() {
+                for error in type_check_func(interner, *func) {
+                    self.errors.push((error.into(), *file));
+                }
             }
         }
     }
 
     fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner) {
-        for (file, func) in self.trait_impl_functions.iter() {
-            for error in check_trait_impl_method_matches_declaration(interner, *func) {
-                self.errors.push((error.into(), *file));
-            }
-            for error in type_check_func(interner, *func) {
-                self.errors.push((error.into(), *file));
+        if !self.use_elaborator {
+            for (file, func) in self.trait_impl_functions.iter() {
+                for error in check_trait_impl_method_matches_declaration(interner, *func) {
+                    self.errors.push((error.into(), *file));
+                }
+                for error in type_check_func(interner, *func) {
+                    self.errors.push((error.into(), *file));
+                }
             }
         }
     }
@@ -540,9 +553,13 @@ impl ResolvedModule {
         literal_globals: Vec<UnresolvedGlobal>,
         crate_id: CrateId,
     ) {
-        let globals = resolve_globals(context, literal_globals, crate_id);
-        self.globals.extend(globals.globals);
-        self.errors.extend(globals.errors);
+        if self.use_elaborator {
+            let mut elaborator = Elaborator::new(context);
+        } else {
+            let globals = resolve_globals(context, literal_globals, crate_id);
+            self.globals.extend(globals.globals);
+            self.errors.extend(globals.errors);
+        }
     }
 
     /// Counts the number of errors (minus warnings) this program currently has
