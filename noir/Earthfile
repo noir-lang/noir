@@ -168,7 +168,6 @@ packages-test-browser:
     WORKDIR /usr/src/noir/noir-repo
     RUN ./.github/scripts/playwright-install.sh
     RUN yarn workspaces foreach \
-      --parallel \
       --verbose \
       --include integration-tests \
       --include @noir-lang/noir_wasm \
