@@ -5,14 +5,11 @@ use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
-    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
-    ops::report_errors, package::Package, parse_all,
+    artifacts::{contract::ContractArtifact, debug::DebugArtifact, program::ProgramArtifact},
+    package::Package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, CompiledContract, CompiledProgram,
-    NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
@@ -22,7 +19,11 @@ use serde::Serialize;
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use super::{compile_cmd::compile_workspace, NargoConfig};
+use super::{
+    compile_cmd::compile_workspace_full,
+    fs::program::{read_contract_from_file, read_program_from_file},
+    NargoConfig,
+};
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
 ///
@@ -66,35 +67,32 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    // Compile the full workspace in order to generate any build artifacts.
+    compile_workspace_full(&workspace, &args.compile_options)?;
 
-    let compiled_workspace = compile_workspace(
-        &workspace_file_manager,
-        &parsed_files,
-        &workspace,
-        &args.compile_options,
-    );
+    let binary_packages: Vec<(Package, ProgramArtifact)> = workspace
+        .into_iter()
+        .filter(|package| package.is_binary())
+        .map(|package| -> Result<(Package, ProgramArtifact), CliError> {
+            let program_artifact_path = workspace.package_build_path(package);
+            let program = read_program_from_file(program_artifact_path)?;
+            Ok((package.clone(), program))
+        })
+        .collect::<Result<_, _>>()?;
 
-    let (compiled_programs, compiled_contracts) = report_errors(
-        compiled_workspace,
-        &workspace_file_manager,
-        args.compile_options.deny_warnings,
-        args.compile_options.silence_warnings,
-    )?;
-
-    let compiled_programs = vecmap(compiled_programs, |program| {
-        nargo::ops::transform_program(program, args.compile_options.expression_width)
-    });
-    let compiled_contracts = vecmap(compiled_contracts, |contract| {
-        nargo::ops::transform_contract(contract, args.compile_options.expression_width)
-    });
+    let compiled_contracts: Vec<ContractArtifact> = workspace
+        .into_iter()
+        .filter(|package| package.is_contract())
+        .map(|package| {
+            let contract_artifact_path = workspace.package_build_path(package);
+            read_contract_from_file(contract_artifact_path)
+        })
+        .collect::<Result<_, _>>()?;
 
     if args.profile_info {
-        for compiled_program in &compiled_programs {
+        for (_, compiled_program) in &binary_packages {
             let debug_artifact = DebugArtifact::from(compiled_program.clone());
-            for function_debug in compiled_program.debug.iter() {
+            for function_debug in compiled_program.debug_symbols.debug_infos.iter() {
                 let span_opcodes = function_debug.count_span_opcodes();
                 print_span_opcodes(span_opcodes, &debug_artifact);
             }
@@ -104,7 +102,7 @@ pub(crate) fn run(
             let debug_artifact = DebugArtifact::from(compiled_contract.clone());
             let functions = &compiled_contract.functions;
             for contract_function in functions {
-                for function_debug in contract_function.debug.iter() {
+                for function_debug in contract_function.debug_symbols.debug_infos.iter() {
                     let span_opcodes = function_debug.count_span_opcodes();
                     print_span_opcodes(span_opcodes, &debug_artifact);
                 }
@@ -112,16 +110,14 @@ pub(crate) fn run(
         }
     }
 
-    let binary_packages =
-        workspace.into_iter().filter(|package| package.is_binary()).zip(compiled_programs);
-
     let program_info = binary_packages
+        .into_iter()
         .par_bridge()
         .map(|(package, program)| {
             count_opcodes_and_gates_in_program(
                 backend,
                 program,
-                package,
+                &package,
                 args.compile_options.expression_width,
             )
         })
@@ -287,12 +283,12 @@ impl From<ContractInfo> for Vec<Row> {
 
 fn count_opcodes_and_gates_in_program(
     backend: &Backend,
-    compiled_program: CompiledProgram,
+    compiled_program: ProgramArtifact,
     package: &Package,
     expression_width: ExpressionWidth,
 ) -> Result<ProgramInfo, CliError> {
     let functions = compiled_program
-        .program
+        .bytecode
         .functions
         .into_par_iter()
         .enumerate()
@@ -314,7 +310,7 @@ fn count_opcodes_and_gates_in_program(
 
 fn count_opcodes_and_gates_in_contract(
     backend: &Backend,
-    contract: CompiledContract,
+    contract: ContractArtifact,
     expression_width: ExpressionWidth,
 ) -> Result<ContractInfo, CliError> {
     let functions = contract

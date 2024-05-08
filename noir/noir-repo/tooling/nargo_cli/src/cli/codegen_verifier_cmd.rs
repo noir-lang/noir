@@ -1,13 +1,13 @@
+use super::compile_cmd::compile_workspace_full;
 use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
 use crate::backends::Backend;
+use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
 
 use clap::Args;
-use nargo::ops::{compile_program, report_errors};
-use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 /// Generates a Solidity verifier smart contract for the program
@@ -40,28 +40,13 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    // Compile the full workspace in order to generate any build artifacts.
+    compile_workspace_full(&workspace, &args.compile_options)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
-        let compilation_result = compile_program(
-            &workspace_file_manager,
-            &parsed_files,
-            package,
-            &args.compile_options,
-            None,
-        );
-
-        let program = report_errors(
-            compilation_result,
-            &workspace_file_manager,
-            args.compile_options.deny_warnings,
-            args.compile_options.silence_warnings,
-        )?;
-
-        let program = nargo::ops::transform_program(program, args.compile_options.expression_width);
+        let program_artifact_path = workspace.package_build_path(package);
+        let program: CompiledProgram = read_program_from_file(program_artifact_path)?.into();
 
         // TODO(https://github.com/noir-lang/noir/issues/4428):
         // We do not expect to have a smart contract verifier for a foldable program with multiple circuits.

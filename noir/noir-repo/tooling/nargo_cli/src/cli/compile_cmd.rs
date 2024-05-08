@@ -111,7 +111,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     Ok(())
 }
 
-fn compile_workspace_full(
+pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {

@@ -1,16 +1,13 @@
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
-use nargo::ops::{compile_program, report_errors};
 use nargo::package::Package;
-use nargo::workspace::Workspace;
-use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
-use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
+use super::compile_cmd::compile_workspace_full;
+use super::fs::program::read_program_from_file;
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     proof::save_proof_to_dir,
@@ -65,56 +62,39 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    // Compile the full workspace in order to generate any build artifacts.
+    compile_workspace_full(&workspace, &args.compile_options)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
-        let compilation_result = compile_program(
-            &workspace_file_manager,
-            &parsed_files,
-            package,
-            &args.compile_options,
-            None,
-        );
+        let program_artifact_path = workspace.package_build_path(package);
+        let program: CompiledProgram = read_program_from_file(program_artifact_path)?.into();
 
-        let compiled_program = report_errors(
-            compilation_result,
-            &workspace_file_manager,
-            args.compile_options.deny_warnings,
-            args.compile_options.silence_warnings,
-        )?;
-
-        let compiled_program =
-            nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
-
-        prove_package(
+        let proof = prove_package(
             backend,
-            &workspace,
             package,
-            compiled_program,
+            program,
             &args.prover_name,
             &args.verifier_name,
             args.verify,
             args.oracle_resolver.as_deref(),
         )?;
+
+        save_proof_to_dir(&proof, &String::from(&package.name), workspace.proofs_directory_path())?;
     }
 
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn prove_package(
+fn prove_package(
     backend: &Backend,
-    workspace: &Workspace,
     package: &Package,
     compiled_program: CompiledProgram,
     prover_name: &str,
     verifier_name: &str,
     check_proof: bool,
     foreign_call_resolver_url: Option<&str>,
-) -> Result<(), CliError> {
+) -> Result<Vec<u8>, CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)?;
@@ -148,7 +128,5 @@ pub(crate) fn prove_package(
         }
     }
 
-    save_proof_to_dir(&proof, &String::from(&package.name), workspace.proofs_directory_path())?;
-
-    Ok(())
+    Ok(proof)
 }

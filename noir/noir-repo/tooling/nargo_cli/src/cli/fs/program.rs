@@ -60,3 +60,16 @@ pub(crate) fn read_program_from_file<P: AsRef<Path>>(
 
     Ok(program)
 }
+
+pub(crate) fn read_contract_from_file<P: AsRef<Path>>(
+    circuit_path: P,
+) -> Result<ContractArtifact, FilesystemError> {
+    let file_path = circuit_path.as_ref().with_extension("json");
+
+    let input_string =
+        std::fs::read(&file_path).map_err(|_| FilesystemError::PathNotValid(file_path))?;
+    let contract = serde_json::from_slice(&input_string)
+        .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
+
+    Ok(contract)
+}
