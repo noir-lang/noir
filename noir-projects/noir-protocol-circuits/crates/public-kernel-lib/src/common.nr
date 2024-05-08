@@ -4,7 +4,7 @@ use dep::types::{
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder, kernel_data::PublicKernelData,
     note_hash::NoteHash, nullifier::Nullifier, public_call_data::PublicCallData,
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-    read_request::ReadRequestContext, side_effect::SideEffect, global_variables::GlobalVariables,
+    side_effect::SideEffect, global_variables::GlobalVariables,
     combined_constant_data::CombinedConstantData
 },
     address::AztecAddress,
@@ -324,7 +324,7 @@ fn propagate_nullifier_read_requests<T>(
     for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL {
         let request = nullifier_read_requests[i];
         if !is_empty(request) {
-            circuit_outputs.validation_requests.nullifier_read_requests.push(request.to_context(storage_contract_address));
+            circuit_outputs.validation_requests.nullifier_read_requests.push(request.scope(storage_contract_address));
         }
     }
 }
@@ -340,7 +340,7 @@ fn propagate_nullifier_non_existent_read_requests<T>(
     for i in 0..MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL {
         let request = nullifier_non_existent_read_requests[i];
         if !is_empty(request) {
-            circuit_outputs.validation_requests.nullifier_non_existent_read_requests.push(request.to_context(storage_contract_address));
+            circuit_outputs.validation_requests.nullifier_non_existent_read_requests.push(request.scope(storage_contract_address));
         }
     }
 }

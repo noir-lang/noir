@@ -1,10 +1,10 @@
-import { type NoteHashContext, type Nullifier, countAccumulatedItems } from '@aztec/circuits.js';
+import { type ScopedNoteHash, type ScopedNullifier, countAccumulatedItems } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 export function buildTransientDataHints<NOTE_HASHES_LEN extends number, NULLIFIERS_LEN extends number>(
-  noteHashes: Tuple<NoteHashContext, NOTE_HASHES_LEN>,
-  nullifiers: Tuple<Nullifier, NULLIFIERS_LEN>,
+  noteHashes: Tuple<ScopedNoteHash, NOTE_HASHES_LEN>,
+  nullifiers: Tuple<ScopedNullifier, NULLIFIERS_LEN>,
   noteHashesLength: NOTE_HASHES_LEN = noteHashes.length as NOTE_HASHES_LEN,
   nullifiersLength: NULLIFIERS_LEN = nullifiers.length as NULLIFIERS_LEN,
 ): [Tuple<number, NOTE_HASHES_LEN>, Tuple<number, NULLIFIERS_LEN>] {
@@ -31,8 +31,11 @@ export function buildTransientDataHints<NOTE_HASHES_LEN extends number, NULLIFIE
       }
 
       const nullifier = nullifiers[nullifierIndex];
-      if (!nullifier.noteHash.equals(noteHash.value)) {
+      if (!nullifier.nullifiedNoteHash.equals(noteHash.value)) {
         throw new Error('Hinted note hash does not match.');
+      }
+      if (!nullifier.contractAddress.equals(noteHash.contractAddress)) {
+        throw new Error('Contract address of hinted note hash does not match.');
       }
 
       nullifierIndexesForNoteHashes[i] = nullifierIndex;

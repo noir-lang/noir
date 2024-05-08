@@ -5,7 +5,12 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX } from '../constants.gen.js';
 import { siloNullifier } from '../hash/index.js';
-import { Nullifier, NullifierNonExistentReadRequestHintsBuilder, ReadRequestContext } from '../structs/index.js';
+import {
+  Nullifier,
+  NullifierNonExistentReadRequestHintsBuilder,
+  ReadRequest,
+  ScopedReadRequest,
+} from '../structs/index.js';
 import { buildNullifierNonExistentReadRequestHints } from './build_nullifier_non_existent_read_request_hints.js';
 
 describe('buildNullifierNonExistentReadRequestHints', () => {
@@ -13,13 +18,13 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
   const oracle = {
     getLowNullifierMembershipWitness: () => ({ membershipWitness: {}, leafPreimage: {} } as any),
   };
-  const nonExistentReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext.empty);
+  const nonExistentReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
   let nullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Nullifier.empty);
 
   const innerNullifier = (index: number) => index + 1;
 
   const makeReadRequest = (value: number, counter = 2) =>
-    new ReadRequestContext(new Fr(value), counter, contractAddress);
+    new ReadRequest(new Fr(value), counter).scope(contractAddress);
 
   const makeNullifier = (value: number, counter = 1) => {
     const siloedValue = siloNullifier(contractAddress, new Fr(value));

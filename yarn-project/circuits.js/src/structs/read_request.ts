@@ -60,43 +60,42 @@ export class ReadRequest {
   static empty(): ReadRequest {
     return new ReadRequest(Fr.zero(), 0);
   }
+
+  scope(contractAddress: AztecAddress) {
+    return new ScopedReadRequest(this, contractAddress);
+  }
 }
 
 /**
  * ReadRequest with context of the contract emitting the request.
  */
-export class ReadRequestContext {
-  constructor(
-    /**
-     * The value being read.
-     */
-    public value: Fr,
-    /**
-     * The counter.
-     */
-    public counter: number,
-    /**
-     * The address of the contract emitting the request.
-     */
-    public contractAddress: AztecAddress,
-  ) {}
+export class ScopedReadRequest {
+  constructor(public readRequest: ReadRequest, public contractAddress: AztecAddress) {}
+
+  get value() {
+    return this.readRequest.value;
+  }
+
+  get counter() {
+    return this.readRequest.counter;
+  }
 
   /**
    * Serialize this as a buffer.
    * @returns The buffer.
    */
   toBuffer(): Buffer {
-    return serializeToBuffer(this.value, this.counter, this.contractAddress);
+    return serializeToBuffer(this.readRequest, this.contractAddress);
   }
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer or reader to read from.
-   * @returns A new instance of ReadRequestContext.
+   * @returns A new instance of ScopedReadRequest.
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ReadRequestContext(Fr.fromBuffer(reader), reader.readNumber(), AztecAddress.fromBuffer(reader));
+    return new ScopedReadRequest(ReadRequest.fromBuffer(reader), AztecAddress.fromBuffer(reader));
   }
 
   /**
@@ -104,12 +103,12 @@ export class ReadRequestContext {
    * @returns The array of fields.
    */
   toFields(): Fr[] {
-    return [this.value, new Fr(this.counter), this.contractAddress.toField()];
+    return [...this.readRequest.toFields(), this.contractAddress.toField()];
   }
 
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
-    return new ReadRequestContext(reader.readField(), reader.readU32(), AztecAddress.fromField(reader.readField()));
+    return new ScopedReadRequest(reader.readObject(ReadRequest), AztecAddress.fromField(reader.readField()));
   }
 
   /**
@@ -117,14 +116,14 @@ export class ReadRequestContext {
    * @returns True if the value, note hash and counter are all zero.
    */
   isEmpty() {
-    return this.value.isZero() && !this.counter && this.contractAddress.isZero();
+    return this.readRequest.isEmpty() && this.contractAddress.isZero();
   }
 
   /**
    * Returns an empty instance of side-effect.
    * @returns Side-effect with value, note hash and counter being zero.
    */
-  static empty(): ReadRequestContext {
-    return new ReadRequestContext(Fr.zero(), 0, AztecAddress.ZERO);
+  static empty(): ScopedReadRequest {
+    return new ScopedReadRequest(ReadRequest.empty(), AztecAddress.ZERO);
   }
 }

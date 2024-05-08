@@ -1,8 +1,8 @@
 use crate::{
     abis::{
     max_block_number::MaxBlockNumber,
-    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
-    public_data_read::PublicDataRead, read_request::ReadRequestContext,
+    nullifier_key_validation_request::ScopedNullifierKeyValidationRequest,
+    public_data_read::PublicDataRead, read_request::ScopedReadRequest,
     validation_requests::validation_requests::ValidationRequests,
     validation_requests::rollup_validation_requests::RollupValidationRequests
 },
@@ -16,10 +16,10 @@ use crate::{
 
 struct ValidationRequestsBuilder {
     max_block_number: MaxBlockNumber,
-    note_hash_read_requests: BoundedVec<ReadRequestContext, MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
-    nullifier_read_requests: BoundedVec<ReadRequestContext, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-    nullifier_non_existent_read_requests: BoundedVec<ReadRequestContext, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequestContext, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
+    note_hash_read_requests: BoundedVec<ScopedReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
+    nullifier_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+    nullifier_non_existent_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
+    nullifier_key_validation_requests: BoundedVec<ScopedNullifierKeyValidationRequest, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
     public_data_reads: BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_TX>,
 }
 

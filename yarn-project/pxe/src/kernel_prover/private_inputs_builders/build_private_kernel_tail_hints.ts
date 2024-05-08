@@ -9,11 +9,11 @@ import {
   type MAX_UNENCRYPTED_LOGS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
-  type Nullifier,
-  type NullifierKeyValidationRequestContext,
   type PrivateKernelCircuitPublicInputs,
   PrivateKernelTailHints,
-  type ReadRequestContext,
+  type ScopedNullifier,
+  type ScopedNullifierKeyValidationRequest,
+  type ScopedReadRequest,
   type SideEffect,
   type SideEffectType,
   buildNoteHashReadRequestHints,
@@ -49,8 +49,8 @@ function sortSideEffects<T extends SideEffectType, K extends number>(
 }
 
 function getNullifierReadRequestHints(
-  nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-  nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+  nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   oracle: ProvingDataOracle,
 ) {
   const getNullifierMembershipWitness = async (nullifier: Fr) => {
@@ -75,14 +75,14 @@ function getNullifierReadRequestHints(
 
 async function getMasterNullifierSecretKeys(
   nullifierKeyValidationRequests: Tuple<
-    NullifierKeyValidationRequestContext,
+    ScopedNullifierKeyValidationRequest,
     typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
   >,
   oracle: ProvingDataOracle,
 ) {
   const keys = makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GrumpkinScalar.zero);
   for (let i = 0; i < nullifierKeyValidationRequests.length; ++i) {
-    const request = nullifierKeyValidationRequests[i];
+    const request = nullifierKeyValidationRequests[i].request;
     if (request.isEmpty()) {
       break;
     }

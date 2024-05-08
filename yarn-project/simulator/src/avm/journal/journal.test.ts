@@ -153,7 +153,7 @@ describe('journal', () => {
       journal.writeL1Message(recipient, msgHash);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.newL1Messages).toEqual([{ recipient, content: msgHash }]);
+      expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: msgHash })]);
     });
   });
 
@@ -260,8 +260,8 @@ describe('journal', () => {
       ),
     ]);
     expect(journalUpdates.newL1Messages).toEqual([
-      { recipient, content: commitment },
-      { recipient, content: commitmentT1 },
+      expect.objectContaining({ recipient, content: commitment }),
+      expect.objectContaining({ recipient, content: commitmentT1 }),
     ]);
     expect(journalUpdates.nullifierChecks).toEqual([
       expect.objectContaining({ nullifier: commitment, exists: true }),
@@ -403,7 +403,7 @@ describe('journal', () => {
         Buffer.concat(log.data.map(f => f.toBuffer())),
       ),
     ]);
-    expect(journalUpdates.newL1Messages).toEqual([{ recipient, content: commitment }]);
+    expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: commitment })]);
   });
 
   it('Can fork and merge journals', () => {

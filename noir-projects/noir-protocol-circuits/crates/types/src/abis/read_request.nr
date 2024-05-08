@@ -1,23 +1,14 @@
 use crate::{
-    abis::side_effect::OrderedValue, traits::{Empty, Serialize, Deserialize}, address::AztecAddress,
-    constants::READ_REQUEST_LENGTH
+    traits::{Empty, Serialize, Deserialize}, address::AztecAddress, constants::READ_REQUEST_LENGTH,
+    utils::{arrays::array_concat, reader::Reader}
 };
 use dep::std::cmp::Eq;
 
-global READ_REQUEST_CONTEXT_SERIALIZED_LEN = 3;
+global SCOPED_READ_REQUEST_SERIALIZED_LEN = READ_REQUEST_LENGTH + 1;
 
 struct ReadRequest {
     value: Field,
     counter: u32,
-}
-
-impl OrderedValue<Field> for ReadRequest {
-    fn value(self) -> Field {
-        self.value
-    }
-    fn counter(self) -> u32 {
-        self.counter
-    }
 }
 
 impl Eq for ReadRequest {
@@ -52,57 +43,55 @@ impl Deserialize<READ_REQUEST_LENGTH> for ReadRequest {
 }
 
 impl ReadRequest {
-    pub fn to_context(self, contract_address: AztecAddress) -> ReadRequestContext {
-        ReadRequestContext { value: self.value, counter: self.counter, contract_address }
+    pub fn scope(self, contract_address: AztecAddress) -> ScopedReadRequest {
+        ScopedReadRequest { read_request: self, contract_address }
     }
 }
 
-struct ReadRequestContext {
-    value: Field,
-    counter: u32,
+struct ScopedReadRequest {
+    read_request: ReadRequest,
     contract_address: AztecAddress,
 }
 
-impl OrderedValue<Field> for ReadRequestContext {
-    fn value(self) -> Field {
-        self.value
-    }
-    fn counter(self) -> u32 {
-        self.counter
+impl Eq for ScopedReadRequest {
+    fn eq(self, other: ScopedReadRequest) -> bool {
+        (self.read_request == other.read_request)
+        & (self.contract_address.eq(other.contract_address))
     }
 }
 
-impl Eq for ReadRequestContext {
-    fn eq(self, read_request: ReadRequestContext) -> bool {
-        (self.value == read_request.value)
-        & (self.counter == read_request.counter)
-        & (self.contract_address.eq(read_request.contract_address))
-    }
-}
-
-impl Empty for ReadRequestContext {
+impl Empty for ScopedReadRequest {
     fn empty() -> Self {
-        ReadRequestContext {
-            value: 0,
-            counter: 0,
+        ScopedReadRequest {
+            read_request: ReadRequest::empty(),
             contract_address: AztecAddress::empty(),
         }
     }
 }
 
-impl Serialize<READ_REQUEST_CONTEXT_SERIALIZED_LEN> for ReadRequestContext {
-    fn serialize(self) -> [Field; READ_REQUEST_CONTEXT_SERIALIZED_LEN] {
-        [self.value, self.counter as Field, self.contract_address.to_field()]
+impl Serialize<SCOPED_READ_REQUEST_SERIALIZED_LEN> for ScopedReadRequest {
+    fn serialize(self) -> [Field; SCOPED_READ_REQUEST_SERIALIZED_LEN] {
+        array_concat(self.read_request.serialize(), [self.contract_address.to_field()])
     }
 }
 
-impl Deserialize<READ_REQUEST_CONTEXT_SERIALIZED_LEN> for ReadRequestContext {
-    fn deserialize(values: [Field; READ_REQUEST_CONTEXT_SERIALIZED_LEN]) -> Self {
-        Self {
-            value: values[0],
-            counter: values[1] as u32,
+impl Deserialize<SCOPED_READ_REQUEST_SERIALIZED_LEN> for ScopedReadRequest {
+    fn deserialize(values: [Field; SCOPED_READ_REQUEST_SERIALIZED_LEN]) -> Self {
+        let mut reader = Reader::new(values);
+        let res = Self {
+            read_request: reader.read_struct(ReadRequest::deserialize),
             contract_address: AztecAddress::from_field(values[2]),
-        }
+        };
+        reader.finish();
+        res
     }
 }
 
+impl ScopedReadRequest {
+    pub fn value(self) -> Field {
+        self.read_request.value
+    }
+    pub fn counter(self) -> u32 {
+        self.read_request.counter
+    }
+}

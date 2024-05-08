@@ -131,16 +131,14 @@ impl PublicContext {
 
     // Keep private or ask the AVM team if you want to change it.
     fn push_nullifier_read_request(&mut self, nullifier: Field) {
-        let request = ReadRequest { value: nullifier, counter: self.side_effect_counter };
+        let request = ReadRequest { value: nullifier, counter: self.next_counter() };
         self.nullifier_read_requests.push(request);
-        self.side_effect_counter = self.side_effect_counter + 1;
     }
 
     // Keep private or ask the AVM team if you want to change it.
     fn push_nullifier_non_existent_read_request(&mut self, nullifier: Field) {
-        let request = ReadRequest { value: nullifier, counter: self.side_effect_counter };
+        let request = ReadRequest { value: nullifier, counter: self.next_counter() };
         self.nullifier_non_existent_read_requests.push(request);
-        self.side_effect_counter = self.side_effect_counter + 1;
     }
 
     pub fn finish(self) -> PublicCircuitPublicInputs {
@@ -171,6 +169,12 @@ impl PublicContext {
         };
         pub_circuit_pub_inputs
     }
+
+    fn next_counter(&mut self) -> u32 {
+        let counter = self.side_effect_counter;
+        self.side_effect_counter += 1;
+        counter
+    }
 }
 
 impl ContextInterface for PublicContext {
@@ -199,17 +203,15 @@ impl ContextInterface for PublicContext {
     }
 
     fn push_new_note_hash(&mut self, note_hash: Field) {
-        self.new_note_hashes.push(NoteHash { value: note_hash, counter: self.side_effect_counter });
-        self.side_effect_counter = self.side_effect_counter + 1;
+        self.new_note_hashes.push(NoteHash { value: note_hash, counter: self.next_counter() });
     }
 
     fn push_new_nullifier(&mut self, nullifier: Field, _nullified_note_hash: Field) {
         self.new_nullifiers.push(Nullifier {
             value: nullifier,
             note_hash: 0, // cannot nullify pending notes in public context
-            counter: self.side_effect_counter
+            counter: self.next_counter()
         });
-        self.side_effect_counter = self.side_effect_counter + 1;
     }
 }
 
@@ -249,7 +251,7 @@ impl PublicContextInterface for PublicContext {
     }
 
     fn message_portal(&mut self, recipient: EthAddress, content: Field) {
-        let message = L2ToL1Message { recipient, content };
+        let message = L2ToL1Message { recipient, content, counter: self.next_counter() };
         self.new_l2_to_l1_msgs.push(message);
     }
 
@@ -281,9 +283,8 @@ impl PublicContextInterface for PublicContext {
             event_selector,
             log
         );
-        let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
+        let side_effect = SideEffect { value: log_hash, counter: self.next_counter() };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
         // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
         self.unencrypted_log_preimages_length = self.unencrypted_log_preimages_length + 44 + log_slice.len().to_field();
         // Call oracle to broadcast log

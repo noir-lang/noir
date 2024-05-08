@@ -1,6 +1,6 @@
 // This will be moved to a separate Read Request Reset Circuit.
 use dep::types::{
-    abis::{read_request::ReadRequestContext, side_effect::Readable},
+    abis::{read_request::ScopedReadRequest, side_effect::Readable},
     merkle_tree::{assert_check_membership, LeafPreimage, MembershipWitness}, traits::{Empty, is_empty}
 };
 
@@ -59,7 +59,7 @@ trait SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> where LEAF_PREIMAGE: LeafPreim
 // - https://discourse.aztec.network/t/to-read-or-not-to-read/178
 // - https://discourse.aztec.network/t/spending-notes-which-havent-yet-been-inserted/180
 fn validate_pending_read_requests<READ_REQUEST_LEN, T, PENDING_VALUE_LEN, NUM_PENDING_READS>(
-    read_requests: [ReadRequestContext; READ_REQUEST_LEN],
+    read_requests: [ScopedReadRequest; READ_REQUEST_LEN],
     pending_values: [T; PENDING_VALUE_LEN],
     hints: [PendingReadHint; NUM_PENDING_READS]
 ) where T: Readable {
@@ -76,7 +76,7 @@ fn validate_pending_read_requests<READ_REQUEST_LEN, T, PENDING_VALUE_LEN, NUM_PE
 // Validate read requests against the historical tree root, for reading settled notes.
 // Use their membership witnesses to do so.
 fn validate_settled_read_requests<READ_REQUEST_LEN, NUM_SETTLED_READS, H, TREE_HEIGHT, LEAF_PREIMAGE>(
-    read_requests: [ReadRequestContext; READ_REQUEST_LEN],
+    read_requests: [ScopedReadRequest; READ_REQUEST_LEN],
     hints: [H; NUM_SETTLED_READS],
     tree_root: Field
 ) where 
@@ -97,11 +97,11 @@ fn validate_settled_read_requests<READ_REQUEST_LEN, NUM_SETTLED_READS, H, TREE_H
 }
 
 fn propagate_unverified_read_requests<READ_REQUEST_LEN, T, NUM_PENDING_READS, S, NUM_SETTLED_READS>(
-    read_requests: [ReadRequestContext; READ_REQUEST_LEN],
+    read_requests: [ScopedReadRequest; READ_REQUEST_LEN],
     read_request_statuses: [ReadRequestStatus; READ_REQUEST_LEN],
     pending_read_hints: [T; NUM_PENDING_READS],
     settled_read_hints: [S; NUM_SETTLED_READS]
-) -> BoundedVec<ReadRequestContext, READ_REQUEST_LEN> where T: ReadValueHint, S: ReadValueHint {
+) -> BoundedVec<ScopedReadRequest, READ_REQUEST_LEN> where T: ReadValueHint, S: ReadValueHint {
     let mut propagated_read_requests = BoundedVec::new();
     for i in 0..READ_REQUEST_LEN {
         let read_request = read_requests[i];
@@ -124,13 +124,13 @@ fn propagate_unverified_read_requests<READ_REQUEST_LEN, T, NUM_PENDING_READS, S,
 }
 
 pub fn reset_read_requests<READ_REQUEST_LEN, P, PENDING_VALUE_LEN, NUM_PENDING_READS, NUM_SETTLED_READS, H, TREE_HEIGHT, LEAF_PREIMAGE>(
-    read_requests: [ReadRequestContext; READ_REQUEST_LEN],
+    read_requests: [ScopedReadRequest; READ_REQUEST_LEN],
     pending_values: [P; PENDING_VALUE_LEN],
     read_request_statuses: [ReadRequestStatus; READ_REQUEST_LEN],
     pending_read_hints: [PendingReadHint; NUM_PENDING_READS],
     settled_read_hints: [H; NUM_SETTLED_READS],
     tree_root: Field
-) -> BoundedVec<ReadRequestContext, READ_REQUEST_LEN> where 
+) -> BoundedVec<ScopedReadRequest, READ_REQUEST_LEN> where 
     P: Readable, 
     H: SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> + ReadValueHint,
     LEAF_PREIMAGE: LeafPreimage + Readable {
@@ -153,7 +153,8 @@ mod tests {
         validate_settled_read_requests
     };
     use dep::types::{
-        address::AztecAddress, abis::{read_request::ReadRequestContext, side_effect::Readable},
+        address::AztecAddress,
+        abis::{read_request::{ReadRequest, ScopedReadRequest}, side_effect::Readable},
         merkle_tree::{LeafPreimage, MembershipWitness}, tests::merkle_tree_utils::NonEmptyMerkleTree,
         traits::Empty
     };
@@ -168,8 +169,8 @@ mod tests {
     }
 
     impl Readable for TestValue {
-        fn assert_match_read_request(self, read_request: ReadRequestContext) {
-            let siloed_value = silo_test_value(read_request.value);
+        fn assert_match_read_request(self, read_request: ScopedReadRequest) {
+            let siloed_value = silo_test_value(read_request.value());
             assert_eq(self.value, siloed_value, "Hinted test value does not match");
         }
     }
@@ -197,8 +198,8 @@ mod tests {
     }
 
     impl Readable for TestLeafPreimage {
-        fn assert_match_read_request(self, read_request: ReadRequestContext) {
-            let siloed_value = silo_test_value(read_request.value);
+        fn assert_match_read_request(self, read_request: ScopedReadRequest) {
+            let siloed_value = silo_test_value(read_request.value());
             assert_eq(siloed_value, self.value, "Provided leaf preimage is not for target value");
         }
     }
@@ -241,10 +242,10 @@ mod tests {
 
     // Create 4 read requests. 0 and 3 are reading settled values. 1 and 2 are reading pending values.
     global read_requests = [
-        ReadRequestContext { value: values[1], counter: 11, contract_address }, // settled
-        ReadRequestContext { value: values[3], counter: 13, contract_address }, // pending
-        ReadRequestContext { value: values[2], counter: 39, contract_address }, // pending
-        ReadRequestContext { value: values[0], counter: 46, contract_address }, // settled
+        ReadRequest { value: values[1], counter: 11 }.scope(contract_address), // settled
+        ReadRequest { value: values[3], counter: 13,  }.scope(contract_address), // pending
+        ReadRequest { value: values[2], counter: 39,  }.scope(contract_address), // pending
+        ReadRequest { value: values[0], counter: 46,  }.scope(contract_address), // settled
     ];
 
     global pending_values = [

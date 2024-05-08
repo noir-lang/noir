@@ -96,13 +96,11 @@ impl ContextInterface for PrivateContext {
     }
 
     fn push_new_note_hash(&mut self, note_hash: Field) {
-        self.new_note_hashes.push(NoteHash { value: note_hash, counter: self.side_effect_counter });
-        self.side_effect_counter = self.side_effect_counter + 1;
+        self.new_note_hashes.push(NoteHash { value: note_hash, counter: self.next_counter() });
     }
 
     fn push_new_nullifier(&mut self, nullifier: Field, nullified_note_hash: Field) {
-        self.new_nullifiers.push(Nullifier { value: nullifier, note_hash: nullified_note_hash, counter: self.side_effect_counter });
-        self.side_effect_counter = self.side_effect_counter + 1;
+        self.new_nullifiers.push(Nullifier { value: nullifier, note_hash: nullified_note_hash, counter: self.next_counter() });
     }
 }
 
@@ -193,15 +191,13 @@ impl PrivateContext {
     }
 
     pub fn push_note_hash_read_request(&mut self, note_hash: Field) {
-        let side_effect = ReadRequest { value: note_hash, counter: self.side_effect_counter };
+        let side_effect = ReadRequest { value: note_hash, counter: self.next_counter() };
         self.note_hash_read_requests.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
     }
 
     pub fn push_nullifier_read_request(&mut self, nullifier: Field) {
-        let request = ReadRequest { value: nullifier, counter: self.side_effect_counter };
+        let request = ReadRequest { value: nullifier, counter: self.next_counter() };
         self.nullifier_read_requests.push(request);
-        self.side_effect_counter = self.side_effect_counter + 1;
     }
 
     pub fn request_app_nullifier_secret_key(&mut self, account: AztecAddress) -> Field {
@@ -227,7 +223,7 @@ impl PrivateContext {
     // docs:start:context_message_portal
     pub fn message_portal(&mut self, recipient: EthAddress, content: Field) {
         // docs:end:context_message_portal
-        let message = L2ToL1Message { recipient, content };
+        let message = L2ToL1Message { recipient, content, counter: self.next_counter() };
         self.new_l2_to_l1_msgs.push(message);
     }
 
@@ -259,9 +255,8 @@ impl PrivateContext {
         let contract_address = self.this_address();
         let log_slice = log.to_be_bytes_arr();
         let log_hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-        let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
+        let side_effect = SideEffect { value: log_hash, counter: self.next_counter() };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
         // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
         self.unencrypted_log_preimages_length += 44 + log_slice.len().to_field();
         // call oracle
@@ -278,10 +273,10 @@ impl PrivateContext {
     pub fn emit_contract_class_unencrypted_log<N>(&mut self, log: [Field; N]) {
         let event_selector = 5; // TODO: compute actual event selector.
         let contract_address = self.this_address();
-        let log_hash = emit_contract_class_unencrypted_log_private_internal(contract_address, event_selector, log, self.side_effect_counter);
-        let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
+        let counter = self.next_counter();
+        let log_hash = emit_contract_class_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
+        let side_effect = SideEffect { value: log_hash, counter };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
         // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
         self.unencrypted_log_preimages_length += 44 + N*32;
     }
@@ -296,18 +291,18 @@ impl PrivateContext {
     ) where [Field; N]: LensForEncryptedLog<N, M, L> {
         // TODO(1139): perform encryption in the circuit
         // The oracle call should come last, but we require the encrypted value for now
+        let counter = self.next_counter();
         let encrypted_log: [Field; M] = emit_encrypted_log(
             contract_address,
             storage_slot,
             note_type_id,
             encryption_pub_key,
             preimage,
-            self.side_effect_counter
+            counter
         );
         let log_hash = compute_encrypted_log_hash(encrypted_log);
-        let side_effect = SideEffect { value: log_hash, counter: self.side_effect_counter };
+        let side_effect = SideEffect { value: log_hash, counter };
         self.encrypted_logs_hashes.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
         let encrypted_log_byte_len = 112 + 32 * (N + 3);
         // + processed log len (4)
         self.encrypted_log_preimages_length += encrypted_log_byte_len + 4;
@@ -599,6 +594,12 @@ impl PrivateContext {
                 item.public_inputs.call_context.msg_sender.eq(self.inputs.call_context.storage_contract_address)
             );
         }
+    }
+
+    fn next_counter(&mut self) -> u32 {
+        let counter = self.side_effect_counter;
+        self.side_effect_counter += 1;
+        counter
     }
 }
 

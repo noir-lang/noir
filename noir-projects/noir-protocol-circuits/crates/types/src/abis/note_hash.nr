@@ -1,29 +1,14 @@
 use crate::{
-    abis::read_request::ReadRequestContext, address::AztecAddress,
+    abis::read_request::ScopedReadRequest, address::AztecAddress,
     abis::side_effect::{Ordered, OrderedValue, Readable},
-    constants::{NOTE_HASH_LENGTH, NOTE_HASH_CONTEXT_LENGTH}, hash::silo_note_hash,
-    traits::{Empty, Serialize, Deserialize}
+    constants::{NOTE_HASH_LENGTH, SCOPED_NOTE_HASH_LENGTH}, traits::{Empty, Serialize, Deserialize},
+    utils::{arrays::array_concat, reader::Reader}
 };
 use dep::std::cmp::Eq;
 
 struct NoteHash {
     value: Field,
     counter: u32,
-}
-
-impl Ordered for NoteHash {
-    fn counter(self) -> u32 {
-        self.counter
-    }
-}
-
-impl OrderedValue<Field> for NoteHash {
-    fn value(self) -> Field {
-        self.value
-    }
-    fn counter(self) -> u32 {
-        self.counter
-    }
 }
 
 impl Eq for NoteHash {
@@ -58,87 +43,85 @@ impl Deserialize<NOTE_HASH_LENGTH> for NoteHash {
 }
 
 impl NoteHash {
-    pub fn to_context(self, nullifier_counter: u32) -> NoteHashContext {
-        NoteHashContext { value: self.value, counter: self.counter, nullifier_counter }
+    pub fn scope(self, nullifier_counter: u32, contract_address: AztecAddress) -> ScopedNoteHash {
+        ScopedNoteHash { note_hash: self, nullifier_counter, contract_address }
     }
 }
 
-struct NoteHashContext {
-    value: Field,
-    counter: u32,
+struct ScopedNoteHash {
+    note_hash: NoteHash,
     nullifier_counter: u32,
+    contract_address: AztecAddress,
 }
 
-impl Ordered for NoteHashContext {
+impl Ordered for ScopedNoteHash {
     fn counter(self) -> u32 {
-        self.counter
+        self.note_hash.counter
     }
 }
 
-impl OrderedValue<Field> for NoteHashContext {
+impl OrderedValue<Field> for ScopedNoteHash {
     fn value(self) -> Field {
-        self.value
+        self.note_hash.value
     }
     fn counter(self) -> u32 {
-        self.counter
+        self.note_hash.counter
     }
 }
 
-impl Eq for NoteHashContext {
-    fn eq(self, other: NoteHashContext) -> bool {
-        (self.value == other.value)
-            & (self.counter == other.counter) 
+impl Eq for ScopedNoteHash {
+    fn eq(self, other: ScopedNoteHash) -> bool {
+        (self.note_hash == other.note_hash)
             & (self.nullifier_counter == other.nullifier_counter)
+            & (self.contract_address == other.contract_address)
     }
 }
 
-impl Empty for NoteHashContext {
+impl Empty for ScopedNoteHash {
     fn empty() -> Self {
-        NoteHashContext {
-            value: 0,
-            counter: 0,
+        ScopedNoteHash {
+            note_hash: NoteHash::empty(),
             nullifier_counter: 0,
+            contract_address: AztecAddress::zero(),
         }
     }
 }
 
-impl Serialize<NOTE_HASH_CONTEXT_LENGTH> for NoteHashContext {
-    fn serialize(self) -> [Field; NOTE_HASH_CONTEXT_LENGTH] {
-        [self.value, self.counter as Field, self.nullifier_counter as Field]
+impl Serialize<SCOPED_NOTE_HASH_LENGTH> for ScopedNoteHash {
+    fn serialize(self) -> [Field; SCOPED_NOTE_HASH_LENGTH] {
+        array_concat(self.note_hash.serialize(), [self.nullifier_counter as Field, self.contract_address.to_field()])
     }
 }
 
-impl Deserialize<NOTE_HASH_CONTEXT_LENGTH> for NoteHashContext {
-    fn deserialize(values: [Field; NOTE_HASH_CONTEXT_LENGTH]) -> Self {
-        Self {
-            value: values[0],
-            counter: values[1] as u32,
-            nullifier_counter: values[2] as u32,
-        }
+impl Deserialize<SCOPED_NOTE_HASH_LENGTH> for ScopedNoteHash {
+    fn deserialize(values: [Field; SCOPED_NOTE_HASH_LENGTH]) -> Self {
+        let mut reader = Reader::new(values);
+        let res = Self {
+            note_hash: reader.read_struct(NoteHash::deserialize),
+            nullifier_counter: reader.read_u32(),
+            contract_address: reader.read_struct(AztecAddress::deserialize),
+        };
+        reader.finish();
+        res
     }
 }
 
-impl Readable for NoteHashContext {
-    fn assert_match_read_request(self, read_request: ReadRequestContext) {
-        // TODO(#6122)
-        let siloed_value = silo_note_hash(read_request.contract_address, read_request.value);
-        assert_eq(self.value, siloed_value, "Value of the note hash does not match read request");
+impl Readable for ScopedNoteHash {
+    fn assert_match_read_request(self, read_request: ScopedReadRequest) {
+        assert_eq(self.note_hash.value, read_request.value(), "Value of the note hash does not match read request");
+        assert_eq(self.contract_address, read_request.contract_address, "Contract address of the note hash does not match read request");
         assert(
-            read_request.counter > self.counter, "Read request counter must be greater than the counter of the note hash"
+            read_request.counter() > self.note_hash.counter, "Read request counter must be greater than the counter of the note hash"
         );
         assert(
-            (self.nullifier_counter == 0) | (read_request.counter < self.nullifier_counter), "Read request counter must be less than the nullifier counter of the note hash"
+            (self.nullifier_counter == 0) | (read_request.counter() < self.nullifier_counter), "Read request counter must be less than the nullifier counter of the note hash"
         );
     }
 }
 
-impl NoteHashContext {
-    pub fn to_note_hash(self) -> NoteHash {
-        NoteHash { value: self.value, counter: self.counter }
-    }
-
+impl ScopedNoteHash {
     pub fn expose_to_public(self) -> NoteHash {
         // Hide the actual counter when exposing it to the public kernel.
-        NoteHash { value: self.value, counter: 0 }
+        NoteHash { value: self.note_hash.value, counter: 0 }
     }
 }

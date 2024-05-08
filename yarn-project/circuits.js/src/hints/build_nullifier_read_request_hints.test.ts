@@ -4,15 +4,16 @@ import { Fr } from '@aztec/foundation/fields';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import { MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX } from '../constants.gen.js';
-import { siloNullifier } from '../hash/index.js';
 import {
   Nullifier,
   type NullifierReadRequestHints,
   NullifierReadRequestHintsBuilder,
   PendingReadHint,
-  ReadRequestContext,
+  ReadRequest,
   ReadRequestState,
   ReadRequestStatus,
+  type ScopedNullifier,
+  ScopedReadRequest,
   SettledReadHint,
 } from '../structs/index.js';
 import { buildNullifierReadRequestHints } from './build_nullifier_read_request_hints.js';
@@ -23,8 +24,8 @@ describe('buildNullifierReadRequestHints', () => {
   const oracle = {
     getNullifierMembershipWitness: () => ({ membershipWitness: {}, leafPreimage: {} } as any),
   };
-  let nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>;
-  let nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
+  let nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>;
+  let nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
   let expectedHints: NullifierReadRequestHints;
   let numReadRequests = 0;
   let numPendingReads = 0;
@@ -33,12 +34,10 @@ describe('buildNullifierReadRequestHints', () => {
   const innerNullifier = (index: number) => index + 1;
 
   const makeReadRequest = (value: number, counter = 2) =>
-    new ReadRequestContext(new Fr(value), counter, contractAddress);
+    new ReadRequest(new Fr(value), counter).scope(contractAddress);
 
-  function makeNullifier(value: number, counter = 1) {
-    const siloedValue = siloNullifier(contractAddress, new Fr(value));
-    return new Nullifier(siloedValue, counter, Fr.ZERO);
-  }
+  const makeNullifier = (value: number, counter = 1) =>
+    new Nullifier(new Fr(value), counter, Fr.ZERO).scope(contractAddress);
 
   const readPendingNullifier = ({
     nullifierIndex,
@@ -73,7 +72,7 @@ describe('buildNullifierReadRequestHints', () => {
   const buildHints = () => buildNullifierReadRequestHints(oracle, nullifierReadRequests, nullifiers);
 
   beforeEach(() => {
-    nullifierReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext.empty);
+    nullifierReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
     nullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => makeNullifier(innerNullifier(i)));
     expectedHints = NullifierReadRequestHintsBuilder.empty();
     numReadRequests = 0;

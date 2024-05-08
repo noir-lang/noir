@@ -3,8 +3,8 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
-  NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH,
   NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH,
+  SCOPED_NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH,
 } from '../constants.gen.js';
 
 /**
@@ -58,61 +58,44 @@ export class NullifierKeyValidationRequest {
 /**
  * Request for validating a nullifier key pair used in the app.
  */
-export class NullifierKeyValidationRequestContext {
-  constructor(
-    /**
-     * Public key of the nullifier key (Npk_m).
-     */
-    public readonly masterNullifierPublicKey: Point,
-    /**
-     * App-siloed nullifier secret key (nsk_app*).
-     */
-    public readonly appNullifierSecretKey: Fr,
-    /**
-     * The storage contract address the nullifier key is for.
-     */
-    public readonly contractAddress: AztecAddress,
-  ) {}
+export class ScopedNullifierKeyValidationRequest {
+  constructor(public readonly request: NullifierKeyValidationRequest, public readonly contractAddress: AztecAddress) {}
 
   toBuffer() {
-    return serializeToBuffer(this.masterNullifierPublicKey, this.appNullifierSecretKey, this.contractAddress);
+    return serializeToBuffer(this.request, this.contractAddress);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new NullifierKeyValidationRequestContext(
-      Point.fromBuffer(reader),
-      Fr.fromBuffer(reader),
+    return new ScopedNullifierKeyValidationRequest(
+      NullifierKeyValidationRequest.fromBuffer(reader),
       AztecAddress.fromBuffer(reader),
     );
   }
 
   toFields(): Fr[] {
-    const fields = [this.masterNullifierPublicKey.toFields(), this.appNullifierSecretKey, this.contractAddress].flat();
-    if (fields.length !== NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH) {
+    const fields = [...this.request.toFields(), this.contractAddress];
+    if (fields.length !== SCOPED_NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH) {
       throw new Error(
-        `Invalid number of fields for NullifierKeyValidationRequestContext. Expected ${NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH}, got ${fields.length}`,
+        `Invalid number of fields for ScopedNullifierKeyValidationRequest. Expected ${SCOPED_NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH}, got ${fields.length}`,
       );
     }
     return fields;
   }
 
-  static fromFields(fields: Fr[] | FieldReader): NullifierKeyValidationRequestContext {
+  static fromFields(fields: Fr[] | FieldReader): ScopedNullifierKeyValidationRequest {
     const reader = FieldReader.asReader(fields);
-    return new NullifierKeyValidationRequestContext(
-      Point.fromFields(reader),
-      reader.readField(),
+    return new ScopedNullifierKeyValidationRequest(
+      NullifierKeyValidationRequest.fromFields(reader),
       AztecAddress.fromFields(reader),
     );
   }
 
   isEmpty() {
-    return (
-      this.masterNullifierPublicKey.isZero() && this.appNullifierSecretKey.isZero() && this.contractAddress.isZero()
-    );
+    return this.request.isEmpty() && this.contractAddress.isZero();
   }
 
   static empty() {
-    return new NullifierKeyValidationRequestContext(Point.ZERO, Fr.ZERO, AztecAddress.ZERO);
+    return new ScopedNullifierKeyValidationRequest(NullifierKeyValidationRequest.empty(), AztecAddress.ZERO);
   }
 }

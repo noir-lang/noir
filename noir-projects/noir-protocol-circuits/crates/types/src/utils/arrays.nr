@@ -75,6 +75,18 @@ pub fn array_cp<T, N, S>(array: [T; N]) -> [T; S] where T: Empty {
     result
 }
 
+pub fn array_concat<T, N, M, S>(array1: [T; N], array2: [T; M]) -> [T; S] {
+    assert_eq(N + M, S, "combined array length does not match return array length");
+    let mut result = [array1[0]; S];
+    for i in 1..N {
+        result[i] = array1[i];
+    }
+    for i in 0..M {
+        result[i + N] = array2[i];
+    }
+    result
+}
+
 pub fn array_merge<T, N>(array1: [T; N], array2: [T; N]) -> [T; N] where T: Empty + Eq {
     let mut result: [T; N] = [T::empty(); N];
     let mut i = 0;
@@ -193,6 +205,21 @@ fn find_index_not_found() {
     let min = 100;
     let index = find_index(values, |v: Field| min.lt(v));
     assert_eq(index, 4);
+}
+
+#[test]
+fn test_array_concat() {
+    let array0 = [1, 2, 3];
+    let array1 = [4, 5];
+    let concated = array_concat(array0, array1);
+    assert_eq(concated, [1, 2, 3, 4, 5]);
+}
+
+#[test(should_fail_with="combined array length does not match return array length")]
+fn array_concat_fails_inconsistent_lengths() {
+    let array0 = [1, 2, 3];
+    let array1 = [4, 5];
+    let _concated: [Field; 4] = array_concat(array0, array1);
 }
 
 #[test]

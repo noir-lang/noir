@@ -465,7 +465,9 @@ describe('Accrued Substate', () => {
       ).execute(context);
 
       const journalState = context.persistableState.flush();
-      expect(journalState.newL1Messages).toEqual([{ recipient: EthAddress.fromField(recipient), content }]);
+      expect(journalState.newL1Messages).toEqual([
+        expect.objectContaining({ recipient: EthAddress.fromField(recipient), content }),
+      ]);
     });
   });
 

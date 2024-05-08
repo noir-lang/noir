@@ -451,7 +451,7 @@ mod tests {
         builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(
             [
             L2ToL1Message::empty(),
-            L2ToL1Message { recipient: EthAddress::from_field(6), content: 888 }
+            L2ToL1Message { recipient: EthAddress::from_field(6), content: 888, counter: 0 }
         ]
         );
 
@@ -504,7 +504,7 @@ mod tests {
         assert_eq(public_inputs.end.new_note_hashes[2].nullifier_counter, 20);
     }
 
-    #[test(should_fail_with="invalid nullifier counter")]
+    #[test(should_fail_with="Invalid nullifier counter")]
     fn propagate_note_hashes_with_incorrect_nullifier_counters_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
         builder.private_call.public_inputs.new_note_hashes.push(NoteHash { value: 12, counter: 3 });
@@ -571,15 +571,13 @@ mod tests {
         assert_eq(end_note_hash_read_requests[0], prev_requests.storage[0]);
         assert_eq(end_note_hash_read_requests[1], prev_requests.storage[1]);
 
-        let request_context = end_note_hash_read_requests[2];
-        assert_eq(request_context.value, cur_requests[0].value);
-        assert_eq(request_context.counter, cur_requests[0].counter);
-        assert_eq(request_context.contract_address, cur_storage_contract_address);
+        let request = end_note_hash_read_requests[2];
+        assert_eq(request.read_request, cur_requests[0]);
+        assert_eq(request.contract_address, cur_storage_contract_address);
 
-        let request_context = end_note_hash_read_requests[3];
-        assert_eq(request_context.value, cur_requests[1].value);
-        assert_eq(request_context.counter, cur_requests[1].counter);
-        assert_eq(request_context.contract_address, cur_storage_contract_address);
+        let request = end_note_hash_read_requests[3];
+        assert_eq(request.read_request, cur_requests[1]);
+        assert_eq(request.contract_address, cur_storage_contract_address);
     }
 
     #[test]

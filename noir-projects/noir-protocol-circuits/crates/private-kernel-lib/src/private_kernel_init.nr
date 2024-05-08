@@ -150,7 +150,7 @@ mod tests {
 
         // Check the first nullifier is hash of the signed tx request
         let tx_hash = builder.tx_request.hash();
-        assert_eq(public_inputs.end.new_nullifiers[0].value, tx_hash);
+        assert_eq(public_inputs.end.new_nullifiers[0].value(), tx_hash);
 
         // Log preimages length should increase by `(un)encrypted_log_preimages_length` from private input
         assert_eq(
@@ -232,7 +232,7 @@ mod tests {
         builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(
             [
             L2ToL1Message::empty(),
-            L2ToL1Message { recipient: EthAddress::from_field(6), content: 9123 }
+            L2ToL1Message { recipient: EthAddress::from_field(6), content: 9123, counter: 0 }
         ]
         );
 
@@ -368,15 +368,13 @@ mod tests {
         let end_note_hash_read_requests = public_inputs.validation_requests.note_hash_read_requests;
         assert_eq(array_length(end_note_hash_read_requests), 2);
 
-        let request_context = end_note_hash_read_requests[0];
-        assert_eq(request_context.value, request_0.value);
-        assert_eq(request_context.counter, request_0.counter);
-        assert_eq(request_context.contract_address, storage_contract_address);
+        let request = end_note_hash_read_requests[0];
+        assert_eq(request.read_request, request_0);
+        assert_eq(request.contract_address, storage_contract_address);
 
-        let request_context = end_note_hash_read_requests[1];
-        assert_eq(request_context.value, request_1.value);
-        assert_eq(request_context.counter, request_1.counter);
-        assert_eq(request_context.contract_address, storage_contract_address);
+        let request = end_note_hash_read_requests[1];
+        assert_eq(request.read_request, request_1);
+        assert_eq(request.contract_address, storage_contract_address);
     }
 
     #[test]
@@ -394,33 +392,30 @@ mod tests {
         let end_nullifier_read_requests = public_inputs.validation_requests.nullifier_read_requests;
         assert_eq(array_length(end_nullifier_read_requests), 2);
 
-        let request_context = end_nullifier_read_requests[0];
-        assert_eq(request_context.value, request_0.value);
-        assert_eq(request_context.counter, request_0.counter);
-        assert_eq(request_context.contract_address, storage_contract_address);
+        let request = end_nullifier_read_requests[0];
+        assert_eq(request.read_request, request_0);
+        assert_eq(request.contract_address, storage_contract_address);
 
-        let request_context = end_nullifier_read_requests[1];
-        assert_eq(request_context.value, request_1.value);
-        assert_eq(request_context.counter, request_1.counter);
-        assert_eq(request_context.contract_address, storage_contract_address);
+        let request = end_nullifier_read_requests[1];
+        assert_eq(request.read_request, request_1);
+        assert_eq(request.contract_address, storage_contract_address);
     }
 
     #[test]
     fn propagate_nullifier_key_validation_requests() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
-        let request = NullifierKeyValidationRequest { master_nullifier_public_key: GrumpkinPoint { x: 1, y: 2 }, app_nullifier_secret_key: 3 };
-        builder.private_call.public_inputs.nullifier_key_validation_requests.push(request);
+        let request_0 = NullifierKeyValidationRequest { master_nullifier_public_key: GrumpkinPoint { x: 1, y: 2 }, app_nullifier_secret_key: 3 };
+        builder.private_call.public_inputs.nullifier_key_validation_requests.push(request_0);
 
         let public_inputs = builder.execute();
 
         assert_eq(array_length(public_inputs.validation_requests.nullifier_key_validation_requests), 1);
 
-        let request_context = public_inputs.validation_requests.nullifier_key_validation_requests[0];
-        assert_eq(request_context.master_nullifier_public_key, request.master_nullifier_public_key);
-        assert_eq(request_context.app_nullifier_secret_key, request.app_nullifier_secret_key);
+        let request = public_inputs.validation_requests.nullifier_key_validation_requests[0];
+        assert_eq(request.request, request_0);
         assert_eq(
-            request_context.contract_address, builder.private_call.public_inputs.call_context.storage_contract_address
+            request.contract_address, builder.private_call.public_inputs.call_context.storage_contract_address
         );
     }
 }

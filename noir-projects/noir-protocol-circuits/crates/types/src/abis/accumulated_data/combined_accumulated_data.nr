@@ -48,7 +48,10 @@ impl CombinedAccumulatedData {
         CombinedAccumulatedData {
             new_note_hashes: array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes).map(|n: NoteHash| n.value),
             new_nullifiers: array_merge(non_revertible.new_nullifiers, revertible.new_nullifiers).map(|n: Nullifier| n.value),
-            new_l2_to_l1_msgs: revertible.new_l2_to_l1_msgs,
+            new_l2_to_l1_msgs: array_merge(
+                non_revertible.new_l2_to_l1_msgs,
+                revertible.new_l2_to_l1_msgs
+            ),
             encrypted_logs_hash,
             unencrypted_logs_hash,
             encrypted_log_preimages_length: non_revertible.encrypted_log_preimages_length

@@ -1,19 +1,13 @@
 use crate::{
-    abis::{side_effect::{Ordered, OrderedValue, Readable}, read_request::ReadRequestContext},
-    address::AztecAddress, constants::NULLIFIER_LENGTH, hash::silo_nullifier,
-    traits::{Empty, Hash, Serialize, Deserialize}
+    abis::{side_effect::{Ordered, OrderedValue, Readable}, read_request::ScopedReadRequest},
+    address::AztecAddress, constants::{NULLIFIER_LENGTH, SCOPED_NULLIFIER_LENGTH}, hash::silo_nullifier,
+    traits::{Empty, Hash, Serialize, Deserialize}, utils::{arrays::array_concat, reader::Reader}
 };
 
 struct Nullifier {
     value: Field,
     counter: u32,
     note_hash: Field,
-}
-
-impl Ordered for Nullifier {
-    fn counter(self) -> u32 {
-        self.counter
-    }
 }
 
 impl OrderedValue<Field> for Nullifier {
@@ -60,11 +54,94 @@ impl Deserialize<NULLIFIER_LENGTH> for Nullifier {
 }
 
 impl Readable for Nullifier {
-    fn assert_match_read_request(self, read_request: ReadRequestContext) {
-        let siloed_value = silo_nullifier(read_request.contract_address, read_request.value);
-        assert_eq(self.value, siloed_value, "Value of the nullifier does not match read request");
+    fn assert_match_read_request(self, read_request: ScopedReadRequest) {
+        // Public kernels output Nullifier instead of ScopedNullifier.
+        // The nullifier value has been siloed.
+        let siloed_request_value = silo_nullifier(read_request.contract_address, read_request.value());
+        assert_eq(self.value, siloed_request_value, "Value of the nullifier does not match read request");
         assert(
-            read_request.counter > self.counter, "Read request counter must be greater than the counter of the nullifier"
+            read_request.counter() > self.counter, "Read request counter must be greater than the counter of the nullifier"
         );
+    }
+}
+
+impl Nullifier {
+    pub fn scope(self, contract_address: AztecAddress) -> ScopedNullifier {
+        ScopedNullifier { nullifier: self, contract_address }
+    }
+}
+
+struct ScopedNullifier {
+    nullifier: Nullifier,
+    contract_address: AztecAddress,
+}
+
+impl Ordered for ScopedNullifier {
+    fn counter(self) -> u32 {
+        self.nullifier.counter
+    }
+}
+
+impl OrderedValue<Field> for ScopedNullifier {
+    fn value(self) -> Field {
+        self.nullifier.value
+    }
+    fn counter(self) -> u32 {
+        self.nullifier.counter
+    }
+}
+
+impl Eq for ScopedNullifier {
+    fn eq(self, other: ScopedNullifier) -> bool {
+        (self.nullifier == other.nullifier)
+            & (self.contract_address == other.contract_address) 
+    }
+}
+
+impl Empty for ScopedNullifier {
+    fn empty() -> Self {
+        ScopedNullifier {
+            nullifier: Nullifier::empty(),
+            contract_address: AztecAddress::empty(),
+        }
+    }
+}
+
+impl Serialize<SCOPED_NULLIFIER_LENGTH> for ScopedNullifier {
+    fn serialize(self) -> [Field; SCOPED_NULLIFIER_LENGTH] {
+        array_concat(self.nullifier.serialize(), [self.contract_address.to_field()])
+    }
+}
+
+impl Deserialize<SCOPED_NULLIFIER_LENGTH> for ScopedNullifier {
+    fn deserialize(values: [Field; SCOPED_NULLIFIER_LENGTH]) -> Self {
+        let mut reader = Reader::new(values);
+        let res = Self {
+            nullifier: reader.read_struct(Nullifier::deserialize),
+            contract_address: AztecAddress::from_field(values[3]),
+        };
+        reader.finish();
+        res
+    }
+}
+
+impl Readable for ScopedNullifier {
+    fn assert_match_read_request(self, read_request: ScopedReadRequest) {
+        assert_eq(self.nullifier.value, read_request.value(), "Value of the nullifier does not match read request");
+        assert_eq(self.contract_address, read_request.contract_address, "Contract address of the nullifier does not match read request");
+        assert(
+            read_request.counter() > self.nullifier.counter, "Read request counter must be greater than the counter of the nullifier"
+        );
+    }
+}
+
+impl ScopedNullifier {
+    pub fn nullified_note_hash(self) -> Field {
+        self.nullifier.note_hash
+    }
+
+    pub fn expose_to_public(self) -> Nullifier {
+        // Hide the actual counter and note hash when exposing it to the public kernel.
+        Nullifier { value: self.nullifier.value, counter: 0, note_hash: 0 }
     }
 }

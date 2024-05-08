@@ -88,7 +88,7 @@ impl<N> PublicValidationRequestProcessor<N> {
         for i in 0..read_requests.len() {
             let read_request = read_requests[i];
             if !is_empty(read_request) {
-                read_requests[i].value = silo_nullifier(read_request.contract_address, read_request.value);
+                read_requests[i].read_request.value = silo_nullifier(read_request.contract_address, read_request.value());
             }
         }
 

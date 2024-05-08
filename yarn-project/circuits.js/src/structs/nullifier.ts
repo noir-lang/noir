@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -34,5 +35,55 @@ export class Nullifier implements Ordered {
 
   toString(): string {
     return `value=${this.value} counter=${this.counter} noteHash=${this.noteHash}`;
+  }
+
+  scope(contractAddress: AztecAddress) {
+    return new ScopedNullifier(this, contractAddress);
+  }
+}
+
+export class ScopedNullifier implements Ordered {
+  constructor(public nullifier: Nullifier, public contractAddress: AztecAddress) {}
+
+  get counter() {
+    return this.nullifier.counter;
+  }
+
+  get value() {
+    return this.nullifier.value;
+  }
+
+  get nullifiedNoteHash() {
+    return this.nullifier.noteHash;
+  }
+
+  toFields(): Fr[] {
+    return [...this.nullifier.toFields(), this.contractAddress.toField()];
+  }
+
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return new ScopedNullifier(reader.readObject(Nullifier), AztecAddress.fromField(reader.readField()));
+  }
+
+  isEmpty() {
+    return this.nullifier.isEmpty() && this.contractAddress.isZero();
+  }
+
+  static empty() {
+    return new ScopedNullifier(Nullifier.empty(), AztecAddress.ZERO);
+  }
+
+  toBuffer(): Buffer {
+    return serializeToBuffer(this.nullifier, this.contractAddress);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new ScopedNullifier(Nullifier.fromBuffer(reader), AztecAddress.fromBuffer(reader));
+  }
+
+  toString(): string {
+    return `nullifier=${this.nullifier} contractAddress=${this.contractAddress}`;
   }
 }

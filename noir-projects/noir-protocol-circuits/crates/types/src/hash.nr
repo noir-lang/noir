@@ -202,7 +202,7 @@ fn compute_l2_l1_hash() {
     assert(hash_result == 0xb393978842a0fa3d3e1470196f098f473f9678e72463cb65ec4ab5581856c2);
 
     // Non-zero case
-    let message = L2ToL1Message { recipient: EthAddress::from_field(3), content: 5 };
+    let message = L2ToL1Message { recipient: EthAddress::from_field(3), content: 5, counter: 1234 };
     let hash_result = compute_l2_to_l1_hash(AztecAddress::from_field(1), 2, 4, message);
     assert(hash_result == 0x3f88c1044a05e5340ed20466276500f6d45ca5603913b9091e957161734e16);
 }

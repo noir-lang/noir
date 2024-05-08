@@ -14,6 +14,10 @@ impl<N> Reader<N> {
         result
     }
 
+    pub fn read_u32(&mut self) -> u32 {
+        self.read() as u32
+    }
+
     pub fn read_array<K>(&mut self, mut result: [Field; K]) -> [Field; K] {
         for i in 0..K {
             result[i] = self.data[self.offset + i];

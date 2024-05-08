@@ -142,7 +142,9 @@ fn contract_logic(private_call: PrivateCallData) {
 }
 
 pub fn validate_previous_kernel_values(end: PrivateAccumulatedData) {
-    assert(end.new_nullifiers[0].value != 0, "The 0th nullifier in the accumulated nullifier array is zero");
+    assert(
+        end.new_nullifiers[0].value() != 0, "The 0th nullifier in the accumulated nullifier array is zero"
+    );
 }
 
 pub fn validate_call_against_request(private_call: PrivateCallData, request: CallRequest) {

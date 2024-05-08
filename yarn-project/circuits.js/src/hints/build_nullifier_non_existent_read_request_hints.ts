@@ -12,7 +12,7 @@ import { siloNullifier } from '../hash/index.js';
 import { Nullifier } from '../structs/index.js';
 import { type MembershipWitness } from '../structs/membership_witness.js';
 import { NullifierNonExistentReadRequestHintsBuilder } from '../structs/non_existent_read_request_hints.js';
-import { type ReadRequestContext } from '../structs/read_request.js';
+import { type ScopedReadRequest } from '../structs/read_request.js';
 import { countAccumulatedItems } from '../utils/index.js';
 
 interface NullifierMembershipWitnessWithPreimage {
@@ -53,7 +53,7 @@ export async function buildNullifierNonExistentReadRequestHints(
   oracle: {
     getLowNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
-  nullifierNonExistentReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
+  nullifierNonExistentReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
   pendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
 ) {
   const { sortedValues, sortedIndexHints } = sortNullifiersByValues(pendingNullifiers);

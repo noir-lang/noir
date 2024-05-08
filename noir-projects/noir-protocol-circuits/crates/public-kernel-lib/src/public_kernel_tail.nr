@@ -115,7 +115,7 @@ mod tests {
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, kernel_data::PublicKernelData,
-        nullifier_leaf_preimage::NullifierLeafPreimage
+        nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage
     },
         constants::{
         MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_HINTS,
@@ -209,19 +209,19 @@ mod tests {
         }
 
         pub fn add_nullifier(&mut self, unsiloed_nullifier: Field) {
-            self.previous_kernel.add_nullifier(unsiloed_nullifier);
+            self.previous_kernel.add_siloed_nullifier(unsiloed_nullifier);
             self.sync_counters();
             self.set_nullifiers_for_non_existent_read_request_hints();
         }
 
         pub fn append_nullifiers_revertible(&mut self, num_nullifiers: u64) {
-            self.previous_revertible.append_new_nullifiers(num_nullifiers);
+            self.previous_revertible.append_siloed_nullifiers(num_nullifiers);
             self.sync_counters();
             self.set_nullifiers_for_non_existent_read_request_hints();
         }
 
         pub fn append_nullifiers_non_revertible(&mut self, num_nullifiers: u64) {
-            self.previous_kernel.append_new_nullifiers(num_nullifiers);
+            self.previous_kernel.append_siloed_nullifiers(num_nullifiers);
             self.sync_counters();
             self.set_nullifiers_for_non_existent_read_request_hints();
         }
@@ -230,7 +230,7 @@ mod tests {
             let nullifiers = array_merge(
                 self.previous_kernel.new_nullifiers.storage,
                 self.previous_revertible.new_nullifiers.storage
-            );
+            ).map(|n: ScopedNullifier| n.nullifier);
             self.nullifier_non_existent_read_request_hints_builder.set_nullifiers(nullifiers);
         }
 
@@ -420,7 +420,7 @@ mod tests {
         builder.add_pending_revertible_nullifier_read_request(1);
         let nullifier_being_read = builder.previous_revertible.new_nullifiers.get(1);
         let mut read_request = builder.previous_kernel.nullifier_read_requests.pop();
-        read_request.counter = nullifier_being_read.counter - 1;
+        read_request.read_request.counter = nullifier_being_read.counter() - 1;
         builder.previous_kernel.nullifier_read_requests.push(read_request);
 
         builder.failed();

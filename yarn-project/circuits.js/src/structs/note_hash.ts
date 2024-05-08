@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -35,38 +36,54 @@ export class NoteHash {
   toString(): string {
     return `value=${this.value} counter=${this.counter}`;
   }
+
+  scope(nullifierCounter: number, contractAddress: AztecAddress) {
+    return new ScopedNoteHash(this, nullifierCounter, contractAddress);
+  }
 }
 
-export class NoteHashContext implements Ordered {
-  constructor(public value: Fr, public counter: number, public nullifierCounter: number) {}
+export class ScopedNoteHash implements Ordered {
+  constructor(public noteHash: NoteHash, public nullifierCounter: number, public contractAddress: AztecAddress) {}
+
+  get counter() {
+    return this.noteHash.counter;
+  }
+
+  get value() {
+    return this.noteHash.value;
+  }
 
   toFields(): Fr[] {
-    return [this.value, new Fr(this.counter), new Fr(this.nullifierCounter)];
+    return [...this.noteHash.toFields(), new Fr(this.nullifierCounter), this.contractAddress.toField()];
   }
 
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
-    return new NoteHashContext(reader.readField(), reader.readU32(), reader.readU32());
+    return new ScopedNoteHash(
+      reader.readObject(NoteHash),
+      reader.readU32(),
+      AztecAddress.fromField(reader.readField()),
+    );
   }
 
   isEmpty() {
-    return this.value.isZero() && !this.counter && !this.nullifierCounter;
+    return this.noteHash.isEmpty() && !this.nullifierCounter && this.contractAddress.isZero();
   }
 
   static empty() {
-    return new NoteHashContext(Fr.zero(), 0, 0);
+    return new ScopedNoteHash(NoteHash.empty(), 0, AztecAddress.ZERO);
   }
 
   toBuffer(): Buffer {
-    return serializeToBuffer(this.value, this.counter, this.nullifierCounter);
+    return serializeToBuffer(this.noteHash, this.nullifierCounter, this.contractAddress);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new NoteHashContext(Fr.fromBuffer(reader), reader.readNumber(), reader.readNumber());
+    return new ScopedNoteHash(NoteHash.fromBuffer(reader), reader.readNumber(), AztecAddress.fromBuffer(reader));
   }
 
   toString(): string {
-    return `value=${this.value} counter=${this.counter} nullifierCounter=${this.nullifierCounter}`;
+    return `noteHash=${this.noteHash} nullifierCounter=${this.nullifierCounter} contractAddress=${this.contractAddress}`;
   }
 }

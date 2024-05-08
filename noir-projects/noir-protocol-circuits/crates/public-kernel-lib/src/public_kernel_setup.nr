@@ -483,15 +483,13 @@ mod tests {
         let end_requests = public_inputs.validation_requests.nullifier_non_existent_read_requests;
         assert_eq(array_length(end_requests), 2);
 
-        let request_context = end_requests[0];
-        assert_eq(request_context.value, request_0.value);
-        assert_eq(request_context.counter, request_0.counter);
-        assert_eq(request_context.contract_address, storage_contract_address);
+        let request = end_requests[0];
+        assert_eq(request.read_request, request_0);
+        assert_eq(request.contract_address, storage_contract_address);
 
-        let request_context = end_requests[1];
-        assert_eq(request_context.value, request_1.value);
-        assert_eq(request_context.counter, request_1.counter);
-        assert_eq(request_context.contract_address, storage_contract_address);
+        let request = end_requests[1];
+        assert_eq(request.read_request, request_1);
+        assert_eq(request.contract_address, storage_contract_address);
     }
 
     #[test(should_fail_with="Public call cannot be reverted")]

@@ -1,20 +1,24 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { type Fr } from '@aztec/foundation/fields';
 import { type Tuple } from '@aztec/foundation/serialize';
 import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
   type MAX_NEW_NULLIFIERS_PER_TX,
-  type MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+  MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   type NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
-import { siloNullifier } from '../hash/index.js';
+import { siloNullifier } from '../hash/hash.js';
 import {
   type MembershipWitness,
-  type Nullifier,
+  Nullifier,
   NullifierReadRequestHintsBuilder,
-  type ReadRequestContext,
+  ReadRequest,
+  type ScopedNullifier,
+  ScopedReadRequest,
 } from '../structs/index.js';
-import { countAccumulatedItems } from '../utils/index.js';
+import { countAccumulatedItems, getNonEmptyItems } from '../utils/index.js';
 
 interface NullifierMembershipWitnessWithPreimage {
   membershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>;
@@ -25,26 +29,36 @@ export async function buildNullifierReadRequestHints(
   oracle: {
     getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
-  nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-  nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+  nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  siloed = false,
 ) {
   const builder = new NullifierReadRequestHintsBuilder();
 
   const numReadRequests = countAccumulatedItems(nullifierReadRequests);
 
-  const nullifierIndexMap: Map<bigint, number> = new Map();
-  nullifiers.forEach((n, i) => nullifierIndexMap.set(n.value.toBigInt(), i));
+  const nullifierMap: Map<bigint, { nullifier: ScopedNullifier; index: number }[]> = new Map();
+  getNonEmptyItems(nullifiers).forEach((nullifier, index) => {
+    const value = nullifier.value.toBigInt();
+    const arr = nullifierMap.get(value) ?? [];
+    arr.push({ nullifier, index });
+    nullifierMap.set(value, arr);
+  });
 
   for (let i = 0; i < numReadRequests; ++i) {
     const readRequest = nullifierReadRequests[i];
-    // TODO - Should be comparing un-siloed values and contract addresses.
-    const value = siloNullifier(readRequest.contractAddress, readRequest.value);
+    const pendingNullifier = nullifierMap
+      .get(readRequest.value.toBigInt())
+      ?.find(
+        ({ nullifier }) =>
+          nullifier.contractAddress.equals(readRequest.contractAddress) && readRequest.counter > nullifier.counter,
+      );
 
-    const pendingValueIndex = nullifierIndexMap.get(value.toBigInt());
-    if (pendingValueIndex !== undefined) {
-      builder.addPendingReadRequest(i, pendingValueIndex);
+    if (pendingNullifier !== undefined) {
+      builder.addPendingReadRequest(i, pendingNullifier.index);
     } else {
-      const membershipWitnessWithPreimage = await oracle.getNullifierMembershipWitness(value);
+      const siloedValue = siloed ? readRequest.value : siloNullifier(readRequest.contractAddress, readRequest.value);
+      const membershipWitnessWithPreimage = await oracle.getNullifierMembershipWitness(siloedValue);
       builder.addSettledReadRequest(
         i,
         membershipWitnessWithPreimage.membershipWitness,
@@ -53,4 +67,28 @@ export async function buildNullifierReadRequestHints(
     }
   }
   return builder.toHints();
+}
+
+export function buildSiloedNullifierReadRequestHints(
+  oracle: {
+    getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
+  },
+  nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+  nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+) {
+  // Nullifiers outputted from public kernels are already siloed while read requests are not.
+  // Siloing the read request values and set the contract addresses to zero to find the matching nullifier contexts.
+  const siloedReadRequests = padArrayEnd(
+    getNonEmptyItems(nullifierReadRequests).map(r =>
+      new ReadRequest(siloNullifier(r.contractAddress, r.value), r.counter).scope(AztecAddress.ZERO),
+    ),
+    ScopedReadRequest.empty(),
+    MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+  );
+
+  const scopedNullifiers = nullifiers.map(n =>
+    new Nullifier(n.value, n.counter, n.noteHash).scope(AztecAddress.ZERO),
+  ) as Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
+
+  return buildNullifierReadRequestHints(oracle, siloedReadRequests, scopedNullifiers, true);
 }

@@ -3,7 +3,7 @@ use crate::{
     nullifier_read_request_reset::NullifierReadRequestHints, reset::read_request::reset_read_requests
 };
 use dep::types::{
-    abis::{note_hash::NoteHashContext, nullifier::Nullifier, validation_requests::ValidationRequests},
+    abis::{note_hash::ScopedNoteHash, nullifier::ScopedNullifier, validation_requests::ValidationRequests},
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     GENERATOR_INDEX__NSK_M
@@ -14,10 +14,10 @@ use dep::types::{
 struct PrivateValidationRequestProcessor {
     validation_requests: ValidationRequests,
     note_hash_read_request_hints: NoteHashReadRequestHints,
-    pending_note_hashes: [NoteHashContext; MAX_NEW_NOTE_HASHES_PER_TX],
+    pending_note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
     note_hash_tree_root: Field,
     nullifier_read_request_hints: NullifierReadRequestHints,
-    pending_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
+    pending_nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
     nullifier_tree_root: Field,
     master_nullifier_secret_keys: [GrumpkinPrivateKey; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 }
@@ -62,8 +62,9 @@ impl PrivateValidationRequestProcessor {
     fn validate_nullifier_keys(self) {
         let requests = self.validation_requests.nullifier_key_validation_requests;
         for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX {
-            let request = requests[i];
+            let request = requests[i].request;
             if !is_empty(request) {
+                let contract_address = requests[i].contract_address;
                 let master_nullifier_secret_key = self.master_nullifier_secret_keys[i];
                 // First we check that derived public key matches master nullifier public key from request
                 let master_nullifier_public_key = master_nullifier_secret_key.derive_public_key();
@@ -75,7 +76,7 @@ impl PrivateValidationRequestProcessor {
 
                 let app_nullifier_secret_key = poseidon2_hash(
                     [
-                    master_nullifier_secret_key.high, master_nullifier_secret_key.low, request.contract_address.to_field(), GENERATOR_INDEX__NSK_M
+                    master_nullifier_secret_key.high, master_nullifier_secret_key.low, contract_address.to_field(), GENERATOR_INDEX__NSK_M
                 ]
                 );
                 assert(
