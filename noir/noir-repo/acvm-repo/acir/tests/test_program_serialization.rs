@@ -347,7 +347,11 @@ fn complex_brillig_foreign_call() {
 fn memory_op_circuit() {
     let init = vec![Witness(1), Witness(2)];
 
-    let memory_init = Opcode::MemoryInit { block_id: BlockId(0), init };
+    let memory_init = Opcode::MemoryInit {
+        block_id: BlockId(0),
+        init,
+        block_type: acir::circuit::opcodes::BlockType::Memory,
+    };
     let write = Opcode::MemoryOp {
         block_id: BlockId(0),
         op: MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
@@ -371,11 +375,11 @@ fn memory_op_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 82, 65, 10, 0, 32, 8, 203, 180, 255, 216, 15, 250,
-        255, 171, 10, 154, 16, 210, 45, 61, 52, 144, 13, 132, 49, 135, 84, 54, 218, 26, 134, 22,
-        112, 5, 19, 180, 237, 61, 6, 88, 223, 208, 179, 125, 41, 216, 151, 227, 188, 52, 187, 92,
-        253, 173, 92, 137, 190, 157, 143, 160, 254, 155, 45, 188, 148, 11, 38, 213, 237, 188, 16,
-        35, 3, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 82, 65, 10, 0, 32, 8, 211, 180, 255, 216, 15, 250,
+        255, 171, 10, 82, 176, 232, 150, 30, 26, 200, 118, 144, 49, 135, 8, 11, 117, 14, 169, 102,
+        229, 162, 140, 78, 219, 206, 137, 174, 44, 111, 104, 217, 190, 24, 236, 75, 113, 94, 146,
+        93, 174, 252, 86, 46, 71, 223, 78, 46, 104, 129, 253, 155, 45, 60, 195, 5, 3, 89, 11, 161,
+        73, 39, 3, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)

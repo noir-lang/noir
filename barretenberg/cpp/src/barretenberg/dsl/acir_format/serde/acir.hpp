@@ -317,6 +317,33 @@ struct BlockId {
     static BlockId bincodeDeserialize(std::vector<uint8_t>);
 };
 
+struct BlockType {
+
+    struct Memory {
+        friend bool operator==(const Memory&, const Memory&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Memory bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct CallData {
+        friend bool operator==(const CallData&, const CallData&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static CallData bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct ReturnData {
+        friend bool operator==(const ReturnData&, const ReturnData&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static ReturnData bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    std::variant<Memory, CallData, ReturnData> value;
+
+    friend bool operator==(const BlockType&, const BlockType&);
+    std::vector<uint8_t> bincodeSerialize() const;
+    static BlockType bincodeDeserialize(std::vector<uint8_t>);
+};
+
 struct Expression {
     std::vector<std::tuple<std::string, Program::Witness, Program::Witness>> mul_terms;
     std::vector<std::tuple<std::string, Program::Witness>> linear_combinations;
@@ -453,6 +480,7 @@ struct Opcode {
     struct MemoryInit {
         Program::BlockId block_id;
         std::vector<Program::Witness> init;
+        Program::BlockType block_type;
 
         friend bool operator==(const MemoryInit&, const MemoryInit&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -5162,6 +5190,177 @@ Program::BlockId serde::Deserializable<Program::BlockId>::deserialize(Deserializ
 
 namespace Program {
 
+inline bool operator==(const BlockType& lhs, const BlockType& rhs)
+{
+    if (!(lhs.value == rhs.value)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> BlockType::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlockType>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlockType BlockType::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlockType>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BlockType>::serialize(const Program::BlockType& obj, Serializer& serializer)
+{
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Program::BlockType serde::Deserializable<Program::BlockType>::deserialize(Deserializer& deserializer)
+{
+    deserializer.increase_container_depth();
+    Program::BlockType obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+inline bool operator==(const BlockType::Memory& lhs, const BlockType::Memory& rhs)
+{
+    return true;
+}
+
+inline std::vector<uint8_t> BlockType::Memory::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlockType::Memory>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlockType::Memory BlockType::Memory::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlockType::Memory>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BlockType::Memory>::serialize(const Program::BlockType::Memory& obj,
+                                                                Serializer& serializer)
+{}
+
+template <>
+template <typename Deserializer>
+Program::BlockType::Memory serde::Deserializable<Program::BlockType::Memory>::deserialize(Deserializer& deserializer)
+{
+    Program::BlockType::Memory obj;
+    return obj;
+}
+
+namespace Program {
+
+inline bool operator==(const BlockType::CallData& lhs, const BlockType::CallData& rhs)
+{
+    return true;
+}
+
+inline std::vector<uint8_t> BlockType::CallData::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlockType::CallData>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlockType::CallData BlockType::CallData::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlockType::CallData>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BlockType::CallData>::serialize(const Program::BlockType::CallData& obj,
+                                                                  Serializer& serializer)
+{}
+
+template <>
+template <typename Deserializer>
+Program::BlockType::CallData serde::Deserializable<Program::BlockType::CallData>::deserialize(
+    Deserializer& deserializer)
+{
+    Program::BlockType::CallData obj;
+    return obj;
+}
+
+namespace Program {
+
+inline bool operator==(const BlockType::ReturnData& lhs, const BlockType::ReturnData& rhs)
+{
+    return true;
+}
+
+inline std::vector<uint8_t> BlockType::ReturnData::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlockType::ReturnData>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlockType::ReturnData BlockType::ReturnData::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlockType::ReturnData>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BlockType::ReturnData>::serialize(const Program::BlockType::ReturnData& obj,
+                                                                    Serializer& serializer)
+{}
+
+template <>
+template <typename Deserializer>
+Program::BlockType::ReturnData serde::Deserializable<Program::BlockType::ReturnData>::deserialize(
+    Deserializer& deserializer)
+{
+    Program::BlockType::ReturnData obj;
+    return obj;
+}
+
+namespace Program {
+
 inline bool operator==(const BrilligBytecode& lhs, const BrilligBytecode& rhs)
 {
     if (!(lhs.bytecode == rhs.bytecode)) {
@@ -7812,6 +8011,9 @@ inline bool operator==(const Opcode::MemoryInit& lhs, const Opcode::MemoryInit& 
     if (!(lhs.init == rhs.init)) {
         return false;
     }
+    if (!(lhs.block_type == rhs.block_type)) {
+        return false;
+    }
     return true;
 }
 
@@ -7841,6 +8043,7 @@ void serde::Serializable<Program::Opcode::MemoryInit>::serialize(const Program::
 {
     serde::Serializable<decltype(obj.block_id)>::serialize(obj.block_id, serializer);
     serde::Serializable<decltype(obj.init)>::serialize(obj.init, serializer);
+    serde::Serializable<decltype(obj.block_type)>::serialize(obj.block_type, serializer);
 }
 
 template <>
@@ -7850,6 +8053,7 @@ Program::Opcode::MemoryInit serde::Deserializable<Program::Opcode::MemoryInit>::
     Program::Opcode::MemoryInit obj;
     obj.block_id = serde::Deserializable<decltype(obj.block_id)>::deserialize(deserializer);
     obj.init = serde::Deserializable<decltype(obj.init)>::deserialize(deserializer);
+    obj.block_type = serde::Deserializable<decltype(obj.block_type)>::deserialize(deserializer);
     return obj;
 }
 

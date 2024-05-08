@@ -862,7 +862,11 @@ mod tests {
 
         let opcodes = vec![
             Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
-            Opcode::MemoryInit { block_id: BlockId(0), init: vec![] },
+            Opcode::MemoryInit {
+                block_id: BlockId(0),
+                init: vec![],
+                block_type: acvm::acir::circuit::opcodes::BlockType::Memory,
+            },
             Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
             Opcode::AssertZero(Expression::default()),
         ];
