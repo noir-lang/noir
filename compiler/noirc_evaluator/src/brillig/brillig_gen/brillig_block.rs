@@ -1340,7 +1340,15 @@ impl<'block> BrilligBlock<'block> {
 
         self.brillig_context.binary_instruction(left, right, result_variable, brillig_binary_op);
 
-        self.add_overflow_check(brillig_binary_op, left, right, result_variable, is_signed);
+        self.add_overflow_check(
+            brillig_binary_op,
+            left,
+            right,
+            result_variable,
+            binary,
+            dfg,
+            is_signed,
+        );
     }
 
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
@@ -1493,15 +1501,20 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.deallocate_single_addr(bias);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_overflow_check(
         &mut self,
         binary_operation: BrilligBinaryOp,
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
+        binary: &Binary,
+        dfg: &DataFlowGraph,
         is_signed: bool,
     ) {
         let bit_size = left.bit_size;
+        let max_lhs_bits = dfg.get_value_max_num_bits(binary.lhs);
+        let max_rhs_bits = dfg.get_value_max_num_bits(binary.rhs);
 
         if bit_size == FieldElement::max_num_bits() {
             return;
@@ -1509,6 +1522,11 @@ impl<'block> BrilligBlock<'block> {
 
         match (binary_operation, is_signed) {
             (BrilligBinaryOp::Add, false) => {
+                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
+                    // `left` and `right` have both been casted up from smaller types and so cannot overflow.
+                    return;
+                }
+
                 let condition =
                     SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                 // Check that lhs <= result
@@ -1523,6 +1541,12 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_single_addr(condition);
             }
             (BrilligBinaryOp::Sub, false) => {
+                if dfg.is_constant(binary.lhs) && max_lhs_bits > max_rhs_bits {
+                    // `left` is a fixed constant and `right` is restricted such that `left - right > 0`
+                    // Note strict inequality as `right > left` while `max_lhs_bits == max_rhs_bits` is possible.
+                    return;
+                }
+
                 let condition =
                     SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                 // Check that rhs <= lhs
@@ -1539,39 +1563,36 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_single_addr(condition);
             }
             (BrilligBinaryOp::Mul, false) => {
-                // Multiplication overflow is only possible for bit sizes > 1
-                if bit_size > 1 {
-                    let is_right_zero =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    let zero =
-                        self.brillig_context.make_constant_instruction(0_usize.into(), bit_size);
-                    self.brillig_context.binary_instruction(
-                        zero,
-                        right,
-                        is_right_zero,
-                        BrilligBinaryOp::Equals,
-                    );
-                    self.brillig_context.codegen_if_not(is_right_zero.address, |ctx| {
-                        let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                        let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
-                        // Check that result / rhs == lhs
-                        ctx.binary_instruction(
-                            result,
-                            right,
-                            division,
-                            BrilligBinaryOp::UnsignedDiv,
-                        );
-                        ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
-                        ctx.codegen_constrain(
-                            condition,
-                            Some("attempt to multiply with overflow".to_string()),
-                        );
-                        ctx.deallocate_single_addr(condition);
-                        ctx.deallocate_single_addr(division);
-                    });
-                    self.brillig_context.deallocate_single_addr(is_right_zero);
-                    self.brillig_context.deallocate_single_addr(zero);
+                if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
+                    // Either performing boolean multiplication (which cannot overflow),
+                    // or `left` and `right` have both been casted up from smaller types and so cannot overflow.
+                    return;
                 }
+
+                let is_right_zero =
+                    SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                let zero = self.brillig_context.make_constant_instruction(0_usize.into(), bit_size);
+                self.brillig_context.binary_instruction(
+                    zero,
+                    right,
+                    is_right_zero,
+                    BrilligBinaryOp::Equals,
+                );
+                self.brillig_context.codegen_if_not(is_right_zero.address, |ctx| {
+                    let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
+                    let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
+                    // Check that result / rhs == lhs
+                    ctx.binary_instruction(result, right, division, BrilligBinaryOp::UnsignedDiv);
+                    ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
+                    ctx.codegen_constrain(
+                        condition,
+                        Some("attempt to multiply with overflow".to_string()),
+                    );
+                    ctx.deallocate_single_addr(condition);
+                    ctx.deallocate_single_addr(division);
+                });
+                self.brillig_context.deallocate_single_addr(is_right_zero);
+                self.brillig_context.deallocate_single_addr(zero);
             }
             _ => {}
         }
