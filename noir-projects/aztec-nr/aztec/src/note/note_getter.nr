@@ -8,7 +8,10 @@ use crate::note::{
 };
 use crate::oracle;
 
-fn extract_property_value_from_selector<N>(serialized_note: [Field; N], selector: PropertySelector) -> Field {
+fn extract_property_value_from_selector<N>(
+    serialized_note: [Field; N],
+    selector: PropertySelector
+) -> Field {
     // Selectors use PropertySelectors in order to locate note properties inside the serialized note. 
     // This allows easier packing and custom (de)serialization schemas. A note property is located
     // inside the serialized note using the index inside the array, a byte offset and a length.
@@ -26,7 +29,11 @@ fn extract_property_value_from_selector<N>(serialized_note: [Field; N], selector
     value_field
 }
 
-fn check_note_header<Note, N>(context: PrivateContext, storage_slot: Field, note: Note) where Note: NoteInterface<N> {
+fn check_note_header<Note, N>(
+    context: PrivateContext,
+    storage_slot: Field,
+    note: Note
+) where Note: NoteInterface<N> {
     let header = note.get_header();
     let contract_address = context.this_address();
     assert(header.contract_address.eq(contract_address));

@@ -1,8 +1,5 @@
 use dep::aztec::context::PrivateContext;
-use dep::aztec::note::{
-    note_header::NoteHeader,
-    note_interface::NoteInterface,
-};
+use dep::aztec::note::{note_header::NoteHeader, note_interface::NoteInterface};
 
 global TEST_NOTE_LENGTH = 1;
 

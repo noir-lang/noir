@@ -12,22 +12,20 @@ pub fn compute_secret_hash(secret: Field) -> Field {
     pedersen_hash([secret], GENERATOR_INDEX__SECRET_HASH)
 }
 
-pub fn compute_encrypted_log_hash<N, M, L>(
-    encrypted_log: [Field; M]
-) -> Field where [Field; N]: LensForEncryptedLog<N, M, L> {
+pub fn compute_encrypted_log_hash<N, M, L>(encrypted_log: [Field; M]) -> Field where [Field; N]: LensForEncryptedLog<N, M, L> {
     let mut bytes = [0; L];
     // Note that bytes.append(encrypted_log[i].to_be_bytes(31)) results in bound error
-    for i in 0..M-1 {
+    for i in 0..M - 1 {
         let to_add = encrypted_log[i].to_be_bytes(31);
         for j in 0..31 {
             bytes[i*31 + j] = to_add[j];
         }
     }
     // can't assign as L - not in scope error for: L-31*(M-1)
-    let num_bytes = bytes.len() as u32 - 31*(M-1);
-    let to_add_final = encrypted_log[M-1].to_be_bytes(num_bytes);
+    let num_bytes = bytes.len() as u32 - 31 * (M - 1);
+    let to_add_final = encrypted_log[M - 1].to_be_bytes(num_bytes);
     for j in 0..num_bytes {
-            bytes[(M-1)*31 + j] = to_add_final[j];
+        bytes[(M-1)*31 + j] = to_add_final[j];
     }
     sha256_to_field(bytes)
 }
@@ -35,7 +33,7 @@ pub fn compute_encrypted_log_hash<N, M, L>(
 pub fn compute_unencrypted_log_hash<T, N, M>(
     contract_address: AztecAddress,
     event_selector: Field,
-    log: T,
+    log: T
 ) -> Field where T: ToBytesForUnencryptedLog<N, M> {
     let message_bytes: [u8; N] = log.to_be_bytes_arr();
     // can't use N - not in scope error
@@ -182,7 +180,7 @@ fn compute_enc_log_hash_304() {
         0x00b938289e563b0fe01982cd9b8d9e33e3069046768ad01c0fb05e429e7b7909,
         0x00fbcc257a3211f705b471eee763b0f43876a2b2178fab6d2b09bd2b7e086584,
         0x000000000000008c3289b5793b7448f4d45ecde039d004b6f037cad10b5c2336
-        ];
+    ];
     let hash = compute_encrypted_log_hash(input);
     assert(hash == 0x001e3c013994947fe28957a876bf1b2c3a69ac69cc92909efd4f2ae9b972f893);
 }
@@ -190,34 +188,34 @@ fn compute_enc_log_hash_304() {
 #[test]
 fn compute_enc_log_hash_368() {
     let input = [
-      0x0000000000000000000000000000000000000000000000000000000000000000,
-      0x002190697d2a50e229a7a077e0951073f7d51e46679f10466153c308b63b1ea9,
-      0x00543e346facc6799b94514c9d461bcc836c04b083b13c2e4544a39130473c1e,
-      0x000df76d59526f8f953bcc7d9f77cdaefd36435931f0d7348f794bc275b42ded,
-      0x00a6d390ee1723af7f7ac1ae4fc81a266b2370fe07040a36d06dbe242e02413e,
-      0x00acbce15b6af1fbe94bd0f7b70f11768265dff77bfe63398f2a053efdfdf26d,
-      0x00b8b131b9f42c689beb095ba4f4a836d4d15c9068d0422e9add6ca82b786329,
-      0x00661a6a654b38f0f97d404ef5553e0efea9ed670561ae86685b31bbb2824fac,
-      0x00113a6b58edfaec0065b365f66ba8d8aa68254b8690035e8d671a17a843f0a1,
-      0x0023f2d2eae8c4449bac8f268a3e62a3faace1fe1401f0efdc8b0ccfbc8fb271,
-      0x00cf6603f8c61993dd2f662c719671c61727a2f4e925fb988b23d31feccd77d9,
-      0x0000000000a402a84b7294671799c38dd805f6a827a3a12633fdf91a57debe1f
-        ];
+        0x0000000000000000000000000000000000000000000000000000000000000000,
+        0x002190697d2a50e229a7a077e0951073f7d51e46679f10466153c308b63b1ea9,
+        0x00543e346facc6799b94514c9d461bcc836c04b083b13c2e4544a39130473c1e,
+        0x000df76d59526f8f953bcc7d9f77cdaefd36435931f0d7348f794bc275b42ded,
+        0x00a6d390ee1723af7f7ac1ae4fc81a266b2370fe07040a36d06dbe242e02413e,
+        0x00acbce15b6af1fbe94bd0f7b70f11768265dff77bfe63398f2a053efdfdf26d,
+        0x00b8b131b9f42c689beb095ba4f4a836d4d15c9068d0422e9add6ca82b786329,
+        0x00661a6a654b38f0f97d404ef5553e0efea9ed670561ae86685b31bbb2824fac,
+        0x00113a6b58edfaec0065b365f66ba8d8aa68254b8690035e8d671a17a843f0a1,
+        0x0023f2d2eae8c4449bac8f268a3e62a3faace1fe1401f0efdc8b0ccfbc8fb271,
+        0x00cf6603f8c61993dd2f662c719671c61727a2f4e925fb988b23d31feccd77d9,
+        0x0000000000a402a84b7294671799c38dd805f6a827a3a12633fdf91a57debe1f
+    ];
     let hash = compute_encrypted_log_hash(input);
-    assert(hash ==  0x00a0d651ac0cbc01b72430fa6a05d91738595af6e0229347b4c9968223387aeb);
+    assert(hash == 0x00a0d651ac0cbc01b72430fa6a05d91738595af6e0229347b4c9968223387aeb);
 }
 
 #[test]
 fn compute_unenc_log_hash_array() {
     let contract_address = AztecAddress::from_field(0x233a3e0df23b2b15b324194cb4a151f26c0b7333250781d34cc269d85dc334c6);
     let event_selector = 5;
-    let log =       [
+    let log = [
         0x20660de09f35f876e3e69d227b2a35166ad05f09d82d06366ec9b6f65a51fec2,
         0x1b52bfe3b8689761916f76dc3d38aa8810860db325cd39ca611eed980091f01c,
         0x2e559c4045c378a56ad13b9edb1e8de4e7ad3b3aa35cc7ba9ec77f7a68fa43a4,
         0x25d0f689c4a4178a29d59306f2675824d19be6d25e44fa03b03f49c263053dd2,
         0x2d513a722d6f352dc0961f156afdc5e31495b9f0e35cb069261a8e55e2df67fd
-      ];
+    ];
     let hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
     assert(hash == 0x00846d6969c8c2f61d39cd2762efcb0abb14f88d59c2675910251ef2bcffe9a7);
 }

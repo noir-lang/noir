@@ -137,6 +137,27 @@ jobs:
   #       working-directory: ./yarn-project/scripts
   #       run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} +bench-comment
 
+  noir-format:
+    needs: setup
+    runs-on: ${{ inputs.username || github.actor }}-x86
+    steps:
+      - {
+          uses: actions/checkout@v4,
+          with: { ref: "${{ github.event.pull_request.head.sha }}" },
+        }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: noir-format-${{ inputs.username || github.actor }}-x86
+      - name: "Format Noir"
+        working-directory: ./noir/
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./+format
+      - name: "Format noir-projects"
+        working-directory: ./noir-projects/
+        timeout-minutes: 25
+        run: earthly-ci --no-output ./+format
+
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:

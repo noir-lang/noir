@@ -3,9 +3,7 @@ contract KeyRegistry {
 
     use dep::aztec::{
         state_vars::{SharedMutable, Map},
-        protocol_types::{
-        grumpkin_point::GrumpkinPoint, address::{AztecAddress, PartialAddress},
-    }
+        protocol_types::{grumpkin_point::GrumpkinPoint, address::{AztecAddress, PartialAddress}}
     };
 
     global KEY_ROTATION_DELAY = 5;

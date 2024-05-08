@@ -2,7 +2,7 @@ use dep::aztec::prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContex
 use dep::aztec::{
     note::utils::compute_note_hash_for_consumption, hash::poseidon2_hash,
     oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
-    protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
+    protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER
 };
 
 global PUBLIC_KEY_NOTE_LEN: Field = 3;

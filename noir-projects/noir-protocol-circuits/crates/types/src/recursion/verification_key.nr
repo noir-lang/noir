@@ -1,8 +1,4 @@
-
-use crate::{
-    traits::{Serialize, Deserialize, Empty},
-    constants::{ VERIFICATION_KEY_LENGTH_IN_FIELDS },
-};
+use crate::{traits::{Serialize, Deserialize, Empty}, constants::VERIFICATION_KEY_LENGTH_IN_FIELDS};
 
 global SERIALIZED_VERIFICATION_KEY_LENGTH = VERIFICATION_KEY_LENGTH_IN_FIELDS + 1;
 

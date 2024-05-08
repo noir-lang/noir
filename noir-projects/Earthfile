@@ -30,6 +30,19 @@ test:
   RUN cd aztec-nr && nargo test --silence-warnings
   RUN cd noir-contracts && nargo test --silence-warnings
 
+format:
+  FROM +build
+
+  # TODO: https://github.com/noir-lang/noir/issues/4980
+  # WORKDIR /usr/src/noir-projects/noir-protocol-circuits
+  # RUN nargo fmt --check
+
+  WORKDIR /usr/src/noir-projects/noir-contracts
+  RUN nargo fmt --check
+
+  WORKDIR /usr/src/noir-projects/aztec-nr
+  RUN nargo fmt --check
+
 gates-report:
   FROM +build
   WORKDIR /usr/src/noir-projects/noir-protocol-circuits

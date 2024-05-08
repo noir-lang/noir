@@ -10,7 +10,7 @@ fn emit_encrypted_log_oracle<N, M>(
     _note_type_id: Field,
     _encryption_pub_key: GrumpkinPoint,
     _preimage: [Field; N],
-    _counter: u32,
+    _counter: u32
 ) -> [Field; M] {}
 
 unconstrained pub fn emit_encrypted_log<N, M>(

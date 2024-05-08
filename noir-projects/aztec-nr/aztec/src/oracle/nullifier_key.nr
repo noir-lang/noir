@@ -15,7 +15,7 @@ unconstrained fn get_nullifier_keys_internal(account: AztecAddress) -> Nullifier
     NullifierKeys {
         account,
         master_nullifier_public_key: GrumpkinPoint { x: result[0], y: result[1] },
-        app_nullifier_secret_key: result[2],
+        app_nullifier_secret_key: result[2]
     }
 }
 

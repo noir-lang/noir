@@ -1,7 +1,7 @@
 use dep::std::cmp::Eq;
 use crate::{
     address::AztecAddress,
-    constants::{NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH, SCOPED_NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH},
+    constants::{SCOPED_NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH, NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH},
     traits::{Empty, Serialize, Deserialize}, grumpkin_point::GrumpkinPoint,
     utils::{arrays::array_concat, reader::Reader}
 };

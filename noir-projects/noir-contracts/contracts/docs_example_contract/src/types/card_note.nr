@@ -2,7 +2,7 @@ use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContex
 use dep::aztec::{
     note::{utils::compute_note_hash_for_consumption},
     oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
-    hash::poseidon2_hash, protocol_types::{traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER},
+    hash::poseidon2_hash, protocol_types::{traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER}
 };
 
 // Shows how to create a custom note

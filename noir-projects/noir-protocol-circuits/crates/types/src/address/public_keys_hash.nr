@@ -1,7 +1,7 @@
 use crate::{
-    constants::{GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__PUBLIC_KEYS_HASH}, hash::pedersen_hash, grumpkin_point::GrumpkinPoint,
-    traits::{ToField, Serialize, Deserialize},
-    hash::poseidon2_hash,
+    constants::{GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__PUBLIC_KEYS_HASH},
+    hash::pedersen_hash, grumpkin_point::GrumpkinPoint, traits::{ToField, Serialize, Deserialize},
+    hash::poseidon2_hash
 };
 
 // Public keys hash. Used in the computation of an address.
@@ -59,17 +59,19 @@ impl PublicKeysHash {
         tagging_public_key: GrumpkinPoint
     ) -> Self {
         PublicKeysHash::from_field(
-            poseidon2_hash([
-                nullifier_public_key.x,
-                nullifier_public_key.y,
-                incoming_public_key.x,
-                incoming_public_key.y,
-                outgoing_public_key.x,
-                outgoing_public_key.y,
-                tagging_public_key.x,
-                tagging_public_key.y,
-                GENERATOR_INDEX__PUBLIC_KEYS_HASH,
-            ])
+            poseidon2_hash(
+                [
+            nullifier_public_key.x,
+            nullifier_public_key.y,
+            incoming_public_key.x,
+            incoming_public_key.y,
+            outgoing_public_key.x,
+            outgoing_public_key.y,
+            tagging_public_key.x,
+            tagging_public_key.y,
+            GENERATOR_INDEX__PUBLIC_KEYS_HASH
+        ]
+            )
         )
     }
 

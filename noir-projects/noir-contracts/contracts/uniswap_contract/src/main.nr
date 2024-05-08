@@ -223,7 +223,7 @@ contract Uniswap {
             token.eq(TokenBridge::at(token_bridge).get_token().static_call(&mut context)), "input_asset address is not the same as seen in the bridge contract"
         );
     }
-    
+
     // /// Unconstrained ///
 
     // this method exists solely for e2e tests to test that nonce gets incremented each time.
@@ -231,5 +231,4 @@ contract Uniswap {
         storage.nonce_for_burn_approval.read()
     }
     // docs:end:assert_token_is_same
-
 }

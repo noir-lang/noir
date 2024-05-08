@@ -55,9 +55,7 @@ impl AztecAddress {
 
     pub fn compute(pub_keys_hash: PublicKeysHash, partial_address: PartialAddress) -> AztecAddress {
         AztecAddress::from_field(
-            poseidon2_hash(
-                [pub_keys_hash.to_field(), partial_address.to_field(), GENERATOR_INDEX__CONTRACT_ADDRESS_V1]
-            )
+            poseidon2_hash([pub_keys_hash.to_field(), partial_address.to_field(), GENERATOR_INDEX__CONTRACT_ADDRESS_V1])
         )
     }
 
@@ -66,13 +64,13 @@ impl AztecAddress {
         incoming_public_key: GrumpkinPoint,
         outgoing_public_key: GrumpkinPoint,
         tagging_public_key: GrumpkinPoint,
-        partial_address: PartialAddress,
+        partial_address: PartialAddress
     ) -> AztecAddress {
         let public_keys_hash = PublicKeysHash::compute_new(
             nullifier_public_key,
             incoming_public_key,
             outgoing_public_key,
-            tagging_public_key,
+            tagging_public_key
         );
 
         let computed_address = AztecAddress::compute(public_keys_hash, partial_address);

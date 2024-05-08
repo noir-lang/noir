@@ -44,6 +44,19 @@ test:
   COPY noir-repo/.rustfmt.toml noir-repo/.rustfmt.toml
   RUN ./scripts/test_native.sh
 
+format:
+  FROM +nargo
+  ENV PATH=$PATH:/usr/src/noir-repo/target/release
+
+  COPY ./noir-repo/test_programs ./noir-repo/test_programs
+  COPY ./noir-repo/noir_stdlib ./noir-repo/noir_stdlib
+
+  WORKDIR ./noir-repo/test_programs
+  RUN ./format.sh check
+
+  WORKDIR ../noir_stdlib
+  RUN nargo fmt --check
+  
 packages-deps:
     BUILD ../barretenberg/ts/+build # prefetch
 

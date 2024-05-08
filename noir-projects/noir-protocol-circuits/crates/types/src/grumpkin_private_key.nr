@@ -1,8 +1,5 @@
 use dep::std::{cmp::Eq, embedded_curve_ops::fixed_base_scalar_mul};
-use crate::{
-    grumpkin_point::GrumpkinPoint,
-    traits::Empty
-};
+use crate::{grumpkin_point::GrumpkinPoint, traits::Empty};
 
 global GRUMPKIN_PRIVATE_KEY_SERIALIZED_LEN: Field = 2;
 
