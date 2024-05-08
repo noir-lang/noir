@@ -76,6 +76,12 @@ Some more advanced computations assume that the proving system has an 'embedded 
 
 The black box functions supported by ACIR are:
 
+**AES128Encrypt**: ciphers the provided plaintext using AES128 in CBC mode, padding the input using PKCS#7.
+- inputs: byte array [u8; N]
+- iv: initialization vector [u8; 16]
+- key: user key [u8; 16]
+- outputs: byte vector [u8] of length `input.len() + (16 - input.len() % 16)``
+
 **AND**: performs the bitwise AND of lhs and rhs. bit_size must be the same for both inputs.
 - lhs: (witness, bit_size)
 - rhs: (witness, bit_size)
@@ -139,9 +145,11 @@ Inputs and outputs are similar to SchnorrVerify, except that because we use a di
 
 **EcdsaSecp256r1**: Same as EcdsaSecp256k1, but done over another curve.
 
-**FixedBaseScalarMul**: scalar multiplication with a fixed generator of the embedded curve
-- input: low, high are 2 (field , 254), representing the low and high part of the input. For Barretenberg, they must both be less than 128 bits.
-- output: x and y coordinates of $low*G+high*2^{128}*G$, where G is a fixed generator
+**MultiScalarMul**: scalar multiplication with a variable base/input point (P) of the embedded curve
+- input:
+    points (FieldElement, N) a vector of x and y coordinates of input points [x1, y1, x2, y2,...].
+    scalars (FieldElement, N) a vector of low and high limbs of input scalars [s1_low, s1_high, s2_low, s2_high, ...]. (FieldElement, N) For Barretenberg, they must both be less than 128 bits.
+- output: (FieldElement, N) a vector of x and y coordinates of output points [op1_x, op1_y, op2_x, op2_y, ...]. Points computed as $s_low*P+s_high*2^{128}*P$
 
 Because the Grumpkin scalar field is bigger than the ACIR field, we provide 2 ACIR fields representing the low and high parts of the Grumpkin scalar $a$:
 $a=low+high*2^{128},$ with $low, high < 2^{128}$

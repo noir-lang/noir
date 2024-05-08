@@ -93,8 +93,8 @@ it('successfully executes a Pedersen opcode', async function () {
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it('successfully executes a FixedBaseScalarMul opcode', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/fixed_base_scalar_mul');
+it('successfully executes a MultiScalarMul opcode', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/multi_scalar_mul');
 
   const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
     throw Error('unexpected oracle');

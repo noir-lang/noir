@@ -32,7 +32,7 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = (0..acir.opcodes.len()).collect();
 
-    if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::Brillig(_)) {
+    if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
         info!("Program is fully unconstrained, skipping optimization pass");
         return (acir, acir_opcode_positions);
     }

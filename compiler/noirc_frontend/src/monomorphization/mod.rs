@@ -593,7 +593,11 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = self.interner.expr_location(&constrain.0);
                 let assert_message = constrain
                     .2
-                    .map(|assert_msg_expr| self.expr(assert_msg_expr))
+                    .map(|assert_msg_expr| {
+                        self.expr(assert_msg_expr).map(|expr| {
+                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                        })
+                    })
                     .transpose()?
                     .map(Box::new);
                 Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
@@ -1100,9 +1104,6 @@ impl<'interner> Monomorphizer<'interner> {
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
-                } else if name.as_str() == "assert_message" {
-                    // The first argument to the `assert_message` oracle is the expression passed as a message to an `assert` or `assert_eq` statement
-                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
                 }
             }
         }

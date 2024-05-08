@@ -464,7 +464,7 @@ fn simplify_black_box_func(
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
 
-        BlackBoxFunc::FixedBaseScalarMul
+        BlackBoxFunc::MultiScalarMul
         | BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::PedersenCommitment
         | BlackBoxFunc::PedersenHash
@@ -492,6 +492,7 @@ fn simplify_black_box_func(
             )
         }
         BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
+        BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
     }
 }
 
