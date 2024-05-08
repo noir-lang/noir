@@ -170,8 +170,6 @@ pub fn compile_program(
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
     let compile_options = CompileOptions::default();
-    // For now we default to a bounded width of 4, though we can add it as a parameter
-    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 4 };
 
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
@@ -184,7 +182,8 @@ pub fn compile_program(
             })?
             .0;
 
-    let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+    let optimized_program =
+        nargo::ops::transform_program(compiled_program, compile_options.expression_width);
     let warnings = optimized_program.warnings.clone();
 
     Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
@@ -200,8 +199,6 @@ pub fn compile_contract(
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
     let compile_options = CompileOptions::default();
-    // For now we default to a bounded width of 4, though we can add it as a parameter
-    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 4 };
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
@@ -214,7 +211,8 @@ pub fn compile_contract(
             })?
             .0;
 
-    let optimized_contract = nargo::ops::transform_contract(compiled_contract, expression_width);
+    let optimized_contract =
+        nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
 
     let functions =
         optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
