@@ -33,6 +33,14 @@ describe('e2e_avm_simulator', () => {
       avmContract = await AvmTestContract.deploy(wallet).send().deployed();
     });
 
+    describe('Assertions', () => {
+      it('Processes assertions in the PXE', async () => {
+        await expect(avmContract.methods.assert_nullifier_exists(123).simulate()).rejects.toThrow(
+          "Assertion failed: Nullifier doesn't exist!",
+        );
+      });
+    });
+
     describe('Gas metering', () => {
       it('Tracks L2 gas usage on simulation', async () => {
         const request = await avmContract.methods.add_args_return(20n, 30n).create();

@@ -315,7 +315,7 @@ describe('External Calls', () => {
       expect(context.machineState.halted).toBe(true);
       expect(context.machineState.getResults()).toEqual({
         reverted: true,
-        revertReason: new Error('Reverted with output: assert message'),
+        revertReason: new Error('Assertion failed: assert message'),
         output: returnData.map(f => f.toFr()),
       });
     });

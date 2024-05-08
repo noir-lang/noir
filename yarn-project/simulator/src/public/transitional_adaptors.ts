@@ -1,8 +1,10 @@
 // All code in this file needs to die once the public executor is phased out in favor of the AVM.
-import { UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
+import { type SimulationError, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
+  type AztecAddress,
   CallContext,
   FunctionData,
+  type FunctionSelector,
   type Gas,
   type GasSettings,
   type GlobalVariables,
@@ -10,11 +12,12 @@ import {
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
+import { extractCallStack } from '../acvm/index.js';
 import { type AvmContext } from '../avm/avm_context.js';
 import { AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
 import { type AvmContractCallResults } from '../avm/avm_message_call_result.js';
 import { Mov } from '../avm/opcodes/memory.js';
-import { createSimulationError } from '../common/errors.js';
+import { ExecutionError, createSimulationError } from '../common/errors.js';
 import { type PublicExecution, type PublicExecutionResult } from './execution.js';
 
 /**
@@ -72,6 +75,29 @@ export function createPublicExecution(
   return execution;
 }
 
+export function processRevertReason(
+  revertReason: Error | undefined,
+  contractAddress: AztecAddress,
+  functionSelector: FunctionSelector,
+): SimulationError | undefined {
+  if (!revertReason) {
+    return undefined;
+  }
+  if (revertReason instanceof Error) {
+    const ee = new ExecutionError(
+      revertReason.message,
+      {
+        contractAddress,
+        functionSelector,
+      },
+      extractCallStack(revertReason),
+      { cause: revertReason },
+    );
+
+    return createSimulationError(ee);
+  }
+}
+
 export function convertAvmResultsToPxResult(
   avmResult: AvmContractCallResults,
   startSideEffectCounter: number,
@@ -81,6 +107,7 @@ export function convertAvmResultsToPxResult(
 ): PublicExecutionResult {
   const endPersistableState = endAvmContext.persistableState;
   const endMachineState = endAvmContext.machineState;
+
   return {
     ...endPersistableState.transitionalExecutionResult, // includes nestedExecutions
     execution: fromPx,
@@ -92,7 +119,11 @@ export function convertAvmResultsToPxResult(
       endPersistableState.transitionalExecutionResult.allUnencryptedLogs,
     ),
     reverted: avmResult.reverted,
-    revertReason: avmResult.revertReason ? createSimulationError(avmResult.revertReason) : undefined,
+    revertReason: processRevertReason(
+      avmResult.revertReason,
+      endAvmContext.environment.address,
+      fromPx.functionData.selector,
+    ),
     startGasLeft: startGas,
     endGasLeft: endMachineState.gasLeft,
     transactionFee: endAvmContext.environment.transactionFee,
