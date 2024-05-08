@@ -48,8 +48,10 @@ contract AppSubscription {
         note.remaining_txs -= 1;
         storage.subscriptions.at(user_address).replace(&mut note, true);
 
+        // docs:start:enqueue_public
         let gas_limit = storage.gas_token_limit_per_tx.read_private();
         GasToken::at(storage.gas_token_address.read_private()).pay_fee(gas_limit).enqueue(&mut context);
+        // docs:end:enqueue_public
 
         context.end_setup();
 

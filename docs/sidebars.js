@@ -584,7 +584,15 @@ const sidebars = {
       defaultStyle: true,
     },
     "misc/migration_notes",
-    "misc/glossary",
+    {
+      label: "Glossary",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "misc/glossary/main",
+      },
+      items: ["misc/glossary/call_types"],
+    },
     {
       label: "Roadmap",
       type: "category",

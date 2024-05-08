@@ -40,7 +40,9 @@ contract FPC {
     #[aztec(public)]
     #[aztec(internal)]
     fn pay_fee(refund_address: AztecAddress, amount: Field, asset: AztecAddress) {
+        // docs:start:public_call
         let refund = GasToken::at(storage.gas_token_address.read_public()).pay_fee(amount).call(&mut context);
+        // docs:end:public_call
         // Just do public refunds for the present
         Token::at(asset).transfer_public(context.this_address(), refund_address, refund, 0).call(&mut context);
     }
