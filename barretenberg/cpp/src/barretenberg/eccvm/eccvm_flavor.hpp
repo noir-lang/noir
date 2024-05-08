@@ -34,6 +34,7 @@ class ECCVMFlavor {
     using CommitmentKey = bb::CommitmentKey<Curve>;
     using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
     using RelationSeparator = FF;
+    using MSM = bb::eccvm::MSM<CycleGroup>;
 
     static constexpr size_t NUM_WIRES = 74;
 
@@ -358,6 +359,7 @@ class ECCVMFlavor {
         ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
         ~ProverPolynomials() = default;
         [[nodiscard]] size_t get_polynomial_size() const { return this->lagrange_first.size(); }
+
         /**
          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
          * represents one row in the execution trace.
@@ -460,33 +462,28 @@ class ECCVMFlavor {
          */
         ProverPolynomials(const CircuitBuilder& builder)
         {
-            const auto msms = builder.get_msms();
-            const auto flattened_muls = builder.get_flattened_scalar_muls(msms);
+            // compute rows for the three different sections of the ECCVM execution trace
+            const auto transcript_rows =
+                ECCVMTranscriptBuilder::compute_rows(builder.op_queue->get_raw_ops(), builder.get_number_of_muls());
+            const std::vector<MSM> msms = builder.get_msms();
+            const auto point_table_rows =
+                ECCVMPointTablePrecomputationBuilder::compute_rows(CircuitBuilder::get_flattened_scalar_muls(msms));
+            const auto [msm_rows, point_table_read_counts] = ECCVMMSMMBuilder::compute_rows(
+                msms, builder.get_number_of_muls(), builder.op_queue->get_num_msm_rows());
 
-            std::array<std::vector<size_t>, 2> point_table_read_counts;
-            const auto transcript_state = ECCVMTranscriptBuilder::compute_transcript_state(
-                builder.op_queue->get_raw_ops(), builder.get_number_of_muls());
-            const auto precompute_table_state = ECCVMPrecomputedTablesBuilder::compute_precompute_state(flattened_muls);
-            const auto msm_state = ECCVMMSMMBuilder::compute_msm_state(
-                msms, point_table_read_counts, builder.get_number_of_muls(), builder.op_queue->get_num_msm_rows());
+            const size_t num_rows = std::max({ point_table_rows.size(), msm_rows.size(), transcript_rows.size() });
+            const auto log_num_rows = static_cast<size_t>(numeric::get_msb64(num_rows));
+            const size_t dyadic_num_rows = 1UL << (log_num_rows + (1UL << log_num_rows == num_rows ? 0 : 1));
 
-            const size_t msm_size = msm_state.size();
-            const size_t transcript_size = transcript_state.size();
-            const size_t precompute_table_size = precompute_table_state.size();
-
-            const size_t num_rows = std::max(precompute_table_size, std::max(msm_size, transcript_size));
-
-            const auto num_rows_log2 = static_cast<size_t>(numeric::get_msb64(num_rows));
-            size_t num_rows_pow2 = 1UL << (num_rows_log2 + (1UL << num_rows_log2 == num_rows ? 0 : 1));
+            // allocate polynomials; define lagrange and lookup read count polynomials
             for (auto& poly : get_all()) {
-                poly = Polynomial(num_rows_pow2);
+                poly = Polynomial(dyadic_num_rows);
             }
             lagrange_first[0] = 1;
             lagrange_second[1] = 1;
             lagrange_last[lagrange_last.size() - 1] = 1;
-
             for (size_t i = 0; i < point_table_read_counts[0].size(); ++i) {
-                // Explanation of off-by-one offset
+                // Explanation of off-by-one offset:
                 // When computing the WNAF slice for a point at point counter value `pc` and a round index `round`, the
                 // row number that computes the slice can be derived. This row number is then mapped to the index of
                 // `lookup_read_counts`. We do this mapping in `ecc_msm_relation`. We are off-by-one because we add an
@@ -495,106 +492,109 @@ class ECCVMFlavor {
                 lookup_read_counts_0[i + 1] = point_table_read_counts[0][i];
                 lookup_read_counts_1[i + 1] = point_table_read_counts[1][i];
             }
-            run_loop_in_parallel(transcript_state.size(), [&](size_t start, size_t end) {
+
+            // compute polynomials for transcript columns
+            run_loop_in_parallel(transcript_rows.size(), [&](size_t start, size_t end) {
                 for (size_t i = start; i < end; i++) {
-                    transcript_accumulator_empty[i] = transcript_state[i].accumulator_empty;
-                    transcript_add[i] = transcript_state[i].q_add;
-                    transcript_mul[i] = transcript_state[i].q_mul;
-                    transcript_eq[i] = transcript_state[i].q_eq;
-                    transcript_reset_accumulator[i] = transcript_state[i].q_reset_accumulator;
-                    transcript_msm_transition[i] = transcript_state[i].msm_transition;
-                    transcript_pc[i] = transcript_state[i].pc;
-                    transcript_msm_count[i] = transcript_state[i].msm_count;
-                    transcript_Px[i] = transcript_state[i].base_x;
-                    transcript_Py[i] = transcript_state[i].base_y;
-                    transcript_z1[i] = transcript_state[i].z1;
-                    transcript_z2[i] = transcript_state[i].z2;
-                    transcript_z1zero[i] = transcript_state[i].z1_zero;
-                    transcript_z2zero[i] = transcript_state[i].z2_zero;
-                    transcript_op[i] = transcript_state[i].opcode;
-                    transcript_accumulator_x[i] = transcript_state[i].accumulator_x;
-                    transcript_accumulator_y[i] = transcript_state[i].accumulator_y;
-                    transcript_msm_x[i] = transcript_state[i].msm_output_x;
-                    transcript_msm_y[i] = transcript_state[i].msm_output_y;
-                    transcript_collision_check[i] = transcript_state[i].collision_check;
+                    transcript_accumulator_empty[i] = transcript_rows[i].accumulator_empty;
+                    transcript_add[i] = transcript_rows[i].q_add;
+                    transcript_mul[i] = transcript_rows[i].q_mul;
+                    transcript_eq[i] = transcript_rows[i].q_eq;
+                    transcript_reset_accumulator[i] = transcript_rows[i].q_reset_accumulator;
+                    transcript_msm_transition[i] = transcript_rows[i].msm_transition;
+                    transcript_pc[i] = transcript_rows[i].pc;
+                    transcript_msm_count[i] = transcript_rows[i].msm_count;
+                    transcript_Px[i] = transcript_rows[i].base_x;
+                    transcript_Py[i] = transcript_rows[i].base_y;
+                    transcript_z1[i] = transcript_rows[i].z1;
+                    transcript_z2[i] = transcript_rows[i].z2;
+                    transcript_z1zero[i] = transcript_rows[i].z1_zero;
+                    transcript_z2zero[i] = transcript_rows[i].z2_zero;
+                    transcript_op[i] = transcript_rows[i].opcode;
+                    transcript_accumulator_x[i] = transcript_rows[i].accumulator_x;
+                    transcript_accumulator_y[i] = transcript_rows[i].accumulator_y;
+                    transcript_msm_x[i] = transcript_rows[i].msm_output_x;
+                    transcript_msm_y[i] = transcript_rows[i].msm_output_y;
+                    transcript_collision_check[i] = transcript_rows[i].collision_check;
                 }
             });
 
             // TODO(@zac-williamson) if final opcode resets accumulator, all subsequent "is_accumulator_empty" row
             // values must be 1. Ideally we find a way to tweak this so that empty rows that do nothing have column
             // values that are all zero (issue #2217)
-            if (transcript_state[transcript_state.size() - 1].accumulator_empty == 1) {
-                for (size_t i = transcript_state.size(); i < num_rows_pow2; ++i) {
+            if (transcript_rows[transcript_rows.size() - 1].accumulator_empty) {
+                for (size_t i = transcript_rows.size(); i < dyadic_num_rows; ++i) {
                     transcript_accumulator_empty[i] = 1;
                 }
             }
-            run_loop_in_parallel(precompute_table_state.size(), [&](size_t start, size_t end) {
+
+            // compute polynomials for point table columns
+            run_loop_in_parallel(point_table_rows.size(), [&](size_t start, size_t end) {
                 for (size_t i = start; i < end; i++) {
                     // first row is always an empty row (to accommodate shifted polynomials which must have 0 as 1st
-                    // coefficient). All other rows in the precompute_table_state represent active wnaf gates (i.e.
+                    // coefficient). All other rows in the point_table_rows represent active wnaf gates (i.e.
                     // precompute_select = 1)
                     precompute_select[i] = (i != 0) ? 1 : 0;
-                    precompute_pc[i] = precompute_table_state[i].pc;
-                    precompute_point_transition[i] = static_cast<uint64_t>(precompute_table_state[i].point_transition);
-                    precompute_round[i] = precompute_table_state[i].round;
-                    precompute_scalar_sum[i] = precompute_table_state[i].scalar_sum;
-
-                    precompute_s1hi[i] = precompute_table_state[i].s1;
-                    precompute_s1lo[i] = precompute_table_state[i].s2;
-                    precompute_s2hi[i] = precompute_table_state[i].s3;
-                    precompute_s2lo[i] = precompute_table_state[i].s4;
-                    precompute_s3hi[i] = precompute_table_state[i].s5;
-                    precompute_s3lo[i] = precompute_table_state[i].s6;
-                    precompute_s4hi[i] = precompute_table_state[i].s7;
-                    precompute_s4lo[i] = precompute_table_state[i].s8;
+                    precompute_pc[i] = point_table_rows[i].pc;
+                    precompute_point_transition[i] = static_cast<uint64_t>(point_table_rows[i].point_transition);
+                    precompute_round[i] = point_table_rows[i].round;
+                    precompute_scalar_sum[i] = point_table_rows[i].scalar_sum;
+                    precompute_s1hi[i] = point_table_rows[i].s1;
+                    precompute_s1lo[i] = point_table_rows[i].s2;
+                    precompute_s2hi[i] = point_table_rows[i].s3;
+                    precompute_s2lo[i] = point_table_rows[i].s4;
+                    precompute_s3hi[i] = point_table_rows[i].s5;
+                    precompute_s3lo[i] = point_table_rows[i].s6;
+                    precompute_s4hi[i] = point_table_rows[i].s7;
+                    precompute_s4lo[i] = point_table_rows[i].s8;
                     // If skew is active (i.e. we need to subtract a base point from the msm result),
                     // write `7` into rows.precompute_skew. `7`, in binary representation, equals `-1` when converted
                     // into WNAF form
-                    precompute_skew[i] = precompute_table_state[i].skew ? 7 : 0;
-
-                    precompute_dx[i] = precompute_table_state[i].precompute_double.x;
-                    precompute_dy[i] = precompute_table_state[i].precompute_double.y;
-                    precompute_tx[i] = precompute_table_state[i].precompute_accumulator.x;
-                    precompute_ty[i] = precompute_table_state[i].precompute_accumulator.y;
+                    precompute_skew[i] = point_table_rows[i].skew ? 7 : 0;
+                    precompute_dx[i] = point_table_rows[i].precompute_double.x;
+                    precompute_dy[i] = point_table_rows[i].precompute_double.y;
+                    precompute_tx[i] = point_table_rows[i].precompute_accumulator.x;
+                    precompute_ty[i] = point_table_rows[i].precompute_accumulator.y;
                 }
             });
 
-            run_loop_in_parallel(msm_state.size(), [&](size_t start, size_t end) {
+            // compute polynomials for the msm columns
+            run_loop_in_parallel(msm_rows.size(), [&](size_t start, size_t end) {
                 for (size_t i = start; i < end; i++) {
-                    msm_transition[i] = static_cast<int>(msm_state[i].msm_transition);
-                    msm_add[i] = static_cast<int>(msm_state[i].q_add);
-                    msm_double[i] = static_cast<int>(msm_state[i].q_double);
-                    msm_skew[i] = static_cast<int>(msm_state[i].q_skew);
-                    msm_accumulator_x[i] = msm_state[i].accumulator_x;
-                    msm_accumulator_y[i] = msm_state[i].accumulator_y;
-                    msm_pc[i] = msm_state[i].pc;
-                    msm_size_of_msm[i] = msm_state[i].msm_size;
-                    msm_count[i] = msm_state[i].msm_count;
-                    msm_round[i] = msm_state[i].msm_round;
-                    msm_add1[i] = static_cast<int>(msm_state[i].add_state[0].add);
-                    msm_add2[i] = static_cast<int>(msm_state[i].add_state[1].add);
-                    msm_add3[i] = static_cast<int>(msm_state[i].add_state[2].add);
-                    msm_add4[i] = static_cast<int>(msm_state[i].add_state[3].add);
-                    msm_x1[i] = msm_state[i].add_state[0].point.x;
-                    msm_y1[i] = msm_state[i].add_state[0].point.y;
-                    msm_x2[i] = msm_state[i].add_state[1].point.x;
-                    msm_y2[i] = msm_state[i].add_state[1].point.y;
-                    msm_x3[i] = msm_state[i].add_state[2].point.x;
-                    msm_y3[i] = msm_state[i].add_state[2].point.y;
-                    msm_x4[i] = msm_state[i].add_state[3].point.x;
-                    msm_y4[i] = msm_state[i].add_state[3].point.y;
-                    msm_collision_x1[i] = msm_state[i].add_state[0].collision_inverse;
-                    msm_collision_x2[i] = msm_state[i].add_state[1].collision_inverse;
-                    msm_collision_x3[i] = msm_state[i].add_state[2].collision_inverse;
-                    msm_collision_x4[i] = msm_state[i].add_state[3].collision_inverse;
-                    msm_lambda1[i] = msm_state[i].add_state[0].lambda;
-                    msm_lambda2[i] = msm_state[i].add_state[1].lambda;
-                    msm_lambda3[i] = msm_state[i].add_state[2].lambda;
-                    msm_lambda4[i] = msm_state[i].add_state[3].lambda;
-                    msm_slice1[i] = msm_state[i].add_state[0].slice;
-                    msm_slice2[i] = msm_state[i].add_state[1].slice;
-                    msm_slice3[i] = msm_state[i].add_state[2].slice;
-                    msm_slice4[i] = msm_state[i].add_state[3].slice;
+                    msm_transition[i] = static_cast<int>(msm_rows[i].msm_transition);
+                    msm_add[i] = static_cast<int>(msm_rows[i].q_add);
+                    msm_double[i] = static_cast<int>(msm_rows[i].q_double);
+                    msm_skew[i] = static_cast<int>(msm_rows[i].q_skew);
+                    msm_accumulator_x[i] = msm_rows[i].accumulator_x;
+                    msm_accumulator_y[i] = msm_rows[i].accumulator_y;
+                    msm_pc[i] = msm_rows[i].pc;
+                    msm_size_of_msm[i] = msm_rows[i].msm_size;
+                    msm_count[i] = msm_rows[i].msm_count;
+                    msm_round[i] = msm_rows[i].msm_round;
+                    msm_add1[i] = static_cast<int>(msm_rows[i].add_state[0].add);
+                    msm_add2[i] = static_cast<int>(msm_rows[i].add_state[1].add);
+                    msm_add3[i] = static_cast<int>(msm_rows[i].add_state[2].add);
+                    msm_add4[i] = static_cast<int>(msm_rows[i].add_state[3].add);
+                    msm_x1[i] = msm_rows[i].add_state[0].point.x;
+                    msm_y1[i] = msm_rows[i].add_state[0].point.y;
+                    msm_x2[i] = msm_rows[i].add_state[1].point.x;
+                    msm_y2[i] = msm_rows[i].add_state[1].point.y;
+                    msm_x3[i] = msm_rows[i].add_state[2].point.x;
+                    msm_y3[i] = msm_rows[i].add_state[2].point.y;
+                    msm_x4[i] = msm_rows[i].add_state[3].point.x;
+                    msm_y4[i] = msm_rows[i].add_state[3].point.y;
+                    msm_collision_x1[i] = msm_rows[i].add_state[0].collision_inverse;
+                    msm_collision_x2[i] = msm_rows[i].add_state[1].collision_inverse;
+                    msm_collision_x3[i] = msm_rows[i].add_state[2].collision_inverse;
+                    msm_collision_x4[i] = msm_rows[i].add_state[3].collision_inverse;
+                    msm_lambda1[i] = msm_rows[i].add_state[0].lambda;
+                    msm_lambda2[i] = msm_rows[i].add_state[1].lambda;
+                    msm_lambda3[i] = msm_rows[i].add_state[2].lambda;
+                    msm_lambda4[i] = msm_rows[i].add_state[3].lambda;
+                    msm_slice1[i] = msm_rows[i].add_state[0].slice;
+                    msm_slice2[i] = msm_rows[i].add_state[1].slice;
+                    msm_slice3[i] = msm_rows[i].add_state[2].slice;
+                    msm_slice4[i] = msm_rows[i].add_state[3].slice;
                 }
             });
             this->set_shifted();

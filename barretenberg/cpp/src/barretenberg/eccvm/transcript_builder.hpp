@@ -11,7 +11,7 @@ class ECCVMTranscriptBuilder {
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
 
-    struct TranscriptState {
+    struct TranscriptRow {
         bool accumulator_empty = false;
         bool q_add = false;
         bool q_mul = false;
@@ -57,12 +57,12 @@ class ECCVMTranscriptBuilder {
             return res;
         }
     };
-    static std::vector<TranscriptState> compute_transcript_state(
-        const std::vector<bb::eccvm::VMOperation<CycleGroup>>& vm_operations, const uint32_t total_number_of_muls)
+    static std::vector<TranscriptRow> compute_rows(const std::vector<bb::eccvm::VMOperation<CycleGroup>>& vm_operations,
+                                                   const uint32_t total_number_of_muls)
     {
         const size_t num_transcript_entries = vm_operations.size() + 2;
 
-        std::vector<TranscriptState> transcript_state(num_transcript_entries);
+        std::vector<TranscriptRow> transcript_state(num_transcript_entries);
         std::vector<FF> inverse_trace(num_transcript_entries - 2);
         VMState state{
             .pc = total_number_of_muls,
@@ -73,9 +73,9 @@ class ECCVMTranscriptBuilder {
         };
         VMState updated_state;
         // add an empty row. 1st row all zeroes because of our shiftable polynomials
-        transcript_state[0] = (TranscriptState{});
+        transcript_state[0] = (TranscriptRow{});
         for (size_t i = 0; i < vm_operations.size(); ++i) {
-            TranscriptState& row = transcript_state[i + 1];
+            TranscriptRow& row = transcript_state[i + 1];
             const bb::eccvm::VMOperation<CycleGroup>& entry = vm_operations[i];
 
             const bool is_mul = entry.mul;
@@ -180,7 +180,7 @@ class ECCVMTranscriptBuilder {
         for (size_t i = 0; i < inverse_trace.size(); ++i) {
             transcript_state[i + 1].collision_check = inverse_trace[i];
         }
-        TranscriptState& final_row = transcript_state.back();
+        TranscriptRow& final_row = transcript_state.back();
         final_row.pc = updated_state.pc;
         final_row.accumulator_x = (updated_state.accumulator.is_point_at_infinity()) ? 0 : updated_state.accumulator.x;
         final_row.accumulator_y = (updated_state.accumulator.is_point_at_infinity()) ? 0 : updated_state.accumulator.y;

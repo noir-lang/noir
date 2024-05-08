@@ -261,18 +261,19 @@ class ECCOpQueue {
     }
 
     /**
-     * @brief Get the number of rows in the 'msm' column section o the ECCVM, associated with a single multiscalar mul
+     * @brief Get the number of rows in the 'msm' column section of the ECCVM associated with a single multiscalar
+     * multiplication.
      *
-     * @param msm_count
+     * @param msm_size
      * @return uint32_t
      */
-    static uint32_t get_msm_row_count_for_single_msm(const size_t msm_count)
+    static uint32_t num_eccvm_msm_rows(const size_t msm_size)
     {
-        const size_t rows_per_round =
-            (msm_count / eccvm::ADDITIONS_PER_ROW) + (msm_count % eccvm::ADDITIONS_PER_ROW != 0 ? 1 : 0);
-        constexpr size_t num_rounds = eccvm::NUM_SCALAR_BITS / eccvm::WNAF_SLICE_BITS;
-        const size_t num_rows_for_all_rounds = (num_rounds + 1) * rows_per_round; // + 1 round for skew
-        const size_t num_double_rounds = num_rounds - 1;
+        const size_t rows_per_wnaf_digit =
+            (msm_size / eccvm::ADDITIONS_PER_ROW) + ((msm_size % eccvm::ADDITIONS_PER_ROW != 0) ? 1 : 0);
+        const size_t num_rows_for_all_rounds =
+            (eccvm::NUM_WNAF_DIGITS_PER_SCALAR + 1) * rows_per_wnaf_digit; // + 1 round for skew
+        const size_t num_double_rounds = eccvm::NUM_WNAF_DIGITS_PER_SCALAR - 1;
         const size_t num_rows_for_msm = num_rows_for_all_rounds + num_double_rounds;
 
         return static_cast<uint32_t>(num_rows_for_msm);
@@ -287,7 +288,7 @@ class ECCOpQueue {
     {
         size_t msm_rows = num_msm_rows + 2;
         if (cached_active_msm_count > 0) {
-            msm_rows += get_msm_row_count_for_single_msm(cached_active_msm_count);
+            msm_rows += num_eccvm_msm_rows(cached_active_msm_count);
         }
         return msm_rows;
     }
@@ -305,7 +306,7 @@ class ECCOpQueue {
         // add 1 row to start of precompute table section
         size_t precompute_rows = num_precompute_table_rows + 1;
         if (cached_active_msm_count > 0) {
-            msm_rows += get_msm_row_count_for_single_msm(cached_active_msm_count);
+            msm_rows += num_eccvm_msm_rows(cached_active_msm_count);
             precompute_rows += get_precompute_table_row_count_for_single_msm(cached_active_msm_count);
         }
 
@@ -323,7 +324,7 @@ class ECCOpQueue {
         accumulator = accumulator + to_add;
 
         // Construct and store the operation in the ultra op format
-        auto ultra_op = construct_and_populate_ultra_ops(ADD_ACCUM, to_add);
+        UltraOp ultra_op = construct_and_populate_ultra_ops(ADD_ACCUM, to_add);
 
         // Store the raw operation
         raw_ops.emplace_back(ECCVMOperation{
@@ -353,7 +354,7 @@ class ECCOpQueue {
         accumulator = accumulator + to_mul * scalar;
 
         // Construct and store the operation in the ultra op format
-        auto ultra_op = construct_and_populate_ultra_ops(MUL_ACCUM, to_mul, scalar);
+        UltraOp ultra_op = construct_and_populate_ultra_ops(MUL_ACCUM, to_mul, scalar);
 
         // Store the raw operation
         raw_ops.emplace_back(ECCVMOperation{
@@ -383,7 +384,7 @@ class ECCOpQueue {
         accumulator.self_set_infinity();
 
         // Construct and store the operation in the ultra op format
-        auto ultra_op = construct_and_populate_ultra_ops(EQUALITY, expected);
+        UltraOp ultra_op = construct_and_populate_ultra_ops(EQUALITY, expected);
 
         // Store raw operation
         raw_ops.emplace_back(ECCVMOperation{
@@ -404,7 +405,9 @@ class ECCOpQueue {
 
   private:
     /**
-     * @brief when inserting operations, update the number of multiplications in the latest scalar mul
+     * @brief Update cached_active_msm_count or update other row counts and reset cached_active_msm_count.
+     * @details To the OpQueue, an MSM is a sequence of successive mul opcodes (note that mul might better be called
+     * mul_add--its effect on the accumulator is += scalar * point).
      *
      * @param op
      */
@@ -418,7 +421,7 @@ class ECCOpQueue {
                 cached_active_msm_count++;
             }
         } else if (cached_active_msm_count != 0) {
-            num_msm_rows += get_msm_row_count_for_single_msm(cached_active_msm_count);
+            num_msm_rows += num_eccvm_msm_rows(cached_active_msm_count);
             num_precompute_table_rows += get_precompute_table_row_count_for_single_msm(cached_active_msm_count);
             cached_num_muls += cached_active_msm_count;
             cached_active_msm_count = 0;
@@ -433,7 +436,8 @@ class ECCOpQueue {
      */
     static uint32_t get_precompute_table_row_count_for_single_msm(const size_t msm_count)
     {
-        constexpr size_t num_precompute_rows_per_scalar = eccvm::NUM_WNAF_SLICES / eccvm::WNAF_SLICES_PER_ROW;
+        constexpr size_t num_precompute_rows_per_scalar =
+            eccvm::NUM_WNAF_DIGITS_PER_SCALAR / eccvm::WNAF_DIGITS_PER_ROW;
         const size_t num_rows_for_precompute_table = msm_count * num_precompute_rows_per_scalar;
         return static_cast<uint32_t>(num_rows_for_precompute_table);
     }
