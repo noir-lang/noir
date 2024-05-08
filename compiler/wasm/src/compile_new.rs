@@ -166,7 +166,7 @@ pub fn compile_program_(
 
     let compiler_context =
         prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
-    let program_width = 3;
+    let program_width = 4;
 
     compiler_context.compile_program(program_width)
 }
@@ -183,7 +183,7 @@ pub fn compile_contract_(
 
     let compiler_context =
         prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
-    let program_width = 3;
+    let program_width = 4;
 
     compiler_context.compile_contract(program_width)
 }

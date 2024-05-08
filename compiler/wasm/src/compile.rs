@@ -1,3 +1,4 @@
+use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
@@ -169,7 +170,10 @@ pub fn compile_program(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let compile_options = CompileOptions::default();
+    let compile_options = CompileOptions {
+        expression_width: ExpressionWidth::Bounded { width: 4 },
+        ..CompileOptions::default()
+    };
 
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
@@ -198,7 +202,10 @@ pub fn compile_contract(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let compile_options = CompileOptions::default();
+    let compile_options = CompileOptions {
+        expression_width: ExpressionWidth::Bounded { width: 4 },
+        ..CompileOptions::default()
+    };
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
