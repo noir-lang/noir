@@ -81,8 +81,8 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            &[], // No macro processors
             false,
+            &[], // No macro processors
         ));
     }
     (program, context, errors)
