@@ -13,6 +13,7 @@ struct PrivateCallData {
 
     private_call_stack: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
+    public_teardown_call_request: CallRequest,
 
     proof: RecursiveProof,
     vk: VerificationKey,

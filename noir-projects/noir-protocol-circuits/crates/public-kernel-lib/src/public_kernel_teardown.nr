@@ -14,8 +14,8 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         // Currently the nested calls will be pushed to the public call stack and need_setup will return true.
         // This should not be the case when nested calls are handled in avm.
         // But we should also consider merging this and the setup circuit and have one circuit that deals with non-revertibles.
-        // let needs_setup = self.previous_kernel.public_inputs.needs_setup();
-        // assert(needs_setup == false, "Cannot run teardown circuit before setup circuit");
+        let needs_setup = self.previous_kernel.public_inputs.needs_setup();
+        assert(needs_setup == false, "Cannot run teardown circuit before setup circuit");
         let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic();
         assert(needs_app_logic == false, "Cannot run teardown circuit before app logic circuit");
         let needs_teardown = self.previous_kernel.public_inputs.needs_teardown();
@@ -88,7 +88,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         self.validate_inputs();
 
         // Pops the item from the call stack and validates it against the current execution.
-        let call_request = public_inputs.end_non_revertible.public_call_stack.pop();
+        let call_request = public_inputs.public_teardown_call_stack.pop();
         common::validate_call_against_request(self.public_call, call_request);
 
         self.validate_start_gas();
@@ -96,6 +96,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
         common::update_validation_requests(self.public_call, &mut public_inputs);
 
+        common::update_teardown_call_stack(self.public_call, &mut public_inputs);
         common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
 
         public_inputs.finish()
@@ -163,7 +164,7 @@ mod tests {
             // Adjust the call stack item hash for the current call in the previous iteration.
             let hash = public_call.call_stack_item.hash();
             let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.push_public_call_request(hash, is_delegate_call);
+            self.previous_kernel.set_public_teardown_call_request(hash, is_delegate_call);
             let mut previous_kernel = self.previous_kernel.to_public_kernel_data(false);
             previous_kernel.public_inputs.end = self.previous_revertible.to_public_accumulated_data();
 
@@ -220,7 +221,7 @@ mod tests {
 
         let hash = public_call.call_stack_item.hash();
         // Tweak the call stack item hash.
-        builder.previous_kernel.push_public_call_request(hash + 1, false);
+        builder.previous_kernel.set_public_teardown_call_request(hash + 1, false);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
@@ -262,7 +263,7 @@ mod tests {
         let hash = public_call.call_stack_item.hash();
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
-        builder.previous_kernel.push_public_call_request(hash, is_delegate_call);
+        builder.previous_kernel.set_public_teardown_call_request(hash, is_delegate_call);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };

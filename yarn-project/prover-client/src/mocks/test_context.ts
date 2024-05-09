@@ -134,14 +134,16 @@ export class TestContext {
       _sideEffectCounter?: number,
     ) => {
       for (const tx of txs) {
-        for (const request of tx.enqueuedPublicFunctionCalls) {
+        const allCalls = tx.publicTeardownFunctionCall.isEmpty()
+          ? tx.enqueuedPublicFunctionCalls
+          : [...tx.enqueuedPublicFunctionCalls, tx.publicTeardownFunctionCall];
+        for (const request of allCalls) {
           if (execution.contractAddress.equals(request.contractAddress)) {
             const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build({
               startGasLeft: availableGas,
               endGasLeft: availableGas,
               transactionFee,
             });
-            // result.unencryptedLogs = tx.unencryptedLogs.functionLogs[0];
             return Promise.resolve(result);
           }
         }

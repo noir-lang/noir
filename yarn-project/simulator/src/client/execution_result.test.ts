@@ -1,4 +1,4 @@
-import { PrivateCallStackItem } from '@aztec/circuits.js';
+import { PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
 
 import {
   type ExecutionResult,
@@ -18,6 +18,7 @@ function emptyExecutionResult(): ExecutionResult {
     returnValues: [],
     nestedExecutions: [],
     enqueuedPublicFunctionCalls: [],
+    publicTeardownFunctionCall: PublicCallRequest.empty(),
     encryptedLogs: [],
     unencryptedLogs: [],
   };

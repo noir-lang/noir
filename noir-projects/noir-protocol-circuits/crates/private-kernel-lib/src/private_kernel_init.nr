@@ -81,7 +81,8 @@ impl PrivateKernelInitCircuitPrivateInputs {
             private_call_public_inputs,
             self.hints.note_hash_nullifier_counters,
             self.private_call.private_call_stack,
-            self.private_call.public_call_stack
+            self.private_call.public_call_stack,
+            self.private_call.public_teardown_call_request
         ).finish()
     }
 }

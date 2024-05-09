@@ -438,6 +438,25 @@ export class Oracle {
     return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
   }
 
+  async setPublicTeardownFunctionCall(
+    [contractAddress]: ACVMField[],
+    [functionSelector]: ACVMField[],
+    [argsHash]: ACVMField[],
+    [sideEffectCounter]: ACVMField[],
+    [isStaticCall]: ACVMField[],
+    [isDelegateCall]: ACVMField[],
+  ) {
+    const teardownRequest = await this.typedOracle.setPublicTeardownFunctionCall(
+      AztecAddress.fromString(contractAddress),
+      FunctionSelector.fromField(fromACVMField(functionSelector)),
+      fromACVMField(argsHash),
+      frToNumber(fromACVMField(sideEffectCounter)),
+      frToBoolean(fromACVMField(isStaticCall)),
+      frToBoolean(fromACVMField(isDelegateCall)),
+    );
+    return toAcvmEnqueuePublicFunctionResult(teardownRequest);
+  }
+
   aes128Encrypt(input: ACVMField[], initializationVector: ACVMField[], key: ACVMField[]): ACVMField[] {
     // Convert each field to a number and then to a buffer (1 byte is stored in 1 field)
     const processedInput = Buffer.from(input.map(fromACVMField).map(f => f.toNumber()));

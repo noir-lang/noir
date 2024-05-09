@@ -853,6 +853,17 @@ describe('Private Execution test suite', () => {
     });
   });
 
+  describe('setting teardown function', () => {
+    it('should be able to set a teardown function', async () => {
+      const entrypoint = getFunctionArtifact(TestContractArtifact, 'test_setting_teardown');
+      const teardown = getFunctionArtifact(TestContractArtifact, 'dummy_public_call');
+      oracle.getFunctionArtifact.mockImplementation(() => Promise.resolve({ ...teardown }));
+      const result = await runSimulator({ artifact: entrypoint });
+      expect(result.publicTeardownFunctionCall.isEmpty()).toBeFalsy();
+      expect(result.publicTeardownFunctionCall.functionData).toEqual(FunctionData.fromAbi(teardown));
+    });
+  });
+
   describe('pending note hashes contract', () => {
     beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {

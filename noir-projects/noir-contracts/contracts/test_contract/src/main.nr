@@ -191,6 +191,15 @@ contract Test {
         args.hash()
     }
 
+    #[aztec(private)]
+    fn test_setting_teardown() {
+        context.set_public_teardown_function(
+            context.this_address(),
+            FunctionSelector::from_signature("dummy_public_call()"),
+            []
+        );
+    }
+
     // Purely exists for testing
     #[aztec(public)]
     fn create_l2_to_l1_message_public(amount: Field, secret_hash: Field, portal_address: EthAddress) {

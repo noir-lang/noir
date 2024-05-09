@@ -77,6 +77,9 @@ export class KernelProver {
         result.callStackItem.toCallRequest(currentExecution.callStackItem.publicInputs.callContext),
       );
       const publicCallRequests = currentExecution.enqueuedPublicFunctionCalls.map(result => result.toCallRequest());
+      const publicTeardownCallRequest = currentExecution.publicTeardownFunctionCall.isEmpty()
+        ? CallRequest.empty()
+        : currentExecution.publicTeardownFunctionCall.toCallRequest();
 
       const proofOutput = await this.proofCreator.createAppCircuitProof(
         currentExecution.partialWitness,
@@ -87,6 +90,7 @@ export class KernelProver {
         currentExecution,
         privateCallRequests,
         publicCallRequests,
+        publicTeardownCallRequest,
         proofOutput.proof,
         proofOutput.verificationKey,
       );
@@ -143,6 +147,7 @@ export class KernelProver {
     { callStackItem }: ExecutionResult,
     privateCallRequests: CallRequest[],
     publicCallRequests: CallRequest[],
+    publicTeardownCallRequest: CallRequest,
     proof: RecursiveProof<typeof RECURSIVE_PROOF_LENGTH>,
     vk: VerificationKeyAsFields,
   ) {
@@ -174,6 +179,7 @@ export class KernelProver {
       callStackItem,
       privateCallStack,
       publicCallStack,
+      publicTeardownCallRequest,
       proof,
       vk,
       publicKeysHash,

@@ -7,11 +7,7 @@ import { type ContractDataSource } from '@aztec/types/contracts';
 export class PhasesTxValidator implements TxValidator<Tx> {
   #log = createDebugLogger('aztec:sequencer:tx_validator:tx_phases');
 
-  constructor(
-    private contractDataSource: ContractDataSource,
-    private setupAllowList: AllowedFunction[],
-    private teardownAllowList: AllowedFunction[],
-  ) {}
+  constructor(private contractDataSource: ContractDataSource, private setupAllowList: AllowedFunction[]) {}
 
   async validateTxs(txs: Tx[]): Promise<[validTxs: Tx[], invalidTxs: Tx[]]> {
     const validTxs: Tx[] = [];
@@ -34,8 +30,7 @@ export class PhasesTxValidator implements TxValidator<Tx> {
       return true;
     }
 
-    const { [PublicKernelPhase.SETUP]: setupFns, [PublicKernelPhase.TEARDOWN]: teardownFns } =
-      AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx.data, tx.enqueuedPublicFunctionCalls);
+    const { [PublicKernelPhase.SETUP]: setupFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx);
 
     for (const setupFn of setupFns) {
       if (!(await this.isOnAllowList(setupFn, this.setupAllowList))) {
@@ -49,22 +44,14 @@ export class PhasesTxValidator implements TxValidator<Tx> {
       }
     }
 
-    for (const teardownFn of teardownFns) {
-      if (!(await this.isOnAllowList(teardownFn, this.teardownAllowList))) {
-        this.#log.warn(
-          `Rejecting tx ${Tx.getHash(tx)} because it calls teardown function not on allowlist: ${
-            teardownFn.contractAddress
-          }:${teardownFn.functionData.selector}`,
-        );
-
-        return false;
-      }
-    }
-
     return true;
   }
 
   async isOnAllowList(publicCall: PublicCallRequest, allowList: AllowedFunction[]): Promise<boolean> {
+    if (publicCall.isEmpty()) {
+      return true;
+    }
+
     const {
       contractAddress,
       functionData: { selector },

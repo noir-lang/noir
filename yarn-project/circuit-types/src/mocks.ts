@@ -89,7 +89,10 @@ export const mockTx = (
         : CallRequest.empty(),
     );
 
-    data.forPublic.publicTeardownCallRequest = publicTeardownCallRequest.toCallRequest();
+    data.forPublic.publicTeardownCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, () => CallRequest.empty());
+    data.forPublic.publicTeardownCallStack[0] = publicTeardownCallRequest.isEmpty()
+      ? CallRequest.empty()
+      : publicTeardownCallRequest.toCallRequest();
 
     if (hasLogs) {
       let i = 1; // 0 used in first nullifier

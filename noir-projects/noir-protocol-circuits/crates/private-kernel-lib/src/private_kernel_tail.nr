@@ -10,7 +10,7 @@ use dep::types::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length
+    grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length, traits::is_empty
 };
 
 // Can just be KernelCircuitPublicInputs.
@@ -46,6 +46,9 @@ impl PrivateKernelTailCircuitPrivateInputs {
         let previous_public_inputs = self.previous_kernel.public_inputs;
         assert_eq(
             array_length(previous_public_inputs.end.public_call_stack), 0, "Public call stack must be empty when executing the tail circuit"
+        );
+        assert(
+            is_empty(previous_public_inputs.public_teardown_call_request) == true, "Public teardown call request must be empty when executing the tail circuit"
         );
 
         // verify/aggregate the previous kernel
@@ -568,6 +571,13 @@ mod tests {
     unconstrained fn non_empty_public_call_stack_should_fail() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
         builder.previous_kernel.push_public_call_request(1, false);
+        builder.failed();
+    }
+
+    #[test(should_fail_with="Public teardown call request must be empty when executing the tail circuit")]
+    unconstrained fn non_empty_public_teardown_call_request_should_fail() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+        builder.previous_kernel.set_public_teardown_call_request(1, false);
         builder.failed();
     }
 

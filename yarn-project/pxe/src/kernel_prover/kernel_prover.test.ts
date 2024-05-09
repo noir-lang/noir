@@ -11,6 +11,7 @@ import {
   PrivateCircuitPublicInputs,
   PrivateKernelCircuitPublicInputs,
   PrivateKernelTailCircuitPublicInputs,
+  PublicCallRequest,
   RECURSIVE_PROOF_LENGTH,
   ScopedNoteHash,
   type TxRequest,
@@ -76,6 +77,7 @@ describe('Kernel Prover', () => {
       acir: Buffer.alloc(0),
       partialWitness: new Map(),
       enqueuedPublicFunctionCalls: [],
+      publicTeardownFunctionCall: PublicCallRequest.empty(),
       encryptedLogs: [],
       unencryptedLogs: [],
     };

@@ -9,7 +9,8 @@ use crate::{
     gas::Gas, validation_requests::validation_requests_builder::ValidationRequestsBuilder,
     call_request::CallRequest
 },
-    mocked::AggregationObject, partial_state_reference::PartialStateReference, traits::Empty
+    constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, mocked::AggregationObject,
+    partial_state_reference::PartialStateReference, traits::{Empty, is_empty}
 };
 
 // Builds:
@@ -51,6 +52,10 @@ impl PrivateKernelCircuitPublicInputsBuilder {
         min_revertible_side_effect_counter: u32
     ) -> PublicKernelCircuitPublicInputs {
         let (end_non_revertible, end) = self.end.split_to_public(min_revertible_side_effect_counter, teardown_gas);
+        let mut public_teardown_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> = BoundedVec::new();
+        if (!is_empty(self.public_teardown_call_request)) {
+            public_teardown_call_stack.push(self.public_teardown_call_request);
+        }
 
         PublicKernelCircuitPublicInputs {
             validation_requests: self.validation_requests.finish(),
@@ -58,7 +63,7 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             end,
             constants: self.constants,
             revert_code: 0,
-            public_teardown_call_request: self.public_teardown_call_request
+            public_teardown_call_stack: public_teardown_call_stack.storage
         }
     }
 }

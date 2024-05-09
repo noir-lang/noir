@@ -1,7 +1,9 @@
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { makeTuple } from '@aztec/foundation/array';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
+import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { CallRequest } from '../call_request.js';
 import { RevertCode } from '../revert_code.js';
@@ -42,7 +44,7 @@ export class PublicKernelCircuitPublicInputs {
     /**
      * The call request for the public teardown function
      */
-    public publicTeardownCallRequest: CallRequest,
+    public publicTeardownCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
   ) {}
 
   toBuffer() {
@@ -53,7 +55,7 @@ export class PublicKernelCircuitPublicInputs {
       this.end,
       this.constants,
       this.revertCode,
-      this.publicTeardownCallRequest,
+      this.publicTeardownCallStack,
     );
   }
 
@@ -66,7 +68,7 @@ export class PublicKernelCircuitPublicInputs {
   }
 
   get needsSetup() {
-    return !this.endNonRevertibleData.publicCallStack[1].isEmpty();
+    return !this.endNonRevertibleData.publicCallStack[0].isEmpty();
   }
 
   get needsAppLogic() {
@@ -74,7 +76,7 @@ export class PublicKernelCircuitPublicInputs {
   }
 
   get needsTeardown() {
-    return !this.endNonRevertibleData.publicCallStack[0].isEmpty();
+    return !this.publicTeardownCallStack[0].isEmpty();
   }
 
   /**
@@ -91,7 +93,7 @@ export class PublicKernelCircuitPublicInputs {
       reader.readObject(PublicAccumulatedData),
       reader.readObject(CombinedConstantData),
       reader.readObject(RevertCode),
-      reader.readObject(CallRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
     );
   }
 
@@ -103,7 +105,7 @@ export class PublicKernelCircuitPublicInputs {
       PublicAccumulatedData.empty(),
       CombinedConstantData.empty(),
       RevertCode.OK,
-      CallRequest.empty(),
+      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
     );
   }
 
@@ -115,7 +117,7 @@ export class PublicKernelCircuitPublicInputs {
       end: ${inspect(this.end)},
       constants: ${inspect(this.constants)},
       revertCode: ${this.revertCode},
-      publicTeardownCallRequest: ${inspect(this.publicTeardownCallRequest)}
+      publicTeardownCallStack: ${inspect(this.publicTeardownCallStack)}
       }`;
   }
 }

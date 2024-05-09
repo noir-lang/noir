@@ -18,15 +18,11 @@ export class TxValidatorFactory {
     private gasPortalAddress: EthAddress,
   ) {}
 
-  validatorForNewTxs(
-    globalVariables: GlobalVariables,
-    setupAllowList: AllowedFunction[],
-    teardownAllowList: AllowedFunction[],
-  ): TxValidator<Tx> {
+  validatorForNewTxs(globalVariables: GlobalVariables, setupAllowList: AllowedFunction[]): TxValidator<Tx> {
     return new AggregateTxValidator(
       new MetadataTxValidator(globalVariables),
       new DoubleSpendTxValidator(new WorldStateDB(this.merkleTreeDb)),
-      new PhasesTxValidator(this.contractDataSource, setupAllowList, teardownAllowList),
+      new PhasesTxValidator(this.contractDataSource, setupAllowList),
       new GasTxValidator(new WorldStatePublicDB(this.merkleTreeDb), getCanonicalGasTokenAddress(this.gasPortalAddress)),
     );
   }

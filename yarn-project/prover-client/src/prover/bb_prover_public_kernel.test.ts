@@ -1,5 +1,6 @@
 import { PublicKernelType, mockTx } from '@aztec/circuit-types';
 import { type Proof, makeEmptyProof } from '@aztec/circuits.js';
+import { makePublicCallRequest } from '@aztec/circuits.js/testing';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type ServerProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
 
@@ -29,9 +30,11 @@ describe('prover/bb_prover/public-kernel', () => {
   });
 
   it('proves the public kernel circuits', async () => {
+    const teardown = makePublicCallRequest();
     const tx = mockTx(1000, {
-      numberOfNonRevertiblePublicCallRequests: 2,
+      numberOfNonRevertiblePublicCallRequests: 1,
       numberOfRevertiblePublicCallRequests: 1,
+      publicTeardownCallRequest: teardown,
     });
     tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
 

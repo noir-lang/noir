@@ -144,9 +144,12 @@ test:
 
 run-e2e:
     ARG test
+    ARG debug=""
     FROM +end-to-end
-    RUN DEBUG=aztec:* yarn test $test
+    RUN DEBUG=$debug yarn test $test
 
 prover-client-test:
     FROM +build
-    RUN cd prover-client && yarn test
+    ARG test
+    ARG debug=""
+    RUN cd prover-client && DEBUG=$debug yarn test $test

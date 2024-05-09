@@ -84,6 +84,7 @@ export class Sequencer {
     if (config.allowedFunctionsInSetup) {
       this.allowedFunctionsInSetup = config.allowedFunctionsInSetup;
     }
+    // TODO(#5917) remove this. it is no longer needed since we don't need to whitelist functions in teardown
     if (config.allowedFunctionsInTeardown) {
       this.allowedFunctionsInTeardown = config.allowedFunctionsInTeardown;
     }
@@ -187,11 +188,7 @@ export class Sequencer {
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const validTxs = await this.takeValidTxs(
         pendingTxs,
-        this.txValidatorFactory.validatorForNewTxs(
-          newGlobalVariables,
-          this.allowedFunctionsInSetup,
-          this.allowedFunctionsInTeardown,
-        ),
+        this.txValidatorFactory.validatorForNewTxs(newGlobalVariables, this.allowedFunctionsInSetup),
       );
       if (validTxs.length < this.minTxsPerBLock) {
         return;

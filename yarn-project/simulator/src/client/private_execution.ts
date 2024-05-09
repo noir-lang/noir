@@ -54,6 +54,7 @@ export async function executePrivateFunction(
   const nullifiedNoteHashCounters = context.getNullifiedNoteHashCounters();
   const nestedExecutions = context.getNestedExecutions();
   const enqueuedPublicFunctionCalls = context.getEnqueuedPublicFunctionCalls();
+  const publicTeardownFunctionCall = context.getPublicTeardownFunctionCall();
 
   log.debug(`Returning from call to ${contractAddress.toString()}:${functionSelector}`);
 
@@ -68,6 +69,7 @@ export async function executePrivateFunction(
     vk: Buffer.from(artifact.verificationKey!, 'hex'),
     nestedExecutions,
     enqueuedPublicFunctionCalls,
+    publicTeardownFunctionCall,
     encryptedLogs,
     unencryptedLogs,
   };

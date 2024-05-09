@@ -132,6 +132,8 @@ pub fn initialize_end_values(
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
     circuit_outputs.end_non_revertible.public_call_stack = array_to_bounded_vec(start_non_revertible.public_call_stack);
 
+    circuit_outputs.public_teardown_call_stack = array_to_bounded_vec(previous_kernel.public_inputs.public_teardown_call_stack);
+
     let start = previous_kernel.public_inputs.validation_requests;
     circuit_outputs.validation_requests.max_block_number = previous_kernel.public_inputs.validation_requests.for_rollup.max_block_number;
     circuit_outputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
@@ -173,6 +175,34 @@ fn is_valid_caller(request: CallRequest, public_call: PublicCallData) -> bool {
 
     request.caller_contract_address.eq(public_call.call_stack_item.contract_address)
         & (request.caller_context.is_empty() | valid_caller_context)
+}
+
+pub fn update_end_non_revertible_call_stack(
+    public_call: PublicCallData,
+    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
+) {
+    let requests = validate_public_call_stack(public_call);
+    circuit_outputs.end_non_revertible.public_call_stack.extend_from_bounded_vec(requests);
+}
+
+pub fn update_end_call_stack(
+    public_call: PublicCallData,
+    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
+) {
+    let requests = validate_public_call_stack(public_call);
+    circuit_outputs.end.public_call_stack.extend_from_bounded_vec(requests);
+}
+
+pub fn update_teardown_call_stack(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+    let requests = validate_public_call_stack(public_call);
+    circuit_outputs.public_teardown_call_stack.extend_from_bounded_vec(requests);
+}
+
+fn validate_public_call_stack(public_call: PublicCallData) -> BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> {
+    let public_call_requests = array_to_bounded_vec(public_call.public_call_stack);
+    let hashes = public_call.call_stack_item.public_inputs.public_call_stack_hashes;
+    validate_call_requests(public_call_requests, hashes, public_call);
+    public_call_requests
 }
 
 fn validate_call_requests<N>(
@@ -275,16 +305,10 @@ pub fn update_public_end_non_revertible_values(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
-    // Updates the circuit outputs with new state changes, call stack etc
+    // Updates the circuit outputs with new state changes
 
     // If this call is a static call, certain operations are disallowed, such as creating new state.
     perform_static_call_checks(public_call);
-
-    // Update public call stack.
-    let public_call_requests = array_to_bounded_vec(public_call.public_call_stack);
-    let hashes = public_call.call_stack_item.public_inputs.public_call_stack_hashes;
-    validate_call_requests(public_call_requests, hashes, public_call);
-    circuit_outputs.end_non_revertible.public_call_stack.extend_from_bounded_vec(public_call_requests);
 
     propagate_new_nullifiers_non_revertible(public_call, circuit_outputs);
     propagate_new_note_hashes_non_revertible(public_call, circuit_outputs);
@@ -294,20 +318,13 @@ pub fn update_public_end_non_revertible_values(
 }
 
 pub fn update_public_end_values(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
-    // Updates the circuit outputs with new state changes, call stack etc
+    // Updates the circuit outputs with new state changes
 
     // If this call is a static call, certain operations are disallowed, such as creating new state.
     perform_static_call_checks(public_call);
 
-    // Update public call stack.
-    let public_call_requests = array_to_bounded_vec(public_call.public_call_stack);
-    let hashes = public_call.call_stack_item.public_inputs.public_call_stack_hashes;
-    validate_call_requests(public_call_requests, hashes, public_call);
-    circuit_outputs.end.public_call_stack.extend_from_bounded_vec(public_call_requests);
-
     propagate_new_nullifiers(public_call, circuit_outputs);
     propagate_new_note_hashes(public_call, circuit_outputs);
-
     propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
     propagate_new_unencrypted_logs(public_call, circuit_outputs);
     propagate_valid_public_data_update_requests(public_call, circuit_outputs);

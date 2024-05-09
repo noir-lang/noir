@@ -153,6 +153,12 @@ function getDefaultAllowedSetupFunctions(): AllowedFunction[] {
       selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
     },
 
+    // needed for native payments while they are not yet enshrined
+    {
+      classId: getContractClassFromArtifact(GasTokenContract.artifact).id,
+      selector: FunctionSelector.fromSignature('pay_fee(Field)'),
+    },
+
     // needed for private transfers via FPC
     {
       classId: getContractClassFromArtifact(TokenContractArtifact).id,

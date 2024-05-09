@@ -428,6 +428,7 @@ export function makePublicKernelCircuitPublicInputs(
   seed = 1,
   fullAccumulatedData = true,
 ): PublicKernelCircuitPublicInputs {
+  const tupleGenerator = fullAccumulatedData ? makeTuple : makeHalfFullTuple;
   return new PublicKernelCircuitPublicInputs(
     makeAggregationObject(seed),
     makeValidationRequests(seed),
@@ -435,7 +436,7 @@ export function makePublicKernelCircuitPublicInputs(
     makePublicAccumulatedData(seed, fullAccumulatedData),
     makeConstantData(seed + 0x100),
     RevertCode.OK,
-    makeCallRequest(seed + 0x200),
+    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x600, CallRequest.empty),
   );
 }
 
@@ -453,7 +454,7 @@ export function makePrivateKernelTailCircuitPublicInputs(
         ValidationRequests.empty(),
         makePublicAccumulatedData(seed + 0x100, false),
         makePublicAccumulatedData(seed + 0x200, false),
-        makeCallRequest(seed + 0x300),
+        makeHalfFullTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400, CallRequest.empty),
       )
     : undefined;
   const forRollup = !isForPublic
@@ -729,6 +730,7 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
     callStackItem: makePrivateCallStackItem(seed),
     privateCallStack: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, makeCallRequest, seed + 0x10),
     publicCallStack: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, makeCallRequest, seed + 0x20),
+    publicTeardownCallRequest: makeCallRequest(seed + 0x30),
     proof: makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH, seed + 0x50),
     vk: makeVerificationKeyAsFields(),
     contractClassArtifactHash: fr(seed + 0x70),

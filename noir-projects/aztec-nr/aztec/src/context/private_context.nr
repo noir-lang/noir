@@ -573,7 +573,6 @@ impl PrivateContext {
         assert(function_selector.eq(item.function_data.selector));
 
         assert_eq(item.public_inputs.call_context.side_effect_counter, self.side_effect_counter);
-        // We increment the sideffect counter by one, to account for the call itself being a side effect.
 
         assert(args_hash == item.public_inputs.args_hash);
 

@@ -64,16 +64,20 @@ fn is_valid_caller(request_from_stack: CallRequest, fn_being_verified: PrivateCa
         & (request_from_stack.caller_context.is_empty() | valid_caller_context)
 }
 
+fn validate_call_request(request: CallRequest, hash: Field, private_call: PrivateCallData) {
+    if hash != 0 {
+        assert_eq(request.hash, hash, "call stack hash does not match call request hash");
+        assert(is_valid_caller(request, private_call), "invalid caller");
+    } else {
+        assert(is_empty(request), "call requests length does not match the expected length");
+    }
+}
+
 fn validate_call_requests<N>(call_requests: [CallRequest; N], hashes: [Field; N], private_call: PrivateCallData) {
     for i in 0..N {
         let hash = hashes[i];
         let request = call_requests[i];
-        if hash != 0 {
-            assert_eq(request.hash, hash, "call stack hash does not match call request hash");
-            assert(is_valid_caller(request, private_call), "invalid caller");
-        } else {
-            assert(is_empty(request), "call requests length does not match the expected length");
-        }
+        validate_call_request(request, hash, private_call);
     }
 }
 
@@ -98,6 +102,13 @@ pub fn validate_private_call_data(private_call: PrivateCallData) {
     validate_call_requests(
         private_call.public_call_stack,
         private_call_public_inputs.public_call_stack_hashes,
+        private_call
+    );
+
+    // Teardown call
+    validate_call_request(
+        private_call.public_teardown_call_request,
+        private_call_public_inputs.public_teardown_function_hash,
         private_call
     );
 }

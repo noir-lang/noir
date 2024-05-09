@@ -216,6 +216,8 @@ impl FixtureBuilder {
         };
         let validation_requests = self.to_validation_requests();
         let constants = self.to_constant_data();
+        let mut public_teardown_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> = BoundedVec::new();
+        public_teardown_call_stack.push(self.public_teardown_call_request);
 
         PublicKernelCircuitPublicInputs {
             end_non_revertible,
@@ -223,7 +225,7 @@ impl FixtureBuilder {
             validation_requests,
             constants,
             revert_code: self.revert_code,
-            public_teardown_call_request: self.public_teardown_call_request
+            public_teardown_call_stack: public_teardown_call_stack.storage
         }
     }
 
@@ -411,6 +413,10 @@ impl FixtureBuilder {
     pub fn push_public_call_request(&mut self, hash: Field, is_delegate_call: bool) {
         let call_stack_item = self.generate_call_request(hash, is_delegate_call);
         self.public_call_stack.push(call_stack_item);
+    }
+
+    pub fn set_public_teardown_call_request(&mut self, hash: Field, is_delegate_call: bool) {
+        self.public_teardown_call_request = self.generate_call_request(hash, is_delegate_call);
     }
 
     pub fn end_setup(&mut self) {

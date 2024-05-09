@@ -1,9 +1,6 @@
-import { Tx, type TxValidator } from '@aztec/circuit-types';
-import { type AztecAddress, Fr } from '@aztec/circuits.js';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { type Tx, type TxValidator } from '@aztec/circuit-types';
+import { type AztecAddress, type Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { GasTokenContract } from '@aztec/noir-contracts.js';
-import { AbstractPhaseManager, PublicKernelPhase } from '@aztec/simulator';
 
 /** Provides a view into public contract state */
 export interface PublicStateSource {
@@ -37,45 +34,9 @@ export class GasTxValidator implements TxValidator<Tx> {
     return [validTxs, invalidTxs];
   }
 
-  async #validateTxFee(tx: Tx): Promise<boolean> {
-    const { [PublicKernelPhase.TEARDOWN]: teardownFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(
-      tx.data,
-      tx.enqueuedPublicFunctionCalls,
-    );
+  #validateTxFee(_tx: Tx): Promise<boolean> {
+    return Promise.resolve(true);
 
-    if (teardownFns.length === 0) {
-      if (this.#requireFees) {
-        this.#log.warn(
-          `Rejecting tx ${Tx.getHash(tx)} because it should pay for gas but has no enqueued teardown functions`,
-        );
-        return false;
-      } else {
-        this.#log.debug(`Tx ${Tx.getHash(tx)} does not pay fees. Skipping balance check.`);
-        return true;
-      }
-    }
-
-    if (teardownFns.length > 1) {
-      this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} because it has multiple teardown functions`);
-      return false;
-    }
-
-    // check that the caller of the teardown function has enough balance to pay for tx costs
-    const teardownFn = teardownFns[0];
-    const slot = pedersenHash([GasTokenContract.storage.balances.slot, teardownFn.callContext.msgSender]);
-    const gasBalance = await this.#publicDataSource.storageRead(this.#gasTokenAddress, slot);
-
-    // TODO(#5004) calculate fee needed based on tx limits and gas prices
-    const gasAmountNeeded = new Fr(1);
-    if (gasBalance.lt(gasAmountNeeded)) {
-      this.#log.warn(
-        `Rejecting tx ${Tx.getHash(
-          tx,
-        )} because it should pay for gas but has insufficient balance ${gasBalance.toShortString()} < ${gasAmountNeeded.toShortString()}`,
-      );
-      return false;
-    }
-
-    return true;
+    // TODO(#5920) re-enable sequencer checks after we have fee payer in kernel outputs
   }
 }

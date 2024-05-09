@@ -32,6 +32,10 @@ export class PrivateCallData {
      */
     public publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     /**
+     * The public call request for the teardown function.
+     */
+    public publicTeardownCallRequest: CallRequest,
+    /**
      * The proof of the execution of this private call.
      */
     public proof: RecursiveProof<typeof RECURSIVE_PROOF_LENGTH>,
@@ -75,6 +79,7 @@ export class PrivateCallData {
       fields.callStackItem,
       fields.privateCallStack,
       fields.publicCallStack,
+      fields.publicTeardownCallRequest,
       fields.proof,
       fields.vk,
       fields.contractClassArtifactHash,
@@ -109,6 +114,7 @@ export class PrivateCallData {
       reader.readObject(PrivateCallStackItem),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, CallRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, CallRequest),
+      reader.readObject(CallRequest),
       RecursiveProof.fromBuffer(reader, RECURSIVE_PROOF_LENGTH),
       reader.readObject(VerificationKeyAsFields),
       reader.readObject(Fr),

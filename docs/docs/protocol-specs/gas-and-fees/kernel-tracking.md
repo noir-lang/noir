@@ -26,6 +26,7 @@ PrivateContextInputs --> TxContext
 
 class PrivateCallData {
     +PrivateCallStackItem call_stack_item
+    +CallRequest public_teardown_call_request
 }
 PrivateCallData --> PrivateCallStackItem
 
@@ -295,7 +296,7 @@ class PublicKernelCircuitPublicInputs {
   +PublicAccumulatedData end
   +CombinedConstantData constants
   +AztecAddress fee_payer
-  +CallRequest public_teardown_call_request
+  +CallRequest[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX] public_teardown_call_stack
   +u8 revert_code
 }
 PublicKernelCircuitPublicInputs --> PublicAccumulatedData

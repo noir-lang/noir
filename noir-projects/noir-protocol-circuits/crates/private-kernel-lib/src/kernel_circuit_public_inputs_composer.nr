@@ -98,6 +98,7 @@ impl KernelCircuitPublicInputsComposer {
         let _ = self.compose();
 
         self.propagate_sorted_public_call_requests();
+        self.propagate_public_teardown_call_request();
 
         *self
     }
@@ -221,6 +222,10 @@ impl KernelCircuitPublicInputsComposer {
     fn propagate_sorted_public_call_requests(&mut self) {
         let accumulated_data = self.previous_kernel.public_inputs.end;
         self.public_inputs.end.public_call_stack = array_to_bounded_vec(accumulated_data.public_call_stack);
+    }
+
+    fn propagate_public_teardown_call_request(&mut self) {
+        self.public_inputs.public_teardown_call_request = self.previous_kernel.public_inputs.public_teardown_call_request;
     }
 
     fn squash_transient_data(&mut self) {

@@ -54,6 +54,7 @@ impl PublicKernelSetupCircuitPrivateInputs {
 
         common::update_validation_requests(self.public_call, &mut public_inputs);
 
+        common::update_end_non_revertible_call_stack(self.public_call, &mut public_inputs);
         common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
 
         public_inputs.finish()
@@ -405,23 +406,6 @@ mod tests {
 
     //     let _ = kernel.public_kernel_setup();
     // }
-
-    #[test(should_fail_with="Cannot run unnecessary setup circuit")]
-    fn unnecessary_public_kernel_setup_with_teardown_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-
-        // in this case, we only push a single call, which is interpreted as the teardown call
-        let teardown_call = builder.public_call.finish();
-        let teardown_call_hash = teardown_call.call_stack_item.hash();
-        let teardown_is_delegate_call = teardown_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-        builder.previous_kernel.push_public_call_request(teardown_call_hash, teardown_is_delegate_call);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
-
-        // Run the kernel on the setup call
-        let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call: teardown_call };
-
-        let _ = kernel.public_kernel_setup();
-    }
 
     #[test(should_fail_with="No contract storage update requests are allowed for static calls")]
     fn previous_private_kernel_fails_if_contract_storage_update_requests_on_static_call() {

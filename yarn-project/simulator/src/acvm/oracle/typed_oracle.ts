@@ -243,6 +243,17 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('enqueuePublicFunctionCall');
   }
 
+  setPublicTeardownFunctionCall(
+    _targetContractAddress: AztecAddress,
+    _functionSelector: FunctionSelector,
+    _argsHash: Fr,
+    _sideEffectCounter: number,
+    _isStaticCall: boolean,
+    _isDelegateCall: boolean,
+  ): Promise<PublicCallRequest> {
+    throw new OracleMethodNotAvailableError('setPublicTeardownFunctionCall');
+  }
+
   aes128Encrypt(_input: Buffer, _initializationVector: Buffer, _key: Buffer): Buffer {
     throw new OracleMethodNotAvailableError('encrypt');
   }
