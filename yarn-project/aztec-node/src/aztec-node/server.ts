@@ -13,10 +13,10 @@ import {
   LogType,
   MerkleTreeId,
   NullifierMembershipWitness,
-  type ProcessOutput,
   type ProverClient,
   type ProverConfig,
   PublicDataWitness,
+  PublicSimulationOutput,
   type SequencerConfig,
   type SiblingPath,
   type Tx,
@@ -634,7 +634,7 @@ export class AztecNodeService implements AztecNode {
    * Simulates the public part of a transaction with the current state.
    * @param tx - The transaction to simulate.
    **/
-  public async simulatePublicCalls(tx: Tx): Promise<ProcessOutput> {
+  public async simulatePublicCalls(tx: Tx): Promise<PublicSimulationOutput> {
     this.log.info(`Simulating tx ${tx.getTxHash()}`);
     const blockNumber = (await this.blockSource.getBlockNumber()) + 1;
 
@@ -674,15 +674,15 @@ export class AztecNodeService implements AztecNode {
     }
     this.log.debug(`Simulated tx ${tx.getTxHash()} succeeds`);
     const [processedTx] = processedTxs;
-    return {
-      constants: processedTx.data.constants,
-      encryptedLogs: processedTx.encryptedLogs,
-      unencryptedLogs: processedTx.unencryptedLogs,
-      end: processedTx.data.end,
-      revertReason: processedTx.revertReason,
-      publicReturnValues: returns[0],
-      gasUsed: processedTx.gasUsed,
-    };
+    return new PublicSimulationOutput(
+      processedTx.encryptedLogs,
+      processedTx.unencryptedLogs,
+      processedTx.revertReason,
+      processedTx.data.constants,
+      processedTx.data.end,
+      returns[0],
+      processedTx.gasUsed,
+    );
   }
 
   public async setConfig(config: Partial<SequencerConfig & ProverConfig>): Promise<void> {
