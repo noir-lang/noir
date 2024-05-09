@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acir::circuit::{Circuit, ExpressionWidth, OpcodeLocation};
+use acir::circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation};
 
 // The various passes that we can use over ACIR
 mod optimizers;
@@ -54,9 +54,9 @@ impl AcirTransformationMap {
 }
 
 fn transform_assert_messages(
-    assert_messages: Vec<(OpcodeLocation, String)>,
+    assert_messages: Vec<(OpcodeLocation, AssertionPayload)>,
     map: &AcirTransformationMap,
-) -> Vec<(OpcodeLocation, String)> {
+) -> Vec<(OpcodeLocation, AssertionPayload)> {
     assert_messages
         .into_iter()
         .flat_map(|(location, message)| {

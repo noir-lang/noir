@@ -7,7 +7,7 @@ use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, 
 pub(super) fn decompose_constrain(
     lhs: ValueId,
     rhs: ValueId,
-    msg: &Option<Box<ConstrainError>>,
+    msg: &Option<ConstrainError>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
     let lhs = dfg.resolve(lhs);

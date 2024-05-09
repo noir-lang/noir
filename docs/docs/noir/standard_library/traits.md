@@ -241,6 +241,15 @@ impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 Implementations:
 #include_code neg-trait-impls noir_stdlib/src/ops/arith.nr rust
 
+### `std::ops::Not`
+
+#include_code not-trait noir_stdlib/src/ops/bit.nr rust
+
+`Not::not` is equivalent to the unary bitwise NOT operator `!`.
+
+Implementations:
+#include_code not-trait-impls noir_stdlib/src/ops/bit.nr rust
+
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
 #include_code bitor-trait noir_stdlib/src/ops/bit.nr rust
