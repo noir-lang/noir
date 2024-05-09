@@ -806,10 +806,13 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                length.is_valid_for_unconstrained_boundary() && element.is_valid_for_unconstrained_boundary()
+                length.is_valid_for_unconstrained_boundary()
+                    && element.is_valid_for_unconstrained_boundary()
             }
             Type::String(length) => length.is_valid_for_unconstrained_boundary(),
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary()),
+            Type::Tuple(elements) => {
+                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
+            }
             Type::Struct(definition, generics) => definition
                 .borrow()
                 .get_fields(generics)
