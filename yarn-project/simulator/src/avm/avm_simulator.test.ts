@@ -108,7 +108,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const bytecode = getAvmTestContractBytecode('u128_addition_overflow');
       const results = await new AvmSimulator(initContext()).executeBytecode(bytecode);
       expect(results.reverted).toBe(true);
-      expect(results.revertReason?.message).toEqual('Reverted with output: attempt to add with overflow');
+      expect(results.revertReason?.message).toEqual('Assertion failed: attempt to add with overflow');
     });
 
     it('Expect failure on U128::from_integer() overflow', async () => {
@@ -117,7 +117,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       expect(results.reverted).toBe(true);
       expect(results.revertReason?.message).toEqual(undefined);
       // Note: compiler intrinsic messages (like below) are not known to the AVM
-      //expect(results.revertReason?.message).toEqual("Reverted with output: call to assert_max_bit_size 'self.__assert_max_bit_size(bit_size)'");
+      //expect(results.revertReason?.message).toEqual("Assertion failed: call to assert_max_bit_size 'self.__assert_max_bit_size(bit_size)'");
     });
   });
 
