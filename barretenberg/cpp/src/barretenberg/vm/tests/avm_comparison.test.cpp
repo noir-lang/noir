@@ -57,8 +57,6 @@ void common_validate_cmp(Row const& row,
     EXPECT_EQ(alu_row.avm_alu_ic, c);
 }
 } // namespace
-using ThreeOpParam = std::array<FF, 3>;
-using ThreeOpParamRow = std::tuple<ThreeOpParam, AvmMemoryTag>;
 std::vector<ThreeOpParam> positive_op_lt_test_values = { { { FF(1), FF(1), FF(0) },
                                                            { FF(5323), FF(321), FF(0) },
                                                            { FF(13793), FF(10590617LLU), FF(1) },
@@ -77,15 +75,6 @@ std::vector<ThreeOpParam> positive_op_lte_test_values = {
         FF(1) } }
 };
 
-std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<ThreeOpParam> operands,
-                                                 std::vector<AvmMemoryTag> mem_tag_arr)
-{
-    std::vector<ThreeOpParamRow> params;
-    for (size_t i = 0; i < 5; i++) {
-        params.emplace_back(operands[i], mem_tag_arr[i]);
-    }
-    return params;
-}
 std::vector<AvmMemoryTag> mem_tag_arr{
     { AvmMemoryTag::U8, AvmMemoryTag::U16, AvmMemoryTag::U32, AvmMemoryTag::U64, AvmMemoryTag::U128 }
 };

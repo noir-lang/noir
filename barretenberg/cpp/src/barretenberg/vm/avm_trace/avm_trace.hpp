@@ -82,6 +82,9 @@ class AvmTraceBuilder {
     // store the result in address given by dst_offset.
     void op_cast(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag dst_tag);
 
+    // Integer Division with direct or indirect memory access.
+    void op_div(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+
     // Jump to a given program counter.
     void jump(uint32_t jmp_dest);
 

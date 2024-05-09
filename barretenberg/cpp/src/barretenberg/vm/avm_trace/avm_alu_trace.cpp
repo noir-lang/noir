@@ -1,4 +1,5 @@
 #include "avm_alu_trace.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
 
 namespace bb::avm_trace {
 
@@ -50,7 +51,7 @@ bool AvmAluTraceBuilder::is_range_check_required() const
 bool AvmAluTraceBuilder::is_alu_row_enabled(AvmAluTraceBuilder::AluTraceEntry const& r)
 {
     return (r.alu_op_add || r.alu_op_sub || r.alu_op_mul || r.alu_op_eq || r.alu_op_not || r.alu_op_lt ||
-            r.alu_op_lte || r.alu_op_shr || r.alu_op_shl || r.alu_op_cast);
+            r.alu_op_lte || r.alu_op_shr || r.alu_op_shl || r.alu_op_cast || r.alu_op_div);
 }
 
 /**
@@ -468,11 +469,11 @@ std::tuple<uint8_t, uint8_t, std::array<uint16_t, 15>> AvmAluTraceBuilder::to_al
 }
 
 /**
- * @brief This is a helper function that is used to generate the range check entries for the comparison operation
- * (LT/LTE opcodes). This additionally increments the counts for the corresponding range lookups entries.
+ * @brief This is a helper function that is used to generate the range check entries for operations that require
+ * multi-row range checks This additionally increments the counts for the corresponding range lookups entries.
  * @param row The initial row where the comparison operation was performed
  * @param hi_lo_limbs The vector of 128-bit limbs hi and lo pairs of limbs that will be range checked.
- * @return A vector of AluTraceEntry rows for the range checks for the comparison operation.
+ * @return A vector of AluTraceEntry rows for the range checks for the operation.
  */
 std::vector<AvmAluTraceBuilder::AluTraceEntry> AvmAluTraceBuilder::cmp_range_check_helper(
     AvmAluTraceBuilder::AluTraceEntry row, std::vector<uint256_t> hi_lo_limbs)
@@ -544,7 +545,7 @@ std::tuple<uint256_t, uint256_t, bool> gt_witness(uint256_t const& a, uint256_t 
 // where q = 1 if a > b and q = 0 if a <= b
 std::tuple<uint256_t, uint256_t, bool> gt_or_lte_witness(uint256_t const& a, uint256_t const& b)
 {
-    uint256_t two_pow_128 = uint256_t(1) << uint256_t(128);
+    uint256_t two_pow_126 = uint256_t(1) << uint256_t(128);
     auto [a_lo, a_hi] = decompose(a, 128);
     auto [b_lo, b_hi] = decompose(b, 128);
     bool isGT = a > b;
@@ -553,7 +554,7 @@ std::tuple<uint256_t, uint256_t, bool> gt_or_lte_witness(uint256_t const& a, uin
     }
     bool borrow = b_lo < a_lo;
     auto borrow_u256 = uint256_t(static_cast<uint64_t>(borrow));
-    uint256_t r_lo = b_lo - a_lo + borrow_u256 * two_pow_128;
+    uint256_t r_lo = b_lo - a_lo + borrow_u256 * two_pow_126;
     uint256_t r_hi = b_hi - a_hi - borrow_u256;
     return std::make_tuple(r_lo, r_hi, borrow);
 }
@@ -962,5 +963,103 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         .shift_lt_bit_len = true,
     });
     return c;
+}
+FF AvmAluTraceBuilder::op_div(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk)
+{
+    uint256_t a_u256{ a };
+    uint256_t b_u256{ b };
+    uint256_t c_u256 = a_u256 / b_u256;
+    uint256_t rem_u256 = a_u256 % b_u256;
+
+    // If dividing by zero, don't add any rows in the ALU, the error will be handled in the main trace
+    if (b_u256 == 0) {
+        return 0;
+    }
+
+    if (a_u256 < b_u256) {
+        // If a < b, the result is trivially 0
+        uint256_t rng_chk_lo = b_u256 - a_u256 - 1;
+        auto [u8_r0, u8_r1, u16_reg] = to_alu_slice_registers(rng_chk_lo);
+        alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry({
+            .alu_clk = clk,
+            .alu_op_div = true,
+            .alu_u8_tag = in_tag == AvmMemoryTag::U8,
+            .alu_u16_tag = in_tag == AvmMemoryTag::U16,
+            .alu_u32_tag = in_tag == AvmMemoryTag::U32,
+            .alu_u64_tag = in_tag == AvmMemoryTag::U64,
+            .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+            .alu_ia = a,
+            .alu_ib = b,
+            .alu_ic = 0,
+            .alu_u8_r0 = u8_r0,
+            .alu_u8_r1 = u8_r1,
+            .alu_u16_reg = u16_reg,
+            .hi_lo_limbs = { rng_chk_lo, 0, 0, 0, 0, 0 },
+            .remainder = a,
+
+        }));
+        return 0;
+    }
+    // Decompose a and primality check that b*c < p when a is a 256-bit integer
+    auto [a_lo, a_hi] = decompose(b_u256 * c_u256, 128);
+    auto [p_sub_a_lo, p_sub_a_hi, p_a_borrow] = gt_witness(FF::modulus, b_u256 * c_u256);
+    // Decompose the divisor
+    auto [divisor_lo, divisor_hi] = decompose(b_u256, 64);
+    // Decompose the quotient
+    auto [quotient_lo, quotient_hi] = decompose(c_u256, 64);
+    uint256_t partial_prod = divisor_lo * quotient_hi + divisor_hi * quotient_lo;
+    // Decompose the partial product
+    auto [partial_prod_lo, partial_prod_hi] = decompose(partial_prod, 64);
+
+    FF b_hi = b_u256 - rem_u256 - 1;
+
+    // 64 bit range checks for the divisor and quotient limbs
+    // Spread over two rows
+    std::array<uint16_t, 8> div_u64_rng_chk;
+    std::array<uint16_t, 8> div_u64_rng_chk_shifted;
+    for (size_t i = 0; i < 4; i++) {
+        div_u64_rng_chk.at(i) = uint16_t(divisor_lo >> (16 * i));
+        div_u64_rng_chk.at(i + 4) = uint16_t(divisor_hi >> (16 * i));
+        div_u64_range_chk_counters[i][uint16_t(divisor_lo >> (16 * i))]++;
+        div_u64_range_chk_counters[i + 4][uint16_t(divisor_hi >> (16 * i))]++;
+
+        div_u64_rng_chk_shifted.at(i) = uint16_t(quotient_lo >> (16 * i));
+        div_u64_rng_chk_shifted.at(i + 4) = uint16_t(quotient_hi >> (16 * i));
+        div_u64_range_chk_counters[i][uint16_t(quotient_lo >> (16 * i))]++;
+        div_u64_range_chk_counters[i + 4][uint16_t(quotient_hi >> (16 * i))]++;
+    }
+
+    // Each hi and lo limb is range checked over 128 bits
+    // Load the range check values into the ALU registers
+    auto hi_lo_limbs = std::vector<uint256_t>{ a_lo, a_hi, partial_prod, b_hi, p_sub_a_lo, p_sub_a_hi };
+    AvmAluTraceBuilder::AluTraceEntry row{
+        .alu_clk = clk,
+        .alu_op_div = true,
+        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
+        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
+        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
+        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
+        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .alu_ia = a,
+        .alu_ib = b,
+        .alu_ic = FF{ c_u256 },
+        .remainder = rem_u256,
+        .divisor_lo = divisor_lo,
+        .divisor_hi = divisor_hi,
+        .quotient_lo = quotient_lo,
+        .quotient_hi = quotient_hi,
+        .partial_prod_lo = partial_prod_lo,
+        .partial_prod_hi = partial_prod_hi,
+        .div_u64_range_chk_sel = true,
+        .div_u64_range_chk = div_u64_rng_chk,
+
+    };
+    // We perform the range checks here
+    std::vector<AvmAluTraceBuilder::AluTraceEntry> rows = cmp_range_check_helper(row, hi_lo_limbs);
+    // Add the range checks for the quotient limbs in the row after the division operation
+    rows.at(1).div_u64_range_chk = div_u64_rng_chk_shifted;
+    rows.at(1).div_u64_range_chk_sel = true;
+    alu_trace.insert(alu_trace.end(), rows.begin(), rows.end());
+    return c_u256;
 }
 } // namespace bb::avm_trace

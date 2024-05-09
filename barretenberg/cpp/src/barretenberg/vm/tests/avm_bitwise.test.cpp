@@ -372,7 +372,6 @@ class AvmBitwiseTests : public ::testing::Test {
  *
  ******************************************************************************/
 
-using ThreeOpParamRow = std::tuple<std::array<uint128_t, 3>, AvmMemoryTag>;
 using TwoOpParamRow = std::tuple<std::array<uint128_t, 2>, AvmMemoryTag>;
 std::vector<AvmMemoryTag> mem_tags{
     { AvmMemoryTag::U8, AvmMemoryTag::U16, AvmMemoryTag::U32, AvmMemoryTag::U64, AvmMemoryTag::U128 }
@@ -397,58 +396,50 @@ std::vector<TwoOpParamRow> gen_two_op_params(std::vector<std::array<uint128_t, 2
     return params;
 }
 
-std::vector<std::array<uint128_t, 3>> positive_op_and_test_values = {
-    { { 1, 1, 1 },
-      { 5323, 321, 65 },
-      { 13793, 10590617LLU, 4481 },
-      { 0x7bff744e3cdf79LLU, 0x14ccccccccb6LLU, 0x14444c0ccc30LLU },
-      { (uint128_t{ 0xb900000000000001 } << 64),
-        (uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 },
-        (uint128_t{ 0x1000000000000000 } << 64) } }
+std::vector<ThreeOpParam> positive_op_and_test_values = {
+    { { FF(1), FF(1), FF(1) },
+      { FF(5323), FF(321), FF(65) },
+      { FF(13793), FF(10590617LLU), FF(4481) },
+      { FF(0x7bff744e3cdf79LLU), FF(0x14ccccccccb6LLU), FF(0x14444c0ccc30LLU) },
+      { uint256_t::from_uint128(uint128_t{ 0xb900000000000001 } << 64),
+        uint256_t::from_uint128((uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 }),
+        uint256_t::from_uint128(uint128_t{ 0x1000000000000000 } << 64) } }
 };
 
-std::vector<std::array<uint128_t, 3>> positive_op_or_test_values = {
-    { { 1, 1, 1 },
-      { 5323, 321, 0x15cb },
-      { 13793, 10590617LLU, 0xa1bdf9 },
-      { 0x7bff744e3cdf79LLU, 0x14ccccccccb6LLU, 0x7bfffccefcdfffLLU },
-      { (uint128_t{ 0xb900000000000000 } << 64),
-        (uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 },
-        (uint128_t{ 0xb906021301080000 } << 64) + uint128_t{ 0x0001080876844827 } } }
+std::vector<std::array<FF, 3>> positive_op_or_test_values = {
+    { { FF(1), FF(1), FF(1) },
+      { FF(5323), FF(321), FF(0x15cb) },
+      { FF(13793), FF(10590617LLU), FF(0xa1bdf9) },
+      { FF(0x7bff744e3cdf79LLU), FF(0x14ccccccccb6LLU), FF(0x7bfffccefcdfffLLU) },
+      { uint256_t::from_uint128(uint128_t{ 0xb900000000000000 } << 64),
+        uint256_t::from_uint128(uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 },
+        uint256_t::from_uint128(uint128_t{ 0xb906021301080000 } << 64) + uint128_t{ 0x0001080876844827 } } }
 };
-std::vector<std::array<uint128_t, 3>> positive_op_xor_test_values = {
-    { { 1, 1, 0 },
-      { 5323, 321, 0x158a },
-      { 13793, 10590617LLU, 0xa1ac78 },
-      { 0x7bff744e3cdf79LLU, 0x14ccccccccb6LLU, 0x7bebb882f013cf },
-      { (uint128_t{ 0xb900000000000001 } << 64),
-        (uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 },
-        (uint128_t{ 0xa906021301080001 } << 64) + uint128_t{ 0x0001080876844827 } } }
+std::vector<std::array<FF, 3>> positive_op_xor_test_values = {
+    { { FF(1), FF(1), FF(0) },
+      { FF(5323), FF(321), FF(0x158a) },
+      { FF(13793), FF(10590617LLU), FF(0xa1ac78) },
+      { FF(0x7bff744e3cdf79LLU), FF(0x14ccccccccb6LLU), uint256_t::from_uint128(0x7bebb882f013cf) },
+      { uint256_t::from_uint128(uint128_t{ 0xb900000000000001 } << 64),
+        uint256_t::from_uint128((uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 }),
+        uint256_t::from_uint128((uint128_t{ 0xa906021301080001 } << 64) + uint128_t{ 0x0001080876844827 }) } }
 };
-std::vector<std::array<uint128_t, 3>> positive_op_shr_test_values = {
-    { { 20, 3, 2 },
-      { 5323, 255, 0 },
-      { 36148, 13, 4 },
-      { 0x7bff744e3cdf79LLU, 64, 0 },
-      { (uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 }, 123, 2 } }
+std::vector<std::array<FF, 3>> positive_op_shr_test_values = {
+    { { FF(20), FF(3), FF(2) },
+      { FF(5323), FF(255), FF(0) },
+      { FF(36148), FF(13), FF(4) },
+      { FF(0x7bff744e3cdf79LLU), FF(64), FF(0) },
+      { uint256_t::from_uint128((uint128_t{ 0x1006021301080000 } << 64) + uint128_t{ 0x000000000000001080876844827 }),
+        FF(123),
+        FF(2) } }
 };
-std::vector<std::array<uint128_t, 3>> positive_op_shl_test_values = {
-    { { 20, 8, 0 },
-      { 5323, 10, 11264 },
-      { 13793, 255, 0 },
-      { 239, 50, 269090077735387136 },
-      { 9, 127, (uint128_t{ 0x4800000000000000LLU } << 68) } }
+std::vector<std::array<FF, 3>> positive_op_shl_test_values = {
+    { { FF(20), FF(8), FF(0) },
+      { FF(5323), FF(10), FF(11264) },
+      { FF(13793), FF(255), FF(0) },
+      { FF(239), FF(50), uint256_t::from_uint128(269090077735387136) },
+      { FF(9), FF(127), uint256_t::from_uint128(uint128_t{ 0x4800000000000000LLU } << 68) } }
 };
-
-std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<std::array<uint128_t, 3>> operands,
-                                                 std::vector<AvmMemoryTag> mem_tags)
-{
-    std::vector<ThreeOpParamRow> params;
-    for (size_t i = 0; i < 5; i++) {
-        params.emplace_back(operands[i], mem_tags[i]);
-    }
-    return params;
-}
 
 class AvmBitwiseTestsNot : public AvmBitwiseTests, public testing::WithParamInterface<TwoOpParamRow> {};
 class AvmBitwiseTestsAnd : public AvmBitwiseTests, public testing::WithParamInterface<ThreeOpParamRow> {};
@@ -490,16 +481,13 @@ TEST_P(AvmBitwiseTestsAnd, AllAndTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.op_set(0, a, 0, mem_tag);
-    trace_builder.op_set(0, b, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
+    trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_and(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
 
     auto trace = trace_builder.finalize();
-    FF ff_a = FF(uint256_t::from_uint128(a));
-    FF ff_b = FF(uint256_t::from_uint128(b));
-    FF ff_output = FF(uint256_t::from_uint128(output));
-    common_validate_bit_op(trace, 0, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
+    common_validate_bit_op(trace, 0, a, b, output, FF(0), FF(1), FF(2), mem_tag);
     validate_trace(std::move(trace), true);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
@@ -510,17 +498,13 @@ TEST_P(AvmBitwiseTestsOr, AllOrTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.op_set(0, a, 0, mem_tag);
-    trace_builder.op_set(0, b, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
+    trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_or(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
     auto trace = trace_builder.finalize();
 
-    FF ff_a = FF(uint256_t::from_uint128(a));
-    FF ff_b = FF(uint256_t::from_uint128(b));
-    FF ff_output = FF(uint256_t::from_uint128(output));
-
-    common_validate_bit_op(trace, 1, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
+    common_validate_bit_op(trace, 1, a, b, output, FF(0), FF(1), FF(2), mem_tag);
     validate_trace(std::move(trace));
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
@@ -531,17 +515,13 @@ TEST_P(AvmBitwiseTestsXor, AllXorTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.op_set(0, a, 0, mem_tag);
-    trace_builder.op_set(0, b, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
+    trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_xor(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
     auto trace = trace_builder.finalize();
 
-    FF ff_a = FF(uint256_t::from_uint128(a));
-    FF ff_b = FF(uint256_t::from_uint128(b));
-    FF ff_output = FF(uint256_t::from_uint128(output));
-
-    common_validate_bit_op(trace, 2, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
+    common_validate_bit_op(trace, 2, a, b, output, FF(0), FF(1), FF(2), mem_tag);
     validate_trace(std::move(trace));
 }
 
@@ -553,20 +533,12 @@ TEST_P(AvmBitwiseTestsShr, AllShrTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.op_set(0, a, 0, mem_tag);
-    trace_builder.op_set(0, b, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
+    trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_shr(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
     auto trace = trace_builder.finalize();
-    common_validate_shift_op(trace,
-                             uint256_t::from_uint128(a),
-                             uint256_t::from_uint128(b),
-                             uint256_t::from_uint128(output),
-                             FF(0),
-                             FF(1),
-                             FF(2),
-                             mem_tag,
-                             true);
+    common_validate_shift_op(trace, a, b, output, FF(0), FF(1), FF(2), mem_tag, true);
     validate_trace(std::move(trace));
 }
 
@@ -578,21 +550,13 @@ TEST_P(AvmBitwiseTestsShl, AllShlTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.op_set(0, a, 0, mem_tag);
-    trace_builder.op_set(0, b, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
+    trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_shl(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
     auto trace = trace_builder.finalize();
 
-    common_validate_shift_op(trace,
-                             uint256_t::from_uint128(a),
-                             uint256_t::from_uint128(b),
-                             uint256_t::from_uint128(output),
-                             FF(0),
-                             FF(1),
-                             FF(2),
-                             mem_tag,
-                             false);
+    common_validate_shift_op(trace, a, b, output, FF(0), FF(1), FF(2), mem_tag, false);
     validate_trace(std::move(trace));
 }
 
@@ -660,9 +624,8 @@ TEST_P(AvmBitwiseNegativeTestsAnd, AllNegativeTests)
     trace_builder.op_and(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    FF ff_output = FF(uint256_t::from_uint128(output));
     std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_and == FF(1); };
-    trace = gen_mutated_trace_bit(trace, std::move(select_row), ff_output, failure_mode);
+    trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
@@ -681,9 +644,8 @@ TEST_P(AvmBitwiseNegativeTestsOr, AllNegativeTests)
     trace_builder.op_or(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    FF ff_output = FF(uint256_t::from_uint128(output));
     std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_or == FF(1); };
-    trace = gen_mutated_trace_bit(trace, std::move(select_row), ff_output, failure_mode);
+    trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
@@ -701,9 +663,8 @@ TEST_P(AvmBitwiseNegativeTestsXor, AllNegativeTests)
     trace_builder.op_xor(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    FF ff_output = FF(uint256_t::from_uint128(output));
     std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_xor == FF(1); };
-    trace = gen_mutated_trace_bit(trace, std::move(select_row), ff_output, failure_mode);
+    trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string)
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
@@ -723,8 +684,7 @@ TEST_P(AvmBitwiseNegativeTestsShr, AllNegativeTests)
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_shr == FF(1); };
 
-    auto [mutated_trace, str] = gen_mutated_trace_shift(
-        std::move(trace), std::move(select_row), FF(uint256_t::from_uint128(output)), failure, true);
+    auto [mutated_trace, str] = gen_mutated_trace_shift(std::move(trace), std::move(select_row), output, failure, true);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(mutated_trace)), str);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
@@ -744,8 +704,8 @@ TEST_P(AvmBitwiseNegativeTestsShl, AllNegativeTests)
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_shl == FF(1); };
 
-    auto [mutated_trace, str] = gen_mutated_trace_shift(
-        std::move(trace), std::move(select_row), FF(uint256_t::from_uint128(output)), failure, false);
+    auto [mutated_trace, str] =
+        gen_mutated_trace_shift(std::move(trace), std::move(select_row), output, failure, false);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(mutated_trace)), str);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,

@@ -197,15 +197,16 @@ namespace avm_main(256);
     #[SUBOP_FDIV]
     sel_op_fdiv * (1 - op_err) * (ic * ib - ia) = 0;
 
-    // When sel_op_fdiv == 1, we want ib == 0 <==> op_err == 1
+    // When sel_op_fdiv == 1 or sel_op_div, we want ib == 0 <==> op_err == 1
     // This can be achieved with the 2 following relations.
     // inv is an extra witness to show that we can invert ib, i.e., inv = ib^(-1)
     // If ib == 0, we have to set inv = 1 to satisfy the second relation,
     // because op_err == 1 from the first relation.
+    // TODO: Update the name of these relations once negative tests are updated
     #[SUBOP_FDIV_ZERO_ERR1]
-    sel_op_fdiv * (ib * inv - 1 + op_err) = 0;
+    (sel_op_fdiv + sel_op_div) * (ib * inv - 1 + op_err) = 0;
     #[SUBOP_FDIV_ZERO_ERR2]
-    sel_op_fdiv * op_err * (1 - inv) = 0;
+    (sel_op_fdiv + sel_op_div) * op_err * (1 - inv) = 0;
 
     // Enforcement that instruction tags are FF (tag constant 6).
     // TODO: These 2 conditions might be removed and enforced through
@@ -222,7 +223,7 @@ namespace avm_main(256);
     // that exactly one sel_op_XXX must be true.
     // At this time, we have only division producing an error.
     #[SUBOP_ERROR_RELEVANT_OP]
-    op_err * (sel_op_fdiv - 1) = 0;
+    op_err * ((sel_op_fdiv + sel_op_div) - 1) = 0;
 
     // TODO: constraint that we stop execution at the first error (tag_err or op_err)
     // An error can only happen at the last sub-operation row.
@@ -322,7 +323,7 @@ namespace avm_main(256);
 
     // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
     // the operation is not copied to the ALU table.
-    alu_sel = ALU_ALL_SEL * (1 - tag_err);
+    alu_sel = ALU_ALL_SEL * (1 - tag_err) * (1 - op_err);
 
     // Dispatch the correct in_tag for alu
     ALU_R_TAG_SEL * (alu_in_tag - r_in_tag) = 0;
@@ -472,3 +473,27 @@ namespace avm_main(256);
     #[LOOKUP_U16_14]
     avm_alu.rng_chk_lookup_selector {avm_alu.u16_r14 } in sel_rng_16 { clk };
 
+    // ==== Additional row range checks for division
+    #[LOOKUP_DIV_U16_0]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r0} in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_1]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r1 } in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_2]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r2 } in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_3]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r3 } in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_4]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r4 } in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_5]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r5 } in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_6]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r6 } in sel_rng_16 { clk };
+
+    #[LOOKUP_DIV_U16_7]
+    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r7 } in sel_rng_16 { clk };

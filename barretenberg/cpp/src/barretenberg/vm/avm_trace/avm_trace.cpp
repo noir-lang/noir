@@ -1118,6 +1118,84 @@ void AvmTraceBuilder::op_cast(uint8_t indirect, uint32_t a_offset, uint32_t dst_
         .avm_main_w_in_tag = FF(static_cast<uint32_t>(dst_tag)),
     });
 }
+/**
+ * @brief Integer division with direct or indirect memory access.
+ *
+ * @param indirect A byte encoding information about indirect/direct memory access.
+ * @param a_offset An index in memory pointing to the first operand of the division.
+ * @param b_offset An index in memory pointing to the second operand of the division.
+ * @param dst_offset An index in memory pointing to the output of the division.
+ * @param in_tag The instruction memory tag of the operands.
+ */
+void AvmTraceBuilder::op_div(
+    uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size());
+
+    auto const res = resolve_ind_three(clk, indirect, a_offset, b_offset, dst_offset);
+    bool tag_match = res.tag_match;
+
+    // Reading from memory and loading into ia resp. ib.
+    auto read_a =
+        mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IA, res.direct_a_offset, in_tag, in_tag);
+    auto read_b =
+        mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IB, res.direct_b_offset, in_tag, in_tag);
+    tag_match = read_a.tag_match && read_b.tag_match;
+
+    // a / b = c
+    FF a = read_a.val;
+    FF b = read_b.val;
+
+    // In case of a memory tag error, we do not perform the computation.
+    // Therefore, we do not create any entry in ALU table and store the value 0 as
+    // output (c) in memory.
+    FF c;
+    FF inv;
+    FF error;
+
+    if (!b.is_zero()) {
+        // If b is not zero, we prove it is not by providing its inverse as well
+        inv = b.invert();
+        c = tag_match ? alu_trace_builder.op_div(a, b, in_tag, clk) : FF(0);
+        error = 0;
+    } else {
+        inv = 1;
+        c = 0;
+        error = 1;
+    }
+
+    // Write into memory value c from intermediate register ic.
+    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, res.direct_c_offset, c, in_tag, in_tag);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_alu_in_tag = FF(static_cast<uint32_t>(in_tag)),
+        .avm_main_ia = a,
+        .avm_main_ib = b,
+        .avm_main_ic = c,
+        .avm_main_ind_a = res.indirect_flag_a ? FF(a_offset) : FF(0),
+        .avm_main_ind_b = res.indirect_flag_b ? FF(b_offset) : FF(0),
+        .avm_main_ind_c = res.indirect_flag_c ? FF(dst_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(res.indirect_flag_a)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(res.indirect_flag_b)),
+        .avm_main_ind_op_c = FF(static_cast<uint32_t>(res.indirect_flag_c)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_inv = tag_match ? inv : FF(1),
+        .avm_main_mem_idx_a = FF(res.direct_a_offset),
+        .avm_main_mem_idx_b = FF(res.direct_b_offset),
+        .avm_main_mem_idx_c = FF(res.direct_c_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_op_err = tag_match ? error : FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(in_tag)),
+        .avm_main_rwc = FF(1),
+        .avm_main_sel_op_div = FF(1),
+        .avm_main_tag_err = FF(static_cast<uint32_t>(!tag_match)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(in_tag)),
+    });
+}
 
 /**
  * @brief CALLDATACOPY opcode with direct or indirect memory access, i.e.,
@@ -1657,6 +1735,7 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_rng_chk_sel = FF(static_cast<uint8_t>(src.rng_chk_sel));
         dest.avm_alu_op_shr = FF(static_cast<uint8_t>(src.alu_op_shr));
         dest.avm_alu_op_shl = FF(static_cast<uint8_t>(src.alu_op_shl));
+        dest.avm_alu_op_div = FF(static_cast<uint8_t>(src.alu_op_div));
 
         dest.avm_alu_ff_tag = FF(static_cast<uint32_t>(src.alu_ff_tag));
         dest.avm_alu_u8_tag = FF(static_cast<uint32_t>(src.alu_u8_tag));
@@ -1694,6 +1773,15 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_u16_r13 = FF(src.alu_u16_reg.at(13));
         dest.avm_alu_u16_r14 = FF(src.alu_u16_reg.at(14));
 
+        dest.avm_alu_div_rng_chk_selector = FF(static_cast<uint8_t>(src.div_u64_range_chk_sel));
+        dest.avm_alu_div_u16_r0 = FF(src.div_u64_range_chk.at(0));
+        dest.avm_alu_div_u16_r1 = FF(src.div_u64_range_chk.at(1));
+        dest.avm_alu_div_u16_r2 = FF(src.div_u64_range_chk.at(2));
+        dest.avm_alu_div_u16_r3 = FF(src.div_u64_range_chk.at(3));
+        dest.avm_alu_div_u16_r4 = FF(src.div_u64_range_chk.at(4));
+        dest.avm_alu_div_u16_r5 = FF(src.div_u64_range_chk.at(5));
+        dest.avm_alu_div_u16_r6 = FF(src.div_u64_range_chk.at(6));
+        dest.avm_alu_div_u16_r7 = FF(src.div_u64_range_chk.at(7));
         dest.avm_alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
 
         // Not all rows in ALU are enabled with a selector. For instance,
@@ -1716,9 +1804,26 @@ std::vector<Row> AvmTraceBuilder::finalize()
             dest.avm_alu_p_a_borrow = FF(static_cast<uint8_t>(src.p_a_borrow));
             dest.avm_alu_p_b_borrow = FF(static_cast<uint8_t>(src.p_b_borrow));
             dest.avm_alu_borrow = FF(static_cast<uint8_t>(src.borrow));
-            dest.avm_alu_rng_chk_sel = FF(static_cast<uint8_t>(src.rng_chk_sel));
             dest.avm_alu_cmp_rng_ctr = FF(static_cast<uint8_t>(src.cmp_rng_ctr));
             dest.avm_alu_rng_chk_lookup_selector = FF(1);
+        }
+        if (dest.avm_alu_op_div == FF(1)) {
+            dest.avm_alu_op_div_std = uint256_t(src.alu_ia) >= uint256_t(src.alu_ib);
+            dest.avm_alu_op_div_a_lt_b = uint256_t(src.alu_ia) < uint256_t(src.alu_ib);
+            dest.avm_alu_rng_chk_lookup_selector = FF(1);
+            dest.avm_alu_a_lo = FF(src.hi_lo_limbs.at(0));
+            dest.avm_alu_a_hi = FF(src.hi_lo_limbs.at(1));
+            dest.avm_alu_b_lo = FF(src.hi_lo_limbs.at(2));
+            dest.avm_alu_b_hi = FF(src.hi_lo_limbs.at(3));
+            dest.avm_alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(4));
+            dest.avm_alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(5));
+            dest.avm_alu_remainder = src.remainder;
+            dest.avm_alu_divisor_lo = src.divisor_lo;
+            dest.avm_alu_divisor_hi = src.divisor_hi;
+            dest.avm_alu_quotient_lo = src.quotient_lo;
+            dest.avm_alu_quotient_hi = src.quotient_hi;
+            dest.avm_alu_partial_prod_lo = src.partial_prod_lo;
+            dest.avm_alu_partial_prod_hi = src.partial_prod_hi;
         }
 
         if (dest.avm_alu_op_add == FF(1) || dest.avm_alu_op_sub == FF(1) || dest.avm_alu_op_mul == FF(1)) {
@@ -1763,8 +1868,8 @@ std::vector<Row> AvmTraceBuilder::finalize()
         if ((r.avm_main_sel_op_add == FF(1) || r.avm_main_sel_op_sub == FF(1) || r.avm_main_sel_op_mul == FF(1) ||
              r.avm_main_sel_op_eq == FF(1) || r.avm_main_sel_op_not == FF(1) || r.avm_main_sel_op_lt == FF(1) ||
              r.avm_main_sel_op_lte == FF(1) || r.avm_main_sel_op_cast == FF(1) || r.avm_main_sel_op_shr == FF(1) ||
-             r.avm_main_sel_op_shl == FF(1)) &&
-            r.avm_main_tag_err == FF(0)) {
+             r.avm_main_sel_op_shl == FF(1) || r.avm_main_sel_op_div == FF(1)) &&
+            r.avm_main_tag_err == FF(0) && r.avm_main_op_err == FF(0)) {
             r.avm_main_alu_sel = FF(1);
         }
 
@@ -1799,6 +1904,15 @@ std::vector<Row> AvmTraceBuilder::finalize()
 
             r.lookup_mem_rng_chk_hi_counts = mem_rng_check_hi_counts[static_cast<uint16_t>(i)];
             r.lookup_mem_rng_chk_lo_counts = mem_rng_check_lo_counts[static_cast<uint16_t>(i)];
+
+            r.lookup_div_u16_0_counts = alu_trace_builder.div_u64_range_chk_counters[0][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_1_counts = alu_trace_builder.div_u64_range_chk_counters[1][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_2_counts = alu_trace_builder.div_u64_range_chk_counters[2][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_3_counts = alu_trace_builder.div_u64_range_chk_counters[3][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_4_counts = alu_trace_builder.div_u64_range_chk_counters[4][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_5_counts = alu_trace_builder.div_u64_range_chk_counters[5][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_6_counts = alu_trace_builder.div_u64_range_chk_counters[6][static_cast<uint16_t>(i)];
+            r.lookup_div_u16_7_counts = alu_trace_builder.div_u64_range_chk_counters[7][static_cast<uint16_t>(i)];
 
             r.avm_main_clk = FF(static_cast<uint32_t>(i));
             r.avm_main_sel_rng_16 = FF(1);
