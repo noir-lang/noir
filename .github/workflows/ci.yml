@@ -23,7 +23,7 @@ jobs:
     with:
       runner_label: ${{ inputs.username || github.actor }}-x86
       ebs_cache_size_gb: 256
-      runner_concurrency: 30
+      runner_concurrency: 50
       subaction: ${{ inputs.runner_action || 'start' }}
       # Use instance types with low interruption rate in us-east-2 https://aws.amazon.com/ec2/spot/instance-advisor/
       ec2_instance_type: r6in.32xlarge r6a.32xlarge i4i.32xlarge r7iz.32xlarge

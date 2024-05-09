@@ -18,8 +18,8 @@ E2E_COMPOSE_TEST:
   # Let docker compose know about the pushed tags above
   ENV AZTEC_DOCKER_TAG=$(git rev-parse HEAD)
   # Optimize to not cause serial behavior if image already exists
-  IF ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/aztec:$AZTEC_DOCKER_TAG" && \
-       docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG"
+  IF ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/aztec:$AZTEC_DOCKER_TAG" || \
+     ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG"
     WAIT
       BUILD ../+export-e2e-test-images
     END
