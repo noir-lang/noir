@@ -2,10 +2,13 @@ use noirc_errors::{CustomDiagnostic, Span};
 use thiserror::Error;
 
 use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
+
+use super::errors::ResolverError;
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
@@ -51,6 +54,12 @@ pub struct ResolvedImport {
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
     pub error: Option<PathResolutionError>,
+}
+
+impl From<PathResolutionError> for CompilationError {
+    fn from(error: PathResolutionError) -> Self {
+        Self::ResolverError(ResolverError::PathResolutionError(error))
+    }
 }
 
 impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {

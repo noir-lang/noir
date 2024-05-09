@@ -56,17 +56,17 @@ use crate::hir_def::{
 use super::errors::{PubPosition, ResolverError};
 use super::import::PathResolution;
 
-const SELF_TYPE_NAME: &str = "Self";
+pub const SELF_TYPE_NAME: &str = "Self";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 pub struct LambdaContext {
-    captures: Vec<HirCapturedVar>,
+    pub captures: Vec<HirCapturedVar>,
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
-    scope_index: usize,
+    pub scope_index: usize,
 }
 
 /// The primary jobs of the Resolver are to validate that every variable found refers to exactly 1
@@ -1345,7 +1345,7 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt, for_loop.span)
+                        self.resolve_stmt(for_stmt.kind, for_loop.span)
                     }
                 }
             }
@@ -1361,7 +1361,7 @@ impl<'a> Resolver<'a> {
             StatementKind::Comptime(statement) => {
                 let hir_statement = self.resolve_stmt(statement.kind, statement.span);
                 let statement_id = self.interner.push_stmt(hir_statement);
-                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                self.interner.push_stmt_location(statement_id, statement.span, self.file);
                 HirStatement::Comptime(statement_id)
             }
         }
@@ -1370,7 +1370,7 @@ impl<'a> Resolver<'a> {
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         let id = self.interner.push_stmt(hir_stmt);
-        self.interner.push_statement_location(id, stmt.span, self.file);
+        self.interner.push_stmt_location(id, stmt.span, self.file);
         id
     }
 
