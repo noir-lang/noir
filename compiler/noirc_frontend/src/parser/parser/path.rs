@@ -13,16 +13,18 @@ pub(super) fn path() -> impl NoirParser<Path> {
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
     let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
+    let double_colon_dep = || just(Token::DoubleColon).ignore_then(idents()).map_with_span(make_path(PathKind::Dep));
 
     choice((
+        double_colon_dep(),
         path_kind(Keyword::Crate, PathKind::Crate),
-        path_kind(Keyword::Dep, PathKind::Dep),
+        path_kind(Keyword::Dep, PathKind::LitDep),
         idents().map_with_span(make_path(PathKind::Plain)),
     ))
     .validate(|mut expr, span, emit| {
-        if expr.kind == PathKind::Dep {
+        if expr.kind == PathKind::LitDep {
             expr.kind = PathKind::Plain;
-            emit(ParserError::with_reason(ParserErrorReason::DepPathPrefixDeprecated, span));
+            emit(ParserError::with_reason(ParserErrorReason::LitDepPathPrefixDeprecated, span));
         }
         expr
     })
@@ -53,6 +55,7 @@ mod test {
             ("foo::bar", vec!["foo", "bar"]),
             ("foo::bar", vec!["foo", "bar"]),
             ("crate::std::hash", vec!["std", "hash"]),
+            ("::some::hash", vec!["some", "hash"]),
         ];
 
         for (src, expected_segments) in cases {
@@ -62,7 +65,7 @@ mod test {
             }
         }
 
-        parse_all_failing(path(), vec!["std::", "::std", "std::hash::", "foo::1"]);
+        parse_all_failing(path(), vec!["std::", "std::hash::", "foo::1"]);
     }
 
     #[test]
@@ -71,6 +74,7 @@ mod test {
             ("std", PathKind::Plain),
             ("hash::collections", PathKind::Plain),
             ("crate::std::hash", PathKind::Crate),
+            ("::some::hash", PathKind::Dep),
         ];
 
         for (src, expected_path_kind) in cases {

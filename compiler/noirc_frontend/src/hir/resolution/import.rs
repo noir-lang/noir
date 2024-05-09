@@ -41,12 +41,6 @@ pub enum PathResolutionError {
     Private(Ident),
 }
 
-impl PathResolutionError {
-    fn is_unresolved(&self) -> bool {
-        matches!(self, Self::Unresolved(_))
-    }
-}
-
 #[derive(Debug)]
 pub struct ResolvedImport {
     // name of the namespace, either last path segment or an alias
@@ -155,18 +149,26 @@ fn resolve_path_to_ns(
                 allow_contracts,
             )
         }
-        crate::ast::PathKind::Plain | crate::ast::PathKind::Dep => {
-            let result = resolve_name_in_module(
-                crate_id,
-                importing_crate,
-                import_path,
-                import_directive.module_id,
-                def_maps,
-                allow_contracts,
-            );
+        crate::ast::PathKind::Plain => {
 
-            // Attempt to resolve externally when unresolved
-            if let Err(PathResolutionError::Unresolved(_)) = result {
+            // There is a possibility that the import path is empty
+            // In that case, early return
+            if import_path.is_empty() {
+                return resolve_name_in_module(
+                    crate_id,
+                    importing_crate,
+                    import_path,
+                    import_directive.module_id,
+                    def_maps,
+                    allow_contracts,
+                );
+            }
+
+            let current_mod_id = ModuleId { krate: crate_id, local_id: import_directive.module_id };
+            let current_mod = &def_map.modules[current_mod_id.local_id.0];
+            let first_segment = import_path.first().expect("ice: could not fetch first segment");
+            if current_mod.find_name(first_segment).is_none() {
+                // Resolve externally when first segment is unresolved
                 return resolve_external_dep(
                     def_map,
                     import_directive,
@@ -175,8 +177,28 @@ fn resolve_path_to_ns(
                     importing_crate,
                 );
             }
-            result
+
+            resolve_name_in_module(
+                crate_id,
+                importing_crate,
+                import_path,
+                import_directive.module_id,
+                def_maps,
+                allow_contracts,
+            )
+
         }
+
+        crate::ast::PathKind::Dep | crate::ast::PathKind::LitDep => {
+            resolve_external_dep(
+                def_map,
+                import_directive,
+                def_maps,
+                allow_contracts,
+                importing_crate,
+            )
+        }
+
     }
 }
 
