@@ -28,11 +28,9 @@ While shared state variables are much less leaky than the assertion in public ap
 
 The `max_block_number` transaction property will be set to a value close to the current block number plus the duration of the delay in blocks. The exact value depends on the historical block over which the private proof is constructed. For example, if the current block number is 100 and a shared state variable has a delay of 20 blocks, then transactions that read this value privately will set `max_block_number` to a value close to 120 (clients building proofs on older state will select a lower `max_block_number`). This implicitly leaks the duration of the delay.
 
-Applications using similar delays will therefore be part of the same privacy set. It is expected for social coordination to result in small set of predetermined delays that developers choose from depending on their needs, as an example a viable set might be: 12 hours (for time-sensitive operations, such as emergency mechanisms), 5 days (for middle-of-the-road operations) and 2 weeks (for operations that require lengthy public scrutiny).
+Applications using similar delays will therefore be part of the same privacy set. It is expected for social coordination to result in small set of predetermined delays that developers choose from depending on their needs, as an example a viable set might be: 12 hours (for time-sensitive operations, such as emergency mechanisms), 5 days (for middle-of-the-road operations) and 2 weeks (for operations that require lengthy public scrutiny). These delays can be changed during the contract lifetime as the application's needs evolve.
 
-:::note
-Shared state delays are currently hardcoded at compilation time and cannot be changed, but there are plans to make this a mutable value.
-:::note
+Additionally, users might choose to coordinate and constrain their transactions to set `max_block_number` to a value lower than would be strictly needed by the applications they interact with (if any!) using some common delay, and by doing so prevent privacy leakage.
 
 ### Choosing Epochs
 

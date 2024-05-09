@@ -6,6 +6,12 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## 0.39.0
+
+### [Aztec.nr] Mutable delays in `SharedMutable`
+
+The type signature for `SharedMutable` changed from `SharedMutable<T, DELAY>` to `SharedMutable<T, INITIAL_DELAY>`. The behavior is the same as before, except the delay can now be changed after deployment by calling `schedule_delay_change`.
+
 ## 0.38.0
 
 ### [Aztec.nr] Emmiting encrypted logs
