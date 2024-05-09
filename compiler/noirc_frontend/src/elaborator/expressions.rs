@@ -32,7 +32,7 @@ use crate::{
 
 use super::Elaborator;
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
@@ -323,7 +323,7 @@ impl Elaborator {
                     &method_ref,
                     object_type,
                     location,
-                    &mut self.interner,
+                    self.interner,
                 );
 
                 let func_type = self.type_check_variable(function_name, function_id);
@@ -443,7 +443,7 @@ impl Elaborator {
         (expr_id, typ)
     }
 
-    fn intern_expr(&mut self, expr: HirExpression, span: Span) -> ExprId {
+    pub fn intern_expr(&mut self, expr: HirExpression, span: Span) -> ExprId {
         let id = self.interner.push_expr(expr);
         self.interner.push_expr_location(id, span, self.file);
         id

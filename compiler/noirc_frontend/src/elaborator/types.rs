@@ -19,19 +19,20 @@ use crate::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
+        function::FuncMeta,
         traits::{Trait, TraitConstraint},
     },
     macros_api::{
-        HirExpression, HirLiteral, Path, PathKind, SecondaryAttribute, Signedness, UnaryOp,
-        UnresolvedType, UnresolvedTypeData,
+        HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
+        UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitImplKind, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
@@ -45,7 +46,11 @@ impl Elaborator {
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
+    pub fn resolve_type_inner(
+        &mut self,
+        typ: UnresolvedType,
+        new_variables: &mut Generics,
+    ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
@@ -124,7 +129,7 @@ impl Elaborator {
         resolved_type
     }
 
-    fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
+    pub fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
         self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
     }
 
@@ -257,7 +262,7 @@ impl Elaborator {
         }
     }
 
-    fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
+    pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some((name, var, _)) = self.find_generic(name) {
@@ -266,15 +271,12 @@ impl Elaborator {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.path_resolver.resolve(&self.def_maps, path.clone()) {
-            Ok(PathResolution { module_def_id: ModuleDefId::GlobalId(id), error }) => {
+        match self.resolve_path(path.clone()) {
+            Ok(ModuleDefId::GlobalId(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
-                if let Some(error) = error {
-                    self.push_err(error);
-                }
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
@@ -328,55 +330,6 @@ impl Elaborator {
                 }
             }
         }
-    }
-
-    /// Lookup a given struct type by name.
-    fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
-        match self.lookup(path) {
-            Ok(struct_id) => Some(self.get_struct(struct_id)),
-            Err(error) => {
-                self.push_err(error);
-                None
-            }
-        }
-    }
-
-    /// Lookup a given trait by name/path.
-    fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
-        match self.lookup(path) {
-            Ok(trait_id) => Some(self.get_trait_mut(trait_id)),
-            Err(error) => {
-                self.push_err(error);
-                None
-            }
-        }
-    }
-
-    /// Looks up a given type by name.
-    /// This will also instantiate any struct types found.
-    pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
-        let ident = path.as_ident();
-        if ident.map_or(false, |i| i == SELF_TYPE_NAME) {
-            if let Some(typ) = &self.self_type {
-                return Some(typ.clone());
-            }
-        }
-
-        match self.lookup(path) {
-            Ok(struct_id) => {
-                let struct_type = self.get_struct(struct_id);
-                let generics = struct_type.borrow().instantiate(&mut self.interner);
-                Some(Type::Struct(struct_type, generics))
-            }
-            Err(error) => {
-                self.push_err(error);
-                None
-            }
-        }
-    }
-
-    fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
-        self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 
     // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
@@ -629,7 +582,7 @@ impl Elaborator {
     ) {
         let mut errors = Vec::new();
         actual.unify(expected, &mut errors, make_error);
-        self.errors.extend(errors.into_iter().map(Into::into));
+        self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
     }
 
     /// Wrapper of Type::unify_with_coercions using self.errors
@@ -641,20 +594,14 @@ impl Elaborator {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut errors = Vec::new();
-        actual.unify_with_coercions(
-            expected,
-            expression,
-            &mut self.interner,
-            &mut errors,
-            make_error,
-        );
-        self.errors.extend(errors.into_iter().map(Into::into));
+        actual.unify_with_coercions(expected, expression, self.interner, &mut errors, make_error);
+        self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
     }
 
     /// Return a fresh integer or field type variable and log it
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
-        let typ = Type::polymorphic_integer_or_field(&mut self.interner);
+        let typ = Type::polymorphic_integer_or_field(self.interner);
         self.type_variables.push(typ.clone());
         typ
     }
@@ -662,7 +609,7 @@ impl Elaborator {
     /// Return a fresh integer type variable and log it
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
-        let typ = Type::polymorphic_integer(&mut self.interner);
+        let typ = Type::polymorphic_integer(self.interner);
         self.type_variables.push(typ.clone());
         typ
     }
@@ -962,7 +909,7 @@ impl Elaborator {
         // Doing so also ensures a type error if Field is used.
         // The is_numeric check is to allow impls for custom types to bypass this.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
-            let target = Type::polymorphic_integer(&mut self.interner);
+            let target = Type::polymorphic_integer(self.interner);
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
@@ -1014,7 +961,7 @@ impl Elaborator {
                         || TypeCheckError::InvalidShiftSize { span },
                     );
                     let use_impl = if lhs_type.is_numeric() {
-                        let integer_type = Type::polymorphic_integer(&mut self.interner);
+                        let integer_type = Type::polymorphic_integer(self.interner);
                         self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
                     } else {
                         true
@@ -1095,7 +1042,7 @@ impl Elaborator {
         let the_trait = self.interner.get_trait(trait_method_id.trait_id);
 
         let method = &the_trait.methods[trait_method_id.method_index];
-        let (method_type, mut bindings) = method.typ.clone().instantiate(&self.interner);
+        let (method_type, mut bindings) = method.typ.clone().instantiate(self.interner);
 
         match method_type {
             Type::Function(args, _, _) => {
@@ -1362,7 +1309,7 @@ impl Elaborator {
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
-                    if let Err(error) = verify_mutable_reference(&self.interner, *object) {
+                    if let Err(error) = verify_mutable_reference(self.interner, *object) {
                         self.push_err(TypeCheckError::ResolverError(error));
                     }
 
@@ -1393,6 +1340,98 @@ impl Elaborator {
                 let (new_object, new_type) = self.insert_auto_dereferences(*object, actual_type);
                 *object_type = new_type;
                 *object = new_object;
+            }
+        }
+    }
+
+    pub fn type_check_function_body(&mut self, body_type: Type, meta: &FuncMeta, body_id: ExprId) {
+        let (expr_span, empty_function) = self.function_info(body_id);
+        let declared_return_type = meta.return_type();
+
+        let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
+            if self.interner.lookup_trait_implementation(&body_type, *trait_id, generics).is_err() {
+                self.push_err(TypeCheckError::TypeMismatchWithSource {
+                    expected: declared_return_type.clone(),
+                    actual: body_type,
+                    span: func_span,
+                    source: Source::Return(meta.return_type.clone(), expr_span),
+                });
+            }
+        } else {
+            self.unify_with_coercions(&body_type, declared_return_type, body_id, || {
+                let mut error = TypeCheckError::TypeMismatchWithSource {
+                    expected: declared_return_type.clone(),
+                    actual: body_type.clone(),
+                    span: func_span,
+                    source: Source::Return(meta.return_type.clone(), expr_span),
+                };
+
+                if empty_function {
+                    error = error.add_context(
+                        "implicitly returns `()` as its body has no tail or `return` expression",
+                    );
+                }
+                error
+            });
+        }
+    }
+
+    fn function_info(&self, function_body_id: ExprId) -> (noirc_errors::Span, bool) {
+        let (expr_span, empty_function) =
+            if let HirExpression::Block(block) = self.interner.expression(&function_body_id) {
+                let last_stmt = block.statements().last();
+                let mut span = self.interner.expr_span(&function_body_id);
+
+                if let Some(last_stmt) = last_stmt {
+                    if let HirStatement::Expression(expr) = self.interner.statement(last_stmt) {
+                        span = self.interner.expr_span(&expr);
+                    }
+                }
+
+                (span, last_stmt.is_none())
+            } else {
+                (self.interner.expr_span(&function_body_id), false)
+            };
+        (expr_span, empty_function)
+    }
+
+    pub fn verify_trait_constraint(
+        &mut self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        function_ident_id: ExprId,
+        span: Span,
+    ) {
+        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
+            Ok(impl_kind) => {
+                self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+            }
+            Err(erroring_constraints) => {
+                if erroring_constraints.is_empty() {
+                    self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+                } else {
+                    // Don't show any errors where try_get_trait returns None.
+                    // This can happen if a trait is used that was never declared.
+                    let constraints = erroring_constraints
+                        .into_iter()
+                        .map(|constraint| {
+                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                            let mut name = r#trait.name.to_string();
+                            if !constraint.trait_generics.is_empty() {
+                                let generics =
+                                    vecmap(&constraint.trait_generics, ToString::to_string);
+                                name += &format!("<{}>", generics.join(", "));
+                            }
+                            Some((constraint.typ, name))
+                        })
+                        .collect::<Option<Vec<_>>>();
+
+                    if let Some(constraints) = constraints {
+                        self.push_err(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    }
+                }
             }
         }
     }
