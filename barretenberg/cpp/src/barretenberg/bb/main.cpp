@@ -509,37 +509,6 @@ void vk_as_fields(const std::string& vk_path, const std::string& output_path)
 }
 
 /**
- * @brief Returns ACVM related backend information
- *
- * Communication:
- * - stdout: The json string is written to stdout
- * - Filesystem: The json string is written to the path specified
- *
- * @param output_path Path to write the information to
- */
-void acvm_info(const std::string& output_path)
-{
-
-    const char* jsonData = R"({
-    "language": {
-        "name" : "PLONK-CSAT",
-        "width" : 4
-    }
-    })";
-
-    size_t length = strlen(jsonData);
-    std::vector<uint8_t> data(jsonData, jsonData + length);
-
-    if (output_path == "-") {
-        writeRawBytesToStdout(data);
-        vinfo("info written to stdout");
-    } else {
-        write_file(output_path, data);
-        vinfo("info written to: ", output_path);
-    }
-}
-
-/**
  * @brief Writes an avm proof and corresponding (incomplete) verification key to files.
  *
  * Communication:
@@ -795,11 +764,6 @@ int main(int argc, char* argv[])
         // Skip CRS initialization for any command which doesn't require the CRS.
         if (command == "--version") {
             writeStringToStdout(BB_VERSION);
-            return 0;
-        }
-        if (command == "info") {
-            std::string output_path = get_option(args, "-o", "info.json");
-            acvm_info(output_path);
             return 0;
         }
         if (command == "prove_and_verify") {
