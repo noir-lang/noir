@@ -451,6 +451,15 @@ impl DebugShow {
                     output
                 );
             }
+            BlackBoxOp::ToRadix { input, radix, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  TO_RADIX {} {} -> {}",
+                    input,
+                    radix,
+                    output
+                );
+            }
         }
     }
 
