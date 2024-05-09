@@ -6,20 +6,27 @@ use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
 use crate::pwg::{insert_value, witness_to_value, OpcodeResolutionError};
 
-pub(super) fn fixed_base_scalar_mul(
+pub(super) fn multi_scalar_mul(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
-    low: FunctionInput,
-    high: FunctionInput,
+    points: &[FunctionInput],
+    scalars: &[FunctionInput],
     outputs: (Witness, Witness),
 ) -> Result<(), OpcodeResolutionError> {
-    let low = witness_to_value(initial_witness, low.witness)?;
-    let high = witness_to_value(initial_witness, high.witness)?;
+    let points: Result<Vec<_>, _> =
+        points.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
+    let points: Vec<_> = points?.into_iter().cloned().collect();
 
-    let (pub_x, pub_y) = backend.fixed_base_scalar_mul(low, high)?;
+    let scalars: Result<Vec<_>, _> =
+        scalars.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
+    let scalars: Vec<_> = scalars?.into_iter().cloned().collect();
 
-    insert_value(&outputs.0, pub_x, initial_witness)?;
-    insert_value(&outputs.1, pub_y, initial_witness)?;
+    // Call the backend's multi-scalar multiplication function
+    let (res_x, res_y) = backend.multi_scalar_mul(&points, &scalars)?;
+
+    // Insert the resulting point into the witness map
+    insert_value(&outputs.0, res_x, initial_witness)?;
+    insert_value(&outputs.1, res_y, initial_witness)?;
 
     Ok(())
 }

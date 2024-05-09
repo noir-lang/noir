@@ -1,5 +1,5 @@
 [package]
-name = "scalar_mul"
+name = "embedded_curve_ops"
 type = "bin"
 authors = [""]
 

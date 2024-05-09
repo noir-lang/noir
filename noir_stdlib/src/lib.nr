@@ -1,4 +1,5 @@
 mod hash;
+mod aes128;
 mod array;
 mod slice;
 mod merkle;
@@ -6,9 +7,7 @@ mod schnorr;
 mod ecdsa_secp256k1;
 mod ecdsa_secp256r1;
 mod eddsa;
-mod grumpkin_scalar;
-mod grumpkin_scalar_mul;
-mod scalar_mul;
+mod embedded_curve_ops;
 mod sha256;
 mod sha512;
 mod field;
@@ -26,7 +25,6 @@ mod default;
 mod prelude;
 mod uint128;
 mod bigint;
-mod internal;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident

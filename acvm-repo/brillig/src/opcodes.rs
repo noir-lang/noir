@@ -52,6 +52,12 @@ pub struct HeapArray {
     pub size: usize,
 }
 
+impl Default for HeapArray {
+    fn default() -> Self {
+        Self { pointer: MemoryAddress(0), size: 0 }
+    }
+}
+
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct HeapVector {
@@ -179,8 +185,7 @@ pub enum BrilligOpcode {
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, returning data after the offset
     Trap {
-        revert_data_offset: usize,
-        revert_data_size: usize,
+        revert_data: HeapArray,
     },
     /// Stop execution, returning data after the offset
     Stop {

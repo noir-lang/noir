@@ -53,6 +53,7 @@ impl ExpressionSolver {
                         if !total_sum.is_zero() {
                             Err(OpcodeResolutionError::UnsatisfiedConstrain {
                                 opcode_location: ErrorLocation::Unresolved,
+                                payload: None,
                             })
                         } else {
                             Ok(())
@@ -81,6 +82,7 @@ impl ExpressionSolver {
                     if !total_sum.is_zero() {
                         Err(OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Unresolved,
+                            payload: None,
                         })
                     } else {
                         Ok(())
@@ -96,6 +98,7 @@ impl ExpressionSolver {
                 if !(a + b + opcode.q_c).is_zero() {
                     Err(OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: ErrorLocation::Unresolved,
+                        payload: None,
                     })
                 } else {
                     Ok(())
@@ -113,6 +116,7 @@ impl ExpressionSolver {
                     if !total_sum.is_zero() {
                         Err(OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Unresolved,
+                            payload: None,
                         })
                     } else {
                         Ok(())

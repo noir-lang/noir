@@ -163,7 +163,7 @@ impl<'a> Interpreter<'a> {
         self.scopes.last_mut().unwrap()
     }
 
-    fn define_pattern(
+    pub(super) fn define_pattern(
         &mut self,
         pattern: &HirPattern,
         typ: &Type,
@@ -265,7 +265,7 @@ impl<'a> Interpreter<'a> {
         Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
-    fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
+    pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
         self.lookup_id(ident.id, ident.location)
     }
 
@@ -294,7 +294,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Evaluate an expression and return the result
-    fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
