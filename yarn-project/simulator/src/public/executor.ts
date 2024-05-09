@@ -168,10 +168,6 @@ async function executePublicFunctionAcvm(
   })();
 
   if (reverted) {
-    if (!revertReason) {
-      throw new Error('Reverted but no revert reason');
-    }
-
     return {
       execution,
       returnValues: [],

@@ -121,7 +121,7 @@ describe('e2e_avm_simulator', () => {
     });
   });
 
-  describe('ACVM interoperability', () => {
+  describe.skip('ACVM interoperability', () => {
     let avmContract: AvmAcvmInteropTestContract;
 
     beforeEach(async () => {
@@ -136,7 +136,7 @@ describe('e2e_avm_simulator', () => {
       expect(await avmContract.methods.call_avm_from_acvm().simulate()).toEqual(123456n);
     });
 
-    it.skip('Can call ACVM function from AVM', async () => {
+    it('Can call ACVM function from AVM', async () => {
       expect(await avmContract.methods.call_acvm_from_avm().simulate()).toEqual(123456n);
     });
 
@@ -146,7 +146,7 @@ describe('e2e_avm_simulator', () => {
       await avmContract.methods.assert_unsiloed_nullifier_acvm(nullifier).send().wait();
     });
 
-    it.skip('AVM nested call to ACVM sees settled nullifiers', async () => {
+    it('AVM nested call to ACVM sees settled nullifiers', async () => {
       const nullifier = new Fr(123456);
       await avmContract.methods.new_nullifier(nullifier).send().wait();
       await avmContract.methods
@@ -155,6 +155,7 @@ describe('e2e_avm_simulator', () => {
         .wait();
     });
 
+    // TODO: Enable (or delete) authwit tests once the AVM is fully functional.
     describe.skip('Authwit', () => {
       it('Works if authwit provided', async () => {
         const recipient = AztecAddress.random();

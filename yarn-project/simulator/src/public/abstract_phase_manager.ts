@@ -283,10 +283,18 @@ export abstract class AbstractPhaseManager {
             )
           : current;
 
+        // Sanity check for a current upstream assumption.
+        // Consumers of the result seem to expect "reverted <=> revertReason !== undefined".
+        const functionSelector = result.execution.functionData.selector.toString();
+        if (result.reverted && !result.revertReason) {
+          throw new Error(
+            `Simulation of ${result.execution.contractAddress.toString()}:${functionSelector} reverted with no reason.`,
+          );
+        }
+
         // Accumulate gas used in this execution
         gasUsed = gasUsed.add(Gas.from(result.startGasLeft).sub(Gas.from(result.endGasLeft)));
 
-        const functionSelector = result.execution.functionData.selector.toString();
         if (result.reverted && !PhaseIsRevertible[this.phase]) {
           this.log.debug(
             `Simulation error on ${result.execution.contractAddress.toString()}:${functionSelector} with reason: ${

@@ -136,14 +136,20 @@ export class AvmMachineState {
       throw new Error('Execution results are not ready! Execution is ongoing.');
     }
     let revertReason = undefined;
-    if (this.reverted && this.output.length > 0) {
-      try {
-        // We remove the first element which is the 'error selector'.
-        const revertOutput = this.output.slice(1);
-        // Try to interpret the output as a text string.
-        revertReason = new Error('Assertion failed: ' + String.fromCharCode(...revertOutput.map(fr => fr.toNumber())));
-      } catch (e) {
-        revertReason = new Error('<no output>');
+    if (this.reverted) {
+      if (this.output.length === 0) {
+        revertReason = new Error('Assertion failed.');
+      } else {
+        try {
+          // We remove the first element which is the 'error selector'.
+          const revertOutput = this.output.slice(1);
+          // Try to interpret the output as a text string.
+          revertReason = new Error(
+            'Assertion failed: ' + String.fromCharCode(...revertOutput.map(fr => fr.toNumber())),
+          );
+        } catch (e) {
+          revertReason = new Error('Assertion failed: <cannot interpret as string>');
+        }
       }
     }
     return new AvmContractCallResults(this.reverted, this.output, revertReason);
