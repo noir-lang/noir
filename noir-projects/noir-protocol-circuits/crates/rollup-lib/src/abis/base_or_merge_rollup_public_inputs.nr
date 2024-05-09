@@ -1,8 +1,6 @@
 use dep::types::{
     abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-    partial_state_reference::PartialStateReference,
-    mocked::AggregationObject,
-    traits::Empty
+    partial_state_reference::PartialStateReference, mocked::AggregationObject, traits::Empty
 };
 use crate::abis::constant_rollup_data::ConstantRollupData;
 

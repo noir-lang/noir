@@ -1,4 +1,7 @@
-use crate::{abis::max_block_number::MaxBlockNumber, traits::{Empty, Serialize}, constants::ROLLUP_VALIDATION_REQUESTS_LENGTH};
+use crate::{
+    abis::max_block_number::MaxBlockNumber, traits::{Empty, Serialize},
+    constants::ROLLUP_VALIDATION_REQUESTS_LENGTH
+};
 
 // These are validation requests that cannot be fulfilled in the current context (private or public), and must be 
 // instead forwarded to the rollup for it to take care of them.

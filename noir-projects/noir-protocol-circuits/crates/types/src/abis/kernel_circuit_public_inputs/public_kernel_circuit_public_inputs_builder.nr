@@ -4,7 +4,8 @@ use crate::{
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs},
     validation_requests::ValidationRequestsBuilder, call_request::CallRequest
-}, traits::Empty
+},
+    traits::Empty
 };
 
 struct PublicKernelCircuitPublicInputsBuilder {

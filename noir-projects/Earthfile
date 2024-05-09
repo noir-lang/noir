@@ -33,9 +33,8 @@ test:
 format:
   FROM +build
 
-  # TODO: https://github.com/noir-lang/noir/issues/4980
-  # WORKDIR /usr/src/noir-projects/noir-protocol-circuits
-  # RUN nargo fmt --check
+  WORKDIR /usr/src/noir-projects/noir-protocol-circuits
+  RUN nargo fmt --check
 
   WORKDIR /usr/src/noir-projects/noir-contracts
   RUN nargo fmt --check

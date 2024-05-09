@@ -9,7 +9,8 @@ use crate::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     MAX_PUBLIC_DATA_READS_PER_TX, VALIDATION_REQUESTS_LENGTH
-}, traits::Serialize
+},
+    traits::Serialize
 };
 
 // TODO - Use specific structs for private and public: PrivateValidationRequests vs PublicValidationRequests

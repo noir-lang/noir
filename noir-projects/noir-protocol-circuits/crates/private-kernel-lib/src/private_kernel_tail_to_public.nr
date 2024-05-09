@@ -2,8 +2,9 @@ use crate::kernel_circuit_public_inputs_composer::KernelCircuitPublicInputsCompo
 use dep::reset_kernel_lib::{NoteHashReadRequestHints, NullifierReadRequestHints, PrivateValidationRequestProcessor};
 use dep::types::{
     abis::{
-    private_kernel_data::{PrivateKernelData, verify_previous_kernel_proof}, kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-    note_hash::ScopedNoteHash, nullifier::ScopedNullifier, side_effect::SideEffect
+    private_kernel_data::{PrivateKernelData, verify_previous_kernel_proof},
+    kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, note_hash::ScopedNoteHash,
+    nullifier::ScopedNullifier, side_effect::SideEffect
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
