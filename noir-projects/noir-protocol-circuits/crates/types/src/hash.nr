@@ -34,11 +34,31 @@ pub fn private_functions_root_from_siblings(
     root_from_sibling_path(function_leaf, function_leaf_index, function_leaf_sibling_path)
 }
 
-pub fn silo_note_hash(address: AztecAddress, inner_commitment: Field) -> Field {
+pub fn compute_note_hash_nonce(first_nullifier: Field, note_hash_index: u64) -> Field {
+    pedersen_hash(
+        [
+        first_nullifier,
+        note_hash_index as Field
+    ],
+        GENERATOR_INDEX__NOTE_HASH_NONCE
+    )
+}
+
+pub fn compute_unique_note_hash(nonce: Field, note_hash: Field) -> Field {
+    pedersen_hash(
+        [
+        nonce,
+        note_hash
+    ],
+        GENERATOR_INDEX__UNIQUE_NOTE_HASH
+    )
+}
+
+pub fn silo_note_hash(address: AztecAddress, unique_note_hash: Field) -> Field {
     pedersen_hash(
         [
         address.to_field(),
-        inner_commitment
+        unique_note_hash
     ],
         GENERATOR_INDEX__SILOED_NOTE_HASH
     )
@@ -141,26 +161,6 @@ pub fn compute_tx_logs_hash(logs: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX]) -> Fi
         hash = 0;
     }
     hash
-}
-
-pub fn compute_note_hash_nonce(first_nullifier: Field, commitment_index: u64) -> Field {
-    pedersen_hash(
-        [
-        first_nullifier,
-        commitment_index as Field
-    ],
-        GENERATOR_INDEX__NOTE_HASH_NONCE
-    )
-}
-
-pub fn compute_unique_siloed_note_hash(nonce: Field, siloed_note_hash: Field) -> Field {
-    pedersen_hash(
-        [
-        nonce,
-        siloed_note_hash
-    ],
-        GENERATOR_INDEX__UNIQUE_NOTE_HASH
-    )
 }
 
 pub fn pedersen_hash<N>(inputs: [Field; N], hash_index: u32) -> Field {

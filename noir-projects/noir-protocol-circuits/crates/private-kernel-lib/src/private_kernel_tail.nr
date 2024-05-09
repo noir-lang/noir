@@ -104,10 +104,7 @@ mod tests {
         side_effect::SideEffect, gas::Gas
     },
         grumpkin_private_key::GrumpkinPrivateKey,
-        hash::{
-        compute_note_hash_nonce, compute_unique_siloed_note_hash, sha256_to_field, silo_note_hash,
-        silo_nullifier
-    },
+        hash::{compute_note_hash_nonce, compute_unique_note_hash, sha256_to_field, silo_note_hash, silo_nullifier},
         tests::{fixture_builder::FixtureBuilder, sort::sort_get_sorted_hints},
         utils::{arrays::{array_eq, array_length}}, traits::{Empty, is_empty, is_empty_array}
     };
@@ -141,16 +138,16 @@ mod tests {
         // note_hashes for the given note_hashes.
         pub fn compute_output_note_hashes<N>(self, note_hashes: [ScopedNoteHash; N]) -> [Field; N] {
             let first_nullifier = self.previous_kernel.new_nullifiers.get_unchecked(0);
-            let mut unique_siloed_note_hashes = [0; N];
+            let mut output = [0; N];
             for i in 0..N {
                 let note_hash = note_hashes[i];
                 if note_hash.value() != 0 {
-                    let siloed = silo_note_hash(note_hash.contract_address, note_hash.value());
                     let nonce = compute_note_hash_nonce(first_nullifier.value(), i);
-                    unique_siloed_note_hashes[i] = compute_unique_siloed_note_hash(nonce, siloed);
+                    let unique_note_hash = compute_unique_note_hash(nonce, note_hash.value());
+                    output[i] = silo_note_hash(note_hash.contract_address, unique_note_hash);
                 }
             }
-            unique_siloed_note_hashes
+            output
         }
 
         pub fn compute_output_nullifiers<N>(_self: Self, nullifiers: [ScopedNullifier; N]) -> [Field; N] {

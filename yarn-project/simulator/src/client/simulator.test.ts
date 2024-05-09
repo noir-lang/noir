@@ -66,20 +66,16 @@ describe('Simulator', () => {
       const note = createNote();
       const tokenNoteHash = computeNoteContentHash(note.items);
       const innerNoteHash = computeInnerNoteHash(storageSlot, tokenNoteHash);
-      const siloedNoteHash = siloNoteHash(contractAddress, innerNoteHash);
-      const uniqueSiloedNoteHash = computeUniqueNoteHash(nonce, siloedNoteHash);
-      const innerNullifier = poseidon2Hash([
-        uniqueSiloedNoteHash,
-        appNullifierSecretKey,
-        GeneratorIndex.NOTE_NULLIFIER,
-      ]);
+      const uniqueNoteHash = computeUniqueNoteHash(nonce, innerNoteHash);
+      const siloedNoteHash = siloNoteHash(contractAddress, uniqueNoteHash);
+      const innerNullifier = poseidon2Hash([siloedNoteHash, appNullifierSecretKey, GeneratorIndex.NOTE_NULLIFIER]);
 
       const result = await simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, noteTypeId, note);
 
       expect(result).toEqual({
         innerNoteHash,
+        uniqueNoteHash,
         siloedNoteHash,
-        uniqueSiloedNoteHash,
         innerNullifier,
       });
     });

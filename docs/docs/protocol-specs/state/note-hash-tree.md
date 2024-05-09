@@ -6,16 +6,16 @@ Note commitments <!-- A "note commitment" is not defined. Suggest using "note ha
 
 Contracts emit new note commitments via the `new_note_hashes` in the `CircuitPublicInputs` <!-- n/d. Please link to where this is defined -->, which are subsequently [siloed](./tree-implementations.md#siloing-leaves) by contract address by the Kernel circuit. Siloing the commitment ensures that a malicious contract cannot create notes for (that is, modify the state of) another contract.
 
-The Kernel circuit also guarantees uniqueness of commitments by further hashing them with a nonce, derived from the transaction identifier <!-- n/d --> and the index of the commitment within the transaction's array of newly-created note hashes. Uniqueness means that a note with the same contents can be emitted more than once, and each instance can be independently nullified. Without uniqueness, two notes with the same content would yield the same commitment and nullifier, so nullifying one of them would render the second one as nullified as well.
+The Kernel circuit also guarantees uniqueness of commitments by hashing them with a nonce, derived from the transaction identifier <!-- n/d --> and the index of the commitment within the transaction's array of newly-created note hashes. Uniqueness means that a note with the same contents can be emitted more than once, and each instance can be independently nullified. Without uniqueness, two notes with the same content would yield the same commitment and nullifier, so nullifying one of them would render the second one as nullified as well.
 
 The pseudocode for siloing and making a commitment unique is the following, where each `hash` operation is a Pedersen hash with a unique generator index, indicated by the constant in all caps.
 
 ```
-fn compute_unique_siloed_note_hash(commitment, contract, transaction):
-  let siloed_note_hash = hash([contract, commitment], SILOED_NOTE_HASH)
+fn compute_siloed_note_hash(commitment, contract, transaction):
   let index = index_of(commitment, transaction.commitments)
   let nonce = hash([transaction.tx_hash, index], NOTE_HASH_NONCE)
-  return hash([nonce, siloed_note_hash], UNIQUE_NOTE_HASH)
+  let unique_note_hash = hash([nonce, commitment], UNIQUE_NOTE_HASH);
+  return hash([contract, unique_note_hash], SILOED_NOTE_HASH)
 ```
 
 The unique siloed commitment of a note is included in the [transaction `data`](../transactions/tx-object.md), and then inserted into the Note Hash tree by the sequencer as the transaction is included in a block.

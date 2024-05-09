@@ -4,7 +4,7 @@ import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 import { AztecAddress, Fr } from '../index.js';
 import { makeAztecAddress } from '../tests/factories.js';
 import {
-  computeCommitmentNonce,
+  computeNoteHashNonce,
   computePublicDataTreeLeafSlot,
   computePublicDataTreeValue,
   computeSecretHash,
@@ -17,24 +17,24 @@ import {
 describe('hash', () => {
   setupCustomSnapshotSerializers(expect);
 
-  it('computes commitment nonce', () => {
+  it('computes note hash nonce', () => {
     const nullifierZero = new Fr(123n);
-    const commitmentIndex = 456;
-    const res = computeCommitmentNonce(nullifierZero, commitmentIndex);
+    const noteHashIndex = 456;
+    const res = computeNoteHashNonce(nullifierZero, noteHashIndex);
     expect(res).toMatchSnapshot();
   });
 
-  it('computes unique commitment', () => {
+  it('computes unique note hash', () => {
     const nonce = new Fr(123n);
-    const innerCommitment = new Fr(456);
-    const res = computeUniqueNoteHash(nonce, innerCommitment);
+    const innerNoteHash = new Fr(456);
+    const res = computeUniqueNoteHash(nonce, innerNoteHash);
     expect(res).toMatchSnapshot();
   });
 
-  it('computes siloed commitment', () => {
+  it('computes siloed note hash', () => {
     const contractAddress = new AztecAddress(new Fr(123n).toBuffer());
-    const uniqueCommitment = new Fr(456);
-    const res = siloNoteHash(contractAddress, uniqueCommitment);
+    const uniqueNoteHash = new Fr(456);
+    const res = siloNoteHash(contractAddress, uniqueNoteHash);
     expect(res).toMatchSnapshot();
   });
 

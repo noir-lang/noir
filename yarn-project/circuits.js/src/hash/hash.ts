@@ -32,24 +32,24 @@ export function hashVK(vkBuf: Buffer) {
 }
 
 /**
- * Computes a commitment nonce, which will be used to create a unique commitment.
+ * Computes a note hash nonce, which will be used to create a unique note hash.
  * @param nullifierZero - The first nullifier in the tx.
- * @param commitmentIndex - The index of the commitment.
- * @returns A commitment nonce.
+ * @param noteHashIndex - The index of the note hash.
+ * @returns A note hash nonce.
  */
-export function computeCommitmentNonce(nullifierZero: Fr, commitmentIndex: number): Fr {
-  return pedersenHash([nullifierZero, commitmentIndex], GeneratorIndex.NOTE_HASH_NONCE);
+export function computeNoteHashNonce(nullifierZero: Fr, noteHashIndex: number): Fr {
+  return pedersenHash([nullifierZero, noteHashIndex], GeneratorIndex.NOTE_HASH_NONCE);
 }
 
 /**
- * Computes a siloed commitment, given the contract address and the commitment itself.
- * A siloed commitment effectively namespaces a commitment to a specific contract.
+ * Computes a siloed note hash, given the contract address and the note hash itself.
+ * A siloed note hash effectively namespaces a note hash to a specific contract.
  * @param contract - The contract address
- * @param innerNoteHash - The commitment to silo.
- * @returns A siloed commitment.
+ * @param innerNoteHash - The note hash to silo.
+ * @returns A siloed note hash.
  */
-export function siloNoteHash(contract: AztecAddress, innerNoteHash: Fr): Fr {
-  return pedersenHash([contract, innerNoteHash], GeneratorIndex.SILOED_NOTE_HASH);
+export function siloNoteHash(contract: AztecAddress, uniqueNoteHash: Fr): Fr {
+  return pedersenHash([contract, uniqueNoteHash], GeneratorIndex.SILOED_NOTE_HASH);
 }
 
 /**
@@ -75,11 +75,11 @@ export function computeInnerNoteHash(storageSlot: Fr, noteHash: Fr): Fr {
  * Computes a unique note hash.
  * @dev Includes a nonce which contains data that guarantees the resulting note hash will be unique.
  * @param nonce - The contract address.
- * @param siloedNoteHash - An siloed note hash.
+ * @param innerNoteHash - An inner note hash.
  * @returns A unique note hash.
  */
-export function computeUniqueNoteHash(nonce: Fr, siloedNoteHash: Fr): Fr {
-  return pedersenHash([nonce, siloedNoteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
+export function computeUniqueNoteHash(nonce: Fr, innerNoteHash: Fr): Fr {
+  return pedersenHash([nonce, innerNoteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
 }
 
 /**

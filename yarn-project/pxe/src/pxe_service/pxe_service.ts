@@ -34,7 +34,7 @@ import {
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
+import { computeNoteHashNonce, siloNullifier } from '@aztec/circuits.js/hash';
 import { type ContractArtifact, type DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, type Point } from '@aztec/foundation/fields';
@@ -329,19 +329,15 @@ export class PXEService implements PXE {
     }
 
     for (const nonce of nonces) {
-      const { innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =
-        await this.simulator.computeNoteHashAndNullifier(
-          note.contractAddress,
-          nonce,
-          note.storageSlot,
-          note.noteTypeId,
-          note.note,
-        );
+      const { innerNoteHash, siloedNoteHash, innerNullifier } = await this.simulator.computeNoteHashAndNullifier(
+        note.contractAddress,
+        nonce,
+        note.storageSlot,
+        note.noteTypeId,
+        note.note,
+      );
 
-      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-      // This can always be `uniqueSiloedNoteHash` once notes added from public also include nonces.
-      const noteHashToLookUp = nonce.isZero() ? siloedNoteHash : uniqueSiloedNoteHash;
-      const index = await this.node.findLeafIndex('latest', MerkleTreeId.NOTE_HASH_TREE, noteHashToLookUp);
+      const index = await this.node.findLeafIndex('latest', MerkleTreeId.NOTE_HASH_TREE, siloedNoteHash);
       if (index === undefined) {
         throw new Error('Note does not exist.');
       }
@@ -383,6 +379,23 @@ export class PXEService implements PXE {
     }
 
     const nonces: Fr[] = [];
+
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+    // Remove this once notes added from public also include nonces.
+    {
+      const publicNoteNonce = Fr.ZERO;
+      const { siloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
+        note.contractAddress,
+        publicNoteNonce,
+        note.storageSlot,
+        note.noteTypeId,
+        note.note,
+      );
+      if (tx.noteHashes.some(hash => hash.equals(siloedNoteHash))) {
+        nonces.push(publicNoteNonce);
+      }
+    }
+
     const firstNullifier = tx.nullifiers[0];
     const hashes = tx.noteHashes;
     for (let i = 0; i < hashes.length; ++i) {
@@ -391,21 +404,15 @@ export class PXEService implements PXE {
         break;
       }
 
-      const nonce = computeCommitmentNonce(firstNullifier, i);
-      const { siloedNoteHash, uniqueSiloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
+      const nonce = computeNoteHashNonce(firstNullifier, i);
+      const { siloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
         note.contractAddress,
         nonce,
         note.storageSlot,
         note.noteTypeId,
         note.note,
       );
-      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-      // Remove this once notes added from public also include nonces.
       if (hash.equals(siloedNoteHash)) {
-        nonces.push(Fr.ZERO);
-        break;
-      }
-      if (hash.equals(uniqueSiloedNoteHash)) {
         nonces.push(nonce);
       }
     }

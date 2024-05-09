@@ -9,10 +9,7 @@ use dep::types::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
     MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::{
-    compute_l2_to_l1_hash, compute_note_hash_nonce, compute_unique_siloed_note_hash, silo_note_hash,
-    silo_nullifier
-},
+    hash::{compute_l2_to_l1_hash, compute_note_hash_nonce, compute_unique_note_hash, silo_note_hash, silo_nullifier},
     utils::arrays::{array_length, array_to_bounded_vec, assert_sorted_array}
 };
 
@@ -137,10 +134,10 @@ impl KernelCircuitPublicInputsComposer {
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             let note_hash = note_hashes[i];
             if note_hash.value() != 0 {
-                let siloed = silo_note_hash(note_hash.contract_address, note_hash.value());
                 let nonce = compute_note_hash_nonce(first_nullifier, i);
-                let unique_note_hash = compute_unique_siloed_note_hash(nonce, siloed);
-                self.public_inputs.end.new_note_hashes.storage[i].note_hash.value = unique_note_hash;
+                let unique_note_hash = compute_unique_note_hash(nonce, note_hash.value());
+                let siloed = silo_note_hash(note_hash.contract_address, unique_note_hash);
+                self.public_inputs.end.new_note_hashes.storage[i].note_hash.value = siloed;
             }
         }
     }

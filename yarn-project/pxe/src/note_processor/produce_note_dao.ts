@@ -1,6 +1,6 @@
 import { type L1NotePayload, type TxHash } from '@aztec/circuit-types';
 import { Fr, type PublicKey } from '@aztec/circuits.js';
-import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
+import { computeNoteHashNonce, siloNullifier } from '@aztec/circuits.js/hash';
 import { type AcirSimulator } from '@aztec/simulator';
 
 import { NoteDao } from '../database/note_dao.js';
@@ -78,7 +78,6 @@ async function findNoteIndexAndNullifier(
   let nonce: Fr | undefined;
   let innerNoteHash: Fr | undefined;
   let siloedNoteHash: Fr | undefined;
-  let uniqueSiloedNoteHash: Fr | undefined;
   let innerNullifier: Fr | undefined;
   const firstNullifier = Fr.fromBuffer(txHash.toBuffer());
 
@@ -92,10 +91,16 @@ async function findNoteIndexAndNullifier(
       break;
     }
 
-    const expectedNonce = computeCommitmentNonce(firstNullifier, commitmentIndex);
-    ({ innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =
-      await simulator.computeNoteHashAndNullifier(contractAddress, expectedNonce, storageSlot, noteTypeId, note));
-    if (commitment.equals(uniqueSiloedNoteHash)) {
+    const expectedNonce = computeNoteHashNonce(firstNullifier, commitmentIndex);
+    ({ innerNoteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndNullifier(
+      contractAddress,
+      expectedNonce,
+      storageSlot,
+      noteTypeId,
+      note,
+    ));
+
+    if (commitment.equals(siloedNoteHash)) {
       nonce = expectedNonce;
       break;
     }

@@ -79,20 +79,20 @@ note_hash: Field = pedersen::compress(
 
 The Private Kernel circuit will modify this `note_hash` further, before it is inserted into the tree. It will:
 
-- Silo the commitment, to prevent cross-contamination of this contract's state variables with other contracts' state variables:
-  `siloed_note_hash: Field = hash(contract_address, note_hash);`
-
-  :::info
-  **Siloing** refers to a process of hashing a hash with some other domain specific information (e.g. contract address).
-  This siloing ensures that all hashes are appropriately domain-separated.
-  :::
-
-- Ensure uniqueness of the commitment, by hashing it with a nonce
-  `unique_siloed_note_hash: Field = hash(nonce, siloed_note_hash);`, where `nonce: Field = hash(new_nullifiers[0], index)`, where `new_nullifiers[0]` is a the first nullifier emitted in a transaction and `index` is the position of the new note hash in all new note hashes inserted by the transaction to the note hash tree.
+- Ensure uniqueness of the note hash, by hashing it with a nonce
+  `unique_note_hash: Field = hash(nonce, note_hash);`, where `nonce: Field = hash(new_nullifiers[0], index)`, where `new_nullifiers[0]` is a the first nullifier emitted in a transaction and `index` is the position of the new note hash in all new note hashes inserted by the transaction to the note hash tree.
 
   :::info
   First nullifier of a transaction is always ensured to be non-zero because it is always set by the protocol and it represents a transaction hash.
   For this reason hashing the transaction hash with the index of the note hash in the transaction is sufficient to ensure uniqueness of the note hash.
+  :::
+
+- Silo the note hash, to prevent cross-contamination of this contract's state variables with other contracts' state variables:
+  `siloed_note_hash: Field = hash(contract_address, unique_note_hash);`
+
+  :::info
+  **Siloing** refers to a process of hashing a hash with some other domain specific information (e.g. contract address).
+  This siloing ensures that all hashes are appropriately domain-separated.
   :::
 
 The tree is append-only for a few of reasons:
