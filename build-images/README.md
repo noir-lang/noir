@@ -2,10 +2,6 @@
 
 To ensure a consistent environment for developers, and ease of getting started, we provide a development container.
 
-## Install Docker
-
-If you don't already have docker installed, follow this guide: https://docs.docker.com/engine/install
-
 ## Visual Studio Code
 
 If you use vscode, the simplest thing to do is install the "Dev Containers" plugin, and open the repo.
@@ -25,3 +21,30 @@ Your repo will be mounted at `/workspaces/aztec-packages`, and your home directo
 This is also compatible with GitHub codespaces. Visit the repo at `http://github.com/aztecprotocol/aztec-packages`.
 Press `.`, and open a terminal window. You will be prompted to create a new machine.
 You can then continue to work within the browser, or reopen the codespace in your local vscode.
+
+## Building the build image
+
+If for some reason you want to build the images such as devbox yourself, follow these steps:
+
+### Install Docker
+
+If you don't already have docker installed, follow this guide: https://docs.docker.com/engine/install
+
+### Install earthly
+
+We use earthly to build things, follow this guide: https://earthly.dev/get-earthly
+
+### Build The Dev Container
+
+If you want to build entirely from scratch, you can do:
+
+```
+$ earthly +devbox
+```
+
+This will take significant time and compute however, as it builds several toolchains from the ground up.
+If you have a reasonable internet connection, leveraging the cache to avoid building maybe prefereable.
+
+```
+$ earthly --use-inline-cache +devbox
+```

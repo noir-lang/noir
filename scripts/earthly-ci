@@ -25,6 +25,12 @@ INCONSISTENT_GRAPH_STATE_COUNT=0  # Counter for 'inconsistent graph state' error
 MAX_ATTEMPTS=3
 ATTEMPT_COUNT=0
 
+export EARTHLY_USE_INLINE_CACHE=true
+if [ "$GITHUB_REF_NAME" == "master" ]; then
+  export EARTHLY_SAVE_INLINE_CACHE=true
+  export EARTHLY_PUSH=true
+fi
+
 # Handle earthly commands and retries
 while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
   if earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then

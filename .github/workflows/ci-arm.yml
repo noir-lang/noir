@@ -44,7 +44,7 @@ jobs:
       # prepare images locally, tagged by commit hash
       - name: "Build E2E Image"
         timeout-minutes: 40
-        run: earthly ./yarn-project+export-e2e-test-images
+        run: earthly-ci ./yarn-project+export-e2e-test-images
 
   # all the end-to-end integration tests for aztec
   e2e:
@@ -62,7 +62,7 @@ jobs:
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 15
-        run: earthly -P --no-output +uniswap-trade-on-l1-from-l2
+        run: earthly-ci -P --no-output +uniswap-trade-on-l1-from-l2
 
   notify:
     needs: [e2e]
