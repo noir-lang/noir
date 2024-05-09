@@ -125,6 +125,7 @@ TEST(ECDSASecp256r1, test_hardcoded)
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .recursive = false,
+        .num_acir_opcodes = 1,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},
@@ -177,6 +178,7 @@ TEST(ECDSASecp256r1, TestECDSAConstraintSucceed)
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .recursive = false,
+        .num_acir_opcodes = 1,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},
@@ -227,6 +229,7 @@ TEST(ECDSASecp256r1, TestECDSACompilesForVerifier)
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .recursive = false,
+        .num_acir_opcodes = 1,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},
@@ -272,6 +275,7 @@ TEST(ECDSASecp256r1, TestECDSAConstraintFail)
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .recursive = false,
+        .num_acir_opcodes = 1,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},

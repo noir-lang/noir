@@ -51,6 +51,7 @@ TEST_F(EcOperations, TestECOperations)
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables + 1),
         .recursive = false,
+        .num_acir_opcodes = 1,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acvm::acir::circuit::{ExpressionWidth, Program};
+use acvm::acir::circuit::ExpressionWidth;
 use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
@@ -283,10 +283,15 @@ impl From<ContractInfo> for Vec<Row> {
 
 fn count_opcodes_and_gates_in_program(
     backend: &Backend,
-    compiled_program: ProgramArtifact,
+    mut compiled_program: ProgramArtifact,
     package: &Package,
     expression_width: ExpressionWidth,
 ) -> Result<ProgramInfo, CliError> {
+    // Unconstrained functions do not matter to a backend circuit count so we clear them
+    // before sending a serialized program to the backend
+    compiled_program.bytecode.unconstrained_functions.clear();
+
+    let program_circuit_sizes = backend.get_exact_circuit_sizes(&compiled_program.bytecode)?;
     let functions = compiled_program
         .bytecode
         .functions
@@ -295,12 +300,9 @@ fn count_opcodes_and_gates_in_program(
         .map(|(i, function)| -> Result<_, BackendError> {
             Ok(FunctionInfo {
                 name: compiled_program.names[i].clone(),
+                // Required while mock backend doesn't return correct circuit size.
                 acir_opcodes: function.opcodes.len(),
-                // Unconstrained functions do not matter to a backend circuit count so we pass nothing here
-                circuit_size: backend.get_exact_circuit_size(&Program {
-                    functions: vec![function],
-                    unconstrained_functions: Vec::new(),
-                })?,
+                circuit_size: program_circuit_sizes[i].circuit_size,
             })
         })
         .collect::<Result<_, _>>()?;
@@ -321,7 +323,7 @@ fn count_opcodes_and_gates_in_contract(
                 name: function.name,
                 // TODO(https://github.com/noir-lang/noir/issues/4720)
                 acir_opcodes: function.bytecode.functions[0].opcodes.len(),
-                circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
+                circuit_size: backend.get_exact_circuit_sizes(&function.bytecode)?[0].circuit_size,
             })
         })
         .collect::<Result<_, _>>()?;

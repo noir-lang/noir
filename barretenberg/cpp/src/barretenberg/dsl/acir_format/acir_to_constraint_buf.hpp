@@ -477,6 +477,7 @@ AcirFormat circuit_serde_to_acir_format(Program::Circuit const& circuit)
     // `varnum` is the true number of variables, thus we add one to the index which starts at zero
     af.varnum = circuit.current_witness_index + 1;
     af.recursive = circuit.recursive;
+    af.num_acir_opcodes = static_cast<uint32_t>(circuit.opcodes.size());
     af.public_inputs = join({ map(circuit.public_parameters.value, [](auto e) { return e.value; }),
                               map(circuit.return_values.value, [](auto e) { return e.value; }) });
     std::map<uint32_t, BlockConstraint> block_id_to_block_constraint;

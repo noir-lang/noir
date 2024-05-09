@@ -32,6 +32,7 @@ TEST_F(AcirFormatTests, TestASingleConstraintNoPubInputs)
     AcirFormat constraint_system{
         .varnum = 4,
         .recursive = false,
+        .num_acir_opcodes = 1,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},
@@ -149,6 +150,7 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
 
     AcirFormat constraint_system{ .varnum = 6,
                                   .recursive = false,
+                                  .num_acir_opcodes = 7,
                                   .public_inputs = { 1 },
                                   .logic_constraints = { logic_constraint },
                                   .range_constraints = { range_a, range_b },
@@ -218,6 +220,7 @@ TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
     };
     AcirFormat constraint_system{ .varnum = 81,
                                   .recursive = false,
+                                  .num_acir_opcodes = 75,
                                   .public_inputs = {},
                                   .logic_constraints = {},
                                   .range_constraints = range_constraints,
@@ -314,6 +317,7 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
     AcirFormat constraint_system{
         .varnum = 81,
         .recursive = false,
+        .num_acir_opcodes = 75,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = range_constraints,
@@ -429,6 +433,7 @@ TEST_F(AcirFormatTests, TestVarKeccak)
     AcirFormat constraint_system{
         .varnum = 36,
         .recursive = false,
+        .num_acir_opcodes = 6,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = { range_a, range_b, range_c, range_d },
@@ -477,6 +482,7 @@ TEST_F(AcirFormatTests, TestKeccakPermutation)
 
     AcirFormat constraint_system{ .varnum = 51,
                                   .recursive = false,
+                                  .num_acir_opcodes = 1,
                                   .public_inputs = {},
                                   .logic_constraints = {},
                                   .range_constraints = {},

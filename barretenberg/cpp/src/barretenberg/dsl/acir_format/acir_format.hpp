@@ -32,6 +32,8 @@ struct AcirFormat {
     // to be able to verify SNARKs on Ethereum.
     bool recursive;
 
+    uint32_t num_acir_opcodes;
+
     std::vector<uint32_t> public_inputs;
 
     std::vector<LogicConstraint> logic_constraints;

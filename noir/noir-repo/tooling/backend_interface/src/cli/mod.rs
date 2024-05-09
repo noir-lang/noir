@@ -18,6 +18,8 @@ pub(crate) use version::VersionCommand;
 pub(crate) use vk_as_fields::VkAsFieldsCommand;
 pub(crate) use write_vk::WriteVkCommand;
 
+pub(crate) use gates::CircuitReport;
+
 #[test]
 fn no_command_provided_works() -> Result<(), crate::BackendError> {
     // This is a simple test to check that the binaries work

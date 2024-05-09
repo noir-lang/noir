@@ -11,13 +11,16 @@ use tempfile::tempdir;
 use tracing::warn;
 
 use crate::cli::{
-    GatesCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand, VkAsFieldsCommand,
-    WriteVkCommand,
+    CircuitReport, GatesCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand,
+    VkAsFieldsCommand, WriteVkCommand,
 };
 use crate::{Backend, BackendError};
 
 impl Backend {
-    pub fn get_exact_circuit_size(&self, program: &Program) -> Result<u32, BackendError> {
+    pub fn get_exact_circuit_sizes(
+        &self,
+        program: &Program,
+    ) -> Result<Vec<CircuitReport>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
 
