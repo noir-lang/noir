@@ -3,7 +3,7 @@ use dep::protocol_types::{
     address::{AztecAddress, EthAddress},
     constants::{L1_TO_L2_MESSAGE_LENGTH, NESTED_CALL_L2_GAS_BUFFER}, header::Header
 };
-use dep::protocol_types::traits::Serialize;
+use dep::protocol_types::traits::{Deserialize, Serialize, Empty};
 use dep::protocol_types::abis::function_selector::FunctionSelector;
 use dep::protocol_types::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 use crate::context::inputs::avm_context_inputs::AvmContextInputs;
@@ -188,6 +188,12 @@ impl ContextInterface for AvmContext {
     }
     fn get_args_hash(self) -> Field {
         self.inputs.args_hash
+    }
+}
+
+impl Empty for AvmContext {
+    fn empty() -> Self {
+        AvmContext::new(AvmContextInputs::empty())
     }
 }
 
