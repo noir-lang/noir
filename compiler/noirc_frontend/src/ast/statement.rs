@@ -290,10 +290,7 @@ pub struct ImportStatement {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PathKind {
     Crate,
-    /// "::path"
     Dep,
-    /// "dep::" (deprecated)
-    LitDep,
     Plain,
 }
 
@@ -738,8 +735,7 @@ impl Display for PathKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PathKind::Crate => write!(f, "crate"),
-            PathKind::Dep => write!(f, ""),
-            PathKind::LitDep => write!(f, "dep"),
+            PathKind::Dep => write!(f, "dep"),
             PathKind::Plain => write!(f, "plain"),
         }
     }

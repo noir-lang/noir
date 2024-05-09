@@ -63,7 +63,7 @@ impl UseTree {
 
         match use_tree.prefix.kind {
             ast::PathKind::Crate => result.path.push(UseSegment::Crate),
-            ast::PathKind::Plain | ast::PathKind::LitDep | ast::PathKind::Dep => {}
+            ast::PathKind::Plain | ast::PathKind::Dep => {}
         };
 
         result.path.extend(

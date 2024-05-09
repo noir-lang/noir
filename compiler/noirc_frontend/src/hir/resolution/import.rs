@@ -150,7 +150,6 @@ fn resolve_path_to_ns(
             )
         }
         crate::ast::PathKind::Plain => {
-
             // There is a possibility that the import path is empty
             // In that case, early return
             if import_path.is_empty() {
@@ -186,19 +185,15 @@ fn resolve_path_to_ns(
                 def_maps,
                 allow_contracts,
             )
-
         }
 
-        crate::ast::PathKind::Dep | crate::ast::PathKind::LitDep => {
-            resolve_external_dep(
-                def_map,
-                import_directive,
-                def_maps,
-                allow_contracts,
-                importing_crate,
-            )
-        }
-
+        crate::ast::PathKind::Dep => resolve_external_dep(
+            def_map,
+            import_directive,
+            def_maps,
+            allow_contracts,
+            importing_crate,
+        ),
     }
 }
 
