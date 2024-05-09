@@ -1,6 +1,6 @@
 import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
 
-import { U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
+import { DUPLICATE_NULLIFIER_ERROR, U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
 
 describe('e2e_token_contract transfer public', () => {
@@ -65,7 +65,7 @@ describe('e2e_token_contract transfer public', () => {
       .withWallet(wallets[1])
       .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
       .send();
-    await expect(txReplay.wait()).rejects.toThrow('Transaction ');
+    await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
   });
 
   describe('failure cases', () => {
@@ -194,7 +194,7 @@ describe('e2e_token_contract transfer public', () => {
         .withWallet(wallets[1])
         .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+      await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
     });
 
     it('transfer on behalf of other, cancelled authwit, flow 2', async () => {
@@ -216,7 +216,7 @@ describe('e2e_token_contract transfer public', () => {
         .withWallet(wallets[1])
         .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+      await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
     });
 
     it('transfer on behalf of other, cancelled authwit, flow 3', async () => {
@@ -244,7 +244,7 @@ describe('e2e_token_contract transfer public', () => {
         .withWallet(wallets[1])
         .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
+      await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
     });
 
     it('transfer on behalf of other, invalid spend_public_authwit on "from"', async () => {

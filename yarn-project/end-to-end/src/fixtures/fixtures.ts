@@ -7,3 +7,5 @@ export const U128_UNDERFLOW_ERROR = "Assertion failed: attempt to subtract with 
 export const U128_OVERFLOW_ERROR = "Assertion failed: attempt to add with overflow 'hi == high'";
 export const BITSIZE_TOO_BIG_ERROR =
   "Assertion failed: call to assert_max_bit_size 'self.__assert_max_bit_size(bit_size)'";
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/5818): Make this a fixed error after transition.
+export const DUPLICATE_NULLIFIER_ERROR = /Transaction .*|.*duplicate nullifier.*/;

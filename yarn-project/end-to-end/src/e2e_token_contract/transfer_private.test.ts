@@ -1,5 +1,6 @@
 import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
 
+import { DUPLICATE_NULLIFIER_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
 
 describe('e2e_token_contract transfer private', () => {
@@ -66,7 +67,7 @@ describe('e2e_token_contract transfer private', () => {
       .withWallet(wallets[1])
       .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
       .send();
-    await expect(txReplay.wait()).rejects.toThrow('Transaction ');
+    await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
   });
 
   describe('failure cases', () => {
@@ -188,7 +189,7 @@ describe('e2e_token_contract transfer private', () => {
         .withWallet(wallets[1])
         .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+      await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
     });
 
     it('transfer on behalf of other, cancelled authwit, flow 2', async () => {
@@ -212,7 +213,7 @@ describe('e2e_token_contract transfer private', () => {
         .withWallet(wallets[1])
         .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
+      await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
     });
 
     it('transfer on behalf of other, invalid spend_private_authwit on "from"', async () => {

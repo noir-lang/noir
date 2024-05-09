@@ -3,6 +3,7 @@ import { SchnorrAccountContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 
+import { DUPLICATE_NULLIFIER_ERROR } from './fixtures/fixtures.js';
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
 
 const TIMEOUT = 90_000;
@@ -86,7 +87,7 @@ describe('e2e_authwit_tests', () => {
           });
 
           // The transaction should be dropped because of a cancelled authwit (duplicate nullifier)
-          await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
+          await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
         });
 
         it('invalid chain id', async () => {
@@ -130,7 +131,7 @@ describe('e2e_authwit_tests', () => {
           });
 
           // The transaction should be dropped because of the invalid chain id
-          await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
+          await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
         });
 
         it('invalid version', async () => {
@@ -174,7 +175,7 @@ describe('e2e_authwit_tests', () => {
           });
 
           // The transaction should be dropped because of the invalid version
-          await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
+          await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
         });
       });
     });
@@ -234,7 +235,7 @@ describe('e2e_authwit_tests', () => {
           const c = await SchnorrAccountContract.at(wallets[0].getAddress(), wallets[0]);
           const txCancelledAuthwit = c.withWallet(wallets[1]).methods.spend_public_authwit(innerHash).send();
           // The transaction should be dropped because of a cancelled authwit (duplicate nullifier)
-          await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
+          await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
         });
       });
     });

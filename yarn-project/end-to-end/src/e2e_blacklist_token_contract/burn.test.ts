@@ -1,6 +1,6 @@
 import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
 
-import { U128_UNDERFLOW_ERROR } from '../fixtures/index.js';
+import { DUPLICATE_NULLIFIER_ERROR, U128_UNDERFLOW_ERROR } from '../fixtures/index.js';
 import { BlacklistTokenContractTest } from './blacklist_token_contract_test.js';
 
 describe('e2e_blacklist_token_contract burn', () => {
@@ -50,7 +50,7 @@ describe('e2e_blacklist_token_contract burn', () => {
 
       // Check that the message hash is no longer valid. Need to try to send since nullifiers are handled by sequencer.
       const txReplay = asset.withWallet(wallets[1]).methods.burn_public(wallets[0].getAddress(), amount, nonce).send();
-      await expect(txReplay.wait()).rejects.toThrow('Transaction ');
+      await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
     });
 
     describe('failure cases', () => {
@@ -146,7 +146,7 @@ describe('e2e_blacklist_token_contract burn', () => {
 
       // Perform the transfer again, should fail
       const txReplay = asset.withWallet(wallets[1]).methods.burn(wallets[0].getAddress(), amount, nonce).send();
-      await expect(txReplay.wait()).rejects.toThrow('Transaction ');
+      await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
     });
 
     describe('failure cases', () => {
