@@ -140,6 +140,19 @@ contract AvmTest {
         a + b
     }
 
+    #[aztec(public-vm)]
+    fn u128_addition_overflow() -> U128 {
+        let max_u128: U128 = U128::from_hex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+        let one: U128 = U128::from_integer(1);
+        max_u128 + one
+    }
+
+    #[aztec(public-vm)]
+    fn u128_from_integer_overflow() -> U128 {
+        let should_overflow: Field = 2.pow_32(128); // U128::max() + 1;
+        U128::from_integer(should_overflow)
+    }
+
     /************************************************************************
      * Hashing functions
      ************************************************************************/
