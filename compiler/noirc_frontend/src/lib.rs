@@ -12,6 +12,7 @@
 
 pub mod ast;
 pub mod debug;
+pub mod elaborator;
 pub mod graph;
 pub mod lexer;
 pub mod monomorphization;

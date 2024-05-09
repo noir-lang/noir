@@ -250,14 +250,14 @@ impl<'interner> TypeChecker<'interner> {
                         }
 
                         // TODO: update object_type here?
-                        let function_call = method_call.into_function_call(
+                        let (_, function_call) = method_call.into_function_call(
                             &method_ref,
                             object_type,
                             location,
                             self.interner,
                         );
 
-                        self.interner.replace_expr(expr_id, function_call);
+                        self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
 
                         // Type check the new call now that it has been changed from a method call
                         // to a function call. This way we avoid duplicating code.
