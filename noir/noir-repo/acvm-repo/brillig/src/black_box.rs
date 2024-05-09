@@ -126,9 +126,4 @@ pub enum BlackBoxOp {
         hash_values: HeapVector,
         output: HeapArray,
     },
-    ToRadix {
-        input: MemoryAddress,
-        radix: u32,
-        output: HeapArray,
-    },
 }

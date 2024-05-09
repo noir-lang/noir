@@ -25,7 +25,7 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
 fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
-    let borrow = lte_unsafe_16(alo, blo);
+    let borrow = lte_unsafe(alo, blo, 16);
 
     let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
     let rhi = ahi - bhi - (borrow as Field);
@@ -51,9 +51,9 @@ pub fn decompose(x: Field) -> (Field, Field) {
     (xlo, xhi)
 }
 
-fn lt_unsafe_internal(x: Field, y: Field, num_bytes: u32) -> bool {
-    let x_bytes = x.to_le_radix(256, num_bytes);
-    let y_bytes = y.to_le_radix(256, num_bytes);
+unconstrained fn lt_unsafe(x: Field, y: Field, num_bytes: u32) -> bool {
+    let x_bytes = x.__to_le_radix(256, num_bytes);
+    let y_bytes = y.__to_le_radix(256, num_bytes);
     let mut x_is_lt = false;
     let mut done = false;
     for i in 0..num_bytes {
@@ -70,20 +70,8 @@ fn lt_unsafe_internal(x: Field, y: Field, num_bytes: u32) -> bool {
     x_is_lt
 }
 
-fn lte_unsafe_internal(x: Field, y: Field, num_bytes: u32) -> bool {
-    if x == y {
-        true
-    } else {
-        lt_unsafe_internal(x, y, num_bytes)
-    }
-}
-
-unconstrained fn lt_unsafe_32(x: Field, y: Field) -> bool {
-    lt_unsafe_internal(x, y, 32)
-}
-
-unconstrained fn lte_unsafe_16(x: Field, y: Field) -> bool {
-    lte_unsafe_internal(x, y, 16)
+unconstrained fn lte_unsafe(x: Field, y: Field, num_bytes: u32) -> bool {
+    lt_unsafe(x, y, num_bytes) | (x == y)
 }
 
 pub fn assert_gt(a: Field, b: Field) {
@@ -102,7 +90,7 @@ pub fn assert_lt(a: Field, b: Field) {
 pub fn gt(a: Field, b: Field) -> bool {
     if a == b {
         false
-    } else if lt_unsafe_32(a, b) {
+    } else if lt_unsafe(a, b, 32) {
         assert_gt(b, a);
         false
     } else {
@@ -117,10 +105,7 @@ pub fn lt(a: Field, b: Field) -> bool {
 
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{
-        decompose_unsafe, decompose, lt_unsafe_internal, assert_gt, gt, lt, TWO_POW_128,
-        lte_unsafe_internal, PLO, PHI
-    };
+    use crate::field::bn254::{decompose_unsafe, decompose, lt_unsafe, assert_gt, gt, lt, TWO_POW_128, lte_unsafe, PLO, PHI};
 
     #[test]
     fn check_decompose_unsafe() {
@@ -138,23 +123,23 @@ mod tests {
 
     #[test]
     fn check_lt_unsafe() {
-        assert(lt_unsafe_internal(0, 1, 16));
-        assert(lt_unsafe_internal(0, 0x100, 16));
-        assert(lt_unsafe_internal(0x100, TWO_POW_128 - 1, 16));
-        assert(!lt_unsafe_internal(0, TWO_POW_128, 16));
+        assert(lt_unsafe(0, 1, 16));
+        assert(lt_unsafe(0, 0x100, 16));
+        assert(lt_unsafe(0x100, TWO_POW_128 - 1, 16));
+        assert(!lt_unsafe(0, TWO_POW_128, 16));
     }
 
     #[test]
     fn check_lte_unsafe() {
-        assert(lte_unsafe_internal(0, 1, 16));
-        assert(lte_unsafe_internal(0, 0x100, 16));
-        assert(lte_unsafe_internal(0x100, TWO_POW_128 - 1, 16));
-        assert(!lte_unsafe_internal(0, TWO_POW_128, 16));
+        assert(lte_unsafe(0, 1, 16));
+        assert(lte_unsafe(0, 0x100, 16));
+        assert(lte_unsafe(0x100, TWO_POW_128 - 1, 16));
+        assert(!lte_unsafe(0, TWO_POW_128, 16));
 
-        assert(lte_unsafe_internal(0, 0, 16));
-        assert(lte_unsafe_internal(0x100, 0x100, 16));
-        assert(lte_unsafe_internal(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
-        assert(lte_unsafe_internal(TWO_POW_128, TWO_POW_128, 16));
+        assert(lte_unsafe(0, 0, 16));
+        assert(lte_unsafe(0x100, 0x100, 16));
+        assert(lte_unsafe(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
+        assert(lte_unsafe(TWO_POW_128, TWO_POW_128, 16));
     }
 
     #[test]
