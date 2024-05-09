@@ -153,6 +153,12 @@ contract AvmTest {
         U128::from_integer(should_overflow)
     }
 
+    #[aztec(private)]
+    fn enqueue_public_from_private() {
+        AvmTest::at(context.this_address()).set_opcode_u8().static_enqueue(&mut context);
+        AvmTest::at(context.this_address()).set_read_storage_single(5).enqueue(&mut context);
+    }
+
     /************************************************************************
      * Hashing functions
      ************************************************************************/

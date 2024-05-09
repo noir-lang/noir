@@ -41,6 +41,12 @@ describe('e2e_avm_simulator', () => {
       });
     });
 
+    describe('From private', () => {
+      it('Should enqueue a public function correctly', async () => {
+        await avmContract.methods.enqueue_public_from_private().simulate();
+      });
+    });
+
     describe('Gas metering', () => {
       it('Tracks L2 gas usage on simulation', async () => {
         const request = await avmContract.methods.add_args_return(20n, 30n).create();
