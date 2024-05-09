@@ -1,7 +1,7 @@
 use crate::note::{note_interface::NoteInterface};
 use dep::protocol_types::{grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint};
 
-use crate::oracle::encryption::aes128_encrypt;
+use dep::std::aes128::aes128_encrypt_slice;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 
 struct EncryptedLogBody<Note> {
@@ -19,32 +19,30 @@ impl<Note> EncryptedLogBody<Note> {
         Self { storage_slot, note_type_id, note }
     }
 
-    pub fn compute_ciphertext<N, M>(
+    pub fn compute_ciphertext<N>(
         self,
         secret: GrumpkinPrivateKey,
         point: GrumpkinPoint
-    ) -> [u8; M] where Note: NoteInterface<N> {
-        // We need 32 bytes for every field in the note, and then we have 2 extra fields (storage_slot and note_type_id)
-        let serialized_note: [Field; N] = Note::serialize_content(self.note);
+    ) -> [u8] where Note: NoteInterface<N> {
+        let serialized_note: [Field; N] = self.note.serialize_content();
 
-        // Work around not being able to use N directly beyond the size of the array above.
-        let N_ = serialized_note.len();
-
-        assert(N_ * 32 + 64 == M, "Invalid size of encrypted log body");
-
-        let mut buffer: [u8; M] = [0; M];
+        let mut buffer_slice: [u8] = &[];
 
         let storage_slot_bytes = self.storage_slot.to_be_bytes(32);
         let note_type_id_bytes = self.note_type_id.to_be_bytes(32);
+
         for i in 0..32 {
-            buffer[i] = storage_slot_bytes[i];
-            buffer[32 + i] = note_type_id_bytes[i];
+            buffer_slice = buffer_slice.push_back(storage_slot_bytes[i]);
         }
 
-        for i in 0..N_ {
+        for i in 0..32 {
+            buffer_slice = buffer_slice.push_back(note_type_id_bytes[i]);
+        }
+
+        for i in 0..serialized_note.len() {
             let bytes = serialized_note[i].to_be_bytes(32);
             for j in 0..32 {
-                buffer[64 + i * 32 + j] = bytes[j];
+                buffer_slice = buffer_slice.push_back(bytes[j]);
             }
         }
 
@@ -56,24 +54,22 @@ impl<Note> EncryptedLogBody<Note> {
             sym_key[i] = full_key[i];
             iv[i] = full_key[i + 16];
         }
-
-        aes128_encrypt(buffer, iv, sym_key)
+        aes128_encrypt_slice(buffer_slice, iv, sym_key)
     }
 }
 
-/*
-// Test is semi broken, needs to be fixed along with #6172  
 mod test {
     use crate::encrypted_logs::body::EncryptedLogBody;
-    use dep::protocol_types::{address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER};
+    use dep::protocol_types::{
+        address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
+        grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint
+    };
 
     use crate::{
         note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
         oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
         context::PrivateContext, hash::poseidon2_hash
     };
-
-    use dep::protocol_types::{address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint};
 
     struct AddressNote {
         address: AztecAddress,
@@ -82,9 +78,9 @@ mod test {
         header: NoteHeader,
     }
 
-    global BIB_BOB_ADDRESS_NOTE_LEN: Field = 3;
+    global ADDRESS_NOTE_LEN: Field = 3;
 
-    impl NoteInterface<BIB_BOB_ADDRESS_N3OTE_LEN> for AddressNote {
+    impl NoteInterface<ADDRESS_NOTE_LEN> for AddressNote {
         fn compute_note_content_hash(self) -> Field {1}
 
         fn get_note_type_id() -> Field {2}
@@ -99,9 +95,9 @@ mod test {
 
         fn broadcast(self, context: &mut PrivateContext, slot: Field) {}
 
-        fn serialize_content(self) -> [Field; BIB_BOB_ADDRESS_NOTE_LEN] { [self.address.to_field(), self.owner.to_field(), self.randomness]}
+        fn serialize_content(self) -> [Field; ADDRESS_NOTE_LEN] { [self.address.to_field(), self.owner.to_field(), self.randomness]}
 
-        fn deserialize_content(fields: [Field; BIB_BOB_ADDRESS_NOTE_LEN]) -> Self {
+        fn deserialize_content(fields: [Field; ADDRESS_NOTE_LEN]) -> Self {
             AddressNote { address: AztecAddress::from_field(fields[0]), owner: AztecAddress::from_field(fields[1]), randomness: fields[2], header: NoteHeader::empty() }
         }
     }
@@ -110,10 +106,9 @@ mod test {
         pub fn new(address: AztecAddress, owner: AztecAddress, randomness: Field) -> Self {
             AddressNote { address, owner, randomness, header: NoteHeader::empty() }
         }
-        // docs:end:address_note_def
     }
 
-    // @todo Issue(#6172) This is to be run as a test. But it is currently using the AES oracle so will fail there.
+    #[test]
     fn test_encrypted_log_body() {
         let note = AddressNote::new(
             AztecAddress::from_field(0x1),
@@ -137,11 +132,12 @@ mod test {
         let ciphertext = body.compute_ciphertext(secret, point);
 
         let expected_body_ciphertext = [
-            131, 119, 105, 129, 244, 32, 151, 205, 12, 99, 93, 62, 10, 180, 72, 21, 36, 194, 14, 168, 0, 137, 126, 59, 151, 177, 136, 254, 153, 190, 92, 33, 40, 151, 178, 54, 34, 166, 124, 96, 117, 108, 168, 7, 147, 222, 81, 201, 254, 170, 244, 151, 60, 64, 226, 45, 156, 185, 53, 23, 121, 63, 243, 101, 134, 21, 167, 39, 226, 203, 162, 223, 28, 74, 244, 159, 54, 201, 192, 168, 19, 85, 103, 82, 148, 3, 153, 210, 89, 245, 171, 171, 12, 248, 40, 74, 199, 65, 96, 42, 84, 83, 48, 21, 188, 134, 45, 247, 134, 166, 109, 170, 68, 212, 99, 235, 74, 202, 162, 108, 130, 128, 122, 16, 79, 242, 30, 157, 26, 75, 57, 24, 18, 124, 217, 74, 155, 13, 171, 205, 194, 193, 103, 134, 224, 204, 46, 105, 135, 166, 192, 163, 186, 42, 71, 51, 156, 161, 8, 131
+            131, 119, 105, 129, 244, 32, 151, 205, 12, 99, 93, 62, 10, 180, 72, 21, 47, 232, 95, 17, 240, 230, 80, 129, 174, 158, 23, 76, 114, 185, 43, 18, 254, 148, 147, 230, 66, 216, 167, 62, 180, 213, 238, 33, 108, 29, 84, 139, 99, 206, 212, 253, 92, 116, 137, 31, 0, 104, 45, 91, 250, 109, 141, 114, 189, 53, 35, 60, 108, 156, 170, 206, 150, 114, 150, 187, 198, 13, 62, 153, 133, 13, 169, 167, 242, 221, 40, 168, 186, 203, 104, 82, 47, 238, 142, 179, 90, 37, 9, 70, 245, 176, 122, 247, 42, 87, 75, 7, 20, 89, 166, 123, 14, 26, 230, 156, 49, 94, 0, 94, 72, 58, 171, 239, 115, 174, 155, 7, 151, 17, 60, 206, 193, 134, 70, 87, 215, 88, 21, 194, 63, 26, 106, 105, 124, 213, 252, 152, 192, 71, 115, 13, 181, 5, 169, 15, 170, 196, 174, 228, 170, 192, 91, 76, 110, 220, 89, 47, 248, 144, 189, 251, 167, 149, 248, 226
         ];
 
-        assert_eq(ciphertext, expected_body_ciphertext);
+        for i in 0..expected_body_ciphertext.len() {
+            assert_eq(ciphertext[i], expected_body_ciphertext[i]);
+        }
+        assert_eq(expected_body_ciphertext.len(), ciphertext.len());
     }
 }
-
-*/

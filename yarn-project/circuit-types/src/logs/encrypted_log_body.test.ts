@@ -47,7 +47,7 @@ describe('encrypt log body', () => {
     const noteTypeId = new Fr(1);
     const storageSlot = new Fr(2);
 
-    const body = new EncryptedLogBody(noteTypeId, storageSlot, note);
+    const body = new EncryptedLogBody(storageSlot, noteTypeId, note);
 
     const encrypted = body.computeCiphertext(ephSecretKey, viewingPubKey);
 

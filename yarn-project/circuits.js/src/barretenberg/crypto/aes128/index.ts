@@ -15,13 +15,11 @@ export class Aes128 {
    */
   public encryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
     const rawLength = data.length;
-    const numPaddingBytes = rawLength % 16 != 0 ? 16 - (rawLength % 16) : 0;
+    const numPaddingBytes = 16 - (rawLength % 16);
     const paddingBuffer = Buffer.alloc(numPaddingBytes);
-    // input num bytes needs to be a multiple of 16
+    // input num bytes needs to be a multiple of 16 and at least 1 byte
     // node uses PKCS#7-Padding scheme, where padding byte value = the number of padding bytes
-    if (numPaddingBytes != 0) {
-      paddingBuffer.fill(numPaddingBytes);
-    }
+    paddingBuffer.fill(numPaddingBytes);
     const input = Buffer.concat([data, paddingBuffer]);
 
     const api = BarretenbergSync.getSingleton();
@@ -39,8 +37,10 @@ export class Aes128 {
    */
   public decryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
     const api = BarretenbergSync.getSingleton();
-    return Buffer.from(
+    const paddedBuffer = Buffer.from(
       api.aesDecryptBufferCbc(new RawBuffer(data), new RawBuffer(iv), new RawBuffer(key), data.length),
     );
+    const paddingToRemove = paddedBuffer[paddedBuffer.length - 1];
+    return paddedBuffer.subarray(0, paddedBuffer.length - paddingToRemove);
   }
 }

@@ -337,7 +337,7 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn encrypt(input: [u8; 64], iv: [u8; 16], key: [u8; 16]) -> [u8; 64] {
+    fn encrypt(input: [u8; 64], iv: [u8; 16], key: [u8; 16]) -> [u8; 80] {
         aes128_encrypt(input, iv, key)
     }
 
@@ -347,20 +347,20 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn compute_note_header_ciphertext(secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 32] {
+    fn compute_note_header_ciphertext(secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 48] {
         EncryptedLogHeader::new(context.this_address()).compute_ciphertext(secret, point)
     }
 
-    // 64 bytes + 32 * #fields = 96 bytes
+    // 64 bytes + 32 * #fields + 16 = 112 bytes
     #[aztec(private)]
     fn compute_note_body_ciphertext(
         secret: GrumpkinPrivateKey,
         point: GrumpkinPoint,
         storage_slot: Field,
         value: Field
-    ) -> [u8; 96] {
+    ) -> [u8; 112] {
         let note = TestNote::new(value);
-        EncryptedLogBody::new(storage_slot, TestNote::get_note_type_id(), note).compute_ciphertext(secret, point)
+        EncryptedLogBody::new(storage_slot, TestNote::get_note_type_id(), note).compute_ciphertext(secret, point).as_array()
     }
 
     #[aztec(public)]

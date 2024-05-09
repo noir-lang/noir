@@ -1,7 +1,8 @@
 use dep::protocol_types::{address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint};
 
-use crate::oracle::encryption::aes128_encrypt;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
+
+use dep::std::aes128::aes128_encrypt_slice;
 
 struct EncryptedLogHeader {
     address: AztecAddress,
@@ -13,28 +14,22 @@ impl EncryptedLogHeader {
     }
 
     // @todo Issue(#5901) Figure out if we return the bytes or fields for the log
-    fn compute_ciphertext(self, secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 32] {
+    fn compute_ciphertext(self, secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 48] {
         let full_key = point_to_symmetric_key(secret, point);
         let mut sym_key = [0; 16];
         let mut iv = [0; 16];
-        let mut input = [0; 32];
-        let input_slice = self.address.to_field().to_be_bytes(32);
 
         for i in 0..16 {
             sym_key[i] = full_key[i];
             iv[i] = full_key[i + 16];
-
-            // We copy address on the following 2 lines in order to avoid having 2 loops  
-            input[i] = input_slice[i];
-            input[i + 16] = input_slice[i + 16];
         }
 
-        // @todo Issue(#6172) This encryption is currently using an oracle. It is not actually constrained atm.
-        aes128_encrypt(input, iv, sym_key)
+        let input: [u8] = self.address.to_field().to_be_bytes(32);
+        aes128_encrypt_slice(input, iv, sym_key).as_array()
     }
 }
 
-// @todo Issue(#6172) This is to be run as a test. But it is currently using the AES oracle so will fail there.
+#[test]
 fn test_encrypted_log_header() {
     let address = AztecAddress::from_field(0xdeadbeef);
     let header = EncryptedLogHeader::new(address);
@@ -50,7 +45,7 @@ fn test_encrypted_log_header() {
     let ciphertext = header.compute_ciphertext(secret, point);
 
     let expected_header_ciphertext = [
-        131, 119, 105, 129, 244, 32, 151, 205, 12, 99, 93, 62, 10, 180, 72, 21, 179, 36, 250, 95, 56, 167, 171, 16, 195, 164, 223, 57, 75, 5, 24, 119
+        131, 119, 105, 129, 244, 32, 151, 205, 12, 99, 93, 62, 10, 180, 72, 21, 179, 36, 250, 95, 56, 167, 171, 16, 195, 164, 223, 57, 75, 5, 24, 119, 198, 34, 99, 189, 193, 183, 227, 43, 79, 204, 214, 89, 221, 153, 246, 64
     ];
 
     assert_eq(ciphertext, expected_header_ciphertext);
