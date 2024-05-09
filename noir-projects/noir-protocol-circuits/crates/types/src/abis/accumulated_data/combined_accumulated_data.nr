@@ -7,9 +7,9 @@ use crate::{
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH
 },
-    utils::arrays::array_merge, traits::Empty
+    utils::arrays::array_merge, traits::{Empty, Serialize}
 };
 
 struct CombinedAccumulatedData {
@@ -81,4 +81,28 @@ impl Empty for CombinedAccumulatedData {
             gas_used: Gas::empty()
         }
     }
+}
+
+impl Serialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
+  fn serialize(self) -> [Field; COMBINED_ACCUMULATED_DATA_LENGTH] {
+    let mut fields: BoundedVec<Field, COMBINED_ACCUMULATED_DATA_LENGTH> = BoundedVec::new();
+
+    fields.extend_from_array(self.new_note_hashes);
+    fields.extend_from_array(self.new_nullifiers);
+    fields.extend_from_array(self.new_l2_to_l1_msgs);
+    fields.push(self.encrypted_logs_hash);
+    fields.push(self.unencrypted_logs_hash);
+    fields.push(self.encrypted_log_preimages_length);
+    fields.push(self.unencrypted_log_preimages_length);
+
+    for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
+      fields.extend_from_array(self.public_data_update_requests[i].serialize());
+    }
+
+    fields.extend_from_array(self.gas_used.serialize());
+
+    assert_eq(fields.len(), COMBINED_ACCUMULATED_DATA_LENGTH);
+
+    fields.storage
+  }
 }

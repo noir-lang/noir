@@ -1,12 +1,12 @@
 use crate::{common, private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer};
 use dep::types::{
     abis::{
-    kernel_data::PrivateKernelData, private_kernel::private_call_data::PrivateCallData,
+    private_kernel_data::{PrivateKernelData, verify_previous_kernel_proof},
+    private_kernel::private_call_data::{PrivateCallData, verify_private_call},
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
     side_effect::SideEffect
 },
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL, mocked::verify_previous_kernel_state,
-    utils::arrays::array_length
+    constants::MAX_NEW_NOTE_HASHES_PER_CALL, utils::arrays::array_length
 };
 
 struct PrivateKernelInnerHints {
@@ -30,6 +30,12 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         let private_call_public_inputs = self.private_call.call_stack_item.public_inputs;
         let previous_kernel_public_inputs = self.previous_kernel.public_inputs;
 
+        // verify/aggregate the private call proof
+        verify_private_call(self.private_call);
+
+        // verify/aggregate the previous kernel
+        verify_previous_kernel_proof(self.previous_kernel);
+
         common::validate_previous_kernel_values(previous_kernel_public_inputs.end);
 
         self.validate_inputs();
@@ -41,12 +47,6 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         let private_call_stack_size = array_length(private_call_stack);
         let call_request = private_call_stack[private_call_stack_size - 1];
         common::validate_call_against_request(self.private_call, call_request);
-
-        let (is_previous_state_valid, _updated_aggregation_object) = verify_previous_kernel_state(
-            previous_kernel_public_inputs.aggregation_object,
-            self.private_call.proof
-        );
-        assert(is_previous_state_valid);
 
         PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(self.previous_kernel.public_inputs).compose(
             private_call_public_inputs,

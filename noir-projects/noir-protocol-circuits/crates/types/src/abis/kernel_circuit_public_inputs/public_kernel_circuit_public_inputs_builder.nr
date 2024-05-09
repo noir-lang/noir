@@ -4,12 +4,10 @@ use crate::{
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs},
     validation_requests::ValidationRequestsBuilder, call_request::CallRequest
-},
-    mocked::AggregationObject, traits::Empty
+}, traits::Empty
 };
 
 struct PublicKernelCircuitPublicInputsBuilder {
-    aggregation_object: AggregationObject,
     validation_requests: ValidationRequestsBuilder,
     end_non_revertible: PublicAccumulatedDataBuilder,
     end: PublicAccumulatedDataBuilder,
@@ -21,7 +19,6 @@ struct PublicKernelCircuitPublicInputsBuilder {
 impl PublicKernelCircuitPublicInputsBuilder {
     pub fn finish(self) -> PublicKernelCircuitPublicInputs {
         PublicKernelCircuitPublicInputs {
-            aggregation_object: self.aggregation_object,
             // Note that we're including both the validation_requests AND the rollup_validation requests, because this
             // struct is used as an input for both the public kernel and base rollup circuits. In the near future the
             // base rollup will only receive rollup_validation_requests, and the public kernel only validation_requests.
@@ -38,7 +35,6 @@ impl PublicKernelCircuitPublicInputsBuilder {
 impl Empty for PublicKernelCircuitPublicInputsBuilder {
     fn empty() -> Self {
         PublicKernelCircuitPublicInputsBuilder {
-            aggregation_object: AggregationObject::empty(),
             validation_requests: ValidationRequestsBuilder::empty(),
             end_non_revertible: PublicAccumulatedDataBuilder::empty(),
             end: PublicAccumulatedDataBuilder::empty(),

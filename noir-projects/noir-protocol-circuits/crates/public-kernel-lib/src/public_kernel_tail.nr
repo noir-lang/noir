@@ -92,7 +92,6 @@ impl PublicKernelTailCircuitPrivateInputs {
         let end = self.propagate_accumulated_data();
 
         KernelCircuitPublicInputs {
-            aggregation_object: previous_public_inputs.aggregation_object,
             rollup_validation_requests: previous_public_inputs.validation_requests.for_rollup,
             end,
             constants: previous_public_inputs.constants,

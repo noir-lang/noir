@@ -1,6 +1,7 @@
 use crate::address::AztecAddress;
 use dep::std::cmp::Eq;
-use crate::traits::Empty;
+use crate::traits::{Empty, Serialize};
+use crate::constants::CALLER_CONTEXT_LENGTH;
 
 struct CallerContext {
     msg_sender: AztecAddress,
@@ -27,4 +28,17 @@ impl CallerContext {
     pub fn is_empty(self) -> bool {
         self.msg_sender.is_zero() & self.storage_contract_address.is_zero()
     }
+}
+
+impl Serialize<CALLER_CONTEXT_LENGTH> for CallerContext {
+  fn serialize(self) -> [Field; CALLER_CONTEXT_LENGTH] {
+    let mut fields: BoundedVec<Field, CALLER_CONTEXT_LENGTH> = BoundedVec::new();
+
+    fields.extend_from_array(self.msg_sender.serialize());
+    fields.extend_from_array(self.storage_contract_address.serialize());
+
+    assert_eq(fields.len(), CALLER_CONTEXT_LENGTH);
+
+    fields.storage
+  }
 }

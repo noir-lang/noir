@@ -1,7 +1,8 @@
 use crate::address::AztecAddress;
 use dep::std::cmp::Eq;
-use crate::traits::Empty;
+use crate::traits::{Empty, Serialize};
 use crate::abis::caller_context::CallerContext;
+use crate::constants::CALL_REQUEST_LENGTH;
 
 struct CallRequest {
     hash: Field,
@@ -37,4 +38,20 @@ impl CallRequest {
     pub fn is_empty(self) -> bool {
         self.hash == 0
     }
+}
+
+impl Serialize<CALL_REQUEST_LENGTH> for CallRequest {
+  fn serialize(self) -> [Field; CALL_REQUEST_LENGTH] {
+    let mut fields: BoundedVec<Field, CALL_REQUEST_LENGTH> = BoundedVec::new();
+
+    fields.push(self.hash);
+    fields.extend_from_array(self.caller_contract_address.serialize());
+    fields.extend_from_array(self.caller_context.serialize());
+    fields.push(self.start_side_effect_counter as Field);
+    fields.push(self.end_side_effect_counter as Field);
+
+    assert_eq(fields.len(), CALL_REQUEST_LENGTH);
+
+    fields.storage
+  }
 }

@@ -1,7 +1,7 @@
 use dep::reset_kernel_lib::verify_squashed_transient_note_hashes_and_nullifiers;
 use dep::types::{
     abis::{
-    kernel_data::PrivateKernelData,
+    private_kernel_data::PrivateKernelData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder, PublicKernelCircuitPublicInputs},
     note_hash::ScopedNoteHash, nullifier::ScopedNullifier, side_effect::{SideEffect, Ordered}, gas::Gas
 },

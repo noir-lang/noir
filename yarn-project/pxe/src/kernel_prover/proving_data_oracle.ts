@@ -8,7 +8,7 @@ import {
   type NOTE_HASH_TREE_HEIGHT,
   type Point,
   type VK_TREE_HEIGHT,
-  type VerificationKey,
+  type VerificationKeyAsFields,
 } from '@aztec/circuits.js';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 
@@ -50,7 +50,7 @@ export interface ProvingDataOracle {
    * @param vk - The VerificationKey for which the membership witness is needed.
    * @returns A Promise that resolves to the MembershipWitness instance.
    */
-  getVkMembershipWitness(vk: VerificationKey): Promise<MembershipWitness<typeof VK_TREE_HEIGHT>>;
+  getVkMembershipWitness(vk: VerificationKeyAsFields): Promise<MembershipWitness<typeof VK_TREE_HEIGHT>>;
 
   /**
    * Get the note membership witness for a note in the note hash tree at the given leaf index.

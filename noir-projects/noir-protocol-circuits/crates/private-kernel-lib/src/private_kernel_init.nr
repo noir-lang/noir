@@ -1,7 +1,7 @@
 use crate::{common, private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer};
 use dep::types::{
     abis::{
-    private_kernel::private_call_data::PrivateCallData,
+    private_kernel::private_call_data::{PrivateCallData, verify_private_call},
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs
 },
     constants::MAX_NEW_NOTE_HASHES_PER_CALL, mocked::verify_private_function_proof,
@@ -68,13 +68,14 @@ impl PrivateKernelInitCircuitPrivateInputs {
     pub fn native_private_kernel_circuit_initial(self) -> PrivateKernelCircuitPublicInputs {
         let private_call_public_inputs = self.private_call.call_stack_item.public_inputs;
 
+        // verify/aggregate the private call proof
+        verify_private_call(self.private_call);
+
         self.validate_inputs();
 
         common::validate_private_call_data(self.private_call);
 
         self.validate_this_private_call_against_tx_request();
-
-        assert(verify_private_function_proof(self.private_call.proof), "Invalid private function proof.");
 
         PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).compose(
             private_call_public_inputs,

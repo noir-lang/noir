@@ -108,6 +108,14 @@ export class VerificationKeyAsFields {
   static makeFake(seed = 1): VerificationKeyAsFields {
     return new VerificationKeyAsFields(makeTuple(VERIFICATION_KEY_LENGTH_IN_FIELDS, Fr.random, seed), Fr.random());
   }
+
+  /**
+   * Builds an 'empty' verification key
+   * @returns An 'empty' verification key
+   */
+  static makeEmpty(): VerificationKeyAsFields {
+    return new VerificationKeyAsFields(makeTuple(VERIFICATION_KEY_LENGTH_IN_FIELDS, Fr.zero), Fr.zero());
+  }
 }
 
 export class VerificationKey {

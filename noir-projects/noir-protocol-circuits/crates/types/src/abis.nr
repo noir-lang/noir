@@ -27,6 +27,7 @@ mod max_block_number;
 mod private_kernel;
 mod kernel_circuit_public_inputs;
 mod kernel_data;
+mod private_kernel_data;
 
 mod call_request;
 mod private_call_stack_item;

@@ -1,5 +1,5 @@
 use crate::address::{AztecAddress, EthAddress};
-use crate::mocked::VerificationKey;
+use crate::recursion::verification_key::VerificationKey;
 use crate::abis::function_selector::FunctionSelector;
 use crate::abis::contract_class_function_leaf_preimage::ContractClassFunctionLeafPreimage;
 use crate::contract_class_id::ContractClassId;

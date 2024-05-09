@@ -5,8 +5,9 @@ use crate::{
     accumulated_data::{CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder, PublicAccumulatedData},
     global_variables::GlobalVariables, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
-    kernel_data::{PrivateKernelData, PublicKernelData, KernelData}, max_block_number::MaxBlockNumber,
-    note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
+    kernel_data::{PublicKernelData, KernelData}, max_block_number::MaxBlockNumber,
+    private_kernel_data::PrivateKernelData, note_hash::{NoteHash, ScopedNoteHash},
+    nullifier::{Nullifier, ScopedNullifier},
     nullifier_key_validation_request::ScopedNullifierKeyValidationRequest,
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::{ReadRequest, ScopedReadRequest}, side_effect::SideEffect,
@@ -23,8 +24,8 @@ use crate::{
 },
     hash::silo_nullifier, header::Header,
     messaging::l2_to_l1_message::{L2ToL1Message, ScopedL2ToL1Message},
-    mocked::{AggregationObject, Proof, VerificationKey}, partial_state_reference::PartialStateReference,
-    tests::fixtures, transaction::tx_context::TxContext, traits::Empty
+    partial_state_reference::PartialStateReference, tests::fixtures, transaction::tx_context::TxContext,
+    traits::Empty, recursion::{verification_key::VerificationKey, proof::NestedRecursiveProof}
 };
 
 struct FixtureBuilder {
@@ -62,7 +63,7 @@ struct FixtureBuilder {
     public_data_reads: BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_TX>,
 
     // Proof.
-    proof: Proof,
+    proof: NestedRecursiveProof,
     vk: VerificationKey,
     vk_index: u32,
     vk_path: [Field; VK_TREE_HEIGHT],
@@ -103,8 +104,8 @@ impl FixtureBuilder {
             nullifier_non_existent_read_requests: BoundedVec::new(),
             nullifier_key_validation_requests: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
-            proof: Proof {},
-            vk: VerificationKey {},
+            proof: NestedRecursiveProof::empty(),
+            vk: VerificationKey::empty(),
             vk_index: 0,
             vk_path: [0; VK_TREE_HEIGHT],
             revert_code: 0,
@@ -188,7 +189,6 @@ impl FixtureBuilder {
         let constants = self.to_constant_data();
 
         PrivateKernelCircuitPublicInputs {
-            aggregation_object: AggregationObject {},
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             end,
             validation_requests,
@@ -218,7 +218,6 @@ impl FixtureBuilder {
         let constants = self.to_constant_data();
 
         PublicKernelCircuitPublicInputs {
-            aggregation_object: AggregationObject {},
             end_non_revertible,
             end,
             validation_requests,
@@ -230,7 +229,13 @@ impl FixtureBuilder {
 
     pub fn to_public_kernel_data(self, revertible: bool) -> PublicKernelData {
         let public_inputs = self.to_public_kernel_circuit_public_inputs(revertible);
-        PublicKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
+        PublicKernelData {
+            public_inputs,
+            proof: crate::mocked::Proof::empty(),
+            vk: crate::mocked::VerificationKey::empty(),
+            vk_index: self.vk_index,
+            vk_path: self.vk_path
+        }
     }
 
     pub fn to_kernel_circuit_public_inputs(self) -> KernelCircuitPublicInputs {
@@ -238,19 +243,18 @@ impl FixtureBuilder {
         let end = self.to_combined_accumulated_data();
         let constants = self.to_constant_data();
 
-        KernelCircuitPublicInputs {
-            aggregation_object: AggregationObject {},
-            rollup_validation_requests,
-            end,
-            constants,
-            start_state: self.start_state,
-            revert_code: self.revert_code
-        }
+        KernelCircuitPublicInputs { rollup_validation_requests, end, constants, start_state: self.start_state, revert_code: self.revert_code }
     }
 
     pub fn to_kernel_data(self) -> KernelData {
         let public_inputs = self.to_kernel_circuit_public_inputs();
-        KernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
+        KernelData {
+            public_inputs,
+            proof: crate::mocked::Proof::empty(),
+            vk: crate::mocked::VerificationKey::empty(),
+            vk_index: self.vk_index,
+            vk_path: self.vk_path
+        }
     }
 
     pub fn add_new_note_hash(&mut self, value: Field) {
@@ -483,7 +487,7 @@ impl Empty for FixtureBuilder {
             nullifier_non_existent_read_requests: BoundedVec::new(),
             nullifier_key_validation_requests: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
-            proof: Proof::empty(),
+            proof: NestedRecursiveProof::empty(),
             vk: VerificationKey::empty(),
             vk_index: 0,
             vk_path: [0; VK_TREE_HEIGHT],

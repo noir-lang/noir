@@ -8,7 +8,6 @@ use crate::{
 use crate::mocked::AggregationObject;
 
 struct KernelCircuitPublicInputs {
-    aggregation_object: AggregationObject,
     rollup_validation_requests: RollupValidationRequests,
     end: CombinedAccumulatedData,
     constants: CombinedConstantData,
@@ -28,7 +27,6 @@ impl KernelCircuitPublicInputs {
 impl Empty for KernelCircuitPublicInputs {
     fn empty() -> Self {
         KernelCircuitPublicInputs {
-            aggregation_object: AggregationObject::empty(),
             rollup_validation_requests: RollupValidationRequests::empty(),
             end: CombinedAccumulatedData::empty(),
             constants: CombinedConstantData::empty(),
@@ -56,7 +54,6 @@ mod tests {
     #[test]
     unconstrained fn non_empty_gas_and_fee() {
         let mut inputs = KernelCircuitPublicInputs {
-            aggregation_object: AggregationObject::empty(),
             rollup_validation_requests: RollupValidationRequests::empty(),
             end: CombinedAccumulatedData::empty(),
             constants: CombinedConstantData::empty(),
