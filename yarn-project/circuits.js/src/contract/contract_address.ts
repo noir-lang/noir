@@ -1,12 +1,12 @@
 import { type FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash, poseidon2Hash } from '@aztec/foundation/crypto';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 import { GeneratorIndex } from '../constants.gen.js';
 import { computeVarArgsHash } from '../hash/hash.js';
-import { deriveKeys } from '../keys/index.js';
+import { computeAddress } from '../keys/index.js';
 
 // TODO(@spalladino): Review all generator indices in this file
 
@@ -26,7 +26,7 @@ export function computeContractAddressFromInstance(
 ): AztecAddress {
   const partialAddress = computePartialAddress(instance);
   const publicKeysHash = instance.publicKeysHash;
-  return computeContractAddressFromPartial({ partialAddress, publicKeysHash });
+  return computeAddress(publicKeysHash, partialAddress);
 }
 
 /**
@@ -54,19 +54,6 @@ export function computeSaltedInitializationHash(
   instance: Pick<ContractInstance, 'initializationHash' | 'salt' | 'deployer'>,
 ): Fr {
   return pedersenHash([instance.salt, instance.initializationHash, instance.deployer], GeneratorIndex.PARTIAL_ADDRESS);
-}
-
-/**
- * Computes a contract address from its partial address and public keys hash.
- * @param args - The hash of the public keys or the plain public key to be hashed, along with the partial address.
- * @returns The contract address.
- */
-export function computeContractAddressFromPartial(
-  args: ({ publicKeysHash: Fr } | { secretKey: Fr }) & { partialAddress: Fr },
-): AztecAddress {
-  const publicKeysHash = 'secretKey' in args ? deriveKeys(args.secretKey).publicKeysHash : args.publicKeysHash;
-  const result = poseidon2Hash([publicKeysHash, args.partialAddress, GeneratorIndex.CONTRACT_ADDRESS_V1]);
-  return AztecAddress.fromField(result);
 }
 
 /**

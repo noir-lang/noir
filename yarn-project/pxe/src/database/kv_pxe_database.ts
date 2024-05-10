@@ -209,7 +209,7 @@ export class KVPxeDatabase implements PxeDatabase {
 
   #getNotes(filter: NoteFilter): NoteDao[] {
     const publicKey: PublicKey | undefined = filter.owner
-      ? this.#getCompleteAddress(filter.owner)?.publicKey
+      ? this.#getCompleteAddress(filter.owner)?.masterIncomingViewingPublicKey
       : undefined;
 
     filter.status = filter.status ?? NoteStatus.ACTIVE;

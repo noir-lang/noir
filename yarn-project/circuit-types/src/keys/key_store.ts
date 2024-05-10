@@ -1,9 +1,9 @@
 import {
   type AztecAddress,
+  type CompleteAddress,
   type Fr,
   type GrumpkinPrivateKey,
   type PartialAddress,
-  type Point,
   type PublicKey,
 } from '@aztec/circuits.js';
 
@@ -13,17 +13,17 @@ import {
 export interface KeyStore {
   /**
    * Creates a new account from a randomly generated secret key.
-   * @returns A promise that resolves to the newly created account's AztecAddress.
+   * @returns A promise that resolves to the newly created account's CompleteAddress.
    */
-  createAccount(): Promise<AztecAddress>;
+  createAccount(): Promise<CompleteAddress>;
 
   /**
    * Adds an account to the key store from the provided secret key.
    * @param sk - The secret key of the account.
    * @param partialAddress - The partial address of the account.
-   * @returns The account's address.
+   * @returns The account's complete address.
    */
-  addAccount(sk: Fr, partialAddress: PartialAddress): Promise<AztecAddress>;
+  addAccount(sk: Fr, partialAddress: PartialAddress): Promise<CompleteAddress>;
 
   /**
    * Retrieves addresses of accounts stored in the key store.
@@ -117,21 +117,4 @@ export interface KeyStore {
    * @returns A Promise that resolves to the public keys hash.
    */
   getPublicKeysHash(account: AztecAddress): Promise<Fr>;
-
-  /**
-   * This is used to register a recipient / for storing public keys of an address
-   * @param accountAddress - The account address to store keys for.
-   * @param masterNullifierPublicKey - The stored master nullifier public key
-   * @param masterIncomingViewingPublicKey - The stored incoming viewing public key
-   * @param masterOutgoingViewingPublicKey - The stored outgoing viewing public key
-   * @param masterTaggingPublicKey - The stored master tagging public key
-   */
-  // TODO(#5834): Move this function out of here. Key store should only be used for accounts, not recipients
-  addPublicKeysForAccount(
-    accountAddress: AztecAddress,
-    masterNullifierPublicKey: Point,
-    masterIncomingViewingPublicKey: Point,
-    masterOutgoingViewingPublicKey: Point,
-    masterTaggingPublicKey: Point,
-  ): Promise<void>;
 }

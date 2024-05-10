@@ -1053,7 +1053,7 @@ describe('Private Execution test suite', () => {
       // Generate a partial address, pubkey, and resulting address
       const completeAddress = CompleteAddress.random();
       const args = [completeAddress.address];
-      const pubKey = completeAddress.publicKey;
+      const pubKey = completeAddress.masterIncomingViewingPublicKey;
 
       oracle.getCompleteAddress.mockResolvedValue(completeAddress);
       const result = await runSimulator({ artifact, args });

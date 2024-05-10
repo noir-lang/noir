@@ -15,7 +15,6 @@ import {
   type FunctionSelector,
   type Header,
   type L1_TO_L2_MSG_TREE_HEIGHT,
-  type Point,
 } from '@aztec/circuits.js';
 import { computeL1ToL2MessageNullifier } from '@aztec/circuits.js/hash';
 import { type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
@@ -44,7 +43,6 @@ export class SimulatorOracle implements DBOracle {
     return { masterNullifierPublicKey, appNullifierSecretKey };
   }
 
-  // TODO: #5834
   async getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
     const completeAddress = await this.db.getCompleteAddress(address);
     if (!completeAddress) {
@@ -77,16 +75,6 @@ export class SimulatorOracle implements DBOracle {
       throw new Error(`No capsules available`);
     }
     return capsule;
-  }
-
-  // TODO: #5834
-  async getPublicKeysForAddress(address: AztecAddress): Promise<Point[]> {
-    const nullifierPublicKey = await this.keyStore.getMasterNullifierPublicKey(address);
-    const incomingViewingPublicKey = await this.keyStore.getMasterIncomingViewingPublicKey(address);
-    const outgoingViewingPublicKey = await this.keyStore.getMasterOutgoingViewingPublicKey(address);
-    const taggingPublicKey = await this.keyStore.getMasterTaggingPublicKey(address);
-
-    return [nullifierPublicKey, incomingViewingPublicKey, outgoingViewingPublicKey, taggingPublicKey];
   }
 
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr, status: NoteStatus) {

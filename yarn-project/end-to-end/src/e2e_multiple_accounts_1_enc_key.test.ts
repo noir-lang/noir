@@ -50,7 +50,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const encryptionPublicKey = deriveKeys(encryptionPrivateKey).masterIncomingViewingPublicKey;
 
     for (const account of accounts) {
-      expect(account.publicKey).toEqual(encryptionPublicKey);
+      expect(account.masterIncomingViewingPublicKey).toEqual(encryptionPublicKey);
     }
 
     logger.info(`Deploying Token...`);

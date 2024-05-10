@@ -1,6 +1,5 @@
 import { type AccountContract, type AccountInterface, type AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { type CompleteAddress } from '@aztec/circuit-types';
-import { type Fr } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type NodeInfo } from '@aztec/types/interfaces';
 
@@ -20,7 +19,7 @@ export abstract class DefaultAccountContract implements AccountContract {
     return this.artifact;
   }
 
-  getInterface(address: CompleteAddress, publicKeysHash: Fr, nodeInfo: NodeInfo): AccountInterface {
-    return new DefaultAccountInterface(this.getAuthWitnessProvider(address), address, publicKeysHash, nodeInfo);
+  getInterface(address: CompleteAddress, nodeInfo: NodeInfo): AccountInterface {
+    return new DefaultAccountInterface(this.getAuthWitnessProvider(address), address, nodeInfo);
   }
 }

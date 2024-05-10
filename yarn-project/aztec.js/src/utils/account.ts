@@ -14,7 +14,7 @@ export async function waitForAccountSynch(
   address: CompleteAddress,
   { interval, timeout }: WaitOpts = DefaultWaitOpts,
 ): Promise<void> {
-  const publicKey = address.publicKey.toString();
+  const publicKey = address.masterIncomingViewingPublicKey.toString();
   await retryUntil(
     async () => {
       const status = await pxe.getSyncStatus();

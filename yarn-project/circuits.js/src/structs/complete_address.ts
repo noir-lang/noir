@@ -2,8 +2,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
-import { computeContractAddressFromPartial, computePartialAddress } from '../contract/contract_address.js';
-import { deriveKeys } from '../keys/index.js';
+import { computePartialAddress } from '../contract/contract_address.js';
+import { computeAddress, computePublicKeysHash, deriveKeys } from '../keys/index.js';
 import { type PartialAddress } from '../types/partial_address.js';
 import { type PublicKey } from '../types/public_key.js';
 
@@ -22,8 +22,14 @@ export class CompleteAddress {
   public constructor(
     /** Contract address (typically of an account contract) */
     public address: AztecAddress,
-    /** Public key corresponding to the address (used during note encryption). */
-    public publicKey: PublicKey,
+    /** Master nullifier public key */
+    public masterNullifierPublicKey: PublicKey,
+    /** Master incoming viewing public key */
+    public masterIncomingViewingPublicKey: PublicKey,
+    /** Master outgoing viewing public key */
+    public masterOutgoingViewingPublicKey: PublicKey,
+    /** Master tagging viewing public key */
+    public masterTaggingPublicKey: PublicKey,
     /** Partial key corresponding to the public key to the address. */
     public partialAddress: PartialAddress,
   ) {}
@@ -31,32 +37,47 @@ export class CompleteAddress {
   /** Size in bytes of an instance */
   static readonly SIZE_IN_BYTES = 32 * 4;
 
-  static create(address: AztecAddress, publicKey: PublicKey, partialAddress: PartialAddress) {
-    const completeAddress = new CompleteAddress(address, publicKey, partialAddress);
-    // TODO(#5834): re-enable validation
-    // completeAddress.validate();
+  static create(
+    address: AztecAddress,
+    masterNullifierPublicKey: PublicKey,
+    masterIncomingViewingPublicKey: PublicKey,
+    masterOutgoingViewingPublicKey: PublicKey,
+    masterTaggingPublicKey: PublicKey,
+    partialAddress: PartialAddress,
+  ): CompleteAddress {
+    const completeAddress = new CompleteAddress(
+      address,
+      masterNullifierPublicKey,
+      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey,
+      masterTaggingPublicKey,
+      partialAddress,
+    );
+    completeAddress.validate();
     return completeAddress;
   }
 
-  static random() {
-    // TODO(#5834): the following should be cleaned up
-    const secretKey = Fr.random();
-    const partialAddress = Fr.random();
-    const address = computeContractAddressFromPartial({ secretKey, partialAddress });
-    const publicKey = deriveKeys(secretKey).masterIncomingViewingPublicKey;
-    return new CompleteAddress(address, publicKey, partialAddress);
-  }
-
-  static fromRandomSecretKey() {
-    const secretKey = Fr.random();
-    const partialAddress = Fr.random();
-    return { secretKey, completeAddress: CompleteAddress.fromSecretKeyAndPartialAddress(secretKey, partialAddress) };
+  static random(): CompleteAddress {
+    return this.fromSecretKeyAndPartialAddress(Fr.random(), Fr.random());
   }
 
   static fromSecretKeyAndPartialAddress(secretKey: Fr, partialAddress: Fr): CompleteAddress {
-    const address = computeContractAddressFromPartial({ secretKey, partialAddress });
-    const publicKey = deriveKeys(secretKey).masterIncomingViewingPublicKey;
-    return new CompleteAddress(address, publicKey, partialAddress);
+    const {
+      masterNullifierPublicKey,
+      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey,
+      masterTaggingPublicKey,
+      publicKeysHash,
+    } = deriveKeys(secretKey);
+    const address = computeAddress(publicKeysHash, partialAddress);
+    return new CompleteAddress(
+      address,
+      masterNullifierPublicKey,
+      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey,
+      masterTaggingPublicKey,
+      partialAddress,
+    );
   }
 
   static fromSecretKeyAndInstance(
@@ -64,29 +85,31 @@ export class CompleteAddress {
     instance: Parameters<typeof computePartialAddress>[0],
   ): CompleteAddress {
     const partialAddress = computePartialAddress(instance);
-    const address = computeContractAddressFromPartial({ secretKey, partialAddress });
-    const publicKey = deriveKeys(secretKey).masterIncomingViewingPublicKey;
-    return new CompleteAddress(address, publicKey, partialAddress);
+    return CompleteAddress.fromSecretKeyAndPartialAddress(secretKey, partialAddress);
   }
 
-  // TODO(#5834): re-enable validation
-  // /** Throws if the address is not correctly derived from the public key and partial address.*/
-  // public validate() {
-  //   const expectedAddress = computeContractAddressFromPartial(this);
-  //   const address = this.address;
-  //   if (!expectedAddress.equals(address)) {
-  //     throw new Error(
-  //       `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
-  //     );
-  //   }
-  // }
+  /** Throws if the address is not correctly derived from the public key and partial address.*/
+  public validate() {
+    const publicKeysHash = computePublicKeysHash(
+      this.masterNullifierPublicKey,
+      this.masterIncomingViewingPublicKey,
+      this.masterOutgoingViewingPublicKey,
+      this.masterTaggingPublicKey,
+    );
+    const expectedAddress = computeAddress(publicKeysHash, this.partialAddress);
+    if (!expectedAddress.equals(this.address)) {
+      throw new Error(
+        `Address cannot be derived from public keys and partial address (received ${this.address.toString()}, derived ${expectedAddress.toString()})`,
+      );
+    }
+  }
 
   /**
-   * Gets a readable string representation of a the complete address.
+   * Gets a readable string representation of the complete address.
    * @returns A readable string representation of the complete address.
    */
   public toReadableString(): string {
-    return ` Address: ${this.address.toString()}\n Public Key: ${this.publicKey.toString()}\n Partial Address: ${this.partialAddress.toString()}\n`;
+    return `Address: ${this.address.toString()}\nMaster Nullifier Public Key: ${this.masterNullifierPublicKey.toString()}\nMaster Incoming Viewing Public Key: ${this.masterIncomingViewingPublicKey.toString()}\nMaster Outgoing Viewing Public Key: ${this.masterOutgoingViewingPublicKey.toString()}\nMaster Tagging Public Key: ${this.masterTaggingPublicKey.toString()}\nPartial Address: ${this.partialAddress.toString()}\n`;
   }
 
   /**
@@ -96,10 +119,13 @@ export class CompleteAddress {
    * @param other - The CompleteAddress instance to compare against.
    * @returns True if the buffers of both instances are equal, false otherwise.
    */
-  equals(other: CompleteAddress) {
+  equals(other: CompleteAddress): boolean {
     return (
       this.address.equals(other.address) &&
-      this.publicKey.equals(other.publicKey) &&
+      this.masterNullifierPublicKey.equals(other.masterNullifierPublicKey) &&
+      this.masterIncomingViewingPublicKey.equals(other.masterIncomingViewingPublicKey) &&
+      this.masterOutgoingViewingPublicKey.equals(other.masterOutgoingViewingPublicKey) &&
+      this.masterTaggingPublicKey.equals(other.masterTaggingPublicKey) &&
       this.partialAddress.equals(other.partialAddress)
     );
   }
@@ -110,8 +136,15 @@ export class CompleteAddress {
    *
    * @returns A Buffer representation of the CompleteAddress instance.
    */
-  toBuffer() {
-    return Buffer.concat([this.address.toBuffer(), this.publicKey.toBuffer(), this.partialAddress.toBuffer()]);
+  toBuffer(): Buffer {
+    return Buffer.concat([
+      this.address.toBuffer(),
+      this.masterNullifierPublicKey.toBuffer(),
+      this.masterIncomingViewingPublicKey.toBuffer(),
+      this.masterOutgoingViewingPublicKey.toBuffer(),
+      this.masterTaggingPublicKey.toBuffer(),
+      this.partialAddress.toBuffer(),
+    ]);
   }
 
   /**
@@ -122,12 +155,22 @@ export class CompleteAddress {
    * @param buffer - The input buffer or BufferReader containing the address data.
    * @returns - A new CompleteAddress instance with the extracted address data.
    */
-  static fromBuffer(buffer: Buffer | BufferReader) {
+  static fromBuffer(buffer: Buffer | BufferReader): CompleteAddress {
     const reader = BufferReader.asReader(buffer);
     const address = reader.readObject(AztecAddress);
-    const publicKey = reader.readObject(Point);
+    const masterNullifierPublicKey = reader.readObject(Point);
+    const masterIncomingViewingPublicKey = reader.readObject(Point);
+    const masterOutgoingViewingPublicKey = reader.readObject(Point);
+    const masterTaggingPublicKey = reader.readObject(Point);
     const partialAddress = reader.readObject(Fr);
-    return new this(address, publicKey, partialAddress);
+    return new CompleteAddress(
+      address,
+      masterNullifierPublicKey,
+      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey,
+      masterTaggingPublicKey,
+      partialAddress,
+    );
   }
 
   /**
@@ -150,5 +193,14 @@ export class CompleteAddress {
    */
   toString(): string {
     return `0x${this.toBuffer().toString('hex')}`;
+  }
+
+  get publicKeysHash(): Fr {
+    return computePublicKeysHash(
+      this.masterNullifierPublicKey,
+      this.masterIncomingViewingPublicKey,
+      this.masterOutgoingViewingPublicKey,
+      this.masterTaggingPublicKey,
+    );
   }
 }

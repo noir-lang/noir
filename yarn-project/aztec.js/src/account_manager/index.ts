@@ -51,7 +51,7 @@ export class AccountManager {
   public async getAccount(): Promise<AccountInterface> {
     const nodeInfo = await this.pxe.getNodeInfo();
     const completeAddress = this.getCompleteAddress();
-    return this.accountContract.getInterface(completeAddress, this.getPublicKeysHash(), nodeInfo);
+    return this.accountContract.getInterface(completeAddress, nodeInfo);
   }
 
   /**

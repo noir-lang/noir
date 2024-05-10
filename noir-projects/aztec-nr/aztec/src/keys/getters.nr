@@ -1,4 +1,7 @@
-use dep::protocol_types::{address::AztecAddress, constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{
+    address::{AztecAddress, PublicKeysHash}, constants::CANONICAL_KEY_REGISTRY_ADDRESS,
+    grumpkin_point::GrumpkinPoint
+};
 use crate::{
     context::PrivateContext, oracle::keys::get_public_keys_and_partial_address,
     state_vars::{
@@ -80,20 +83,15 @@ fn fetch_key_from_registry(
 fn fetch_and_constrain_keys(address: AztecAddress) -> [GrumpkinPoint; 4] {
     let (public_keys, partial_address) = get_public_keys_and_partial_address(address);
 
-    let nullifier_pub_key = public_keys[0];
-    let incoming_pub_key = public_keys[1];
-    let outgoing_pub_key = public_keys[2];
-    let tagging_pub_key = public_keys[3];
+    let npk_m = public_keys[0];
+    let ivpk_m = public_keys[1];
+    let ovpk_m = public_keys[2];
+    let tpk_m = public_keys[3];
 
-    let computed_address = AztecAddress::compute_from_public_keys_and_partial_address(
-        nullifier_pub_key,
-        incoming_pub_key,
-        outgoing_pub_key,
-        tagging_pub_key,
-        partial_address
-    );
+    let public_keys_hash = PublicKeysHash::compute(npk_m, ivpk_m, ovpk_m, tpk_m);
+    let computed_address = AztecAddress::compute(public_keys_hash, partial_address);
 
     assert(computed_address.eq(address));
 
-    [nullifier_pub_key, incoming_pub_key, outgoing_pub_key, tagging_pub_key]
+    [npk_m, ivpk_m, ovpk_m, tpk_m]
 }

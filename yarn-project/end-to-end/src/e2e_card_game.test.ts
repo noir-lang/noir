@@ -105,7 +105,7 @@ describe('e2e_card_game', () => {
       const publicKey = deriveKeys(key).masterIncomingViewingPublicKey;
       return (
         preRegisteredAccounts.find(preRegisteredAccount => {
-          return preRegisteredAccount.publicKey.equals(publicKey);
+          return preRegisteredAccount.masterIncomingViewingPublicKey.equals(publicKey);
         }) == undefined
       );
     });

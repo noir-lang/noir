@@ -1,20 +1,8 @@
-use dep::protocol_types::{address::{AztecAddress, PartialAddress, PublicKeysHash}, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
+use crate::oracle::keys::get_public_keys_and_partial_address;
 
-#[oracle(getPublicKeyAndPartialAddress)]
-fn get_public_key_and_partial_address_oracle(_address: AztecAddress) -> [Field; 3] {}
-
-unconstrained fn get_public_key_and_partial_address_internal(address: AztecAddress) -> [Field; 3] {
-    get_public_key_and_partial_address_oracle(address)
-}
-
+// To be nuked in my next PR: https://github.com/AztecProtocol/aztec-packages/pull/6219
 pub fn get_public_key(address: AztecAddress) -> GrumpkinPoint {
-    let result = get_public_key_and_partial_address_internal(address);
-    let pub_key = GrumpkinPoint::new(result[0], result[1]);
-    let partial_address = PartialAddress::from_field(result[2]);
-
-    // TODO(#5830): disabling the following constraint until we update the oracle according to the new key scheme
-    // let calculated_address = AztecAddress::compute(PublicKeysHash::compute(pub_key), partial_address);
-    // assert(calculated_address.eq(address));
-
-    pub_key
+    let result = get_public_keys_and_partial_address(address);
+    result.0[1]
 }

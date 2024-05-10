@@ -38,37 +38,18 @@ impl PublicKeysHash {
         Self { inner: field }
     }
 
-    // TODO(#5830): When we do this refactor, rename compute_new -> compute
-    pub fn compute(public_key: GrumpkinPoint) -> Self {
-        PublicKeysHash::from_field(
-            pedersen_hash(
-                [
-            public_key.x,
-            public_key.y
-        ],
-                GENERATOR_INDEX__PARTIAL_ADDRESS
-            )
-        )
-    }
-
-    // TODO(#5830): When we do this refactor, rename compute_new -> compute
-    pub fn compute_new(
-        nullifier_public_key: GrumpkinPoint,
-        incoming_public_key: GrumpkinPoint,
-        outgoing_public_key: GrumpkinPoint,
-        tagging_public_key: GrumpkinPoint
-    ) -> Self {
+    pub fn compute(npk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint, ovpk_m: GrumpkinPoint, tpk_m: GrumpkinPoint) -> Self {
         PublicKeysHash::from_field(
             poseidon2_hash(
                 [
-            nullifier_public_key.x,
-            nullifier_public_key.y,
-            incoming_public_key.x,
-            incoming_public_key.y,
-            outgoing_public_key.x,
-            outgoing_public_key.y,
-            tagging_public_key.x,
-            tagging_public_key.y,
+            npk_m.x,
+            npk_m.y,
+            ivpk_m.x,
+            ivpk_m.y,
+            ovpk_m.x,
+            ovpk_m.y,
+            tpk_m.x,
+            tpk_m.y,
             GENERATOR_INDEX__PUBLIC_KEYS_HASH
         ]
             )
@@ -84,11 +65,14 @@ impl PublicKeysHash {
     }
 }
 
-// TODO(#5830): re-enable this test once the compute function is updated
-// #[test]
-// fn compute_public_keys_hash() {
-//     let point = GrumpkinPoint { x: 1, y: 2 };
-//     let actual = PublicKeysHash::compute(point);
-//     let expected_public_keys_hash = 0x22d83a089d7650514c2de24cd30185a414d943eaa19817c67bffe2c3183006a3;
-//     assert(actual.to_field() == expected_public_keys_hash);
-// }
+#[test]
+fn compute_public_keys_hash() {
+    let npk_m = GrumpkinPoint { x: 1, y: 2 };
+    let ivpk_m = GrumpkinPoint { x: 3, y: 4 };
+    let ovpk_m = GrumpkinPoint { x: 5, y: 6 };
+    let tpk_m = GrumpkinPoint { x: 7, y: 8 };
+
+    let actual = PublicKeysHash::compute(npk_m, ivpk_m, ovpk_m, tpk_m);
+    let expected_public_keys_hash = 0x1936abe4f6a920d16a9f6917f10a679507687e2cd935dd1f1cdcb1e908c027f3;
+    assert(actual.to_field() == expected_public_keys_hash);
+}

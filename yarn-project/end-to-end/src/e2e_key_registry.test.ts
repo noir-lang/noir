@@ -1,6 +1,5 @@
 import { type AccountWallet, AztecAddress, Fr, type PXE } from '@aztec/aztec.js';
-import { CompleteAddress, GeneratorIndex, type PartialAddress, Point, deriveKeys } from '@aztec/circuits.js';
-import { poseidon2Hash } from '@aztec/foundation/crypto';
+import { CompleteAddress, Point } from '@aztec/circuits.js';
 import { KeyRegistryContract, TestContract } from '@aztec/noir-contracts.js';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 
@@ -23,16 +22,7 @@ describe('Key Registry', () => {
 
   let teardown: () => Promise<void>;
 
-  // TODO(#5834): use AztecAddress.compute or smt
-  const {
-    masterNullifierPublicKey,
-    masterIncomingViewingPublicKey,
-    masterOutgoingViewingPublicKey,
-    masterTaggingPublicKey,
-    publicKeysHash,
-  } = deriveKeys(Fr.random());
-  const partialAddress: PartialAddress = Fr.random();
-  let account: AztecAddress;
+  const account = CompleteAddress.random();
 
   beforeAll(async () => {
     ({ teardown, pxe, wallets } = await setup(3));
@@ -41,11 +31,6 @@ describe('Key Registry', () => {
     testContract = await TestContract.deploy(wallets[0]).send().deployed();
 
     await publicDeployAccounts(wallets[0], wallets.slice(0, 2));
-
-    // TODO(#5834): use AztecAddress.compute or smt
-    account = AztecAddress.fromField(
-      poseidon2Hash([publicKeysHash, partialAddress, GeneratorIndex.CONTRACT_ADDRESS_V1]),
-    );
   });
 
   const crossDelay = async () => {
@@ -60,10 +45,10 @@ describe('Key Registry', () => {
   describe('failure cases', () => {
     it('throws when address preimage check fails', async () => {
       const keys = [
-        masterNullifierPublicKey,
-        masterIncomingViewingPublicKey,
-        masterOutgoingViewingPublicKey,
-        masterTaggingPublicKey,
+        account.masterNullifierPublicKey,
+        account.masterIncomingViewingPublicKey,
+        account.masterOutgoingViewingPublicKey,
+        account.masterTaggingPublicKey,
       ];
 
       // We randomly invalidate some of the keys
@@ -72,7 +57,7 @@ describe('Key Registry', () => {
       await expect(
         keyRegistry
           .withWallet(wallets[0])
-          .methods.register(AztecAddress.fromField(account), partialAddress, keys[0], keys[1], keys[2], keys[3])
+          .methods.register(account, account.partialAddress, keys[0], keys[1], keys[2], keys[3])
           .send()
           .wait(),
       ).rejects.toThrow('Computed address does not match supplied address');
@@ -82,7 +67,7 @@ describe('Key Registry', () => {
       await expect(
         keyRegistry
           .withWallet(wallets[0])
-          .methods.rotate_nullifier_public_key(wallets[1].getAddress(), Point.random(), Fr.ZERO)
+          .methods.rotate_npk_m(wallets[1].getAddress(), Point.random(), Fr.ZERO)
           .send()
           .wait(),
       ).rejects.toThrow('Assertion failed: Message not authorized by account');
@@ -96,33 +81,20 @@ describe('Key Registry', () => {
 
       await expect(
         testContract.methods.test_nullifier_key_freshness(randomAddress, randomMasterNullifierPublicKey).send().wait(),
-      ).rejects.toThrow(`Cannot satisfy constraint 'computed_address.eq(address)'`);
+      ).rejects.toThrow(/No public key registered for address/);
     });
   });
 
   it('fresh key lib succeeds for non-registered account available in PXE', async () => {
-    // TODO(#5834): Make this not disgusting
-    const newAccountKeys = deriveKeys(Fr.random());
-    const newAccountPartialAddress = Fr.random();
-    const newAccount = AztecAddress.fromField(
-      poseidon2Hash([newAccountKeys.publicKeysHash, newAccountPartialAddress, GeneratorIndex.CONTRACT_ADDRESS_V1]),
-    );
-    const newAccountCompleteAddress = CompleteAddress.create(
-      newAccount,
-      newAccountKeys.masterIncomingViewingPublicKey,
-      newAccountPartialAddress,
-    );
-
-    await pxe.registerRecipient(newAccountCompleteAddress, [
-      newAccountKeys.masterNullifierPublicKey,
-      newAccountKeys.masterIncomingViewingPublicKey,
-      newAccountKeys.masterOutgoingViewingPublicKey,
-      newAccountKeys.masterTaggingPublicKey,
-    ]);
+    const newAccountCompleteAddress = CompleteAddress.random();
+    await pxe.registerRecipient(newAccountCompleteAddress);
 
     // Should succeed as the account is now registered as a recipient in PXE
     await testContract.methods
-      .test_nullifier_key_freshness(newAccount, newAccountKeys.masterNullifierPublicKey)
+      .test_nullifier_key_freshness(
+        newAccountCompleteAddress.address,
+        newAccountCompleteAddress.masterNullifierPublicKey,
+      )
       .send()
       .wait();
   });
@@ -133,11 +105,11 @@ describe('Key Registry', () => {
         .withWallet(wallets[0])
         .methods.register(
           account,
-          partialAddress,
-          masterNullifierPublicKey,
-          masterIncomingViewingPublicKey,
-          masterOutgoingViewingPublicKey,
-          masterTaggingPublicKey,
+          account.partialAddress,
+          account.masterNullifierPublicKey,
+          account.masterIncomingViewingPublicKey,
+          account.masterOutgoingViewingPublicKey,
+          account.masterTaggingPublicKey,
         )
         .send()
         .wait();
@@ -157,13 +129,13 @@ describe('Key Registry', () => {
         .test_shared_mutable_private_getter_for_registry_contract(1, account)
         .simulate();
 
-      expect(new Fr(nullifierPublicKeyX)).toEqual(masterNullifierPublicKey.x);
+      expect(new Fr(nullifierPublicKeyX)).toEqual(account.masterNullifierPublicKey.x);
     });
 
     // Note: This test case is dependent on state from the previous one
     it('key lib succeeds for registered account', async () => {
       // Should succeed as the account is registered in key registry from tests before
-      await testContract.methods.test_nullifier_key_freshness(account, masterNullifierPublicKey).send().wait();
+      await testContract.methods.test_nullifier_key_freshness(account, account.masterNullifierPublicKey).send().wait();
     });
   });
 
@@ -174,7 +146,7 @@ describe('Key Registry', () => {
     it('rotates npk_m', async () => {
       await keyRegistry
         .withWallet(wallets[0])
-        .methods.rotate_nullifier_public_key(wallets[0].getAddress(), firstNewMasterNullifierPublicKey, Fr.ZERO)
+        .methods.rotate_npk_m(wallets[0].getAddress(), firstNewMasterNullifierPublicKey, Fr.ZERO)
         .send()
         .wait();
 
@@ -199,7 +171,7 @@ describe('Key Registry', () => {
     it(`rotates npk_m with authwit`, async () => {
       const action = keyRegistry
         .withWallet(wallets[1])
-        .methods.rotate_nullifier_public_key(wallets[0].getAddress(), secondNewMasterNullifierPublicKey, Fr.ZERO);
+        .methods.rotate_npk_m(wallets[0].getAddress(), secondNewMasterNullifierPublicKey, Fr.ZERO);
 
       await wallets[0]
         .setPublicAuthWit({ caller: wallets[1].getCompleteAddress().address, action }, true)

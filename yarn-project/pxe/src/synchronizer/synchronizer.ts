@@ -285,7 +285,8 @@ export class Synchronizer {
     if (!completeAddress) {
       throw new Error(`Checking if account is synched is not possible for ${account} because it is not registered.`);
     }
-    const findByPublicKey = (x: NoteProcessor) => x.masterIncomingViewingPublicKey.equals(completeAddress.publicKey);
+    const findByPublicKey = (x: NoteProcessor) =>
+      x.masterIncomingViewingPublicKey.equals(completeAddress.masterIncomingViewingPublicKey);
     const processor = this.noteProcessors.find(findByPublicKey) ?? this.noteProcessorsToCatchUp.find(findByPublicKey);
     if (!processor) {
       throw new Error(

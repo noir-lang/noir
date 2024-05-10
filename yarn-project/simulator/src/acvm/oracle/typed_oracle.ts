@@ -17,7 +17,7 @@ import {
 } from '@aztec/circuits.js';
 import { type FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, type Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 /** Nullifier keys which both correspond to the same master nullifier secret key. */
@@ -93,10 +93,6 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('getNullifierKeys');
   }
 
-  getPublicKeyAndPartialAddress(_address: AztecAddress): Promise<Fr[] | undefined> {
-    throw new OracleMethodNotAvailableError('getPublicKeyAndPartialAddress');
-  }
-
   getContractInstance(_address: AztecAddress): Promise<ContractInstance> {
     throw new OracleMethodNotAvailableError('getContractInstance');
   }
@@ -138,10 +134,6 @@ export abstract class TypedOracle {
 
   popCapsule(): Promise<Fr[]> {
     throw new OracleMethodNotAvailableError('popCapsule');
-  }
-
-  getPublicKeysForAddress(_address: AztecAddress): Promise<Point[]> {
-    throw new OracleMethodNotAvailableError('getPublicKeysForAddress');
   }
 
   getNotes(

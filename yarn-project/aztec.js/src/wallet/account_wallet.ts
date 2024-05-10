@@ -16,10 +16,6 @@ export class AccountWallet extends BaseWallet {
     super(pxe);
   }
 
-  getPublicKeysHash(): Fr {
-    return this.account.getPublicKeysHash();
-  }
-
   createTxExecutionRequest(exec: ExecutionRequestInit): Promise<TxExecutionRequest> {
     return this.account.createTxExecutionRequest(exec);
   }

@@ -127,7 +127,8 @@ export async function waitNewPXESynced(
  */
 export async function waitRegisteredAccountSynced(pxe: PXE, secretKey: Fr, partialAddress: PartialAddress) {
   const l2Block = await pxe.getBlockNumber();
-  const { publicKey } = await pxe.registerAccount(secretKey, partialAddress);
-  const isAccountSynced = async () => (await pxe.getSyncStatus()).notes[publicKey.toString()] === l2Block;
+  const { masterIncomingViewingPublicKey } = await pxe.registerAccount(secretKey, partialAddress);
+  const isAccountSynced = async () =>
+    (await pxe.getSyncStatus()).notes[masterIncomingViewingPublicKey.toString()] === l2Block;
   await retryUntil(isAccountSynced, 'pxe-notes-sync');
 }

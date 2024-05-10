@@ -42,9 +42,6 @@ export interface AccountInterface extends AuthWitnessProvider, EntrypointInterfa
   /** Returns the complete address for this account. */
   getCompleteAddress(): CompleteAddress;
 
-  /** Returns the public keys hash for this account. */
-  getPublicKeysHash(): Fr;
-
   /** Returns the address for this account. */
   getAddress(): AztecAddress;
 

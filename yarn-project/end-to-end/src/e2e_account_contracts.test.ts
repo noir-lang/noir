@@ -74,11 +74,7 @@ describe('e2e_account_contracts', () => {
 
   const walletAt = async (pxe: PXE, accountContract: AccountContract, address: CompleteAddress) => {
     const nodeInfo = await pxe.getNodeInfo();
-    const publicKeysHash = await pxe.getRegisteredAccountPublicKeysHash(address.address);
-    if (!publicKeysHash) {
-      throw new Error(`Public keys hash for account ${address.address} not found`);
-    }
-    const entrypoint = accountContract.getInterface(address, publicKeysHash, nodeInfo);
+    const entrypoint = accountContract.getInterface(address, nodeInfo);
     return new AccountWallet(pxe, entrypoint);
   };
 

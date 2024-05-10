@@ -5,7 +5,6 @@ import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/fou
 import { AztecAddress, deriveKeys } from '../index.js';
 import {
   computeContractAddressFromInstance,
-  computeContractAddressFromPartial,
   computeInitializationHash,
   computePartialAddress,
   computeSaltedInitializationHash,
@@ -69,14 +68,6 @@ describe('ContractAddress', () => {
     }).toString();
 
     expect(address).toMatchSnapshot();
-
-    // TODO(#5834): the following was removed from aztec_address.nr, should it be re-introduced?
-    // // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
-    // updateInlineTestData(
-    //   'noir-projects/noir-protocol-circuits/crates/types/src/address/aztec_address.nr',
-    //   'expected_computed_address_from_preimage',
-    //   address.toString(),
-    // );
   });
 
   it('Public key hash matches Noir', () => {
@@ -89,20 +80,6 @@ describe('ContractAddress', () => {
       'noir-projects/noir-protocol-circuits/crates/types/src/address/public_keys_hash.nr',
       'expected_public_keys_hash',
       hash.toString(),
-    );
-  });
-
-  it('Address from partial matches Noir', () => {
-    const publicKeysHash = new Fr(1n);
-    const partialAddress = new Fr(2n);
-    const address = computeContractAddressFromPartial({ publicKeysHash, partialAddress }).toString();
-    expect(address).toMatchSnapshot();
-
-    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
-    updateInlineTestData(
-      'noir-projects/noir-protocol-circuits/crates/types/src/address/aztec_address.nr',
-      'expected_computed_address_from_partial_and_pubkey',
-      address.toString(),
     );
   });
 });

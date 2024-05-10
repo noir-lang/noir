@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`🔑 Address from partial matches Noir 1`] = `"0x1b6ead051e7b42665064ca6cf1ec77da0a36d86e00d1ff6e44077966c0c3a9fa"`;

@@ -70,7 +70,14 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
 
     it('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {
       const recipient1 = CompleteAddress.random();
-      const recipient2 = new CompleteAddress(recipient1.address, Point.random(), Fr.random());
+      const recipient2 = new CompleteAddress(
+        recipient1.address,
+        Point.random(),
+        Point.random(),
+        Point.random(),
+        Point.random(),
+        Fr.random(),
+      );
 
       await pxe.registerRecipient(recipient1);
       await expect(() => pxe.registerRecipient(recipient2)).rejects.toThrow(

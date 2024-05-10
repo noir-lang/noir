@@ -1,4 +1,4 @@
-import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash, sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
 import { type Fr, type GrumpkinScalar } from '@aztec/foundation/fields';
 
@@ -37,6 +37,11 @@ export function computePublicKeysHash(
     masterTaggingPublicKey,
     GeneratorIndex.PUBLIC_KEYS_HASH,
   ]);
+}
+
+export function computeAddress(publicKeysHash: Fr, partialAddress: Fr) {
+  const addressFr = poseidon2Hash([publicKeysHash, partialAddress, GeneratorIndex.CONTRACT_ADDRESS_V1]);
+  return AztecAddress.fromField(addressFr);
 }
 
 /**

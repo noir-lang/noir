@@ -11,7 +11,7 @@ describe('TestKeyStore', () => {
     const sk = new Fr(8923n);
     const partialAddress = new Fr(243523n);
 
-    const accountAddress = await keyStore.addAccount(sk, partialAddress);
+    const { address: accountAddress } = await keyStore.addAccount(sk, partialAddress);
     expect(accountAddress.toString()).toMatchInlineSnapshot(
       `"0x1a8a9a1d91cbb353d8df4f1bbfd0283f7fc63766f671edd9443a1270a7b2a954"`,
     );

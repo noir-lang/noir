@@ -45,7 +45,9 @@ export async function getDeployedTestAccountsWallets(pxe: PXE): Promise<AccountW
     INITIAL_TEST_SECRET_KEYS.filter(initialSecretKey => {
       const initialEncryptionKey = sha512ToGrumpkinScalar([initialSecretKey, GeneratorIndex.IVSK_M]);
       const publicKey = generatePublicKey(initialEncryptionKey);
-      return registeredAccounts.find(registered => registered.publicKey.equals(publicKey)) != undefined;
+      return (
+        registeredAccounts.find(registered => registered.masterIncomingViewingPublicKey.equals(publicKey)) != undefined
+      );
     }).map(secretKey => {
       const signingKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]);
       // TODO(#5726): use actual salt here instead of hardcoding Fr.ZERO
