@@ -96,6 +96,9 @@ enum class OpCode : uint8_t {
     KECCAK,
     POSEIDON2,
 
+    // Conversions
+    TORADIXLE,
+
     // Sentinel
     LAST_OPCODE_SENTINEL,
 };

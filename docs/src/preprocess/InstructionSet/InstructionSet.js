@@ -1537,6 +1537,39 @@ halt
     "Tag checks": "",
     "Tag updates": "",
   },
+  {
+    id: "to_radix_le",
+    Name: "`TORADIXLE`",
+    Category: "Conversions",
+    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
+    Args: [
+      {
+        name: "srcOffset",
+        description: "memory offset of word to convert.",
+      },
+      {
+        name: "dstOffset",
+        description: "memory offset specifying where the first limb of the radix-conversion result is stored.",
+      },
+      {
+        name: "radix",
+        description: "the maximum bit-size of each limb.",
+        mode: "immediate",
+        type: "u32",
+      },
+      {
+        name: "numLimbs",
+        description: "the number of limbs the word will be converted into.",
+        type: "u32",
+        mode: "immediate",
+      }
+    ],
+
+    Expression: `TBD: Storage of limbs and if T[dstOffset] is constrained to U8`,
+    Summary: "Convert a word to an array of limbs in little-endian radix form",
+    Details: "The limbs will be stored in a contiguous memory block starting at `dstOffset`.",
+    "Tag checks": "`T[srcOffset] == field`",
+  }
 ];
 const INSTRUCTION_SET = INSTRUCTION_SET_RAW.map((instr) => {
   instr["Bit-size"] = instructionSize(instr);
