@@ -1,0 +1,12 @@
+unconstrained fn main(x: u32, y: pub u32) {
+    basic_checks(x, y);
+}
+
+#[no_predicates]
+fn basic_checks(x: u32, y: u32) {
+    if x > y {
+        assert(x == 10);
+    } else {
+        assert(y == 20);
+    }
+}
