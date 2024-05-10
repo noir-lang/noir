@@ -2,7 +2,6 @@ import { type Fr } from '@aztec/circuits.js';
 
 import { type Gas, GasDimensions } from './avm_gas.js';
 import { TaggedMemory } from './avm_memory_types.js';
-import { AvmContractCallResults } from './avm_message_call_result.js';
 import { OutOfGasError } from './errors.js';
 
 /**
@@ -36,7 +35,7 @@ export class AvmMachineState {
    * Signals that execution should end.
    * AvmContext execution continues executing instructions until the machine state signals "halted"
    */
-  public halted: boolean = false;
+  private halted: boolean = false;
   /** Signals that execution has reverted normally (this does not cover exceptional halts) */
   private reverted: boolean = false;
   /** Output data must NOT be modified once it is set */
@@ -118,40 +117,24 @@ export class AvmMachineState {
     this.output = output;
   }
 
-  /**
-   * Flag an exceptional halt. Clears gas left and sets the reverted flag. No output data.
-   */
-  protected exceptionalHalt() {
-    GasDimensions.forEach(dimension => (this[`${dimension}Left`] = 0));
-    this.reverted = true;
-    this.halted = true;
+  public getHalted(): boolean {
+    return this.halted;
+  }
+
+  public getReverted(): boolean {
+    return this.reverted;
+  }
+
+  public getOutput(): Fr[] {
+    return this.output;
   }
 
   /**
-   * Get a summary of execution results for a halted machine state
-   * @returns summary of execution results
+   * Flag an exceptional halt. Clears gas left and sets the reverted flag. No output data.
    */
-  public getResults(): AvmContractCallResults {
-    if (!this.halted) {
-      throw new Error('Execution results are not ready! Execution is ongoing.');
-    }
-    let revertReason = undefined;
-    if (this.reverted) {
-      if (this.output.length === 0) {
-        revertReason = new Error('Assertion failed.');
-      } else {
-        try {
-          // We remove the first element which is the 'error selector'.
-          const revertOutput = this.output.slice(1);
-          // Try to interpret the output as a text string.
-          revertReason = new Error(
-            'Assertion failed: ' + String.fromCharCode(...revertOutput.map(fr => fr.toNumber())),
-          );
-        } catch (e) {
-          revertReason = new Error('Assertion failed: <cannot interpret as string>');
-        }
-      }
-    }
-    return new AvmContractCallResults(this.reverted, this.output, revertReason);
+  private exceptionalHalt() {
+    GasDimensions.forEach(dimension => (this[`${dimension}Left`] = 0));
+    this.reverted = true;
+    this.halted = true;
   }
 }

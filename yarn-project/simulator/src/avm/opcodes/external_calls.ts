@@ -7,7 +7,7 @@ import { gasLeftToGas, sumGas } from '../avm_gas.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
 import { type AvmContractCallResults } from '../avm_message_call_result.js';
 import { AvmSimulator } from '../avm_simulator.js';
-import { AvmExecutionError } from '../errors.js';
+import { RethrownError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
@@ -101,15 +101,13 @@ abstract class ExternalCall extends Instruction {
     const success = !nestedCallResults.reverted;
 
     // TRANSITIONAL: We rethrow here so that the MESSAGE gets propagated.
+    //               This means that for now, the caller cannot recover from errors.
     if (!success) {
-      class RethrownError extends AvmExecutionError {
-        constructor(message: string) {
-          super(message);
-          this.name = 'RethrownError';
-        }
+      if (!nestedCallResults.revertReason) {
+        throw new Error('A reverted nested call should be assigned a revert reason in the AVM execution loop');
       }
-
-      throw new RethrownError(nestedCallResults.revertReason?.message || 'Unknown nested call error');
+      // The nested call's revertReason will be used to track the stack of error causes down to the root.
+      throw new RethrownError(nestedCallResults.revertReason.message, nestedCallResults.revertReason);
     }
 
     // We only take as much data as was specified in the return size and pad with zeroes if the return data is smaller

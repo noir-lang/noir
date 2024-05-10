@@ -2,6 +2,11 @@ import { type FailingFunction, type NoirCallStack, SimulationError } from '@azte
 
 /**
  * An error that occurred during the execution of a function.
+ * @param message - the error message
+ * @param failingFunction - the Aztec function that failed
+ * @param noirCallStack - the internal call stack of the function that failed (within the failing Aztec function)
+ * @param options - additional error options (an optional "cause" entry allows for a recursive error stack where
+ *                  an error's cause may be an ExecutionError itself)
  */
 export class ExecutionError extends Error {
   constructor(

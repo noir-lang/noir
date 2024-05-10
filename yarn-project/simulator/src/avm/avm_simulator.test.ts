@@ -62,7 +62,7 @@ describe('AVM simulator: injected bytecode', () => {
     const results = await new AvmSimulator(context).executeBytecode(bytecode);
     expect(results.reverted).toBe(true);
     expect(results.output).toEqual([]);
-    expect(results.revertReason?.name).toEqual('OutOfGasError');
+    expect(results.revertReason?.message).toEqual('Not enough L2GAS gas left');
     expect(context.machineState.l2GasLeft).toEqual(0);
     expect(context.machineState.daGasLeft).toEqual(0);
   });

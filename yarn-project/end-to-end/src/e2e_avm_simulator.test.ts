@@ -34,9 +34,14 @@ describe('e2e_avm_simulator', () => {
     });
 
     describe('Assertions', () => {
-      it('Processes assertions in the PXE', async () => {
+      it('PXE processes failed assertions and fills in the error message with the expression', async () => {
+        await expect(avmContract.methods.assertion_failure().simulate()).rejects.toThrow(
+          "Assertion failed: This assertion should fail! 'not_true == true'",
+        );
+      });
+      it('PXE processes failed assertions and fills in the error message with the expression (even complex ones)', async () => {
         await expect(avmContract.methods.assert_nullifier_exists(123).simulate()).rejects.toThrow(
-          "Assertion failed: Nullifier doesn't exist!",
+          "Assertion failed: Nullifier doesn't exist! 'context.nullifier_exists(nullifier, context.this_address())'",
         );
       });
     });

@@ -5,7 +5,13 @@ import { strict as assert } from 'assert';
 import { isAvmBytecode } from '../public/transitional_adaptors.js';
 import type { AvmContext } from './avm_context.js';
 import { AvmContractCallResults } from './avm_message_call_result.js';
-import { AvmExecutionError, InvalidProgramCounterError, NoBytecodeForContractError } from './errors.js';
+import {
+  AvmExecutionError,
+  InvalidProgramCounterError,
+  NoBytecodeForContractError,
+  revertReasonFromExceptionalHalt,
+  revertReasonFromExplicitRevert,
+} from './errors.js';
 import type { Instruction } from './opcodes/index.js';
 import { decodeFromBytecode } from './serialization/bytecode_serialization.js';
 
@@ -56,7 +62,7 @@ export class AvmSimulator {
     try {
       // Execute instruction pointed to by the current program counter
       // continuing until the machine state signifies a halt
-      while (!machineState.halted) {
+      while (!machineState.getHalted()) {
         const instruction = instructions[machineState.pc];
         assert(
           !!instruction,
@@ -76,21 +82,25 @@ export class AvmSimulator {
         }
       }
 
-      // Return results for processing by calling context
-      const results = machineState.getResults();
+      const output = machineState.getOutput();
+      const reverted = machineState.getReverted();
+      const revertReason = reverted ? revertReasonFromExplicitRevert(output, this.context) : undefined;
+      const results = new AvmContractCallResults(reverted, output, revertReason);
       this.log.debug(`Context execution results: ${results.toString()}`);
+      // Return results for processing by calling context
       return results;
-    } catch (e) {
-      this.log.verbose('Exceptional halt');
-      if (!(e instanceof AvmExecutionError)) {
-        this.log.verbose(`Unknown error thrown by avm: ${e}`);
-        throw e;
+    } catch (err: any) {
+      this.log.verbose('Exceptional halt (revert by something other than REVERT opcode)');
+      if (!(err instanceof AvmExecutionError)) {
+        this.log.verbose(`Unknown error thrown by AVM: ${err}`);
+        throw err;
       }
 
-      // Return results for processing by calling context
-      // Note: "exceptional halts" cannot return data
-      const results = new AvmContractCallResults(/*reverted=*/ true, /*output=*/ [], /*revertReason=*/ e);
+      const revertReason = revertReasonFromExceptionalHalt(err, this.context);
+      // Note: "exceptional halts" cannot return data, hence []
+      const results = new AvmContractCallResults(/*reverted=*/ true, /*output=*/ [], revertReason);
       this.log.debug(`Context execution results: ${results.toString()}`);
+      // Return results for processing by calling context
       return results;
     }
   }
