@@ -854,19 +854,16 @@ impl<'context> Elaborator<'context> {
 
         self.elaborate_functions(trait_impl.methods);
 
-        let maybe_trait_id = trait_impl.trait_id;
-        if let Some(trait_id) = maybe_trait_id {
-            for func_id in &methods {
-                self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
-            }
-        }
-
         if matches!(self_type, Type::MutableReference(_)) {
             let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
-        if let Some(trait_id) = maybe_trait_id {
+        if let Some(trait_id) = trait_impl.trait_id {
+            for func_id in &methods {
+                self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
+            }
+
             let where_clause = trait_impl
                 .where_clause
                 .into_iter()
@@ -941,7 +938,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
-        &mut self.def_maps.get_mut(&module.krate).unwrap().modules[module.local_id.0]
+        let message = "A crate should always be present for a given crate id";
+        &mut self.def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
     }
 
     fn declare_method_on_struct(
