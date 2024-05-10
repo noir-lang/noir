@@ -25,7 +25,7 @@ use crate::{
     Type, TypeBindings,
 };
 
-use self::errors::Source;
+pub use self::errors::Source;
 
 pub struct TypeChecker<'interner> {
     interner: &'interner mut NodeInterner,
