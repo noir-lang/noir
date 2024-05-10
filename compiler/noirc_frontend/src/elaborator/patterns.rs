@@ -19,7 +19,7 @@ use crate::{
 
 use super::{Elaborator, ResolverMeta};
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
@@ -203,7 +203,7 @@ impl Elaborator {
         self.add_variable_decl_inner(name, mutable, allow_shadowing, true, definition)
     }
 
-    fn add_variable_decl_inner(
+    pub fn add_variable_decl_inner(
         &mut self,
         name: Ident,
         mutable: bool,
@@ -238,7 +238,11 @@ impl Elaborator {
         ident
     }
 
-    fn add_global_variable_decl(&mut self, name: Ident, definition: DefinitionKind) -> HirIdent {
+    pub fn add_global_variable_decl(
+        &mut self,
+        name: Ident,
+        definition: DefinitionKind,
+    ) -> HirIdent {
         let scope = self.scopes.get_mut_scope();
 
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
@@ -247,9 +251,7 @@ impl Elaborator {
         let mut global_id = None;
         let global = self.interner.get_all_globals();
         for global_info in global {
-            if global_info.ident == name
-                && global_info.local_id == self.path_resolver.local_module_id()
-            {
+            if global_info.ident == name && global_info.local_id == self.local_module {
                 global_id = Some(global_info.id);
             }
         }
@@ -363,7 +365,7 @@ impl Elaborator {
                         // does not check definition kinds and otherwise expects parameters to
                         // already be typed.
                         if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let typ = Type::polymorphic_integer_or_field(&mut self.interner);
+                            let typ = Type::polymorphic_integer_or_field(self.interner);
                             self.interner.push_definition_type(hir_ident.id, typ);
                         }
                     }
@@ -406,7 +408,7 @@ impl Elaborator {
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = t.instantiate_with_bindings(bindings, &self.interner);
+        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.

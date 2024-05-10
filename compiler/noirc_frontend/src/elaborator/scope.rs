@@ -1,6 +1,13 @@
+use noirc_errors::Spanned;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ast::ERROR_IDENT;
 use crate::hir::comptime::Value;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
+use crate::hir::resolution::resolver::SELF_TYPE_NAME;
+use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
+use crate::macros_api::Ident;
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -14,10 +21,14 @@ use crate::{
     node_interner::{DefinitionId, TraitId, TypeAliasId},
     Shared, StructType,
 };
+use crate::{Type, TypeAlias};
 
-use super::Elaborator;
+use super::{Elaborator, ResolverMeta};
 
-impl Elaborator {
+type Scope = GenericScope<String, ResolverMeta>;
+type ScopeTree = GenericScopeTree<String, ResolverMeta>;
+
+impl<'context> Elaborator<'context> {
     pub(super) fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -28,8 +39,14 @@ impl Elaborator {
         })
     }
 
+    pub(super) fn module_id(&self) -> ModuleId {
+        assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
+        ModuleId { krate: self.crate_id, local_id: self.local_module }
+    }
+
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let path_resolution = self.path_resolver.resolve(&self.def_maps, path)?;
+        let resolver = StandardPathResolver::new(self.module_id());
+        let path_resolution = resolver.resolve(self.def_maps, path)?;
 
         if let Some(error) = path_resolution.error {
             self.push_err(error);
@@ -96,5 +113,88 @@ impl Elaborator {
         let expected = "global variable".into();
         let got = "local variable".into();
         Err(ResolverError::Expected { span, expected, got })
+    }
+
+    pub fn push_scope(&mut self) {
+        self.scopes.start_scope();
+    }
+
+    pub fn pop_scope(&mut self) {
+        let scope = self.scopes.end_scope();
+        self.check_for_unused_variables_in_scope_tree(scope.into());
+    }
+
+    pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
+        let mut unused_vars = Vec::new();
+        for scope in scope_decls.0.into_iter() {
+            Self::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
+        }
+
+        for unused_var in unused_vars.iter() {
+            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
+            }
+        }
+    }
+
+    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<HirIdent>) {
+        let unused_variables = decl_map.filter(|(variable_name, metadata)| {
+            let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
+            metadata.warn_if_unused && metadata.num_times_used == 0 && !has_underscore_prefix
+        });
+        unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident.clone()));
+    }
+
+    /// Lookup a given trait by name/path.
+    pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
+        match self.lookup(path) {
+            Ok(trait_id) => Some(self.get_trait_mut(trait_id)),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Lookup a given struct type by name.
+    pub fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
+        match self.lookup(path) {
+            Ok(struct_id) => Some(self.get_struct(struct_id)),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Looks up a given type by name.
+    /// This will also instantiate any struct types found.
+    pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
+        let ident = path.as_ident();
+        if ident.map_or(false, |i| i == SELF_TYPE_NAME) {
+            if let Some(typ) = &self.self_type {
+                return Some(typ.clone());
+            }
+        }
+
+        match self.lookup(path) {
+            Ok(struct_id) => {
+                let struct_type = self.get_struct(struct_id);
+                let generics = struct_type.borrow().instantiate(self.interner);
+                Some(Type::Struct(struct_type, generics))
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
+        self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 }

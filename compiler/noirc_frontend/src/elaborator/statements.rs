@@ -21,7 +21,7 @@ use crate::{
 
 use super::Elaborator;
 
-impl Elaborator {
+impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_let(let_stmt),
@@ -224,7 +224,7 @@ impl Elaborator {
                         mutable = definition.mutable;
                     }
 
-                    let typ = self.interner.definition_type(ident.id).instantiate(&self.interner).0;
+                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
 
