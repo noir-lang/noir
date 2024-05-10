@@ -8,12 +8,18 @@ import { multiaddr } from '@multiformats/multiaddr';
 import EventEmitter from 'events';
 
 import type { P2PConfig } from '../config.js';
-import type { PeerDiscoveryService } from './service.js';
+import { type PeerDiscoveryService, PeerDiscoveryState } from './service.js';
 
-export enum PeerDiscoveryState {
-  RUNNING = 'running',
-  STOPPED = 'stopped',
+export const AZTEC_ENR_KEY = 'aztec_network';
+
+export enum AztecENR {
+  devnet = 0x01,
+  testnet = 0x02,
+  mainnet = 0x03,
 }
+
+// TODO: Make this an env var
+export const AZTEC_NET = AztecENR.devnet;
 
 /**
  * Peer discovery service using Discv5.
@@ -25,18 +31,20 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
   /** This instance's ENR */
   private enr: SignableENR;
 
-  /** The interval for checking for new peers */
-  private discoveryInterval: NodeJS.Timeout | null = null;
-
   private runningPromise: RunningPromise;
 
   private currentState = PeerDiscoveryState.STOPPED;
 
+  private bootstrapNodes: string[];
+
   constructor(private peerId: PeerId, config: P2PConfig, private logger = createDebugLogger('aztec:discv5_service')) {
     super();
     const { announceHostname, tcpListenPort, udpListenIp, udpListenPort, bootstrapNodes } = config;
+    this.bootstrapNodes = bootstrapNodes;
     // create ENR from PeerId
     this.enr = SignableENR.createFromPeerId(peerId);
+    // Add aztec identification to ENR
+    this.enr.set(AZTEC_ENR_KEY, Uint8Array.from([AZTEC_NET]));
 
     const multiAddrUdp = multiaddr(`${announceHostname}/udp/${udpListenPort}/p2p/${peerId.toString()}`);
     const multiAddrTcp = multiaddr(`${announceHostname}/tcp/${tcpListenPort}/p2p/${peerId.toString()}`);
@@ -66,18 +74,6 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
       this.logger.debug(`ENR multiaddr: ${multiAddrTcp?.toString()}, ${multiAddrUdp?.toString()}`);
     });
 
-    // Add bootnode ENR if provided
-    if (bootstrapNodes?.length) {
-      this.logger.info(`Adding bootstrap ENRs: ${bootstrapNodes.join(', ')}`);
-      try {
-        bootstrapNodes.forEach(enr => {
-          this.discv5.addEnr(enr);
-        });
-      } catch (e) {
-        this.logger.error(`Error adding bootnode ENRs: ${e}`);
-      }
-    }
-
     this.runningPromise = new RunningPromise(async () => {
       await this.discv5.findRandomNode();
     }, config.p2pPeerCheckIntervalMS);
@@ -91,6 +87,19 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
     await this.discv5.start();
     this.logger.info('DiscV5 started');
     this.currentState = PeerDiscoveryState.RUNNING;
+
+    // Add bootnode ENR if provided
+    if (this.bootstrapNodes?.length) {
+      this.logger.info(`Adding bootstrap ENRs: ${this.bootstrapNodes.join(', ')}`);
+      try {
+        this.bootstrapNodes.forEach(enr => {
+          this.discv5.addEnr(enr);
+        });
+      } catch (e) {
+        this.logger.error(`Error adding bootnode ENRs: ${e}`);
+      }
+    }
+
     this.runningPromise.start();
   }
 
@@ -117,6 +126,14 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
   }
 
   private onDiscovered(enr: ENR) {
-    this.emit('peer:discovered', enr);
+    // check the peer is an aztec peer
+    const value = enr.kvs.get(AZTEC_ENR_KEY);
+    if (value) {
+      const network = value[0];
+      // check if the peer is on the same network
+      if (network === AZTEC_NET) {
+        this.emit('peer:discovered', enr);
+      }
+    }
   }
 }

@@ -20,6 +20,7 @@
     "./json-rpc": "./dest/json-rpc/index.js",
     "./json-rpc/server": "./dest/json-rpc/server/index.js",
     "./json-rpc/client": "./dest/json-rpc/client/index.js",
+    "./iterable": "./dest/iterable/index.js",
     "./log": "./dest/log/index.js",
     "./mutex": "./dest/mutex/index.js",
     "./fields": "./dest/fields/index.js",

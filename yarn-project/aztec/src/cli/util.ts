@@ -59,7 +59,7 @@ export const parseModuleOptions = (options: string): Record<string, string> => {
   if (!options?.length) {
     return {};
   }
-  const optionsArray = options.split(',');
+  const optionsArray = options.split(/,(?=\w+=)/);
   return optionsArray.reduce((acc, option) => {
     const [key, value] = option.split('=');
     return { ...acc, [key]: value };

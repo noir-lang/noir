@@ -2,43 +2,43 @@ import { type Tx, type TxHash } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore } from '@aztec/kv-store';
+import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 
 import { ENR } from '@chainsafe/enr';
+import { type GossipsubEvents, gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
-import type { IncomingStreamData, PeerId, Stream } from '@libp2p/interface';
-import type { ServiceMap } from '@libp2p/interface-libp2p';
+import type { IncomingStreamData, PeerId, PubSub, Stream } from '@libp2p/interface';
 import '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
 import { peerIdFromString } from '@libp2p/peer-id';
-import { createFromJSON, createSecp256k1PeerId, exportToProtobuf } from '@libp2p/peer-id-factory';
+import { createFromJSON, createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { tcp } from '@libp2p/tcp';
 import { pipe } from 'it-pipe';
-import { type Libp2p, type Libp2pOptions, type ServiceFactoryMap, createLibp2p } from 'libp2p';
+import { type Libp2p, createLibp2p } from 'libp2p';
 
 import { type P2PConfig } from '../config.js';
 import { type TxPool } from '../tx_pool/index.js';
+import { AztecDatastore } from './data_store.js';
 import { KnownTxLookup } from './known_txs.js';
+import { PeerManager } from './peer_manager.js';
 import { AztecPeerDb, type AztecPeerStore } from './peer_store.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
-import {
-  Messages,
-  createGetTransactionsRequestMessage,
-  createTransactionHashesMessage,
-  createTransactionsMessage,
-  decodeGetTransactionsRequestMessage,
-  decodeTransactionHashesMessage,
-  decodeTransactionsMessage,
-  getEncodedMessage,
-} from './tx_messages.js';
+import { AztecTxMessageCreator, fromTxMessage } from './tx_messages.js';
+
+export interface PubSubLibp2p extends Libp2p {
+  services: {
+    pubsub: PubSub<GossipsubEvents>;
+  };
+}
 
 /**
  * Create a libp2p peer ID from the private key if provided, otherwise creates a new random ID.
  * @param privateKey - Optional peer ID private key as hex string
  * @returns The peer ID.
  */
-export async function createLibP2PPeerId(privateKey?: string) {
+export async function createLibP2PPeerId(privateKey?: string): Promise<PeerId> {
   if (!privateKey?.length) {
     return await createSecp256k1PeerId();
   }
@@ -50,30 +50,26 @@ export async function createLibP2PPeerId(privateKey?: string) {
 }
 
 /**
- * Exports a given peer id to a string representation.
- * @param peerId - The peerId instance to be converted.
- * @returns The peer id as a string.
- */
-export function exportLibP2PPeerIdToString(peerId: PeerId) {
-  return Buffer.from(exportToProtobuf(peerId)).toString('hex');
-}
-
-/**
  * Lib P2P implementation of the P2PService interface.
  */
 export class LibP2PService implements P2PService {
   private jobQueue: SerialQueue = new SerialQueue();
   private knownTxLookup: KnownTxLookup = new KnownTxLookup();
+  private messageCreator: AztecTxMessageCreator;
+  private peerManager: PeerManager;
   constructor(
     private config: P2PConfig,
-    private node: Libp2p,
+    private node: PubSubLibp2p,
     private peerDiscoveryService: PeerDiscoveryService,
     private peerStore: AztecPeerStore,
     private protocolId: string,
     private txPool: TxPool,
     private bootstrapPeerIds: PeerId[] = [],
     private logger = createDebugLogger('aztec:libp2p_service'),
-  ) {}
+  ) {
+    this.messageCreator = new AztecTxMessageCreator(config.txGossipVersion);
+    this.peerManager = new PeerManager(node, peerDiscoveryService, config, logger);
+  }
 
   /**
    * Starts the LibP2P service.
@@ -97,24 +93,18 @@ export class LibP2PService implements P2PService {
       await this.addPeer(enr);
     });
 
-    this.node.addEventListener('peer:discovery', evt => {
-      const peerId = evt.detail.id;
-      if (this.isBootstrapPeer(peerId)) {
-        this.logger.verbose(`Discovered bootstrap peer ${peerId.toString()}`);
-      }
-    });
-
-    this.node.addEventListener('peer:connect', evt => {
+    this.node.addEventListener('peer:connect', async evt => {
       const peerId = evt.detail;
-      this.handleNewConnection(peerId);
+      await this.handleNewConnection(peerId as PeerId);
     });
 
-    this.node.addEventListener('peer:disconnect', evt => {
+    this.node.addEventListener('peer:disconnect', async evt => {
       const peerId = evt.detail;
       if (this.isBootstrapPeer(peerId)) {
         this.logger.verbose(`Disconnect from bootstrap peer ${peerId.toString()}`);
       } else {
         this.logger.verbose(`Disconnected from transaction peer ${peerId.toString()}`);
+        await this.peerManager.updateDiscoveryService();
       }
     });
 
@@ -125,6 +115,17 @@ export class LibP2PService implements P2PService {
       this.jobQueue.put(() => Promise.resolve(this.handleProtocolDial(incoming))),
     );
     this.logger.info(`Started P2P client with Peer ID ${this.node.peerId.toString()}`);
+
+    // Subscribe to standard topics by default
+    this.subscribeToTopic(this.messageCreator.getTopic());
+
+    // add gossipsub listener
+    this.node.services.pubsub.addEventListener('gossipsub:message', async e => {
+      const { msg } = e.detail;
+      this.logger.debug(`Received PUBSUB message.`);
+
+      await this.handleNewGossipMessage(msg.topic, msg.data);
+    });
   }
 
   /**
@@ -152,27 +153,15 @@ export class LibP2PService implements P2PService {
     txPool: TxPool,
     store: AztecKVStore,
   ) {
-    const { tcpListenIp, tcpListenPort, minPeerCount, maxPeerCount } = config;
-    const opts: Libp2pOptions<ServiceMap> = {
-      start: false,
-      peerId,
-      addresses: {
-        listen: [`/ip4/${tcpListenIp}/tcp/${tcpListenPort}`],
-      },
-      transports: [tcp()],
-      streamMuxers: [yamux(), mplex()],
-      connectionEncryption: [noise()],
-      connectionManager: {
-        minConnections: minPeerCount,
-        maxConnections: maxPeerCount,
-      },
-    };
-
-    const services: ServiceFactoryMap = {
-      identify: identify({
-        protocolPrefix: 'aztec',
-      }),
-    };
+    const {
+      tcpListenIp,
+      tcpListenPort,
+      minPeerCount,
+      maxPeerCount,
+      dataDirectory,
+      transactionProtocol: protocolId,
+    } = config;
+    const bindAddrTcp = `/ip4/${tcpListenIp}/tcp/${tcpListenPort}`;
 
     // The autonat service seems quite problematic in that using it seems to cause a lot of attempts
     // to dial ephemeral ports. I suspect that it works better if you can get the uPNPnat service to
@@ -188,11 +177,41 @@ export class LibP2PService implements P2PService {
     //   services.uPnPNAT = uPnPNATService();
     // }
 
+    const datastore = new AztecDatastore(AztecLmdbStore.open(dataDirectory));
+
     const node = await createLibp2p({
-      ...opts,
-      services,
+      start: false,
+      peerId,
+      addresses: {
+        listen: [bindAddrTcp],
+      },
+      transports: [
+        tcp({
+          maxConnections: config.maxPeerCount,
+        }),
+      ],
+      datastore,
+      streamMuxers: [yamux(), mplex()],
+      connectionEncryption: [noise()],
+      connectionManager: {
+        minConnections: minPeerCount,
+        maxConnections: maxPeerCount,
+      },
+      services: {
+        identify: identify({
+          protocolPrefix: 'aztec',
+        }),
+        pubsub: gossipsub({
+          allowPublishToZeroTopicPeers: true,
+          D: 6,
+          Dlo: 4,
+          Dhi: 12,
+          heartbeatInterval: 1_000,
+          mcacheLength: 5,
+          mcacheGossip: 3,
+        }),
+      },
     });
-    const protocolId = config.transactionProtocol;
 
     // Create an LMDB peer store
     const peerDb = new AztecPeerDb(store);
@@ -206,6 +225,47 @@ export class LibP2PService implements P2PService {
     }
 
     return new LibP2PService(config, node, peerDiscoveryService, peerDb, protocolId, txPool, bootstrapPeerIds);
+  }
+
+  /**
+   * Subscribes to a topic.
+   * @param topic - The topic to subscribe to.
+   */
+  private subscribeToTopic(topic: string) {
+    if (!this.node.services.pubsub) {
+      throw new Error('Pubsub service not available.');
+    }
+    void this.node.services.pubsub.subscribe(topic);
+  }
+
+  /**
+   * Publishes data to a topic.
+   * @param topic - The topic to publish to.
+   * @param data - The data to publish.
+   * @returns The number of recipients the data was sent to.
+   */
+  private async publishToTopic(topic: string, data: Uint8Array) {
+    if (!this.node.services.pubsub) {
+      throw new Error('Pubsub service not available.');
+    }
+    const result = await this.node.services.pubsub.publish(topic, data);
+
+    return result.recipients.length;
+  }
+
+  /**
+   * Handles a new gossip message that was received by the client.
+   * @param topic - The message's topic.
+   * @param data - The message data
+   */
+  private async handleNewGossipMessage(topic: string, data: Uint8Array) {
+    if (topic !== this.messageCreator.getTopic()) {
+      // Invalid TX Topic, ignore
+      return;
+    }
+
+    const tx = fromTxMessage(Buffer.from(data));
+    await this.processTxFromPeer(tx);
   }
 
   /**
@@ -243,7 +303,7 @@ export class LibP2PService implements P2PService {
 
     // add to peer store if not already known
     if (!hasPeer) {
-      this.logger.info(`Discovered peer ${enr.peerId().toString()}. Adding to libp2p peer list`);
+      this.logger.info(`Discovered peer ${peerIdStr}. Adding to libp2p peer list`);
       let stream: Stream | undefined;
       try {
         stream = await this.node.dialProtocol(peerMultiAddr, this.protocolId);
@@ -268,7 +328,7 @@ export class LibP2PService implements P2PService {
       if (!message.length) {
         this.logger.verbose(`Ignoring 0 byte message from peer${peer.toString()}`);
       }
-      await this.processMessage(message, peer);
+      // await this.processTransactionMessage(message, peer);
     } catch (err) {
       this.logger.error(
         `Failed to handle received message from peer ${incomingStreamData.connection.remotePeer.toString()}`,
@@ -289,151 +349,27 @@ export class LibP2PService implements P2PService {
     return { message: buffer, peer: incomingStreamData.connection.remotePeer };
   }
 
-  private handleNewConnection(peerId: PeerId) {
+  private async handleNewConnection(peerId: PeerId) {
     if (this.isBootstrapPeer(peerId)) {
       this.logger.verbose(`Connected to bootstrap peer ${peerId.toString()}`);
     } else {
       this.logger.verbose(`Connected to transaction peer ${peerId.toString()}`);
-      // send the peer our current pooled transaction hashes
-      void this.jobQueue.put(async () => {
-        await this.sendTxHashesMessageToPeer(peerId);
-      });
+      await this.peerManager.updateDiscoveryService();
     }
   }
 
-  private async processMessage(message: Buffer, peerId: PeerId) {
-    const type = message.readUInt32BE(0);
-    const encodedMessage = getEncodedMessage(message);
-    switch (type) {
-      case Messages.POOLED_TRANSACTIONS:
-        await this.processReceivedTxs(encodedMessage, peerId);
-        return;
-      case Messages.POOLED_TRANSACTION_HASHES:
-        await this.processReceivedTxHashes(encodedMessage, peerId);
-        return;
-      case Messages.GET_TRANSACTIONS:
-        await this.processReceivedGetTransactionsRequest(encodedMessage, peerId);
-        return;
-    }
-    throw new Error(`Unknown message type ${type}`);
-  }
-
-  private async processReceivedTxHashes(encodedMessage: Buffer, peerId: PeerId) {
-    try {
-      const txHashes = decodeTransactionHashesMessage(encodedMessage);
-      this.logger.debug(`Received tx hash messages from ${peerId.toString()}`);
-      // we send a message requesting the transactions that we don't have from the set of received hashes
-      const requiredHashes = txHashes.filter(hash => !this.txPool.hasTx(hash));
-      if (!requiredHashes.length) {
-        return;
-      }
-      await this.sendGetTransactionsMessageToPeer(txHashes, peerId);
-    } catch (err) {
-      this.logger.error(`Failed to process received tx hashes`, err);
-    }
-  }
-
-  private async processReceivedGetTransactionsRequest(encodedMessage: Buffer, peerId: PeerId) {
-    try {
-      this.logger.debug(`Received get txs messages from ${peerId.toString()}`);
-      // get the transactions in the list that we have and return them
-      const removeUndefined = <S>(value: S | undefined): value is S => value != undefined;
-      const txHashes = decodeGetTransactionsRequestMessage(encodedMessage);
-      const txs = txHashes.map(x => this.txPool.getTxByHash(x)).filter(removeUndefined);
-      if (!txs.length) {
-        return;
-      }
-      await this.sendTransactionsMessageToPeer(txs, peerId);
-    } catch (err) {
-      this.logger.error(`Failed to process get txs request`, err);
-    }
-  }
-
-  private async processReceivedTxs(encodedMessage: Buffer, peerId: PeerId) {
-    try {
-      const txs = decodeTransactionsMessage(encodedMessage);
-      // Could optimize here and process all txs at once
-      // Propagation would need to filter and send custom tx set per peer
-      for (const tx of txs) {
-        await this.processTxFromPeer(tx, peerId);
-      }
-    } catch (err) {
-      this.logger.error(`Failed to process pooled transactions message`, err);
-    }
-  }
-
-  private async processTxFromPeer(tx: Tx, peerId: PeerId): Promise<void> {
+  private async processTxFromPeer(tx: Tx): Promise<void> {
     const txHash = tx.getTxHash();
     const txHashString = txHash.toString();
-    this.knownTxLookup.addPeerForTx(peerId, txHashString);
-    this.logger.debug(`Received tx ${txHashString} from peer ${peerId.toString()}`);
+    this.logger.debug(`Received tx ${txHashString} from external peer.`);
     await this.txPool.addTxs([tx]);
-    this.propagateTx(tx);
   }
 
   private async sendTxToPeers(tx: Tx) {
-    const txs = createTransactionsMessage([tx]);
-    const payload = new Uint8Array(txs);
-    const peers = this.getTxPeers();
-    const txHash = tx.getTxHash();
-    const txHashString = txHash.toString();
-    for (const peer of peers) {
-      try {
-        if (this.knownTxLookup.hasPeerSeenTx(peer, txHashString)) {
-          this.logger.debug(`Not sending tx ${txHashString} to peer ${peer.toString()} as they have already seen it`);
-          continue;
-        }
-        this.logger.debug(`Sending tx ${txHashString} to peer ${peer.toString()}`);
-        await this.sendRawMessageToPeer(payload, peer);
-        this.knownTxLookup.addPeerForTx(peer, txHashString);
-      } catch (err) {
-        this.logger.error(`Failed to send txs to peer ${peer.toString()}`, err);
-        continue;
-      }
-    }
-  }
-
-  private async sendTxHashesMessageToPeer(peer: PeerId) {
-    try {
-      const hashes = this.txPool.getAllTxHashes();
-      if (!hashes.length) {
-        return;
-      }
-      const message = createTransactionHashesMessage(hashes);
-      await this.sendRawMessageToPeer(new Uint8Array(message), peer);
-    } catch (err) {
-      this.logger.error(`Failed to send tx hashes to peer ${peer.toString()}`, err);
-    }
-  }
-
-  private async sendGetTransactionsMessageToPeer(hashes: TxHash[], peer: PeerId) {
-    try {
-      const message = createGetTransactionsRequestMessage(hashes);
-      await this.sendRawMessageToPeer(new Uint8Array(message), peer);
-    } catch (err) {
-      this.logger.error(`Failed to send tx request to peer ${peer.toString()}`, err);
-    }
-  }
-
-  private async sendTransactionsMessageToPeer(txs: Tx[], peer: PeerId) {
-    // don't filter out any transactions based on what we think the peer has seen,
-    // we have been explicitly asked for these transactions
-    const message = createTransactionsMessage(txs);
-    await this.sendRawMessageToPeer(message, peer);
-    for (const tx of txs) {
-      const hash = tx.getTxHash();
-      this.knownTxLookup.addPeerForTx(peer, hash.toString());
-    }
-  }
-
-  private async sendRawMessageToPeer(message: Uint8Array, peer: PeerId) {
-    const stream = await this.node.dialProtocol(peer, this.protocolId);
-    await pipe([message], stream);
-    await stream.close();
-  }
-
-  private getTxPeers() {
-    return this.node.getPeers().filter(peer => !this.isBootstrapPeer(peer));
+    const { data: txData } = this.messageCreator.createTxMessage(tx);
+    this.logger.debug(`Sending tx ${tx.getTxHash().toString()} to peers`);
+    const recipientsNum = await this.publishToTopic(this.messageCreator.getTopic(), txData);
+    this.logger.debug(`Sent tx ${tx.getTxHash().toString()} to ${recipientsNum} peers`);
   }
 
   private isBootstrapPeer(peer: PeerId) {

@@ -71,6 +71,11 @@ export const startNode = async (
     nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(nodeConfig, parseModuleOptions(options.prover));
   }
 
+  // ensure bootstrapNodes is an array
+  if (nodeConfig.bootstrapNodes && typeof nodeConfig.bootstrapNodes === 'string') {
+    nodeConfig.bootstrapNodes = (nodeConfig.bootstrapNodes as string).split(',');
+  }
+
   if (!nodeConfig.disableSequencer && nodeConfig.disableProver) {
     throw new Error('Cannot run a sequencer without a prover');
   }

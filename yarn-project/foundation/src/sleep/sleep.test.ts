@@ -21,7 +21,7 @@ describe('InterruptibleSleep', () => {
     expect(end - start).toBeGreaterThanOrEqual(149);
   });
 
-  it('can interrup multiple sleeps', async () => {
+  it('can interrupt multiple sleeps', async () => {
     const stub = jest.fn();
     const sleeper = new InterruptibleSleep();
     const start = Date.now();

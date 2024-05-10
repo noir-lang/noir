@@ -6,6 +6,7 @@ import type { PeerId } from '@libp2p/interface';
 import { type Multiaddr, multiaddr } from '@multiformats/multiaddr';
 
 import { type P2PConfig } from '../config.js';
+import { AZTEC_ENR_KEY, AZTEC_NET } from '../service/discV5_service.js';
 import { createLibP2PPeerId } from '../service/index.js';
 
 /**
@@ -38,6 +39,7 @@ export class BootstrapNode {
     const listenAddrUdp = multiaddr(`/ip4/${udpListenIp}/udp/${udpListenPort}`);
     const publicAddr = multiaddr(`${announceHostname}/udp/${announcePort}`);
     enr.setLocationMultiaddr(publicAddr);
+    enr.set(AZTEC_ENR_KEY, Uint8Array.from([AZTEC_NET]));
 
     this.logger.info(`Starting bootstrap node ${peerId}, listening on ${listenAddrUdp.toString()}`);
 

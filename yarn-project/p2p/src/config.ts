@@ -1,3 +1,5 @@
+import { SemVer } from 'semver';
+
 /**
  * P2P client configuration values.
  */
@@ -86,6 +88,11 @@ export interface P2PConfig {
    * Data directory for peer & tx databases.
    */
   dataDirectory?: string;
+
+  /**
+   * The transaction gossiping message version.
+   */
+  txGossipVersion: SemVer;
 }
 
 /**
@@ -110,6 +117,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     P2P_MIN_PEERS,
     P2P_MAX_PEERS,
     DATA_DIRECTORY,
+    TX_GOSSIP_VERSION,
   } = process.env;
   const envVars: P2PConfig = {
     p2pEnabled: P2P_ENABLED === 'true',
@@ -129,6 +137,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     minPeerCount: P2P_MIN_PEERS ? +P2P_MIN_PEERS : 10,
     maxPeerCount: P2P_MAX_PEERS ? +P2P_MAX_PEERS : 100,
     dataDirectory: DATA_DIRECTORY,
+    txGossipVersion: TX_GOSSIP_VERSION ? new SemVer(TX_GOSSIP_VERSION) : new SemVer('0.1.0'),
   };
   return envVars;
 }

@@ -56,6 +56,8 @@ export const cliTexts = {
     'Starts a Sequencer with options. If started additionally to --node, the Sequencer will attach to that node.\n' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
     'rcpUrl:ETHEREUM_HOST - string - The host of the Ethereum node to connect to. Default: http://localhost:8545\n' +
+    'minTxsPerBlock:SEQ_MIN_TXS_PER_BLOCK - number - The minimum number of transactions to include in a block. Default: 1\n' +
+    'maxTxsPerBlock:SEQ_MAX_TXS_PER_BLOCK - number - The maximum number of transactions to include in a block. Default: 32\n' +
     'apiKey:API_KEY - string - The key for the ethereum node if necessary.\n' +
     'chainId:CHAIN_ID - number - The chain id of the ethereum host. Default: 31337\n' +
     'version:VERSION - number - The version of the Aztec rollup. Default: 1\n' +

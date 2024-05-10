@@ -3,6 +3,11 @@ import type { Tx, TxHash } from '@aztec/circuit-types';
 import type { ENR } from '@chainsafe/enr';
 import type EventEmitter from 'events';
 
+export enum PeerDiscoveryState {
+  RUNNING = 'running',
+  STOPPED = 'stopped',
+}
+
 /**
  * The interface for a P2P service implementation.
  */
@@ -57,4 +62,6 @@ export interface PeerDiscoveryService extends EventEmitter {
    */
   on(event: 'peer:discovered', listener: (enr: ENR) => void): this;
   emit(event: 'peer:discovered', enr: ENR): boolean;
+
+  getStatus(): PeerDiscoveryState;
 }
