@@ -1,4 +1,4 @@
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Span;
 
 use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
@@ -7,8 +7,9 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirExpression, HirIdent,
-            HirLiteral, HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCapturedVar, HirExpression,
+            HirIdent, HirLiteral, HirMethodCallExpression, HirMethodReference, HirPrefixExpression,
+            ImplKind,
         },
         types::Type,
     },
@@ -91,6 +92,35 @@ impl<'interner> TypeChecker<'interner> {
                 (length, Box::new(elem_type))
             }
         }
+    }
+
+    // exclude non-reference mutable variables from being captured
+    fn ensure_mutable_captures_have_ref(
+        &mut self,
+        expr_id: &ExprId,
+        lambda_captures: Vec<HirCapturedVar>,
+    ) -> Result<Vec<Type>, TypeCheckError> {
+        try_vecmap(lambda_captures, |capture| {
+            let is_mutable = self
+                .interner
+                .try_definition(capture.ident.id)
+                .map(|definition| definition.mutable)
+                .unwrap_or(false);
+            let capture_type = self.interner.definition_type(capture.ident.id).follow_bindings();
+            if !is_mutable || matches!(capture_type, Type::MutableReference(_)) {
+                Ok(capture_type)
+            } else {
+                let name = self
+                    .interner
+                    .try_definition(capture.ident.id)
+                    .map(|definition| definition.name.clone())
+                    .unwrap_or("[unknown_variable]".to_string());
+                Err(TypeCheckError::MutableCaptureNeedsRef {
+                    name,
+                    span: self.interner.expr_span(expr_id),
+                })
+            }
+        })
     }
 
     /// Infers a type for a given expression, and return this type.
@@ -286,9 +316,14 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let captured_vars = vecmap(lambda.captures, |capture| {
-                    self.interner.definition_type(capture.ident.id)
-                });
+                let captured_vars =
+                    match self.ensure_mutable_captures_have_ref(expr_id, lambda.captures) {
+                        Err(err) => {
+                            self.errors.push(err);
+                            return Type::Error;
+                        }
+                        Ok(captured_vars) => captured_vars,
+                    };
 
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };

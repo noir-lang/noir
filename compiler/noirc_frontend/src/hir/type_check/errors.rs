@@ -60,6 +60,8 @@ pub enum TypeCheckError {
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, span: Span },
     #[error("Variable {name} must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, span: Span },
+    #[error("Variable {name} captured in lambda must be a mutable reference")]
+    MutableCaptureNeedsRef { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
@@ -240,6 +242,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
+            TypeCheckError::MutableCaptureNeedsRef { name, span } => Diagnostic::simple_error(
+                format!("Variable {name} captured in lambda must be a mutable reference"),
+                "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
+                *span,
+            ),
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),
