@@ -215,7 +215,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
         let call_request = source.public_teardown_call_request;
         if !is_empty(call_request) {
             assert(
-                self.public_inputs.public_teardown_call_request.is_empty(), "Public teardown call request already set"
+                is_empty(self.public_inputs.public_teardown_call_request), "Public teardown call request already set"
             );
             self.public_inputs.public_teardown_call_request = call_request;
         }

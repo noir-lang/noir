@@ -1,10 +1,12 @@
-use crate::{common, private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer};
+use crate::{
+    private_call_data_validator::PrivateCallDataValidator,
+    private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer
+};
 use dep::types::{
     abis::{
     private_kernel_data::{PrivateKernelData, verify_previous_kernel_proof},
     private_kernel::private_call_data::{PrivateCallData, verify_private_call},
-    kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
-    side_effect::SideEffect
+    kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs
 },
     constants::MAX_NEW_NOTE_HASHES_PER_CALL, utils::arrays::array_length
 };
@@ -20,36 +22,24 @@ struct PrivateKernelInnerCircuitPrivateInputs {
 }
 
 impl PrivateKernelInnerCircuitPrivateInputs {
-    fn validate_inputs(self) {
-        let this_call_stack_item = self.private_call.call_stack_item;
-        let function_data = this_call_stack_item.function_data;
-        assert(function_data.is_private, "Private kernel circuit can only execute a private function");
-    }
-
     pub fn native_private_kernel_circuit_inner(self) -> PrivateKernelCircuitPublicInputs {
-        let private_call_public_inputs = self.private_call.call_stack_item.public_inputs;
-        let previous_kernel_public_inputs = self.previous_kernel.public_inputs;
-
         // verify/aggregate the private call proof
         verify_private_call(self.private_call);
 
         // verify/aggregate the previous kernel
         verify_previous_kernel_proof(self.previous_kernel);
 
-        common::validate_previous_kernel_values(previous_kernel_public_inputs.end);
+        let privateCallDataValidator = PrivateCallDataValidator::new(self.private_call);
+        privateCallDataValidator.validate();
 
-        self.validate_inputs();
-
-        common::validate_private_call_data(self.private_call);
-
-        let mut private_call_stack = previous_kernel_public_inputs.end.private_call_stack;
+        let private_call_stack = self.previous_kernel.public_inputs.end.private_call_stack;
         // TODO: Should be a hint from private inputs.
         let private_call_stack_size = array_length(private_call_stack);
         let call_request = private_call_stack[private_call_stack_size - 1];
-        common::validate_call_against_request(self.private_call, call_request);
+        privateCallDataValidator.validate_against_call_request(call_request);
 
         PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(self.previous_kernel.public_inputs).compose(
-            private_call_public_inputs,
+            self.private_call.call_stack_item.public_inputs,
             self.hints.note_hash_nullifier_counters,
             self.private_call.private_call_stack,
             self.private_call.public_call_stack,
@@ -122,357 +112,6 @@ mod tests {
         }
     }
 
-    #[test(should_fail_with = "contract address cannot be zero")]
-    fn private_function_zero_storage_contract_address_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set (storage) contract_address to 0
-        builder.private_call.contract_address = AztecAddress::zero();
-        builder.private_call.public_inputs.call_context.storage_contract_address = AztecAddress::zero();
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="computed contract address does not match expected one")]
-    fn private_function_incorrect_function_leaf_index_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set the leaf index of the function leaf to a wrong value (the correct value + 1).
-        let leaf_index = builder.private_call.function_leaf_membership_witness.leaf_index;
-        builder.private_call.function_leaf_membership_witness.leaf_index = leaf_index + 1;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="computed contract address does not match expected one")]
-    fn private_function_incorrect_function_leaf_sibling_path_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set the first value of the sibling path to a wrong value (the correct value + 1).
-        let sibling_path_0 = builder.private_call.function_leaf_membership_witness.sibling_path[0];
-        builder.private_call.function_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="computed contract address does not match expected one")]
-    fn private_function_incorrect_contract_class_preimage_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.private_call.contract_class_artifact_hash = builder.private_call.contract_class_artifact_hash + 1;
-        builder.failed();
-    }
-
-    #[test(should_fail_with="computed contract address does not match expected one")]
-    fn private_function_incorrect_partial_address_preimage_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.private_call.salted_initialization_hash.inner = builder.private_call.salted_initialization_hash.inner + 1;
-        builder.failed();
-    }
-
-    #[test(should_fail_with="computed contract address does not match expected one")]
-    fn private_function_incorrect_address_preimage_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.private_call.public_keys_hash.inner = builder.private_call.public_keys_hash.inner + 1;
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "calculated private_call_hash does not match provided private_call_hash at the top of the call stack")]
-    fn private_function_incorrect_call_stack_item_hash_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        let private_call = builder.private_call.finish();
-        let hash = private_call.call_stack_item.hash();
-        // Set the first call stack hash to a wrong value (the correct hash + 1).
-        builder.previous_kernel.push_private_call_request(hash + 1, false);
-        let previous_kernel = builder.previous_kernel.to_private_kernel_data();
-
-        let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call, hints: builder.hints };
-
-        let _ = kernel.native_private_kernel_circuit_inner();
-    }
-
-    #[test(should_fail_with="call stack msg_sender does not match caller contract address")]
-    fn incorrect_msg_sender_for_regular_calls_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set the msg_sender to a wrong value.
-        builder.private_call.public_inputs.call_context.msg_sender.inner += 1;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="call stack storage address does not match expected contract address")]
-    fn incorrect_storage_contract_for_regular_calls_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set the storage contract address to a wrong value.
-        builder.private_call.public_inputs.call_context.storage_contract_address.inner += 1;
-
-        builder.failed();
-    }
-
-    #[test]
-    fn delegate_call_succeeds() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_delegate_call();
-        builder.succeeded();
-    }
-
-    #[test(should_fail_with="caller context cannot be empty for delegate calls")]
-    fn empty_caller_context_for_delegate_calls_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_delegate_call();
-
-        let private_call = builder.private_call.finish();
-        let hash = private_call.call_stack_item.hash();
-        // Caller context is empty for regular calls.
-        let is_delegate_call = false;
-        builder.previous_kernel.push_private_call_request(hash, is_delegate_call);
-        let previous_kernel = builder.previous_kernel.to_private_kernel_data();
-
-        let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call, hints: builder.hints };
-
-        let _ = kernel.native_private_kernel_circuit_inner();
-    }
-
-    #[test(should_fail_with="call stack msg_sender does not match expected msg_sender for delegate calls")]
-    fn incorrect_msg_sender_for_delegate_calls_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_delegate_call();
-
-        // Set the msg_sender to be the caller contract.
-        builder.private_call.public_inputs.call_context.msg_sender = builder.previous_kernel.contract_address;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="call stack storage address does not match expected contract address for delegate calls")]
-    fn incorrect_storage_address_for_delegate_calls_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_delegate_call();
-
-        // Set the storage contract address to be the contract address.
-        builder.private_call.public_inputs.call_context.storage_contract_address = builder.private_call.contract_address;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="curent contract address must not match storage contract address for delegate calls")]
-    fn incorrect_storage_contract_for_delegate_calls_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_delegate_call();
-
-        // Change the storage contract address to be the same as the contract address.
-        builder.private_call.public_inputs.call_context.storage_contract_address = builder.private_call.contract_address;
-
-        let private_call = builder.private_call.finish();
-        let hash = private_call.call_stack_item.hash();
-        builder.previous_kernel.push_private_call_request(hash, true);
-        let mut call_request = builder.previous_kernel.private_call_stack.pop();
-        // Change the caller's storage contract address to be the same as the contract address.
-        call_request.caller_context.storage_contract_address = builder.private_call.contract_address;
-        builder.previous_kernel.private_call_stack.push(call_request);
-
-        let previous_kernel = builder.previous_kernel.to_private_kernel_data();
-        let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call, hints: builder.hints };
-        let _ = kernel.native_private_kernel_circuit_inner();
-    }
-
-    #[test]
-    fn call_requests_succeeds() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_private_call_requests(2, false);
-        builder.private_call.append_private_call_requests(1, true);
-        builder.private_call.append_public_call_requests(1, false);
-        builder.private_call.append_public_call_requests(2, true);
-
-        builder.succeeded();
-    }
-
-    #[test(should_fail_with = "call requests length does not match the expected length")]
-    fn incorrect_private_call_requests_length_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_private_call_requests(2, false);
-        // Remove one call stack item hash.
-        let _ = builder.private_call.public_inputs.private_call_stack_hashes.pop();
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "call requests length does not match the expected length")]
-    fn incorrect_public_call_requests_length_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_public_call_requests(2, false);
-        // Remove one call stack item hash.
-        let _ = builder.private_call.public_inputs.public_call_stack_hashes.pop();
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "call stack hash does not match call request hash")]
-    fn incorrect_private_call_request_hash_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_private_call_requests(2, false);
-        let mut call_request = builder.private_call.private_call_stack.pop();
-        // Change the hash to be a different value.
-        call_request.hash += 1;
-        builder.private_call.private_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "call stack hash does not match call request hash")]
-    fn incorrect_public_call_request_hash_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_public_call_requests(2, false);
-        let mut call_request = builder.private_call.public_call_stack.pop();
-        // Change the hash to be a different value.
-        call_request.hash += 1;
-        builder.private_call.public_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid caller")]
-    fn incorrect_caller_address_for_private_call_request_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_private_call_requests(1, false);
-        let mut call_request = builder.private_call.private_call_stack.pop();
-        // Change the caller contract address to be a different value.
-        call_request.caller_contract_address.inner += 1;
-        builder.private_call.private_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid caller")]
-    fn incorrect_caller_address_for_public_call_request_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_public_call_requests(1, false);
-        let mut call_request = builder.private_call.public_call_stack.pop();
-        // Change the caller contract address to be a different value.
-        call_request.caller_contract_address.inner += 1;
-        builder.private_call.public_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid caller")]
-    fn incorrect_caller_context_for_private_delegate_call_request_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_private_call_requests(1, true);
-        let mut call_request = builder.private_call.private_call_stack.pop();
-        // Change the storage contract to be a different value.
-        call_request.caller_context.storage_contract_address.inner += 1;
-        builder.private_call.private_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid caller")]
-    fn incorrect_caller_context_for_public_delegate_call_request_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.append_public_call_requests(1, true);
-        let mut call_request = builder.private_call.public_call_stack.pop();
-        // Change the storage contract to be a different value.
-        call_request.caller_context.storage_contract_address.inner += 1;
-        builder.private_call.public_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_read_requests() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.note_hash_read_requests.extend_from_array(
-            [
-            ReadRequest::empty(),
-            ReadRequest { value: 9123, counter: 1 }
-        ]
-        );
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_note_hashes() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.new_note_hashes.extend_from_array(
-            [
-            NoteHash { value: 0, counter: 0 },
-            NoteHash { value: 9123, counter: 1 }
-        ]
-        );
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_nullifiers() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.new_nullifiers.extend_from_array(
-            [
-            Nullifier { value: 0, note_hash: 0, counter: 0 },
-            Nullifier { value: 12, note_hash: 0, counter: 1 }
-        ]
-        );
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_private_call_stack() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.private_call_stack_hashes.extend_from_array([0, 888]);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_public_call_stack() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.public_call_stack_hashes.extend_from_array([0, 888]);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_new_l2_to_l1_msgs() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(
-            [
-            L2ToL1Message::empty(),
-            L2ToL1Message { recipient: EthAddress::from_field(6), content: 888, counter: 0 }
-        ]
-        );
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_logs() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.public_inputs.encrypted_logs_hashes.extend_from_array(
-            [
-            SideEffect { value: 0, counter: 0 },
-            SideEffect { value: 9123, counter: 1 }
-        ]
-        );
-
-        builder.failed();
-    }
-
     #[test(should_fail_with = "push out of bounds")]
     fn private_kernel_should_fail_if_aggregating_too_many_note_hashes() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
@@ -510,15 +149,6 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
         builder.private_call.public_inputs.new_note_hashes.push(NoteHash { value: 12, counter: 3 });
         builder.hints.note_hash_nullifier_counters[0] = 2; // Less than the note hash's counter 3.
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="Private kernel circuit can only execute a private function")]
-    fn private_function_is_private_false_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.function_data.is_private = false;
 
         builder.failed();
     }
@@ -617,32 +247,5 @@ mod tests {
         assert_eq(public_inputs.end.unencrypted_logs_hashes[0].value, prev_unencrypted_logs_hash);
         assert_eq(public_inputs.end.encrypted_logs_hashes[1].value, encrypted_logs_hash);
         assert_eq(public_inputs.end.unencrypted_logs_hashes[1].value, unencrypted_logs_hash);
-    }
-
-    #[test(should_fail_with="new_note_hashes must be empty for static calls")]
-    fn creating_new_note_hashes_on_static_call_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_static_call();
-
-        builder.private_call.public_inputs.new_note_hashes.push(NoteHash { value: 1, counter: 0 });
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="new_nullifiers must be empty for static calls")]
-    fn creating_new_nullifiers_on_static_call_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_static_call();
-
-        builder.private_call.public_inputs.new_nullifiers.push(Nullifier { value: 1, note_hash: 0, counter: 0 });
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="The 0th nullifier in the accumulated nullifier array is zero")]
-    fn zero_0th_nullifier_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.previous_kernel.new_nullifiers = BoundedVec::new();
-
-        builder.failed();
     }
 }

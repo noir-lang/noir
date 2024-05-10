@@ -17,17 +17,17 @@ impl PublicKernelCircuitPublicInputs {
     pub fn needs_setup(self) -> bool {
         // public calls for setup are deposited in the non-revertible public call stack.
         // if an element is present, we need to run setup
-        !self.end_non_revertible.public_call_stack[0].is_empty()
+        self.end_non_revertible.public_call_stack[0].hash != 0
     }
 
     pub fn needs_app_logic(self) -> bool {
         // public calls for app logic are deposited in the revertible public call stack.
         // if an element is present, we need to run app logic
-        !self.end.public_call_stack[0].is_empty()
+        self.end.public_call_stack[0].hash != 0
     }
 
     pub fn needs_teardown(self) -> bool {
         // the public call specified for teardown, if any, is placed in the teardown call stack
-        !self.public_teardown_call_stack[0].is_empty()
+        self.public_teardown_call_stack[0].hash != 0
     }
 }

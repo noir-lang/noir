@@ -483,13 +483,6 @@ mod tests {
         builder.succeeded();
     }
 
-    #[test(should_fail_with="The 0th nullifier in the accumulated nullifier array is zero")]
-    unconstrained fn zero_0th_nullifier_fails() {
-        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
-        builder.previous_kernel.new_nullifiers = BoundedVec::new();
-        builder.failed();
-    }
-
     #[test]
     unconstrained fn split_nullifiers_into_non_revertible() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();

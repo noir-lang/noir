@@ -581,13 +581,6 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="The 0th nullifier in the accumulated nullifier array is zero")]
-    unconstrained fn zero_0th_nullifier_fails() {
-        let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.new_nullifiers = BoundedVec::new();
-        builder.failed();
-    }
-
     #[test]
     unconstrained fn empty_tx_consumes_teardown_limits_plus_fixed_gas() {
         let mut builder = PrivateKernelTailInputsBuilder::new();

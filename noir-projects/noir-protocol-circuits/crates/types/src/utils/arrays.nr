@@ -16,21 +16,18 @@ pub fn array_to_bounded_vec<T, N>(array: [T; N]) -> BoundedVec<T, N> where T: Em
 // Routine which validates that all zero values of an array form a contiguous region at the end, i.e.,
 // of the form: [*,*,*...,0,0,0,0] where any * is non-zero. Note that a full array of non-zero values is
 // valid.
-pub fn validate_array<T, N>(array: [T; N]) where T: Empty + Eq {
-    let array_length = array.len();
-
-    let mut first_zero_pos = array_length;
-    let mut last_non_zero_pos = 0;
-
-    for i in 0..array_length {
-        let is_empty = is_empty(array[i]);
-        if !is_empty {
-            last_non_zero_pos = i;
-        } else if is_empty & (first_zero_pos == array_length) {
-            first_zero_pos = i;
+pub fn validate_array<T, N>(array: [T; N]) -> u64 where T: Empty + Eq {
+    let mut seen_empty = false;
+    let mut length = 0;
+    for i in 0..N {
+        if is_empty(array[i]) {
+            seen_empty = true;
+        } else {
+            assert(seen_empty == false, "invalid array");
+            length += 1;
         }
     }
-    assert(last_non_zero_pos <= first_zero_pos, "invalid array");
+    length
 }
 
 // Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array)
@@ -147,31 +144,40 @@ pub fn assert_sorted_array<T, N, Env>(
 #[test]
 fn smoke_validate_array() {
     let valid_array: [Field; 0] = [];
-    validate_array(valid_array);
+    assert(validate_array(valid_array) == 0);
 
     let valid_array = [0];
-    validate_array(valid_array);
+    assert(validate_array(valid_array) == 0);
+
+    let valid_array = [3];
+    assert(validate_array(valid_array) == 1);
 
     let valid_array = [1, 2, 3];
-    validate_array(valid_array);
+    assert(validate_array(valid_array) == 3);
 
     let valid_array = [1, 2, 3, 0];
-    validate_array(valid_array);
+    assert(validate_array(valid_array) == 3);
 
     let valid_array = [1, 2, 3, 0, 0];
-    validate_array(valid_array);
+    assert(validate_array(valid_array) == 3);
 }
 
 #[test(should_fail_with = "invalid array")]
-fn smoke_validate_array_invalid() {
+fn smoke_validate_array_invalid_case0() {
     let invalid_array = [0, 1];
-    validate_array(invalid_array);
+    let _ = validate_array(invalid_array);
+}
+
+#[test(should_fail_with = "invalid array")]
+fn smoke_validate_array_invalid_case1() {
+    let invalid_array = [1, 0, 0, 1, 0];
+    let _ = validate_array(invalid_array);
 }
 
 #[test(should_fail_with = "invalid array")]
 fn smoke_validate_array_invalid_case2() {
     let invalid_array = [0, 0, 0, 0, 1];
-    validate_array(invalid_array);
+    let _ = validate_array(invalid_array);
 }
 
 #[test]

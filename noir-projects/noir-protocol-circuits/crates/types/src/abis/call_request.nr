@@ -34,12 +34,6 @@ impl Empty for CallRequest {
     }
 }
 
-impl CallRequest {
-    pub fn is_empty(self) -> bool {
-        self.hash == 0
-    }
-}
-
 impl Serialize<CALL_REQUEST_LENGTH> for CallRequest {
   fn serialize(self) -> [Field; CALL_REQUEST_LENGTH] {
     let mut fields: BoundedVec<Field, CALL_REQUEST_LENGTH> = BoundedVec::new();
