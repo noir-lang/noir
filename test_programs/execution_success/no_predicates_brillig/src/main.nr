@@ -1,4 +1,8 @@
 unconstrained fn main(x: u32, y: pub u32) {
+    intermediate_function(x, y);
+}
+
+fn intermediate_function(x: u32, y: u32) {
     basic_checks(x, y);
 }
 
