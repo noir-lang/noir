@@ -29,10 +29,8 @@ impl LeafPreimage for NoteHashLeafPreimage {
 
 impl Readable for NoteHashLeafPreimage {
     fn assert_match_read_request(self, read_request: ScopedReadRequest) {
-        // TODO(#2847): Read request value shouldn't have been siloed by apps.
-        // let siloed_value = silo_note_hash(read_request.contract_address, read_request.value);
-        // assert_eq(self.value, siloed_value, "Value of the note hash leaf does not match read request");
-        assert_eq(self.value, read_request.value(), "Value of the note hash leaf does not match read request");
+        let siloed_value = silo_note_hash(read_request.contract_address, read_request.value());
+        assert_eq(self.value, siloed_value, "Value of the note hash leaf does not match read request");
     }
 }
 

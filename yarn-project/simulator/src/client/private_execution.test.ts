@@ -438,7 +438,7 @@ describe('Private Execution test suite', () => {
 
       const readRequests = getNonEmptyItems(result.callStackItem.publicInputs.noteHashReadRequests).map(r => r.value);
       expect(readRequests).toHaveLength(consumedNotes.length);
-      expect(readRequests).toEqual(expect.arrayContaining(consumedNotes.map(n => n.siloedNoteHash)));
+      expect(readRequests).toEqual(expect.arrayContaining(consumedNotes.map(n => n.uniqueNoteHash)));
     });
 
     it('should be able to destroy_and_create with dummy notes', async () => {

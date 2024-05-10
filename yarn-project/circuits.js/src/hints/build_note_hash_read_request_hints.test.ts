@@ -42,15 +42,9 @@ describe('buildNoteHashReadRequestHints', () => {
 
   const makeNoteHash = (value: number, counter = 1) => new NoteHash(new Fr(value), counter).scope(0, contractAddress);
 
-  const readPendingNoteHash = ({
-    noteHashIndex,
-    readRequestIndex = numReadRequests,
-    hintIndex = numPendingReads,
-  }: {
-    noteHashIndex: number;
-    readRequestIndex?: number;
-    hintIndex?: number;
-  }) => {
+  const readPendingNoteHash = (noteHashIndex: number) => {
+    const readRequestIndex = numReadRequests;
+    const hintIndex = numPendingReads;
     noteHashReadRequests[readRequestIndex] = makeReadRequest(innerNoteHash(noteHashIndex));
     expectedHints.readRequestStatuses[readRequestIndex] = ReadRequestStatus.pending(hintIndex);
     expectedHints.pendingReadHints[hintIndex] = new PendingReadHint(readRequestIndex, noteHashIndex);
@@ -58,16 +52,12 @@ describe('buildNoteHashReadRequestHints', () => {
     numPendingReads++;
   };
 
-  const readSettledNoteHash = ({
-    readRequestIndex = numReadRequests,
-    hintIndex = numSettledReads,
-  }: {
-    readRequestIndex?: number;
-    hintIndex?: number;
-  } = {}) => {
-    const value = settledNoteHashes[hintIndex];
-    noteHashLeafIndexMap.set(value.toBigInt(), settledLeafIndexes[hintIndex]);
-    noteHashReadRequests[readRequestIndex] = new ReadRequest(value, 1).scope(contractAddress);
+  const readSettledNoteHash = (noteHashIndex: number) => {
+    const readRequestIndex = numReadRequests;
+    const hintIndex = numSettledReads;
+    const value = settledNoteHashes[noteHashIndex];
+    noteHashLeafIndexMap.set(value.toBigInt(), settledLeafIndexes[noteHashIndex]);
+    noteHashReadRequests[readRequestIndex] = makeReadRequest(settledNoteHashInnerValues[noteHashIndex]);
     expectedHints.readRequestStatuses[readRequestIndex] = ReadRequestStatus.settled(hintIndex);
     expectedHints.settledReadHints[hintIndex] = new SettledReadHint(readRequestIndex, {} as any, value);
     numReadRequests++;
@@ -93,32 +83,32 @@ describe('buildNoteHashReadRequestHints', () => {
   });
 
   it('builds hints for pending note hash read requests', async () => {
-    readPendingNoteHash({ noteHashIndex: 2 });
-    readPendingNoteHash({ noteHashIndex: 1 });
+    readPendingNoteHash(2);
+    readPendingNoteHash(1);
     const hints = await buildHints();
     expect(hints).toEqual(expectedHints);
   });
 
   it('builds hints for settled note hash read requests', async () => {
-    readSettledNoteHash();
-    readSettledNoteHash();
+    readSettledNoteHash(0);
+    readSettledNoteHash(1);
     const hints = await buildHints();
     expect(hints).toEqual(expectedHints);
   });
 
   it('builds hints for mixed pending and settled note hash read requests', async () => {
-    readPendingNoteHash({ noteHashIndex: 2 });
-    readSettledNoteHash();
-    readSettledNoteHash();
-    readPendingNoteHash({ noteHashIndex: 1 });
-    readPendingNoteHash({ noteHashIndex: 1 });
-    readSettledNoteHash();
+    readPendingNoteHash(2);
+    readSettledNoteHash(2);
+    readSettledNoteHash(0);
+    readPendingNoteHash(1);
+    readPendingNoteHash(1);
+    readSettledNoteHash(2);
     const hints = await buildHints();
     expect(hints).toEqual(expectedHints);
   });
 
   it('throws if cannot find a match in pending set and in the tree', async () => {
-    readPendingNoteHash({ noteHashIndex: 2 });
+    readPendingNoteHash(2);
     // Tweak the value of the read request.
     noteHashReadRequests[0].readRequest.value = new Fr(123);
     await expect(() => buildHints()).rejects.toThrow('Read request is reading an unknown note hash.');

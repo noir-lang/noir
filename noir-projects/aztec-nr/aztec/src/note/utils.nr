@@ -67,6 +67,16 @@ pub fn compute_note_hash_for_insertion<Note, N>(note: Note) -> Field where Note:
     compute_inner_note_hash(note)
 }
 
+pub fn compute_note_hash_for_read_request<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {
+    let header = note.get_header();
+
+    if (header.nonce != 0) {
+        compute_unique_note_hash(note)
+    } else {
+        compute_inner_note_hash(note)
+    }
+}
+
 pub fn compute_note_hash_for_consumption<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {
     let header = note.get_header();
     // There are 3 cases for reading a note intended for consumption:

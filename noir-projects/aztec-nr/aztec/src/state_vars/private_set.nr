@@ -4,7 +4,7 @@ use crate::note::{
     constants::MAX_NOTES_PER_PAGE, lifecycle::{create_note, create_note_hash_from_public, destroy_note},
     note_getter::{get_notes, view_notes}, note_getter_options::NoteGetterOptions,
     note_header::NoteHeader, note_interface::NoteInterface, note_viewer_options::NoteViewerOptions,
-    utils::compute_note_hash_for_consumption
+    utils::compute_note_hash_for_read_request
 };
 use crate::state_vars::storage::Storage;
 
@@ -58,7 +58,7 @@ impl<Note> PrivateSet<Note> {
     // docs:start:remove
     pub fn remove<N>(self, note: Note) where Note: NoteInterface<N> {
         let context = self.context.private.unwrap();
-        let note_hash = compute_note_hash_for_consumption(note);
+        let note_hash = compute_note_hash_for_read_request(note);
         let has_been_read = context.note_hash_read_requests.any(|r: ReadRequest| r.value == note_hash);
         assert(has_been_read, "Can only remove a note that has been read from the set.");
 

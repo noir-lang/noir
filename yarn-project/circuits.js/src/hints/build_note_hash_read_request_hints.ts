@@ -5,6 +5,7 @@ import {
   type MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   type NOTE_HASH_TREE_HEIGHT,
 } from '../constants.gen.js';
+import { siloNoteHash } from '../hash/index.js';
 import {
   type MembershipWitness,
   NoteHashReadRequestHintsBuilder,
@@ -51,13 +52,13 @@ export async function buildNoteHashReadRequestHints(
     if (pendingNoteHash !== undefined) {
       builder.addPendingReadRequest(i, pendingNoteHash.index);
     } else {
-      // TODO(#2847): Read request value for settled note hash shouldn't have been siloed by apps.
-      const leafIndex = noteHashLeafIndexMap.get(value.toBigInt());
+      const siloedValue = siloNoteHash(readRequest.contractAddress, value);
+      const leafIndex = noteHashLeafIndexMap.get(siloedValue.toBigInt());
       if (leafIndex === undefined) {
         throw new Error('Read request is reading an unknown note hash.');
       }
       const membershipWitness = await oracle.getNoteHashMembershipWitness(leafIndex);
-      builder.addSettledReadRequest(i, membershipWitness, value);
+      builder.addSettledReadRequest(i, membershipWitness, siloedValue);
     }
   }
   return builder.toHints();
