@@ -40,7 +40,6 @@ Output of the last iteration of the private kernel circuit. Includes _accumulate
 <!-- prettier-ignore -->
 | Field | Type | Description |
 |-------|------|-------------|
-| aggregationObject | AggregationObject | Aggregated proof of all the previous kernel iterations. |
 | newNoteHashes | Field[] | The new note hashes made in this transaction. |
 | newNullifiers | Field[] | The new nullifiers made in this transaction. |
 | nullifiedNoteHashes | Field[] | The note hashes which are nullified by a nullifier in the above list. |
