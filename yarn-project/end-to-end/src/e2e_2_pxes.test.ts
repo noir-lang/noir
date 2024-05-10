@@ -1,4 +1,5 @@
 import { getUnsafeSchnorrAccount } from '@aztec/accounts/single_key';
+import { createAccounts } from '@aztec/accounts/testing';
 import {
   type AztecAddress,
   type AztecNode,
@@ -40,11 +41,9 @@ describe('e2e_2_pxes', () => {
       teardown: teardownA,
     } = await setup(1));
 
-    ({
-      pxe: pxeB,
-      wallets: [walletB],
-      teardown: teardownB,
-    } = await setupPXEService(1, aztecNode!, {}, undefined, true));
+    ({ pxe: pxeB, teardown: teardownB } = await setupPXEService(aztecNode!, {}, undefined, true));
+
+    [walletB] = await createAccounts(pxeB, 1);
   });
 
   afterEach(async () => {

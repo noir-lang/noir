@@ -8,9 +8,11 @@ import {
   EthCheatCodes,
   Fr,
   GrumpkinPrivateKey,
+  SignerlessWallet,
   type Wallet,
 } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
+import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
@@ -27,6 +29,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { MNEMONIC } from './fixtures.js';
 import { getACVMConfig } from './get_acvm_config.js';
 import { setupL1Contracts } from './setup_l1_contracts.js';
+import { deployCanonicalKeyRegistry } from './utils.js';
 
 export type SubsystemsContext = {
   anvil: Anvil;
@@ -263,6 +266,11 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
   const pxeConfig = getPXEServiceConfig();
   pxeConfig.dataDirectory = statePath;
   const pxe = await createPXEService(aztecNode, pxeConfig);
+
+  logger.verbose('Deploying key registry...');
+  await deployCanonicalKeyRegistry(
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
+  );
 
   if (statePath) {
     writeFileSync(`${statePath}/aztec_node_config.json`, JSON.stringify(aztecNodeConfig));

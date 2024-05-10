@@ -153,7 +153,6 @@ async function initGasBridge({ walletClient, l1ContractAddresses }: DeployL1Cont
 
 /**
  * Sets up Private eXecution Environment (PXE).
- * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
  * @param aztecNode - An instance of Aztec Node.
  * @param opts - Partial configuration for the PXE service.
  * @param firstPrivKey - The private key of the first account to be created.
@@ -163,7 +162,6 @@ async function initGasBridge({ walletClient, l1ContractAddresses }: DeployL1Cont
  * @returns Private eXecution Environment (PXE), accounts, wallets and logger.
  */
 export async function setupPXEService(
-  numberOfAccounts: number,
   aztecNode: AztecNode,
   opts: Partial<PXEServiceConfig> = {},
   logger = getLogger(),
@@ -174,10 +172,6 @@ export async function setupPXEService(
    * The PXE instance.
    */
   pxe: PXEService;
-  /**
-   * The wallets to be used.
-   */
-  wallets: AccountWalletWithSecretKey[];
   /**
    * Logger instance named as the current test.
    */
@@ -190,15 +184,12 @@ export async function setupPXEService(
   const pxeServiceConfig = { ...getPXEServiceConfig(), ...opts };
   const pxe = await createPXEService(aztecNode, pxeServiceConfig, useLogSuffix, proofCreator);
 
-  const wallets = await createAccounts(pxe, numberOfAccounts);
-
   const teardown = async () => {
     await pxe.stop();
   };
 
   return {
     pxe,
-    wallets,
     logger,
     teardown,
   };
@@ -230,14 +221,6 @@ async function setupWithRemoteEnvironment(
   logger.verbose('JSON RPC client connected to PXE');
   logger.verbose(`Retrieving contract addresses from ${PXE_URL}`);
   const l1Contracts = (await pxeClient.getNodeInfo()).l1ContractAddresses;
-  logger.verbose('PXE created, constructing available wallets from already registered accounts...');
-  const wallets = await getDeployedTestAccountsWallets(pxeClient);
-
-  if (wallets.length < numberOfAccounts) {
-    const numNewAccounts = numberOfAccounts - wallets.length;
-    logger.verbose(`Deploying ${numNewAccounts} accounts...`);
-    wallets.push(...(await createAccounts(pxeClient, numNewAccounts)));
-  }
 
   const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
     account,
@@ -267,6 +250,15 @@ async function setupWithRemoteEnvironment(
     await deployCanonicalGasToken(
       new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(chainId, protocolVersion)),
     );
+  }
+
+  logger.verbose('Constructing available wallets from already registered accounts...');
+  const wallets = await getDeployedTestAccountsWallets(pxeClient);
+
+  if (wallets.length < numberOfAccounts) {
+    const numNewAccounts = numberOfAccounts - wallets.length;
+    logger.verbose(`Deploying ${numNewAccounts} accounts...`);
+    wallets.push(...(await createAccounts(pxeClient, numNewAccounts)));
   }
 
   return {
@@ -400,7 +392,8 @@ export async function setup(
   const prover = aztecNode.getProver();
 
   logger.verbose('Creating a pxe...');
-  const { pxe, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
+
+  const { pxe } = await setupPXEService(aztecNode!, pxeOpts, logger);
 
   logger.verbose('Deploying key registry...');
   await deployCanonicalKeyRegistry(
@@ -414,6 +407,7 @@ export async function setup(
     );
   }
 
+  const wallets = await createAccounts(pxe, numberOfAccounts);
   const cheatCodes = CheatCodes.create(config.rpcUrl, pxe!);
 
   const teardown = async () => {
@@ -616,7 +610,7 @@ export async function deployCanonicalGasToken(deployer: Wallet) {
   await expect(deployer.isContractPubliclyDeployed(gasToken.address)).resolves.toBe(true);
 }
 
-async function deployCanonicalKeyRegistry(deployer: Wallet) {
+export async function deployCanonicalKeyRegistry(deployer: Wallet) {
   const canonicalKeyRegistry = getCanonicalKeyRegistry();
 
   // We check to see if there exists a contract at the canonical Key Registry address with the same contract class id as we expect. This means that
