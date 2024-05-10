@@ -131,6 +131,8 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
 
     nonExistentReadRequests[0] = makeReadRequest(innerNullifier(2));
 
-    await expect(() => buildHints()).rejects.toThrow('Nullifier exists in the pending set.');
+    await expect(() => buildHints()).rejects.toThrow(
+      'Nullifier DOES exists in the pending set at the time of reading, but there is a NonExistentReadRequest for it.',
+    );
   });
 });

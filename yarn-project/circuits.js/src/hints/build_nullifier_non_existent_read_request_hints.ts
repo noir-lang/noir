@@ -71,8 +71,13 @@ export async function buildNullifierNonExistentReadRequestHints(
     let nextPendingValueIndex = sortedValues.findIndex(v => !v.value.lt(siloedValue));
     if (nextPendingValueIndex == -1) {
       nextPendingValueIndex = numPendingNullifiers;
-    } else if (sortedValues[nextPendingValueIndex].value.equals(siloedValue)) {
-      throw new Error('Nullifier exists in the pending set.');
+    } else if (
+      sortedValues[nextPendingValueIndex].value.equals(siloedValue) &&
+      sortedValues[nextPendingValueIndex].counter < readRequest.counter
+    ) {
+      throw new Error(
+        'Nullifier DOES exists in the pending set at the time of reading, but there is a NonExistentReadRequest for it.',
+      );
     }
 
     builder.addHint(membershipWitness, leafPreimage, nextPendingValueIndex);
