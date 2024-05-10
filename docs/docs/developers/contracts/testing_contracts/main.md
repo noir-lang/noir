@@ -10,4 +10,4 @@ To make testing easier, the sandbox is shipped with cheat codes to easily test i
 
 ## Examples
 
-You can find example tests in the [aztec-starter](https://github.com/AztecProtocol/aztec-starter/tree/main) repo as well as the [Aztec Boxes](https://github.com/AztecProtocol/aztec-packages/tree/master/boxes).
+You can find example tests in the [Aztec Boxes](https://github.com/AztecProtocol/aztec-packages/tree/master/boxes). You can also have a look at the [end-to-end tests](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/end-to-end).

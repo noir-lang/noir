@@ -4,8 +4,8 @@ import axios from "axios";
 
 const sandbox = (command) =>
   execSync(
-    `docker-compose -f $HOME/.aztec/docker-compose.yml -p sandbox ${command}`,
-    { stdio: "inherit" },
+    `docker compose -f $HOME/.aztec/docker-compose.yml -p sandbox ${command}`,
+    { stdio: "inherit" }
   );
 
 export const start = () => sandbox("up -d");
@@ -29,7 +29,7 @@ export async function sandboxRunStep() {
           Accept: "*/*",
           "Content-Type": "application/json",
         },
-      },
+      }
     );
     spinner.succeed();
     success("The Sandbox is already running!");

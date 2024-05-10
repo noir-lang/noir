@@ -2,19 +2,30 @@
 title: Sandbox Reference
 ---
 
-Here you will find a reference to everything available within the Sandbox.
+:::tip
 
-## Installation
+For a quick start, follow the [guide](../../getting_started/quickstart.md) to install the sandbox.
 
-You can run the Sandbox using Docker. See the [Quickstart](../../getting_started/quickstart.md#install-docker) for instructions on installing Docker.
+:::
 
-### With Docker
+## Manual Install
+
+You can manually install the sandbox via the underlying script used in the [Aztec Boxes](../../getting_started/quickstart.md#run-the-npx-script).
+
+### Prerequisites
+
+- Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
+- Docker (visit [this page of the Docker docs](https://docs.docker.com/get-docker/) on how to install it)
+
+### Install the sandbox
+
+To install the latest Sandbox version, run:
 
 ```bash
 bash -i <(curl -s install.aztec.network)
 ```
 
-This will install the following:
+This will install the following tools:
 
 - **aztec** - launches various infrastructure subsystems (sequencer, prover, pxe, etc).
 - **aztec-nargo** - aztec's build of nargo, the noir compiler toolchain.
@@ -28,31 +39,25 @@ Once these have been installed, to start the sandbox, run:
 aztec-sandbox
 ```
 
-This will attempt to run the Sandbox with the PXE listening on ` localhost:8080`. You can change the port defined in `./.aztec/docker-compose.yml` or by setting the `PXE_PORT` environment variable. Running the install command again will overwrite any changes made to the `docker-compose.yml`.
+### Have fun!
 
-See the full list of configurable environment variables [here](#environment-variables).
+**Congratulations, you have just installed and run the Aztec Sandbox!**
 
-If you have previously installed the CLI via a node package manager, you will need to uninstall it and remove it from your project dependencies and install it via Docker.
+```bash                
+     /\        | |
+    /  \    ___| |_ ___  ___
+   / /\ \  |_  / __/ _ \/ __|
+  / ____ \  / /| ||  __/ (__
+ /_/___ \_\/___|\__\___|\___|
 
-To install a specific version of the sandbox, you can set the environment variable `SANDBOX_VERSION`
-
-```bash
-VERSION=<version> bash -i <(curl -s install.aztec.network)
 ```
 
-## Running
+In the terminal, you will see some logs:
+1. Sandbox version
+2. Contract addresses of rollup contracts
+3. PXE (private execution environment) setup logs
+4. Initial accounts that are shipped with the sandbox and can be used in tests
 
-Once the installed, you can run the sandbox with:
-
-```bash
-aztec-sandbox
-```
-
-Alternatively, you can run like so:
-
-```bash
-cd ~/.aztec && docker-compose up
-```
 
 ## Running Aztec PXE / Node / P2P-Bootstrap node
 

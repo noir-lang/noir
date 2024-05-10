@@ -1,9 +1,8 @@
 {
   "name": "create-aztec-app",
   "packageManager": "yarn@4.0.2",
-  "version": "0.4.2",
+  "version": "0.4.4",
   "type": "module",
-  "private": true,
   "scripts": {
     "compile": "yarn workspaces foreach -A -v run compile",
     "build": "yarn workspaces foreach -A -v run build",
