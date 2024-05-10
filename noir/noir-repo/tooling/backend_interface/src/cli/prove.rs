@@ -13,7 +13,7 @@ use super::string_from_stderr;
 /// The proof will be written to the specified output file.
 pub(crate) struct ProveCommand {
     pub(crate) crs_path: PathBuf,
-    pub(crate) bytecode_path: PathBuf,
+    pub(crate) artifact_path: PathBuf,
     pub(crate) witness_path: PathBuf,
 }
 
@@ -26,7 +26,7 @@ impl ProveCommand {
             .arg("-c")
             .arg(self.crs_path)
             .arg("-b")
-            .arg(self.bytecode_path)
+            .arg(self.artifact_path)
             .arg("-w")
             .arg(self.witness_path)
             .arg("-o")
@@ -49,14 +49,14 @@ fn prove_command() -> Result<(), BackendError> {
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let bytecode_path = temp_directory_path.join("acir.gz");
+    let artifact_path = temp_directory_path.join("acir.gz");
     let witness_path = temp_directory_path.join("witness.tr");
 
-    std::fs::File::create(&bytecode_path).expect("file should be created");
+    std::fs::File::create(&artifact_path).expect("file should be created");
     std::fs::File::create(&witness_path).expect("file should be created");
 
     let crs_path = backend.backend_directory();
-    let prove_command = ProveCommand { crs_path, bytecode_path, witness_path };
+    let prove_command = ProveCommand { crs_path, artifact_path, witness_path };
 
     let proof = prove_command.run(backend.binary_path())?;
     assert_eq!(proof, "proof".as_bytes());

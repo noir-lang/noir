@@ -48,15 +48,15 @@ fn contract_command() -> Result<(), BackendError> {
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let bytecode_path = temp_directory_path.join("acir.gz");
+    let artifact_path = temp_directory_path.join("program.json");
     let vk_path = temp_directory_path.join("vk");
 
     let crs_path = backend.backend_directory();
 
-    std::fs::File::create(&bytecode_path).expect("file should be created");
+    std::fs::File::create(&artifact_path).expect("file should be created");
 
     let write_vk_command = super::WriteVkCommand {
-        bytecode_path,
+        artifact_path,
         vk_path_output: vk_path.clone(),
         crs_path: crs_path.clone(),
     };

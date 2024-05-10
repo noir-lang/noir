@@ -36,7 +36,7 @@ $BIN vk_as_fields $VFLAG -c $CRS_PATH
 echo "Generate proof to file..."
 [ -d "$PROOF_DIR" ] || mkdir $PWD/proofs
 [ -e "$PROOF_PATH" ] || touch $PROOF_PATH
-$BIN prove $VFLAG -c $CRS_PATH -b ./target/acir.gz -o "./proofs/$PROOF_NAME" $RFLAG
+$BIN prove $VFLAG -c $CRS_PATH -b ./target/program.json -o "./proofs/$PROOF_NAME" $RFLAG
 
 echo "Write proof as fields for recursion..."
 $BIN proof_as_fields $VFLAG -c $CRS_PATH -p "./proofs/$PROOF_NAME"

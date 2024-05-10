@@ -2,7 +2,7 @@
 set -eu
 
 VFLAG=${VERBOSE:+-v}
-BFLAG="-b ./target/acir.gz"
+BFLAG="-b ./target/program.json"
 FLAGS="-c $CRS_PATH $VFLAG"
 
 # Test we can perform the proof/verify flow.

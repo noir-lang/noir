@@ -41,25 +41,25 @@ fn verify_command() -> Result<(), BackendError> {
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let bytecode_path = temp_directory_path.join("acir.gz");
+    let artifact_path = temp_directory_path.join("acir.json");
     let witness_path = temp_directory_path.join("witness.tr");
     let proof_path = temp_directory_path.join("1_mul.proof");
     let vk_path_output = temp_directory_path.join("vk");
 
     let crs_path = backend.backend_directory();
 
-    std::fs::File::create(&bytecode_path).expect("file should be created");
+    std::fs::File::create(&artifact_path).expect("file should be created");
     std::fs::File::create(&witness_path).expect("file should be created");
 
     let write_vk_command = WriteVkCommand {
-        bytecode_path: bytecode_path.clone(),
+        artifact_path: artifact_path.clone(),
         crs_path: crs_path.clone(),
         vk_path_output: vk_path_output.clone(),
     };
 
     write_vk_command.run(backend.binary_path())?;
 
-    let prove_command = ProveCommand { crs_path: crs_path.clone(), bytecode_path, witness_path };
+    let prove_command = ProveCommand { crs_path: crs_path.clone(), artifact_path, witness_path };
     let proof = prove_command.run(backend.binary_path())?;
 
     write_to_file(&proof, &proof_path);

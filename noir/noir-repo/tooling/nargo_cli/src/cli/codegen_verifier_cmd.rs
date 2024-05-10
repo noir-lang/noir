@@ -7,7 +7,7 @@ use crate::errors::CliError;
 
 use clap::Args;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 /// Generates a Solidity verifier smart contract for the program
@@ -46,15 +46,15 @@ pub(crate) fn run(
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
-        let program: CompiledProgram = read_program_from_file(program_artifact_path)?.into();
+        let program = read_program_from_file(&program_artifact_path)?;
 
         // TODO(https://github.com/noir-lang/noir/issues/4428):
         // We do not expect to have a smart contract verifier for a foldable program with multiple circuits.
         // However, in the future we can expect to possibly have non-inlined ACIR functions during compilation
         // that will be inlined at a later step such as by the ACVM compiler or by the backend.
         // Add appropriate handling here once the compiler enables multiple ACIR functions.
-        assert_eq!(program.program.functions.len(), 1);
-        let smart_contract_string = backend.eth_contract(&program.program)?;
+        assert_eq!(program.bytecode.functions.len(), 1);
+        let smart_contract_string = backend.eth_contract(program_artifact_path)?;
 
         let contract_dir = workspace.contracts_directory_path(package);
         create_named_dir(&contract_dir, "contract");

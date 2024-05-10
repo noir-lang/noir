@@ -754,7 +754,7 @@ int main(int argc, char* argv[])
 
         std::string command = args[0];
 
-        std::string bytecode_path = get_option(args, "-b", "./target/acir.gz");
+        std::string bytecode_path = get_option(args, "-b", "./target/program.json");
         std::string witness_path = get_option(args, "-w", "./target/witness.gz");
         std::string proof_path = get_option(args, "-p", "./proofs/proof");
         std::string vk_path = get_option(args, "-k", "./target/vk");

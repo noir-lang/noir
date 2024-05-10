@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use acvm::acir::circuit::Program;
 use nargo::artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 use noirc_frontend::graph::CrateName;
 
@@ -15,16 +14,6 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
 ) -> PathBuf {
     let circuit_name: String = crate_name.into();
     save_build_artifact_to_file(program_artifact, &circuit_name, circuit_dir)
-}
-
-/// Writes the bytecode as acir.gz
-pub(crate) fn only_acir<P: AsRef<Path>>(program: Program, circuit_dir: P) -> PathBuf {
-    create_named_dir(circuit_dir.as_ref(), "target");
-    let circuit_path = circuit_dir.as_ref().join("acir").with_extension("gz");
-    let bytes = Program::serialize_program(&program);
-    write_to_file(&bytes, &circuit_path);
-
-    circuit_path
 }
 
 pub(crate) fn save_contract_to_file<P: AsRef<Path>>(
@@ -59,17 +48,4 @@ pub(crate) fn read_program_from_file<P: AsRef<Path>>(
         .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
 
     Ok(program)
-}
-
-pub(crate) fn read_contract_from_file<P: AsRef<Path>>(
-    circuit_path: P,
-) -> Result<ContractArtifact, FilesystemError> {
-    let file_path = circuit_path.as_ref().with_extension("json");
-
-    let input_string =
-        std::fs::read(&file_path).map_err(|_| FilesystemError::PathNotValid(file_path))?;
-    let contract = serde_json::from_slice(&input_string)
-        .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
-
-    Ok(contract)
 }

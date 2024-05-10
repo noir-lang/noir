@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::package::Package;
@@ -68,12 +70,13 @@ pub(crate) fn run(
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
-        let program: CompiledProgram = read_program_from_file(program_artifact_path)?.into();
+        let program: CompiledProgram = read_program_from_file(&program_artifact_path)?.into();
 
         let proof = prove_package(
             backend,
             package,
             program,
+            program_artifact_path,
             &args.prover_name,
             &args.verifier_name,
             args.verify,
@@ -86,10 +89,12 @@ pub(crate) fn run(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn prove_package(
     backend: &Backend,
     package: &Package,
     compiled_program: CompiledProgram,
+    program_artifact_path: PathBuf,
     prover_name: &str,
     verifier_name: &str,
     check_proof: bool,
@@ -117,11 +122,15 @@ fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.program, witness_stack)?;
+    let proof = backend.prove(
+        program_artifact_path.clone(),
+        witness_stack,
+        compiled_program.program.functions[0].public_inputs().0.len() as u32,
+    )?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
+        let valid_proof = backend.verify(&proof, public_inputs, program_artifact_path)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

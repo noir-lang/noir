@@ -38,9 +38,17 @@ function formatAndPrintLog(message: string): void {
 }
 
 const readBytecodeFile = (path: string): Uint8Array => {
-  const data = fs.readFileSync(path);
-  const buffer = gunzipSync(data);
-  return buffer;
+  const extension = path.substring(path.lastIndexOf('.') + 1);
+
+  if (extension == 'json') {
+    const encodedCircuit = JSON.parse(fs.readFileSync(path, 'utf8'));
+    const decompressed = gunzipSync(Uint8Array.from(atob(encodedCircuit.bytecode), c => c.charCodeAt(0)));
+    return decompressed;
+  }
+
+  const encodedCircuit = fs.readFileSync(path);
+  const decompressed = gunzipSync(encodedCircuit);
+  return decompressed;
 };
 
 const readWitnessFile = (path: string): Uint8Array => {

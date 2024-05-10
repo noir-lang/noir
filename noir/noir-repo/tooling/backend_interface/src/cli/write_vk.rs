@@ -7,7 +7,7 @@ use crate::BackendError;
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
     pub(crate) crs_path: PathBuf,
-    pub(crate) bytecode_path: PathBuf,
+    pub(crate) artifact_path: PathBuf,
     pub(crate) vk_path_output: PathBuf,
 }
 
@@ -21,7 +21,7 @@ impl WriteVkCommand {
             .arg("-c")
             .arg(self.crs_path)
             .arg("-b")
-            .arg(self.bytecode_path)
+            .arg(self.artifact_path)
             .arg("-o")
             .arg(self.vk_path_output);
 
@@ -42,14 +42,14 @@ fn write_vk_command() -> Result<(), BackendError> {
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let bytecode_path = temp_directory_path.join("acir.gz");
+    let artifact_path = temp_directory_path.join("program.json");
     let vk_path_output = temp_directory.path().join("vk");
 
     let crs_path = backend.backend_directory();
 
-    std::fs::File::create(&bytecode_path).expect("file should be created");
+    std::fs::File::create(&artifact_path).expect("file should be created");
 
-    let write_vk_command = WriteVkCommand { bytecode_path, crs_path, vk_path_output };
+    let write_vk_command = WriteVkCommand { artifact_path, crs_path, vk_path_output };
 
     write_vk_command.run(backend.binary_path())?;
     drop(temp_directory);

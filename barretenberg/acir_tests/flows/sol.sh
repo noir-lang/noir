@@ -8,7 +8,7 @@ export PROOF_AS_FIELDS="$(pwd)/proof_fields.json"
 $BIN prove -o proof
 $BIN write_vk  -o vk
 $BIN proof_as_fields -k vk -c $CRS_PATH -p $PROOF
-$BIN contract -k vk -c $CRS_PATH -b ./target/acir.gz -o Key.sol
+$BIN contract -k vk -c $CRS_PATH -b ./target/program.json -o Key.sol
 
 # Export the paths to the environment variables for the js test runner
 export KEY_PATH="$(pwd)/Key.sol"
