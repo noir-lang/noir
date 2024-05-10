@@ -1,4 +1,5 @@
-import { assert } from '../../../../foundation/src/json-rpc/js_utils.js';
+import { strict as assert } from 'assert';
+
 import { type AvmContext } from '../avm_context.js';
 import { TypeTag, Uint8 } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';

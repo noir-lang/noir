@@ -968,6 +968,34 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                 ..Default::default()
             });
         }
+        BlackBoxOp::ToRadix {
+            input,
+            radix,
+            output,
+        } => {
+            let num_limbs = output.size;
+            let input_offset = input.0;
+            let output_offset = output.pointer.0;
+            assert!(radix <= &256u32, "Radix must be less than or equal to 256");
+
+            avm_instrs.push(AvmInstruction {
+                opcode: AvmOpcode::TORADIXLE,
+                indirect: Some(FIRST_OPERAND_INDIRECT),
+                tag: None,
+                operands: vec![
+                    AvmOperand::U32 {
+                        value: input_offset as u32,
+                    },
+                    AvmOperand::U32 {
+                        value: output_offset as u32,
+                    },
+                    AvmOperand::U32 { value: *radix },
+                    AvmOperand::U32 {
+                        value: num_limbs as u32,
+                    },
+                ],
+            })
+        }
         _ => panic!("Transpiler doesn't know how to process {:?}", operation),
     }
 }

@@ -340,4 +340,10 @@ contract AvmTest {
     fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
         context.message_portal(recipient, content)
     }
+
+    #[aztec(public-vm)]
+    fn to_radix_le(input: Field) -> [u8; 10] {
+        let result: [u8] = input.to_le_radix(/*base=*/ 2, /*limbs=*/ 10);
+        result.as_array()
+    }
 }

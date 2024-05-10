@@ -5,6 +5,7 @@ use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256,
     keccakf1600, sha256, sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
+use num_bigint::BigUint;
 
 use crate::memory::MemoryValue;
 use crate::Memory;
@@ -295,6 +296,25 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write_slice(memory.read_ref(output.pointer), &state);
             Ok(())
         }
+        BlackBoxOp::ToRadix { input, radix, output } => {
+            let input: FieldElement =
+                memory.read(*input).try_into().expect("ToRadix input not a field");
+
+            let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+            let radix = BigUint::from(*radix);
+
+            let mut limbs: Vec<MemoryValue> = Vec::with_capacity(output.size);
+
+            for _ in 0..output.size {
+                let limb = &input % &radix;
+                limbs.push(FieldElement::from_be_bytes_reduce(&limb.to_bytes_be()).into());
+                input /= &radix;
+            }
+
+            memory.write_slice(memory.read_ref(output.pointer), &limbs);
+
+            Ok(())
+        }
     }
 }
 
@@ -321,6 +341,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
         BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
         BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
+        BlackBoxOp::ToRadix { .. } => unreachable!("ToRadix is not an ACIR BlackBoxFunc"),
     }
 }
 
