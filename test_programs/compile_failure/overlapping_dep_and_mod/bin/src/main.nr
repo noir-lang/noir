@@ -1,8 +1,8 @@
 fn main() -> pub Field {
-    assert(foo::bar() + foo::bar() == 3);
+    assert(foo::bar() + foo::baz() == 3);
     assert(foo::bar() == 1);
-    assert(foo::bar() == 2);
-    foo::bar() + foo::bar()
+    assert(foo::baz() == 2);
+    foo::bar() + foo::baz()
 }
 
 mod foo {
