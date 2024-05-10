@@ -2,23 +2,18 @@ mod subscription_note;
 mod dapp_payload;
 
 contract AppSubscription {
-    use dep::std;
-    use crate::dapp_payload::DAppPayload;
-
-    use dep::aztec::prelude::{
+    use crate::{dapp_payload::DAppPayload, subscription_note::{SubscriptionNote, SUBSCRIPTION_NOTE_LEN}};
+    use dep::{
+        aztec::{
+        prelude::{
         AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
         SharedImmutable
+    },
+        protocol_types::traits::is_empty
+    },
+        authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit},
+        gas_token::GasToken, token::Token
     };
-
-    use dep::aztec::protocol_types::traits::is_empty;
-
-    use dep::aztec::{context::Context, oracle::get_public_key::get_public_key};
-    use dep::authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
-
-    use crate::subscription_note::{SubscriptionNote, SUBSCRIPTION_NOTE_LEN};
-
-    use dep::gas_token::GasToken;
-    use dep::token::Token;
 
     #[aztec(storage)]
     struct Storage {

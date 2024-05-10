@@ -1,8 +1,8 @@
 use dep::aztec::{
-    prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
+    keys::getters::get_ivpk_m, prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
     protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
     note::utils::compute_note_hash_for_consumption, hash::poseidon2_hash,
-    oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key}
+    oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key}
 };
 
 trait OwnedNote {
@@ -52,12 +52,12 @@ impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
       // We only bother inserting the note if non-empty to save funds on gas.
       if !(self.amount == U128::from_integer(0)) {
-          let encryption_pub_key = get_public_key(self.owner);
+          let ivpk_m = get_ivpk_m(context, self.owner);
           context.emit_encrypted_log(
               (*context).this_address(),
               slot,
               Self::get_note_type_id(),
-              encryption_pub_key,
+              ivpk_m,
               self.serialize_content(),
           );
       }

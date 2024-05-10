@@ -68,7 +68,7 @@ describe('e2e_deploy_contract legacy', () => {
       logger.info(`Deploying contract ${index + 1}...`);
       const receipt = await deployer.deploy().send({ contractAddressSalt: Fr.random() }).wait({ wallet });
       logger.info(`Sending TX to contract ${index + 1}...`);
-      await receipt.contract.methods.get_public_key(wallet.getAddress()).send().wait();
+      await receipt.contract.methods.get_master_incoming_viewing_public_key(wallet.getAddress()).send().wait();
     }
   });
 

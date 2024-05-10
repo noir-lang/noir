@@ -1,7 +1,8 @@
 use dep::aztec::{
+    keys::getters::get_ivpk_m,
     protocol_types::{address::AztecAddress, traits::{Deserialize, Serialize}, constants::GENERATOR_INDEX__NOTE_NULLIFIER},
     note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
-    oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
+    oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key},
     hash::poseidon2_hash, context::PrivateContext
 };
 
@@ -43,12 +44,12 @@ impl NoteInterface<VALUE_NOTE_LEN> for ValueNote {
 
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
-        let encryption_pub_key = get_public_key(self.owner);
+        let ivpk_m = get_ivpk_m(context, self.owner);
         context.emit_encrypted_log(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),
-            encryption_pub_key,
+            ivpk_m,
             self.serialize_content(),
         );
     }

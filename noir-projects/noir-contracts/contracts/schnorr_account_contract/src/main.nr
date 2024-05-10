@@ -7,7 +7,7 @@ contract SchnorrAccount {
 
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
     use dep::aztec::state_vars::{Map, PublicMutable};
-    use dep::aztec::{context::Context, oracle::get_public_key::get_public_key};
+    use dep::aztec::context::Context;
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
         auth_witness::get_auth_witness

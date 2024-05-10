@@ -67,7 +67,7 @@ mod test {
 
     use crate::{
         note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
-        oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key},
+        oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key},
         context::PrivateContext, hash::poseidon2_hash
     };
 

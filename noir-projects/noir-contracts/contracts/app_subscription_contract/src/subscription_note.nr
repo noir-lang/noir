@@ -1,8 +1,8 @@
 use dep::aztec::prelude::{AztecAddress, PrivateContext, NoteHeader, NoteInterface};
 use dep::aztec::{
-    protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
+    keys::getters::get_ivpk_m, protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
     note::utils::compute_note_hash_for_consumption, hash::poseidon2_hash,
-    oracle::{nullifier_key::get_app_nullifier_secret_key, get_public_key::get_public_key}
+    oracle::{nullifier_key::get_app_nullifier_secret_key}
 };
 
 global SUBSCRIPTION_NOTE_LEN: Field = 3;
@@ -39,12 +39,12 @@ impl NoteInterface<SUBSCRIPTION_NOTE_LEN> for SubscriptionNote {
 
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
-        let encryption_pub_key = get_public_key(self.owner);
+        let ivpk_m = get_ivpk_m(context, self.owner);
         context.emit_encrypted_log(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),
-            encryption_pub_key,
+            ivpk_m,
             self.serialize_content(),
         );
     }
