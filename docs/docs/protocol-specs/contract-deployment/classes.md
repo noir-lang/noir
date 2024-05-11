@@ -351,7 +351,7 @@ It is strongly recommended for developers registering new classes to broadcast t
 
 The `register`, `broadcast_unconstrained_function`, and `broadcast_private_function` functions all receive and emit variable-length bytecode in unencrypted events. In every function, bytecode is encoded in a fixed-length array of field elements, which sets a maximum length for each:
 
-- `MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS`: 15000 field elements, used for a contract's public bytecode in the `register` function.
+- `MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS`: 32000 field elements, used for a contract's public bytecode in the `register` function.
 - `MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS`: 3000 field elements, used for the ACIR and Brillig bytecode of a broadcasted private function in `broadcast_private_function`.
 - `MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS`: 3000 field elements, used for the Brillig bytecode of a broadcasted unconstrained function in `broadcast_unconstrained_function`.
 
