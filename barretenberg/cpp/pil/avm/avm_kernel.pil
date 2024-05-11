@@ -1,0 +1,10 @@
+include "avm_main.pil";
+include "constants.pil";
+
+namespace avm_kernel(256);
+    pol public kernel_inputs;
+    pol commit kernel_sel;
+
+    // Note: in the future, with some codegen adjustments, this column will not be needed
+    // as we can just add every entry in the public kernel_inputs to the lookup table
+    pol commit q_public_input_kernel_add_to_table;

@@ -40,7 +40,7 @@ bool verify_spike_with_public_with_public_inputs(std::vector<SpikeFlavor::FF> ve
     // Add to the public input column that is increasing
     for (size_t i = 0; i < circuit_size; i++) {
         // Make sure the external and trace public inputs are the same
-        Row row{ .Spike_kernel_inputs = i + 1 };
+        Row row{ .Spike_kernel_inputs__is_public = i + 1 };
         rows.push_back(row);
     }
 

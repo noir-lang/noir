@@ -3,6 +3,7 @@
 #pragma once
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
+#include "barretenberg/vm/avm_trace/constants.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
 
 namespace bb {
@@ -22,7 +23,7 @@ class AvmVerifier {
     AvmVerifier& operator=(const AvmVerifier& other) = delete;
     AvmVerifier& operator=(AvmVerifier&& other) noexcept;
 
-    bool verify_proof(const HonkProof& proof);
+    bool verify_proof(const HonkProof& proof, const std::vector<FF>& public_inputs);
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;

@@ -28,9 +28,17 @@ SpikeVerifier& SpikeVerifier::operator=(SpikeVerifier&& other) noexcept
 using FF = SpikeFlavor::FF;
 
 // Evaluate the given public input column over the multivariate challenge points
-[[maybe_unused]] FF evaluate_public_input_column(std::vector<FF> points, std::vector<FF> challenges)
+[[maybe_unused]] inline FF evaluate_public_input_column(std::vector<FF> points,
+                                                        const size_t circuit_size,
+                                                        std::vector<FF> challenges)
 {
-    Polynomial<FF> polynomial(points);
+
+    // TODO: we pad the points to the circuit size in order to get the correct evaluation
+    // This is not efficient, and will not be valid in production
+    std::vector<FF> new_points(circuit_size, 0);
+    std::copy(points.begin(), points.end(), new_points.data());
+
+    Polynomial<FF> polynomial(new_points);
     return polynomial.evaluate_mle(challenges);
 }
 
@@ -62,8 +70,8 @@ bool SpikeVerifier::verify_proof(const HonkProof& proof, const std::vector<FF>& 
     }
 
     // Get commitments to VM wires
-    commitments.Spike_kernel_inputs =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.Spike_kernel_inputs);
+    commitments.Spike_kernel_inputs__is_public =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.Spike_kernel_inputs__is_public);
     commitments.Spike_x = transcript->template receive_from_prover<Commitment>(commitment_labels.Spike_x);
 
     // Get commitments to inverses
@@ -87,8 +95,8 @@ bool SpikeVerifier::verify_proof(const HonkProof& proof, const std::vector<FF>& 
         return false;
     }
 
-    FF public_column_evaluation = evaluate_public_input_column(public_inputs, multivariate_challenge);
-    if (public_column_evaluation != claimed_evaluations.Spike_kernel_inputs) {
+    FF public_column_evaluation = evaluate_public_input_column(public_inputs, circuit_size, multivariate_challenge);
+    if (public_column_evaluation != claimed_evaluations.Spike_kernel_inputs__is_public) {
         return false;
     }
 

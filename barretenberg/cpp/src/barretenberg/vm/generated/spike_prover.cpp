@@ -60,11 +60,12 @@ void SpikeProver::execute_wire_commitments_round()
 
     // Commit to all polynomials (apart from logderivative inverse polynomials, which are committed to in the later
     // logderivative phase)
-    witness_commitments.Spike_kernel_inputs = commitment_key->commit(key->Spike_kernel_inputs);
+    witness_commitments.Spike_kernel_inputs__is_public = commitment_key->commit(key->Spike_kernel_inputs__is_public);
     witness_commitments.Spike_x = commitment_key->commit(key->Spike_x);
 
     // Send all commitments to the verifier
-    transcript->send_to_verifier(commitment_labels.Spike_kernel_inputs, witness_commitments.Spike_kernel_inputs);
+    transcript->send_to_verifier(commitment_labels.Spike_kernel_inputs__is_public,
+                                 witness_commitments.Spike_kernel_inputs__is_public);
     transcript->send_to_verifier(commitment_labels.Spike_x, witness_commitments.Spike_x);
 }
 

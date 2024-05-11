@@ -25,11 +25,28 @@ AvmVerifier& AvmVerifier::operator=(AvmVerifier&& other) noexcept
     return *this;
 }
 
+using FF = AvmFlavor::FF;
+
+// Evaluate the given public input column over the multivariate challenge points
+[[maybe_unused]] inline FF evaluate_public_input_column(std::vector<FF> points,
+                                                        const size_t circuit_size,
+                                                        std::vector<FF> challenges)
+{
+
+    // TODO: we pad the points to the circuit size in order to get the correct evaluation
+    // This is not efficient, and will not be valid in production
+    std::vector<FF> new_points(circuit_size, 0);
+    std::copy(points.begin(), points.end(), new_points.data());
+
+    Polynomial<FF> polynomial(new_points);
+    return polynomial.evaluate_mle(challenges);
+}
+
 /**
  * @brief This function verifies an Avm Honk proof for given program settings.
  *
  */
-bool AvmVerifier::verify_proof(const HonkProof& proof)
+bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<FF>& public_inputs)
 {
     using Flavor = AvmFlavor;
     using FF = Flavor::FF;
@@ -221,6 +238,12 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_op_id);
     commitments.avm_byte_lookup_table_output =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_output);
+    commitments.avm_kernel_kernel_inputs__is_public =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_inputs__is_public);
+    commitments.avm_kernel_kernel_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_sel);
+    commitments.avm_kernel_q_public_input_kernel_add_to_table = transcript->template receive_from_prover<Commitment>(
+        commitment_labels.avm_kernel_q_public_input_kernel_add_to_table);
     commitments.avm_main_alu_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_alu_in_tag);
     commitments.avm_main_alu_sel =
@@ -270,6 +293,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_main_op_err =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_op_err);
     commitments.avm_main_pc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_pc);
+    commitments.avm_main_q_kernel_lookup =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_q_kernel_lookup);
     commitments.avm_main_r_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_r_in_tag);
     commitments.avm_main_rwa = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwa);
@@ -294,16 +319,28 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_mov_b);
     commitments.avm_main_sel_op_add =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_add);
+    commitments.avm_main_sel_op_address =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_address);
     commitments.avm_main_sel_op_and =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_and);
+    commitments.avm_main_sel_op_block_number =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_block_number);
     commitments.avm_main_sel_op_cast =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_cast);
+    commitments.avm_main_sel_op_chain_id =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_chain_id);
+    commitments.avm_main_sel_op_coinbase =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_coinbase);
     commitments.avm_main_sel_op_div =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
     commitments.avm_main_sel_op_eq =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
     commitments.avm_main_sel_op_fdiv =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fdiv);
+    commitments.avm_main_sel_op_fee_per_da_gas =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fee_per_da_gas);
+    commitments.avm_main_sel_op_fee_per_l2_gas =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fee_per_l2_gas);
     commitments.avm_main_sel_op_lt =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_lt);
     commitments.avm_main_sel_op_lte =
@@ -314,12 +351,22 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_not);
     commitments.avm_main_sel_op_or =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_or);
+    commitments.avm_main_sel_op_portal =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_portal);
+    commitments.avm_main_sel_op_sender =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_sender);
     commitments.avm_main_sel_op_shl =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_shl);
     commitments.avm_main_sel_op_shr =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_shr);
     commitments.avm_main_sel_op_sub =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_sub);
+    commitments.avm_main_sel_op_timestamp =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_timestamp);
+    commitments.avm_main_sel_op_transaction_fee =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_transaction_fee);
+    commitments.avm_main_sel_op_version =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_version);
     commitments.avm_main_sel_op_xor =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_xor);
     commitments.avm_main_sel_rng_16 =
@@ -381,6 +428,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_byte_lengths_counts);
     commitments.lookup_byte_operations_counts =
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_byte_operations_counts);
+    commitments.lookup_into_kernel_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_into_kernel_counts);
     commitments.incl_main_tag_err_counts =
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err_counts);
     commitments.incl_mem_tag_err_counts =
@@ -471,6 +520,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_byte_lengths);
     commitments.lookup_byte_operations =
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_byte_operations);
+    commitments.lookup_into_kernel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_into_kernel);
     commitments.incl_main_tag_err =
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err);
     commitments.incl_mem_tag_err =
@@ -531,6 +582,11 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
+        return false;
+    }
+
+    FF public_column_evaluation = evaluate_public_input_column(public_inputs, circuit_size, multivariate_challenge);
+    if (public_column_evaluation != claimed_evaluations.avm_kernel_kernel_inputs__is_public) {
         return false;
     }
 

@@ -3,6 +3,7 @@
 #pragma once
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
+#include "barretenberg/vm/avm_trace/constants.hpp"
 #include "barretenberg/vm/generated/spike_flavor.hpp"
 
 namespace bb {

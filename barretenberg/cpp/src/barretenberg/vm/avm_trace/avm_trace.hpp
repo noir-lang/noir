@@ -8,8 +8,10 @@
 #include "avm_instructions.hpp"
 #include "avm_mem_trace.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "constants.hpp"
 
 #include "barretenberg/relations/generated/avm/avm_main.hpp"
+#include "barretenberg/vm/avm_trace/avm_kernel_trace.hpp"
 
 namespace bb::avm_trace {
 
@@ -22,7 +24,7 @@ class AvmTraceBuilder {
   public:
     static const size_t CALLSTACK_OFFSET = 896; // TODO(md): Temporary reserved area 896 - 1024
 
-    AvmTraceBuilder();
+    AvmTraceBuilder(std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs = {});
 
     std::vector<Row> finalize();
     void reset();
@@ -78,6 +80,23 @@ class AvmTraceBuilder {
     // is determined conditionally based on a conditional value determined by cond_offset.
     void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
 
+    // Call Context
+    void op_sender(uint32_t dst_offset);
+    void op_address(uint32_t dst_offset);
+    void op_portal(uint32_t dst_offset);
+
+    // Fees
+    void op_fee_per_da_gas(uint32_t dst_offset);
+    void op_fee_per_l2_gas(uint32_t dst_offset);
+    void op_transaction_fee(uint32_t dst_offset);
+
+    // Globals
+    void op_chain_id(uint32_t dst_offset);
+    void op_version(uint32_t dst_offset);
+    void op_block_number(uint32_t dst_offset);
+    void op_coinbase(uint32_t dst_offset);
+    void op_timestamp(uint32_t dst_offset);
+
     // Cast an element pointed by the address a_offset into type specified by dst_tag and
     // store the result in address given by dst_offset.
     void op_cast(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag dst_tag);
@@ -129,7 +148,9 @@ class AvmTraceBuilder {
     AvmMemTraceBuilder mem_trace_builder;
     AvmAluTraceBuilder alu_trace_builder;
     AvmBinaryTraceBuilder bin_trace_builder;
+    AvmKernelTraceBuilder kernel_trace_builder;
 
+    Row create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag);
     void finalise_mem_trace_lookup_counts();
 
     IndirectThreeResolution resolve_ind_three(

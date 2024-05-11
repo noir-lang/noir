@@ -2,8 +2,28 @@
 include "avm_mem.pil";
 include "avm_alu.pil";
 include "avm_binary.pil";
+include "avm_kernel.pil";
 
 namespace avm_main(256);
+    // Kernel lookup selector opcodes
+    pol commit q_kernel_lookup;
+
+    // CALL CONTEXT
+    pol commit sel_op_sender;
+    pol commit sel_op_address;
+    pol commit sel_op_portal;
+
+    // FEES
+    pol commit sel_op_fee_per_l2_gas;
+    pol commit sel_op_fee_per_da_gas;
+    pol commit sel_op_transaction_fee;
+    
+    // GLOBALS
+    pol commit sel_op_chain_id;
+    pol commit sel_op_version;
+    pol commit sel_op_block_number;
+    pol commit sel_op_coinbase;
+    pol commit sel_op_timestamp;
 
     //===== CONSTANT POLYNOMIALS ==================================================
     pol constant clk(i) { i };
@@ -135,6 +155,18 @@ namespace avm_main(256);
     // Relations on type constraints
     // TODO: Very likely, we can remove these constraints as the selectors should be derived during
     // opcode decomposition.
+    sel_op_sender * (1 - sel_op_sender) = 0;
+    sel_op_address * (1 - sel_op_address) = 0;
+    sel_op_portal * (1 - sel_op_portal) = 0;
+    sel_op_chain_id * (1 - sel_op_chain_id) = 0;
+    sel_op_version * (1 - sel_op_version) = 0;
+    sel_op_block_number * (1 - sel_op_block_number) = 0;
+    sel_op_coinbase * (1 - sel_op_coinbase) = 0;
+    sel_op_timestamp * (1 - sel_op_timestamp) = 0;
+    sel_op_fee_per_l2_gas * (1 - sel_op_fee_per_l2_gas) = 0;
+    sel_op_fee_per_da_gas * (1 - sel_op_fee_per_da_gas) = 0;
+    sel_op_transaction_fee * (1 - sel_op_transaction_fee) = 0;
+
     sel_op_add * (1 - sel_op_add) = 0;
     sel_op_sub * (1 - sel_op_sub) = 0;
     sel_op_mul * (1 - sel_op_mul) = 0;
@@ -235,6 +267,15 @@ namespace avm_main(256);
     // (ib * inv - 1 + op_fdiv_err) = 0 && op_err * (1 - inv) = 0 
     // This works in combination with op_fdiv_err * (sel_op_fdiv - 1) = 0;
     // Drawback is the need to paralllelize the latter.
+    
+    //===== KERNEL LOOKUPS =======================================================
+    pol KERNEL_SELECTORS = (
+        sel_op_sender + sel_op_address + sel_op_portal + sel_op_chain_id + sel_op_version + sel_op_block_number + 
+        sel_op_coinbase + sel_op_timestamp + sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas + sel_op_transaction_fee
+    );
+    // Ensure that only one kernel lookup is active when the kernel_sel is active
+    #[KERNEL_ACTIVE_CHECK]
+    KERNEL_SELECTORS * (1 - q_kernel_lookup) = 0;
 
     //===== CONTROL FLOW =======================================================
     //===== JUMP ===============================================================
@@ -271,7 +312,7 @@ namespace avm_main(256);
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
     pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_fdiv + sel_op_mul + sel_op_not
-                          + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor + sel_op_cast);
+                          + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor + sel_op_cast + KERNEL_SELECTORS);
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]
@@ -328,6 +369,53 @@ namespace avm_main(256);
     // Dispatch the correct in_tag for alu
     ALU_R_TAG_SEL * (alu_in_tag - r_in_tag) = 0;
     ALU_W_TAG_SEL * (alu_in_tag - w_in_tag) = 0;
+
+
+    //===== KERNEL INPUTS CONSTRAINTS ===========================================
+    // The general pattern for environment lookups is as follows:
+    //  Each kernel opcode related to some fixed positions in the `public kernel_inputs` polynomial
+    //  We can lookup into a fixed index of this polynomial by including constraints that force the value
+    //  of kernel_sel to the value relevant to the given opcode that is active
+
+    // CALL CONTEXT
+    #[SENDER_KERNEL]
+    sel_op_sender * (avm_kernel.kernel_sel - constants.SENDER_SELECTOR) = 0;
+
+    #[ADDRESS_KERNEL]
+    sel_op_address * (avm_kernel.kernel_sel - constants.ADDRESS_SELECTOR) = 0;
+
+    #[PORTAL_KERNEL]
+    sel_op_portal * (avm_kernel.kernel_sel - constants.PORTAL_SELECTOR) = 0;
+
+    // FEES
+    #[FEE_DA_GAS_KERNEL]
+    sel_op_fee_per_da_gas  * (avm_kernel.kernel_sel - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
+
+    #[FEE_L2_GAS_KERNEL]
+    sel_op_fee_per_l2_gas  * (avm_kernel.kernel_sel - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
+
+    #[FEE_TRANSACTION_FEE_KERNEL]
+    sel_op_transaction_fee  * (avm_kernel.kernel_sel - constants.TRANSACTION_FEE_SELECTOR) = 0;
+
+    // GLOBALS
+    #[CHAIN_ID_KERNEL]
+    sel_op_chain_id * (avm_kernel.kernel_sel - constants.CHAIN_ID_SELECTOR) = 0;
+
+    #[VERSION_KERNEL]
+    sel_op_version * (avm_kernel.kernel_sel - constants.VERSION_SELECTOR) = 0;
+
+    #[BLOCK_NUMBER_KERNEL]
+    sel_op_block_number * (avm_kernel.kernel_sel - constants.BLOCK_NUMBER_SELECTOR) = 0;
+
+    #[COINBASE_KERNEL]
+    sel_op_coinbase * (avm_kernel.kernel_sel - constants.COINBASE_SELECTOR) = 0;
+
+    #[TIMESTAMP_KERNEL]
+    sel_op_timestamp * (avm_kernel.kernel_sel - constants.TIMESTAMP_SELECTOR) = 0;
+
+    #[LOOKUP_INTO_KERNEL]
+    // TODO: FIX not having the trailing is_public breaking compilation :(
+    q_kernel_lookup { avm_main.ia, avm_kernel.kernel_sel } in avm_kernel.q_public_input_kernel_add_to_table { avm_kernel.kernel_inputs__is_public, clk };
 
     //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]

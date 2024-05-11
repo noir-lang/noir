@@ -1,0 +1,29 @@
+
+// NOTE: the constants in this file line up to the indexes of values in the 
+// `PublicKernelInputs.nr` object
+namespace constants(256);
+    // From Public Context Inputs
+    pol SENDER_SELECTOR = 0;
+    pol ADDRESS_SELECTOR = 1;
+    pol PORTAL_SELECTOR = 2;
+
+    // NOTE: constant expression evaluation does not seem to be supported yet in pil
+    // pol START_GLOBAL_VARIABLES = CALL_CONTEXT_LENGTH + HEADER_LENGTH = 6 + 22 = 28
+
+    // Global Variables
+    pol CHAIN_ID_SELECTOR = 28;
+    pol VERSION_SELECTOR = 29;
+    pol BLOCK_NUMBER_SELECTOR = 30; 
+    pol TIMESTAMP_SELECTOR = 31; 
+    pol COINBASE_SELECTOR = 32; 
+
+    pol END_GLOBAL_VARIABLES = 28 + 8; // We only use the first 5 of 8 global variables for now
+    
+    pol START_SIDE_EFFECT_COUNTER = 36;
+
+    // Gas
+    pol FEE_PER_DA_GAS_SELECTOR = 37;
+    pol FEE_PER_L2_GAS_SELECTOR = 38;
+
+    pol TRANSACTION_FEE_SELECTOR = 39;
+
