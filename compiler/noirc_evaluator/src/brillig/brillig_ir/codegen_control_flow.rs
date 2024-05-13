@@ -1,7 +1,9 @@
-use acvm::acir::brillig::MemoryAddress;
+use acvm::acir::brillig::{HeapArray, MemoryAddress};
 
 use super::{
-    brillig_variable::SingleAddrVariable, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+    artifact::BrilligParameter,
+    brillig_variable::{BrilligVariable, SingleAddrVariable},
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
 impl BrilligContext {
@@ -144,25 +146,62 @@ impl BrilligContext {
     pub(crate) fn codegen_constrain_with_revert_data(
         &mut self,
         condition: SingleAddrVariable,
-        assert_message: Option<String>,
+        revert_data_items: Vec<BrilligVariable>,
+        revert_data_types: Vec<BrilligParameter>,
+        error_selector: u64,
     ) {
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            let (revert_data_offset, revert_data_size) =
-                if let Some(assert_message) = assert_message {
-                    let bytes = assert_message.as_bytes();
-                    for (i, byte) in bytes.iter().enumerate() {
-                        ctx.const_instruction(
-                            SingleAddrVariable::new(MemoryAddress(i), 8),
-                            (*byte as usize).into(),
+            let revert_data = HeapArray {
+                pointer: ctx.allocate_register(),
+                // + 1 due to the revert data id being the first item returned
+                size: BrilligContext::flattened_tuple_size(&revert_data_types) + 1,
+            };
+            ctx.codegen_allocate_fixed_length_array(revert_data.pointer, revert_data.size);
+
+            let current_revert_data_pointer = ctx.allocate_register();
+            ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
+            let revert_data_id =
+                ctx.make_usize_constant_instruction((error_selector as u128).into());
+            ctx.store_instruction(current_revert_data_pointer, revert_data_id.address);
+
+            ctx.codegen_usize_op_in_place(current_revert_data_pointer, BrilligBinaryOp::Add, 1);
+            for (revert_variable, revert_param) in
+                revert_data_items.into_iter().zip(revert_data_types.into_iter())
+            {
+                let flattened_size = BrilligContext::flattened_size(&revert_param);
+                match revert_param {
+                    BrilligParameter::SingleAddr(_) => {
+                        ctx.store_instruction(
+                            current_revert_data_pointer,
+                            revert_variable.extract_single_addr().address,
                         );
                     }
-                    (0, bytes.len())
-                } else {
-                    (0, 0)
-                };
-            ctx.trap_instruction(revert_data_offset, revert_data_size);
+                    BrilligParameter::Array(item_type, item_count) => {
+                        let variable_pointer = revert_variable.extract_array().pointer;
+
+                        ctx.flatten_array(
+                            &item_type,
+                            item_count,
+                            current_revert_data_pointer,
+                            variable_pointer,
+                        );
+                    }
+                    BrilligParameter::Slice(_, _) => {
+                        unimplemented!("Slices are not supported as revert data")
+                    }
+                }
+                ctx.codegen_usize_op_in_place(
+                    current_revert_data_pointer,
+                    BrilligBinaryOp::Add,
+                    flattened_size,
+                );
+            }
+            ctx.trap_instruction(revert_data);
+            ctx.deallocate_register(revert_data.pointer);
+            ctx.deallocate_register(current_revert_data_pointer);
+            ctx.deallocate_single_addr(revert_data_id);
         });
     }
 
@@ -176,7 +215,7 @@ impl BrilligContext {
         assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
-            ctx.trap_instruction(0, 0);
+            ctx.trap_instruction(HeapArray::default());
             if let Some(assert_message) = assert_message {
                 ctx.obj.add_assert_message_to_last_opcode(assert_message);
             }
