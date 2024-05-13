@@ -40,7 +40,8 @@ runs:
           for image in ${{ inputs.builder_images_to_copy }} ; do
             docker images --no-trunc --quiet \$image
           done" > .success_key
-        echo "IMAGE_KEY=$(cat .success_key | md5sum | awk '{print $1}')" >> $GITHUB_ENV
+        # TODO better image key
+        echo "IMAGE_KEY=$(git rev-parse HEAD)" >> $GITHUB_ENV
         echo "${{ inputs.run }}" >> .success_key
         echo "SUCCESS_KEY=$(cat .success_key | md5sum | awk '{print $1}') " >> $GITHUB_ENV
 

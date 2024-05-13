@@ -24,19 +24,21 @@ runs:
         # no github runners, 'bare spot' in action code
         echo "runner_concurrency=0" >> $GITHUB_OUTPUT
         echo "ttl=30" >> $GITHUB_OUTPUT
+        SIZE=large
         if [[ $TYPE == 4core-* ]]; then
-          echo "instance_type=m6a.large" >> $GITHUB_OUTPUT
+          SIZE=large
         elif [[ $TYPE == 8core-* ]]; then
-          echo "instance_type=m6a.2xlarge" >> $GITHUB_OUTPUT
+          SIZE=2xlarge
         elif [[ $TYPE == 16core-* ]]; then
-          echo "instance_type=m6a.4xlarge" >> $GITHUB_OUTPUT
+          SIZE=4xlarge
         elif [[ $TYPE == 32core-* ]]; then
-          echo "instance_type=m6a.8xlarge" >> $GITHUB_OUTPUT
+          SIZE=8xlarge
         elif [[ $TYPE == 64core-* ]]; then
-          echo "instance_type=m6a.16xlarge" >> $GITHUB_OUTPUT
+          SIZE=16xlarge
         elif [[ $TYPE == 128core-* ]]; then
-          echo "instance_type=m6a.32xlarge" >> $GITHUB_OUTPUT
+          SIZE=32xlarge
         fi
+        echo "instance_type=m6a.$SIZE r6in.$SIZE r6a.$SIZE i4i.$SIZE r7iz.$SIZE" >> $GITHUB_OUTPUT
 
     - name: Start Tester
       uses: ./.github/spot-runner-action

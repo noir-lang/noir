@@ -61,22 +61,22 @@ async function requestAndWaitForSpot(config: ActionConfig): Promise<string> {
 
   let instanceId = "";
   for (const ec2Strategy of ec2SpotStrategies) {
+    let backoff = 1;
     core.info(`Starting instance with ${ec2Strategy} strategy`);
-    // 6 * 10000ms = 1 minute per strategy
+    // 6 * 10000ms = 1 minute per strategy, unless we hit RequestLimitExceeded, then we do exponential backoff
     // TODO make longer lived spot request?
     for (let i = 0; i < 6; i++) {
       try {
         // Start instance
         instanceId =
-          (await ec2Client.requestMachine(
+          await ec2Client.requestMachine(
             // we fallback to on-demand
             ec2Strategy.toLocaleLowerCase() === "none"
-          )) || "";
-        if (instanceId) {
+          );
+        // let's exit, only loop on InsufficientInstanceCapacity
+        if (instanceId !== "RequestLimitExceeded") {
           break;
         }
-        // let's exit, only loop on InsufficientInstanceCapacity
-        break;
       } catch (error) {
         // TODO is this still the relevant error?
         if (
@@ -94,7 +94,7 @@ async function requestAndWaitForSpot(config: ActionConfig): Promise<string> {
         }
       }
       // wait 10 seconds
-      await new Promise((r) => setTimeout(r, 10000));
+      await new Promise((r) => setTimeout(r, 10000 * 2 ** backoff));
     }
     if (instanceId) {
       core.info("Successfully requested instance with ID " + instanceId);

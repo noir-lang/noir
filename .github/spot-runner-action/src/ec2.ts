@@ -161,7 +161,7 @@ export class Ec2Instance {
     const userData = await new UserData(
       this.config
     );
-    const userDataScript = this.config.githubActionRunnerConcurrency !== 0 ? await userData.getUserDataForBuilder() : await userData.getUserDataForBareSpot();
+    const userDataScript = await userData.getUserData();
     const ec2InstanceTypeHash = this.getHashOfStringArray(
       this.config.ec2InstanceType.concat([
         userDataScript,
@@ -225,7 +225,7 @@ export class Ec2Instance {
     return launchTemplateName;
   }
 
-  async requestMachine(useOnDemand: boolean): Promise<string | undefined> {
+  async requestMachine(useOnDemand: boolean): Promise<string> {
     // Note advice re max bid: "If you specify a maximum price, your instances will be interrupted more frequently than if you do not specify this parameter."
     const launchTemplateName = await this.getLaunchTemplate();
     // Launch template name already in use
@@ -237,8 +237,8 @@ export class Ec2Instance {
       },
       Overrides: this.config.ec2InstanceType.map((instanceType) => ({
         InstanceType: instanceType,
-        AvailabilityZone: availabilityZone,
-        SubnetId: this.config.ec2SubnetId,
+        AvailabilityZone: this.config.githubActionRunnerConcurrency > 0 ? availabilityZone : undefined,
+        SubnetId: this.config.githubActionRunnerConcurrency > 0 ? this.config.ec2SubnetId : undefined,
       })),
     };
     const createFleetRequest: CreateFleetRequest = {
@@ -255,10 +255,15 @@ export class Ec2Instance {
     const client = await this.getEc2Client();
     const fleet = await client.createFleet(createFleetRequest).promise();
     if (fleet.Errors && fleet.Errors.length > 0) {
+      for (const error of fleet.Errors) {
+        if (error.ErrorCode === "RequestLimitExceeded") {
+          return "RequestLimitExceeded";
+        }
+      }
       core.error(JSON.stringify(fleet.Errors, null, 2));
     }
     const instances: CreateFleetInstance = (fleet?.Instances || [])[0] || {};
-    return (instances.InstanceIds || [])[0];
+    return (instances.InstanceIds || [])[0] || "";
   }
 
   async getInstanceStatus(instanceId: string) {

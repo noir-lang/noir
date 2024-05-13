@@ -4,4 +4,4 @@ set -eu
 # Enter the repo root
 cd "$(dirname "$0")/.."
 
-ssh -o StrictHostKeyChecking=no -i "$SPOT_KEY" ubuntu@"$SPOT_IP" "$@"
+ssh -o TCPKeepAlive=no -o ServerAliveCountMax=20 -o ServerAliveInterval=30 -o StrictHostKeyChecking=no -i "$SPOT_KEY" ubuntu@"$SPOT_IP" "$@"
