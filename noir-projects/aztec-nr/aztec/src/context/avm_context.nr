@@ -30,6 +30,7 @@ impl AvmContext {
     pub fn fee_per_da_gas(self) -> Field {
         fee_per_da_gas()
     }
+
     /**
     * Emit a log with the given event selector and message.
     *

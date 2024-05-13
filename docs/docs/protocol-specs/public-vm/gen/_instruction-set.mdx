@@ -800,7 +800,7 @@ Get the address of the currently executing l2 contract
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.address`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/ADDRESS.png)](/img/protocol-specs/public-vm/bit-formats/ADDRESS.png)
@@ -818,7 +818,7 @@ Get the _storage_ address of the currently executing context
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.storageAddress`
 - **Details**: The storage address is used for public storage accesses.
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/STORAGEADDRESS.png)](/img/protocol-specs/public-vm/bit-formats/STORAGEADDRESS.png)
@@ -835,7 +835,7 @@ Get the address of the sender (caller of the current context)
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.sender`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/SENDER.png)](/img/protocol-specs/public-vm/bit-formats/SENDER.png)
@@ -852,7 +852,7 @@ Get the fee to be paid per "L2 gas" - constant for entire transaction
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.feePerL2Gas`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/FEEPERL2GAS.png)](/img/protocol-specs/public-vm/bit-formats/FEEPERL2GAS.png)
@@ -869,7 +869,7 @@ Get the fee to be paid per "DA gas" - constant for entire transaction
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.feePerDaGas`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/FEEPERDAGAS.png)](/img/protocol-specs/public-vm/bit-formats/FEEPERDAGAS.png)
@@ -886,7 +886,7 @@ Get the computed transaction fee during teardown phase, zero otherwise
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.transactionFee`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 
@@ -903,7 +903,7 @@ Get how many contract calls deep the current call context is
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.contractCallDepth`
 - **Details**: Note: security issues with EVM's tx.origin can be resolved by asserting `calldepth == 0`.
-- **Tag updates**: `T[dstOffset] = u8`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/CONTRACTCALLDEPTH.png)](/img/protocol-specs/public-vm/bit-formats/CONTRACTCALLDEPTH.png)
@@ -920,7 +920,7 @@ Get this rollup's L1 chain ID
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.chainId`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/CHAINID.png)](/img/protocol-specs/public-vm/bit-formats/CHAINID.png)
@@ -937,7 +937,7 @@ Get this rollup's L2 version ID
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.version`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/VERSION.png)](/img/protocol-specs/public-vm/bit-formats/VERSION.png)
@@ -954,7 +954,7 @@ Get this L2 block's number
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.blocknumber`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/BLOCKNUMBER.png)](/img/protocol-specs/public-vm/bit-formats/BLOCKNUMBER.png)
@@ -988,7 +988,7 @@ Get the block's beneficiary address
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.coinbase`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/COINBASE.png)](/img/protocol-specs/public-vm/bit-formats/COINBASE.png)
@@ -1005,7 +1005,7 @@ Total amount of "L2 gas" that a block can consume
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.l2GasLimit`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/BLOCKL2GASLIMIT.png)](/img/protocol-specs/public-vm/bit-formats/BLOCKL2GASLIMIT.png)
@@ -1022,7 +1022,7 @@ Total amount of "DA gas" that a block can consume
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.daGasLimit`
-- **Tag updates**: `T[dstOffset] = u32`
+- **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 56
 
 [![](/img/protocol-specs/public-vm/bit-formats/BLOCKDAGASLIMIT.png)](/img/protocol-specs/public-vm/bit-formats/BLOCKDAGASLIMIT.png)

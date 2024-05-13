@@ -1,17 +1,15 @@
-import { type Fr } from '@aztec/circuits.js';
-
 import type { AvmContext } from '../avm_context.js';
 import type { AvmExecutionEnvironment } from '../avm_execution_environment.js';
-import { Field, type MemoryValue } from '../avm_memory_types.js';
+import { Field, type MemoryValue, Uint64 } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
 import { GetterInstruction } from './instruction_impl.js';
 
 abstract class EnvironmentGetterInstruction extends GetterInstruction {
   protected getValue(context: AvmContext): MemoryValue {
-    return new Field(this.getEnvironmentValue(context.environment));
+    return this.getEnvironmentValue(context.environment);
   }
 
-  protected abstract getEnvironmentValue(env: AvmExecutionEnvironment): Fr | number | bigint;
+  protected abstract getEnvironmentValue(env: AvmExecutionEnvironment): MemoryValue;
 }
 
 export class Address extends EnvironmentGetterInstruction {
@@ -19,7 +17,7 @@ export class Address extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.ADDRESS;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.address;
+    return new Field(env.address.toField());
   }
 }
 
@@ -28,7 +26,7 @@ export class StorageAddress extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.STORAGEADDRESS;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.storageAddress;
+    return new Field(env.storageAddress.toField());
   }
 }
 
@@ -37,7 +35,7 @@ export class Sender extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.SENDER;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.sender;
+    return new Field(env.sender.toField());
   }
 }
 
@@ -46,7 +44,7 @@ export class FeePerL2Gas extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.FEEPERL2GAS;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.feePerL2Gas;
+    return new Field(env.feePerL2Gas);
   }
 }
 
@@ -55,7 +53,7 @@ export class FeePerDAGas extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.FEEPERDAGAS;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.feePerDaGas;
+    return new Field(env.feePerDaGas);
   }
 }
 
@@ -64,7 +62,7 @@ export class TransactionFee extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.TRANSACTIONFEE;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.transactionFee;
+    return new Field(env.transactionFee);
   }
 }
 
@@ -73,7 +71,7 @@ export class ChainId extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.CHAINID;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.globals.chainId;
+    return new Field(env.globals.chainId);
   }
 }
 
@@ -82,7 +80,7 @@ export class Version extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.VERSION;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.globals.version;
+    return new Field(env.globals.version);
   }
 }
 
@@ -91,7 +89,7 @@ export class BlockNumber extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.BLOCKNUMBER;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.globals.blockNumber;
+    return new Field(env.globals.blockNumber);
   }
 }
 
@@ -100,57 +98,6 @@ export class Timestamp extends EnvironmentGetterInstruction {
   static readonly opcode: Opcode = Opcode.TIMESTAMP;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return env.globals.timestamp;
+    return new Uint64(env.globals.timestamp.toBigInt());
   }
 }
-
-// export class Coinbase extends EnvironmentGetterInstruction {
-//     static type: string = 'COINBASE';
-//     static numberOfOperands = 1;
-
-//     constructor(private destOffset: number) {
-//         super();
-//     }
-
-//     async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-//         const {coinbase} = machineState.executionEnvironment.globals;
-
-//         machineState.memory.set(this.destOffset, coinbase);
-
-//         this.incrementPc(machineState);
-//     }
-// }
-
-// export class BlockL2GasLimit extends EnvironmentGetterInstruction {
-//     static type: string = 'BLOCKL2GASLIMIT';
-//     static numberOfOperands = 1;
-
-//     constructor(private destOffset: number) {
-//         super();
-//     }
-
-//     async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-//         const {blockL2GasLimit} = machineState.executionEnvironment.globals;
-
-//         machineState.memory.set(this.destOffset, blockL2GasLimit);
-
-//         this.incrementPc(machineState);
-//     }
-// }
-
-// export class BlockDAGasLimit extends EnvironmentGetterInstruction {
-//     static type: string = 'BLOCKDAGASLIMIT';
-//     static numberOfOperands = 1;
-
-//     constructor(private destOffset: number) {
-//         super();
-//     }
-
-//     async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-//         const {blockDAGasLimit} = machineState.executionEnvironment.globals;
-
-//         machineState.memory.set(this.destOffset, blockDAGasLimit);
-
-//         this.incrementPc(machineState);
-//     }
-// }
