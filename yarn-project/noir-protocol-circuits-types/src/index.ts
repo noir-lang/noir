@@ -22,14 +22,9 @@ import {
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
-import {
-  type ForeignCallInput,
-  type ForeignCallOutput,
-  type WasmBlackBoxFunctionSolver,
-  createBlackBoxSolver,
-  executeCircuitWithBlackBoxSolver,
-} from '@noir-lang/acvm_js';
-import { type Abi, abiDecode, abiEncode, serializeWitness } from '@noir-lang/noirc_abi';
+import { type ForeignCallInput, type ForeignCallOutput } from '@noir-lang/acvm_js';
+import { type CompiledCircuit } from '@noir-lang/noir_js';
+import { type Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
 import { type WitnessMap } from '@noir-lang/types';
 
 import BaseParityJson from './target/parity_base.json' assert { type: 'json' };
@@ -74,18 +69,18 @@ import {
 import {
   type ParityBaseReturnType as BaseParityReturnType,
   type RollupBaseReturnType as BaseRollupReturnType,
-  type PrivateKernelInitInputType as InitInputType,
   type PrivateKernelInitReturnType as InitReturnType,
-  type PrivateKernelInnerInputType as InnerInputType,
   type PrivateKernelInnerReturnType as InnerReturnType,
   type RollupMergeReturnType as MergeRollupReturnType,
   type PublicKernelAppLogicReturnType as PublicPublicPreviousReturnType,
   type PublicKernelSetupReturnType as PublicSetupReturnType,
   type ParityRootReturnType as RootParityReturnType,
   type RollupRootReturnType as RootRollupReturnType,
-  type PrivateKernelTailInputType as TailInputType,
   type PrivateKernelTailReturnType as TailReturnType,
-  type PrivateKernelTailToPublicInputType as TailToPublicInputType,
+  PrivateKernelInit as executePrivateKernelInitWithACVM,
+  PrivateKernelInner as executePrivateKernelInnerWithACVM,
+  PrivateKernelTailToPublic as executePrivateKernelTailToPublicWithACVM,
+  PrivateKernelTail as executePrivateKernelTailWithACVM,
 } from './types/index.js';
 
 // TODO(Tom): This should be exported from noirc_abi
@@ -193,19 +188,6 @@ export const ProtocolCircuitArtifacts: Record<ProtocolArtifact, NoirCompiledCirc
   RootRollupArtifact: RootRollupArtifact,
 };
 
-let solver: Promise<WasmBlackBoxFunctionSolver>;
-
-const getSolver = (): Promise<WasmBlackBoxFunctionSolver> => {
-  if (!solver) {
-    solver = createBlackBoxSolver();
-  }
-  return solver;
-};
-
-export function serializeInputWitness(witness: WitnessMap) {
-  return serializeWitness(witness);
-}
-
 /**
  * Executes the init private kernel.
  * @param privateKernelInitCircuitPrivateInputs - The private inputs to the initial private kernel.
@@ -214,11 +196,11 @@ export function serializeInputWitness(witness: WitnessMap) {
 export async function executeInit(
   privateKernelInitCircuitPrivateInputs: PrivateKernelInitCircuitPrivateInputs,
 ): Promise<PrivateKernelCircuitPublicInputs> {
-  const params: InitInputType = {
-    input: mapPrivateKernelInitCircuitPrivateInputsToNoir(privateKernelInitCircuitPrivateInputs),
-  };
-
-  const returnType = await executePrivateKernelInitWithACVM(params);
+  const returnType = await executePrivateKernelInitWithACVM(
+    mapPrivateKernelInitCircuitPrivateInputsToNoir(privateKernelInitCircuitPrivateInputs),
+    PrivateKernelInitSimulatedJson as CompiledCircuit,
+    foreignCallHandler,
+  );
 
   return mapPrivateKernelCircuitPublicInputsFromNoir(returnType);
 }
@@ -231,10 +213,11 @@ export async function executeInit(
 export async function executeInner(
   privateKernelInnerCircuitPrivateInputs: PrivateKernelInnerCircuitPrivateInputs,
 ): Promise<PrivateKernelCircuitPublicInputs> {
-  const params: InnerInputType = {
-    input: mapPrivateKernelInnerCircuitPrivateInputsToNoir(privateKernelInnerCircuitPrivateInputs),
-  };
-  const returnType = await executePrivateKernelInnerWithACVM(params);
+  const returnType = await executePrivateKernelInnerWithACVM(
+    mapPrivateKernelInnerCircuitPrivateInputsToNoir(privateKernelInnerCircuitPrivateInputs),
+    PrivateKernelInnerSimulatedJson as CompiledCircuit,
+    foreignCallHandler,
+  );
 
   return mapPrivateKernelCircuitPublicInputsFromNoir(returnType);
 }
@@ -247,10 +230,11 @@ export async function executeInner(
 export async function executeTail(
   privateInputs: PrivateKernelTailCircuitPrivateInputs,
 ): Promise<PrivateKernelTailCircuitPublicInputs> {
-  const params: TailInputType = {
-    input: mapPrivateKernelTailCircuitPrivateInputsToNoir(privateInputs),
-  };
-  const returnType = await executePrivateKernelTailWithACVM(params);
+  const returnType = await executePrivateKernelTailWithACVM(
+    mapPrivateKernelTailCircuitPrivateInputsToNoir(privateInputs),
+    PrivateKernelTailSimulatedJson as CompiledCircuit,
+    foreignCallHandler,
+  );
 
   return mapPrivateKernelTailCircuitPublicInputsForRollupFromNoir(returnType);
 }
@@ -263,11 +247,11 @@ export async function executeTail(
 export async function executeTailForPublic(
   privateInputs: PrivateKernelTailCircuitPrivateInputs,
 ): Promise<PrivateKernelTailCircuitPublicInputs> {
-  const params: TailToPublicInputType = {
-    input: mapPrivateKernelTailToPublicCircuitPrivateInputsToNoir(privateInputs),
-  };
-
-  const returnType = await executePrivateKernelTailToPublicWithACVM(params);
+  const returnType = await executePrivateKernelTailToPublicWithACVM(
+    mapPrivateKernelTailToPublicCircuitPrivateInputsToNoir(privateInputs),
+    PrivateKernelTailToPublicSimulatedJson as CompiledCircuit,
+    foreignCallHandler,
+  );
 
   return mapPrivateKernelTailCircuitPublicInputsForPublicFromNoir(returnType);
 }
@@ -645,110 +629,6 @@ export function convertPublicTailOutputFromWitnessMap(outputs: WitnessMap): Kern
   const returnType = decodedInputs.return_value as TailReturnType;
 
   return mapKernelCircuitPublicInputsFromNoir(returnType);
-}
-
-/**
- * Executes the private init kernel with the given inputs using the acvm.
- *
- */
-async function executePrivateKernelInitWithACVM(input: InitInputType): Promise<InitReturnType> {
-  const initialWitnessMap = abiEncode(PrivateKernelInitSimulatedJson.abi as Abi, input as any);
-
-  // Execute the circuit on those initial witness values
-  //
-  // Decode the bytecode from base64 since the acvm does not know about base64 encoding
-  const decodedBytecode = Buffer.from(PrivateKernelInitSimulatedJson.bytecode, 'base64');
-  //
-  // Execute the circuit
-  const _witnessMap = await executeCircuitWithBlackBoxSolver(
-    await getSolver(),
-    decodedBytecode,
-    initialWitnessMap,
-    foreignCallHandler,
-  );
-
-  // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(PrivateKernelInitSimulatedJson.abi as Abi, _witnessMap);
-
-  // Cast the inputs as the return type
-  return decodedInputs.return_value as InitReturnType;
-}
-
-/**
- * Executes the private inner kernel with the given inputs using the acvm.
- */
-async function executePrivateKernelInnerWithACVM(input: InnerInputType): Promise<InnerReturnType> {
-  const initialWitnessMap = abiEncode(PrivateKernelInnerSimulatedJson.abi as Abi, input as any);
-
-  // Execute the circuit on those initial witness values
-  //
-  // Decode the bytecode from base64 since the acvm does not know about base64 encoding
-  const decodedBytecode = Buffer.from(PrivateKernelInnerSimulatedJson.bytecode, 'base64');
-  //
-  // Execute the circuit
-  const _witnessMap = await executeCircuitWithBlackBoxSolver(
-    await getSolver(),
-    decodedBytecode,
-    initialWitnessMap,
-    foreignCallHandler,
-  );
-
-  // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(PrivateKernelInnerSimulatedJson.abi as Abi, _witnessMap);
-
-  // Cast the inputs as the return type
-  return decodedInputs.return_value as InnerReturnType;
-}
-
-/**
- * Executes the private tail kernel with the given inputs using the acvm.
- */
-async function executePrivateKernelTailWithACVM(input: TailInputType): Promise<TailReturnType> {
-  const initialWitnessMap = abiEncode(PrivateKernelTailSimulatedJson.abi as Abi, input as any);
-
-  // Execute the circuit on those initial witness values
-  //
-  // Decode the bytecode from base64 since the acvm does not know about base64 encoding
-  const decodedBytecode = Buffer.from(PrivateKernelTailSimulatedJson.bytecode, 'base64');
-  //
-  // Execute the circuit
-  const _witnessMap = await executeCircuitWithBlackBoxSolver(
-    await getSolver(),
-    decodedBytecode,
-    initialWitnessMap,
-    foreignCallHandler,
-  );
-
-  // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(PrivateKernelTailSimulatedJson.abi as Abi, _witnessMap);
-
-  // Cast the inputs as the return type
-  return decodedInputs.return_value as TailReturnType;
-}
-
-async function executePrivateKernelTailToPublicWithACVM(
-  input: TailToPublicInputType,
-): Promise<PublicPublicPreviousReturnType> {
-  const initialWitnessMap = abiEncode(PrivateKernelTailToPublicSimulatedJson.abi as Abi, input as any);
-
-  // Execute the circuit on those initial witness values
-  //
-  // Decode the bytecode from base64 since the acvm does not know about base64 encoding
-  const decodedBytecode = Buffer.from(PrivateKernelTailToPublicSimulatedJson.bytecode, 'base64');
-  //
-  // Execute the circuit
-  const _witnessMap = await executeCircuitWithBlackBoxSolver(
-    await getSolver(),
-    decodedBytecode,
-    initialWitnessMap,
-    foreignCallHandler,
-  );
-
-  // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(PrivateKernelTailToPublicSimulatedJson.abi as Abi, _witnessMap);
-
-  // Cast the inputs as the return type
-  return decodedInputs.return_value as PublicPublicPreviousReturnType;
 }
 
 export function foreignCallHandler(name: string, args: ForeignCallInput[]): Promise<ForeignCallOutput[]> {

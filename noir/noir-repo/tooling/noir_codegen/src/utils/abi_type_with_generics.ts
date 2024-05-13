@@ -1,10 +1,13 @@
-import { type AbiType } from '@aztec/foundation/abi';
+import { AbiType } from '@noir-lang/noirc_abi';
 
 /**
  * Represents a binding to a generic.
  */
 export class BindingId {
-  constructor(public id: number, public isNumeric: boolean) {}
+  constructor(
+    public id: number,
+    public isNumeric: boolean,
+  ) {}
 }
 
 export type StructType = {
@@ -16,7 +19,7 @@ export type StructType = {
 
 export type StringType = {
   kind: 'string';
-  length: number | BindingId;
+  length: number | BindingId | null;
 };
 
 export type Constant = {
@@ -26,7 +29,7 @@ export type Constant = {
 
 export type ArrayType = {
   kind: 'array';
-  length: number | BindingId;
+  length: number | BindingId | null;
   type: AbiTypeWithGenerics;
 };
 
@@ -73,7 +76,7 @@ export function mapAbiTypeToAbiTypeWithGenerics(abiType: AbiType): AbiTypeWithGe
     case 'struct': {
       const structType = {
         path: abiType.path,
-        fields: abiType.fields.map(field => ({
+        fields: abiType.fields.map((field) => ({
           name: field.name,
           type: mapAbiTypeToAbiTypeWithGenerics(field.type),
         })),
@@ -84,6 +87,15 @@ export function mapAbiTypeToAbiTypeWithGenerics(abiType: AbiType): AbiTypeWithGe
         structType,
         args: [],
       };
+    }
+    case 'tuple':
+      return {
+        kind: 'tuple',
+        fields: abiType.fields.map(mapAbiTypeToAbiTypeWithGenerics),
+      };
+    default: {
+      const exhaustiveCheck: never = abiType;
+      throw new Error(`Unhandled abi type: ${exhaustiveCheck}`);
     }
   }
 }
@@ -119,8 +131,8 @@ export function findAllStructsInType(abiType: AbiTypeWithGenerics): Struct[] {
   let lastStructs = findStructsInType(abiType);
   while (lastStructs.length > 0) {
     allStructs = allStructs.concat(lastStructs);
-    lastStructs = lastStructs.flatMap(struct =>
-      struct.structType.fields.flatMap(field => findStructsInType(field.type)),
+    lastStructs = lastStructs.flatMap((struct) =>
+      struct.structType.fields.flatMap((field) => findStructsInType(field.type)),
     );
   }
   return allStructs;

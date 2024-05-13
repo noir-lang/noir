@@ -19,6 +19,7 @@
     "generate": "yarn generate:noir-circuits",
     "generate:noir-circuits": "mkdir -p ./src/target && cp ../../noir-projects/noir-protocol-circuits/target/* ./src/target && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
+    "codegen": "yarn noir-codegen",
     "build:dev": "tsc -b --watch"
   },
   "jest": {
@@ -50,6 +51,8 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
+    "@noir-lang/noir_codegen": "portal:../../noir/packages/noir_codegen",
+    "@noir-lang/noir_js": "portal:../../noir/packages/noir_js",
     "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi",
     "@noir-lang/types": "portal:../../noir/packages/types",
     "change-case": "^5.4.4",

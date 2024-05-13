@@ -11,10 +11,15 @@ import {
   findStructsInType,
 } from './abi_type_with_generics.js';
 
+export interface DemonomorphizerConfig {
+  leaveArrayLengthsUnbounded: boolean;
+  leaveStringLengthsUnbounded: boolean;
+}
+
 /**
  * Demonomorphizes a list of ABI types adding generics to structs.
  * Since monomorphization of the generics destroys information, this process is not guaranteed to return the original structure.
- * However, it should succesfully unify all struct types that share the same name and field names.
+ * However, it should successfully unify all struct types that share the same name and field names.
  */
 export class Demonomorphizer {
   private variantsMap: Map<string, Struct[]>;
@@ -24,11 +29,14 @@ export class Demonomorphizer {
   /**
    * Demonomorphizes the passed in ABI types, mutating them.
    */
-  public static demonomorphize(abiTypes: AbiTypeWithGenerics[]) {
-    new Demonomorphizer(abiTypes);
+  public static demonomorphize(abiTypes: AbiTypeWithGenerics[], config: DemonomorphizerConfig) {
+    new Demonomorphizer(abiTypes, config);
   }
 
-  private constructor(private types: AbiTypeWithGenerics[]) {
+  private constructor(
+    private types: AbiTypeWithGenerics[],
+    private config: DemonomorphizerConfig,
+  ) {
     this.variantsMap = new Map<string, Struct[]>();
     this.fillVariantsMap();
 
@@ -69,7 +77,7 @@ export class Demonomorphizer {
     if (this.visitedStructs.has(id)) {
       return;
     }
-    const dependencies = struct.structType.fields.flatMap(field => findStructsInType(field.type));
+    const dependencies = struct.structType.fields.flatMap((field) => findStructsInType(field.type));
     for (const dependency of dependencies) {
       this.demonomorphizeStruct(dependency);
     }
@@ -81,13 +89,13 @@ export class Demonomorphizer {
     const mappedStructType = struct.structType;
 
     for (let i = 0; i < struct.structType.fields.length; i++) {
-      const variantTypes = variants.map(variant => variant.structType.fields[i].type);
+      const variantTypes = variants.map((variant) => variant.structType.fields[i].type);
       const mappedType = this.unifyTypes(variantTypes, mappedStructType.generics, variants);
       mappedStructType.fields[i].type = mappedType;
     }
 
     // Mutate variants setting the new struct type
-    variants.forEach(variant => (variant.structType = mappedStructType));
+    variants.forEach((variant) => (variant.structType = mappedStructType));
 
     this.visitedStructs.set(id, mappedStructType);
   }
@@ -101,7 +109,7 @@ export class Demonomorphizer {
     generics: BindingId[], // Mutates generics adding new bindings
     variants: Struct[], // mutates variants adding different args to the variants
   ): AbiTypeWithGenerics {
-    const kinds = new Set(types.map(type => type.kind));
+    const kinds = new Set(types.map((type) => type.kind));
     if (kinds.size > 1) {
       return this.buildBindingAndPushToVariants(types, generics, variants);
     }
@@ -119,13 +127,12 @@ export class Demonomorphizer {
       }
       case 'string': {
         const strings = types as StringType[];
-        const unifiedString = strings[0];
-        if (strings.every(string => string.length === unifiedString.length)) {
-          return unifiedString;
-        } else {
-          const unifiedStringType: StringType = unifiedString;
+        const unifiedStringType = strings[0];
+        if (strings.every((string) => string.length === unifiedStringType.length)) {
+          return unifiedStringType;
+        } else if (!this.config.leaveStringLengthsUnbounded) {
           unifiedStringType.length = this.buildNumericBindingAndPushToVariants(
-            strings.map(string => {
+            strings.map((string) => {
               if (typeof string.length !== 'number') {
                 throw new Error('Trying to unify strings with bindings');
               }
@@ -135,30 +142,33 @@ export class Demonomorphizer {
             variants,
           );
           return unifiedStringType;
+        } else {
+          unifiedStringType.length = null;
+          return unifiedStringType;
         }
       }
       case 'array': {
         const arrays = types as ArrayType[];
         const unifiedArrayType: ArrayType = arrays[0];
-        if (
-          !arrays.every(array => {
-            return array.length === unifiedArrayType.length;
-          })
-        ) {
-          unifiedArrayType.length = this.buildNumericBindingAndPushToVariants(
-            arrays.map(array => {
-              if (typeof array.length !== 'number') {
-                throw new Error('Trying to unify arrays with bindings');
-              }
-              return array.length;
-            }),
-            generics,
-            variants,
-          );
+        if (!arrays.every((array) => array.length === unifiedArrayType.length)) {
+          if (!this.config.leaveArrayLengthsUnbounded) {
+            unifiedArrayType.length = this.buildNumericBindingAndPushToVariants(
+              arrays.map((array) => {
+                if (typeof array.length !== 'number') {
+                  throw new Error('Trying to unify arrays with bindings');
+                }
+                return array.length;
+              }),
+              generics,
+              variants,
+            );
+          } else {
+            unifiedArrayType.length = null;
+          }
         }
 
         unifiedArrayType.type = this.unifyTypes(
-          arrays.map(array => array.type),
+          arrays.map((array) => array.type),
           generics,
           variants,
         );
@@ -169,7 +179,7 @@ export class Demonomorphizer {
         const unifiedTupleType: Tuple = tuples[0];
         for (let i = 0; i < unifiedTupleType.fields.length; i++) {
           unifiedTupleType.fields[i] = this.unifyTypes(
-            tuples.map(tuple => tuple.fields[i]),
+            tuples.map((tuple) => tuple.fields[i]),
             generics,
             variants,
           );
@@ -178,7 +188,7 @@ export class Demonomorphizer {
       }
       case 'struct': {
         const structs = types as Struct[];
-        const ids = new Set(structs.map(struct => Demonomorphizer.buildIdForStruct(struct.structType)));
+        const ids = new Set(structs.map((struct) => Demonomorphizer.buildIdForStruct(struct.structType)));
         if (ids.size > 1) {
           // If the types are different structs, we can only unify them by creating a new binding.
           // For example, if we have a struct A { x: u32 } and a struct A { x: Field }, the only possible unification is A<T> { x: T }
@@ -188,11 +198,11 @@ export class Demonomorphizer {
           // For example, if we have A<Field> and A<u32>, we need to unify to A<T> and push T to the generics of the struct type.
           const unifiedStruct = structs[0];
 
-          if (!structs.every(struct => struct.args.length === unifiedStruct.args.length)) {
+          if (!structs.every((struct) => struct.args.length === unifiedStruct.args.length)) {
             throw new Error('Same struct with different number of args encountered');
           }
           for (let i = 0; i < unifiedStruct.args.length; i++) {
-            const argTypes = structs.map(struct => struct.args[i]);
+            const argTypes = structs.map((struct) => struct.args[i]);
             unifiedStruct.args[i] = this.unifyTypes(argTypes, generics, variants);
           }
           return unifiedStruct;
@@ -201,7 +211,7 @@ export class Demonomorphizer {
 
       case 'constant': {
         const constants = types as Constant[];
-        if (constants.every(constant => constant.value === constants[0].value)) {
+        if (constants.every((constant) => constant.value === constants[0].value)) {
           return constants[0];
         } else {
           return this.buildBindingAndPushToVariants(types, generics, variants, true);
@@ -221,7 +231,7 @@ export class Demonomorphizer {
    */
   public static buildIdForStruct(struct: StructType): string {
     const name = struct.path.split('::').pop()!;
-    const fields = struct.fields.map(field => field.name).join(',');
+    const fields = struct.fields.map((field) => field.name).join(',');
     return `${name}(${fields})`;
   }
 

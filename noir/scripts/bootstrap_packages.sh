@@ -15,6 +15,8 @@ PROJECTS=(
   @noir-lang/acvm_js
   @noir-lang/types
   @noir-lang/noirc_abi
+  @noir-lang/noir_codegen
+  @noir-lang/noir_js
 )
 INCLUDE=$(printf " --include %s" "${PROJECTS[@]}")
 
