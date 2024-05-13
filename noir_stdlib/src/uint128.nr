@@ -95,8 +95,8 @@ impl U128 {
         U128 { lo: lo as Field, hi: hi as Field }
     }
 
-    unconstrained fn uconstrained_check_is_upper_ascii(ascii: u8)->bool{
-        ((ascii>=65) & (ascii <=90)) // Between 'A' and 'Z'
+    unconstrained fn uconstrained_check_is_upper_ascii(ascii: u8) -> bool {
+        ((ascii >= 65) & (ascii <= 90)) // Between 'A' and 'Z'
     }
 
     fn decode_ascii(ascii: u8) -> Field {
@@ -120,7 +120,7 @@ impl U128 {
         } else if self < b {
             (U128::zero(), self)
         } else if self == b {
-            (U128::one(),U128::zero())
+            (U128::one(), U128::zero())
         } else {
             let (q,r) = if b.hi as u64 >= pow63 as u64 {
                 // The result of multiplication by 2 would overflow
@@ -316,7 +316,7 @@ impl Shr for U128 {
 }
 
 mod tests {
-    use crate::uint128::{U128, pow64,pow63};
+    use crate::uint128::{U128, pow64, pow63};
 
     #[test]
     fn test_not() {
@@ -461,10 +461,10 @@ mod tests {
         assert_eq((c, d), (U128::zero(), U128::zero()));
 
         // Dividing 1<<127 by 1<<127 (special case)
-        let a = U128::from_u64s_le(0x0,pow63 as u64);
-        let b = U128::from_u64s_le(0x0,pow63 as u64);
+        let a = U128::from_u64s_le(0x0, pow63 as u64);
+        let b = U128::from_u64s_le(0x0, pow63 as u64);
         let (c,d )= a.unconstrained_div(b);
-        assert_eq((c,d),(U128::one(),U128::zero()));
+        assert_eq((c, d), (U128::one(), U128::zero()));
     }
 
     #[test]
