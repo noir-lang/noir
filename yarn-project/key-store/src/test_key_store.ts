@@ -44,17 +44,14 @@ export class TestKeyStore implements KeyStore {
    */
   public async addAccount(sk: Fr, partialAddress: PartialAddress): Promise<CompleteAddress> {
     const {
-      publicKeysHash,
       masterNullifierSecretKey,
       masterIncomingViewingSecretKey,
       masterOutgoingViewingSecretKey,
       masterTaggingSecretKey,
-      masterNullifierPublicKey,
-      masterIncomingViewingPublicKey,
-      masterOutgoingViewingPublicKey,
-      masterTaggingPublicKey,
+      publicKeys,
     } = deriveKeys(sk);
 
+    const publicKeysHash = publicKeys.hash();
     const accountAddress = computeAddress(publicKeysHash, partialAddress);
 
     // We save the keys to db
@@ -65,22 +62,13 @@ export class TestKeyStore implements KeyStore {
     await this.#keys.set(`${accountAddress.toString()}-ovsk_m`, masterOutgoingViewingSecretKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-tsk_m`, masterTaggingSecretKey.toBuffer());
 
-    await this.#keys.set(`${accountAddress.toString()}-npk_m`, masterNullifierPublicKey.toBuffer());
-    await this.#keys.set(`${accountAddress.toString()}-ivpk_m`, masterIncomingViewingPublicKey.toBuffer());
-    await this.#keys.set(`${accountAddress.toString()}-ovpk_m`, masterOutgoingViewingPublicKey.toBuffer());
-    await this.#keys.set(`${accountAddress.toString()}-tpk_m`, masterTaggingPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-npk_m`, publicKeys.masterNullifierPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-ivpk_m`, publicKeys.masterIncomingViewingPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-ovpk_m`, publicKeys.masterOutgoingViewingPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-tpk_m`, publicKeys.masterTaggingPublicKey.toBuffer());
 
     // At last, we return the newly derived account address
-    return Promise.resolve(
-      CompleteAddress.create(
-        accountAddress,
-        masterNullifierPublicKey,
-        masterIncomingViewingPublicKey,
-        masterOutgoingViewingPublicKey,
-        masterTaggingPublicKey,
-        partialAddress,
-      ),
-    );
+    return Promise.resolve(new CompleteAddress(accountAddress, publicKeys, partialAddress));
   }
 
   /**

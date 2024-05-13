@@ -1,5 +1,5 @@
 import { type AccountWallet, AztecAddress, Fr, type PXE } from '@aztec/aztec.js';
-import { CompleteAddress, Point } from '@aztec/circuits.js';
+import { CompleteAddress, Point, PublicKeys } from '@aztec/circuits.js';
 import { KeyRegistryContract, TestContract } from '@aztec/noir-contracts.js';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 
@@ -44,20 +44,22 @@ describe('Key Registry', () => {
 
   describe('failure cases', () => {
     it('throws when address preimage check fails', async () => {
-      const keys = [
-        account.masterNullifierPublicKey,
-        account.masterIncomingViewingPublicKey,
-        account.masterOutgoingViewingPublicKey,
-        account.masterTaggingPublicKey,
-      ];
+      const publicKeysBuf = account.publicKeys.toBuffer();
+      // We randomly invalidate some of the keys by overwriting random byte
+      const byteIndex = Math.floor(Math.random() * publicKeysBuf.length);
+      publicKeysBuf[byteIndex] = (publicKeysBuf[byteIndex] + 2) % 256;
 
-      // We randomly invalidate some of the keys
-      keys[Math.floor(Math.random() * keys.length)] = Point.random();
+      const publicKeys = PublicKeys.fromBuffer(publicKeysBuf);
 
       await expect(
         keyRegistry
           .withWallet(wallets[0])
-          .methods.register(account, account.partialAddress, keys[0], keys[1], keys[2], keys[3])
+          .methods.register(
+            account,
+            account.partialAddress,
+            // TODO(#6337): Directly dump account.publicKeys here
+            publicKeys.toNoirStruct(),
+          )
           .send()
           .wait(),
       ).rejects.toThrow('Computed address does not match supplied address');
@@ -93,7 +95,7 @@ describe('Key Registry', () => {
     await testContract.methods
       .test_nullifier_key_freshness(
         newAccountCompleteAddress.address,
-        newAccountCompleteAddress.masterNullifierPublicKey,
+        newAccountCompleteAddress.publicKeys.masterNullifierPublicKey,
       )
       .send()
       .wait();
@@ -106,10 +108,8 @@ describe('Key Registry', () => {
         .methods.register(
           account,
           account.partialAddress,
-          account.masterNullifierPublicKey,
-          account.masterIncomingViewingPublicKey,
-          account.masterOutgoingViewingPublicKey,
-          account.masterTaggingPublicKey,
+          // TODO(#6337): Directly dump account.publicKeys here
+          account.publicKeys.toNoirStruct(),
         )
         .send()
         .wait();
@@ -129,13 +129,16 @@ describe('Key Registry', () => {
         .test_shared_mutable_private_getter_for_registry_contract(1, account)
         .simulate();
 
-      expect(new Fr(nullifierPublicKeyX)).toEqual(account.masterNullifierPublicKey.x);
+      expect(new Fr(nullifierPublicKeyX)).toEqual(account.publicKeys.masterNullifierPublicKey.x);
     });
 
     // Note: This test case is dependent on state from the previous one
     it('key lib succeeds for registered account', async () => {
       // Should succeed as the account is registered in key registry from tests before
-      await testContract.methods.test_nullifier_key_freshness(account, account.masterNullifierPublicKey).send().wait();
+      await testContract.methods
+        .test_nullifier_key_freshness(account, account.publicKeys.masterNullifierPublicKey)
+        .send()
+        .wait();
     });
   });
 

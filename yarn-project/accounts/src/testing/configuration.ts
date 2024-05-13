@@ -46,7 +46,8 @@ export async function getDeployedTestAccountsWallets(pxe: PXE): Promise<AccountW
       const initialEncryptionKey = sha512ToGrumpkinScalar([initialSecretKey, GeneratorIndex.IVSK_M]);
       const publicKey = generatePublicKey(initialEncryptionKey);
       return (
-        registeredAccounts.find(registered => registered.masterIncomingViewingPublicKey.equals(publicKey)) != undefined
+        registeredAccounts.find(registered => registered.publicKeys.masterIncomingViewingPublicKey.equals(publicKey)) !=
+        undefined
       );
     }).map(secretKey => {
       const signingKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]);

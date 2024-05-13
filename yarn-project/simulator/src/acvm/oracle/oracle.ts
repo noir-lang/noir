@@ -166,21 +166,9 @@ export class Oracle {
 
   async getPublicKeysAndPartialAddress([address]: ACVMField[]): Promise<ACVMField[]> {
     const parsedAddress = AztecAddress.fromField(fromACVMField(address));
-    const {
-      masterNullifierPublicKey,
-      masterIncomingViewingPublicKey,
-      masterOutgoingViewingPublicKey,
-      masterTaggingPublicKey,
-      partialAddress,
-    } = await this.typedOracle.getCompleteAddress(parsedAddress);
+    const { publicKeys, partialAddress } = await this.typedOracle.getCompleteAddress(parsedAddress);
 
-    return [
-      ...masterNullifierPublicKey.toFields(),
-      ...masterIncomingViewingPublicKey.toFields(),
-      ...masterOutgoingViewingPublicKey.toFields(),
-      ...masterTaggingPublicKey.toFields(),
-      partialAddress,
-    ].map(toACVMField);
+    return [...publicKeys.toFields(), partialAddress].map(toACVMField);
   }
 
   async getNotes(

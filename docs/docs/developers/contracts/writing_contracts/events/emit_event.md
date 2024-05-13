@@ -31,7 +31,7 @@ const partialAddress = Fr.fromString(
   "0x200e9a6c2d2e8352012e51c6637659713d336405c29386c7c4ac56779ab54fa7"
 );
 
-const completeAddress = CompleteAddress.create(
+const completeAddress = new CompleteAddress(
   aztecAddress,
   publicKey,
   partialKey

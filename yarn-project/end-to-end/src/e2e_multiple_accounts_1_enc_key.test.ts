@@ -47,10 +47,10 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     logger.info('Account contracts deployed');
 
     // Verify that all accounts use the same encryption key
-    const encryptionPublicKey = deriveKeys(encryptionPrivateKey).masterIncomingViewingPublicKey;
+    const encryptionPublicKey = deriveKeys(encryptionPrivateKey).publicKeys.masterIncomingViewingPublicKey;
 
     for (const account of accounts) {
-      expect(account.masterIncomingViewingPublicKey).toEqual(encryptionPublicKey);
+      expect(account.publicKeys.masterIncomingViewingPublicKey).toEqual(encryptionPublicKey);
     }
 
     logger.info(`Deploying Token...`);

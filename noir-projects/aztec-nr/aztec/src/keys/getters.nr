@@ -1,23 +1,12 @@
-use dep::protocol_types::{
-    address::{AztecAddress, PublicKeysHash}, constants::CANONICAL_KEY_REGISTRY_ADDRESS,
-    grumpkin_point::GrumpkinPoint
-};
+use dep::protocol_types::{address::AztecAddress, constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint};
 use crate::{
     context::PrivateContext, oracle::keys::get_public_keys_and_partial_address,
+    keys::public_keys::{PublicKeys, NULLIFIER_INDEX, INCOMING_INDEX},
     state_vars::{
     map::derive_storage_slot_in_map,
     shared_mutable::shared_mutable_private_getter::SharedMutablePrivateGetter
 }
 };
-
-// Note: In fetch_key_from_registry we expect that the shared mutable slot is index * 2 + 1 for the x coordinate and
-// index * 2 + 2 for the y coordinate. For example, the npk_m x coordinates will be stored in a map at storage slot
-// 0 * 2 + 1 = 1, and the npk_m y coordinates at 2 * 2 + 2 = 6. If this changes the function will need to be
-// refactored.
-global NULLIFIER_INDEX = 0;
-global INCOMING_INDEX = 1;
-global OUTGOING_INDEX = 2;
-global TAGGING_INDEX = 3;
 
 global DELAY = 5;
 
@@ -46,7 +35,9 @@ fn get_master_key(
     let key = fetch_key_from_registry(context, key_index, address);
     if key.is_zero() {
         // Keys were not registered in registry yet --> fetch key from PXE
-        fetch_and_constrain_keys(address)[key_index]
+        let keys = fetch_and_constrain_keys(address);
+        // Return the corresponding to index
+        keys.get_key_by_index(key_index)
     } else {
         // Keys were registered --> return the key
         key
@@ -80,18 +71,12 @@ fn fetch_key_from_registry(
 }
 
 // Passes only when keys were not rotated - is expected to be called only when keys were not registered yet
-fn fetch_and_constrain_keys(address: AztecAddress) -> [GrumpkinPoint; 4] {
+fn fetch_and_constrain_keys(address: AztecAddress) -> PublicKeys {
     let (public_keys, partial_address) = get_public_keys_and_partial_address(address);
 
-    let npk_m = public_keys[0];
-    let ivpk_m = public_keys[1];
-    let ovpk_m = public_keys[2];
-    let tpk_m = public_keys[3];
-
-    let public_keys_hash = PublicKeysHash::compute(npk_m, ivpk_m, ovpk_m, tpk_m);
-    let computed_address = AztecAddress::compute(public_keys_hash, partial_address);
+    let computed_address = AztecAddress::compute(public_keys.hash(), partial_address);
 
     assert(computed_address.eq(address));
 
-    [npk_m, ivpk_m, ovpk_m, tpk_m]
+    public_keys
 }

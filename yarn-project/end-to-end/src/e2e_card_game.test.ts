@@ -102,10 +102,10 @@ describe('e2e_card_game', () => {
     const preRegisteredAccounts = await pxe.getRegisteredAccounts();
 
     const secretKeysToRegister = INITIAL_TEST_SECRET_KEYS.filter(key => {
-      const publicKey = deriveKeys(key).masterIncomingViewingPublicKey;
+      const publicKey = deriveKeys(key).publicKeys.masterIncomingViewingPublicKey;
       return (
         preRegisteredAccounts.find(preRegisteredAccount => {
-          return preRegisteredAccount.masterIncomingViewingPublicKey.equals(publicKey);
+          return preRegisteredAccount.publicKeys.masterIncomingViewingPublicKey.equals(publicKey);
         }) == undefined
       );
     });

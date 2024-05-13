@@ -123,7 +123,7 @@ describe('Note Processor', () => {
     const allOwnerKeys = deriveKeys(ownerSk);
 
     ownerMasterIncomingViewingSecretKey = allOwnerKeys.masterIncomingViewingSecretKey;
-    ownerMasterIncomingViewingPublicKey = allOwnerKeys.masterIncomingViewingPublicKey;
+    ownerMasterIncomingViewingPublicKey = allOwnerKeys.publicKeys.masterIncomingViewingPublicKey;
   });
 
   beforeEach(() => {

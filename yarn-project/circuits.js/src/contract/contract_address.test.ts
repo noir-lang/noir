@@ -56,7 +56,7 @@ describe('ContractAddress', () => {
     const contractClassId = new Fr(4n);
     const initializationHash = new Fr(5n);
     const deployer = AztecAddress.fromField(new Fr(7));
-    const publicKeysHash = deriveKeys(secretKey).publicKeysHash;
+    const publicKeysHash = deriveKeys(secretKey).publicKeys.hash();
 
     const address = computeContractAddressFromInstance({
       publicKeysHash,
@@ -72,7 +72,7 @@ describe('ContractAddress', () => {
 
   it('Public key hash matches Noir', () => {
     const secretKey = new Fr(2n);
-    const hash = deriveKeys(secretKey).publicKeysHash.toString();
+    const hash = deriveKeys(secretKey).publicKeys.hash().toString();
     expect(hash).toMatchSnapshot();
 
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data

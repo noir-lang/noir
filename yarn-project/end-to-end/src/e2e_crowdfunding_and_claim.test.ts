@@ -106,7 +106,7 @@ describe('e2e_crowdfunding_and_claim', () => {
     logger.info(`Reward Token deployed to ${rewardToken.address}`);
 
     crowdfundingSecretKey = Fr.random();
-    crowdfundingPublicKeysHash = deriveKeys(crowdfundingSecretKey).publicKeysHash;
+    crowdfundingPublicKeysHash = deriveKeys(crowdfundingSecretKey).publicKeys.hash();
 
     const crowdfundingDeployment = CrowdfundingContract.deployWithPublicKeysHash(
       crowdfundingPublicKeysHash,

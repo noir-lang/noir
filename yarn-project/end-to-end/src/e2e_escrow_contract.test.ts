@@ -46,7 +46,7 @@ describe('e2e_escrow_contract', () => {
     // Generate private key for escrow contract, register key in pxe service, and deploy
     // Note that we need to register it first if we want to emit an encrypted note for it in the constructor
     escrowSecretKey = Fr.random();
-    escrowPublicKeysHash = deriveKeys(escrowSecretKey).publicKeysHash;
+    escrowPublicKeysHash = deriveKeys(escrowSecretKey).publicKeys.hash();
     const escrowDeployment = EscrowContract.deployWithPublicKeysHash(escrowPublicKeysHash, wallet, owner);
     const escrowInstance = escrowDeployment.getInstance();
     await pxe.registerAccount(escrowSecretKey, computePartialAddress(escrowInstance));

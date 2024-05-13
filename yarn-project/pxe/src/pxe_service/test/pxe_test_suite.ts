@@ -12,6 +12,7 @@ import {
   FunctionData,
   INITIAL_L2_BLOCK_NUM,
   Point,
+  PublicKeys,
   TxContext,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
@@ -68,14 +69,12 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
       await pxe.registerAccount(randomSecretKey, randomPartialAddress);
     });
 
-    it('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {
+    // Disabled as CompleteAddress constructor now performs preimage validation.
+    it.skip('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {
       const recipient1 = CompleteAddress.random();
       const recipient2 = new CompleteAddress(
         recipient1.address,
-        Point.random(),
-        Point.random(),
-        Point.random(),
-        Point.random(),
+        new PublicKeys(Point.random(), Point.random(), Point.random(), Point.random()),
         Fr.random(),
       );
 

@@ -39,7 +39,7 @@ export class AccountManager {
 
   protected getPublicKeysHash() {
     if (!this.publicKeysHash) {
-      this.publicKeysHash = deriveKeys(this.secretKey).publicKeysHash;
+      this.publicKeysHash = deriveKeys(this.secretKey).publicKeys.hash();
     }
     return this.publicKeysHash;
   }

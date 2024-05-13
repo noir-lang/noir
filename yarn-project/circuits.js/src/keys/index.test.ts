@@ -1,7 +1,8 @@
 import { Fr, Point } from '@aztec/foundation/fields';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
-import { computeAddress, computePublicKeysHash } from './index.js';
+import { PublicKeys } from '../types/public_keys.js';
+import { computeAddress } from './index.js';
 
 describe('🔑', () => {
   it('computing public keys hash matches Noir', () => {
@@ -12,12 +13,12 @@ describe('🔑', () => {
 
     const expected = Fr.fromString('0x1936abe4f6a920d16a9f6917f10a679507687e2cd935dd1f1cdcb1e908c027f3');
     expect(
-      computePublicKeysHash(
+      new PublicKeys(
         masterNullifierPublicKey,
         masterIncomingViewingPublicKey,
         masterOutgoingViewingPublicKey,
         masterTaggingPublicKey,
-      ),
+      ).hash(),
     ).toEqual(expected);
 
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data

@@ -36,11 +36,7 @@ class SingleKeyAuthWitnessProvider implements AuthWitnessProvider {
   createAuthWit(messageHash: Fr): Promise<AuthWitness> {
     const schnorr = new Schnorr();
     const signature = schnorr.constructSignature(messageHash.toBuffer(), this.privateKey);
-    const witness = [
-      ...this.account.publicKeys.flatMap(pk => pk.toFields()),
-      ...signature.toBuffer(),
-      this.account.partialAddress,
-    ];
+    const witness = [...this.account.publicKeys.toFields(), ...signature.toBuffer(), this.account.partialAddress];
     return Promise.resolve(new AuthWitness(messageHash, witness));
   }
 }

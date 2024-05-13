@@ -30,7 +30,7 @@ describe('Simulator', () => {
     const ownerSk = Fr.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
     const allOwnerKeys = deriveKeys(ownerSk);
 
-    const ownerMasterNullifierPublicKey = allOwnerKeys.masterNullifierPublicKey;
+    const ownerMasterNullifierPublicKey = allOwnerKeys.publicKeys.masterNullifierPublicKey;
     const ownerMasterNullifierSecretKey = allOwnerKeys.masterNullifierSecretKey;
 
     contractAddress = AztecAddress.random();

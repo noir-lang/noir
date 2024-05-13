@@ -1,8 +1,8 @@
 use dep::authwit::auth_witness;
-use dep::aztec::protocol_types::{address::PartialAddress, grumpkin_point::GrumpkinPoint};
+use dep::aztec::{protocol_types::{address::PartialAddress, grumpkin_point::GrumpkinPoint}, keys::PublicKeys};
 
 struct AuthWitness {
-    npk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint, ovpk_m: GrumpkinPoint, tpk_m: GrumpkinPoint,
+    keys: PublicKeys,
     signature: [u8; 64],
     partial_address: PartialAddress,
 }
@@ -14,10 +14,12 @@ impl AuthWitness {
             signature[i] = values[i + 8] as u8;
         }
         Self {
-            npk_m: GrumpkinPoint::new(values[0], values[1]),
-            ivpk_m: GrumpkinPoint::new(values[2], values[3]),
-            ovpk_m: GrumpkinPoint::new(values[4], values[5]),
-            tpk_m: GrumpkinPoint::new(values[6], values[7]),
+            keys: PublicKeys {
+                npk_m: GrumpkinPoint::new(values[0], values[1]),
+                ivpk_m: GrumpkinPoint::new(values[2], values[3]),
+                ovpk_m: GrumpkinPoint::new(values[4], values[5]),
+                tpk_m: GrumpkinPoint::new(values[6], values[7])
+            },
             signature,
             partial_address: PartialAddress::from_field(values[72])
         }

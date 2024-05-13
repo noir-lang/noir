@@ -1,5 +1,5 @@
 import { type NoteFilter, NoteStatus, randomTxHash } from '@aztec/circuit-types';
-import { AztecAddress, CompleteAddress, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
+import { AztecAddress, CompleteAddress, INITIAL_L2_BLOCK_NUM, PublicKeys } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -94,7 +94,7 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
         [
           () => ({ owner: owners[0].address }),
-          () => notes.filter(note => note.publicKey.equals(owners[0].masterIncomingViewingPublicKey)),
+          () => notes.filter(note => note.publicKey.equals(owners[0].publicKeys.masterIncomingViewingPublicKey)),
         ],
 
         [
@@ -116,7 +116,7 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
           randomNoteDao({
             contractAddress: contractAddresses[i % contractAddresses.length],
             storageSlot: storageSlots[i % storageSlots.length],
-            publicKey: owners[i % owners.length].masterIncomingViewingPublicKey,
+            publicKey: owners[i % owners.length].publicKeys.masterIncomingViewingPublicKey,
             index: BigInt(i),
           }),
         );
@@ -145,10 +145,12 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
         // Nullify all notes and use the same filter as other test cases
         for (const owner of owners) {
-          const notesToNullify = notes.filter(note => note.publicKey.equals(owner.masterIncomingViewingPublicKey));
+          const notesToNullify = notes.filter(note =>
+            note.publicKey.equals(owner.publicKeys.masterIncomingViewingPublicKey),
+          );
           const nullifiers = notesToNullify.map(note => note.siloedNullifier);
           await expect(
-            database.removeNullifiedNotes(nullifiers, owner.masterIncomingViewingPublicKey),
+            database.removeNullifiedNotes(nullifiers, owner.publicKeys.masterIncomingViewingPublicKey),
           ).resolves.toEqual(notesToNullify);
         }
 
@@ -160,7 +162,9 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
       it('skips nullified notes by default or when requesting active', async () => {
         await database.addNotes(notes);
 
-        const notesToNullify = notes.filter(note => note.publicKey.equals(owners[0].masterIncomingViewingPublicKey));
+        const notesToNullify = notes.filter(note =>
+          note.publicKey.equals(owners[0].publicKeys.masterIncomingViewingPublicKey),
+        );
         const nullifiers = notesToNullify.map(note => note.siloedNullifier);
         await expect(database.removeNullifiedNotes(nullifiers, notesToNullify[0].publicKey)).resolves.toEqual(
           notesToNullify,
@@ -176,7 +180,9 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
       it('returns active and nullified notes when requesting either', async () => {
         await database.addNotes(notes);
 
-        const notesToNullify = notes.filter(note => note.publicKey.equals(owners[0].masterIncomingViewingPublicKey));
+        const notesToNullify = notes.filter(note =>
+          note.publicKey.equals(owners[0].publicKeys.masterIncomingViewingPublicKey),
+        );
         const nullifiers = notesToNullify.map(note => note.siloedNullifier);
         await expect(database.removeNullifiedNotes(nullifiers, notesToNullify[0].publicKey)).resolves.toEqual(
           notesToNullify,
@@ -222,10 +228,7 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
         const address = CompleteAddress.random();
         const otherAddress = new CompleteAddress(
           address.address,
-          Point.random(),
-          Point.random(),
-          Point.random(),
-          Point.random(),
+          new PublicKeys(Point.random(), Point.random(), Point.random(), Point.random()),
           address.partialAddress,
         );
 

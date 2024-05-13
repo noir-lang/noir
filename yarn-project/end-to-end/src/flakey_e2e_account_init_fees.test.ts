@@ -295,7 +295,7 @@ describe('e2e_fees_account_init', () => {
         await ctx.pxe.registerRecipient(completeAddress);
 
         // and deploys bob's account, paying the fee from her balance
-        const publicKeysHash = deriveKeys(bobsSecretKey).publicKeysHash;
+        const publicKeysHash = deriveKeys(bobsSecretKey).publicKeys.hash();
         const tx = await SchnorrAccountContract.deployWithPublicKeysHash(
           publicKeysHash,
           alice,

@@ -193,13 +193,13 @@ describe('Private Execution test suite', () => {
     oracle.getNullifierKeys.mockImplementation((accountAddress: AztecAddress, contractAddress: AztecAddress) => {
       if (accountAddress.equals(ownerCompleteAddress.address)) {
         return Promise.resolve({
-          masterNullifierPublicKey: ownerCompleteAddress.masterNullifierPublicKey,
+          masterNullifierPublicKey: ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
           appNullifierSecretKey: computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
         });
       }
       if (accountAddress.equals(recipientCompleteAddress.address)) {
         return Promise.resolve({
-          masterNullifierPublicKey: recipientCompleteAddress.masterNullifierPublicKey,
+          masterNullifierPublicKey: recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
           appNullifierSecretKey: computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
         });
       }
@@ -1045,7 +1045,7 @@ describe('Private Execution test suite', () => {
       // Generate a partial address, pubkey, and resulting address
       const completeAddress = CompleteAddress.random();
       const args = [completeAddress.address];
-      const pubKey = completeAddress.masterIncomingViewingPublicKey;
+      const pubKey = completeAddress.publicKeys.masterIncomingViewingPublicKey;
 
       oracle.getCompleteAddress.mockResolvedValue(completeAddress);
       const result = await runSimulator({ artifact, args });

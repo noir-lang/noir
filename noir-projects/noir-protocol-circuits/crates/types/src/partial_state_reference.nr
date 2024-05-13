@@ -1,6 +1,6 @@
 use crate::{
     abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot, constants::PARTIAL_STATE_REFERENCE_LENGTH,
-    traits::{Deserialize, Empty, Hash, Serialize}
+    traits::{Deserialize, Empty, Serialize}
 };
 
 struct PartialStateReference {
