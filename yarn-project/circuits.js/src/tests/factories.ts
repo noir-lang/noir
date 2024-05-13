@@ -437,6 +437,7 @@ export function makePublicKernelCircuitPublicInputs(
     makeConstantData(seed + 0x100),
     RevertCode.OK,
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x600, CallRequest.empty),
+    makeAztecAddress(seed + 0x700),
   );
 }
 
@@ -467,6 +468,7 @@ export function makePrivateKernelTailCircuitPublicInputs(
     makeAggregationObject(seed),
     makeConstantData(seed + 0x300),
     RevertCode.OK,
+    makeAztecAddress(seed + 0x700),
     forPublic,
     forRollup,
   );
@@ -485,6 +487,7 @@ export function makeKernelCircuitPublicInputs(seed = 1, fullAccumulatedData = tr
     makeConstantData(seed + 0x100),
     makePartialStateReference(seed + 0x200),
     RevertCode.OK,
+    makeAztecAddress(seed + 0x700),
   );
 }
 
@@ -788,6 +791,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     unencryptedLogPreimagesLength: fr(seed + 0xc00),
     historicalHeader: makeHeader(seed + 0xd00, undefined),
     txContext: makeTxContext(seed + 0x1400),
+    isFeePayer: false,
   });
 }
 

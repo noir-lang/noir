@@ -248,4 +248,37 @@ mod tests {
         assert_eq(public_inputs.end.encrypted_logs_hashes[1].value, encrypted_logs_hash);
         assert_eq(public_inputs.end.unencrypted_logs_hashes[1].value, unencrypted_logs_hash);
     }
+
+    #[test]
+    unconstrained fn propagate_fee_payer() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        let fee_payer = builder.private_call.public_inputs.call_context.storage_contract_address;
+        builder.private_call.public_inputs.is_fee_payer = true;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, fee_payer);
+
+        // Check that the fee payer is not set if is_fee_payer is false
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        assert_eq(builder.private_call.public_inputs.is_fee_payer, false);
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, AztecAddress::empty());
+
+        // Check that we carry forward if the fee payer is already set
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        let fee_payer = AztecAddress::from_field(123);
+        builder.previous_kernel.fee_payer = fee_payer;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, fee_payer);
+    }
+
+    #[test(should_fail_with="Cannot overwrite non-empty fee_payer")]
+    unconstrained fn does_not_overwrite_fee_payer() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        let original_fee_payer = AztecAddress::from_field(123);
+
+        builder.private_call.public_inputs.is_fee_payer = true;
+        builder.previous_kernel.fee_payer = original_fee_payer;
+
+        builder.failed();
+    }
 }

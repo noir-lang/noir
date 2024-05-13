@@ -79,7 +79,7 @@ mod tests {
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         contrakt::storage_read::StorageRead,
         tests::{fixture_builder::FixtureBuilder, public_call_data_builder::PublicCallDataBuilder},
-        utils::{arrays::{array_eq, array_length}}
+        utils::{arrays::{array_eq, array_length}}, traits::is_empty
     };
     use dep::types::constants::{
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
@@ -547,5 +547,20 @@ mod tests {
         builder.public_call.public_inputs.global_variables.block_number = 11;
 
         builder.failed();
+    }
+
+    #[test]
+    unconstrained fn propagate_fee_payer() {
+        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let fee_payer = AztecAddress::from_field(123);
+        builder.previous_kernel.set_fee_payer(fee_payer);
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, fee_payer);
+
+        // Check that the fee payer is not set if is_fee_payer is false
+        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        assert_eq(is_empty(builder.previous_kernel.fee_payer), true);
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, AztecAddress::empty());
     }
 }

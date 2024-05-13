@@ -108,7 +108,7 @@ mod tests {
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
         side_effect::SideEffect
     },
-        grumpkin_private_key::GrumpkinPrivateKey,
+        address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey,
         hash::{compute_note_hash_nonce, compute_unique_note_hash, silo_note_hash, silo_nullifier},
         tests::{fixture_builder::FixtureBuilder, sort::sort_get_sorted_hints},
         utils::{arrays::{array_eq, array_length}}, traits::is_empty_array
@@ -585,5 +585,20 @@ mod tests {
         builder.previous_kernel.tx_context.gas_settings.teardown_gas_limits = Gas::new(300, 300);
         builder.previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1, 1);
         builder.failed();
+    }
+
+    #[test]
+    unconstrained fn propagate_fee_payer() {
+        // Check that we carry forward if the fee payer is already set
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+        let fee_payer = AztecAddress::from_field(123);
+        builder.previous_kernel.fee_payer = fee_payer;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, fee_payer);
+
+        // Check that the fee payer remains empty if unset
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, AztecAddress::empty());
     }
 }

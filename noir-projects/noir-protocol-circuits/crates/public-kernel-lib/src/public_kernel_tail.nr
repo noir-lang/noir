@@ -96,7 +96,8 @@ impl PublicKernelTailCircuitPrivateInputs {
             end,
             constants: previous_public_inputs.constants,
             start_state: self.start_state,
-            revert_code: previous_public_inputs.revert_code
+            revert_code: previous_public_inputs.revert_code,
+            fee_payer: previous_public_inputs.fee_payer
         }
     }
 }
@@ -116,6 +117,7 @@ mod tests {
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, kernel_data::PublicKernelData,
         nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage
     },
+        address::AztecAddress,
         constants::{
         MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_HINTS,
         MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
@@ -126,7 +128,7 @@ mod tests {
         hash::{silo_nullifier, sha256_to_field},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree},
-        partial_state_reference::PartialStateReference, utils::arrays::array_merge,
+        traits::is_empty, partial_state_reference::PartialStateReference, utils::arrays::array_merge,
         merkle_tree::MembershipWitness
     };
 
@@ -540,5 +542,20 @@ mod tests {
         builder.previous_kernel.public_data_update_requests.push(public_data_write);
 
         builder.failed();
+    }
+
+    #[test]
+    unconstrained fn propagate_fee_payer() {
+        let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
+        let fee_payer = AztecAddress::from_field(123);
+        builder.previous_kernel.set_fee_payer(fee_payer);
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, fee_payer);
+
+        // Check that the fee payer is not set if is_fee_payer is false
+        let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
+        assert_eq(is_empty(builder.previous_kernel.fee_payer), true);
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, AztecAddress::empty());
     }
 }

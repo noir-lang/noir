@@ -11,6 +11,7 @@ import {
 } from '@aztec/circuit-types';
 import {
   AppendOnlyTreeSnapshot,
+  AztecAddress,
   ContractStorageUpdateRequest,
   Fr,
   Gas,
@@ -152,12 +153,14 @@ describe('public_processor', () => {
         numberOfRevertiblePublicCallRequests = 0,
         publicCallRequests = [],
         publicTeardownCallRequest = PublicCallRequest.empty(),
+        feePayer = AztecAddress.ZERO,
       }: {
         hasLogs?: boolean;
         numberOfNonRevertiblePublicCallRequests?: number;
         numberOfRevertiblePublicCallRequests?: number;
         publicCallRequests?: PublicCallRequest[];
         publicTeardownCallRequest?: PublicCallRequest;
+        feePayer?: AztecAddress;
       } = {},
       seed = 1,
     ) => {
@@ -167,6 +170,7 @@ describe('public_processor', () => {
         numberOfRevertiblePublicCallRequests,
         publicCallRequests,
         publicTeardownCallRequest,
+        feePayer,
       });
     };
 
@@ -220,9 +224,11 @@ describe('public_processor', () => {
       });
 
     it('runs a tx with enqueued public calls', async function () {
+      const feePayer = AztecAddress.random();
       const tx = mockTxWithPartialState({
         numberOfRevertiblePublicCallRequests: 2,
         publicTeardownCallRequest: PublicCallRequest.empty(),
+        feePayer,
       });
 
       publicExecutor.simulate.mockImplementation(execution => {
@@ -244,6 +250,7 @@ describe('public_processor', () => {
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(2);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
+      expect(processed[0].data.feePayer).toEqual(feePayer);
 
       expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
     });

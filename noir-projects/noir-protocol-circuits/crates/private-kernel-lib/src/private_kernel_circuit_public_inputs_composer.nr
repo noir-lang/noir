@@ -52,6 +52,8 @@ impl PrivateKernelCircuitPublicInputsComposer {
 
         public_inputs.constants = previous_kernel_public_inputs.constants;
         public_inputs.min_revertible_side_effect_counter = previous_kernel_public_inputs.min_revertible_side_effect_counter;
+        public_inputs.fee_payer = previous_kernel_public_inputs.fee_payer;
+        public_inputs.public_teardown_call_request = previous_kernel_public_inputs.public_teardown_call_request;
 
         let start = previous_kernel_public_inputs.validation_requests;
         public_inputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
@@ -70,8 +72,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
         let _call_request = public_inputs.end.private_call_stack.pop();
         public_inputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
-
-        public_inputs.public_teardown_call_request = previous_kernel_public_inputs.public_teardown_call_request;
 
         PrivateKernelCircuitPublicInputsComposer { public_inputs }
     }
@@ -105,6 +105,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
         self.propagate_private_call_requests(source);
         self.propagate_public_call_requests(source);
         self.propagate_public_teardown_call_request(source);
+        self.propagate_fee_payer(source);
 
         *self
     }
@@ -218,6 +219,13 @@ impl PrivateKernelCircuitPublicInputsComposer {
                 is_empty(self.public_inputs.public_teardown_call_request), "Public teardown call request already set"
             );
             self.public_inputs.public_teardown_call_request = call_request;
+        }
+    }
+
+    fn propagate_fee_payer(&mut self, source: DataSource) {
+        if (source.private_call_public_inputs.is_fee_payer) {
+            assert(self.public_inputs.fee_payer.is_zero(), "Cannot overwrite non-empty fee_payer");
+            self.public_inputs.fee_payer = source.storage_contract_address;
         }
     }
 }

@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
 import { AggregationObject } from '../aggregation_object.js';
@@ -43,6 +44,7 @@ describe('KernelCircuitPublicInputs', () => {
         ),
         PartialStateReference.empty(),
         RevertCode.OK,
+        AztecAddress.ZERO,
       );
 
       i.end.gasUsed = Gas.from({ daGas: 10, l2Gas: 20 });

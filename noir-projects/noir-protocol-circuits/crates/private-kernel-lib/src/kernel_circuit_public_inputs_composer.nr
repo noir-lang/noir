@@ -86,6 +86,8 @@ impl KernelCircuitPublicInputsComposer {
 
         self.propagate_sorted_arrays();
 
+        self.propagate_fee_payer();
+
         // TODO: Should be done in a reset circuit.
         self.squash_transient_data();
 
@@ -228,6 +230,10 @@ impl KernelCircuitPublicInputsComposer {
 
     fn propagate_public_teardown_call_request(&mut self) {
         self.public_inputs.public_teardown_call_request = self.previous_kernel.public_inputs.public_teardown_call_request;
+    }
+
+    fn propagate_fee_payer(&mut self) {
+        self.public_inputs.fee_payer = self.previous_kernel.public_inputs.fee_payer;
     }
 
     fn squash_transient_data(&mut self) {

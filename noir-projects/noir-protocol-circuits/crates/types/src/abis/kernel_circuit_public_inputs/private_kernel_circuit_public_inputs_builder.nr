@@ -9,7 +9,7 @@ use crate::{
     gas::Gas, validation_requests::validation_requests_builder::ValidationRequestsBuilder,
     call_request::CallRequest
 },
-    constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, mocked::AggregationObject,
+    address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, mocked::AggregationObject,
     partial_state_reference::PartialStateReference, traits::{Empty, is_empty}
 };
 
@@ -23,6 +23,7 @@ struct PrivateKernelCircuitPublicInputsBuilder {
     end: PrivateAccumulatedDataBuilder,
     constants: CombinedConstantData,
     public_teardown_call_request: CallRequest,
+    fee_payer: AztecAddress
 }
 
 impl PrivateKernelCircuitPublicInputsBuilder {
@@ -32,7 +33,8 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             validation_requests: self.validation_requests.finish(),
             end: self.end.finish(),
             constants: self.constants,
-            public_teardown_call_request: self.public_teardown_call_request
+            public_teardown_call_request: self.public_teardown_call_request,
+            fee_payer: self.fee_payer
         }
     }
 
@@ -42,7 +44,8 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             end: self.end.to_combined(teardown_gas),
             constants: self.constants,
             start_state: PartialStateReference::empty(),
-            revert_code: 0
+            revert_code: 0,
+            fee_payer: self.fee_payer
         }
     }
 
@@ -63,7 +66,8 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             end,
             constants: self.constants,
             revert_code: 0,
-            public_teardown_call_stack: public_teardown_call_stack.storage
+            public_teardown_call_stack: public_teardown_call_stack.storage,
+            fee_payer: self.fee_payer
         }
     }
 }
@@ -75,7 +79,8 @@ impl Empty for PrivateKernelCircuitPublicInputsBuilder {
             validation_requests: ValidationRequestsBuilder::empty(),
             end: PrivateAccumulatedDataBuilder::empty(),
             constants: CombinedConstantData::empty(),
-            public_teardown_call_request: CallRequest::empty()
+            public_teardown_call_request: CallRequest::empty(),
+            fee_payer: AztecAddress::empty()
         }
     }
 }

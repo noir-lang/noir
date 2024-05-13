@@ -3,7 +3,7 @@ use crate::{
     accumulated_data::CombinedAccumulatedData, combined_constant_data::CombinedConstantData,
     validation_requests::RollupValidationRequests, gas::Gas
 },
-    partial_state_reference::PartialStateReference, traits::Empty
+    address::AztecAddress, partial_state_reference::PartialStateReference, traits::Empty
 };
 use crate::mocked::AggregationObject;
 
@@ -13,6 +13,7 @@ struct KernelCircuitPublicInputs {
     constants: CombinedConstantData,
     start_state: PartialStateReference,
     revert_code: u8,
+    fee_payer: AztecAddress
 }
 
 impl KernelCircuitPublicInputs {
@@ -32,6 +33,7 @@ impl Empty for KernelCircuitPublicInputs {
             constants: CombinedConstantData::empty(),
             start_state: PartialStateReference::empty(),
             revert_code: 0,
+            fee_payer: AztecAddress::empty()
         }
     }
 }
@@ -42,6 +44,7 @@ mod tests {
         accumulated_data::CombinedAccumulatedData, combined_constant_data::CombinedConstantData,
         validation_requests::RollupValidationRequests, gas::Gas, gas_fees::GasFees
     };
+    use crate::address::AztecAddress;
     use crate::partial_state_reference::PartialStateReference;
     use crate::mocked::AggregationObject;
 
@@ -58,7 +61,8 @@ mod tests {
             end: CombinedAccumulatedData::empty(),
             constants: CombinedConstantData::empty(),
             start_state: PartialStateReference::empty(),
-            revert_code: 0
+            revert_code: 0,
+            fee_payer: AztecAddress::empty()
         };
 
         inputs.end.gas_used = Gas {

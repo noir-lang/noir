@@ -31,7 +31,7 @@ The public teardown phase is the only phase where the final transaction fee is a
 
 In the base rollup, the kernel circuit injects a public data write that levies the transaction fee on the `fee_payer`.
 
-# An example: Fee Abstraction
+## An example: Fee Abstraction
 
 Consider a user, Alice, who does not have FPA but wishes to interact with the network. Suppose she has a private balance of a fictitious asset "BananaCoin" that supports public and private balances.
 
@@ -58,11 +58,11 @@ Suppose there is a Fee Payment Contract (FPC) that has been deployed by another 
 
 This illustrates the utility of the various phases. In particular, we see why the setup phase must not be revertible: if Alice's public app logic fails, the FPC is still going to pay the fee in the base rollup; if public setup were revertible, the transfer of Alice's BananaCoin would revert so the FPC would be losing money.
 
-# Sequencer Whitelisting
+## Sequencer Whitelisting
 
 Because a transaction is invalid if it fails in the public setup phase, sequencers are taking a risk by processing them. To mitigate this risk, it is expected that sequencers will only process transactions that use public functions that they have whitelisted.
 
-# Defining Setup
+## Defining Setup
 
 The private function that is executed first is referred to as the "entrypoint".
 
@@ -76,7 +76,7 @@ Execution of the entrypoint is always verified/processed by the `PrivateKernelIn
 
 It is only the `PrivateKernelInit` circuit that looks at the `min_revertible_side_effect_counter` as reported by `PrivateCirclePublicInputs`, and thus it is only the entrypoint that can effectively call `context.end_setup()`.
 
-# Defining Teardown
+## Defining Teardown
 
 At any point during private execution, a contract may call `context.set_public_teardown_function` to specify a public function that will be called during the public teardown phase. This function takes the same arguments as `context.call_public_function`, but does not have a side effect counter associated with it.
 
@@ -84,7 +84,7 @@ Similar to `call_public_function`, this results in the hash of a `PublicCallStac
 
 The private kernel circuits will verify that this hash is set at most once.
 
-# Interpreting the `min_revertible_side_effect_counter`
+## Interpreting the `min_revertible_side_effect_counter`
 
 Notes, nullifiers, and logs are examples of side effects that are partitioned into setup and app logic.
 

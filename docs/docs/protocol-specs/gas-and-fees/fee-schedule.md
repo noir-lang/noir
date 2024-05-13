@@ -2,7 +2,7 @@
 
 The  [transaction fee](./specifying-gas-fee-info.md#transaction-fee) is comprised of a DA component, an L2 component, and an inclusion fee. The DA and L2 components are calculated by multiplying the gas consumed in each dimension by the respective `feePerGas` value. The inclusion fee is a fixed cost associated with the transaction, which is used to cover the cost of verifying the encompassing rollup proof on L1.
 
-# DA Gas
+## DA Gas
 
 DA gas is consumed to cover the costs associated with publishing data associated with a transaction.
 
@@ -48,7 +48,7 @@ da_gas_used = FIXED_DA_GAS +
 A side effect of the above calculation is that all transactions will have a non-zero `transaction_fee`.
 :::
 
-# L2 Gas
+## L2 Gas
 
 L2 gas is consumed to cover the costs associated with executing the public VM, proving the public VM circuit, and proving the public kernel circuit.
 
@@ -77,7 +77,7 @@ In the current implementation, private execution does not consume L2 gas. This w
 - possibly emitting logs (due to validation checks)
 :::
 
-# Max Inclusion Fee
+## Max Inclusion Fee
 
 Each transaction, and each block, has inescapable overhead costs associated with it which are not directly related to the amount of data or computation performed. 
 

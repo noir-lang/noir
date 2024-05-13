@@ -85,6 +85,7 @@ pub fn initialize_emitted_end_values(
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
     circuit_outputs.constants = previous_kernel.public_inputs.constants;
+    circuit_outputs.fee_payer = previous_kernel.public_inputs.fee_payer;
 
     if circuit_outputs.revert_code == 0 {
         let start = previous_kernel.public_inputs.end;

@@ -27,6 +27,7 @@ struct PrivateCircuitPublicInputsBuilder {
     returns_hash: Field,
 
     min_revertible_side_effect_counter: u32,
+    is_fee_payer: bool,
 
     max_block_number: MaxBlockNumber,
 
@@ -97,6 +98,7 @@ impl PrivateCircuitPublicInputsBuilder {
             args_hash: self.args_hash,
             returns_hash: self.returns_hash,
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
+            is_fee_payer: self.is_fee_payer,
             max_block_number: self.max_block_number,
             note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
@@ -126,6 +128,7 @@ impl Empty for PrivateCircuitPublicInputsBuilder {
             args_hash: 0,
             returns_hash: 0,
             min_revertible_side_effect_counter: 0 as u32,
+            is_fee_payer: false,
             max_block_number: MaxBlockNumber::empty(),
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),

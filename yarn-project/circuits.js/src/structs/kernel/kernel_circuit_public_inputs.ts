@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import type { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -35,6 +36,10 @@ export class KernelCircuitPublicInputs {
      * Flag indicating whether the transaction reverted.
      */
     public revertCode: RevertCode,
+    /**
+     * The address of the fee payer for the transaction.
+     */
+    public feePayer: AztecAddress,
   ) {}
 
   getNonEmptyNullifiers() {
@@ -59,6 +64,7 @@ export class KernelCircuitPublicInputs {
       this.constants,
       this.startState,
       this.revertCode,
+      this.feePayer,
     );
   }
 
@@ -76,6 +82,7 @@ export class KernelCircuitPublicInputs {
       reader.readObject(CombinedConstantData),
       reader.readObject(PartialStateReference),
       reader.readObject(RevertCode),
+      reader.readObject(AztecAddress),
     );
   }
 
@@ -87,6 +94,7 @@ export class KernelCircuitPublicInputs {
       CombinedConstantData.empty(),
       PartialStateReference.empty(),
       RevertCode.OK,
+      AztecAddress.ZERO,
     );
   }
 

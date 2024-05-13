@@ -204,4 +204,20 @@ mod tests {
             request.contract_address, builder.private_call.public_inputs.call_context.storage_contract_address
         );
     }
+
+    #[test]
+    unconstrained fn propagate_fee_payer() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+        let fee_payer = builder.private_call.public_inputs.call_context.storage_contract_address;
+        builder.private_call.public_inputs.is_fee_payer = true;
+
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, fee_payer);
+
+        // Check that the fee payer is not set if is_fee_payer is false
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+        assert_eq(builder.private_call.public_inputs.is_fee_payer, false);
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.fee_payer, AztecAddress::empty());
+    }
 }

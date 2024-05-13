@@ -1,4 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
@@ -45,6 +46,10 @@ export class PublicKernelCircuitPublicInputs {
      * The call request for the public teardown function
      */
     public publicTeardownCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    /**
+     * The address of the fee payer for the transaction
+     */
+    public feePayer: AztecAddress,
   ) {}
 
   toBuffer() {
@@ -56,6 +61,7 @@ export class PublicKernelCircuitPublicInputs {
       this.constants,
       this.revertCode,
       this.publicTeardownCallStack,
+      this.feePayer,
     );
   }
 
@@ -94,6 +100,7 @@ export class PublicKernelCircuitPublicInputs {
       reader.readObject(CombinedConstantData),
       reader.readObject(RevertCode),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readObject(AztecAddress),
     );
   }
 
@@ -106,6 +113,7 @@ export class PublicKernelCircuitPublicInputs {
       CombinedConstantData.empty(),
       RevertCode.OK,
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
+      AztecAddress.ZERO,
     );
   }
 
@@ -118,6 +126,7 @@ export class PublicKernelCircuitPublicInputs {
       constants: ${inspect(this.constants)},
       revertCode: ${this.revertCode},
       publicTeardownCallStack: ${inspect(this.publicTeardownCallStack)}
+      feePayer: ${this.feePayer}
       }`;
   }
 }

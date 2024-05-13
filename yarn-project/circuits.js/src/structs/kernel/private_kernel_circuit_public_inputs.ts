@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -36,6 +37,10 @@ export class PrivateKernelCircuitPublicInputs {
      * The call request for the public teardown function
      */
     public publicTeardownCallRequest: CallRequest,
+    /**
+     * The address of the fee payer for the transaction
+     */
+    public feePayer: AztecAddress,
   ) {}
 
   toBuffer() {
@@ -46,6 +51,7 @@ export class PrivateKernelCircuitPublicInputs {
       this.end,
       this.constants,
       this.publicTeardownCallRequest,
+      this.feePayer,
     );
   }
 
@@ -63,6 +69,7 @@ export class PrivateKernelCircuitPublicInputs {
       reader.readObject(PrivateAccumulatedData),
       reader.readObject(CombinedConstantData),
       reader.readObject(CallRequest),
+      reader.readObject(AztecAddress),
     );
   }
 
@@ -74,6 +81,7 @@ export class PrivateKernelCircuitPublicInputs {
       PrivateAccumulatedData.empty(),
       CombinedConstantData.empty(),
       CallRequest.empty(),
+      AztecAddress.ZERO,
     );
   }
 }

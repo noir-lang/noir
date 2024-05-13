@@ -2,6 +2,7 @@ use crate::abis::{
     accumulated_data::PublicAccumulatedData, combined_constant_data::CombinedConstantData,
     validation_requests::{RollupValidationRequests, ValidationRequests}, call_request::CallRequest
 };
+use crate::address::AztecAddress;
 use crate::constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX;
 
 struct PublicKernelCircuitPublicInputs {
@@ -11,6 +12,7 @@ struct PublicKernelCircuitPublicInputs {
     constants: CombinedConstantData,
     revert_code: u8,
     public_teardown_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+    fee_payer: AztecAddress
 }
 
 impl PublicKernelCircuitPublicInputs {

@@ -1,4 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
@@ -113,6 +114,11 @@ export class PrivateKernelTailCircuitPublicInputs {
      * Indicates whether execution of the public circuit reverted.
      */
     public revertCode: RevertCode,
+    /**
+     * The address of the fee payer for the transaction.
+     */
+    public feePayer: AztecAddress,
+
     public forPublic?: PartialPrivateTailPublicInputsForPublic,
     public forRollup?: PartialPrivateTailPublicInputsForRollup,
   ) {
@@ -142,6 +148,7 @@ export class PrivateKernelTailCircuitPublicInputs {
       this.constants,
       this.revertCode,
       this.forPublic.publicTeardownCallStack,
+      this.feePayer,
     );
   }
 
@@ -156,6 +163,7 @@ export class PrivateKernelTailCircuitPublicInputs {
       this.constants,
       PartialStateReference.empty(),
       this.revertCode,
+      this.feePayer,
     );
   }
 
@@ -191,6 +199,7 @@ export class PrivateKernelTailCircuitPublicInputs {
       reader.readObject(AggregationObject),
       reader.readObject(CombinedConstantData),
       reader.readObject(RevertCode),
+      reader.readObject(AztecAddress),
       isForPublic ? reader.readObject(PartialPrivateTailPublicInputsForPublic) : undefined,
       !isForPublic ? reader.readObject(PartialPrivateTailPublicInputsForRollup) : undefined,
     );
@@ -203,6 +212,7 @@ export class PrivateKernelTailCircuitPublicInputs {
       this.aggregationObject,
       this.constants,
       this.revertCode,
+      this.feePayer,
       isForPublic ? this.forPublic!.toBuffer() : this.forRollup!.toBuffer(),
     );
   }
@@ -212,6 +222,7 @@ export class PrivateKernelTailCircuitPublicInputs {
       AggregationObject.makeFake(),
       CombinedConstantData.empty(),
       RevertCode.OK,
+      AztecAddress.ZERO,
       undefined,
       PartialPrivateTailPublicInputsForRollup.empty(),
     );

@@ -44,7 +44,7 @@ GasSettings --> GasFees
 All fees are denominated in the [Fee Payment Asset (FPA)](./fee-payment-asset.md).
 :::
 
-# Gas Dimensions and Max Inclusion Fee
+## Gas Dimensions and Max Inclusion Fee
 
 Transactions are metered for their gas consumption across two dimensions:
 
@@ -58,7 +58,7 @@ Separately, every transaction has overhead costs associated with it, e.g. verify
 See the [Fee Schedule](./fee-schedule.md) for a detailed breakdown of costs associated with different actions.
 
 
-# `gasLimits` and `teardownGasLimits`
+## `gasLimits` and `teardownGasLimits`
 
 Transactions can optionally have a "teardown" phase as part of their public execution, during which the "transaction fee" is available to public functions. This is useful to transactions/contracts that need to compute a "refund", e.g. contracts that facilitate [fee abstraction](./tx-setup-and-teardown.md).
 
@@ -66,7 +66,7 @@ Because the transaction fee must be known at the time teardown is executed, tran
 
 For example, if a transaction has `gasLimits` of 1000 DA gas and 2000 L2 gas, and `teardownGasLimits` of 100 DA gas and 200 L2 gas, then the transaction will be able to consume 900 DA gas and 1800 L2 gas during the main execution phase, but 100 DA gas and 200 L2 gas **will be consumed** to cover the teardown phase: even if teardown does not consume that much gas, the transaction will still be charged for it; even if the transaction does not have a teardown phase, the gas will still be consumed.
 
-# `maxFeesPerGas` and `feePerGas`
+## `maxFeesPerGas` and `feePerGas`
 
 The `maxFeesPerGas` field specifies the maximum fees that the user is willing to pay per gas unit consumed in each dimension.
 
@@ -97,7 +97,7 @@ A transaction cannot be executed if the `maxFeesPerGas` is less than the `feePer
 
 The `feePerGas` is presently held constant at `1` for both dimensions, but may be updated in future protocol versions.
 
-# Transaction Fee
+## Transaction Fee
 
 The transaction fee is calculated as:
 
@@ -111,7 +111,7 @@ Why is the "max" inclusion fee charged? We're working on a mechanism that will a
 
 See more on how the "gas consumed" values are calculated in the [Fee Schedule](./fee-schedule.md).
 
-# Maximum Transaction Fee
+## Maximum Transaction Fee
 
 The final transaction fee cannot be calculated until all public function execution is complete. However, a maximum theoretical fee can be calculated as:
 
@@ -121,7 +121,7 @@ maxTransactionFee = maxInclusionFee + (gasLimits.daGas * maxFeesPerDaGas) + (gas
 
 This is useful for imposing [validity conditions](./kernel-tracking.md#mempoolnode-validation).
 
-# `fee_payer`
+## `fee_payer`
 
 The `fee_payer` is the entity that pays the transaction fee. 
 
@@ -129,7 +129,7 @@ It is effectively set in private by the contract that calls `context.set_as_fee_
 
 This manifests as a boolean flag `is_fee_payer` in the `PrivateCircuitPublicInputs`. The private kernel circuits will check this flag for every call stack item.
 
-When a call stack item is found with `is_fee_payer` set, the kernel circuit will set `fee_payer` in its `PrivateKernelCircuitPublicInputs` to be the `callStackItem.contractAddress`.
+When a call stack item is found with `is_fee_payer` set, the kernel circuit will set `fee_payer` in its `PrivateKernelCircuitPublicInputs` to be the `callContext.storageContractAddress`.
 
 This is subsequently passed through the `PublicKernelCircuitPublicInputs` to the `KernelCircuitPublicInputs`.
 
