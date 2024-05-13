@@ -1,0 +1,7 @@
+#!/bin/bash
+set -eu
+
+# Enter the repo root
+cd "$(dirname "$0")/.."
+
+ssh -o StrictHostKeyChecking=no -i "$SPOT_KEY" ubuntu@"$SPOT_IP" "$@"

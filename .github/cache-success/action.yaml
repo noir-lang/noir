@@ -1,0 +1,13 @@
+name: 'Cache Successes'
+branding:
+  icon: 'server'
+  color: 'orange'
+inputs:
+  success_key:
+    description: "The key to remember successes based on."
+    required: false
+runs:
+  using: 'node20'
+  main: restore-dist/index.js
+  post: save-dist/index.js
+  post-if: success()

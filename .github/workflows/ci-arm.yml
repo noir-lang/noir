@@ -3,14 +3,7 @@ on:
   push:
     branches: [disabled] # [master]
   workflow_dispatch:
-    inputs:
-      runner_action:
-        description: "The action to take with the self-hosted runner (start, stop, restart)."
-        required: false
-      just_start_spot:
-        description: "Should we just run spots?"
-        type: boolean
-        required: false
+    inputs: {}
 concurrency:
   # force parallelism in master, cancelling in branches (only relevant to workflow_dispatch)
   group: ci-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}
@@ -19,13 +12,8 @@ jobs:
   setup:
     uses: ./.github/workflows/setup-runner.yml
     with:
-      runner_label: master-arm
-      ebs_cache_size_gb: 256
-      runner_concurrency: 8
-      subaction: ${{ github.event.inputs.runner_action || 'start' }}
-      ec2_instance_type: r6g.16xlarge
-      ec2_ami_id: ami-0d8a9b0419ddb331a
-      ec2_instance_ttl: 40 # refreshed by jobs
+      username: master
+      runner_type: builder-arm
     secrets: inherit
 
   build:

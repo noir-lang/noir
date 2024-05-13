@@ -16,7 +16,7 @@ echo "Executing graceful shutdown of github action runners."
 # the runner agent is terminated while it was about to start a job.
 
 # glob for all our installed runner directories
-for RUNNER_DIR in /run/*-ec2-* ; do
+for RUNNER_DIR in ~/*-ec2-* ; do
   pushd $RUNNER_DIR
   ./config.sh remove --token "$(cat $RUNNER_DIR/.runner-token)" || true &
   popd
@@ -32,7 +32,7 @@ if pgrep Runner.Listener > /dev/null; then
   done
 fi
 echo "Cleaning up lingering runner registrations."
-for RUNNER_DIR in /run/*-ec2-* ; do
+for RUNNER_DIR in ~/*-ec2-* ; do
   pushd $RUNNER_DIR
   while [ -f .runner ] ; do
     ./config.sh remove --token "$(cat $RUNNER_DIR/.runner-token)" || true

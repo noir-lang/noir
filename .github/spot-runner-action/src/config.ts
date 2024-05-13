@@ -23,8 +23,10 @@ export interface ConfigInterface {
   ec2InstanceTtl: string;
   ec2SecurityGroupId: string;
   ec2SubnetId: string;
+  clientToken?: string;
   ec2KeyName: string;
   ec2SpotInstanceStrategy: string;
+  ec2Key: string;
 }
 
 export class ActionConfig implements ConfigInterface {
@@ -49,8 +51,10 @@ export class ActionConfig implements ConfigInterface {
   ec2InstanceTtl: string;
   ec2SecurityGroupId: string;
   ec2SubnetId: string;
+  clientToken?: string;
   ec2KeyName: string;
   ec2SpotInstanceStrategy: string;
+  ec2Key: string;
 
   constructor() {
     // AWS account and credentials params
@@ -60,6 +64,7 @@ export class ActionConfig implements ConfigInterface {
     this.awsIamRoleArn = core.getInput("aws_iam_role_arn");
     this.awsAssumeRole = this.awsIamRoleArn ? true : false;
 
+    this.clientToken = core.getInput("client_token");
     // Github params
     this.githubToken = core.getInput("github_token");
     this.githubJobId = core.getInput("runner_label");
@@ -83,5 +88,6 @@ export class ActionConfig implements ConfigInterface {
     this.ec2SpotInstanceStrategy = core
       .getInput("ec2_spot_instance_strategy")
       .toLowerCase();
+    this.ec2Key = core.getInput("ec2_key");
   }
 }

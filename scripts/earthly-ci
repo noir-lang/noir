@@ -7,25 +7,19 @@ MAX_WAIT_TIME=300 # Maximum wait time in seconds
 WAIT_INTERVAL=10  # Interval between checks in seconds
 elapsed_time=0
 
-while ! [ -f  /run/.earthly-bootstrap ] ; do
-  echo "Did not detect .earthly-bootstrap. Waiting for runner to fully initialize..."
-  if [ $elapsed_time -ge $MAX_WAIT_TIME ]; then
-    echo "Earthly bootstrap did not become available within $MAX_WAIT_TIME seconds... did the runner start correctly?"
-    exit 1
-  fi
-
-  sleep $WAIT_INTERVAL
-  elapsed_time=$((elapsed_time + WAIT_INTERVAL))
-done
-
 OUTPUT_FILE=$(mktemp)
 INCONSISTENT_GRAPH_STATE_COUNT=0  # Counter for 'inconsistent graph state' errors
 
 # Maximum attempts
-MAX_ATTEMPTS=3
+MAX_ATTEMPTS=8
 ATTEMPT_COUNT=0
 
+# earthly settings
+export EARTHLY_ALLOW_PRIVILEGED=true
 export EARTHLY_USE_INLINE_CACHE=true
+export EARTHLY_NO_BUILDKIT_UPDATE=true
+export FORCE_COLOR=1
+export EARTHLY_CONFIG=$(git rev-parse --show-toplevel)/.github/earthly-ci-config.yml
 # TODO(AD) to be investigated
 #if [ "$GITHUB_REF_NAME" == "master" ]; then
 #  export EARTHLY_SAVE_INLINE_CACHE=true
@@ -44,8 +38,8 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
     # Check the output for specific errors
     if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null || grep 'failed to get state for index' $OUTPUT_FILE >/dev/null ; then
       INCONSISTENT_GRAPH_STATE_COUNT=$((INCONSISTENT_GRAPH_STATE_COUNT + 1))
-      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq 3 ]; then
-        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Connect to spot runner and run 'earthly prune'."
+      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq $MAX_ATTEMPTS ]; then
+        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Retry the workflow, and if all else fails, connect to spot runner and run 'earthly prune'."
         exit 1
       fi
       echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 30 seconds and retrying."

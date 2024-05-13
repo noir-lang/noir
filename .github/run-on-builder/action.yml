@@ -1,0 +1,17 @@
+name: Run on Builder
+description: "Target builder with actions"
+
+inputs:
+  run:
+    required: true
+runs:
+  # define an action, runs in OS of caller
+  using: composite
+  steps:
+    # Assumes ensure-builder has ran and BUILDER_SPOT_IP/BUILDER_SPOT_KEY are defined
+    - name: Run On Builder
+      env:
+        # avoid double shell interpolation
+        RUN_SCRIPT: export GITHUB_REF_NAME=${{ github.ref_name }} ; cd ~/run-${{ env.RUN_ID }} ; ${{ inputs.run }}
+      shell: bash
+      run: scripts/run_on_builder "$RUN_SCRIPT"

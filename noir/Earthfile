@@ -56,7 +56,7 @@ format:
 
   WORKDIR ../noir_stdlib
   RUN nargo fmt --check
-  
+
 packages-deps:
     BUILD ../barretenberg/ts/+build # prefetch
 

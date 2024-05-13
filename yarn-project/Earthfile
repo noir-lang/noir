@@ -35,6 +35,8 @@ build:
     BUILD ../noir/+nargo
     BUILD ../noir-projects/+build
     BUILD ../l1-contracts/+build
+    BUILD ../barretenberg/ts/+build
+    BUILD ../noir/+packages
     FROM +deps
 
     COPY ../barretenberg/cpp/+preset-release/bin/bb /usr/src/barretenberg/cpp/build/bin/bb

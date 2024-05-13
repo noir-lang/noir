@@ -1,0 +1,70 @@
+# Reusable setup workflow for CI tasks
+name: Setup Workflow
+description: "Reusable setup steps"
+
+inputs:
+  runner_type:
+    required: true
+  builder_type:
+    required: true
+  builder_images_to_copy:
+    required: true
+  builder_command:
+    required: true
+  run:
+    required: true
+runs:
+  # define an action, runs in OS of caller
+  using: composite
+  steps:
+    - name: Ensure Builder And Images
+      uses: ./.github/ensure-builder
+      with:
+        runner_type: ${{ inputs.builder_type }}
+        run: |
+          # run builder_command if inputs don't exist
+          set -eux
+          for image in ${{ inputs.builder_images_to_copy }} ; do
+            if ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "$image" ; then
+              export FORCE_COLOR=1
+              flock submodule.lock git submodule update --init --recursive --recommend-shallow
+              ${{ inputs.builder_command }}
+              break
+            fi
+          done
+
+    - name: Compute Success Key
+      shell: bash
+      run: |
+        scripts/run_on_builder "
+          for image in ${{ inputs.builder_images_to_copy }} ; do
+            docker images --no-trunc --quiet \$image
+          done" > .success_key
+        echo "IMAGE_KEY=$(cat .success_key | md5sum | awk '{print $1}')" >> $GITHUB_ENV
+        echo "${{ inputs.run }}" >> .success_key
+        echo "SUCCESS_KEY=$(cat .success_key | md5sum | awk '{print $1}') " >> $GITHUB_ENV
+
+    - name: Check Cached Success
+      uses: ./.github/cache-success
+      with:
+        success_key: ${{ env.SUCCESS_KEY }}
+
+    - name: Copy Docker Images To Tester
+      uses: ./.github/ensure-tester
+      if: ${{ env.CACHE_SUCCESS != 'true' }}
+      with:
+        runner_type: ${{ inputs.runner_type}}
+        run: |
+          set -eux
+          export BUILDER_SPOT_IP=${{ env.BUILDER_SPOT_IP }}
+          export BUILDER_SPOT_KEY=~/.ssh/build_instance_key
+          scripts/run_on_builder "
+            flock ${{ env.IMAGE_KEY }}.lock bash -c '! [ -f ${{ env.IMAGE_KEY }}.brotli ] && docker save ${{ inputs.builder_images_to_copy }} | brotli -2 > ${{ env.IMAGE_KEY }}.brotli'
+            cat ${{ env.IMAGE_KEY }}.brotli
+          " | brotli --decompress | docker load
+
+    - name: Test
+      uses: ./.github/run-on-tester
+      if: ${{ env.CACHE_SUCCESS != 'true' }}
+      with:
+        run: ${{ inputs.run }}

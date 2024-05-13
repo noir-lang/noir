@@ -1,87 +1,36 @@
-# Must include the .gitignore for all child projects as this is used by Earthly
-# Note due to how we use Eartlhy each .gitignore MUST accompany any earthfile that might actually copy these artifacts
-**/Earthfile
-**/Readme.md
-**/Dockerfile*
-**/docker-compose*.yml
+**/.DS_Store
+**/examples/**/target/
+**/examples/9
+**/node_modules
+**/pkg/
+**/.idea
 
-# root .gitignore contents
-dest
-node_modules
-.cache
-scripts/.earthly
-.pnp.cjs
-.pnp.loader.mjs
-build/
-.idea
-cmake-build-debug
-.terraform*
-.bootstrapped
-.tsbuildinfo
-
-# Local Netlify folder
-.netlify
-
-.graphite*
-.DS_Store
-
-**/*.dockerignore
-
-# Earthly
-.arg
-.secret
-
-# ./ .gitignore contents:
-**/package.tgz
-packages
-
-# ./noir-repo/ .gitignore contents:
-/target
-.DS_Store
-examples/**/target/
-examples/9
-node_modules
-pkg/
-.idea
-
-# Yarn
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
 
 # Noir.js
-tooling/noir_js/lib
+**/tooling/noir_js/lib
 
 # Nargo output
-*.proof
-*.acir
-*.acir.sha256
-*.tr
-*.pk
-*.vk
+**/*.proof
+**/*.acir
+**/*.acir.sha256
+**/*.tr
+**/*.pk
+**/*.vk
 **/Verifier.toml
 **/contract
 **/target
-!test_programs/acir_artifacts/*/target
-!test_programs/acir_artifacts/*/target/witness.gz
-!compiler/wasm/noir-script/target
-
-gates_report.json
+**/gates_report.json
 
 # Github Actions scratch space
 # This gives a location to download artifacts into the repository in CI without making git dirty.
-libbarretenberg-wasm32
+**/libbarretenberg-wasm32
 
 # Wasm build atifacts
-compiler/wasm/nodejs
-compiler/wasm/web
-tooling/noirc_abi_wasm/nodejs
-tooling/noirc_abi_wasm/web
-tooling/noir_js/lib
+noir-repo/compiler/wasm/nodejs
+noir-repo/compiler/wasm/web
+noir-repo/tooling/noirc_abi_wasm/nodejs
+noir-repo/tooling/noirc_abi_wasm/web
+noir-repo/tooling/noir_js/lib
 
 # docs autogen build
-/docs/docs/noir_js/reference/
+noir-repo/docs/docs/noir_js/reference/

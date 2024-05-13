@@ -7,38 +7,13 @@ name: Setup Runner and CI
 on:
   workflow_call:
     inputs:
-      runner_label:
+      username:
         required: true
         type: string
-      runner_concurrency:
-        required: true
-        type: number
-      ec2_instance_type:
-        required: true
+      runner_action:
+        default: start
         type: string
-      ec2_ami_id:
-        required: true
-        type: string
-      # how much time to add to shutdown when a job finishes or starts
-      ec2_instance_ttl:
-        required: true
-        type: number
-      ec2_subnet_id:
-        default: subnet-4cfabd25
-        type: string
-      ec2_security_group_id:
-        default: sg-0ccd4e5df0dcca0c9
-        type: string
-      ec2_spot_instance_strategy:
-        default: None
-        type: string
-      aws_region:
-        default: "us-east-2"
-        type: string
-      ebs_cache_size_gb:
-        required: true
-        type: string
-      subaction:
+      runner_type:
         required: true
         type: string
     secrets:
@@ -48,14 +23,26 @@ on:
         required: true
       GH_SELF_HOSTED_RUNNER_TOKEN:
         required: true
+      BUILD_INSTANCE_SSH_KEY:
+        required: true
       DOCKERHUB_PASSWORD:
         required: true
+
+env:
+  DOCKERHUB_PASSWORD: "${{ secrets.DOCKERHUB_PASSWORD }}"
+  RUN_ID: ${{ github.run_id }}
+  RUN_ATTEMPT: ${{ github.run_attempt }}
+  USERNAME: ${{ inputs.username }}
+  GITHUB_TOKEN: ${{ github.token }}
+  GH_SELF_HOSTED_RUNNER_TOKEN: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  BUILD_INSTANCE_SSH_KEY: ${{ secrets.BUILD_INSTANCE_SSH_KEY }}
+
 jobs:
   start-builder:
     runs-on: ubuntu-latest
     # we want to avoid race conditions when making spot across multiple PRs as we only use one runner
-    concurrency:
-      group: start-builder-${{ inputs.runner_label }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -87,66 +74,7 @@ jobs:
           fi
 
       - name: Start EC2 runner
-        uses: ./.github/spot-runner-action
+        uses: ./.github/ensure-builder
         with:
-          github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws_region: ${{ inputs.aws_region }}
-          ec2_subnet_id: ${{ inputs.ec2_subnet_id }}
-          ec2_security_group_id: ${{ inputs.ec2_security_group_id }}
-          ec2_spot_instance_strategy: ${{ inputs.ec2_spot_instance_strategy }}
-          runner_label: ${{ inputs.runner_label }}
-          subaction: ${{ inputs.subaction }}
-          runner_concurrency: ${{ inputs.runner_concurrency }}
-          ec2_instance_type: ${{ inputs.ec2_instance_type }}
-          ec2_ami_id: ${{ inputs.ec2_ami_id }}
-          ec2_instance_ttl: ${{ inputs.ec2_instance_ttl }}
-          ec2_key_name: "build-instance"
-          ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
-
-  setup:
-    needs: start-builder
-    runs-on: ${{ inputs.runner_label }}
-    if: ${{inputs.subaction != 'stop'}}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup CI
-        uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Attach EBS Cache Disk
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: ./scripts/attach_ebs_cache.sh ${{ inputs.runner_label }} ${{ inputs.ebs_cache_size_gb }}
-
-      - name: Configure Machine
-        shell: bash
-        run: |
-          # One-time config
-          if ! [ -f /etc/docker/daemon.json ] ; then
-            echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json
-            sudo service docker restart
-            # helps to not overuse space
-            docker system prune -f -a || true
-            echo "Configured docker daemon for making many networks."
-            # Run maybe_exit_spot.sh every minute
-            cp scripts/ci/spot_runner_graceful_exit.sh /run/spot_runner_graceful_exit.sh
-            cp scripts/ci/maybe_exit_spot.sh /run/maybe_exit_spot.sh
-            chmod +x /run/spot_runner_graceful_exit.sh
-            chmod +x /run/maybe_exit_spot.sh
-            echo "* * * * * /run/maybe_exit_spot.sh" | crontab -
-          else
-            echo "Docker daemon already configured."
-          fi
-
-      - name: Run Earthly Bootstrap
-        run: |
-          earthly bootstrap
-          touch /run/.earthly-bootstrap # Used in `earthly-ci` wrapper to check that earthly has been bootstrapped ok
+          runner_action: ${{ inputs.runner_action }}
+          runner_type: ${{ inputs.runner_type }}

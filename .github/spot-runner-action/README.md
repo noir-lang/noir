@@ -1,3 +1,8 @@
+
+## Aztec packages spot builder
+
+Remember to use npm run build before pushing!
+
 # EC2 Github Action Builder
 
 ## TL;DR

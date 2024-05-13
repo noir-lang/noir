@@ -1,0 +1,93 @@
+# Reusable setup workflow for CI tasks
+name: Ensure Tester
+description: "Ensures a tester EC2 machine is available to connect to for this test"
+
+inputs:
+  runner_type:
+    required: true
+  run:
+    # command to run once tester available
+    required: false
+runs:
+  # define an action, runs in OS of caller
+  using: composite
+  steps:
+    - name: Select Instance Type and AMI
+      id: select_instance
+      shell: bash
+      run: |
+        TYPE=${{ inputs.runner_type }}
+        # Try to use spot for every runner type for now
+        echo "spot_strategy=BestEffort" >> $GITHUB_OUTPUT
+        echo "runner_label=$USERNAME-$runner_type" >> $GITHUB_OUTPUT
+        echo "ami_id=ami-04d8422a9ba4de80f" >> $GITHUB_OUTPUT
+        # no github runners, 'bare spot' in action code
+        echo "runner_concurrency=0" >> $GITHUB_OUTPUT
+        echo "ttl=30" >> $GITHUB_OUTPUT
+        if [[ $TYPE == 4core-* ]]; then
+          echo "instance_type=m6a.large" >> $GITHUB_OUTPUT
+        elif [[ $TYPE == 8core-* ]]; then
+          echo "instance_type=m6a.2xlarge" >> $GITHUB_OUTPUT
+        elif [[ $TYPE == 16core-* ]]; then
+          echo "instance_type=m6a.4xlarge" >> $GITHUB_OUTPUT
+        elif [[ $TYPE == 32core-* ]]; then
+          echo "instance_type=m6a.8xlarge" >> $GITHUB_OUTPUT
+        elif [[ $TYPE == 64core-* ]]; then
+          echo "instance_type=m6a.16xlarge" >> $GITHUB_OUTPUT
+        elif [[ $TYPE == 128core-* ]]; then
+          echo "instance_type=m6a.32xlarge" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Start Tester
+      uses: ./.github/spot-runner-action
+      with:
+        # inputs:
+        runner_label: ${{ steps.select_instance.outputs.runner_label }}
+        subaction: start
+        github_token: ${{ env.GH_SELF_HOSTED_RUNNER_TOKEN }}
+        aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        ec2_key: ${{ env.BUILD_INSTANCE_SSH_KEY }}
+        client_token: ''
+        # constants:
+        runner_concurrency: ${{ steps.select_instance.outputs.runner_concurrency }}
+        ec2_instance_type: ${{ steps.select_instance.outputs.instance_type }}
+        ec2_ami_id: ${{ steps.select_instance.outputs.ami_id }}
+        ec2_spot_instance_strategy: ${{ steps.select_instance.outputs.spot_strategy }}
+        ec2_instance_ttl: ${{ steps.select_instance.outputs.ttl }} # refreshed by jobs if runner_concurrency > 0
+        aws_region: us-east-2
+        ec2_subnet_id: subnet-4cfabd25
+        ec2_security_group_id: sg-0ccd4e5df0dcca0c9
+        ec2_key_name: "build-instance"
+        ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
+
+    # Set up a context for this run
+    - name: Copy Repo to Tester
+      shell: bash
+      run: |
+        set -x
+        # detect run folder
+        if ! scripts/run_on_tester "[ -d ~/run-$RUN_ID-git ]" ; then
+          echo "Copying local repo to spot"
+          tar czf - .git | scripts/run_on_tester \
+            "mkdir -p ~/run-$RUN_ID-git && cd ~/run-$RUN_ID-git && tar xzf -" || true
+          scripts/run_on_tester "
+            echo "Unpacking repo"
+            git config --global advice.detachedHead false
+            git clone ~/run-$RUN_ID-git/.git ~/run-$RUN_ID
+            echo ${{ env.BUILD_INSTANCE_SSH_KEY }} | base64 --decode > ~/.ssh/build_instance_key
+            chmod 600 ~/.ssh/build_instance_key
+          " || true
+        fi
+
+    - name: Ensure Tester Cleanup
+      uses: gacts/run-and-post-run@v1
+      with:
+        post: scripts/run_on_tester "sudo shutdown now" || true
+
+    - name: Test
+      shell: bash
+      env:
+        # avoid double shell interpolation
+        RUN_SCRIPT: export GITHUB_REF_NAME=${{ github.ref_name }} ; cd ~/run-${{ env.RUN_ID }} ; ${{ inputs.run }}
+      run: scripts/run_on_tester "$RUN_SCRIPT"

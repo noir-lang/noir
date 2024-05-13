@@ -1,5 +1,4 @@
 VERSION 0.8
-ARG --global skip_build=false
 
 E2E_COMPOSE_TEST:
   FUNCTION
@@ -9,7 +8,7 @@ E2E_COMPOSE_TEST:
   LOCALLY
   ENV TEST=$test
   ENV DEBUG=$debug
-  LET project_name=$(echo $test | sed 's/\./_/g')
+  LET project_name=$(echo $test | sed 's/\./_/g' | sed 's/\//_/g')
   IF docker compose > /dev/null 2>&1
     LET CMD="docker compose"
   ELSE
@@ -27,6 +26,22 @@ E2E_COMPOSE_TEST:
   # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
   RUN $CMD -p $project_name -f $compose_file up --exit-code-from=end-to-end --force-recreate
 
+E2E_TEST:
+  FUNCTION
+  ARG test
+  ARG allow_fail=false
+  LOCALLY
+  # Let docker compose know about the pushed tags above
+  ENV AZTEC_DOCKER_TAG=$(git rev-parse HEAD)
+  # Optimize to not cause serial behavior if image already exists
+  IF ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG"
+    WAIT
+      BUILD ../+export-end-to-end
+    END
+  END
+  # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
+  RUN docker run --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
+
 UPLOAD_LOGS:
   FUNCTION
   ARG PULL_REQUEST
@@ -42,136 +57,106 @@ UPLOAD_LOGS:
   RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY /usr/src/scripts/logs/upload_logs_to_s3.sh /usr/var/log
 
 e2e-2-pxes:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_2_pxes.test.ts
+  DO +E2E_TEST --test=./src/e2e_2_pxes.test.ts
 
 e2e-account-contracts:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_account_contracts.test.ts
+  DO +E2E_TEST --test=./src/e2e_account_contracts.test.ts
 
 e2e-auth-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_auth_contract.test.ts
+  DO +E2E_TEST --test=./src/e2e_auth_contract.test.ts
 
 e2e-authwit:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_authwit.test.ts
+  DO +E2E_TEST --test=./src/e2e_authwit.test.ts
 
 e2e-avm-simulator:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_avm_simulator.test.ts
+  DO +E2E_TEST --test=./src/e2e_avm_simulator.test.ts
 
 e2e-blacklist-token-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_blacklist_token_contract
+  DO +E2E_TEST --test=./src/e2e_blacklist_token_contract
 
 e2e-block-building:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_block_building.test.ts
+  DO +E2E_TEST --test=./src/e2e_block_building.test.ts
 
 e2e-card-game:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_card_game.test.ts
+  DO +E2E_TEST --test=./src/e2e_card_game.test.ts
 
 e2e-cheat-codes:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_cheat_codes.test.ts
+  DO +E2E_TEST --test=./src/e2e_cheat_codes.test.ts
 
 e2e-counter-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_counter_contract.test.ts
+  DO +E2E_TEST --test=./src/e2e_counter_contract.test.ts
 
 e2e-cross-chain-messaging:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_cross_chain_messaging.test.ts
+  DO +E2E_TEST --test=./src/e2e_cross_chain_messaging.test.ts
 
 e2e-crowdfunding-and-claim:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_crowdfunding_and_claim.test.ts
+  DO +E2E_TEST --test=./src/e2e_crowdfunding_and_claim.test.ts
 
 e2e-delegate-calls:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_delegate_calls
+  DO +E2E_TEST --test=./src/e2e_delegate_calls
 
 e2e-deploy-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_deploy_contract
+  DO +E2E_TEST --test=./src/e2e_deploy_contract
 
 e2e-encryption:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_encryption.test.ts
+  DO +E2E_TEST --test=./src/e2e_encryption.test.ts
 
 e2e-escrow-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_escrow_contract.test.ts
+  DO +E2E_TEST --test=./src/e2e_escrow_contract.test.ts
 
 e2e-key-registry:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_key_registry.test.ts
+  DO +E2E_TEST --test=./src/e2e_key_registry.test.ts
 
 e2e-lending-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_lending_contract.test.ts
+  DO +E2E_TEST --test=./src/e2e_lending_contract.test.ts
 
 e2e-max-block-number:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_max_block_number.test.ts
+  DO +E2E_TEST --test=./src/e2e_max_block_number.test.ts
 
 e2e-multiple-accounts-1-enc-key:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_multiple_accounts_1_enc_key.test.ts
+  DO +E2E_TEST --test=./src/e2e_multiple_accounts_1_enc_key.test.ts
 
 e2e-nested-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_nested_contract
+  DO +E2E_TEST --test=./src/e2e_nested_contract
 
 e2e-non-contract-account:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_non_contract_account.test.ts
+  DO +E2E_TEST --test=./src/e2e_non_contract_account.test.ts
 
 e2e-note-getter:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_note_getter.test.ts
+  DO +E2E_TEST --test=./src/e2e_note_getter.test.ts
+
+client-prover-integration:
+  DO +E2E_TEST --test=./src/client_prover_integration/client_prover_integration.test.ts
 
 e2e-ordering:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_ordering.test.ts
+  DO +E2E_TEST --test=./src/e2e_ordering.test.ts
 
 e2e-outbox:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_outbox.test.ts
+  DO +E2E_TEST --test=./src/e2e_outbox.test.ts
 
 e2e-pending-note-hashes-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_pending_note_hashes_contract.test.ts
+  DO +E2E_TEST --test=./src/e2e_pending_note_hashes_contract.test.ts
 
 e2e-private-voting-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_private_voting_contract.test.ts
+  DO +E2E_TEST --test=./src/e2e_private_voting_contract.test.ts
 
 e2e-public-cross-chain-messaging:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_public_cross_chain_messaging
+  DO +E2E_TEST --test=./src/e2e_public_cross_chain_messaging
 
 e2e-public-to-private-messaging:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_public_to_private_messaging.test.ts
+  DO +E2E_TEST --test=./src/e2e_public_to_private_messaging.test.ts
 
 e2e-state-vars:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_state_vars.test.ts
+  DO +E2E_TEST --test=./src/e2e_state_vars.test.ts
 
 e2e-static-calls:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_static_calls.test.ts
+  DO +E2E_TEST --test=./src/e2e_static_calls.test.ts
 
 e2e-token-contract:
-  FROM ../+end-to-end
-  RUN yarn test ./src/e2e_token_contract
+  DO +E2E_TEST --test=./src/e2e_token_contract
 
 flakey-e2e-tests:
-  FROM ../+end-to-end
-  RUN yarn test --passWithNoTests ./src/flakey || true
+  DO +E2E_TEST --test=./src/flakey --allow_fail=true
 
 e2e-sandbox-example:
   DO +E2E_COMPOSE_TEST --test=e2e_sandbox_example.test.ts

@@ -3,12 +3,10 @@ name: Setup Workflow
 description: "Reusable setup steps"
 
 inputs:
-  dockerhub_password:
-    required: true
-    description: "DockerHub Password"
   concurrency_key:
     required: false
     description: "Concurrency key for locking jobs"
+
 runs:
   # define an action, runs in OS of caller
   using: composite
@@ -43,11 +41,12 @@ runs:
       with:
         # permission issue with spot runners, simpler to leave out
         use-cache: false
-        version: "v0.8.5"
+        # NOTE also update in .github/spot-runner-action/src/userdata.ts
+        version: "v0.8.9"
 
     - name: Setup Env
       shell: bash
-      run: ./scripts/setup_env.sh ${{ inputs.dockerhub_password }}
+      run: ./scripts/setup_env.sh ${{ env.DOCKERHUB_PASSWORD }}
       env:
         PULL_REQUEST: "${{ github.event.pull_request.number }}"
         BRANCH: "${{ github.ref_name }}"
@@ -60,9 +59,19 @@ runs:
       if: ${{ inputs.concurrency_key }}
       with:
         run: |
-          while [ -f "/run/${{ inputs.concurrency_key }}.lock" ]; do sleep 1 ; echo "Lock is currently held by $(cat '/run/${{ inputs.concurrency_key }}.lock'), waiting..." ; done
-          echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "/run/${{ inputs.concurrency_key }}.lock"
-          echo "/run/${{ inputs.concurrency_key }}.lock acquired."
+          while [ -f "${{ inputs.concurrency_key }}.lock" ]; do sleep 1 ; echo "Lock is currently held by $(cat '${{ inputs.concurrency_key }}.lock'), waiting..." ; done
+          echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "/home/ubuntu/${{ inputs.concurrency_key }}.lock"
+          echo "/home/ubuntu/${{ inputs.concurrency_key }}.lock acquired."
         post: |
-          rm "/run/${{ inputs.concurrency_key }}.lock" || true
-          echo "/run/${{ inputs.concurrency_key }}.lock removed."
+          rm "/home/ubuntu/${{ inputs.concurrency_key }}.lock" || true
+          echo "/home/ubuntu/${{ inputs.concurrency_key }}.lock removed."
+
+    - name: Wait for runner completion
+      shell: bash
+      run: |
+        for i in {1..60} ; do
+          # HACK: detecting bare spot. TODO Find better solution
+          [ ! -f ~/delay_shutdown.sh ] && ( ! [ -f ~/.user-data-started ] || [ -f ~/.user-data-finished ] ) && break
+          [ -f ~/.setup-complete ] && ( ! [ -f ~/.user-data-started ] || [ -f ~/.user-data-finished ] ) && break
+          sleep 1
+        done

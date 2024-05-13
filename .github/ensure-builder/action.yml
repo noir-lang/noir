@@ -1,0 +1,134 @@
+# Reusable setup workflow for CI tasks
+name: Setup Workflow
+description: "Reusable setup steps"
+
+inputs:
+  runner_action:
+    default: start
+    required: false
+  runner_type:
+    required: true
+  run:
+    # command to run once builder/tester available
+    required: false
+runs:
+  # define an action, runs in OS of caller
+  using: composite
+  steps:
+    - name: Select Instance Type and AMI
+      id: select_instance
+      shell: bash
+      run: |
+        TYPE=${{ inputs.runner_type }}
+        # Try to use spot for every runner type for now
+        echo "spot_strategy=BestEffort" >> $GITHUB_OUTPUT
+        echo "runner_label=$USERNAME-$runner_type" >> $GITHUB_OUTPUT
+        if [[ $TYPE == builder-x86 ]]; then
+          # 128-core x86 instance types with least evictions
+          echo "instance_type=r6in.32xlarge r6a.32xlarge i4i.32xlarge r7iz.32xlarge" >> $GITHUB_OUTPUT
+          echo "ami_id=ami-04d8422a9ba4de80f" >> $GITHUB_OUTPUT
+          echo "ebs_cache_size=256" >> $GITHUB_OUTPUT
+          echo "runner_concurrency=20" >> $GITHUB_OUTPUT
+          echo "runner_label=$USERNAME-x86" >> $GITHUB_OUTPUT
+          echo "ttl=40" >> $GITHUB_OUTPUT
+        elif [[ $TYPE == builder-arm ]]; then
+          # 64-core ARM instance type
+          echo "instance_type=r6g.16xlarge" >> $GITHUB_OUTPUT
+          echo "ami_id=ami-0d8a9b0419ddb331a" >> $GITHUB_OUTPUT
+          echo "ebs_cache_size=256" >> $GITHUB_OUTPUT
+          echo "runner_concurrency=8" >> $GITHUB_OUTPUT
+          echo "runner_label=$USERNAME-arm" >> $GITHUB_OUTPUT
+          echo "ttl=40" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Start Builder
+      uses: ./.github/spot-runner-action
+      with:
+        # inputs:
+        runner_label: ${{ steps.select_instance.outputs.runner_label }}
+        subaction: ${{ inputs.runner_action }}
+        github_token: ${{ env.GH_SELF_HOSTED_RUNNER_TOKEN }}
+        aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        ec2_key: ${{ env.BUILD_INSTANCE_SSH_KEY }}
+        # idempotency, see https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html
+        # makes e2e tests hitting the API at once not cause multiple spots
+        client_token: ${{ format('ci-yml-{0}-{1}', env.RUN_ID, env.RUN_ATTEMPT) }}
+        # constants:
+        runner_concurrency: ${{ steps.select_instance.outputs.runner_concurrency }}
+        ec2_instance_type: ${{ steps.select_instance.outputs.instance_type }}
+        ec2_ami_id: ${{ steps.select_instance.outputs.ami_id }}
+        ec2_spot_instance_strategy: ${{ steps.select_instance.outputs.spot_strategy }}
+        ec2_instance_ttl: ${{ steps.select_instance.outputs.ttl }} # refreshed by jobs if runner_concurrency > 0
+        aws_region: us-east-2
+        ec2_subnet_id: subnet-4cfabd25
+        ec2_security_group_id: sg-0ccd4e5df0dcca0c9
+        ec2_key_name: "build-instance"
+        ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
+
+    # Set up a context for this run
+    - name: Copy Repo to Builder
+      shell: bash
+      run: |
+        sudo shutdown -P ${{ steps.select_instance.outputs.ttl }}
+        set -x
+        # detect run folder
+        if ! scripts/run_on_builder "[ -d ~/run-$RUN_ID ]" ; then
+          echo "Copying local repo to spot"
+          tar czf - .git | scripts/run_on_builder \
+            "mkdir -p ~/run-$RUN_ID-git && cd ~/run-$RUN_ID-git && tar xzf -" || true
+          scripts/run_on_builder "
+            echo "Unpacking repo"
+            git config --global advice.detachedHead false
+            git clone ~/run-$RUN_ID-git/.git ~/run-$RUN_ID
+            echo ${{ env.BUILD_INSTANCE_SSH_KEY }} | base64 --decode > ~/.ssh/build_instance_key
+            chmod 600 ~/.ssh/build_instance_key
+          " || true
+        fi
+
+    - name: Attach EBS Cache Disk
+      uses: ./.github/run-on-builder
+      with:
+        run: |
+          # give time in case another instance started the clone first
+          for i in {1..30} ; do
+            [ -f ./scripts/ci/attach_ebs_cache.sh ] && break
+            sleep 1
+          done
+          # attach {ebs_cache_size}-gb cache disk
+          export AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}
+          sudo -E ./scripts/ci/attach_ebs_cache.sh ${{ steps.select_instance.outputs.runner_label }} ${{ steps.select_instance.outputs.ebs_cache_size }}
+
+    - name: Setup Graceful Exit
+      uses: ./.github/run-on-builder
+      with:
+        run: |
+          # One-time config
+          if ! [ -f ~/maybe_exit_spot.sh ] ; then
+            cp scripts/ci/maybe_exit_spot.sh ~/maybe_exit_spot.sh
+            cp scripts/ci/spot_runner_graceful_exit.sh ~/spot_runner_graceful_exit.sh
+            # Get the used space on /dev/nvme1n1 in bytes
+            used_space=$(df /var/lib/docker | awk 'NR==2 {print $3}')
+            # Compare and conditionally prune
+            if [[ "$used_space" -gt 192000000 ]] ; then
+              echo "Used space is greater than 192GB. Running 'docker system prune'."
+              docker system prune -f -a || true
+              echo "Pruned docker images."
+            else
+              # prune only dangling images
+              docker system prune || true
+            fi
+            # Run maybe_exit_spot.sh every minute
+            chmod +x ~/spot_runner_graceful_exit.sh
+            chmod +x ~/maybe_exit_spot.sh
+            echo "* * * * * ~/maybe_exit_spot.sh" | crontab -
+            echo "Configured graceful exit."
+          else
+            echo "Chron jobs already configured."
+          fi
+
+    - name: Run On Builder
+      uses: ./.github/run-on-builder
+      with:
+        run: ${{ inputs.run }}

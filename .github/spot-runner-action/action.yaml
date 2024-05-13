@@ -19,16 +19,19 @@ inputs:
     default: ''
   github_token:
     description: 'GitHub token'
-    required: true
+    required: false
+  client_token:
+    description: 'Client token for idempotency of requests, prevents multiple spots'
+    required: false
   runner_label:
     description: 'Key for when to recreate spot, use as runs-on'
     required: true
   runner_concurrency:
     description: 'How many runners to create'
     type: number
-    required: true
+    required: false
   subaction:
-    description: 'One of: start (default), stop, restart'
+    description: 'One of: start (default), stop, restart, check'
     required: false
     default: 'start'
   github_action_runner_version:
@@ -66,6 +69,9 @@ inputs:
 
     required: false
     default: "none"
+  ec2_key:
+    description: "base64-encoded ssh key"
+    required: false
 runs:
   using: 'node20'
   main: 'dist/index.js'

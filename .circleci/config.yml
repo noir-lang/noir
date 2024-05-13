@@ -267,15 +267,15 @@ jobs:
           aztec_manifest_key: l1-contracts
 
   noir-projects:
-    machine:
-      image: default
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Build and test"
-          command: build noir-projects
+          command: cond_spot_run_build noir-projects 32
           aztec_manifest_key: noir-projects
 
   yarn-project-pre-join:

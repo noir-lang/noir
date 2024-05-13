@@ -4,35 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       username:
-        description: 'Defaults to GitHub Actor'
+        description: 'Username (optional)'
         required: false
       action:
-        description: 'Can also be stop or restart, defaults to start'
+        description: "Defaults to 'start', can be 'stop', 'restart'"
         required: false
         default: 'start'
 jobs:
   start-build:
     uses: ./.github/workflows/setup-runner.yml
     with:
-      runner_label: ${{ inputs.username || github.actor }}-x86
-      ebs_cache_size_gb: 256
-      runner_concurrency: 50
-      subaction: ${{ inputs.action }}
-      # Use instance types with low interruption rate in us-east-2 https://aws.amazon.com/ec2/spot/instance-advisor/
-      ec2_instance_type: r6in.32xlarge r6a.32xlarge i4i.32xlarge r7iz.32xlarge
-      ec2_ami_id: ami-04d8422a9ba4de80f
-      ec2_spot_instance_strategy: None
-      ec2_instance_ttl: 40 # refreshed by jobs
-    secrets: inherit
-
-  start-bench:
-    uses: ./.github/workflows/setup-runner.yml
-    with:
-      runner_label: ${{ inputs.username || github.actor }}-bench-x86
-      ebs_cache_size_gb: 64
-      runner_concurrency: 1
-      subaction: ${{ inputs.action }}
-      ec2_instance_type: m6a.4xlarge
-      ec2_ami_id: ami-04d8422a9ba4de80f
-      ec2_instance_ttl: 15 # refreshed by jobs
+      username: ${{ inputs.username || github.actor }}
+      runner_type: builder-x86
+      runner_action: ${{ inputs.action }}
     secrets: inherit

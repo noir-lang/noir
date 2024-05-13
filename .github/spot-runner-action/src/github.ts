@@ -142,6 +142,7 @@ export class GithubClient {
         }
         if (await this.hasRunner(labels)) {
           clearInterval(interval);
+          resolve("");
           return;
         }
         waitSeconds += retryIntervalSeconds;
