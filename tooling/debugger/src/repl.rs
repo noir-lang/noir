@@ -199,6 +199,70 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         }
     }
 
+    fn add_breakpoint_at_line(&mut self, mut line_number: usize) {
+        // Make line number 0-indexed.
+        line_number -= 1;
+
+        let current_file = match self.context.get_current_file() {
+            Some(file) => file.clone(),
+            None => {
+                println!("No current file.");
+                return;
+            }
+        };
+
+        let mut best_start: usize = 0;
+        let mut best_location: Option<OpcodeLocation> = None;
+
+        // Helper function that first finds the source locations associated with the given opcode.
+        // Then, it finds the start and end lines of the source location and
+        // updates the best_start and best_location temporaries, if the given opcode_location
+        // matches the desired break-line better than the previous best match.
+        let mut update_best_match = |opcode_location: OpcodeLocation| {
+            let source_locations =
+                self.context.get_source_location_for_opcode_location(&opcode_location);
+            // Last means inner-most in stack trace.
+            match source_locations.last() {
+                Some(source_location) => {
+                    let start = self.debug_artifact.location_line_index(*source_location).unwrap();
+                    let end =
+                        self.debug_artifact.location_end_line_index(*source_location).unwrap();
+                    if source_location.file == current_file
+                        && start <= line_number
+                        && line_number <= end
+                        && line_number - start < line_number - best_start
+                    {
+                        best_start = start;
+                        best_location = Some(opcode_location);
+                    }
+                }
+                None => (),
+            }
+        };
+
+        let opcodes = self.context.get_opcodes();
+        for (acir_index, opcode) in opcodes.iter().enumerate() {
+            match &opcode {
+                Opcode::BrilligCall { id, .. } => {
+                    let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                    for (brillig_index, ..) in bytecode.iter().enumerate() {
+                        let opcode_location = OpcodeLocation::Brillig { acir_index, brillig_index };
+                        update_best_match(opcode_location);
+                    }
+                }
+                _ => {
+                    println!("Not supported: break-line for {:?}", opcode);
+                    return;
+                }
+            }
+        }
+
+        match best_location {
+            Some(location) => self.add_breakpoint_at(location),
+            None => println!("No opcode at line {}", line_number),
+        }
+    }
+
     fn delete_breakpoint_at(&mut self, location: OpcodeLocation) {
         if self.context.delete_breakpoint(&location) {
             println!("Breakpoint at opcode {location} deleted");
@@ -471,6 +535,16 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
                 "display ACIR opcodes",
                 () => || {
                     ref_context.borrow().display_opcodes();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "break",
+            command! {
+                "add a breakpoint at a line of the current file",
+                (line_number: usize) => |line_number| {
+                    ref_context.borrow_mut().add_breakpoint_at_line(line_number);
                     Ok(CommandStatus::Done)
                 }
             },
