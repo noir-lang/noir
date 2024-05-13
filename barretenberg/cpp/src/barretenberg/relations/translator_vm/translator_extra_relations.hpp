@@ -14,6 +14,11 @@ template <typename FF_> class GoblinTranslatorOpcodeConstraintRelationImpl {
     };
 
     /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in) { return in.op.is_zero(); }
+    /**
      * @brief Expression for enforcing the value of the Opcode to be {0,1,2,3,4,8}
      * @details This relation enforces the opcode to be one of described values. Since we don't care about even
      * values in the opcode wire and usually just set them to zero, we don't use a lagrange polynomial to specify
@@ -53,6 +58,19 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
 
     };
 
+    /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     * @details This has a negligible chance of failing in sumcheck (not in the first round) because effectively
+     * transfrom original coefficients into a random linear combination. But checking each individually is noticeably
+     * slower.
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        return (in.lagrange_even_in_minicircuit + in.lagrange_second_to_last_in_minicircuit + in.lagrange_second)
+            .is_zero();
+    }
     /**
      * @brief Relation enforcing non-arithmetic transitions of accumulator (value that is tracking the batched
      * evaluation of polynomials in non-native field)

@@ -35,9 +35,11 @@ void GoblinTranslatorProver::compute_witness(CircuitBuilder& circuit_builder)
     // Populate the wire polynomials from the wire vectors in the circuit constructor. Note: In goblin translator wires
     // come as is, since they have to reflect the structure of polynomials in the first 4 wires, which we've commited to
     for (auto [wire_poly, wire] : zip_view(key->polynomials.get_wires(), circuit_builder.wires)) {
-        for (size_t i = 0; i < circuit_builder.num_gates; ++i) {
-            wire_poly[i] = circuit_builder.get_variable(wire[i]);
-        }
+        run_loop_in_parallel(circuit_builder.num_gates, [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; i++) {
+                wire_poly[i] = circuit_builder.get_variable(wire[i]);
+            }
+        });
     }
 
     // We construct concatenated versions of range constraint polynomials, where several polynomials are concatenated

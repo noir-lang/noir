@@ -16,6 +16,14 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
     };
 
     /**
+     * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
+     *
+     */
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        return in.lagrange_odd_in_minicircuit.is_zero();
+    }
+    /**
      * @brief Expression for the computation of Goblin Translator accumulator in integers through 68-bit limbs and
      * native field (prime) limb
      * @details This relation is a part of system of relations that enforce a formula in non-native field (base field of
