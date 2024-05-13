@@ -1,0 +1,7 @@
+[package]
+name = "array_if_cond_simple"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]

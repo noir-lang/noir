@@ -1,5 +1,6 @@
-use crate::ops::{Add, Sub, Mul, Div, Rem, BitOr, BitAnd, BitXor, Shl, Shr};
+use crate::ops::{Add, Sub, Mul, Div, Rem, Not, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
+use crate::println;
 
 global pow64 : Field = 18446744073709551616; //2^64;
 global pow63 : Field = 9223372036854775808; // 2^63;
@@ -244,11 +245,20 @@ impl Ord for U128 {
     }
 }
 
+impl Not for U128 { 
+    fn not(self) -> U128 {
+        U128 {
+            lo: (!(self.lo as u64)) as Field,
+            hi: (!(self.hi as u64)) as Field
+        }
+    }
+}
+
 impl BitOr for U128 { 
     fn bitor(self, other: U128) -> U128 {
         U128 {
             lo: ((self.lo as u64) | (other.lo as u64)) as Field,
-            hi: ((self.hi as u64) | (other.hi as u64))as Field
+            hi: ((self.hi as u64) | (other.hi as u64)) as Field
         }
     }
 }
@@ -302,7 +312,20 @@ impl Shr for U128 {
 }
 
 mod tests {
-    use crate::uint128::U128;
+    use crate::uint128::{U128, pow64};
+
+    #[test]
+    fn test_not() {
+        let num = U128::from_u64s_le(0, 0);
+        let not_num = num.not();
+
+        let max_u64: Field = pow64 - 1;
+        assert_eq(not_num.hi, max_u64);
+        assert_eq(not_num.lo, max_u64);
+
+        let not_not_num = not_num.not();
+        assert_eq(num, not_not_num);
+    }
     #[test]
     fn test_construction() {
         // Check little-endian u64 is inversed with big-endian u64 construction
@@ -366,14 +389,13 @@ mod tests {
         }
     }
 
-    //
     #[test(should_fail)]
     fn test_ascii_decode_range_less_than_48_fails_0() {
-        let _ = U128::decode_ascii(0);
+        crate::println(U128::decode_ascii(0));
     }
     #[test(should_fail)]
     fn test_ascii_decode_range_less_than_48_fails_1() {
-        let _ = U128::decode_ascii(47);
+        crate::println(U128::decode_ascii(47));
     }
 
     #[test(should_fail)]
