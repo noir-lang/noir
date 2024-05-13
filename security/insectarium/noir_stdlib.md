@@ -38,6 +38,8 @@ There were 2 issues in unconstrained_div:
 1) Attempting to divide by zero resulted in an infinite loop, because there was no check.
 2) $a >= 2^{127}$ cause the function to multiply b to such power of 2 that the result would be more than $2^{128}$ and lead to assertion failure even though it was a legitimate input
 
+N.B. initial fix by Rumata888 also had an edgecase missing for when a==b and b >= (1<<127).
+
 ### wrapping_mul
 ```rust
 fn wrapping_mul(self: Self, b: U128) -> U128 {

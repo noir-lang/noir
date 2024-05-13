@@ -95,13 +95,15 @@ impl U128 {
         U128 { lo: lo as Field, hi: hi as Field }
     }
 
+    unconstrained fn uconstrained_check_is_upper_ascii(ascii: u8)->bool{
+        ((ascii>=65) & (ascii <=90)) // Between 'A' and 'Z'
+    }
+
     fn decode_ascii(ascii: u8) -> Field {
         if ascii < 58 {
             ascii - 48
-        } else if ascii < 71 {
-            assert(ascii >= 65); // enforce >= 'A'
-            ascii - 55
         } else {
+            let ascii = ascii + 32 * (U128::uconstrained_check_is_upper_ascii(ascii) as u8);
             assert(ascii >= 97); // enforce >= 'a'
             assert(ascii <= 102); // enforce <= 'f'
             ascii - 87
@@ -109,14 +111,16 @@ impl U128 {
     }
 
     // TODO: Replace with a faster version. 
-    // A circuit that uses this function a lot will be really slow to compute
-    // (we're doing binary search to compute the quotient)
+    // A circuit that uses this function can be slow to compute
+    // (we're doing up to 127 calls to compute the quotient)
     unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
         if b == U128::zero() {
             // Return 0,0 to avoid eternal loop
             (U128::zero(), U128::zero())
         } else if self < b {
             (U128::zero(), self)
+        } else if self == b {
+            (U128::one(),U128::zero())
         } else {
             let (q,r) = if b.hi as u64 >= pow63 as u64 {
                 // The result of multiplication by 2 would overflow
@@ -312,7 +316,7 @@ impl Shr for U128 {
 }
 
 mod tests {
-    use crate::uint128::{U128, pow64};
+    use crate::uint128::{U128, pow64,pow63};
 
     #[test]
     fn test_not() {
@@ -455,6 +459,12 @@ mod tests {
         let b = U128::zero();
         let (c,d)= a.unconstrained_div(b);
         assert_eq((c, d), (U128::zero(), U128::zero()));
+
+        // Dividing 1<<127 by 1<<127 (special case)
+        let a = U128::from_u64s_le(0x0,pow63 as u64);
+        let b = U128::from_u64s_le(0x0,pow63 as u64);
+        let (c,d )= a.unconstrained_div(b);
+        assert_eq((c,d),(U128::one(),U128::zero()));
     }
 
     #[test]
