@@ -165,11 +165,19 @@ pub fn create_program(
         force_brillig_output,
         print_codegen_timings,
     )?;
-    assert_eq!(
-        generated_acirs.len(),
-        func_sigs.len(),
-        "The generated ACIRs should match the supplied function signatures"
-    );
+    if force_brillig_output {
+        assert_eq!(
+            generated_acirs.len(),
+            1,
+            "Only the main ACIR is expected when forcing Brillig output"
+        );
+    } else {
+        assert_eq!(
+            generated_acirs.len(),
+            func_sigs.len(),
+            "The generated ACIRs should match the supplied function signatures"
+        );
+    }
 
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
     // For setting up the ABI we need separately specify main's input and return witnesses
