@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple } from '@aztec/foundation/serialize';
 
 import { computePartialAddress } from '../contract/contract_address.js';
 import { computeAddress, computePublicKeysHash, deriveKeys } from '../keys/index.js';
@@ -195,12 +195,16 @@ export class CompleteAddress {
     return `0x${this.toBuffer().toString('hex')}`;
   }
 
-  get publicKeysHash(): Fr {
-    return computePublicKeysHash(
+  get publicKeys(): Tuple<PublicKey, 4> {
+    return [
       this.masterNullifierPublicKey,
       this.masterIncomingViewingPublicKey,
       this.masterOutgoingViewingPublicKey,
       this.masterTaggingPublicKey,
-    );
+    ];
+  }
+
+  get publicKeysHash(): Fr {
+    return computePublicKeysHash(...this.publicKeys);
   }
 }

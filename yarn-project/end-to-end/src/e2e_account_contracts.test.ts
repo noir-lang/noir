@@ -13,6 +13,7 @@ import {
   type PXE,
   type Wallet,
 } from '@aztec/aztec.js';
+import { deriveSigningKey } from '@aztec/circuits.js/keys';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { ChildContract } from '@aztec/noir-contracts.js/Child';
 
@@ -27,7 +28,6 @@ function itShouldBehaveLikeAnAccountContract(
     let child: ChildContract;
     let wallet: Wallet;
     let secretKey: Fr;
-    let signingKey: GrumpkinPrivateKey;
 
     let pxe: PXE;
     let logger: DebugLogger;
@@ -36,7 +36,7 @@ function itShouldBehaveLikeAnAccountContract(
     beforeEach(async () => {
       ({ logger, pxe, teardown } = await setup(0));
       secretKey = Fr.random();
-      signingKey = GrumpkinScalar.random();
+      const signingKey = deriveSigningKey(secretKey);
 
       wallet = await walletSetup(pxe, secretKey, getAccountContract(signingKey));
       child = await ChildContract.deploy(wallet).send().deployed();
@@ -56,8 +56,7 @@ function itShouldBehaveLikeAnAccountContract(
       expect(storedValue).toEqual(new Fr(42n));
     });
 
-    // TODO(#5830): re-enable this test
-    it.skip('fails to call a function using an invalid signature', async () => {
+    it('fails to call a function using an invalid signature', async () => {
       const accountAddress = wallet.getCompleteAddress();
       const invalidWallet = await walletAt(pxe, getAccountContract(GrumpkinScalar.random()), accountAddress);
       const childWithInvalidWallet = await ChildContract.at(child.address, invalidWallet);

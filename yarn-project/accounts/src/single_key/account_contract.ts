@@ -1,7 +1,5 @@
-import { generatePublicKey } from '@aztec/aztec.js';
 import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { AuthWitness, type CompleteAddress, type GrumpkinPrivateKey } from '@aztec/circuit-types';
-import { type PartialAddress } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type Fr } from '@aztec/foundation/fields';
@@ -22,8 +20,8 @@ export class SingleKeyAccountContract extends DefaultAccountContract {
     return undefined;
   }
 
-  getAuthWitnessProvider({ partialAddress }: CompleteAddress): AuthWitnessProvider {
-    return new SingleKeyAuthWitnessProvider(this.encryptionPrivateKey, partialAddress);
+  getAuthWitnessProvider(account: CompleteAddress): AuthWitnessProvider {
+    return new SingleKeyAuthWitnessProvider(this.encryptionPrivateKey, account);
   }
 }
 
@@ -33,13 +31,16 @@ export class SingleKeyAccountContract extends DefaultAccountContract {
  * by reconstructing the current address.
  */
 class SingleKeyAuthWitnessProvider implements AuthWitnessProvider {
-  constructor(private privateKey: GrumpkinPrivateKey, private partialAddress: PartialAddress) {}
+  constructor(private privateKey: GrumpkinPrivateKey, private account: CompleteAddress) {}
 
   createAuthWit(messageHash: Fr): Promise<AuthWitness> {
     const schnorr = new Schnorr();
     const signature = schnorr.constructSignature(messageHash.toBuffer(), this.privateKey);
-    const publicKey = generatePublicKey(this.privateKey);
-    const witness = [...publicKey.toFields(), ...signature.toBuffer(), this.partialAddress];
+    const witness = [
+      ...this.account.publicKeys.flatMap(pk => pk.toFields()),
+      ...signature.toBuffer(),
+      this.account.partialAddress,
+    ];
     return Promise.resolve(new AuthWitness(messageHash, witness));
   }
 }
