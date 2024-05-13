@@ -256,8 +256,11 @@ export class Ec2Instance {
     const fleet = await client.createFleet(createFleetRequest).promise();
     if (fleet.Errors && fleet.Errors.length > 0) {
       for (const error of fleet.Errors) {
-        if (error.ErrorCode === "RequestLimitExceeded") {
-          return "RequestLimitExceeded";
+        if (
+          error.ErrorCode === "RequestLimitExceeded" ||
+          error.ErrorCode === "InsufficientInstanceCapacity"
+        ) {
+          return error.ErrorCode;
         }
       }
       core.error(JSON.stringify(fleet.Errors, null, 2));
