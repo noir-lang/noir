@@ -23,7 +23,7 @@ async function pollSpotStatus(
     }
     try {
       core.info("Found ec2 instance, looking for runners.");
-      if (await ghClient.hasRunner([config.githubJobId])) {
+      if (process.env.WAIT_FOR_RUNNERS === "false" || await ghClient.hasRunner([config.githubJobId])) {
         // we have runners
         return instances[0].InstanceId!;
       }
