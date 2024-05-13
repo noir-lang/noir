@@ -63,7 +63,8 @@ async function requestAndWaitForSpot(config: ActionConfig): Promise<string> {
   for (const ec2Strategy of ec2SpotStrategies) {
     let backoff = 0;
     core.info(`Starting instance with ${ec2Strategy} strategy`);
-    for (let i = 0; i < 6; i++) {
+    const MAX_ATTEMPTS = 3; // uses exponential backoff
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
       // Start instance
       const instanceIdOrError =
         await ec2Client.requestMachine(
@@ -75,18 +76,18 @@ async function requestAndWaitForSpot(config: ActionConfig): Promise<string> {
         instanceIdOrError === "RequestLimitExceeded" ||
         instanceIdOrError === "InsufficientInstanceCapacity"
       ) {
-        backoff += 1;
         core.info(
           "Failed to create instance due to " +
             instanceIdOrError +
-            " , waiting " + 10000 * 2 ** backoff + " seconds and trying again."
+            ", waiting " + 5 * 2 ** backoff + " seconds and trying again."
         );
       } else {
         instanceId = instanceIdOrError;
         break;
       }
       // wait 10 seconds
-      await new Promise((r) => setTimeout(r, 10000 * 2 ** backoff));
+      await new Promise((r) => setTimeout(r, 5000 * 2 ** backoff));
+      backoff += 1;
     }
     if (instanceId) {
       core.info("Successfully requested instance with ID " + instanceId);

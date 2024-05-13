@@ -25,7 +25,7 @@ runs:
         echo "runner_label=$USERNAME-$runner_type" >> $GITHUB_OUTPUT
         if [[ $TYPE == builder-x86 ]]; then
           # 128-core x86 instance types with least evictions
-          echo "instance_type=r6in.32xlarge r6a.32xlarge i4i.32xlarge r7iz.32xlarge" >> $GITHUB_OUTPUT
+          echo "instance_type=i4i.32xlarge m6a.32xlarge m6i.32xlarge m6id.32xlarge m6idn.32xlarge m6in.32xlarge m7a.32xlarge r6a.32xlarge r6i.32xlarge r6id.32xlarge r6in.32xlarge r7iz.32xlarge" >> $GITHUB_OUTPUT
           echo "ami_id=ami-04d8422a9ba4de80f" >> $GITHUB_OUTPUT
           echo "ebs_cache_size=256" >> $GITHUB_OUTPUT
           echo "runner_concurrency=20" >> $GITHUB_OUTPUT

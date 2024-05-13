@@ -179,13 +179,6 @@ export class Ec2Instance {
       LaunchTemplateData: {
         ImageId: this.config.ec2AmiId,
         InstanceInitiatedShutdownBehavior: "terminate",
-        InstanceRequirements: {
-          // We do not know what the instance types correspond to
-          // just let the user send a list of allowed instance types
-          VCpuCount: { Min: 0 },
-          MemoryMiB: { Min: 0 },
-          AllowedInstanceTypes: this.config.ec2InstanceType,
-        },
         SecurityGroupIds: [this.config.ec2SecurityGroupId],
         KeyName: this.config.ec2KeyName,
         UserData: userDataScript,
@@ -245,6 +238,9 @@ export class Ec2Instance {
       Type: "instant",
       LaunchTemplateConfigs: [fleetLaunchConfig],
       ClientToken: this.config.clientToken || undefined,
+      SpotOptions: {
+        AllocationStrategy: "price-capacity-optimized",
+      },
       TargetCapacitySpecification: {
         TotalTargetCapacity: 1,
         OnDemandTargetCapacity: useOnDemand ? 1 : 0,
@@ -255,6 +251,7 @@ export class Ec2Instance {
     const client = await this.getEc2Client();
     const fleet = await client.createFleet(createFleetRequest).promise();
     if (fleet.Errors && fleet.Errors.length > 0) {
+      core.warning(JSON.stringify(fleet.Errors, null, 2));
       for (const error of fleet.Errors) {
         if (
           error.ErrorCode === "RequestLimitExceeded" ||
@@ -263,7 +260,6 @@ export class Ec2Instance {
           return error.ErrorCode;
         }
       }
-      core.error(JSON.stringify(fleet.Errors, null, 2));
     }
     const instances: CreateFleetInstance = (fleet?.Instances || [])[0] || {};
     return (instances.InstanceIds || [])[0] || "";

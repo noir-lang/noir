@@ -60,14 +60,14 @@ runs:
           export BUILDER_SPOT_IP=${{ env.BUILDER_SPOT_IP }}
           export BUILDER_SPOT_KEY=~/.ssh/build_instance_key
           scripts/run_on_builder "
-            sudo mkdir -p /var/lib/docker/tmp
+            sudo mkdir -p /var/lib/docker/tmp-images
 
-            sudo flock /var/lib/docker/tmp/${{ env.IMAGE_KEY }}.lock bash -c '
-              if ! [ -f /var/lib/docker/tmp/${{ env.IMAGE_KEY }}.brotli ] ; then
-                docker save aztecprotocol/aztec:${{ env.IMAGE_KEY }} aztecprotocol/end-to-end:${{ env.IMAGE_KEY }} | brotli -2 > /var/lib/docker/tmp/${{ env.IMAGE_KEY }}.brotli.tmp
-                mv /var/lib/docker/tmp/${{ env.IMAGE_KEY }}.brotli.tmp /var/lib/docker/tmp/${{ env.IMAGE_KEY }}.brotli
+            sudo flock /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.lock bash -c '
+              if ! [ -f /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli ] ; then
+                docker save aztecprotocol/aztec:${{ env.IMAGE_KEY }} aztecprotocol/end-to-end:${{ env.IMAGE_KEY }} | brotli -2 > /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli.tmp
+                mv /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli.tmp /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli
               fi'
-            sudo cat /var/lib/docker/tmp/${{ env.IMAGE_KEY }}.brotli
+            sudo cat /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli
           " | brotli --decompress | docker load
 
     - name: Test

@@ -152,9 +152,9 @@ fi
 # Create a mount point and mount the volume
 mkdir -p /var/lib/docker
 mount $BLKDEVICE /var/lib/docker
-service docker restart
 # clear our images temp folder
-rm -rf /var/lib/docker/tmp
+rm -rf /var/lib/docker/tmp-images
+systemctl restart docker
 # important: everything (except earthly ls) should go through earthly-ci
 scripts/earthly-ci bootstrap
 touch /home/ubuntu/.setup-complete

@@ -11,7 +11,7 @@ OUTPUT_FILE=$(mktemp)
 INCONSISTENT_GRAPH_STATE_COUNT=0  # Counter for 'inconsistent graph state' errors
 
 # Maximum attempts
-MAX_ATTEMPTS=8
+MAX_ATTEMPTS=5
 ATTEMPT_COUNT=0
 
 # earthly settings
@@ -45,9 +45,15 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
       echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 30 seconds and retrying."
       sleep 30
     elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null; then
-      echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker"
+      echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker. If this persists, try 'systemctl restart docker' on the spot instance."
     elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null; then
       echo "Detected an Earthly daemon restart, possibly due to it (mis)detecting a cache setting change, trying again..."
+    elif grep 'dial unix /run/buildkit/buildkitd.sock' $OUTPUT_FILE >/dev/null; then
+      echo "Detected earthly unable to find buildkit, waiting and trying again..."
+      sleep 20
+    elif grep 'The container name "/earthly-buildkitd" is already in use by container' $OUTPUT_FILE >/dev/null; then
+      echo "Detected earthly bootstrap happening in parallel and failing, waiting and trying again."
+      sleep 20
     else
       # If other errors, exit the script
       exit 1

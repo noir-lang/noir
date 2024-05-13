@@ -38,7 +38,7 @@ runs:
         elif [[ $TYPE == 128core-* ]]; then
           SIZE=32xlarge
         fi
-        echo "instance_type=m6a.$SIZE r6in.$SIZE r6a.$SIZE i4i.$SIZE r7iz.$SIZE" >> $GITHUB_OUTPUT
+        echo "instance_type=i4i.$SIZE m6a.$SIZE m6i.$SIZE m6id.$SIZE m6idn.$SIZE m6in.$SIZE m7a.$SIZE r6a.$SIZE r6i.$SIZE r6id.$SIZE r6in.$SIZE r7iz.$SIZE" >> $GITHUB_OUTPUT
 
     - name: Start Tester
       uses: ./.github/spot-runner-action
