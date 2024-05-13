@@ -56,17 +56,17 @@ use crate::hir_def::{
 use super::errors::{PubPosition, ResolverError};
 use super::import::PathResolution;
 
-const SELF_TYPE_NAME: &str = "Self";
+pub const SELF_TYPE_NAME: &str = "Self";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 pub struct LambdaContext {
-    captures: Vec<HirCapturedVar>,
+    pub captures: Vec<HirCapturedVar>,
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
-    scope_index: usize,
+    pub scope_index: usize,
 }
 
 /// The primary jobs of the Resolver are to validate that every variable found refers to exactly 1
@@ -1292,15 +1292,14 @@ impl<'a> Resolver<'a> {
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {
-                let span = constrain_stmt.0.span;
-                let assert_msg_call_expr_id =
-                    self.resolve_assert_message(constrain_stmt.1, span, constrain_stmt.0.clone());
                 let expr_id = self.resolve_expression(constrain_stmt.0);
+                let assert_message_expr_id =
+                    constrain_stmt.1.map(|assert_expr_id| self.resolve_expression(assert_expr_id));
 
                 HirStatement::Constrain(HirConstrainStatement(
                     expr_id,
                     self.file,
-                    assert_msg_call_expr_id,
+                    assert_message_expr_id,
                 ))
             }
             StatementKind::Expression(expr) => {
@@ -1346,7 +1345,7 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt, for_loop.span)
+                        self.resolve_stmt(for_stmt.kind, for_loop.span)
                     }
                 }
             }
@@ -1362,58 +1361,16 @@ impl<'a> Resolver<'a> {
             StatementKind::Comptime(statement) => {
                 let hir_statement = self.resolve_stmt(statement.kind, statement.span);
                 let statement_id = self.interner.push_stmt(hir_statement);
-                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                self.interner.push_stmt_location(statement_id, statement.span, self.file);
                 HirStatement::Comptime(statement_id)
             }
         }
     }
 
-    fn resolve_assert_message(
-        &mut self,
-        assert_message_expr: Option<Expression>,
-        span: Span,
-        condition: Expression,
-    ) -> Option<ExprId> {
-        let assert_message_expr = assert_message_expr?;
-
-        if matches!(
-            assert_message_expr,
-            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
-        ) {
-            return Some(self.resolve_expression(assert_message_expr));
-        }
-
-        let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
-        let assert_msg_call_path = if is_in_stdlib {
-            ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("internal"), Ident::from("resolve_assert_message")],
-                kind: PathKind::Crate,
-                span,
-            })
-        } else {
-            ExpressionKind::Variable(Path {
-                segments: vec![
-                    Ident::from("std"),
-                    Ident::from("internal"),
-                    Ident::from("resolve_assert_message"),
-                ],
-                kind: PathKind::Dep,
-                span,
-            })
-        };
-        let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
-        let assert_msg_call_expr = Expression::call(
-            Expression { kind: assert_msg_call_path, span },
-            assert_msg_call_args,
-            span,
-        );
-        Some(self.resolve_expression(assert_msg_call_expr))
-    }
-
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         let id = self.interner.push_stmt(hir_stmt);
-        self.interner.push_statement_location(id, stmt.span, self.file);
+        self.interner.push_stmt_location(id, stmt.span, self.file);
         id
     }
 

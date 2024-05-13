@@ -163,7 +163,7 @@ impl<'a> Interpreter<'a> {
         self.scopes.last_mut().unwrap()
     }
 
-    fn define_pattern(
+    pub(super) fn define_pattern(
         &mut self,
         pattern: &HirPattern,
         typ: &Type,
@@ -265,7 +265,7 @@ impl<'a> Interpreter<'a> {
         Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
-    fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
+    pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
         self.lookup_id(ident.id, ident.location)
     }
 
@@ -294,7 +294,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Evaluate an expression and return the result
-    fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
@@ -401,6 +401,14 @@ impl<'a> Interpreter<'a> {
                     let value = if is_negative { 0u8.wrapping_sub(value) } else { value };
                     Ok(Value::U8(value))
                 }
+                (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
+                    let value: u16 =
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        )?;
+                    let value = if is_negative { 0u16.wrapping_sub(value) } else { value };
+                    Ok(Value::U16(value))
+                }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     let value: u32 =
                         value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
@@ -429,6 +437,14 @@ impl<'a> Interpreter<'a> {
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I8(value))
+                }
+                (Signedness::Signed, IntegerBitSize::Sixteen) => {
+                    let value: i16 =
+                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                        )?;
+                    let value = if is_negative { -value } else { value };
+                    Ok(Value::I16(value))
                 }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
                     let value: i32 =
@@ -509,9 +525,11 @@ impl<'a> Interpreter<'a> {
             crate::ast::UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
+                Value::I16(value) => Ok(Value::I16(-value)),
                 Value::I32(value) => Ok(Value::I32(-value)),
                 Value::I64(value) => Ok(Value::I64(-value)),
                 Value::U8(value) => Ok(Value::U8(0 - value)),
+                Value::U16(value) => Ok(Value::U16(0 - value)),
                 Value::U32(value) => Ok(Value::U32(0 - value)),
                 Value::U64(value) => Ok(Value::U64(0 - value)),
                 value => {
@@ -523,9 +541,11 @@ impl<'a> Interpreter<'a> {
             crate::ast::UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
+                Value::I16(value) => Ok(Value::I16(!value)),
                 Value::I32(value) => Ok(Value::I32(!value)),
                 Value::I64(value) => Ok(Value::I64(!value)),
                 Value::U8(value) => Ok(Value::U8(!value)),
+                Value::U16(value) => Ok(Value::U16(!value)),
                 Value::U32(value) => Ok(Value::U32(!value)),
                 Value::U64(value) => Ok(Value::U64(!value)),
                 value => {
@@ -559,9 +579,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Add => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs + rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs + rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs + rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs + rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs + rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs + rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs + rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs + rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs + rhs)),
                 (lhs, rhs) => {
@@ -572,9 +594,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Subtract => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs - rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs - rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs - rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs - rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs - rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs - rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs - rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs - rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs - rhs)),
                 (lhs, rhs) => {
@@ -585,9 +609,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Multiply => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs * rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs * rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs * rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs * rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs * rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs * rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs * rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs * rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs * rhs)),
                 (lhs, rhs) => {
@@ -598,9 +624,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Divide => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs / rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs / rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs / rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs / rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs / rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs / rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs / rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs / rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs / rhs)),
                 (lhs, rhs) => {
@@ -611,9 +639,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Equal => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs == rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::Bool(lhs == rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (lhs, rhs) => {
@@ -624,9 +654,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::NotEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs != rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::Bool(lhs != rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (lhs, rhs) => {
@@ -637,9 +669,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Less => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs < rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::Bool(lhs < rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (lhs, rhs) => {
@@ -650,9 +684,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::LessEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs <= rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::Bool(lhs <= rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (lhs, rhs) => {
@@ -663,9 +699,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Greater => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs > rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::Bool(lhs > rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (lhs, rhs) => {
@@ -676,9 +714,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::GreaterEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::Bool(lhs >= rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::Bool(lhs >= rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (lhs, rhs) => {
@@ -689,9 +729,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::And => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs & rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs & rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs & rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs & rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs & rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs & rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs & rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs & rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
                 (lhs, rhs) => {
@@ -702,9 +744,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Or => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs | rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs | rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs | rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs | rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs | rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs | rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs | rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs | rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
                 (lhs, rhs) => {
@@ -715,9 +759,11 @@ impl<'a> Interpreter<'a> {
             BinaryOpKind::Xor => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs ^ rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs ^ rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs ^ rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs ^ rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs ^ rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs ^ rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs ^ rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs ^ rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
                 (lhs, rhs) => {
@@ -727,9 +773,11 @@ impl<'a> Interpreter<'a> {
             },
             BinaryOpKind::ShiftRight => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs >> rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs >> rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs >> rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs >> rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs >> rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs >> rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs >> rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs >> rhs)),
                 (lhs, rhs) => {
@@ -739,9 +787,11 @@ impl<'a> Interpreter<'a> {
             },
             BinaryOpKind::ShiftLeft => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs << rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs << rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs << rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs << rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs << rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs << rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs << rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs << rhs)),
                 (lhs, rhs) => {
@@ -751,9 +801,11 @@ impl<'a> Interpreter<'a> {
             },
             BinaryOpKind::Modulo => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs % rhs)),
+                (Value::I16(lhs), Value::I16(rhs)) => Ok(Value::I16(lhs % rhs)),
                 (Value::I32(lhs), Value::I32(rhs)) => Ok(Value::I32(lhs % rhs)),
                 (Value::I64(lhs), Value::I64(rhs)) => Ok(Value::I64(lhs % rhs)),
                 (Value::U8(lhs), Value::U8(rhs)) => Ok(Value::U8(lhs % rhs)),
+                (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs % rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs % rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs % rhs)),
                 (lhs, rhs) => {
@@ -795,9 +847,11 @@ impl<'a> Interpreter<'a> {
                 value.try_to_u64().expect("index could not fit into u64") as usize
             }
             Value::I8(value) => value as usize,
+            Value::I16(value) => value as usize,
             Value::I32(value) => value as usize,
             Value::I64(value) => value as usize,
             Value::U8(value) => value as usize,
+            Value::U16(value) => value as usize,
             Value::U32(value) => value as usize,
             Value::U64(value) => value as usize,
             value => {
@@ -908,9 +962,11 @@ impl<'a> Interpreter<'a> {
         let (mut lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
             Value::Field(value) => (value, false),
             Value::U8(value) => ((value as u128).into(), false),
+            Value::U16(value) => ((value as u128).into(), false),
             Value::U32(value) => ((value as u128).into(), false),
             Value::U64(value) => ((value as u128).into(), false),
             Value::I8(value) => signed_int_to_field!(value),
+            Value::I16(value) => signed_int_to_field!(value),
             Value::I32(value) => signed_int_to_field!(value),
             Value::I64(value) => signed_int_to_field!(value),
             Value::Bool(value) => {
@@ -946,6 +1002,9 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
+                (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
+                    cast_to_int!(lhs, to_u128, u16, U16)
+                }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     cast_to_int!(lhs, to_u128, u32, U32)
                 }
@@ -957,6 +1016,9 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
+                (Signedness::Signed, IntegerBitSize::Sixteen) => {
+                    cast_to_int!(lhs, to_i128, i16, I16)
+                }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
                     cast_to_int!(lhs, to_i128, i32, I32)
                 }
@@ -1149,9 +1211,11 @@ impl<'a> Interpreter<'a> {
         let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
             match this.evaluate(expr)? {
                 Value::I8(value) => Ok((value as i128, |i| Value::I8(i as i8))),
+                Value::I16(value) => Ok((value as i128, |i| Value::I16(i as i16))),
                 Value::I32(value) => Ok((value as i128, |i| Value::I32(i as i32))),
                 Value::I64(value) => Ok((value as i128, |i| Value::I64(i as i64))),
                 Value::U8(value) => Ok((value as i128, |i| Value::U8(i as u8))),
+                Value::U16(value) => Ok((value as i128, |i| Value::U16(i as u16))),
                 Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
                 Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
                 value => {

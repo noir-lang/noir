@@ -270,6 +270,7 @@ mod serialization_tests {
             // These two fields are unused when serializing/deserializing to file.
             param_witnesses: BTreeMap::new(),
             return_witnesses: Vec::new(),
+            error_types: Default::default(),
         };
 
         let input_map: BTreeMap<String, InputValue> = BTreeMap::from([

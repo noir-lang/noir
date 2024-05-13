@@ -107,21 +107,21 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     let backend = crate::backends::Backend::new(active_backend);
 
     match command {
-        NargoCommand::New(args) => new_cmd::run(&backend, args, config),
+        NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
-        NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
-        NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
-        NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
-        NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
-        NargoCommand::Export(args) => export_cmd::run(&backend, args, config),
+        NargoCommand::Check(args) => check_cmd::run(args, config),
+        NargoCommand::Compile(args) => compile_cmd::run(args, config),
+        NargoCommand::Debug(args) => debug_cmd::run(args, config),
+        NargoCommand::Execute(args) => execute_cmd::run(args, config),
+        NargoCommand::Export(args) => export_cmd::run(args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
-        NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
+        NargoCommand::Test(args) => test_cmd::run(args, config),
         NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Backend(args) => backend_cmd::run(args),
-        NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
-        NargoCommand::Dap(args) => dap_cmd::run(&backend, args, config),
+        NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
+        NargoCommand::Dap(args) => dap_cmd::run(args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 

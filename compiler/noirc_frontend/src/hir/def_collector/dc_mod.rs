@@ -70,7 +70,7 @@ pub fn collect_defs(
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
-        collector.def_collector.collected_imports.push(ImportDirective {
+        collector.def_collector.imports.push(ImportDirective {
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
@@ -126,7 +126,7 @@ impl<'a> ModCollector<'a> {
                 errors.push((err.into(), self.file_id));
             }
 
-            self.def_collector.collected_globals.push(UnresolvedGlobal {
+            self.def_collector.items.globals.push(UnresolvedGlobal {
                 file_id: self.file_id,
                 module_id: self.module_id,
                 global_id,
@@ -154,7 +154,7 @@ impl<'a> ModCollector<'a> {
             }
 
             let key = (r#impl.object_type, self.module_id);
-            let methods = self.def_collector.collected_impls.entry(key).or_default();
+            let methods = self.def_collector.items.impls.entry(key).or_default();
             methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
         }
     }
@@ -191,7 +191,7 @@ impl<'a> ModCollector<'a> {
                 trait_generics: trait_impl.trait_generics,
             };
 
-            self.def_collector.collected_traits_impls.push(unresolved_trait_impl);
+            self.def_collector.items.trait_impls.push(unresolved_trait_impl);
         }
     }
 
@@ -269,7 +269,7 @@ impl<'a> ModCollector<'a> {
             }
         }
 
-        self.def_collector.collected_functions.push(unresolved_functions);
+        self.def_collector.items.functions.push(unresolved_functions);
         errors
     }
 
@@ -316,7 +316,7 @@ impl<'a> ModCollector<'a> {
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
-            self.def_collector.collected_types.insert(id, unresolved);
+            self.def_collector.items.types.insert(id, unresolved);
         }
         definition_errors
     }
@@ -354,7 +354,7 @@ impl<'a> ModCollector<'a> {
                 errors.push((err.into(), self.file_id));
             }
 
-            self.def_collector.collected_type_aliases.insert(type_alias_id, unresolved);
+            self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
         }
         errors
     }
@@ -506,7 +506,7 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            self.def_collector.collected_traits.insert(trait_id, unresolved);
+            self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors
     }
