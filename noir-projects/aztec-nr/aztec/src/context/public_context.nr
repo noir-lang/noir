@@ -225,11 +225,13 @@ impl PublicContextInterface for PublicContext {
     }
 
     fn coinbase(self) -> EthAddress {
-        self.inputs.public_global_variables.coinbase
+        assert(false, "'coinbase' not implemented!");
+        EthAddress::zero()
     }
 
     fn fee_recipient(self) -> AztecAddress {
-        self.inputs.public_global_variables.fee_recipient
+        assert(false, "'fee_recipient' not implemented!");
+        AztecAddress::zero()
     }
 
     fn fee_per_da_gas(self) -> Field {

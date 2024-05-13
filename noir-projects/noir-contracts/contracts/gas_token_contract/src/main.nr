@@ -65,9 +65,6 @@ contract GasToken {
         let sender_new_balance = storage.balances.at(context.msg_sender()).read() - fee;
         storage.balances.at(context.msg_sender()).write(sender_new_balance);
 
-        let recipient_new_balance = storage.balances.at(context.fee_recipient()).read() + fee;
-        storage.balances.at(context.fee_recipient()).write(recipient_new_balance);
-
         let rebate = fee_limit_u128 - fee;
         rebate.to_field()
     }

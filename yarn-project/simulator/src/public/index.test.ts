@@ -674,12 +674,6 @@ describe('ACIR public execution simulator', () => {
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Version' },
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Block number' },
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Timestamp' },
-      { value: EthAddress.random(), invalidValue: EthAddress.random(), description: 'Coinbase' },
-      {
-        value: AztecAddress.random(),
-        invalidValue: AztecAddress.random(),
-        description: 'Fee recipient',
-      },
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per DA gas' },
       { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per L2 gas' },
     ];

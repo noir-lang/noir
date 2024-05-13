@@ -147,7 +147,7 @@ describe('e2e_fees private_payment', () => {
     await expectMapping(
       t.gasBalances,
       [aliceAddress, bananaFPC.address, sequencerAddress],
-      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas + feeAmount],
+      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas],
     );
 
     await expect(
@@ -207,7 +207,7 @@ describe('e2e_fees private_payment', () => {
     await expectMapping(
       t.gasBalances,
       [aliceAddress, bananaFPC.address, sequencerAddress],
-      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas + feeAmount],
+      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas],
     );
 
     await expect(
@@ -270,7 +270,7 @@ describe('e2e_fees private_payment', () => {
     await expectMapping(
       t.gasBalances,
       [aliceAddress, bananaFPC.address, sequencerAddress],
-      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas + feeAmount],
+      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas],
     );
 
     await expect(
@@ -346,7 +346,7 @@ describe('e2e_fees private_payment', () => {
     await expectMapping(
       t.gasBalances,
       [aliceAddress, bananaFPC.address, sequencerAddress],
-      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas + feeAmount],
+      [InitialAliceGas, InitialFPCGas - feeAmount, InitialSequencerGas],
     );
 
     await expect(

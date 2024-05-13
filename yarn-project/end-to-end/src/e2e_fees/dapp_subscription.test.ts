@@ -114,7 +114,7 @@ describe('e2e_fees dapp_subscription', () => {
     await expectMapping(
       t.gasBalances,
       [sequencerAddress, bananaFPC.address],
-      [initialSequencerGasBalance + transactionFee!, initialFPCGasBalance - transactionFee!],
+      [initialSequencerGasBalance, initialFPCGasBalance - transactionFee!],
     );
 
     // alice, bob, fpc
@@ -143,7 +143,7 @@ describe('e2e_fees dapp_subscription', () => {
     await expectMapping(
       t.gasBalances,
       [sequencerAddress, bananaFPC.address],
-      [initialSequencerGasBalance + transactionFee!, initialFPCGasBalance - transactionFee!],
+      [initialSequencerGasBalance, initialFPCGasBalance - transactionFee!],
     );
 
     // alice, bob, fpc
@@ -156,9 +156,7 @@ describe('e2e_fees dapp_subscription', () => {
 
   it('should call dapp subscription entrypoint', async () => {
     // Subscribe again, so this test does not depend on the previous ones being run.
-    const { transactionFee: subscriptionTxFee } = await subscribe(
-      new PrivateFeePaymentMethod(bananaCoin.address, bananaFPC.address, aliceWallet),
-    );
+    await subscribe(new PrivateFeePaymentMethod(bananaCoin.address, bananaFPC.address, aliceWallet));
 
     expect(await subscriptionContract.methods.is_initialized(aliceAddress).simulate()).toBe(true);
 
@@ -174,10 +172,7 @@ describe('e2e_fees dapp_subscription', () => {
     await expectMapping(
       t.gasBalances,
       [sequencerAddress, subscriptionContract.address],
-      [
-        initialSequencerGasBalance + transactionFee! + subscriptionTxFee!,
-        initialSubscriptionContractGasBalance - transactionFee!,
-      ],
+      [initialSequencerGasBalance, initialSubscriptionContractGasBalance - transactionFee!],
     );
   });
 
