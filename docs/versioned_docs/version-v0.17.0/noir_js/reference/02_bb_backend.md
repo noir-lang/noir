@@ -41,7 +41,7 @@ constructor(acirCircuit, (numberOfThreads = 1));
 
 | Parameter         | Type              | Description                                                                                                                                                                                                                             |
 | ----------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `acirCircuit`     | Object            | A circuit represented in a `json` format, containing the ABI and bytecode Tipically obtained by running [`nargo compile`](../../nargo/01_commands.md). This is the same circuit expected to be passed to [the Noir class](01_noirjs.md) |
+| `acirCircuit`     | Object            | A circuit represented in a `json` format, containing the ABI and bytecode typically obtained by running [`nargo compile`](../../nargo/01_commands.md). This is the same circuit expected to be passed to [the Noir class](01_noirjs.md) |
 | `numberOfThreads` | Number (optional) | The number of threads to be used by the backend. Defaults to 1.                                                                                                                                                                         |
 
 ### Usage
@@ -70,7 +70,7 @@ async generateFinalProof(decompressedWitness)
 
 | Return value | Type                 | Description                                               |
 | ------------ | -------------------- | --------------------------------------------------------- |
-| `proof`      | Promise<Uint8Array\> | An array with the byte representation of the final proof. |
+| `proof`      | Promise\<Uint8Array\> | An array with the byte representation of the final proof. |
 
 ### Usage
 
@@ -98,7 +98,7 @@ async generateIntermediateProof(witness)
 
 | Return value | Type                 | Description                                                     |
 | ------------ | -------------------- | --------------------------------------------------------------- |
-| `proof`      | Promise<Uint8Array\> | An array with the byte representation of the intermediate proof |
+| `proof`      | Promise\<Uint8Array\> | An array with the byte representation of the intermediate proof |
 
 ### Usage
 
@@ -127,7 +127,7 @@ async generateProof(decompressedWitness, makeEasyToVerifyInCircuit)
 
 | Return value | Type                 | Description                                        |
 | ------------ | -------------------- | -------------------------------------------------- |
-| `proof`      | Promise<Uint8Array\> | An array with the byte representation of the proof |
+| `proof`      | Promise\<Uint8Array\> | An array with the byte representation of the proof |
 
 ### Usage
 
@@ -186,7 +186,7 @@ async verifyFinalProof(proof)
 
 | Return value | Type               | Description                                  |
 | ------------ | ------------------ | -------------------------------------------- |
-| `verified`   | Promise <boolean\> | A boolean for whether the proof was verified |
+| `verified`   | Promise \<boolean\> | A boolean for whether the proof was verified |
 
 ### Usage
 
@@ -214,7 +214,7 @@ async verifyIntermediateProof(proof)
 
 | Return value | Type               | Description                                  |
 | ------------ | ------------------ | -------------------------------------------- |
-| `verified`   | Promise <boolean\> | A boolean for whether the proof was verified |
+| `verified`   | Promise \<boolean\> | A boolean for whether the proof was verified |
 
 ### Usage
 

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.webpack.json",
+  "compilerOptions": {
+    "module": "ESNext",
+  },
+}

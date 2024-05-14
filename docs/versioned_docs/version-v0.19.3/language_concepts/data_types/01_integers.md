@@ -107,6 +107,6 @@ Example of how it is used:
 use dep::std;
 
 fn main(x: u8, y: u8) -> pub u8 {
-    std::wrapping_add(x + y)
+    std::wrapping_add(x, y)
 }
 ```

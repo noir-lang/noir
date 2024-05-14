@@ -34,7 +34,7 @@ If the module is in a subdirectory, you can define a subdirectory in your git re
 # Nargo.toml
 
 [dependencies]
-easy_private_token_contract = {tag ="v0.1.0-alpha62", git = "https://github.com/AztecProtocol/aztec-packages", directory = "yarn-project/noir-contracts/src/contracts/easy_private_token_contract"}
+easy_private_token_contract = {tag ="v0.1.0-alpha62", git = "https://github.com/AztecProtocol/aztec-packages", directory = "yarn-project/noir-contracts/contracts/easy_private_token_contract"}
 ```
 
 ## Specifying a local dependency
@@ -48,7 +48,7 @@ For example, this file structure has a library and binary crate
 │   ├── Nargo.toml
 │   └── src
 │       └── main.nr
-└── liba
+└── lib_a
     ├── Nargo.toml
     └── src
         └── lib.nr
@@ -60,17 +60,17 @@ Inside of the binary crate, you can specify:
 # Nargo.toml
 
 [dependencies]
-libA = { path = "../liba" }
+lib_a = { path = "../lib_a" }
 ```
 
 ## Importing dependencies
 
 You can import a dependency to a Noir file using the following syntax. For example, to import the
-ecrecover-noir library and local liba referenced above:
+ecrecover-noir library and local lib_a referenced above:
 
 ```rust
 use dep::ecrecover;
-use dep::libA;
+use dep::lib_a;
 ```
 
 You can also import only the specific parts of dependency that you want to use, like so:

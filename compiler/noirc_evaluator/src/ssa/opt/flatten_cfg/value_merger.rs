@@ -1,38 +1,36 @@
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
-    instruction::{BinaryOp, Instruction, Intrinsic},
+    dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
+    instruction::{BinaryOp, Instruction},
     types::Type,
     value::{Value, ValueId},
 };
 
-use crate::ssa::opt::flatten_cfg::Store;
-
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
-    store_values: Option<&'a HashMap<ValueId, Store>>,
-    outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
-    slice_sizes: HashMap<ValueId, usize>,
+
+    current_condition: Option<ValueId>,
+
+    // Maps SSA array values with a slice type to their size.
+    // This must be computed before merging values.
+    slice_sizes: &'a mut HashMap<ValueId, usize>,
+
+    array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
 }
 
 impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        store_values: Option<&'a HashMap<ValueId, Store>>,
-        outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
+        slice_sizes: &'a mut HashMap<ValueId, usize>,
+        array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
+        current_condition: Option<ValueId>,
     ) -> Self {
-        ValueMerger {
-            dfg,
-            block,
-            store_values,
-            outer_block_stores,
-            slice_sizes: HashMap::default(),
-        }
+        ValueMerger { dfg, block, slice_sizes, array_set_conditionals, current_condition }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -51,9 +49,14 @@ impl<'a> ValueMerger<'a> {
         else_value: ValueId,
     ) -> ValueId {
         match self.dfg.type_of_value(then_value) {
-            Type::Numeric(_) => {
-                self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
-            }
+            Type::Numeric(_) => Self::merge_numeric_values(
+                self.dfg,
+                self.block,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
@@ -68,58 +71,57 @@ impl<'a> ValueMerger<'a> {
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
     /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
     pub(crate) fn merge_numeric_values(
-        &mut self,
+        dfg: &mut DataFlowGraph,
+        block: BasicBlockId,
         then_condition: ValueId,
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        let then_type = self.dfg.type_of_value(then_value);
-        let else_type = self.dfg.type_of_value(else_value);
+        let then_type = dfg.type_of_value(then_value);
+        let else_type = dfg.type_of_value(else_value);
         assert_eq!(
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        let then_call_stack = self.dfg.get_value_call_stack(then_value);
-        let else_call_stack = self.dfg.get_value_call_stack(else_value);
+        if then_value == else_value {
+            return then_value;
+        }
+
+        let then_call_stack = dfg.get_value_call_stack(then_value);
+        let else_call_stack = dfg.get_value_call_stack(else_value);
 
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
-        let then_condition = self
-            .dfg
+        let then_condition = dfg
             .insert_instruction_and_results(
                 Instruction::Cast(then_condition, then_type),
-                self.block,
+                block,
                 None,
                 call_stack.clone(),
             )
             .first();
-        let else_condition = self
-            .dfg
+        let else_condition = dfg
             .insert_instruction_and_results(
                 Instruction::Cast(else_condition, else_type),
-                self.block,
+                block,
                 None,
                 call_stack.clone(),
             )
             .first();
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value = self
-            .dfg
-            .insert_instruction_and_results(mul, self.block, None, call_stack.clone())
-            .first();
+        let then_value =
+            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value = self
-            .dfg
-            .insert_instruction_and_results(mul, self.block, None, call_stack.clone())
-            .first();
+        let else_value =
+            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        self.dfg.insert_instruction_and_results(add, self.block, None, call_stack).first()
+        dfg.insert_instruction_and_results(add, block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -139,6 +141,18 @@ impl<'a> ValueMerger<'a> {
             Type::Array(elements, len) => (elements, *len),
             _ => panic!("Expected array type"),
         };
+
+        let actual_length = len * element_types.len();
+
+        if let Some(result) = self.try_merge_only_changed_indices(
+            then_condition,
+            else_condition,
+            then_value,
+            else_value,
+            actual_length,
+        ) {
+            return result;
+        }
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -184,11 +198,19 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = self.get_slice_length(then_value_id);
-        self.slice_sizes.insert(then_value_id, then_len);
+        let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
+            let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
+                panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+            });
+            slice.len() / typ.element_types().len()
+        });
 
-        let else_len = self.get_slice_length(else_value_id);
-        self.slice_sizes.insert(else_value_id, else_len);
+        let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
+            let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
+                panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+            });
+            slice.len() / typ.element_types().len()
+        });
 
         let len = then_len.max(else_len);
 
@@ -218,8 +240,10 @@ impl<'a> ValueMerger<'a> {
                     }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone(), then_len);
-                let else_element = get_element(else_value_id, typevars, else_len);
+                let then_element =
+                    get_element(then_value_id, typevars.clone(), then_len * element_types.len());
+                let else_element =
+                    get_element(else_value_id, typevars, else_len * element_types.len());
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -233,91 +257,15 @@ impl<'a> ValueMerger<'a> {
         self.dfg.make_array(merged, typ)
     }
 
-    fn get_slice_length(&mut self, value_id: ValueId) -> usize {
-        let value = &self.dfg[value_id];
-        match value {
-            Value::Array { array, .. } => array.len(),
-            Value::Instruction { instruction: instruction_id, .. } => {
-                let instruction = &self.dfg[*instruction_id];
-                match instruction {
-                    // TODO(#3188): A slice can be the result of an ArrayGet when it is the
-                    // fetched from a slice of slices or as a struct field.
-                    // However, we need to incorporate nested slice support in flattening
-                    // in order for this to be valid
-                    // Instruction::ArrayGet { array, .. } => {}
-                    Instruction::ArraySet { array, .. } => {
-                        let array = *array;
-                        let len = self.get_slice_length(array);
-                        self.slice_sizes.insert(array, len);
-                        len
-                    }
-                    Instruction::Load { address } => {
-                        let outer_block_stores = self.outer_block_stores.expect("ICE: A map of previous stores is required in order to resolve a slice load");
-                        let store_values = self.store_values.expect("ICE: A map of previous stores is required in order to resolve a slice load");
-                        let store_value = outer_block_stores
-                            .get(address)
-                            .expect("ICE: load in merger should have store from outer block");
-
-                        if let Some(len) = self.slice_sizes.get(store_value) {
-                            return *len;
-                        }
-
-                        let store_value = if let Some(store) = store_values.get(address) {
-                            if let Some(len) = self.slice_sizes.get(&store.new_value) {
-                                return *len;
-                            }
-
-                            store.new_value
-                        } else {
-                            *store_value
-                        };
-
-                        self.get_slice_length(store_value)
-                    }
-                    Instruction::Call { func, arguments } => {
-                        let slice_contents = arguments[1];
-                        let func = &self.dfg[*func];
-                        match func {
-                            Value::Intrinsic(intrinsic) => match intrinsic {
-                                Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SliceInsert => {
-                                    // `get_slice_length` needs to be called here as it is borrows self as mutable
-                                    let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
-                                    initial_len + 1
-                                }
-                                Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRemove => {
-                                    // `get_slice_length` needs to be called here as it is borrows self as mutable
-                                    let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
-                                    initial_len - 1
-                                }
-                                _ => {
-                                    unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
-                                }
-                            },
-                            _ => unreachable!("ICE: Expected intrinsic value but got {func:?}"),
-                        }
-                    }
-                    _ => unreachable!("ICE: Got unexpected instruction: {instruction:?}"),
-                }
-            }
-            _ => unreachable!("ICE: Got unexpected value when resolving slice length {value:?}"),
-        }
-    }
-
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
     /// We need to make sure we follow the internal element type structure of the slice type
     /// even for dummy data to ensure that we do not have errors later in the compiler,
     /// such as with dynamic indexing of non-homogenous slices.
     fn make_slice_dummy_data(&mut self, typ: &Type) -> ValueId {
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(numeric_type) => {
                 let zero = FieldElement::zero();
-                self.dfg.make_constant(zero, Type::field())
+                self.dfg.make_constant(zero, Type::Numeric(*numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut array = im::Vector::new();
@@ -339,6 +287,159 @@ impl<'a> ValueMerger<'a> {
             Type::Function => {
                 unreachable!("ICE: Merging functions is unsupported")
             }
+        }
+    }
+
+    fn try_merge_only_changed_indices(
+        &mut self,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+        array_length: usize,
+    ) -> Option<ValueId> {
+        let mut found = false;
+        let current_condition = self.current_condition?;
+
+        let mut current_then = then_value;
+        let mut current_else = else_value;
+
+        // Arbitrarily limit this to looking at at most 10 past ArraySet operations.
+        // If there are more than that, we assume 2 completely separate arrays are being merged.
+        let max_iters = 2;
+        let mut seen_then = Vec::with_capacity(max_iters);
+        let mut seen_else = Vec::with_capacity(max_iters);
+
+        // We essentially have a tree of ArraySets and want to find a common
+        // ancestor if it exists, alone with the path to it from each starting node.
+        // This path will be the indices that were changed to create each result array.
+        for _ in 0..max_iters {
+            if current_then == else_value {
+                seen_else.clear();
+                found = true;
+                break;
+            }
+
+            if current_else == then_value {
+                seen_then.clear();
+                found = true;
+                break;
+            }
+
+            if let Some(index) = seen_then.iter().position(|(elem, _, _, _)| *elem == current_else)
+            {
+                seen_else.truncate(index);
+                found = true;
+                break;
+            }
+
+            if let Some(index) = seen_else.iter().position(|(elem, _, _, _)| *elem == current_then)
+            {
+                seen_then.truncate(index);
+                found = true;
+                break;
+            }
+
+            current_then = self.find_previous_array_set(current_then, &mut seen_then);
+            current_else = self.find_previous_array_set(current_else, &mut seen_else);
+        }
+
+        let changed_indices: FxHashSet<_> = seen_then
+            .into_iter()
+            .map(|(_, index, typ, condition)| (index, typ, condition))
+            .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
+            .collect();
+
+        if !found || changed_indices.len() >= array_length {
+            return None;
+        }
+
+        let mut array = then_value;
+
+        for (index, element_type, condition) in changed_indices {
+            let typevars = Some(vec![element_type.clone()]);
+
+            let instruction = Instruction::EnableSideEffects { condition };
+            self.insert_instruction(instruction);
+
+            let mut get_element = |array, typevars| {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                    .first()
+            };
+
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
+
+            let value =
+                self.merge_values(then_condition, else_condition, then_element, else_element);
+
+            array = self.insert_array_set(array, index, value, Some(condition)).first();
+        }
+
+        let instruction = Instruction::EnableSideEffects { condition: current_condition };
+        self.insert_instruction(instruction);
+        Some(array)
+    }
+
+    fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new())
+    }
+
+    fn insert_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+        condition: Option<ValueId>,
+    ) -> InsertInstructionResult {
+        let instruction = Instruction::ArraySet { array, index, value, mutable: false };
+        let result = self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block,
+            None,
+            CallStack::new(),
+        );
+
+        if let Some(condition) = condition {
+            let result_index = if result.len() == 1 {
+                0
+            } else {
+                // Slices return (length, slice)
+                assert_eq!(result.len(), 2);
+                1
+            };
+
+            let result_value = result[result_index];
+            self.array_set_conditionals.insert(result_value, condition);
+        }
+
+        result
+    }
+
+    fn find_previous_array_set(
+        &self,
+        result: ValueId,
+        changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
+    ) -> ValueId {
+        match &self.dfg[result] {
+            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
+                Instruction::ArraySet { array, index, value, .. } => {
+                    let condition =
+                        *self.array_set_conditionals.get(&result).unwrap_or_else(|| {
+                            panic!(
+                                "Expected to have conditional for array set {result}\n{:?}",
+                                self.array_set_conditionals
+                            )
+                        });
+                    let element_type = self.dfg.type_of_value(*value);
+                    changed_indices.push((result, *index, element_type, condition));
+                    *array
+                }
+                _ => result,
+            },
+            _ => result,
         }
     }
 }

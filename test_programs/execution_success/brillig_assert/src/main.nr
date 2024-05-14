@@ -6,7 +6,7 @@ fn main(x: Field) {
 }
 
 unconstrained fn conditional(x: bool) -> Field {
-    assert(x, "x is false");
-    assert_eq(x, true, "x is false");
+    assert(x, f"Expected x to be false but got {x}");
+    assert_eq(x, true, f"Expected x to be false but got {x}");
     1
 }

@@ -1,6 +1,6 @@
 use super::{
-    brillig::Brillig,
-    directives::{Directive, QuotientDirective},
+    brillig::{BrilligInputs, BrilligOutputs},
+    directives::Directive,
 };
 use crate::native_types::{Expression, Witness};
 use serde::{Deserialize, Serialize};
@@ -11,15 +11,15 @@ mod memory_operation;
 pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput};
 pub use memory_operation::{BlockId, MemOp};
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Opcode {
-    Arithmetic(Expression),
+    AssertZero(Expression),
     /// Calls to "gadgets" which rely on backends implementing support for specialized constraints.
     ///
     /// Often used for exposing more efficient implementations of SNARK-unfriendly computations.  
     BlackBoxFuncCall(BlackBoxFuncCall),
     Directive(Directive),
-    Brillig(Brillig),
     /// Atomic operation on a block of memory
     MemoryOp {
         block_id: BlockId,
@@ -31,64 +31,37 @@ pub enum Opcode {
         block_id: BlockId,
         init: Vec<Witness>,
     },
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum UnsupportedMemoryOpcode {
-    MemoryOp,
-    MemoryInit,
-}
-
-impl std::fmt::Display for UnsupportedMemoryOpcode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnsupportedMemoryOpcode::MemoryOp => write!(f, "MemoryOp"),
-            UnsupportedMemoryOpcode::MemoryInit => write!(f, "MemoryInit"),
-        }
-    }
-}
-
-impl Opcode {
-    // TODO We can add a domain separator by doing something like:
-    // TODO concat!("directive:", directive.name)
-    pub fn name(&self) -> &str {
-        match self {
-            Opcode::Arithmetic(_) => "arithmetic",
-            Opcode::Directive(directive) => directive.name(),
-            Opcode::BlackBoxFuncCall(g) => g.name(),
-            Opcode::Brillig(_) => "brillig",
-            Opcode::MemoryOp { .. } => "mem",
-            Opcode::MemoryInit { .. } => "init memory block",
-        }
-    }
-
-    pub fn unsupported_opcode(&self) -> UnsupportedMemoryOpcode {
-        match self {
-            Opcode::MemoryOp { .. } => UnsupportedMemoryOpcode::MemoryOp,
-            Opcode::MemoryInit { .. } => UnsupportedMemoryOpcode::MemoryInit,
-            Opcode::BlackBoxFuncCall(_) => {
-                unreachable!("Unsupported Blackbox function should not be reported here")
-            }
-            _ => unreachable!("Opcode is supported"),
-        }
-    }
-
-    pub fn is_arithmetic(&self) -> bool {
-        matches!(self, Opcode::Arithmetic(_))
-    }
-
-    pub fn arithmetic(self) -> Option<Expression> {
-        match self {
-            Opcode::Arithmetic(expr) => Some(expr),
-            _ => None,
-        }
-    }
+    /// Calls to unconstrained functions
+    BrilligCall {
+        /// Id for the function being called. It is the responsibility of the executor
+        /// to fetch the appropriate Brillig bytecode from this id.
+        id: u32,
+        /// Inputs to the function call
+        inputs: Vec<BrilligInputs>,
+        /// Outputs to the function call
+        outputs: Vec<BrilligOutputs>,
+        /// Predicate of the Brillig execution - indicates if it should be skipped
+        predicate: Option<Expression>,
+    },
+    /// Calls to functions represented as a separate circuit. A call opcode allows us
+    /// to build a call stack when executing the outer-most circuit.
+    Call {
+        /// Id for the function being called. It is the responsibility of the executor
+        /// to fetch the appropriate circuit from this id.
+        id: u32,
+        /// Inputs to the function call
+        inputs: Vec<Witness>,
+        /// Outputs of the function call
+        outputs: Vec<Witness>,
+        /// Predicate of the circuit execution - indicates if it should be skipped
+        predicate: Option<Expression>,
+    },
 }
 
 impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::Arithmetic(expr) => {
+            Opcode::AssertZero(expr) => {
                 write!(f, "EXPR [ ")?;
                 for i in &expr.mul_terms {
                     write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;
@@ -100,21 +73,7 @@ impl std::fmt::Display for Opcode {
 
                 write!(f, " ]")
             }
-            Opcode::Directive(Directive::Quotient(QuotientDirective { a, b, q, r, predicate })) => {
-                write!(f, "DIR::QUOTIENT ")?;
-                if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE = {pred}")?;
-                }
 
-                write!(
-                    f,
-                    "(out : _{},  (_{}, {}), _{})",
-                    a,
-                    q.witness_index(),
-                    b,
-                    r.witness_index()
-                )
-            }
             Opcode::BlackBoxFuncCall(g) => write!(f, "{g}"),
             Opcode::Directive(Directive::ToLeRadix { a, b, radix: _ }) => {
                 write!(f, "DIR::TORADIX ")?;
@@ -127,26 +86,6 @@ impl std::fmt::Display for Opcode {
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
                 )
-            }
-            Opcode::Directive(Directive::PermutationSort { inputs: a, tuple, bits, sort_by }) => {
-                write!(f, "DIR::PERMUTATIONSORT ")?;
-                write!(
-                    f,
-                    "(permutation size: {} {}-tuples, sort_by: {:#?}, bits: [_{}..._{}]))",
-                    a.len(),
-                    tuple,
-                    sort_by,
-                    // (Note): the bits do not have contiguous index but there are too many for display
-                    bits.first().unwrap().witness_index(),
-                    bits.last().unwrap().witness_index(),
-                )
-            }
-
-            Opcode::Brillig(brillig) => {
-                write!(f, "BRILLIG: ")?;
-                writeln!(f, "inputs: {:?}", brillig.inputs)?;
-                writeln!(f, "outputs: {:?}", brillig.outputs)?;
-                writeln!(f, "{:?}", brillig.bytecode)
             }
             Opcode::MemoryOp { block_id, op, predicate } => {
                 write!(f, "MEM ")?;
@@ -167,6 +106,24 @@ impl std::fmt::Display for Opcode {
             Opcode::MemoryInit { block_id, init } => {
                 write!(f, "INIT ")?;
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
+            }
+            // We keep the display for a BrilligCall and circuit Call separate as they
+            // are distinct in their functionality and we should maintain this separation for debugging.
+            Opcode::BrilligCall { id, inputs, outputs, predicate } => {
+                write!(f, "BRILLIG CALL func {}: ", id)?;
+                if let Some(pred) = predicate {
+                    writeln!(f, "PREDICATE = {pred}")?;
+                }
+                write!(f, "inputs: {:?}, ", inputs)?;
+                write!(f, "outputs: {:?}", outputs)
+            }
+            Opcode::Call { id, inputs, outputs, predicate } => {
+                write!(f, "CALL func {}: ", id)?;
+                if let Some(pred) = predicate {
+                    writeln!(f, "PREDICATE = {pred}")?;
+                }
+                write!(f, "inputs: {:?}, ", inputs)?;
+                write!(f, "outputs: {:?}", outputs)
             }
         }
     }

@@ -1,0 +1,6 @@
+[package]
+name = "pedersen_hash"
+type = "bin"
+authors = [""]
+
+[dependencies]

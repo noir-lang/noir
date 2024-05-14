@@ -1,9 +1,10 @@
 //! Select representative tests to bench with criterion
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{criterion_group, criterion_main, Criterion};
+
 use paste::paste;
 use pprof::criterion::{Output, PProfProfiler};
-use std::process::Command;
+use std::{process::Command, time::Duration};
 include!("./utils.rs");
 
 macro_rules! criterion_command {
@@ -15,9 +16,11 @@ macro_rules! criterion_command {
                     let mut cmd = Command::cargo_bin("nargo").unwrap();
                     cmd.arg("--program-dir").arg(&test_program_dir);
                     cmd.arg($command_string);
+                    cmd.arg("--force");
 
-                    c.bench_function(&format!("{}_{}", test_program_dir.file_name().unwrap().to_str().unwrap(), $command_string), |b| {
-                        b.iter(|| cmd.assert())
+                    let benchmark_name = format!("{}_{}", test_program_dir.file_name().unwrap().to_str().unwrap(), $command_string);
+                    c.bench_function(&benchmark_name, |b| {
+                        b.iter(|| cmd.assert().success())
                     });
                 }
             }
@@ -25,9 +28,16 @@ macro_rules! criterion_command {
     };
 }
 criterion_command!(execution, "execute");
+criterion_command!(prove, "prove");
+
 criterion_group! {
-    name = benches;
-    config = Criterion::default().sample_size(20).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets =  criterion_selected_tests_execution
+    name = execution_benches;
+    config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_selected_tests_execution
 }
-criterion_main!(benches);
+criterion_group! {
+    name = prove_benches;
+    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_selected_tests_prove
+}
+criterion_main!(execution_benches, prove_benches);

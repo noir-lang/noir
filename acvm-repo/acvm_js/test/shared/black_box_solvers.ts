@@ -66,13 +66,6 @@ export const keccak256_test_cases: [Uint8Array, Uint8Array][] = [
   ],
 ];
 
-// export const hash_to_field_128_security_test_cases: [string[], string][] = [
-//   [
-//     ["0x0000000000000000000000000000000000000000000000000000000000000001"],
-//     "0x25cebc29ded2fa515a937e2b5f674e3026c012e5b57f8a48d7dce6b7d274f9d9",
-//   ],
-// ];
-
 export const ecdsa_secp256k1_test_cases: [[Uint8Array, Uint8Array, Uint8Array, Uint8Array], boolean][] = [
   [
     [

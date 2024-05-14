@@ -1,7 +1,7 @@
 use crate::native_types::{Expression, Witness};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
 pub struct BlockId(pub u32);
 
 /// Operation on a block of memory

@@ -323,7 +323,8 @@ mod test {
         //   }
 
         let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -425,7 +426,8 @@ mod test {
         //   }
 
         let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();

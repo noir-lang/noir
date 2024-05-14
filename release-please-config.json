@@ -13,12 +13,6 @@
       "include-component-in-tag": false,
       "extra-files": [
         "Cargo.toml",
-        "flake.nix",
-        {
-          "type": "json",
-          "path": "compiler/source-resolver/package.json",
-          "jsonpath": "$.version"
-        },
         {
           "type": "json",
           "path": "compiler/wasm/package.json",
@@ -66,11 +60,10 @@
         "acir_field/Cargo.toml",
         "acvm/Cargo.toml",
         "acvm_js/Cargo.toml",
-        "barretenberg_blackbox_solver/Cargo.toml",
         "blackbox_solver/Cargo.toml",
+        "bn254_blackbox_solver/Cargo.toml",
         "brillig/Cargo.toml",
         "brillig_vm/Cargo.toml",
-        "stdlib/Cargo.toml",
         {
           "type": "json",
           "path": "acvm_js/package.json",
@@ -86,5 +79,6 @@
   },
   "plugins": [
     "sentence-case"
-  ]
+  ],
+  "bootstrap-sha": "690cfc0468de0b9aee53ccfe832c71c16e61e5fc"
 }

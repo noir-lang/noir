@@ -1,6 +1,6 @@
 use std::iter::zip;
 
-use noirc_frontend::{Expression, ExpressionKind};
+use noirc_frontend::ast::{Expression, ExpressionKind};
 
 use crate::{
     rewrite,
@@ -96,7 +96,9 @@ pub(crate) fn flatten(
 
                 result.push(rewrite);
 
-                let Some(pop) = stack.pop() else { break; };
+                let Some(pop) = stack.pop() else {
+                    break;
+                };
 
                 match &pop.kind {
                     ExpressionKind::Infix(infix) => {

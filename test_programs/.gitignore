@@ -1,1 +1,3 @@
 acir_artifacts
+execution_success/**/crs
+./Nargo.toml

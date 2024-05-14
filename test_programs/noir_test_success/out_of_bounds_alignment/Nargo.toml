@@ -1,0 +1,5 @@
+[package]
+name = "out_of_bounds_alignment"
+type = "bin"
+authors = [""]
+[dependencies]

@@ -17,8 +17,6 @@ pub enum LexerErrorKind {
     InvalidIntegerLiteral { span: Span, found: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
-    #[error("Integer type is larger than the maximum supported size of u127")]
-    TooManyBits { span: Span, max: u32, got: u32 },
     #[error("Logical and used instead of bitwise and")]
     LogicalAnd { span: Span },
     #[error("Unterminated block comment")]
@@ -45,7 +43,6 @@ impl LexerErrorKind {
             LexerErrorKind::NotADoubleChar { span, .. } => *span,
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
-            LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
@@ -85,13 +82,6 @@ impl LexerErrorKind {
                 format!(" {found} is not a valid attribute"),
                 *span,
             ),
-            LexerErrorKind::TooManyBits { span, max, got } => (
-                "Integer literal too large".to_string(),
-                format!(
-                    "The maximum number of bits needed to represent a field is {max}, This integer type needs {got} bits"
-                ),
-                *span,
-            ),
             LexerErrorKind::LogicalAnd { span } => (
                 "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
@@ -106,8 +96,8 @@ impl LexerErrorKind {
     }
 }
 
-impl From<LexerErrorKind> for Diagnostic {
-    fn from(error: LexerErrorKind) -> Diagnostic {
+impl<'a> From<&'a LexerErrorKind> for Diagnostic {
+    fn from(error: &'a LexerErrorKind) -> Diagnostic {
         let (primary, secondary, span) = error.parts();
         Diagnostic::simple_error(primary, secondary, span)
     }

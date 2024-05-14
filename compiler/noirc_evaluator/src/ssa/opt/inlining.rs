@@ -36,12 +36,30 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
-    pub(crate) fn inline_functions(mut self) -> Ssa {
-        self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
-            let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
-            (entry_point, new_function)
-        });
+    ///
+    /// There are some attributes that allow inlining a function at a different step of codegen.
+    /// Currently this is just `InlineType::NoPredicates` for which we have a flag indicating
+    /// whether treating that inline functions. The default is to treat these functions as entry points.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn inline_functions(self) -> Ssa {
+        Self::inline_functions_inner(self, true)
+    }
 
+    // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
+    pub(crate) fn inline_functions_with_no_predicates(self) -> Ssa {
+        Self::inline_functions_inner(self, false)
+    }
+
+    fn inline_functions_inner(mut self, no_predicates_is_entry_point: bool) -> Ssa {
+        self.functions = btree_map(
+            get_entry_point_functions(&self, no_predicates_is_entry_point),
+            |entry_point| {
+                let new_function =
+                    InlineContext::new(&self, entry_point, no_predicates_is_entry_point)
+                        .inline_all(&self);
+                (entry_point, new_function)
+            },
+        );
         self
     }
 }
@@ -59,6 +77,8 @@ struct InlineContext {
 
     // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
     entry_point: FunctionId,
+
+    no_predicates_is_entry_point: bool,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -93,12 +113,22 @@ struct PerFunctionContext<'function> {
 }
 
 /// The entry point functions are each function we should inline into - and each function that
-/// should be left in the final program. This is usually just `main` but also includes any
-/// brillig functions used.
-fn get_entry_point_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
+/// should be left in the final program.
+/// This is the `main` function, any Acir functions with a [fold inline type][InlineType::Fold],
+/// and any brillig functions used.
+fn get_entry_point_functions(
+    ssa: &Ssa,
+    no_predicates_is_entry_point: bool,
+) -> BTreeSet<FunctionId> {
     let functions = ssa.functions.iter();
     let mut entry_points = functions
-        .filter(|(_, function)| function.runtime() == RuntimeType::Brillig)
+        .filter(|(_, function)| {
+            // If we have not already finished the flattening pass, functions marked
+            // to not have predicates should be marked as entry points.
+            let no_predicates_is_entry_point =
+                no_predicates_is_entry_point && function.is_no_predicates();
+            function.runtime().is_entry_point() || no_predicates_is_entry_point
+        })
         .map(|(id, _)| *id)
         .collect::<BTreeSet<_>>();
 
@@ -112,10 +142,21 @@ impl InlineContext {
     /// The function being inlined into will always be the main function, although it is
     /// actually a copy that is created in case the original main is still needed from a function
     /// that could not be inlined calling it.
-    fn new(ssa: &Ssa, entry_point: FunctionId) -> InlineContext {
+    fn new(
+        ssa: &Ssa,
+        entry_point: FunctionId,
+        no_predicates_is_entry_point: bool,
+    ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
-        let builder = FunctionBuilder::new(source.name().to_owned(), entry_point, source.runtime());
-        Self { builder, recursion_level: 0, entry_point, call_stack: CallStack::new() }
+        let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
+        builder.set_runtime(source.runtime());
+        Self {
+            builder,
+            recursion_level: 0,
+            entry_point,
+            call_stack: CallStack::new(),
+            no_predicates_is_entry_point,
+        }
     }
 
     /// Start inlining the entry point function and all functions reachable from it.
@@ -348,10 +389,21 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => match ssa.functions[&function].runtime() {
-                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig => self.push_instruction(*id),
-                    },
+                    Some(func_id) => {
+                        let function = &ssa.functions[&func_id];
+                        // If we have not already finished the flattening pass, functions marked
+                        // to not have predicates should be marked as entry points unless we are inlining into brillig.
+                        let entry_point = &ssa.functions[&self.context.entry_point];
+                        let no_predicates_is_entry_point =
+                            self.context.no_predicates_is_entry_point
+                                && function.is_no_predicates()
+                                && !matches!(entry_point.runtime(), RuntimeType::Brillig);
+                        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
+                            self.push_instruction(*id);
+                        } else {
+                            self.inline_function(ssa, *id, func_id, arguments);
+                        }
+                    }
                     None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
@@ -486,6 +538,13 @@ impl<'function> PerFunctionContext<'function> {
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
+
+                // Note that `translate_block` would take us back to the point at which the
+                // inlining of this source block began. Since additional blocks may have been
+                // inlined since, we are interested in the block representing the current program
+                // point, obtained via `current_block`.
+                let block_id = self.context.builder.current_block();
+
                 if self.inlining_entry {
                     let mut new_call_stack = self.context.call_stack.clone();
                     new_call_stack.append(call_stack.clone());
@@ -494,11 +553,7 @@ impl<'function> PerFunctionContext<'function> {
                         .set_call_stack(new_call_stack)
                         .terminate_with_return(return_values.clone());
                 }
-                // Note that `translate_block` would take us back to the point at which the
-                // inlining of this source block began. Since additional blocks may have been
-                // inlined since, we are interested in the block representing the current program
-                // point, obtained via `current_block`.
-                let block_id = self.context.builder.current_block();
+
                 Some((block_id, return_values))
             }
         }
@@ -508,12 +563,12 @@ impl<'function> PerFunctionContext<'function> {
 #[cfg(test)]
 mod test {
     use acvm::FieldElement;
+    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
-            function::RuntimeType,
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -532,14 +587,14 @@ mod test {
         //     return 72
         // }
         let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("bar".into(), bar_id);
+        builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
         let seventy_two = builder.field_constant(expected_return);
         builder.terminate_with_return(vec![seventy_two]);
@@ -581,7 +636,7 @@ mod test {
         let id2_id = Id::test_new(3);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         let main_v0 = builder.add_parameter(Type::field());
 
         let main_f1 = builder.import_function(square_id);
@@ -594,18 +649,18 @@ mod test {
         builder.terminate_with_return(vec![main_v16]);
 
         // Compiling square f1
-        builder.new_function("square".into(), square_id);
+        builder.new_function("square".into(), square_id, InlineType::default());
         let square_v0 = builder.add_parameter(Type::field());
         let square_v2 = builder.insert_binary(square_v0, BinaryOp::Mul, square_v0);
         builder.terminate_with_return(vec![square_v2]);
 
         // Compiling id1 f2
-        builder.new_function("id1".into(), id1_id);
+        builder.new_function("id1".into(), id1_id, InlineType::default());
         let id1_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id1_v0]);
 
         // Compiling id2 f3
-        builder.new_function("id2".into(), id2_id);
+        builder.new_function("id2".into(), id2_id, InlineType::default());
         let id2_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id2_v0]);
 
@@ -637,7 +692,7 @@ mod test {
         //     return v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let factorial_id = Id::test_new(1);
         let factorial = builder.import_function(factorial_id);
@@ -646,7 +701,7 @@ mod test {
         let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("factorial".into(), factorial_id);
+        builder.new_function("factorial".into(), factorial_id, InlineType::default());
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
@@ -737,7 +792,7 @@ mod test {
         //     jmp b3(Field 2)
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let main_cond = builder.add_parameter(Type::bool());
         let inner1_id = Id::test_new(1);
@@ -747,14 +802,14 @@ mod test {
         builder.insert_call(assert_constant, vec![main_v2], vec![]);
         builder.terminate_with_return(vec![]);
 
-        builder.new_function("inner1".into(), inner1_id);
+        builder.new_function("inner1".into(), inner1_id, InlineType::default());
         let inner1_cond = builder.add_parameter(Type::bool());
         let inner2_id = Id::test_new(2);
         let inner2 = builder.import_function(inner2_id);
         let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
         builder.terminate_with_return(vec![inner1_v2]);
 
-        builder.new_function("inner2".into(), inner2_id);
+        builder.new_function("inner2".into(), inner2_id, InlineType::default());
         let inner2_cond = builder.add_parameter(Type::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();

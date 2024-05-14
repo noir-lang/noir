@@ -1,5 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
+
+NO_PARALLEL=${1:-}
 
 process_dir() {
     local dir=$1
@@ -14,17 +16,7 @@ process_dir() {
     if [ -d ./target/ ]; then
       rm -r ./target/
     fi
-    nargo compile && nargo execute witness
-
-    if [ -f ./target/witness.tr ]; then
-      mv ./target/witness.tr ./target/witness.gz
-    fi
-
-    if [ -f ./target/${dir_name}.json ]; then
-        jq -r '.bytecode' ./target/${dir_name}.json | base64 -d > ./target/acir.gz
-    fi
-
-    rm ./target/${dir_name}.json
+    nargo compile --only-acir && nargo execute witness
 
     if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
       rm -r "$current_dir/acir_artifacts/$dir_name/target"
@@ -56,10 +48,17 @@ done
 
 # Process each directory in parallel
 pids=()
+if [ -z $NO_PARALLEL ]; then
 for dir in "${dirs_to_process[@]}"; do
     process_dir "$dir" "$current_dir" &
     pids+=($!)
 done
+else
+for dir in "${dirs_to_process[@]}"; do
+    process_dir "$dir" "$current_dir"
+    pids+=($!)
+done
+fi
 
 # Check the exit status of each background job.
 for pid in "${pids[@]}"; do
@@ -68,5 +67,7 @@ done
 
 # Exit with a failure status if any job failed.
 if [ ! -z "$exit_status" ]; then
+    echo "Rebuild failed!"
     exit $exit_status
 fi
+echo "Rebuild Succeeded!"

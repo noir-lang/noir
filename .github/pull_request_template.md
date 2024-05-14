@@ -17,7 +17,7 @@ Resolves <!-- Link to GitHub Issue -->
 Check one:
 - [ ] No documentation needed.
 - [ ] Documentation included in this PR.
-- [ ] **[Exceptional Case]** Documentation to be submitted in a separate PR.
+- [ ] **[For Experimental Features]** Documentation to be submitted in a separate PR.
 
 # PR Checklist\*
 

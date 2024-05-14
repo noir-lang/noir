@@ -1,60 +1,49 @@
 use acir::{
-    circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, Opcode},
+    circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, ExpressionWidth, Opcode},
     native_types::{Expression, Witness},
     FieldElement,
 };
 use indexmap::IndexMap;
 
-use crate::Language;
-
 mod csat;
-mod fallback;
-mod r1cs;
 
 pub(crate) use csat::CSatTransformer;
-pub(crate) use fallback::FallbackTransformer;
-pub(crate) use r1cs::R1CSTransformer;
 
-use super::{transform_assert_messages, AcirTransformationMap, CompileError};
+use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 pub fn transform(
     acir: Circuit,
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
+    expression_width: ExpressionWidth,
+) -> (Circuit, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    let (mut acir, transformation_map) =
-        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+    let (mut acir, acir_opcode_positions) =
+        transform_internal(acir, expression_width, acir_opcode_positions);
+
+    let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
-    Ok((acir, transformation_map))
+    (acir, transformation_map)
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+#[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
 pub(super) fn transform_internal(
     acir: Circuit,
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
+    expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
-    // Fallback transformer pass
-    let (acir, acir_opcode_positions) =
-        FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
-
-    let mut transformer = match &np_language {
-        crate::Language::R1CS => {
-            let transformation_map = AcirTransformationMap { acir_opcode_positions };
-            let transformer = R1CSTransformer::new(acir);
-            return Ok((transformer.transform(), transformation_map));
+) -> (Circuit, Vec<usize>) {
+    let mut transformer = match &expression_width {
+        ExpressionWidth::Unbounded => {
+            return (acir, acir_opcode_positions);
         }
-        crate::Language::PLONKCSat { width } => {
+        ExpressionWidth::Bounded { width } => {
             let mut csat = CSatTransformer::new(*width);
             for value in acir.circuit_arguments() {
                 csat.mark_solvable(value);
@@ -68,7 +57,7 @@ pub(super) fn transform_internal(
     // TODO or at the very least, we could put all of it inside of CSatOptimizer pass
 
     let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
-    // Optimize the arithmetic gates by reducing them into the correct width and
+    // Optimize the assert-zero gates by reducing them into the correct width and
     // creating intermediate variables when necessary
     let mut transformed_opcodes = Vec::new();
 
@@ -78,7 +67,7 @@ pub(super) fn transform_internal(
     let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
     for (index, opcode) in acir.opcodes.into_iter().enumerate() {
         match opcode {
-            Opcode::Arithmetic(arith_expr) => {
+            Opcode::AssertZero(arith_expr) => {
                 let len = intermediate_variables.len();
 
                 let arith_expr = transformer.transform(
@@ -101,52 +90,12 @@ pub(super) fn transform_internal(
                 new_opcodes.push(arith_expr);
                 for opcode in new_opcodes {
                     new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                    transformed_opcodes.push(Opcode::Arithmetic(opcode));
+                    transformed_opcodes.push(Opcode::AssertZero(opcode));
                 }
             }
             Opcode::BlackBoxFuncCall(ref func) => {
-                match func {
-                    acir::circuit::opcodes::BlackBoxFuncCall::AND { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
-                        transformer.mark_solvable(*output);
-                    }
-                    acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. } => (),
-                    acir::circuit::opcodes::BlackBoxFuncCall::SHA256 { outputs, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256 { outputs, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256VariableLength {
-                        outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation {
-                        output_aggregation_object: outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Blake2s { outputs, .. } => {
-                        for witness in outputs {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
-                    acir::circuit::opcodes::BlackBoxFuncCall::FixedBaseScalarMul {
-                        outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenCommitment {
-                        outputs,
-                        ..
-                    } => {
-                        transformer.mark_solvable(outputs.0);
-                        transformer.mark_solvable(outputs.1);
-                    }
-                    acir::circuit::opcodes::BlackBoxFuncCall::HashToField128Security {
-                        output,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {
-                        transformer.mark_solvable(*output);
-                    }
+                for witness in func.get_outputs_vec() {
+                    transformer.mark_solvable(witness);
                 }
 
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
@@ -154,17 +103,8 @@ pub(super) fn transform_internal(
             }
             Opcode::Directive(ref directive) => {
                 match directive {
-                    Directive::Quotient(quotient_directive) => {
-                        transformer.mark_solvable(quotient_directive.q);
-                        transformer.mark_solvable(quotient_directive.r);
-                    }
                     Directive::ToLeRadix { b, .. } => {
                         for witness in b {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
-                    Directive::PermutationSort { bits, .. } => {
-                        for witness in bits {
                             transformer.mark_solvable(*witness);
                         }
                     }
@@ -188,8 +128,8 @@ pub(super) fn transform_internal(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
-            Opcode::Brillig(ref brillig) => {
-                for output in &brillig.outputs {
+            Opcode::BrilligCall { ref outputs, .. } => {
+                for output in outputs {
                     match output {
                         BrilligOutputs::Simple(w) => transformer.mark_solvable(*w),
                         BrilligOutputs::Array(v) => {
@@ -199,6 +139,17 @@ pub(super) fn transform_internal(
                         }
                     }
                 }
+
+                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+                transformed_opcodes.push(opcode);
+            }
+            Opcode::Call { ref outputs, .. } => {
+                for witness in outputs {
+                    transformer.mark_solvable(*witness);
+                }
+
+                // `Call` does not write values to the `WitnessMap`
+                // A separate ACIR function should have its own respective `WitnessMap`
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
@@ -209,13 +160,11 @@ pub(super) fn transform_internal(
 
     let acir = Circuit {
         current_witness_index,
+        expression_width,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir
     };
 
-    let transformation_map =
-        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
-
-    Ok((acir, transformation_map))
+    (acir, new_acir_opcode_positions)
 }

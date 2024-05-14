@@ -1,7 +1,8 @@
-use acvm::acir::native_types::WitnessMapError;
+use acvm::acir::native_types::WitnessStackError;
 use hex::FromHexError;
 use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
+use noir_debugger::errors::DapError;
 use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -21,9 +22,9 @@ pub(crate) enum FilesystemError {
     #[error(transparent)]
     InputParserError(#[from] InputParserError),
 
-    /// WitnessMap serialization error
+    /// WitnessStack serialization error
     #[error(transparent)]
-    WitnessMapSerialization(#[from] WitnessMapError),
+    WitnessStackSerialization(#[from] WitnessStackError),
 
     #[error("Error: could not deserialize build program: {0}")]
     ProgramSerializationError(String),
@@ -52,6 +53,9 @@ pub(crate) enum CliError {
 
     #[error(transparent)]
     LspError(#[from] async_lsp::Error),
+
+    #[error(transparent)]
+    DapError(#[from] DapError),
 
     /// Error from Nargo
     #[error(transparent)]

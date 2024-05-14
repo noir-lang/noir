@@ -10,42 +10,37 @@ struct ExecutionResult {
 
 impl ExecutionResult {
     fn is_equal(self, other: ExecutionResult) -> bool {
-        (self.original == other.original) &
-        (self.modified_once == other.modified_once) &
-        (self.modified_twice == other.modified_twice)
+        (self.original == other.original)
+            & (self.modified_once == other.modified_once)
+            & (self.modified_twice == other.modified_twice)
     }
 }
 
 fn modify_in_inlined_constrained(original: [Field; ARRAY_SIZE], index: u64) -> ExecutionResult {
     let mut modified = original;
-    
+
     modified[index] = 27;
 
     let modified_once = modified;
 
     modified[index+1] = 27;
 
-    ExecutionResult {
-        original,
-        modified_once,
-        modified_twice: modified
-    }
+    ExecutionResult { original, modified_once, modified_twice: modified }
 }
 
-unconstrained fn modify_in_unconstrained(original: [Field; ARRAY_SIZE], index: u64) -> ExecutionResult {
+unconstrained fn modify_in_unconstrained(
+    original: [Field; ARRAY_SIZE],
+    index: u64
+) -> ExecutionResult {
     let mut modified = original;
-    
+
     modified[index] = 27;
 
     let modified_once = modified;
 
     modified[index+1] = 27;
 
-    ExecutionResult {
-        original,
-        modified_once,
-        modified_twice: modified
-    }
+    ExecutionResult { original, modified_once, modified_twice: modified }
 }
 
 unconstrained fn main(original: [Field; ARRAY_SIZE], index: u64, expected_result: ExecutionResult) {

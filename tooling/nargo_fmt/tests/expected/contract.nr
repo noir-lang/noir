@@ -3,31 +3,35 @@
 // Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
 // Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
-    use dep::value_note::{
-        utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
-    };
+    use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
+
+    use dep::value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods}};
 
     use dep::aztec::{
-        context::{Context},
-        note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        selector::compute_selector,
-        log::emit_unencrypted_log,
-        state_vars::{map::Map, public_state::PublicState, set::Set},
+        context::Context, note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
+        log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
-        types::address::{AztecAddress},
+        types::address::AztecAddress
     };
 
     struct Storage {
-        notes: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<AztecAddress, PrivateSet<ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<AztecAddress, PublicMutable<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
-                notes: Map::new(context, 1, |context, slot| { Set::new(context, slot, ValueNoteMethods) }),
-                balances: Map::new(context, 2, |context, slot| { PublicState::new(context, slot, FieldSerializationMethods) }),
+                notes: Map::new(
+                    context,
+                    1,
+                    |context, slot| { PrivateSet::new(context, slot, ValueNoteMethods) }
+                ),
+                balances: Map::new(
+                    context,
+                    2,
+                    |context, slot| { PublicMutable::new(context, slot, FieldSerializationMethods) }
+                )
             }
         }
     }
@@ -59,7 +63,7 @@ contract Benchmarking {
         storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            compute_selector("broadcast(Field)"),
+            FunctionSelector::from_signature("broadcast(Field)"),
             [owner]
         );
     }
@@ -68,16 +72,6 @@ contract Benchmarking {
     #[aztec(public)]
     fn broadcast(owner: Field) {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
-    }
-
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: Field,
-        nonce: Field,
-        storage_slot: Field,
-        preimage: [Field; VALUE_NOTE_LEN]
-    ) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }
 

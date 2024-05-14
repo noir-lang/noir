@@ -1,0 +1,6 @@
+[package]
+name = "embedded_curve_ops"
+type = "bin"
+authors = [""]
+
+[dependencies]

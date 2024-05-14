@@ -1,0 +1,6 @@
+[package]
+name = "brillig_ecdsa_secp256r1"
+type = "bin"
+authors = [""]
+
+[dependencies]

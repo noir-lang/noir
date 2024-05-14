@@ -1,17 +1,21 @@
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 use clap::Args;
+use fm::FileManager;
 use iter_extended::btree_map;
-use nargo::{errors::CompileError, package::Package, prepare_package};
+use nargo::{
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
+    package::Package, parse_all, prepare_package,
+};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compute_function_abi, file_manager_with_stdlib, CompileOptions,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::Context,
+    hir::{Context, ParsedFiles},
 };
 
 use super::fs::write_to_file;
@@ -19,6 +23,7 @@ use super::NargoConfig;
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "c")]
 pub(crate) struct CheckCommand {
     /// The name of the package to check
     #[clap(long, conflicts_with = "workspace")]
@@ -28,15 +33,15 @@ pub(crate) struct CheckCommand {
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
+    /// Force overwrite of existing files
+    #[clap(long = "overwrite")]
+    allow_overwrite: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(
-    _backend: &Backend,
-    args: CheckCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -47,46 +52,79 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
+
     for package in &workspace {
-        check_package(package, &args.compile_options)?;
-        println!("[{}] Constraint system successfully built!", package.name);
+        let any_file_written = check_package(
+            &workspace_file_manager,
+            &parsed_files,
+            package,
+            &args.compile_options,
+            args.allow_overwrite,
+        )?;
+        if any_file_written {
+            println!("[{}] Constraint system successfully built!", package.name);
+        }
     }
     Ok(())
 }
 
-fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<(), CompileError> {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+/// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the allow_overwrite flag and files' existence.
+/// Returns `true` if any file was generated or updated, `false` otherwise.
+fn check_package(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    compile_options: &CompileOptions,
+    allow_overwrite: bool,
+) -> Result<bool, CompileError> {
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
         crate_id,
         compile_options.deny_warnings,
+        compile_options.disable_macros,
         compile_options.silence_warnings,
+        compile_options.use_elaborator,
     )?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
-        Ok(())
+        Ok(false)
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
         if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
             let path_to_verifier_input = package.verifier_input_path();
 
-            // If they are not available, then create them and populate them based on the ABI
-            if !path_to_prover_input.exists() {
+            // Before writing the file, check if it exists and whether overwrite is set
+            let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
+            let should_write_verifier = !path_to_verifier_input.exists() || allow_overwrite;
+
+            if should_write_prover {
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+            } else {
+                eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
-            if !path_to_verifier_input.exists() {
+
+            if should_write_verifier {
                 let public_inputs =
                     parameters.into_iter().filter(|param| param.is_public()).collect();
 
                 let verifier_toml = create_input_toml_template(public_inputs, return_type);
                 write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+            } else {
+                eprintln!(
+                    "Note: Verifier.toml already exists. Use --overwrite to force overwrite."
+                );
             }
 
-            Ok(())
+            let any_file_written = should_write_prover || should_write_verifier;
+
+            Ok(any_file_written)
         } else {
             Err(CompileError::MissingMainFunction(package.name.clone()))
         }
@@ -126,6 +164,20 @@ fn create_input_toml_template(
     }
 
     toml::to_string(&map).unwrap()
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    deny_warnings: bool,
+    disable_macros: bool,
+    silence_warnings: bool,
+    use_elaborator: bool,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros, use_elaborator);
+    report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 
 #[cfg(test)]
@@ -174,21 +226,4 @@ d2 = ["", "", ""]
 "#;
         assert_eq!(toml_str, expected_toml_str);
     }
-}
-
-/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-/// and errors found.
-pub(crate) fn check_crate_and_report_errors(
-    context: &mut Context,
-    crate_id: CrateId,
-    deny_warnings: bool,
-    silence_warnings: bool,
-) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings);
-    super::compile_cmd::report_errors(
-        result,
-        &context.file_manager,
-        deny_warnings,
-        silence_warnings,
-    )
 }

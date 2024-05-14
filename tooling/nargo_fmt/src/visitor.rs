@@ -277,7 +277,7 @@ impl Indent {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Shape {
     pub(crate) width: usize,
     pub(crate) indent: Indent,

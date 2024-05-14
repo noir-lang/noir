@@ -1,27 +1,12 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    BlackBoxFunc, FieldElement,
+    FieldElement,
 };
-use acvm_blackbox_solver::{hash_to_field_128_security, BlackBoxResolutionError};
+use acvm_blackbox_solver::{sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 use crate::pwg::{insert_value, witness_to_value};
 use crate::OpcodeResolutionError;
-
-/// Attempts to solve a `HashToField128Security` opcode
-/// If successful, `initial_witness` will be mutated to contain the new witness assignment.
-pub(super) fn solve_hash_to_field(
-    initial_witness: &mut WitnessMap,
-    inputs: &[FunctionInput],
-    output: &Witness,
-) -> Result<(), OpcodeResolutionError> {
-    let message_input = get_hash_input(initial_witness, inputs, None)?;
-    let field = hash_to_field_128_security(&message_input)?;
-
-    insert_value(output, field, initial_witness)?;
-
-    Ok(())
-}
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
@@ -29,22 +14,13 @@ pub(super) fn solve_generic_256_hash_opcode(
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     var_message_size: Option<&FunctionInput>,
-    outputs: &[Witness],
+    outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-    black_box_func: BlackBoxFunc,
 ) -> Result<(), OpcodeResolutionError> {
     let message_input = get_hash_input(initial_witness, inputs, var_message_size)?;
     let digest: [u8; 32] = hash_function(&message_input)?;
 
-    let outputs: [Witness; 32] = outputs.try_into().map_err(|_| {
-        OpcodeResolutionError::BlackBoxFunctionFailed(
-            black_box_func,
-            format!("Expected 32 outputs but encountered {}", outputs.len()),
-        )
-    })?;
-    write_digest_to_outputs(initial_witness, outputs, digest)?;
-
-    Ok(())
+    write_digest_to_outputs(initial_witness, outputs, digest)
 }
 
 /// Reads the hash function input from a [`WitnessMap`].
@@ -88,7 +64,7 @@ fn get_hash_input(
 /// Writes a `digest` to the [`WitnessMap`] at witness indices `outputs`.
 fn write_digest_to_outputs(
     initial_witness: &mut WitnessMap,
-    outputs: [Witness; 32],
+    outputs: &[Witness; 32],
     digest: [u8; 32],
 ) -> Result<(), OpcodeResolutionError> {
     for (output_witness, value) in outputs.iter().zip(digest.into_iter()) {
@@ -99,5 +75,79 @@ fn write_digest_to_outputs(
         )?;
     }
 
+    Ok(())
+}
+
+fn to_u32_array<const N: usize>(
+    initial_witness: &WitnessMap,
+    inputs: &[FunctionInput; N],
+) -> Result<[u32; N], OpcodeResolutionError> {
+    let mut result = [0; N];
+    for (it, input) in result.iter_mut().zip(inputs) {
+        let witness_value = witness_to_value(initial_witness, input.witness)?;
+        *it = witness_value.to_u128() as u32;
+    }
+    Ok(result)
+}
+
+pub(crate) fn solve_sha_256_permutation_opcode(
+    initial_witness: &mut WitnessMap,
+    inputs: &[FunctionInput; 16],
+    hash_values: &[FunctionInput; 8],
+    outputs: &[Witness; 8],
+) -> Result<(), OpcodeResolutionError> {
+    let message = to_u32_array(initial_witness, inputs)?;
+    let mut state = to_u32_array(initial_witness, hash_values)?;
+
+    sha256compression(&mut state, &message);
+
+    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+        insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn solve_poseidon2_permutation_opcode(
+    backend: &impl BlackBoxFunctionSolver,
+    initial_witness: &mut WitnessMap,
+    inputs: &[FunctionInput],
+    outputs: &[Witness],
+    len: u32,
+) -> Result<(), OpcodeResolutionError> {
+    if len as usize != inputs.len() {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::Poseidon2Permutation,
+            format!(
+                "the number of inputs does not match specified length. {} != {}",
+                inputs.len(),
+                len
+            ),
+        ));
+    }
+    if len as usize != outputs.len() {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::Poseidon2Permutation,
+            format!(
+                "the number of outputs does not match specified length. {} != {}",
+                outputs.len(),
+                len
+            ),
+        ));
+    }
+
+    // Read witness assignments
+    let mut state = Vec::new();
+    for input in inputs.iter() {
+        let witness_assignment = witness_to_value(initial_witness, input.witness)?;
+        state.push(*witness_assignment);
+    }
+
+    let state = backend.poseidon2_permutation(&state, len)?;
+
+    // Write witness assignments
+    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+        insert_value(output_witness, value, initial_witness)?;
+    }
     Ok(())
 }

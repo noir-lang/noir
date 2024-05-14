@@ -110,4 +110,4 @@ fn main() {
 ```
 
 You can see an example of generics in the tests
-[here](https://github.com/noir-lang/noir/blob/master/tooling/nargo_cli/tests/execution_success/generics/src/main.nr).
+[here](https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/generics/src/main.nr).

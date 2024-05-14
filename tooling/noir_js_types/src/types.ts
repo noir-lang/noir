@@ -1,21 +1,69 @@
-import { Abi, WitnessMap } from '@noir-lang/noirc_abi';
+export type Field = string | number | boolean;
+export type InputValue = Field | InputMap | (Field | InputMap)[];
+export type InputMap = { [key: string]: InputValue };
 
-export { Abi, WitnessMap } from '@noir-lang/noirc_abi';
+export type Visibility = 'public' | 'private' | 'databus';
+export type Sign = 'unsigned' | 'signed';
+export type AbiType =
+  | { kind: 'field' }
+  | { kind: 'boolean' }
+  | { kind: 'string'; length: number }
+  | { kind: 'integer'; sign: Sign; width: number }
+  | { kind: 'array'; length: number; type: AbiType }
+  | { kind: 'tuple'; fields: AbiType[] }
+  | { kind: 'struct'; path: string; fields: { name: string; type: AbiType }[] };
 
-export interface Backend {
+export type AbiParameter = {
+  name: string;
+  type: AbiType;
+  visibility: Visibility;
+};
+
+export type AbiErrorType =
+  | {
+      error_kind: 'fmtstring';
+      length: number;
+      item_types: AbiType[];
+    }
+  | ({ error_kind: 'custom' } & AbiType);
+
+// The payload for a raw assertion error returned on execution.
+export type RawAssertionPayload = {
+  selector: string;
+  data: string[];
+};
+
+// Map from witness index to hex string value of witness.
+export type WitnessMap = Map<number, string>;
+
+export type Abi = {
+  parameters: AbiParameter[];
+  param_witnesses: Record<string, { start: number; end: number }[]>;
+  return_type: { abi_type: AbiType; visibility: Visibility } | null;
+  return_witnesses: number[];
+  error_types: Record<string, AbiErrorType>;
+};
+
+export interface VerifierBackend {
   /**
-   * @description Generates a final proof (not meant to be verified in another circuit) */
-  generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData>;
+   * @description Verifies a proof */
+  verifyProof(proofData: ProofData): Promise<boolean>;
 
   /**
-   * @description Generates an intermediate proof (meant to be verified in another circuit) */
-  generateIntermediateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
+   * @description Destroys the backend */
+  destroy(): Promise<void>;
+}
+
+export interface Backend extends VerifierBackend {
+  /**
+   * @description Generates a proof */
+  generateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
 
   /**
    *
    * @description Retrieves the artifacts from a proof in the Field format
    */
-  generateIntermediateProofArtifacts(
+  generateRecursiveProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs: number,
   ): Promise<{
@@ -26,17 +74,6 @@ export interface Backend {
     /** @description A Field containing the verification key hash */
     vkHash: string;
   }>;
-
-  /**
-   * @description Verifies a final proof */
-  verifyFinalProof(proofData: ProofData): Promise<boolean>;
-
-  /** @description Verifies an intermediate proof */
-  verifyIntermediateProof(proofData: ProofData): Promise<boolean>;
-
-  /**
-   * @description Destroys the backend */
-  destroy(): Promise<void>;
 }
 
 /**
@@ -45,7 +82,7 @@ export interface Backend {
  * */
 export type ProofData = {
   /** @description Public inputs of a proof */
-  publicInputs: WitnessMap;
+  publicInputs: string[];
   /** @description An byte array representing the proof */
   proof: Uint8Array;
 };

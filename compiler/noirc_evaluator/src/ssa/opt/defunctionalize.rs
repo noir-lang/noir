@@ -13,7 +13,7 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType, Signature},
+        function::{Function, FunctionId, Signature},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -52,6 +52,7 @@ struct DefunctionalizationContext {
 }
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn defunctionalize(mut self) -> Ssa {
         // Find all functions used as value that share the same signature
         let variants = find_variants(&self);
@@ -85,9 +86,9 @@ impl DefunctionalizationContext {
                 let instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
                 // Operate on call instructions
-                let (target_func_id, mut arguments) = match instruction {
+                let (target_func_id, arguments) = match &instruction {
                     Instruction::Call { func: target_func_id, arguments } => {
-                        (target_func_id, arguments)
+                        (*target_func_id, arguments)
                     }
                     _ => continue,
                 };
@@ -95,6 +96,7 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
+                        let mut arguments = arguments.clone();
                         let results = func.dfg.instruction_results(instruction_id);
                         let signature = Signature {
                             params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
@@ -276,7 +278,7 @@ fn create_apply_function(
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
     ssa.add_fn(|id| {
-        let mut function_builder = FunctionBuilder::new("apply".to_string(), id, RuntimeType::Acir);
+        let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 

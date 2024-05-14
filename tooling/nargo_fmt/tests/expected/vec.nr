@@ -20,12 +20,12 @@ impl<T> Vec<T> {
     /// points beyond the end of the vector.
     pub fn get(self, index: Field) -> T {
         self.slice[index]
-     }
+    }
 
     /// Push a new element to the end of the vector, returning a
     /// new vector with a length one greater than the
     /// original unmodified vector.
-    pub fn push(&mut self, elem: T) { 
+    pub fn push(&mut self, elem: T) {
         self.slice = self.slice.push_back(elem);
     }
 
@@ -33,7 +33,7 @@ impl<T> Vec<T> {
     /// a new vector with a length of one less than the given vector,
     /// as well as the popped element.
     /// Panics if the given vector's length is zero.
-    pub fn pop(&mut self) -> T { 
+    pub fn pop(&mut self) -> T {
         let (popped_slice, last_elem) = self.slice.pop_back();
         self.slice = popped_slice;
         last_elem
@@ -43,7 +43,7 @@ impl<T> Vec<T> {
     /// after it to the right
     pub fn insert(&mut self, index: Field, elem: T) {
         self.slice = self.slice.insert(index, elem);
-    } 
+    }
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the removed element

@@ -5,12 +5,16 @@
 // See Cargo.toml for explanation.
 use getrandom as _;
 
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::{
+    circuit::RawAssertionPayload,
+    native_types::{WitnessMap, WitnessStack},
+};
 use iter_extended::try_btree_map;
 use noirc_abi::{
+    decode_value, display_abi_error,
     errors::InputParserError,
     input_parser::{json::JsonTypes, InputValue},
-    Abi, MAIN_RETURN_NAME,
+    Abi, AbiErrorType, MAIN_RETURN_NAME,
 };
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -26,9 +30,8 @@ use js_witness_map::JsWitnessMap;
 
 #[wasm_bindgen(typescript_custom_section)]
 const INPUT_MAP: &'static str = r#"
-export type Field = string | number | boolean;
-export type InputValue = Field | Field[] | InputMap;
-export type InputMap = { [key: string]: InputValue };
+import { Field, InputValue, InputMap, Visibility, Sign, AbiType, AbiParameter, Abi, WitnessMap, RawAssertionPayload } from "@noir-lang/types";
+export { Field, InputValue, InputMap, Visibility, Sign, AbiType, AbiParameter, Abi, WitnessMap, RawAssertionPayload } from "@noir-lang/types";
 "#;
 
 #[wasm_bindgen]
@@ -36,44 +39,15 @@ extern "C" {
     #[wasm_bindgen(extends = js_sys::Object, js_name = "InputMap", typescript_type = "InputMap")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsInputMap;
-}
 
-#[wasm_bindgen]
-extern "C" {
     #[wasm_bindgen(extends = js_sys::Object, js_name = "InputValue", typescript_type = "InputValue")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsInputValue;
-}
 
-#[wasm_bindgen(typescript_custom_section)]
-const ABI: &'static str = r#"
-export type Visibility = "public" | "private" | "databus";
-export type Sign = "unsigned" | "signed";
-export type AbiType = 
-    { kind: "field" } |
-    { kind: "boolean" } |
-    { kind: "string", length: number } |
-    { kind: "integer", sign: Sign, width: number } |
-    { kind: "array", length: number, type: AbiType } |
-    { kind: "tuple", fields: AbiType[] } |
-    { kind: "struct", path: string, fields: { name: string, type: AbiType }[] };
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "RawAssertionPayload", typescript_type = "RawAssertionPayload")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsRawAssertionPayload;
 
-export type AbiParameter = {
-    name: string,
-    type: AbiType,
-    visibility: Visibility,
-};
-    
-export type Abi = {
-    parameters: AbiParameter[],
-    param_witnesses: Record<string, {start: number, end: number}[]>,
-    return_type: {abi_type: AbiType, visibility: Visibility} | null,
-    return_witnesses: number[],
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
     #[wasm_bindgen(extends = js_sys::Object, js_name = "Abi", typescript_type = "Abi")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsAbi;
@@ -146,4 +120,40 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
     let return_struct = InputsAndReturn { inputs: inputs_map, return_value };
     <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&return_struct)
         .map_err(|err| err.to_string().into())
+}
+
+#[wasm_bindgen(js_name = serializeWitness)]
+pub fn serialise_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiError> {
+    console_error_panic_hook::set_once();
+    let converted_witness: WitnessMap = witness_map.into();
+    let witness_stack: WitnessStack = converted_witness.into();
+    let output = witness_stack.try_into();
+    output.map_err(|_| JsAbiError::new("Failed to convert to Vec<u8>".to_string()))
+}
+
+#[wasm_bindgen(js_name = abiDecodeError)]
+pub fn abi_decode_error(
+    abi: JsAbi,
+    raw_error: JsRawAssertionPayload,
+) -> Result<JsValue, JsAbiError> {
+    console_error_panic_hook::set_once();
+    let mut abi: Abi =
+        JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
+
+    let raw_error: RawAssertionPayload =
+        JsValueSerdeExt::into_serde(&JsValue::from(raw_error)).map_err(|err| err.to_string())?;
+
+    let error_type = abi.error_types.remove(&raw_error.selector).expect("Missing error type");
+    match error_type {
+        AbiErrorType::FmtString { .. } => {
+            let string = display_abi_error(&raw_error.data, error_type).to_string();
+            Ok(JsValue::from_str(&string))
+        }
+        AbiErrorType::Custom(typ) => {
+            let input_value = decode_value(&mut raw_error.data.into_iter(), &typ)?;
+            let json_types = JsonTypes::try_from_input_value(&input_value, &typ)?;
+            <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&json_types)
+                .map_err(|err| err.to_string().into())
+        }
+    }
 }

@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    constants::{CONTRACT_DIR, PROOFS_DIR, TARGET_DIR},
+    constants::{CONTRACT_DIR, EXPORT_DIR, PROOFS_DIR, TARGET_DIR},
     package::Package,
 };
 
@@ -20,6 +20,8 @@ pub struct Workspace {
     pub members: Vec<Package>,
     // If `Some()`, the `selected_package_index` is used to select the only `Package` when iterating a Workspace
     pub selected_package_index: Option<usize>,
+    /// If we could not resolve the workspace we would inform the user we have assumed it (ie. from lsp file path given)
+    pub is_assumed: bool,
 }
 
 impl Workspace {
@@ -39,6 +41,10 @@ impl Workspace {
 
     pub fn target_directory_path(&self) -> PathBuf {
         self.root_dir.join(TARGET_DIR)
+    }
+
+    pub fn export_directory_path(&self) -> PathBuf {
+        self.root_dir.join(EXPORT_DIR)
     }
 }
 

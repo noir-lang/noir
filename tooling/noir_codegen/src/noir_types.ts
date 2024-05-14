@@ -112,43 +112,26 @@ function getLastComponentOfPath(str: string): string {
  */
 function generateStructInterfaces(
   type: AbiType,
-  output: Set<string>,
+  structsEncountered: Map<string, { name: string; type: AbiType }[]>,
   primitiveTypeMap: Map<string, PrimitiveTypesUsed>,
-): string {
-  let result = '';
-
+) {
   // Edge case to handle the array of structs case.
-  if (type.kind === 'array' && type.type.kind === 'struct' && !output.has(getLastComponentOfPath(type.type.path))) {
-    result += generateStructInterfaces(type.type, output, primitiveTypeMap);
+  if (
+    type.kind === 'array' &&
+    type.type.kind === 'struct' &&
+    !structsEncountered.has(getLastComponentOfPath(type.type.path))
+  ) {
+    generateStructInterfaces(type.type, structsEncountered, primitiveTypeMap);
   }
-  if (type.kind !== 'struct') return result;
-
-  // List of structs encountered while viewing this type that we need to generate
-  // bindings for.
-  const typesEncountered = new Set<AbiType>();
-
-  // Codegen the struct and then its fields, so that the structs fields
-  // are defined before the struct itself.
-  let codeGeneratedStruct = '';
-  let codeGeneratedStructFields = '';
+  if (type.kind !== 'struct') return;
 
   const structName = getLastComponentOfPath(type.path);
-  if (!output.has(structName)) {
-    codeGeneratedStruct += `export type ${structName} = {\n`;
+  if (!structsEncountered.has(structName)) {
     for (const field of type.fields) {
-      codeGeneratedStruct += `  ${field.name}: ${abiTypeToTs(field.type, primitiveTypeMap)};\n`;
-      typesEncountered.add(field.type);
+      generateStructInterfaces(field.type, structsEncountered, primitiveTypeMap);
     }
-    codeGeneratedStruct += `};`;
-    output.add(structName);
-
-    // Generate code for the encountered structs in the field above
-    for (const type of typesEncountered) {
-      codeGeneratedStructFields += generateStructInterfaces(type, output, primitiveTypeMap);
-    }
+    structsEncountered.set(structName, type.fields);
   }
-
-  return codeGeneratedStructFields + '\n' + codeGeneratedStruct;
 }
 
 /**
@@ -158,22 +141,37 @@ function generateStructInterfaces(
  */
 export function generateTsInterface(
   abiObj: Abi,
+  structsEncountered: Map<string, { name: string; type: AbiType }[]>,
   primitiveTypeMap: Map<string, PrimitiveTypesUsed>,
-): [string, { inputs: [string, string][]; returnValue: string | null }] {
-  let result = ``;
-  const outputStructs = new Set<string>();
-
+): { inputs: [string, string][]; returnValue: string | null } {
   // Define structs for composite types
   for (const param of abiObj.parameters) {
-    result += generateStructInterfaces(param.type, outputStructs, primitiveTypeMap);
+    generateStructInterfaces(param.type, structsEncountered, primitiveTypeMap);
   }
 
   // Generating Return type, if it exists
   if (abiObj.return_type != null) {
-    result += generateStructInterfaces(abiObj.return_type.abi_type, outputStructs, primitiveTypeMap);
+    generateStructInterfaces(abiObj.return_type.abi_type, structsEncountered, primitiveTypeMap);
   }
 
-  return [result, getTsFunctionSignature(abiObj, primitiveTypeMap)];
+  return getTsFunctionSignature(abiObj, primitiveTypeMap);
+}
+
+export function codegenStructDefinitions(
+  structsEncountered: Map<string, { name: string; type: AbiType }[]>,
+  primitiveTypeMap: Map<string, PrimitiveTypesUsed>,
+): string {
+  let codeGeneratedStruct = '';
+
+  for (const [structName, structFields] of structsEncountered) {
+    codeGeneratedStruct += `export type ${structName} = {\n`;
+    for (const field of structFields) {
+      codeGeneratedStruct += `  ${field.name}: ${abiTypeToTs(field.type, primitiveTypeMap)};\n`;
+    }
+    codeGeneratedStruct += `};\n\n`;
+  }
+
+  return codeGeneratedStruct;
 }
 
 function getTsFunctionSignature(

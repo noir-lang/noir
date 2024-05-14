@@ -1,18 +1,11 @@
 import { Abi, WitnessMap } from '@noir-lang/types';
 
-export function flattenPublicInputs(publicInputs: WitnessMap): string[] {
-  const publicInputIndices = [...publicInputs.keys()].sort((a, b) => a - b);
-  const flattenedPublicInputs = publicInputIndices.map((index) => publicInputs.get(index) as string);
-  return flattenedPublicInputs;
-}
-
-export function flattenPublicInputsAsArray(publicInputs: WitnessMap): Uint8Array {
-  const flatPublicInputs = flattenPublicInputs(publicInputs);
-  const flattenedPublicInputs = flatPublicInputs.map(hexToUint8Array);
+export function flattenPublicInputsAsArray(publicInputs: string[]): Uint8Array {
+  const flattenedPublicInputs = publicInputs.map(hexToUint8Array);
   return flattenUint8Arrays(flattenedPublicInputs);
 }
 
-export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array, abi: Abi): WitnessMap {
+export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array): string[] {
   const publicInputSize = 32;
   const chunkedFlattenedPublicInputs: Uint8Array[] = [];
 
@@ -21,6 +14,16 @@ export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array, abi: Ab
     chunkedFlattenedPublicInputs.push(publicInput);
   }
 
+  return chunkedFlattenedPublicInputs.map(uint8ArrayToHex);
+}
+
+export function witnessMapToPublicInputs(publicInputs: WitnessMap): string[] {
+  const publicInputIndices = [...publicInputs.keys()].sort((a, b) => a - b);
+  const flattenedPublicInputs = publicInputIndices.map((index) => publicInputs.get(index) as string);
+  return flattenedPublicInputs;
+}
+
+export function publicInputsToWitnessMap(publicInputs: string[], abi: Abi): WitnessMap {
   const return_value_witnesses = abi.return_witnesses;
   const public_parameters = abi.parameters.filter((param) => param.visibility === 'public');
   const public_parameter_witnesses: number[] = public_parameters.flatMap((param) =>
@@ -35,13 +38,13 @@ export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array, abi: Ab
     (a, b) => a - b,
   );
 
-  const publicInputs: WitnessMap = new Map();
+  const witnessMap: WitnessMap = new Map();
   public_input_witnesses.forEach((witness_index, index) => {
-    const witness_value = uint8ArrayToHex(chunkedFlattenedPublicInputs[index]);
-    publicInputs.set(witness_index, witness_value);
+    const witness_value = publicInputs[index];
+    witnessMap.set(witness_index, witness_value);
   });
 
-  return publicInputs;
+  return witnessMap;
 }
 
 function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {

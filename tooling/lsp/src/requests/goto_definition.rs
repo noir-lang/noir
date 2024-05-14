@@ -1,176 +1,109 @@
 use std::future::{self, Future};
 
+use crate::{parse_diff, resolve_workspace_for_source_path};
 use crate::{types::GotoDefinitionResult, LspState};
-use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::codespan_files::Error;
-use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
-use lsp_types::{Position, Url};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use async_lsp::{ErrorCode, ResponseError};
+
+use lsp_types::request::GotoTypeDefinitionParams;
+use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
+use nargo::insert_all_files_for_workspace_into_file_manager;
+use noirc_driver::file_manager_with_stdlib;
+
+use super::{position_to_byte_index, to_lsp_location};
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
-    let result = on_goto_definition_inner(state, params);
+    let result = on_goto_definition_inner(state, params, false);
+    future::ready(result)
+}
+
+pub(crate) fn on_goto_type_definition_request(
+    state: &mut LspState,
+    params: GotoTypeDefinitionParams,
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+    let result = on_goto_definition_inner(state, params, true);
     future::ready(result)
 }
 
 fn on_goto_definition_inner(
     state: &mut LspState,
     params: GotoDefinitionParams,
+    return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let root_path = state.root_path.as_deref().ok_or_else(|| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
-    })?;
-
     let file_path =
         params.text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let toml_path = match find_package_manifest(root_path, &file_path) {
-        Ok(toml_path) => toml_path,
-        Err(err) => {
-            let _ = state.client.log_message(lsp_types::LogMessageParams {
-                typ: lsp_types::MessageType::WARNING,
-                message: err.to_string(),
-            });
-            return Ok(None);
-        }
-    };
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        PackageSelection::All,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )
-    .map_err(|err| {
-        // If we found a manifest, but the workspace is invalid, we raise an error about it
-        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-    })?;
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = workspace.members.first().unwrap();
 
-    let mut definition_position = None;
+    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
-    for package in &workspace {
-        let (mut context, crate_id) =
-            nargo::prepare_package(package, Box::new(crate::get_non_stdlib_asset));
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_diff(&workspace_file_manager, state);
 
+    let (mut context, crate_id) =
+        nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
+
+    let interner;
+    if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
+        interner = def_interner;
+    } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false);
-
-        let files = context.file_manager.as_file_map();
-        let file_id = context.file_manager.name_to_id(file_path.clone());
-
-        if let Some(file_id) = file_id {
-            let byte_index = position_to_byte_index(
-                files,
-                file_id,
-                &params.text_document_position_params.position,
-            );
-
-            if let Ok(byte_index) = byte_index {
-                let search_for_location = noirc_errors::Location {
-                    file: file_id,
-                    span: noirc_errors::Span::single_char(byte_index as u32),
-                };
-                let found_location = context.get_definition_location_from(search_for_location);
-
-                if let Some(found_location) = found_location {
-                    let file_id = found_location.file;
-                    definition_position = to_lsp_location(files, file_id, found_location.span);
-                }
-            }
-        }
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
+        interner = &context.def_interner;
     }
 
-    if let Some(definition_position) = definition_position {
-        let response: GotoDefinitionResponse =
-            GotoDefinitionResponse::from(definition_position).to_owned();
-        Ok(Some(response))
-    } else {
-        Ok(None)
-    }
-}
+    let files = context.file_manager.as_file_map();
+    let file_id = context.file_manager.name_to_id(file_path.clone()).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        format!("Could not find file in file manager. File path: {:?}", file_path),
+    ))?;
+    let byte_index =
+        position_to_byte_index(files, file_id, &params.text_document_position_params.position)
+            .map_err(|err| {
+                ResponseError::new(
+                    ErrorCode::REQUEST_FAILED,
+                    format!("Could not convert position to byte index. Error: {:?}", err),
+                )
+            })?;
 
-fn to_lsp_location<'a, F>(
-    files: &'a F,
-    file_id: F::FileId,
-    definition_span: noirc_errors::Span,
-) -> Option<Location>
-where
-    F: fm::codespan_files::Files<'a> + ?Sized,
-{
-    let range = crate::byte_span_to_range(files, file_id, definition_span.into())?;
-    let file_name = files.name(file_id).ok()?;
+    let search_for_location = noirc_errors::Location {
+        file: file_id,
+        span: noirc_errors::Span::single_char(byte_index as u32),
+    };
 
-    let path = file_name.to_string();
-    let uri = Url::from_file_path(path).ok()?;
+    let goto_definition_response = interner
+        .get_definition_location_from(search_for_location, return_type_location_instead)
+        .and_then(|found_location| {
+            let file_id = found_location.file;
+            let definition_position = to_lsp_location(files, file_id, found_location.span)?;
+            let response: GotoDefinitionResponse =
+                GotoDefinitionResponse::from(definition_position).to_owned();
+            Some(response)
+        });
 
-    Some(Location { uri, range })
-}
-
-pub(crate) fn position_to_byte_index<'a, F>(
-    files: &'a F,
-    file_id: F::FileId,
-    position: &Position,
-) -> Result<usize, Error>
-where
-    F: fm::codespan_files::Files<'a> + ?Sized,
-{
-    let source = files.source(file_id)?;
-    let source = source.as_ref();
-
-    let line_span = files.line_range(file_id, position.line as usize)?;
-
-    let line_str = source.get(line_span.clone());
-
-    if let Some(line_str) = line_str {
-        let byte_offset = character_to_line_offset(line_str, position.character)?;
-        Ok(line_span.start + byte_offset)
-    } else {
-        Err(Error::InvalidCharBoundary { given: position.line as usize })
-    }
-}
-
-fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
-    let line_len = line.len();
-    let mut character_offset = 0;
-
-    let mut chars = line.chars();
-    while let Some(ch) = chars.next() {
-        if character_offset == character {
-            let chars_off = chars.as_str().len();
-            let ch_off = ch.len_utf8();
-
-            return Ok(line_len - chars_off - ch_off);
-        }
-
-        character_offset += ch.len_utf16() as u32;
-    }
-
-    // Handle positions after the last character on the line
-    if character_offset == character {
-        Ok(line_len)
-    } else {
-        Err(Error::ColumnTooLarge { given: character_offset as usize, max: line.len() })
-    }
+    Ok(goto_definition_response)
 }
 
 #[cfg(test)]
 mod goto_definition_tests {
 
+    use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
+    use lsp_types::{Position, Url};
     use tokio::test;
-
-    use crate::solver::MockBackend;
 
     use super::*;
 
     #[test]
     async fn test_on_goto_definition() {
         let client = ClientSocket::new_closed();
-        let solver = MockBackend;
-        let mut state = LspState::new(&client, solver);
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
 
         let root_path = std::env::current_dir()
             .unwrap()

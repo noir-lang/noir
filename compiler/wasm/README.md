@@ -1,19 +1,28 @@
 # Noir Lang WASM JavaScript Package
 
-This JavaScript package enables users to compile a Noir program, i.e. generating its artifacts.
+This JavaScript package enables users to compile a Noir program, i.e. generating its artifacts, both in Node.JS environments and the browser.
 
 The package also handles dependency management like how Nargo (Noir's CLI tool) operates, but the package is used just for compilation, not proving, verifying and simulating functions.
 
-## Building from source
+## Usage
 
-Outside of the [noir repo](https://github.com/noir-lang/noir), this package can be built using the command below:
+```typescript
+// Node.js
 
-```bash
-nix build -L github:noir-lang/noir/master#noir_wasm
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
+
+const fm = createFileManager(myProjectPath);
+const myCompiledCode = await compile(fm);
 ```
 
-If you are within the noir repo and would like to build local changes, you can use:
+```typescript
+// Browser
 
-```bash
-nix build -L #noir_wasm
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
+
+const fm = createFileManager('/');
+for (const path of files) {
+  await fm.writeFile(path, await getFileAsStream(path));
+}
+const myCompiledCode = await compile(fm);
 ```

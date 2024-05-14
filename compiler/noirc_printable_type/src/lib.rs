@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum PrintableType {
     Field,
@@ -14,6 +14,13 @@ pub enum PrintableType {
         length: u64,
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
+    },
+    Slice {
+        #[serde(rename = "type")]
+        typ: Box<PrintableType>,
+    },
+    Tuple {
+        types: Vec<PrintableType>,
     },
     SignedInteger {
         width: u32,
@@ -29,23 +36,15 @@ pub enum PrintableType {
     String {
         length: u64,
     },
-}
-
-impl PrintableType {
-    /// Returns the number of field elements required to represent the type once encoded.
-    fn field_count(&self) -> u32 {
-        match self {
-            Self::Field
-            | Self::SignedInteger { .. }
-            | Self::UnsignedInteger { .. }
-            | Self::Boolean => 1,
-            Self::Array { length, typ } => typ.field_count() * (*length as u32),
-            Self::Struct { fields, .. } => {
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
-            }
-            Self::String { length } => *length as u32,
-        }
-    }
+    Function {
+        arguments: Vec<PrintableType>,
+        return_type: Box<PrintableType>,
+        env: Box<PrintableType>,
+    },
+    MutableReference {
+        typ: Box<PrintableType>,
+    },
+    Unit,
 }
 
 /// This is what all formats eventually transform into
@@ -55,8 +54,9 @@ impl PrintableType {
 pub enum PrintableValue {
     Field(FieldElement),
     String(String),
-    Vec(Vec<PrintableValue>),
+    Vec { array_elements: Vec<PrintableValue>, is_slice: bool },
     Struct(BTreeMap<String, PrintableValue>),
+    Other,
 }
 
 /// In order to display a `PrintableValue` we need a `PrintableType` to accurately
@@ -73,6 +73,12 @@ pub enum ForeignCallError {
 
     #[error("Could not parse PrintableType argument. {0}")]
     ParsingError(#[from] serde_json::Error),
+
+    #[error("Failed calling external resolver. {0}")]
+    ExternalResolverError(#[from] jsonrpc::Error),
+
+    #[error("Assert message resolved after an unsatisified constrain. {0}")]
+    ResolvedAssertMessage(String),
 }
 
 impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
@@ -82,7 +88,7 @@ impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
-        if is_fmt_str.unwrap_value().to_field().is_one() {
+        if is_fmt_str.unwrap_field().is_one() {
             convert_fmt_string_inputs(foreign_call_inputs)
         } else {
             convert_string_inputs(foreign_call_inputs)
@@ -100,8 +106,7 @@ fn convert_string_inputs(
     let printable_type = fetch_printable_type(printable_type_as_values)?;
 
     // We must use a flat map here as each value in a struct will be in a separate input value
-    let mut input_values_as_fields =
-        input_values.iter().flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+    let mut input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
 
     let value = decode_value(&mut input_values_as_fields, &printable_type);
 
@@ -111,43 +116,25 @@ fn convert_string_inputs(
 fn convert_fmt_string_inputs(
     foreign_call_inputs: &[ForeignCallParam],
 ) -> Result<PrintableValueDisplay, ForeignCallError> {
-    let (message, input_and_printable_values) =
+    let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
-    let message_as_fields = vecmap(message.values(), |value| value.to_field());
+    let message_as_fields = message.fields();
     let message_as_string = decode_string_value(&message_as_fields);
 
-    let (num_values, input_and_printable_values) = input_and_printable_values
+    let (num_values, input_and_printable_types) = input_and_printable_types
         .split_first()
         .ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
-    let num_values = num_values.unwrap_value().to_field().to_u128() as usize;
+    let num_values = num_values.unwrap_field().to_u128() as usize;
 
-    for (i, printable_value) in input_and_printable_values
-        .iter()
-        .skip(input_and_printable_values.len() - num_values)
-        .enumerate()
-    {
-        let printable_type = fetch_printable_type(printable_value)?;
-        let type_size = printable_type.field_count() as usize;
-        let value = match printable_type {
-            PrintableType::Array { .. } | PrintableType::String { .. } => {
-                // Arrays and strings are represented in a single value vector rather than multiple separate input values
-                let mut input_values_as_fields = input_and_printable_values[i]
-                    .values()
-                    .into_iter()
-                    .map(|value| value.to_field());
-                decode_value(&mut input_values_as_fields, &printable_type)
-            }
-            _ => {
-                // We must use a flat map here as each value in a struct will be in a separate input value
-                let mut input_values_as_fields = input_and_printable_values[i..(i + type_size)]
-                    .iter()
-                    .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
-                decode_value(&mut input_values_as_fields, &printable_type)
-            }
-        };
+    let types_start_at = input_and_printable_types.len() - num_values;
+    let mut input_iter =
+        input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
+    for printable_type in input_and_printable_types.iter().skip(types_start_at) {
+        let printable_type = fetch_printable_type(printable_type)?;
+        let value = decode_value(&mut input_iter, &printable_type);
 
         output.push((value, printable_type));
     }
@@ -158,7 +145,7 @@ fn convert_fmt_string_inputs(
 fn fetch_printable_type(
     printable_type: &ForeignCallParam,
 ) -> Result<PrintableType, ForeignCallError> {
-    let printable_type_as_fields = vecmap(printable_type.values(), |value| value.to_field());
+    let printable_type_as_fields = printable_type.fields();
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
     let printable_type: PrintableType = serde_json::from_str(&printable_type_as_string)?;
 
@@ -193,9 +180,19 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Vec(vector), PrintableType::Array { typ, .. }) => {
+        (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
+            output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
+        }
+        (_, PrintableType::MutableReference { .. }) => {
+            output.push_str("<<mutable ref>>");
+        }
+        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
+        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
+            if *is_slice {
+                output.push('&')
+            }
             output.push('[');
-            let mut values = vector.iter().peekable();
+            let mut values = array_elements.iter().peekable();
             while let Some(value) = values.next() {
                 output.push_str(&format!(
                     "{}",
@@ -229,6 +226,22 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
 
             output.push_str(" }");
         }
+
+        (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) => {
+            output.push('(');
+            let mut elems = array_elements.iter().zip(types).peekable();
+            while let Some((value, typ)) = elems.next() {
+                output.push_str(
+                    &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+                );
+                if elems.peek().is_some() {
+                    output.push_str(", ");
+                }
+            }
+            output.push(')');
+        }
+
+        (_, PrintableType::Unit) => output.push_str("()"),
 
         _ => return None,
     };
@@ -292,7 +305,7 @@ fn format_field_string(field: FieldElement) -> String {
 }
 
 /// Assumes that `field_iterator` contains enough [FieldElement] in order to decode the [PrintableType]
-fn decode_value(
+pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     typ: &PrintableType,
 ) -> PrintableValue {
@@ -312,8 +325,24 @@ fn decode_value(
                 array_elements.push(decode_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec(array_elements)
+            PrintableValue::Vec { array_elements, is_slice: false }
         }
+        PrintableType::Slice { typ } => {
+            let length = field_iterator
+                .next()
+                .expect("not enough data to decode variable array length")
+                .to_u128() as usize;
+            let mut array_elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                array_elements.push(decode_value(field_iterator, typ));
+            }
+
+            PrintableValue::Vec { array_elements, is_slice: true }
+        }
+        PrintableType::Tuple { types } => PrintableValue::Vec {
+            array_elements: vecmap(types, |typ| decode_value(field_iterator, typ)),
+            is_slice: false,
+        },
         PrintableType::String { length } => {
             let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
 
@@ -330,6 +359,18 @@ fn decode_value(
 
             PrintableValue::Struct(struct_map)
         }
+        PrintableType::Function { env, .. } => {
+            let field_element = field_iterator.next().unwrap();
+            let func_ref = PrintableValue::Field(field_element);
+            // we want to consume the fields from the environment, but for now they are not actually printed
+            decode_value(field_iterator, env);
+            func_ref
+        }
+        PrintableType::MutableReference { typ } => {
+            // we decode the reference, but it's not really used for printing
+            decode_value(field_iterator, typ)
+        }
+        PrintableType::Unit => PrintableValue::Field(FieldElement::zero()),
     }
 }
 

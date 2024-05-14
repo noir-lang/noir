@@ -1,6 +1,0 @@
-[package]
-name = "mock_oracle"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -20,7 +20,7 @@ In this guide, we will be pinned to 0.17.0.
 
 Make sure you have Node installed on your machine by opening a terminal and executing `node --version`. If you don't see a version, you should install [node](https://github.com/nvm-sh/nvm). You can also use `yarn` if you prefer that package manager over npm (which comes with node).
 
-First of all, follow the the [Nargo guide](../../getting_started/00_nargo_installation.md) to install nargo version 0.17.0 and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
+First of all, follow the [Nargo guide](../../getting_started/00_nargo_installation.md) to install nargo version 0.17.0 and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
 
 ```bash
 nargo compile
@@ -255,6 +255,6 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 ## Further Reading
 
-You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/next-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
+You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
 
 You should also check out the more advanced examples in the [noir-examples repo](https://github.com/noir-lang/noir-examples), where you'll find reference usage for some cool apps.

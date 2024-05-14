@@ -1,37 +1,31 @@
+use std::io::Write;
 use std::path::Path;
+use std::time::Duration;
 
-use acvm::acir::circuit::Opcode;
-use acvm::Language;
-use backend_interface::BackendOpcodeSupport;
 use fm::FileManager;
-use iter_extended::vecmap;
-use nargo::artifacts::contract::PreprocessedContract;
-use nargo::artifacts::contract::PreprocessedContractFunction;
-use nargo::artifacts::debug::DebugArtifact;
-use nargo::artifacts::program::PreprocessedProgram;
-use nargo::errors::CompileError;
+use nargo::artifacts::program::ProgramArtifact;
+use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
-use nargo::prepare_package;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
+
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
+use noirc_frontend::hir::ParsedFiles;
+use notify::{EventKind, RecursiveMode, Watcher};
+use notify_debouncer_full::new_debouncer;
 
-use crate::backends::Backend;
 use crate::errors::CliError;
 
-use super::fs::program::{
-    read_debug_artifact_from_file, read_program_from_file, save_contract_to_file,
-    save_debug_artifact_to_file, save_program_to_file,
-};
+use super::fs::program::only_acir;
+use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::NargoConfig;
 use rayon::prelude::*;
-
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -40,19 +34,19 @@ pub(crate) struct CompileCommand {
     #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
 
-    /// Compile all packages in the workspace
+    /// Compile all packages in the workspace.
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// Watch workspace and recompile on changes.
+    #[clap(long, hide = true)]
+    watch: bool,
 }
 
-pub(crate) fn run(
-    backend: &Backend,
-    args: CompileCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -63,7 +57,77 @@ pub(crate) fn run(
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
-    let circuit_dir = workspace.target_directory_path();
+
+    if args.watch {
+        watch_workspace(&workspace, &args.compile_options)
+            .map_err(|err| CliError::Generic(err.to_string()))?;
+    } else {
+        compile_workspace_full(&workspace, &args.compile_options)?;
+    }
+
+    Ok(())
+}
+
+fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    // No specific tickrate, max debounce time 1 seconds
+    let mut debouncer = new_debouncer(Duration::from_secs(1), None, tx)?;
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    debouncer.watcher().watch(&workspace.root_dir, RecursiveMode::Recursive)?;
+
+    let mut screen = std::io::stdout();
+    write!(screen, "{}", termion::cursor::Save).unwrap();
+    screen.flush().unwrap();
+    let _ = compile_workspace_full(workspace, compile_options);
+    for res in rx {
+        let debounced_events = res.map_err(|mut err| err.remove(0))?;
+
+        // We only want to trigger a rebuild if a noir source file has been modified.
+        let noir_files_modified = debounced_events.iter().any(|event| {
+            let mut event_paths = event.event.paths.iter();
+            let event_affects_noir_file =
+                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+
+            let is_relevant_event_kind = matches!(
+                event.kind,
+                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+            );
+
+            is_relevant_event_kind && event_affects_noir_file
+        });
+
+        if noir_files_modified {
+            write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
+            screen.flush().unwrap();
+            let _ = compile_workspace_full(workspace, compile_options);
+        }
+    }
+
+    screen.flush().unwrap();
+
+    Ok(())
+}
+
+fn compile_workspace_full(
+    workspace: &Workspace,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError> {
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
+
+    let compiled_workspace =
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+
+    let (compiled_programs, compiled_contracts) = report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -71,18 +135,15 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (np_language, opcode_support) = backend.get_backend_info_or_default();
-    let (_, compiled_contracts) = compile_workspace(
-        &workspace,
-        &binary_packages,
-        &contract_packages,
-        np_language,
-        &opcode_support,
-        &args.compile_options,
-    )?;
-
     // Save build artifacts to disk.
+    let only_acir = compile_options.only_acir;
+    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
+        let program = nargo::ops::transform_program(program, compile_options.expression_width);
+        save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
+    }
+    let circuit_dir = workspace.target_directory_path();
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
+        let contract = nargo::ops::transform_contract(contract, compile_options.expression_width);
         save_contract(contract, &package, &circuit_dir);
     }
 
@@ -90,243 +151,71 @@ pub(crate) fn run(
 }
 
 pub(super) fn compile_workspace(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
-    binary_packages: &[Package],
-    contract_packages: &[Package],
-    np_language: Language,
-    opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
-) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
+) -> CompilationResult<(Vec<CompiledProgram>, Vec<CompiledContract>)> {
+    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
+        .into_iter()
+        .filter(|package| !package.is_library())
+        .cloned()
+        .partition(|package| package.is_binary());
+
     // Compile all of the packages in parallel.
-    let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
+    let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
-            compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
+            let program_artifact_path = workspace.package_build_path(package);
+            let cached_program: Option<CompiledProgram> =
+                read_program_from_file(program_artifact_path)
+                    .ok()
+                    .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
+                    .map(|p| p.into());
+
+            compile_program(file_manager, parsed_files, package, compile_options, cached_program)
         })
         .collect();
-    let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
-        contract_packages
-            .par_iter()
-            .map(|package| {
-                let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
-                compile_contract(package, compile_options, np_language, &is_opcode_supported)
-            })
-            .collect();
+    let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
+        .par_iter()
+        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
+        .collect();
 
-    // Report any warnings/errors which were encountered during compilation.
-    let compiled_programs: Vec<CompiledProgram> = program_results
-        .into_iter()
-        .map(|(file_manager, compilation_result)| {
-            report_errors(
-                compilation_result,
-                &file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
-    let compiled_contracts: Vec<CompiledContract> = contract_results
-        .into_iter()
-        .map(|(file_manager, compilation_result)| {
-            report_errors(
-                compilation_result,
-                &file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
+    // Collate any warnings/errors which were encountered during compilation.
+    let compiled_programs = collect_errors(program_results);
+    let compiled_contracts = collect_errors(contract_results);
 
-    Ok((compiled_programs, compiled_contracts))
-}
-
-pub(crate) fn compile_bin_package(
-    workspace: &Workspace,
-    package: &Package,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    opcode_support: &BackendOpcodeSupport,
-) -> Result<CompiledProgram, CliError> {
-    if package.is_library() {
-        return Err(CompileError::LibraryCrate(package.name.clone()).into());
-    }
-
-    let (file_manager, compilation_result) =
-        compile_program(workspace, package, compile_options, np_language, &|opcode| {
-            opcode_support.is_opcode_supported(opcode)
-        });
-
-    let program = report_errors(
-        compilation_result,
-        &file_manager,
-        compile_options.deny_warnings,
-        compile_options.silence_warnings,
-    )?;
-
-    Ok(program)
-}
-
-fn compile_program(
-    workspace: &Workspace,
-    package: &Package,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> (FileManager, CompilationResult<CompiledProgram>) {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
-
-    let program_artifact_path = workspace.package_build_path(package);
-    let mut debug_artifact_path = program_artifact_path.clone();
-    debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
-    let cached_program = if let (Ok(preprocessed_program), Ok(mut debug_artifact)) = (
-        read_program_from_file(program_artifact_path),
-        read_debug_artifact_from_file(debug_artifact_path),
-    ) {
-        Some(CompiledProgram {
-            hash: preprocessed_program.hash,
-            circuit: preprocessed_program.bytecode,
-            abi: preprocessed_program.abi,
-            noir_version: preprocessed_program.noir_version,
-            debug: debug_artifact.debug_symbols.remove(0),
-            file_map: debug_artifact.file_map,
-            warnings: debug_artifact.warnings,
-        })
-    } else {
-        None
-    };
-
-    let force_recompile =
-        cached_program.as_ref().map_or(false, |p| p.noir_version != NOIR_ARTIFACT_VERSION_STRING);
-    let (program, warnings) = match noirc_driver::compile_main(
-        &mut context,
-        crate_id,
-        compile_options,
-        cached_program,
-        force_recompile,
-    ) {
-        Ok(program_and_warnings) => program_and_warnings,
-        Err(errors) => {
-            return (context.file_manager, Err(errors));
+    match (compiled_programs, compiled_contracts) {
+        (Ok((programs, program_warnings)), Ok((contracts, contract_warnings))) => {
+            let warnings = [program_warnings, contract_warnings].concat();
+            Ok(((programs, contracts), warnings))
         }
-    };
-
-    // Apply backend specific optimizations.
-    let optimized_program = nargo::ops::optimize_program(program, np_language, is_opcode_supported)
-        .expect("Backend does not support an opcode that is in the IR");
-
-    save_program(optimized_program.clone(), package, &workspace.target_directory_path());
-
-    (context.file_manager, Ok((optimized_program, warnings)))
+        (Err(program_errors), Err(contract_errors)) => {
+            Err([program_errors, contract_errors].concat())
+        }
+        (Err(errors), _) | (_, Err(errors)) => Err(errors),
+    }
 }
 
-fn compile_contract(
+pub(super) fn save_program(
+    program: CompiledProgram,
     package: &Package,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> (FileManager, CompilationResult<CompiledContract>) {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
-    let (contract, warnings) =
-        match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
-            Ok(contracts_and_warnings) => contracts_and_warnings,
-            Err(errors) => {
-                return (context.file_manager, Err(errors));
-            }
-        };
-
-    let optimized_contract =
-        nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
-            .expect("Backend does not support an opcode that is in the IR");
-
-    (context.file_manager, Ok((optimized_contract, warnings)))
-}
-
-fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path) {
-    let preprocessed_program = PreprocessedProgram {
-        hash: program.hash,
-        backend: String::from(BACKEND_IDENTIFIER),
-        abi: program.abi,
-        noir_version: program.noir_version,
-        bytecode: program.circuit,
-    };
-
-    save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
-
-    let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
-    let circuit_name: String = (&package.name).into();
-    save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
+    circuit_dir: &Path,
+    only_acir_opt: bool,
+) {
+    if only_acir_opt {
+        only_acir(program.program, circuit_dir);
+    } else {
+        let program_artifact = ProgramArtifact::from(program.clone());
+        save_program_to_file(&program_artifact, &package.name, circuit_dir);
+    }
 }
 
 fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
-    // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
-    // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-    // are compiled via nargo-core and then the PreprocessedContract is constructed here.
-    // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-    let debug_artifact = DebugArtifact {
-        debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
-        file_map: contract.file_map,
-        warnings: contract.warnings,
-    };
-
-    let preprocessed_functions = vecmap(contract.functions, |func| PreprocessedContractFunction {
-        name: func.name,
-        function_type: func.function_type,
-        is_internal: func.is_internal,
-        abi: func.abi,
-        bytecode: func.bytecode,
-    });
-
-    let preprocessed_contract = PreprocessedContract {
-        noir_version: contract.noir_version,
-        name: contract.name,
-        backend: String::from(BACKEND_IDENTIFIER),
-        functions: preprocessed_functions,
-        events: contract.events,
-    };
-
+    let contract_name = contract.name.clone();
     save_contract_to_file(
-        &preprocessed_contract,
-        &format!("{}-{}", package.name, preprocessed_contract.name),
+        &contract.into(),
+        &format!("{}-{}", package.name, contract_name),
         circuit_dir,
     );
-
-    save_debug_artifact_to_file(
-        &debug_artifact,
-        &format!("{}-{}", package.name, preprocessed_contract.name),
-        circuit_dir,
-    );
-}
-
-/// Helper function for reporting any errors in a `CompilationResult<T>`
-/// structure that is commonly used as a return result in this file.
-pub(crate) fn report_errors<T>(
-    result: CompilationResult<T>,
-    file_manager: &FileManager,
-    deny_warnings: bool,
-    silence_warnings: bool,
-) -> Result<T, CompileError> {
-    let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(
-            file_manager.as_file_map(),
-            &errors,
-            deny_warnings,
-            silence_warnings,
-        )
-    })?;
-
-    noirc_errors::reporter::report_all(
-        file_manager.as_file_map(),
-        &warnings,
-        deny_warnings,
-        silence_warnings,
-    );
-
-    Ok(t)
 }

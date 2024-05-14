@@ -86,6 +86,7 @@ use self::block::{Block, Expression};
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut context = PerFunctionContext::new(function);
@@ -413,7 +414,6 @@ mod tests {
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
-            function::RuntimeType,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -432,7 +432,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Rc::new(vec![Type::field()]), 2));
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
@@ -473,7 +473,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::field());
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
@@ -507,7 +507,7 @@ mod tests {
         // }
 
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::field());
         let const_one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, const_one);
@@ -566,7 +566,7 @@ mod tests {
         //     return v2, v3, v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
 
@@ -646,7 +646,7 @@ mod tests {
         //       return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let v0 = builder.insert_allocate(Type::field());
 

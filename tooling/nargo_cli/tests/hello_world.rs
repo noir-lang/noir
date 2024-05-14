@@ -1,5 +1,5 @@
 //! This integration test aims to mirror the steps taken by a new user using Nargo for the first time.
-//! It then follows the steps published at https://noir-lang.org/getting_started/hello_world.html
+//! It then follows the steps published at https://noir-lang.org/docs/getting_started/create_a_project
 //! Any modifications to the commands run here MUST be documented in the noir-lang book.
 
 use assert_cmd::prelude::*;

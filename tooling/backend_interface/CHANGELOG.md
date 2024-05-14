@@ -214,7 +214,7 @@
 
 * Avoid exposing internals of Assignments type ([614c81b](https://github.com/noir-lang/acvm-backend-barretenberg/commit/614c81b0ea5e110bbf5a61a526bb0173f4fe377a))
 * avoid exposing internals of Assignments type ([#119](https://github.com/noir-lang/acvm-backend-barretenberg/issues/119)) ([614c81b](https://github.com/noir-lang/acvm-backend-barretenberg/commit/614c81b0ea5e110bbf5a61a526bb0173f4fe377a))
-* fix serialisation of arithmetic expressions ([#145](https://github.com/noir-lang/acvm-backend-barretenberg/issues/145)) ([7f42535](https://github.com/noir-lang/acvm-backend-barretenberg/commit/7f4253570257d9dedcfa8c8fb96b9d097ef06419))
+* fix serialization of arithmetic expressions ([#145](https://github.com/noir-lang/acvm-backend-barretenberg/issues/145)) ([7f42535](https://github.com/noir-lang/acvm-backend-barretenberg/commit/7f4253570257d9dedcfa8c8fb96b9d097ef06419))
 * Implement random_get for wasm backend ([#102](https://github.com/noir-lang/acvm-backend-barretenberg/issues/102)) ([9c0f06e](https://github.com/noir-lang/acvm-backend-barretenberg/commit/9c0f06ef56f23e2b5794e810f433e36ff2c5d6b5))
 * rename gates to opcodes ([#59](https://github.com/noir-lang/acvm-backend-barretenberg/issues/59)) ([6e05307](https://github.com/noir-lang/acvm-backend-barretenberg/commit/6e053072d8b9c5d93c296f10782251ccb597f902))
 * reorganize and ensure contracts can be compiled in Remix ([#112](https://github.com/noir-lang/acvm-backend-barretenberg/issues/112)) ([7ec5693](https://github.com/noir-lang/acvm-backend-barretenberg/commit/7ec5693f194a79c379ae2952bc17a31ee63a42b9))

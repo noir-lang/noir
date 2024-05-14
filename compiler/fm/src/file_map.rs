@@ -30,7 +30,7 @@ impl From<&PathBuf> for PathString {
         PathString::from(pb.to_owned())
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileMap {
     files: SimpleFiles<PathString, String>,
     name_to_id: HashMap<PathString, FileId>,
@@ -74,6 +74,10 @@ impl FileMap {
 
     pub fn get_file_id(&self, file_name: &PathString) -> Option<FileId> {
         self.name_to_id.get(file_name).cloned()
+    }
+
+    pub fn all_file_ids(&self) -> impl Iterator<Item = &FileId> {
+        self.name_to_id.values()
     }
 }
 impl Default for FileMap {

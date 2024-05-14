@@ -1,12 +1,14 @@
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
+use std::rc::Rc;
+
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
+use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::FunctionKind;
-use crate::{Distinctness, FunctionReturnType, Type, Visibility};
+use crate::{Type, TypeVariable};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -22,8 +24,8 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    pub const fn as_expr(&self) -> &ExprId {
-        &self.0
+    pub const fn as_expr(&self) -> ExprId {
+        self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
@@ -43,12 +45,7 @@ pub struct Parameters(pub Vec<Param>);
 impl Parameters {
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
-        let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(ident) => ident.location.span,
-            HirPattern::Mutable(_, span) => *span,
-            HirPattern::Tuple(_, span) => *span,
-            HirPattern::Struct(_, _, span) => *span,
-        });
+        let mut spans = vecmap(&self.0, |param| param.0.span());
 
         let merged_span = spans.pop().unwrap();
         for span in spans {
@@ -102,11 +99,15 @@ pub struct FuncMeta {
 
     pub return_visibility: Visibility,
 
-    pub return_distinctness: Distinctness,
-
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
     pub typ: Type,
+
+    /// The set of generics that are declared directly on this function in the source code.
+    /// This does not include generics from an outer scope, like those introduced by
+    /// an `impl<T>` block. This also does not include implicit generics added by the compiler
+    /// such as a trait's `Self` type variable.
+    pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
 
     pub location: Location,
 
@@ -117,6 +118,15 @@ pub struct FuncMeta {
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// True if this function is an entry point to the program.
+    /// For non-contracts, this means the function is `main`.
+    pub is_entry_point: bool,
+
+    /// True if this function is marked with an attribute
+    /// that indicates it should be inlined differently than the default (inline everything).
+    /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
+    pub has_inline_attribute: bool,
 }
 
 impl FuncMeta {
@@ -125,28 +135,15 @@ impl FuncMeta {
     /// So this method tells the type checker to ignore the return
     /// of the empty function, which is unit
     pub fn can_ignore_return_type(&self) -> bool {
-        match self.kind {
-            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal => false,
-        }
+        self.kind.can_ignore_return_type()
     }
 
-    pub fn into_function_signature(self) -> FunctionSignature {
-        // Doesn't use `self.return_type()` so we aren't working with references and don't need a `clone()`
-        let return_type = match self.typ {
-            Type::Function(_, ret, _env) => *ret,
-            Type::Forall(_, typ) => match *typ {
-                Type::Function(_, ret, _env) => *ret,
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
-        let return_type = match return_type {
+    pub fn function_signature(&self) -> FunctionSignature {
+        let return_type = match self.return_type() {
             Type::Unit => None,
-            typ => Some(typ),
+            typ => Some(typ.clone()),
         };
-
-        (self.parameters.0, return_type)
+        (self.parameters.0.clone(), return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.

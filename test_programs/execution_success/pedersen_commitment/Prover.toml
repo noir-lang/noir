@@ -1,0 +1,6 @@
+x = "0"
+y = "1"
+
+[expected_commitment]
+x = "0x054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402"
+y = "0x209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126"

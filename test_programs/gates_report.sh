@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # These tests are incompatible with gas reporting
-excluded_dirs=("workspace" "workspace_default_member")
+excluded_dirs=("workspace" "workspace_default_member" "double_verify_nested_proof")
 
 # These tests cause failures in CI with a stack overflow for some reason.
 ci_excluded_dirs=("eddsa")

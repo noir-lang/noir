@@ -2,10 +2,12 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
+use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
-use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
+use crate::Shared;
 
 use super::stmt::HirPattern;
+use super::traits::TraitConstraint;
 use super::types::{StructType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
@@ -31,22 +33,59 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    TraitMethodReference(TraitMethodId),
+    Quote(crate::ast::BlockExpression),
+    Unquote(crate::ast::BlockExpression),
+    Comptime(HirBlockExpression),
     Error,
 }
 
 impl HirExpression {
     /// Returns an empty block expression
     pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression(vec![]))
+        HirExpression::Block(HirBlockExpression { statements: vec![] })
     }
 }
 
 /// Corresponds to a variable in the source code
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,
+
+    /// If this HirIdent refers to a trait method, this field stores
+    /// whether the impl for this method is known or not.
+    pub impl_kind: ImplKind,
+}
+
+impl HirIdent {
+    pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
+        Self { id, location, impl_kind: ImplKind::NotATraitMethod }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ImplKind {
+    /// This ident is not a trait method
+    NotATraitMethod,
+
+    /// This ident refers to a trait method and its impl needs to be verified,
+    /// and eventually linked to this id. The boolean indicates whether the impl
+    /// is already assumed to exist - e.g. when resolving a path such as `T::default`
+    /// when there is a corresponding `T: Default` constraint in scope.
+    TraitMethod(TraitMethodId, TraitConstraint, bool),
+}
+
+impl Eq for HirIdent {}
+impl PartialEq for HirIdent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl std::hash::Hash for HirIdent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -61,24 +100,12 @@ impl HirBinaryOp {
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }
     }
-
-    pub fn is_bitwise(&self) -> bool {
-        use BinaryOpKind::*;
-        matches!(self.kind, And | Or | Xor | ShiftRight | ShiftLeft)
-    }
-
-    pub fn is_bit_shift(&self) -> bool {
-        self.kind.is_bit_shift()
-    }
-
-    pub fn is_modulo(&self) -> bool {
-        self.kind.is_modulo()
-    }
 }
 
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
+    Slice(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
@@ -103,6 +130,12 @@ pub struct HirInfixExpression {
     pub lhs: ExprId,
     pub operator: HirBinaryOp,
     pub rhs: ExprId,
+
+    /// The trait method id for the operator trait method that corresponds to this operator.
+    /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
+    /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
+    /// after the call to `Eq::eq` to get the result of the `!=` operator.
+    pub trait_method_id: TraitMethodId,
 }
 
 /// This is always a struct field access `my_struct.field`
@@ -113,6 +146,12 @@ pub struct HirMemberAccess {
     // This field is not an IdentId since the rhs of a field
     // access has no corresponding definition
     pub rhs: Ident,
+
+    /// True if we should return an offset of the field rather than the field itself.
+    /// For most cases this is false, corresponding to `foo.bar` in source code.
+    /// This is true when calling methods or when we have an lvalue we want to preserve such
+    /// that if `foo : &mut Foo` has a field `bar : Bar`, we can return an `&mut Bar`.
+    pub is_offset: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -160,30 +199,42 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(TraitMethodId),
+    TraitMethodId(TraitMethodId, /*trait generics:*/ Vec<Type>),
 }
 
 impl HirMethodCallExpression {
+    /// Converts a method call into a function call
+    ///
+    /// Returns ((func_var_id, func_var), call_expr)
     pub fn into_function_call(
         mut self,
-        method: HirMethodReference,
+        method: &HirMethodReference,
+        object_type: Type,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirExpression, Option<Vec<Type>>) {
+    ) -> ((ExprId, HirIdent), HirCallExpression) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        let expr = match method {
+        let (id, impl_kind) = match method {
             HirMethodReference::FuncId(func_id) => {
-                let id = interner.function_definition_id(func_id);
-                HirExpression::Ident(HirIdent { location, id }, None)
+                (interner.function_definition_id(*func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id) => {
-                HirExpression::TraitMethodReference(method_id)
+            HirMethodReference::TraitMethodId(method_id, generics) => {
+                let id = interner.trait_method_id(*method_id);
+                let constraint = TraitConstraint {
+                    typ: object_type,
+                    trait_id: method_id.trait_id,
+                    trait_generics: generics.clone(),
+                };
+                (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
         };
-        let func = interner.push_expr(expr);
-        (func, HirExpression::Call(HirCallExpression { func, arguments, location }), self.generics)
+        let func_var = HirIdent { location, id, impl_kind };
+        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), None));
+        interner.push_expr_location(func, location.span, location.file);
+        let expr = HirCallExpression { func, arguments, location };
+        ((func, func_var), expr)
     }
 }
 
@@ -208,16 +259,18 @@ pub struct HirIndexExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirBlockExpression(pub Vec<StmtId>);
+pub struct HirBlockExpression {
+    pub statements: Vec<StmtId>,
+}
 
 impl HirBlockExpression {
     pub fn statements(&self) -> &[StmtId] {
-        &self.0
+        &self.statements
     }
 }
 
 /// A variable captured inside a closure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirCapturedVar {
     pub ident: HirIdent,
 
@@ -231,7 +284,7 @@ pub struct HirCapturedVar {
     pub transitive_capture_index: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirLambda {
     pub parameters: Vec<(HirPattern, Type)>,
     pub return_type: Type,

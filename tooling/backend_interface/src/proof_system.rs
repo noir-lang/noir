@@ -2,19 +2,22 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
+use acvm::acir::{
+    circuit::Program,
+    native_types::{WitnessMap, WitnessStack},
+};
 use acvm::FieldElement;
-use acvm::Language;
 use tempfile::tempdir;
+use tracing::warn;
 
 use crate::cli::{
-    GatesCommand, InfoCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand,
-    VkAsFieldsCommand, WriteVkCommand,
+    GatesCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand, VkAsFieldsCommand,
+    WriteVkCommand,
 };
-use crate::{Backend, BackendError, BackendOpcodeSupport};
+use crate::{Backend, BackendError};
 
 impl Backend {
-    pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
+    pub fn get_exact_circuit_size(&self, program: &Program) -> Result<u32, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
 
@@ -23,36 +26,18 @@ impl Backend {
 
         // Create a temporary file for the circuit
         let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = Circuit::serialize_circuit(circuit);
-        write_to_file(&serialized_circuit, &circuit_path);
+        let serialized_program = Program::serialize_program(program);
+        write_to_file(&serialized_program, &circuit_path);
 
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(binary_path)
     }
 
-    pub fn get_backend_info(&self) -> Result<(Language, BackendOpcodeSupport), BackendError> {
-        let binary_path = self.assert_binary_exists()?;
-        self.assert_correct_version()?;
-        InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
-    }
-
-    /// If we cannot get a valid backend, returns the default backend which supports all the opcodes
-    /// and uses Plonk with width 3
-    /// The function also prints a message saying we could not find a backend
-    pub fn get_backend_info_or_default(&self) -> (Language, BackendOpcodeSupport) {
-        if let Ok(backend_info) = self.get_backend_info() {
-            (backend_info.0, backend_info.1)
-        } else {
-            println!("No valid backend found, defaulting to Plonk with width 3 and all opcodes supported");
-            (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all())
-        }
-    }
-
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn prove(
         &self,
-        circuit: &Circuit,
-        witness_values: WitnessMap,
-        is_recursive: bool,
+        program: &Program,
+        witness_stack: WitnessStack,
     ) -> Result<Vec<u8>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
@@ -62,38 +47,35 @@ impl Backend {
 
         // Create a temporary file for the witness
         let serialized_witnesses: Vec<u8> =
-            witness_values.try_into().expect("could not serialize witness map");
+            witness_stack.try_into().expect("could not serialize witness map");
         let witness_path = temp_directory.join("witness").with_extension("tr");
         write_to_file(&serialized_witnesses, &witness_path);
 
         // Create a temporary file for the circuit
         //
-        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = Circuit::serialize_circuit(circuit);
-        write_to_file(&serialized_circuit, &bytecode_path);
+        let bytecode_path = temp_directory.join("program").with_extension("bytecode");
+        let serialized_program = Program::serialize_program(program);
+        write_to_file(&serialized_program, &bytecode_path);
 
         // Create proof and store it in the specified path
-        let proof_with_public_inputs = ProveCommand {
-            crs_path: self.crs_directory(),
-            is_recursive,
-            bytecode_path,
-            witness_path,
-        }
-        .run(binary_path)?;
+        let proof_with_public_inputs =
+            ProveCommand { crs_path: self.crs_directory(), bytecode_path, witness_path }
+                .run(binary_path)?;
 
         let proof = bb_abstraction_leaks::remove_public_inputs(
-            circuit.public_inputs().0.len(),
+            // TODO(https://github.com/noir-lang/noir/issues/4428)
+            program.functions[0].public_inputs().0.len(),
             &proof_with_public_inputs,
         );
         Ok(proof)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn verify(
         &self,
         proof: &[u8],
         public_inputs: WitnessMap,
-        circuit: &Circuit,
-        is_recursive: bool,
+        program: &Program,
     ) -> Result<bool, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
@@ -108,9 +90,9 @@ impl Backend {
         write_to_file(&proof_with_public_inputs, &proof_path);
 
         // Create a temporary file for the circuit
-        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = Circuit::serialize_circuit(circuit);
-        write_to_file(&serialized_circuit, &bytecode_path);
+        let bytecode_path = temp_directory.join("program").with_extension("bytecode");
+        let serialized_program = Program::serialize_program(program);
+        write_to_file(&serialized_program, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");
@@ -123,13 +105,12 @@ impl Backend {
         .run(binary_path)?;
 
         // Verify the proof
-        VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
-            .run(binary_path)
+        VerifyCommand { crs_path: self.crs_directory(), proof_path, vk_path }.run(binary_path)
     }
 
     pub fn get_intermediate_proof_artifacts(
         &self,
-        circuit: &Circuit,
+        program: &Program,
         proof: &[u8],
         public_inputs: WitnessMap,
     ) -> Result<(Vec<FieldElement>, FieldElement, Vec<FieldElement>), BackendError> {
@@ -141,9 +122,9 @@ impl Backend {
 
         // Create a temporary file for the circuit
         //
-        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
-        let serialized_circuit = Circuit::serialize_circuit(circuit);
-        write_to_file(&serialized_circuit, &bytecode_path);
+        let bytecode_path = temp_directory.join("program").with_extension("bytecode");
+        let serialized_program = Program::serialize_program(program);
+        write_to_file(&serialized_program, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");

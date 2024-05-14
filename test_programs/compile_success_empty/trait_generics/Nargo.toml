@@ -2,5 +2,6 @@
 name = "trait_generics"
 type = "bin"
 authors = [""]
+compiler_version = ">=0.22.0"
 
 [dependencies]

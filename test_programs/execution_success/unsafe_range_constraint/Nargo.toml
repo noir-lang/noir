@@ -1,0 +1,7 @@
+[package]
+name = "unsafe_range_constraint"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

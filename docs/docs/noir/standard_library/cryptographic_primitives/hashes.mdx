@@ -1,0 +1,166 @@
+---
+title: Hash methods
+description:
+  Learn about the cryptographic primitives ready to use for any Noir project, including sha256,
+  blake2s, pedersen, mimc_bn254 and mimc
+keywords:
+  [cryptographic primitives, Noir project, sha256, blake2s, pedersen, mimc_bn254, mimc, hash]
+sidebar_position: 0
+---
+
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
+
+## sha256
+
+Given an array of bytes, returns the resulting sha256 hash.
+Specify a message_size to hash only the first `message_size` bytes of the input.
+
+#include_code sha256 noir_stdlib/src/hash.nr rust
+
+example:
+#include_code sha256_var test_programs/execution_success/sha256/src/main.nr rust
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::sha256::sha256_var(x, 4);
+}
+```
+
+
+<BlackBoxInfo />
+
+## blake2s
+
+Given an array of bytes, returns an array with the Blake2 hash
+
+#include_code blake2s noir_stdlib/src/hash.nr rust
+
+example:
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::hash::blake2s(x);
+}
+```
+
+<BlackBoxInfo />
+
+## blake3
+
+Given an array of bytes, returns an array with the Blake3 hash
+
+#include_code blake3 noir_stdlib/src/hash.nr rust
+
+example:
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::hash::blake3(x);
+}
+```
+
+<BlackBoxInfo />
+
+## pedersen_hash
+
+Given an array of Fields, returns the Pedersen hash.
+
+#include_code pedersen_hash noir_stdlib/src/hash.nr rust
+
+example:
+
+#include_code pedersen-hash test_programs/execution_success/pedersen_hash/src/main.nr rust
+
+<BlackBoxInfo />
+
+## pedersen_commitment
+
+Given an array of Fields, returns the Pedersen commitment.
+
+#include_code pedersen_commitment noir_stdlib/src/hash.nr rust
+
+example:
+
+#include_code pedersen-commitment test_programs/execution_success/pedersen_commitment/src/main.nr rust
+
+<BlackBoxInfo />
+
+## keccak256
+
+Given an array of bytes (`u8`), returns the resulting keccak hash as an array of
+32 bytes (`[u8; 32]`). Specify a message_size to hash only the first
+`message_size` bytes of the input.
+
+#include_code keccak256 noir_stdlib/src/hash.nr rust
+
+example:
+
+#include_code keccak256 test_programs/execution_success/keccak256/src/main.nr rust
+
+<BlackBoxInfo />
+
+## poseidon
+
+Given an array of Fields, returns a new Field with the Poseidon Hash. Mind that you need to specify
+how many inputs are there to your Poseidon function.
+
+```rust
+// example for hash_1, hash_2 accepts an array of length 2, etc
+fn hash_1(input: [Field; 1]) -> Field
+```
+
+example:
+
+#include_code poseidon test_programs/execution_success/poseidon_bn254_hash/src/main.nr rust
+
+## poseidon 2
+
+Given an array of Fields, returns a new Field with the Poseidon2 Hash. Contrary to the Poseidon
+function, there is only one hash and you can specify a message_size to hash only the first 
+`message_size` bytes of the input,
+
+```rust
+// example for hashing the first three elements of the input
+Poseidon2::hash(input, 3);
+```
+
+The above example for Poseidon also includes Poseidon2.
+
+## mimc_bn254 and mimc
+
+`mimc_bn254` is `mimc`, but with hardcoded parameters for the BN254 curve. You can use it by
+providing an array of Fields, and it returns a Field with the hash. You can use the `mimc` method if
+you're willing to input your own constants:
+
+```rust
+fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field
+```
+
+otherwise, use the `mimc_bn254` method:
+
+```rust
+fn mimc_bn254<N>(array: [Field; N]) -> Field
+```
+
+example:
+
+```rust
+
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::hash::mimc::mimc_bn254(x);
+}
+```
+
+## hash_to_field
+
+```rust
+fn hash_to_field(_input : [Field]) -> Field {}
+```
+
+Calculates the `blake2s` hash of the inputs and returns the hash modulo the field modulus to return
+a value which can be represented as a `Field`.
+

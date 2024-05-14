@@ -230,7 +230,7 @@ fn single_mul(w: Witness, b: &Expression) -> Expression {
 }
 
 #[test]
-fn add_smoketest() {
+fn add_smoke_test() {
     let a = Expression {
         mul_terms: vec![],
         linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
@@ -260,7 +260,7 @@ fn add_smoketest() {
 }
 
 #[test]
-fn mul_smoketest() {
+fn mul_smoke_test() {
     let a = Expression {
         mul_terms: vec![],
         linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],

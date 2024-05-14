@@ -3,6 +3,7 @@ name = "noirc_printable_type"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,5 +15,6 @@ regex = "1.9.1"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+jsonrpc.workspace = true
 
 [dev-dependencies]

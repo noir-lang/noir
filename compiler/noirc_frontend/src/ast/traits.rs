@@ -3,10 +3,11 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{
-    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction,
-    Path, UnresolvedGenerics, UnresolvedType,
+use crate::ast::{
+    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
+    UnresolvedType,
 };
+use crate::node_interner::TraitId;
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -48,7 +49,7 @@ pub struct TypeImpl {
     pub object_type: UnresolvedType,
     pub type_span: Span,
     pub generics: UnresolvedGenerics,
-    pub methods: Vec<NoirFunction>,
+    pub methods: Vec<(NoirFunction, Span)>,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -101,7 +102,7 @@ impl Display for TypeImpl {
 
         writeln!(f, "impl{} {} {{", generics, self.object_type)?;
 
-        for method in self.methods.iter() {
+        for (method, _) in self.methods.iter() {
             let method = method.to_string();
             for line in method.lines() {
                 writeln!(f, "    {line}")?;

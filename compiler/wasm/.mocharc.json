@@ -1,7 +1,13 @@
 {
-  "extension": [
-    "ts"
-  ],
-  "spec": "test/node/**/*.test.ts",
-  "require": "ts-node/register"
-}
+    "require": "ts-node/register",
+    "extensions": [
+      "ts"
+    ],
+    "spec": [
+      "./test/**/!(browser)/*.test.ts"
+    ],
+    "node-option": [
+      "loader=ts-node"
+    ]
+  }
+  

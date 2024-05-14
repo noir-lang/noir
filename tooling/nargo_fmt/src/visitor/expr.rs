@@ -1,12 +1,14 @@
-use noirc_frontend::{
-    hir::resolution::errors::Span, lexer::Lexer, token::Token, BlockExpression,
-    ConstructorExpression, Expression, ExpressionKind, IfExpression, Statement, StatementKind,
+use noirc_frontend::ast::Expression;
+use noirc_frontend::ast::{
+    BlockExpression, ConstructorExpression, ExpressionKind, IfExpression, Statement, StatementKind,
 };
+use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
 use super::{ExpressionType, FmtVisitor, Shape};
 use crate::{
+    items::{HasItem, Item, Items},
     rewrite,
-    utils::{self, first_line_width, Expr, FindToken, Item},
+    utils::{first_line_width, FindToken},
     Config,
 };
 
@@ -116,7 +118,7 @@ impl FmtVisitor<'_> {
                     format!("[{repeated}; {length}]")
                 }
                 Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                    rewrite::array(self.fork(), exprs, span)
+                    rewrite::array(self.fork(), exprs, span, false)
                 }
                 Literal::Unit => "()".to_string(),
             },
@@ -268,8 +270,7 @@ impl FmtVisitor<'_> {
 
             let nested_indent = visitor.shape();
             let exprs: Vec<_> =
-                utils::Exprs::new(&visitor, nested_indent, fields_span, constructor.fields)
-                    .collect();
+                Items::new(&visitor, nested_indent, fields_span, constructor.fields).collect();
             let exprs = format_exprs(
                 visitor.config,
                 Tactic::HorizontalVertical,
@@ -306,11 +307,11 @@ impl FmtVisitor<'_> {
         self.last_position = block_span.start() + 1; // `{`
         self.push_str("{");
 
-        self.trim_spaces_after_opening_brace(&block.0);
+        self.trim_spaces_after_opening_brace(&block.statements);
 
         self.indent.block_indent(self.config);
 
-        self.visit_stmts(block.0);
+        self.visit_stmts(block.statements);
 
         let span = (self.last_position..block_span.end() - 1).into();
         self.close_block(span);
@@ -376,7 +377,7 @@ impl FmtVisitor<'_> {
 
 // TODO: fixme
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn format_seq<T: Item>(
+pub(crate) fn format_seq<T: HasItem>(
     shape: Shape,
     prefix: &str,
     suffix: &str,
@@ -389,11 +390,10 @@ pub(crate) fn format_seq<T: Item>(
     reduce: bool,
 ) -> String {
     let mut nested_indent = shape;
-    let shape = shape;
 
     nested_indent.indent.block_indent(visitor.config);
 
-    let exprs: Vec<_> = utils::Exprs::new(&visitor, nested_indent, span, exprs).collect();
+    let exprs: Vec<_> = Items::new(&visitor, nested_indent, span, exprs).collect();
     let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent, reduce);
 
     wrap_exprs(prefix, suffix, exprs, nested_indent, shape, mode)
@@ -436,11 +436,11 @@ pub(crate) fn format_parens(
     format_seq(shape, "(", ")", visitor, trailing_comma, exprs, span, tactic, mode, reduce)
 }
 
-fn format_exprs(
+pub(crate) fn format_exprs(
     config: &Config,
     tactic: Tactic,
     trailing_comma: bool,
-    exprs: Vec<Expr>,
+    exprs: Vec<Item>,
     shape: Shape,
     reduce: bool,
 ) -> String {
@@ -583,7 +583,7 @@ pub(crate) enum Tactic {
 impl Tactic {
     fn definitive(
         self,
-        exprs: &[Expr],
+        exprs: &[Item],
         short_width_threshold: usize,
         reduce: bool,
     ) -> DefinitiveTactic {
@@ -636,7 +636,7 @@ enum DefinitiveTactic {
 }
 
 impl DefinitiveTactic {
-    fn reduce(self, exprs: &[Expr], short_array_element_width_threshold: usize) -> Self {
+    fn reduce(self, exprs: &[Item], short_array_element_width_threshold: usize) -> Self {
         match self {
             DefinitiveTactic::Vertical
                 if no_long_exprs(exprs, short_array_element_width_threshold) =>
@@ -654,7 +654,7 @@ fn has_single_line_comment(slice: &str) -> bool {
     slice.trim_start().starts_with("//")
 }
 
-fn no_long_exprs(exprs: &[Expr], max_width: usize) -> bool {
+fn no_long_exprs(exprs: &[Item], max_width: usize) -> bool {
     exprs.iter().all(|expr| expr.value.len() <= max_width)
 }
 

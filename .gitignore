@@ -4,6 +4,7 @@ examples/**/target/
 examples/9
 node_modules
 pkg/
+.idea
 
 # Yarn
 .pnp.*
@@ -14,19 +15,8 @@ pkg/
 !.yarn/sdks
 !.yarn/versions
 
-# Source resolver
-compiler/source-resolver/node_modules
-compiler/source-resolver/lib
-compiler/source-resolver/lib-node
-
 # Noir.js
 tooling/noir_js/lib
-
-# Nix stuff
-**/outputs
-result
-.envrc.local
-.direnv/
 
 # Nargo output
 *.proof
@@ -54,9 +44,6 @@ compiler/wasm/web
 tooling/noirc_abi_wasm/nodejs
 tooling/noirc_abi_wasm/web
 tooling/noir_js/lib
-
-**/package.tgz
-packages
 
 # docs autogen build
 /docs/docs/noir_js/reference/

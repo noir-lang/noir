@@ -107,7 +107,3 @@ fn main() {
     let array = [MyStruct::new(), MyStruct::new()];
     assert(array_eq(array, array, MyStruct::eq));
 }
-```
-
-You can see an example of generics in the tests
-[here](https://github.com/noir-lang/noir/blob/master/crates/nargo_cli/tests/test_data/generics/src/main.nr).

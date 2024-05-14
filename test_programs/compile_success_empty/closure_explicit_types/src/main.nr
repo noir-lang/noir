@@ -7,13 +7,13 @@ fn ret_closure1() -> fn[(Field,)]() -> Field {
     || x + 10
 }
 // return lamda that captures two things
-fn ret_closure2() -> fn[(Field,Field)]() -> Field {
+fn ret_closure2() -> fn[(Field, Field)]() -> Field {
     let x = 20;
     let y = 10;
     || x + y + 10
 }
 // return lamda that captures two things with different types
-fn ret_closure3() -> fn[(u32,u64)]() -> u64 {
+fn ret_closure3() -> fn[(u32, u64)]() -> u64 {
     let x: u32 = 20;
     let y: u64 = 10;
     || x as u64 + y + 10

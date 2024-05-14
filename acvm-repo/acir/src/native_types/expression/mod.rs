@@ -8,7 +8,7 @@ mod ordering;
 
 // In the addition polynomial
 // We can have arbitrary fan-in/out, so we need more than wL,wR and wO
-// When looking at the arithmetic opcode for the quotient polynomial in standard plonk
+// When looking at the assert-zero opcode for the quotient polynomial in standard plonk
 // You can think of it as fan-in 2 and fan out-1 , or you can think of it as fan-in 1 and fan-out 2
 //
 // In the multiplication polynomial
@@ -16,7 +16,7 @@ mod ordering;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Expression {
     // To avoid having to create intermediate variables pre-optimization
-    // We collect all of the multiplication terms in the arithmetic opcode
+    // We collect all of the multiplication terms in the assert-zero opcode
     // A multiplication term if of the form q_M * wL * wR
     // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
     pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
@@ -42,7 +42,7 @@ impl std::fmt::Display for Expression {
         if let Some(witness) = self.to_witness() {
             write!(f, "x{}", witness.witness_index())
         } else {
-            write!(f, "%{:?}%", crate::circuit::opcodes::Opcode::Arithmetic(self.clone()))
+            write!(f, "%{:?}%", crate::circuit::opcodes::Opcode::AssertZero(self.clone()))
         }
     }
 }
@@ -178,7 +178,13 @@ impl Expression {
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
 
-    /// Checks if this polynomial can fit into one arithmetic identity
+    /// Checks if this expression can fit into one arithmetic identity
+    /// TODO: This needs to be reworded, arithmetic identity only makes sense in the context
+    /// TODO of PLONK, whereas we want expressions to be generic.
+    /// TODO: We just need to reword it to say exactly what its doing and
+    /// TODO then reference the fact that this is what plonk will accept.
+    /// TODO alternatively, we can define arithmetic identity in the context of expressions
+    /// TODO and then reference that.
     pub fn fits_in_one_identity(&self, width: usize) -> bool {
         // A Polynomial with more than one mul term cannot fit into one opcode
         if self.mul_terms.len() > 1 {

@@ -1,0 +1,7 @@
+[package]
+name = "option_expect_bad_input"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.23.0"
+
+[dependencies]

@@ -2,7 +2,7 @@
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
-import initACVM, { compressWitness, ForeignCallHandler } from '@noir-lang/acvm_js';
+import initACVM, { compressWitnessStack, ForeignCallHandler } from '@noir-lang/acvm_js';
 
 export class Noir {
   constructor(
@@ -55,9 +55,10 @@ export class Noir {
     foreignCallHandler?: ForeignCallHandler,
   ): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
     await this.init();
-    const witness = await generateWitness(this.circuit, inputs, foreignCallHandler);
-    const { return_value: returnValue } = abiDecode(this.circuit.abi, witness);
-    return { witness: compressWitness(witness), returnValue };
+    const witness_stack = await generateWitness(this.circuit, inputs, foreignCallHandler);
+    const main_witness = witness_stack[0].witness;
+    const { return_value: returnValue } = abiDecode(this.circuit.abi, main_witness);
+    return { witness: compressWitnessStack(witness_stack), returnValue };
   }
 
   /**
@@ -67,13 +68,13 @@ export class Noir {
    *
    * @example
    * ```typescript
-   * async generateFinalProof(input)
+   * async generateProof(input)
    * ```
    *
    */
-  async generateFinalProof(inputs: InputMap, foreignCallHandler?: ForeignCallHandler): Promise<ProofData> {
+  async generateProof(inputs: InputMap, foreignCallHandler?: ForeignCallHandler): Promise<ProofData> {
     const { witness } = await this.execute(inputs, foreignCallHandler);
-    return this.getBackend().generateFinalProof(witness);
+    return this.getBackend().generateProof(witness);
   }
 
   /**
@@ -84,11 +85,11 @@ export class Noir {
    *
    * @example
    * ```typescript
-   * async verifyFinalProof(proof)
+   * async verifyProof(proof)
    * ```
    *
    */
-  async verifyFinalProof(proofData: ProofData): Promise<boolean> {
-    return this.getBackend().verifyFinalProof(proofData);
+  async verifyProof(proofData: ProofData): Promise<boolean> {
+    return this.getBackend().verifyProof(proofData);
   }
 }

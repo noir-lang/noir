@@ -158,7 +158,7 @@ fn main() {
 
 ### sgn0
 
-Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
+Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ \{0, ..., p-1\} is even, otherwise sgn0(x mod p) = 1.
 
 ```rust
 fn sgn0(self) -> u1

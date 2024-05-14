@@ -1,0 +1,7 @@
+[package]
+name = "reexports"
+type = "bin"
+authors = [""]
+
+[dependencies]
+reexporting_lib = { path = "../../test_libraries/reexporting_lib" }
