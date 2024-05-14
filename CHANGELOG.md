@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.40.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.40.0...aztec-packages-v0.40.1) (2024-05-14)
+
+
+### Bug Fixes
+
+* **avm-simulator:** Unencrypted logs hash mismatch in kernel ([#6399](https://github.com/AztecProtocol/aztec-packages/issues/6399)) ([35645e4](https://github.com/AztecProtocol/aztec-packages/commit/35645e4c8b06ad78bb3078559a2d68d4dff70a73))
+* **avm-transpiler:** Fix cast to u1 ([#6402](https://github.com/AztecProtocol/aztec-packages/issues/6402)) ([16ab1f7](https://github.com/AztecProtocol/aztec-packages/commit/16ab1f70752a4b167667a338d8c3e215a6554002))
+* **unconstrained:** Add missing debugLog oracle ([#6397](https://github.com/AztecProtocol/aztec-packages/issues/6397)) ([87eb8ab](https://github.com/AztecProtocol/aztec-packages/commit/87eb8abf325385ced21be9c6e8029eea0a699570))
+
 ## [0.40.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.39.0...aztec-packages-v0.40.0) (2024-05-14)
 
 
