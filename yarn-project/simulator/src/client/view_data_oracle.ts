@@ -11,7 +11,7 @@ import { type Header } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { applyStringFormatting, createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 import { type NoteData, type NullifierKeys, TypedOracle } from '../acvm/index.js';
@@ -257,5 +257,10 @@ export class ViewDataOracle extends TypedOracle {
       values.push(value);
     }
     return values;
+  }
+
+  public override debugLog(message: string, fields: Fr[]): void {
+    const formattedStr = applyStringFormatting(message, fields);
+    this.log.verbose(`debug_log ${formattedStr}`);
   }
 }
