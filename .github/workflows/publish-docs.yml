@@ -16,7 +16,7 @@ jobs:
 
   publish:
     needs: setup
-    runs-on: master
+    runs-on: master-x86
     steps:
       - uses: actions/checkout@v4
         with:
