@@ -62,13 +62,14 @@ export class GasSettings {
   }
 
   /** Default gas settings to use when user has not provided them. */
-  static default() {
-    return new GasSettings(
-      new Gas(DEFAULT_GAS_LIMIT, DEFAULT_GAS_LIMIT),
-      new Gas(DEFAULT_TEARDOWN_GAS_LIMIT, DEFAULT_TEARDOWN_GAS_LIMIT),
-      new GasFees(new Fr(DEFAULT_MAX_FEE_PER_GAS), new Fr(DEFAULT_MAX_FEE_PER_GAS)),
-      new Fr(DEFAULT_INCLUSION_FEE),
-    );
+  static default(overrides?: Partial<FieldsOf<GasSettings>>) {
+    return GasSettings.from({
+      gasLimits: { l2Gas: DEFAULT_GAS_LIMIT, daGas: DEFAULT_GAS_LIMIT },
+      teardownGasLimits: { l2Gas: DEFAULT_TEARDOWN_GAS_LIMIT, daGas: DEFAULT_TEARDOWN_GAS_LIMIT },
+      maxFeesPerGas: { feePerL2Gas: new Fr(DEFAULT_MAX_FEE_PER_GAS), feePerDaGas: new Fr(DEFAULT_MAX_FEE_PER_GAS) },
+      inclusionFee: new Fr(DEFAULT_INCLUSION_FEE),
+      ...overrides,
+    });
   }
 
   /** Gas settings to use for simulating a contract call. */

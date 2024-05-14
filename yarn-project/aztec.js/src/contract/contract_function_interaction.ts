@@ -25,7 +25,7 @@ export type SimulateMethodOptions = {
  */
 export class ContractFunctionInteraction extends BaseContractInteraction {
   constructor(
-    protected wallet: Wallet,
+    wallet: Wallet,
     protected contractAddress: AztecAddress,
     protected functionDao: FunctionAbi,
     protected args: any[],
@@ -47,10 +47,9 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
       throw new Error("Can't call `create` on an unconstrained function.");
     }
     if (!this.txRequest) {
-      this.txRequest = await this.wallet.createTxExecutionRequest({
-        calls: [this.request()],
-        fee: opts?.fee,
-      });
+      const calls = [this.request()];
+      const fee = opts?.estimateGas ? await this.getFeeOptions({ calls, fee: opts?.fee }) : opts?.fee;
+      this.txRequest = await this.wallet.createTxExecutionRequest({ calls, fee });
     }
     return this.txRequest;
   }
@@ -98,12 +97,12 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
         argsOfCalls: [packedArgs],
         authWitnesses: [],
       });
-      const simulatedTx = await this.pxe.simulateTx(txRequest, true, options.from ?? this.wallet.getAddress());
+      const simulatedTx = await this.wallet.simulateTx(txRequest, true, options.from ?? this.wallet.getAddress());
       const flattened = simulatedTx.privateReturnValues;
       return flattened ? decodeReturnValues(this.functionDao, flattened) : [];
     } else {
       const txRequest = await this.create();
-      const simulatedTx = await this.pxe.simulateTx(txRequest, true);
+      const simulatedTx = await this.wallet.simulateTx(txRequest, true);
       this.txRequest = undefined;
       const flattened = simulatedTx.publicOutput?.publicReturnValues;
       return flattened ? decodeReturnValues(this.functionDao, flattened) : [];

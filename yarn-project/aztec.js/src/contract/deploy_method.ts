@@ -57,7 +57,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
 
   constructor(
     private publicKeysHash: Fr,
-    protected wallet: Wallet,
+    wallet: Wallet,
     private artifact: ContractArtifact,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
     private args: any[] = [],
@@ -80,10 +80,13 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     if (!this.txRequest) {
       this.txRequest = await this.wallet.createTxExecutionRequest(await this.request(options));
       // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
-      await this.pxe.registerContract({ artifact: this.artifact, instance: this.instance! });
+      await this.wallet.registerContract({ artifact: this.artifact, instance: this.instance! });
     }
     return this.txRequest;
   }
+
+  // REFACTOR: Having a `request` method with different semantics than the ones in the other
+  // derived ContractInteractions is confusing. We should unify the flow of all ContractInteractions.
 
   /**
    * Returns an array of function calls that represent this operation. Useful as a building
@@ -102,13 +105,20 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
         throw new Error(`No function calls needed to deploy contract ${this.artifact.name}`);
       }
 
-      this.functionCalls = {
+      const request = {
         calls: [...deployment.calls, ...bootstrap.calls],
         authWitnesses: [...(deployment.authWitnesses ?? []), ...(bootstrap.authWitnesses ?? [])],
         packedArguments: [...(deployment.packedArguments ?? []), ...(bootstrap.packedArguments ?? [])],
         fee: options.fee,
       };
+
+      if (options.estimateGas) {
+        request.fee = await this.getFeeOptions(request);
+      }
+
+      this.functionCalls = request;
     }
+
     return this.functionCalls;
   }
 
@@ -134,7 +144,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
 
     // Register the contract class if it hasn't been published already.
     if (!options.skipClassRegistration) {
-      if (await this.pxe.isContractClassPubliclyRegistered(contractClass.id)) {
+      if (await this.wallet.isContractClassPubliclyRegistered(contractClass.id)) {
         this.log.debug(
           `Skipping registration of already registered contract class ${contractClass.id.toString()} for ${instance.address.toString()}`,
         );
@@ -192,7 +202,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     this.log.debug(
       `Sent deployment tx of ${this.artifact.name} contract with deployment address ${instance.address.toString()}`,
     );
-    return new DeploySentTx(this.pxe, txHashPromise, this.postDeployCtor, instance);
+    return new DeploySentTx(this.wallet, txHashPromise, this.postDeployCtor, instance);
   }
 
   /**

@@ -44,7 +44,7 @@ describe('e2e_fees dapp_subscription', () => {
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
-    await t.applyFundAlice();
+    await t.applyFundAliceWithBananas();
     await t.applySetupSubscription();
 
     ({

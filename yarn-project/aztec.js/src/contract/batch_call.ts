@@ -5,7 +5,7 @@ import { BaseContractInteraction, type SendMethodOptions } from './base_contract
 
 /** A batch of function calls to be sent as a single transaction through a wallet. */
 export class BatchCall extends BaseContractInteraction {
-  constructor(protected wallet: Wallet, protected calls: FunctionCall[]) {
+  constructor(wallet: Wallet, protected calls: FunctionCall[]) {
     super(wallet);
   }
 
@@ -17,10 +17,9 @@ export class BatchCall extends BaseContractInteraction {
    */
   public async create(opts?: SendMethodOptions): Promise<TxExecutionRequest> {
     if (!this.txRequest) {
-      this.txRequest = await this.wallet.createTxExecutionRequest({
-        calls: this.calls,
-        fee: opts?.fee,
-      });
+      const calls = this.calls;
+      const fee = opts?.estimateGas ? await this.getFeeOptions({ calls, fee: opts?.fee }) : opts?.fee;
+      this.txRequest = await this.wallet.createTxExecutionRequest({ calls, fee });
     }
     return this.txRequest;
   }

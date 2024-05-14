@@ -1,6 +1,5 @@
-import { Fr, Gas } from '@aztec/circuits.js';
+import { Fr } from '@aztec/circuits.js';
 
-import { PublicKernelType } from './processed_tx.js';
 import { type ProcessReturnValues, PublicSimulationOutput } from './public_simulation_output.js';
 import { Tx } from './tx.js';
 
@@ -16,29 +15,6 @@ export class SimulatedTx {
     public privateReturnValues?: ProcessReturnValues,
     public publicOutput?: PublicSimulationOutput,
   ) {}
-
-  /**
-   * Returns suggested total and teardown gas limits for the simulated tx.
-   * Note that public gas usage is only accounted for if the publicOutput is present.
-   * @param pad - Percentage to pad the suggested gas limits by, defaults to 10%.
-   */
-  public getGasLimits(pad = 0.1) {
-    const privateGasUsed = this.tx.data.publicInputs.end.gasUsed;
-    if (this.publicOutput) {
-      const publicGasUsed = Object.values(this.publicOutput.gasUsed).reduce(
-        (total, current) => total.add(current),
-        Gas.empty(),
-      );
-      const teardownGas = this.publicOutput.gasUsed[PublicKernelType.TEARDOWN] ?? Gas.empty();
-
-      return {
-        totalGas: privateGasUsed.add(publicGasUsed).mul(1 + pad),
-        teardownGas: teardownGas.mul(1 + pad),
-      };
-    }
-
-    return { totalGas: privateGasUsed.mul(1 + pad), teardownGas: Gas.empty() };
-  }
 
   /**
    * Convert a SimulatedTx class object to a plain JSON object.

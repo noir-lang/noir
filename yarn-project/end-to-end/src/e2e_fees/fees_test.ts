@@ -203,12 +203,22 @@ export class FeesTest {
     );
   }
 
-  public async applyFundAlice() {
+  public async applyFundAliceWithBananas() {
     await this.snapshotManager.snapshot(
       'fund_alice',
       async () => {
         await this.mintPrivate(BigInt(this.ALICE_INITIAL_BANANAS), this.aliceAddress);
         await this.bananaCoin.methods.mint_public(this.aliceAddress, this.ALICE_INITIAL_BANANAS).send().wait();
+      },
+      () => Promise.resolve(),
+    );
+  }
+
+  public async applyFundAliceWithGasToken() {
+    await this.snapshotManager.snapshot(
+      'fund_alice_with_gas_token',
+      async () => {
+        await this.gasTokenContract.methods.mint_public(this.aliceAddress, this.INITIAL_GAS_BALANCE).send().wait();
       },
       () => Promise.resolve(),
     );
