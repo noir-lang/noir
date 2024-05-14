@@ -80,6 +80,17 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     expect(results.output).toEqual([new Fr(3)]);
   });
 
+  it('modulo and u1', async () => {
+    const calldata: Fr[] = [new Fr(2)];
+    const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+
+    const bytecode = getAvmTestContractBytecode('modulo2');
+    const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+    expect(results.reverted).toBe(false);
+    expect(results.output).toEqual([new Fr(0)]);
+  });
+
   it('Should be recognized as AVM bytecode (magic present)', () => {
     const bytecode = getAvmTestContractBytecode('add_args_return');
     expect(isAvmBytecode(bytecode));
