@@ -1,6 +1,5 @@
 ---
-title: How to write an accounts contract
-draft: true
+title: Writing an Account Contract
 ---
 
 This tutorial will take you through the process of writing your own account contract in Aztec.nr, along with the Typescript glue code required for using it within a wallet.
@@ -24,13 +23,13 @@ Every time a transaction payload is passed to this account contract's `entrypoin
 
 For the sake of simplicity, we will hardcode the signing public key into the contract, but you could store it [in a private note](../../../../learn/concepts/accounts/keys.md#using-a-private-note), [in an immutable note](../../../../learn/concepts/accounts/keys.md#using-an-immutable-private-note), or [on a separate keystore](../../../../learn/concepts/accounts/keys.md#using-a-separate-keystore), to mention a few examples.
 
-## The account contract
+## Contract
 
 Let's start with the account contract itself in Aztec.nr. Create [a new Aztec.nr contract project](../../main.md) that will contain a file with the code for the account contract, with a hardcoded public key:
 
 #include_code contract noir-projects/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
-The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which use the `AppPayload` and `FeePayload` structs:
+The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding [authentication witness](../../../../learn/concepts/accounts/authwit.md) from an oracle to validate it. Authentication witnesses are used for authorizing actions for an account, whether it is just checking a signature, like in this case, or granting authorization for another account to act on an accounts behalf (e.g. token approvals). You will find this logic implemented in the `AccountActions` module, which use the `AppPayload` and `FeePayload` structs:
 
 #include_code entrypoint noir-projects/aztec-nr/authwit/src/account.nr rust
 
@@ -48,7 +47,17 @@ The `AccountActions` module provides default implementations for most of the acc
 
 For our account contract, we will take the hash of the action to authorize, request the corresponding auth witness from the oracle, and validate it against our hardcoded public key. If the signature is correct, we authorize the action.
 
-## The typescript side of things
+### Fee Abstraction
+
+The `FeePayload`, being distinct from the `AppPayload`, allows for fee abstraction, meaning the account paying the fee for the transaction can be different than the account that is initiating the transaction. This is also useful for maintaining privacy, as fee payments on the network must be public. For example, Alice could pay a relayer transaction fees in private, and the relayer could pay the transaction fee in public. This also allows for accounts without a fee paying asset to use a non-fee paying asset to pay for fees, provided they can find a relayer willing to accept a non-fee paying asset as payment (or do it for free). You can read more about that works in the protocol specification on fees [here](../../../../protocol-specs/gas-and-fees/tx-setup-and-teardown.md).
+
+### Nonce Abstraction
+
+The protocol enforces uniqueness of transactions by checking that the transaction hash is unique. Transactions with the same transaction hash will be rejected. Handling transaction ordering via nonces is left to the account contract implementation. Account contracts can require incremental nonces, or have no requirements at all and not enforce transaction ordering.
+
+A side-effect of not having nonces at the protocol level is that it is not possible to cancel pending transactions by submitting a new transaction with higher fees and the same nonce.
+
+## Typescript
 
 Now that we have a valid account contract, we need to write the typescript glue code that will take care of formatting and authenticating transactions so they can be processed by our contract, as well as deploying the contract during account setup. This takes the form of implementing the `AccountContract` interface from `@aztec/aztec.js`:
 
@@ -89,3 +98,10 @@ To make sure that we are actually validating the provided signature in our accou
 #include_code account-contract-fails yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
 Lo and behold, we get `Error: Assertion failed: 'verification == true'` when running the snippet above, pointing to the line in our account contract where we verify the Schnorr signature.
+
+## Resources
+
+Account contracts source code:
+
+- [ECDSA signer account contract](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/ecdsa_account_contract/src/main.nr)
+- [Schnorr signer account contract](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/schnorr_account_contract)

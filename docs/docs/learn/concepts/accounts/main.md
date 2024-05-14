@@ -70,6 +70,8 @@ def entryPoint(payload):
         enqueueCall(to, data, value, gasLimit);
 ```
 
+Read more about how to write an account contract [here](../../../developers/contracts/writing_contracts/accounts/write_accounts_contract.md).
+
 ### Account contracts and wallets
 
 Account contracts are tightly coupled to the wallet software that users use to interact with the protocol. Dapps submit to the wallet software one or more function calls to be executed (eg "call swap in X contract"), and the wallet encodes and authenticates the request as a valid payload for the user's account contract. The account contract then validates the request encoded and authenticated by the wallet, and executes the function calls requested by the dapp.
@@ -111,6 +113,10 @@ The protocol requires that every account is a contract for the purposes of sendi
 
 However, this is not required when sitting on the receiving end. A user can deterministically derive their address from their encryption public key and the account contract they intend to deploy, and share this address with other users that want to interact with them _before_ they deploy the account contract.
 
+### Account contract deployment
+
+Users will need to pay transaction fees in order to deploy their account contract. This can be done by sending a fee paying asset to their account contract address (which can be derived deterministically, as mentioned above), so they have funds to pay for the deployment. Alternatively, the fee can be paid for by another account, using [fee abstraction](#fee-management).
+
 ### Authorizing actions
 
 Account contracts are also expected, though not required by the protocol, to implement a set of methods for authorizing actions on behalf of the user. During a transaction, a contract may call into the account contract and request the user authorization for a given action, identified by a hash. This pattern is used, for instance, for transferring tokens from an account that is not the caller.
@@ -133,6 +139,8 @@ NOTE: While we entertained the idea of abstracting note encryption, where accoun
 
 ### Fee management
 
-Fees are not implemented in the protocol at the time of this writing. Our goal is to abstract fee payments as well. This means that a transaction, in order to be considered valid, must prove that it has locked enough funds to pay for itself. However, this does not mandate where those funds come from, opening the door for easy implementation of paymasters or payment-in-kind via on-the-fly swaps.
+In order to be considered valid, an account must prove that it has locked enough funds to pay for itself. However, this does not mandate where those funds come from. This fee abstraction allows for easy implementation of paymasters or payment-in-kind via on-the-fly swaps.
 
 However, there is one major consideration around public execution reverts. In the current design, if one of the public function executions enqueued in a transaction fails, then the entire transaction is reverted. But reverting the whole transaction would also revert the fee payment, and leave the sequencer with their hands empty after running the public execution. This means we will need to enshrine an initial verification and fee payment phase that is _not_ reverted if public execution fails.
+
+You can read the latest information about fees in the [protocol specs](../../../protocol-specs/gas-and-fees/index.md).
