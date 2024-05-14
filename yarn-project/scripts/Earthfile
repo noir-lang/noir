@@ -2,8 +2,7 @@ VERSION 0.8
 FROM node:18.19.0
 
 build:
-  FROM ../+scripts-prod
-  RUN apt-get update && apt-get install awscli -y
+  FROM ../+build
   COPY ../../+scripts/scripts /usr/src/scripts
   WORKDIR /usr/src
 

@@ -11,17 +11,11 @@ set -eu
 LOG_FOLDER=$1
 BUCKET_NAME="aztec-ci-artifacts"
 COMMIT_HASH="${COMMIT_HASH:-$(git rev-parse HEAD)}"
-E2E_MODE="${E2E_MODE:-local}"
 
-echo "Uploading logs to S3 in mode $E2E_MODE for commit $COMMIT_HASH in branch ${BRANCH:-} at pull request ${PULL_REQUEST:-none}"
+echo "Uploading logs to S3 for commit $COMMIT_HASH in branch ${BRANCH:-} at pull request ${PULL_REQUEST:-none}"
 
 if [ ! -d "$LOG_FOLDER" ] || [ -z "$(ls -A "$LOG_FOLDER")" ]; then
   echo "No logs in folder $LOG_FOLDER to upload"
-  exit 0
-fi
-
-if [ "$E2E_MODE" == "local" ]; then
-  echo "Skipping upload since running in local mode"
   exit 0
 fi
 

@@ -31,7 +31,6 @@ release-meta:
     SAVE ARTIFACT /usr/src /usr/src
 
 scripts:
-    FROM ubuntu:lunar
-    RUN apt-get update && apt-get install -y awscli
+    FROM scratch
     COPY scripts /usr/src/scripts
     SAVE ARTIFACT /usr/src/scripts scripts
