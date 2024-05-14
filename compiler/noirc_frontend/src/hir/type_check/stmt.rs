@@ -194,6 +194,9 @@ impl<'interner> TypeChecker<'interner> {
                     typ.follow_bindings()
                 };
 
+                // TODO cleanup
+                dbg!("check_lvalue", typ.clone(), ident.clone(), mutable);
+
                 (typ.clone(), HirLValue::Ident(ident.clone(), typ), mutable)
             }
             HirLValue::MemberAccess { object, field_name, location, .. } => {

@@ -94,33 +94,98 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    // TODO: relocate
     // exclude non-reference mutable variables from being captured
+    //
+    // returns (capture_types, mutability_bools)
+    // where the mutability_bools are (&mut capture_definition.mutable)
+    // for each capture_definition that's mutable, but not for closures
     fn ensure_mutable_captures_have_ref(
         &mut self,
-        expr_id: &ExprId,
+        // TODO unused?
+        // expr_id: &ExprId,
         lambda_captures: Vec<HirCapturedVar>,
-    ) -> Result<Vec<Type>, TypeCheckError> {
-        try_vecmap(lambda_captures, |capture| {
-            let is_mutable = self
+    ) -> (Vec<Type>, Vec<Option<HirIdent>>) {
+        lambda_captures.into_iter().map(|capture| {
+
+            // let is_mutable = self
+            //     .interner
+            //     .try_definition(capture.ident.id)
+            //     .map(|definition| definition.mutable)
+            //     .unwrap_or(false);
+
+            let capture_definition_opt = self
                 .interner
-                .try_definition(capture.ident.id)
+                .try_definition(capture.ident.id);
+
+            let is_mutable = capture_definition_opt
+                .as_ref()
                 .map(|definition| definition.mutable)
                 .unwrap_or(false);
+
             let capture_type = self.interner.definition_type(capture.ident.id).follow_bindings();
-            if !is_mutable || matches!(capture_type, Type::MutableReference(_)) {
-                Ok(capture_type)
+
+            // loop {
+            //     match capture_type {
+            //         Type::MutableReference(element) => capture_type = *element,
+            //         _ => break
+            //     }
+            // }
+            // Ok(capture_type)
+            //     
+
+            if false { // !is_mutable || matches!(capture_type, Type::MutableReference(_)) {
+                (capture_type, None)
             } else {
-                let name = self
+
+                let capture_definition_opt = self
                     .interner
-                    .try_definition(capture.ident.id)
-                    .map(|definition| definition.name.clone())
-                    .unwrap_or("[unknown_variable]".to_string());
-                Err(TypeCheckError::MutableCaptureNeedsRef {
-                    name,
-                    span: self.interner.expr_span(expr_id),
-                })
+                    .try_definition_mut(capture.ident.id);
+
+
+                let capture_definition: &mut crate::node_interner::DefinitionInfo = capture_definition_opt.expect("TODO");
+
+                let is_mutable: &mut bool = &mut capture_definition.mutable;
+                *is_mutable = false;
+
+                // // make immutable during type-checking the closure
+                // *capture_definition.mutable = false;
+
+                // (capture_type, Some(&mut capture_definition.mutable))
+                (capture_type, Some(capture.ident))
+
+                // let not_mutable = false;
+                //
+                // let new_definition_id = self.interner.push_definition(
+                //     capture_definition.name,
+                //     false, // is_mutable
+                //     
+                //     // TODO
+                //     // capture_definition.kind,
+                //     DefinitionKind::Local(None),
+                //     capture_definition.location);
+                //
+                // // // TODO: make a new variable?
+                // //
+                // // /// Insert as many dereference operations as necessary to automatically dereference a method
+                // // /// call object to its base value type T.
+                // // self.insert_auto_dereferences()
+                // // fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
+                //
+                //
+                // // let name = self
+                // //     .interner
+                // //     .try_definition(capture.ident.id)
+                // //     .map(|definition| definition.name.clone())
+                // //     .unwrap_or("[unknown_variable]".to_string());
+                // // Err(TypeCheckError::MutableCaptureNeedsRef {
+                // //     name,
+                // //     span: self.interner.expr_span(expr_id),
+                // // })
+
             }
-        })
+
+        }).unzip()
     }
 
     /// Infers a type for a given expression, and return this type.
@@ -316,14 +381,29 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let captured_vars =
-                    match self.ensure_mutable_captures_have_ref(expr_id, lambda.captures) {
-                        Err(err) => {
-                            self.errors.push(err);
-                            return Type::Error;
-                        }
-                        Ok(captured_vars) => captured_vars,
-                    };
+
+                // TODO: cleanup
+                // let (captured_vars, mutability) = self.ensure_mutable_captures_have_ref(expr_id, lambda.captures);
+
+                let (captured_vars, leftover_immutability) = self.ensure_mutable_captures_have_ref(lambda.captures);
+                    // match self.ensure_mutable_captures_have_ref(expr_id, lambda.captures) {
+                    //     Err(err) => {
+                    //         self.errors.push(err);
+                    //         return Type::Error;
+                    //     }
+                    //     Ok(captured_vars) => captured_vars,
+                    // };
+
+                for leftover_immutable_ident_opt in leftover_immutability {
+                    if let Some(leftover_immutable_ident) = leftover_immutable_ident_opt {
+                        let is_mutable = &mut self
+                            .interner
+                            .try_definition_mut(leftover_immutable_ident.id)
+                            .expect("ICE: definition from ensure_mutable_captures_have_ref is missing")
+                            .mutable;
+                        *is_mutable = true;
+                    }
+                }
 
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
