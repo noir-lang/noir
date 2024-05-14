@@ -792,3 +792,18 @@ fn add_cast_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
         vec![cast_operation],  // args
     )))
 }
+
+/**
+ * Takes a vector of functions and checks for the presence of arguments with Public visibility
+ * Returns AztecMAcroError::PublicArgsDisallowed if found
+ */
+pub fn check_for_public_args(functions: &[&NoirFunction]) -> Result<(), AztecMacroError> {
+    for func in functions {
+        for param in &func.def.parameters {
+            if param.visibility == Visibility::Public {
+                return Err(AztecMacroError::PublicArgsDisallowed { span: func.span() });
+            }
+        }
+    }
+    Ok(())
+}

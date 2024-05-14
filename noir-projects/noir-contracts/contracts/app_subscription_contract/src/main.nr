@@ -33,7 +33,7 @@ contract AppSubscription {
     global SUBSCRIPTION_TXS = 5;
 
     #[aztec(private)]
-    fn entrypoint(payload: pub DAppPayload, user_address: pub AztecAddress) {
+    fn entrypoint(payload: DAppPayload, user_address: AztecAddress) {
         assert(context.msg_sender().to_field() == 0);
         assert_current_call_valid_authwit(&mut context, user_address);
 

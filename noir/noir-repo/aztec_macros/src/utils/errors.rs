@@ -20,6 +20,7 @@ pub enum AztecMacroError {
     CouldNotGenerateContractInterface { secondary_message: Option<String> },
     EventError { span: Span, message: String },
     UnsupportedAttributes { span: Span, secondary_message: Option<String> },
+    PublicArgsDisallowed { span: Span },
 }
 
 impl From<AztecMacroError> for MacroError {
@@ -93,6 +94,11 @@ impl From<AztecMacroError> for MacroError {
             AztecMacroError::UnsupportedAttributes { span, secondary_message } => MacroError {
                 primary_message: "Unsupported attributes in contract function".to_string(),
                 secondary_message,
+                span: Some(span),
+            },
+            AztecMacroError::PublicArgsDisallowed { span } => MacroError {
+                primary_message: "Aztec functions can't have public arguments".to_string(),
+                secondary_message: None,
                 span: Some(span),
             },
         }

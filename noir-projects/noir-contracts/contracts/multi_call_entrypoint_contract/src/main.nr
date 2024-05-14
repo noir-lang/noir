@@ -7,7 +7,7 @@ contract MultiCallEntrypoint {
     use dep::authwit::entrypoint::app::AppPayload;
 
     #[aztec(private)]
-    fn entrypoint(app_payload: pub AppPayload) {
+    fn entrypoint(app_payload: AppPayload) {
         app_payload.execute_calls(&mut context);
     }
 }

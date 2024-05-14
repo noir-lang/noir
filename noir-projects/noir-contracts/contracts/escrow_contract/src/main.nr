@@ -16,7 +16,7 @@ contract Escrow {
     // Creates a new instance
     #[aztec(private)]
     #[aztec(initializer)]
-    fn constructor(owner: pub AztecAddress) {
+    fn constructor(owner: AztecAddress) {
         let mut note = AddressNote::new(owner, owner);
         storage.owner.initialize(&mut note, true);
     }
