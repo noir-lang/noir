@@ -230,7 +230,7 @@ impl<'context> Elaborator<'context> {
 
         let cycle_errors = this.interner.check_for_dependency_cycles();
         this.errors.extend(cycle_errors);
-
+        dbg!(this.errors.len());
         this.errors
     }
 

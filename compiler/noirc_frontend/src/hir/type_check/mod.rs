@@ -79,6 +79,9 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             }
         }
     }
+    if !type_checker.errors.is_empty() {
+        dbg!(type_checker.errors.len());
+    }
 
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
@@ -87,8 +90,14 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         check_if_type_is_valid_for_program_input(&type_checker, func_id, &param, &mut errors);
         type_checker.bind_pattern(&param.0, param.1);
     }
+    if !type_checker.errors.is_empty() {
+        dbg!(type_checker.errors.len());
+    }
 
     let function_last_type = type_checker.check_function_body(function_body_id);
+    if !type_checker.errors.is_empty() {
+        dbg!(type_checker.errors.len());
+    }
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
@@ -130,6 +139,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             );
         }
     }
+    if !type_checker.errors.is_empty() {
+        dbg!(errors.len());
+        dbg!(type_checker.errors.len());
+    }
 
     // Default any type variables that still need defaulting.
     // This is done before trait impl search since leaving them bindable can lead to errors
@@ -152,10 +165,16 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             span,
         );
     }
+    if !type_checker.errors.is_empty() {
+        dbg!(type_checker.errors.len());
+    }
 
     // Now remove all the `where` clause constraints we added
     for constraint in &expected_trait_constraints {
         type_checker.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+    }
+    if !type_checker.errors.is_empty() {
+        dbg!(type_checker.errors.len());
     }
 
     errors.append(&mut type_checker.errors);
@@ -486,8 +505,8 @@ pub mod test {
         let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone()));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone(), None));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone(), None));
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };

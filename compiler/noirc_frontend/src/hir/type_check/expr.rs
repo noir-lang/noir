@@ -355,6 +355,25 @@ impl<'interner> TypeChecker<'interner> {
         expr_id: &ExprId,
         generics: Option<Vec<Type>>,
     ) -> Type {
+        // An identifiers type may be forall-quantified in the case of generic functions.
+        // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
+        // We must instantiate identifiers at every call site to replace this T with a new type
+        // variable to handle generic functions.
+        // let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+
+        let span = self.interner.expr_span(expr_id);
+
+        let definition = self.interner.try_definition(ident.id);
+        let expected_generic_count = definition.map_or(0, |definition| match &definition.kind {
+            DefinitionKind::Function(function) => {
+                self.interner.function_modifiers(function).generic_count
+            }
+            _ => 0,
+        });
+
+        // dbg!(expected_generic_count);
+        // let (typ, mut bindings) = self.instantiate(t, generics, expected_generic_count, span);
+        
         let mut bindings = TypeBindings::new();
 
         // Add type bindings from any constraints that were used.
@@ -372,25 +391,20 @@ impl<'interner> TypeChecker<'interner> {
                 }
             }
         }
-
+        if generics.is_some() {
+            dbg!(generics.clone());
+            dbg!(bindings.clone());
+        }
         // An identifiers type may be forall-quantified in the case of generic functions.
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-        let span = self.interner.expr_span(expr_id);
 
-        let definition = self.interner.try_definition(ident.id);
-        let expected_generic_count = definition.map_or(0, |definition| match &definition.kind {
-            DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(function).generic_count
-            }
-            _ => 0,
-        });
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = self.instantiate(t, generics, expected_generic_count, span);
+        let (typ, bindings) = self.instantiate(t, bindings, generics, expected_generic_count, span);
         // let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
 
         // Push any trait constraints required by this definition to the context
@@ -429,6 +443,7 @@ impl<'interner> TypeChecker<'interner> {
     fn instantiate(
         &mut self,
         typ: Type,
+        bindings: TypeBindings,
         generics: Option<Vec<Type>>,
         expected_generic_count: usize,
         span: Span,
@@ -436,17 +451,18 @@ impl<'interner> TypeChecker<'interner> {
         match generics {
             Some(generics) => {
                 if generics.len() != expected_generic_count {
+                    dbg!("got this");
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: expected_generic_count,
                         actual_count: generics.len(),
                         span,
                     });
-                    typ.instantiate(self.interner)
+                    typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
                     typ.instantiate_with(generics, &self.interner)
                 }
             }
-            None => typ.instantiate(self.interner),
+            None => typ.instantiate_with_bindings(bindings, self.interner),
         }
     }
 
@@ -460,9 +476,12 @@ impl<'interner> TypeChecker<'interner> {
     ) {
         match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
             Ok(impl_kind) => {
+                // dbg!(impl_kind.clone());
+                // dbg!(self.errors.len());
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
             Err(erroring_constraints) => {
+                dbg!(erroring_constraints.len());
                 if erroring_constraints.is_empty() {
                     self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 } else {

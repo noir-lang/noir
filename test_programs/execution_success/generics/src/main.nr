@@ -62,7 +62,7 @@ fn main(x: Field, y: Field) {
     foo::<Field>(bar1);
 
     // Test that turbofish works on methods and that it uses the generics on the methods
-    // While still handilng the generic on the impl (T in this case) that is implicitly added
+    // While still handling the generic on the impl (T in this case) that is implicitly added
     // to the method.
     assert(bar1.zeroed::<u32>() == 0);
 

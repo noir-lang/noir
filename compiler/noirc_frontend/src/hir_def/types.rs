@@ -1498,7 +1498,7 @@ impl Type {
                     .iter()
                     .zip(types)
                     .map(|(var, binding)| {
-                        (interner.next_type_variable_id(), (var.clone(), binding))
+                        (var.id(), (var.clone(), binding))
                     })
                     .collect();
 
