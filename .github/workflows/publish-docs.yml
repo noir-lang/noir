@@ -27,4 +27,4 @@ jobs:
           concurrency_key: docs-preview-${{ inputs.username || github.actor }}-x86
 
       - timeout-minutes: 25
-        run: earthly --no-output ./docs/+deploy-prod --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+        run: earthly-ci --no-output ./docs/+deploy-prod --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
