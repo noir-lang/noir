@@ -118,13 +118,13 @@ build:
           # Utils
           curl \
           git \
-          curl \
           wget \
           jq \
           gawk \
           unzip \
           netcat-openbsd \
           parallel \
+          xz-utils \
           # C++ (clang=18, which we will move to. 16 is for current build.)
           build-essential \
           cmake \
@@ -186,6 +186,11 @@ build:
       && chmod +x /usr/local/bin/terraform \
       && rm terraform.zip
 
+  # Install wasmtime.
+  RUN curl -fsSL https://github.com/bytecodealliance/wasmtime/releases/download/v20.0.2/wasmtime-v20.0.2-$(uname -m)-linux.tar.xz | tar xJ \
+      && mv wasmtime-v20.0.2-$(uname -m)-linux/wasmtime /usr/local/bin \
+      && rm -rf wasmtime*
+
   ARG TARGETARCH
   SAVE IMAGE --push aztecprotocol/build:1.0-$TARGETARCH
 
@@ -200,24 +205,26 @@ basebox:
   # Install stuff devs need.
   RUN apt update && \
       apt install -y \
-          zsh \
+          cgroup-tools \
+          clangd-16 \
           fzf \
-          libfuse2 \
-          iproute2 \
-          iputils-ping \
-          telnet \
-          lsb-release \
-          tmux \
-          vim \
-          software-properties-common \
           gnupg \
           htop \
-          cgroup-tools \
-          neovim \
-          sudo \
-          clangd-16 \
+          iproute2 \
+          iputils-ping \
+          less \
+          libfuse2 \
+          lsb-release \
           man \
+          neovim \
           python3-blessed \
+          software-properties-common \
+          ssh \
+          sudo \
+          telnet \
+          tmux \
+          vim \
+          zsh \
       && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
   # Install earthly.
