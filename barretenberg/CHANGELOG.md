@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.40.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.39.0...barretenberg-v0.40.0) (2024-05-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* debug logs for all ([#6392](https://github.com/AztecProtocol/aztec-packages/issues/6392))
+
+### Features
+
+* Debug logs for all ([#6392](https://github.com/AztecProtocol/aztec-packages/issues/6392)) ([10afa13](https://github.com/AztecProtocol/aztec-packages/commit/10afa13dfc85b02ace4c38e1fb347539d8041c21))
+
+
+### Miscellaneous
+
+* Add more serialisation traits to protocol circuits ([#6385](https://github.com/AztecProtocol/aztec-packages/issues/6385)) ([97d5422](https://github.com/AztecProtocol/aztec-packages/commit/97d54220791a6069ffde0c53ca0f304e1624ae4e))
+
 ## [0.39.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.38.0...barretenberg-v0.39.0) (2024-05-14)
 
 

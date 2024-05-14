@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.40.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.39.0...aztec-packages-v0.40.0) (2024-05-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* debug logs for all ([#6392](https://github.com/AztecProtocol/aztec-packages/issues/6392))
+
+### Features
+
+* Add wasmtime ([#6314](https://github.com/AztecProtocol/aztec-packages/issues/6314)) ([ea6ccdd](https://github.com/AztecProtocol/aztec-packages/commit/ea6ccddff253a984f9b71200dca5c0117855abed))
+* Debug logs for all ([#6392](https://github.com/AztecProtocol/aztec-packages/issues/6392)) ([10afa13](https://github.com/AztecProtocol/aztec-packages/commit/10afa13dfc85b02ace4c38e1fb347539d8041c21))
+* Demonstrating use of nsk_app to check nullification ([#6362](https://github.com/AztecProtocol/aztec-packages/issues/6362)) ([ddf4461](https://github.com/AztecProtocol/aztec-packages/commit/ddf4461a4c24e16cbac3e8cd49099fa70d5b5075))
+* Use gas estimation in aztecjs contract function interactions ([#6260](https://github.com/AztecProtocol/aztec-packages/issues/6260)) ([18192ac](https://github.com/AztecProtocol/aztec-packages/commit/18192ac66c82114524a232f2d9fc6dd6ed5ccffb))
+
+
+### Miscellaneous
+
+* Add more serialisation traits to protocol circuits ([#6385](https://github.com/AztecProtocol/aztec-packages/issues/6385)) ([97d5422](https://github.com/AztecProtocol/aztec-packages/commit/97d54220791a6069ffde0c53ca0f304e1624ae4e))
+* **ci:** Bump timeout of prover-client-test ([#6394](https://github.com/AztecProtocol/aztec-packages/issues/6394)) ([d05cd07](https://github.com/AztecProtocol/aztec-packages/commit/d05cd07e534528b5cca4eac2adb052b3ac6b023f))
+* Reenable bench summary ([#6211](https://github.com/AztecProtocol/aztec-packages/issues/6211)) ([713b243](https://github.com/AztecProtocol/aztec-packages/commit/713b24351dac51b3f0109d9783c9154d6290140b))
+* **token-contract-tests:** Change intrinsic assertion messages ([#6386](https://github.com/AztecProtocol/aztec-packages/issues/6386)) ([aca81ae](https://github.com/AztecProtocol/aztec-packages/commit/aca81ae5bfd49a647c49f327ebd0328e5d6ed6a9))
+
 ## [0.39.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.38.0...aztec-packages-v0.39.0) (2024-05-14)
 
 
