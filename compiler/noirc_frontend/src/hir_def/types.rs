@@ -1497,9 +1497,7 @@ impl Type {
                 let replacements = typevars
                     .iter()
                     .zip(types)
-                    .map(|(var, binding)| {
-                        (var.id(), (var.clone(), binding))
-                    })
+                    .map(|(var, binding)| (var.id(), (var.clone(), binding)))
                     .collect();
 
                 let instantiated = typ.substitute(&replacements);
