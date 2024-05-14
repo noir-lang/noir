@@ -5,7 +5,6 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use fm::FileManager;
-use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::CompileError;
 use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, report_errors};
@@ -203,8 +202,8 @@ fn debug_program_and_decode(
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = debug_program(&program, &inputs_map)?;
-    let public_abi = program.abi.public_abi();
+    let public_abi = program.abi.clone().public_abi();
+    let solved_witness = debug_program(program, &inputs_map)?;
 
     match solved_witness {
         Some(witness) => {
@@ -216,25 +215,13 @@ fn debug_program_and_decode(
 }
 
 pub(crate) fn debug_program(
-    compiled_program: &CompiledProgram,
+    compiled_program: CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<Option<WitnessMap>, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    let debug_artifact = DebugArtifact {
-        debug_symbols: compiled_program.debug.clone(),
-        file_map: compiled_program.file_map.clone(),
-        warnings: compiled_program.warnings.clone(),
-    };
-
-    noir_debugger::debug_circuit(
-        &blackbox_solver,
-        &compiled_program.program.functions[0],
-        debug_artifact,
-        initial_witness,
-        &compiled_program.program.unconstrained_functions,
-    )
-    .map_err(CliError::from)
+    noir_debugger::run_repl_session(&blackbox_solver, compiled_program, initial_witness)
+        .map_err(CliError::from)
 }

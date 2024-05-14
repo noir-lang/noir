@@ -5,6 +5,7 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 use nargo::{artifacts::debug::DebugArtifact, NargoError};
@@ -378,11 +379,16 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
 
 pub fn run<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
-    circuit: &Circuit,
-    debug_artifact: &DebugArtifact,
+    program: CompiledProgram,
     initial_witness: WitnessMap,
-    unconstrained_functions: &[BrilligBytecode],
 ) -> Result<Option<WitnessMap>, NargoError> {
+    let circuit = &program.program.functions[0];
+    let debug_artifact = &DebugArtifact {
+        debug_symbols: program.debug,
+        file_map: program.file_map,
+        warnings: program.warnings,
+    };
+    let unconstrained_functions = &program.program.unconstrained_functions;
     let context = RefCell::new(ReplDebugger::new(
         blackbox_solver,
         circuit,
