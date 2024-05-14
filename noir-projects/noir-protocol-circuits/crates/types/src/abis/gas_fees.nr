@@ -46,3 +46,11 @@ impl Empty for GasFees {
         GasFees::new(0, 0)
     }
 }
+
+#[test]
+fn serialization_of_empty() {
+    let item = GasFees::empty();
+    let serialized = item.serialize();
+    let deserialized = GasFees::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

@@ -9,7 +9,7 @@ use crate::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH
 },
-    utils::arrays::array_merge, traits::{Empty, Serialize}
+    utils::arrays::array_merge, traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
 };
 
 struct CombinedAccumulatedData {
@@ -105,4 +105,46 @@ impl Serialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
 
     fields.storage
   }
+}
+
+impl Deserialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
+  fn deserialize(fields: [Field; COMBINED_ACCUMULATED_DATA_LENGTH]) -> CombinedAccumulatedData {
+    let mut reader = Reader::new(fields);
+
+    let item = CombinedAccumulatedData {
+        new_note_hashes: reader.read_array([0; MAX_NEW_NOTE_HASHES_PER_TX]),
+        new_nullifiers: reader.read_array([0; MAX_NEW_NULLIFIERS_PER_TX]),
+        new_l2_to_l1_msgs: reader.read_array([0; MAX_NEW_L2_TO_L1_MSGS_PER_TX]),
+        encrypted_logs_hash: reader.read(),
+        unencrypted_logs_hash: reader.read(),
+        encrypted_log_preimages_length: reader.read(),
+        unencrypted_log_preimages_length: reader.read(),
+        public_data_update_requests: reader.read_struct_array(PublicDataUpdateRequest::deserialize, [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]),
+        gas_used: reader.read_struct(Gas::deserialize),
+    };
+    reader.finish();
+    item
+  }
+}
+
+impl Eq for CombinedAccumulatedData {
+  fn eq(self, other: Self) -> bool {
+    (self.new_note_hashes == other.new_note_hashes) &
+    (self.new_nullifiers == other.new_nullifiers) &
+    (self.new_l2_to_l1_msgs == other.new_l2_to_l1_msgs) &
+    (self.encrypted_logs_hash == other.encrypted_logs_hash) &
+    (self.unencrypted_logs_hash == other.unencrypted_logs_hash) &
+    (self.encrypted_log_preimages_length == other.encrypted_log_preimages_length) &
+    (self.unencrypted_log_preimages_length == other.unencrypted_log_preimages_length) &
+    (self.public_data_update_requests == other.public_data_update_requests) &
+    (self.gas_used == other.gas_used)
+  }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let item = CombinedAccumulatedData::empty();
+    let serialized = item.serialize();
+    let deserialized = CombinedAccumulatedData::deserialize(serialized);
+    assert(item.eq(deserialized));
 }

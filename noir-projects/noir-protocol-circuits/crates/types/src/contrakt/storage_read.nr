@@ -49,3 +49,11 @@ impl StorageRead {
         self.storage_slot == 0
     }
 }
+
+#[test]
+fn serialization_of_empty() {
+    let item = StorageRead::empty();
+    let serialized = item.serialize();
+    let deserialized = StorageRead::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

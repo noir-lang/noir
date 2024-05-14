@@ -69,3 +69,11 @@ impl Empty for Gas {
     }
 }
 
+#[test]
+fn serialization_of_empty() {
+    let item = Gas::empty();
+    let serialized = item.serialize();
+    let deserialized = Gas::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
+

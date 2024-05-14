@@ -50,3 +50,31 @@ impl Empty for NestedRecursiveProof {
     }
   }
 }
+
+impl Eq for RecursiveProof {
+    fn eq(self, other: Self) -> bool {
+        (self.fields == other.fields)
+    }
+}
+
+impl Eq for NestedRecursiveProof {
+    fn eq(self, other: Self) -> bool {
+        (self.fields == other.fields)
+    }
+}
+
+#[test]
+fn serialization_of_empty_recursive() {
+    let item = RecursiveProof::empty();
+    let serialized = item.serialize();
+    let deserialized = RecursiveProof::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
+
+#[test]
+fn serialization_of_empty_nested() {
+    let item = NestedRecursiveProof::empty();
+    let serialized = item.serialize();
+    let deserialized = NestedRecursiveProof::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

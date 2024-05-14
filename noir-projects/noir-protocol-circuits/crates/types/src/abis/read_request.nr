@@ -79,7 +79,7 @@ impl Deserialize<SCOPED_READ_REQUEST_LEN> for ScopedReadRequest {
         let mut reader = Reader::new(values);
         let res = Self {
             read_request: reader.read_struct(ReadRequest::deserialize),
-            contract_address: AztecAddress::from_field(values[2]),
+            contract_address: reader.read_struct(AztecAddress::deserialize),
         };
         reader.finish();
         res
@@ -93,4 +93,20 @@ impl ScopedReadRequest {
     pub fn counter(self) -> u32 {
         self.read_request.counter
     }
+}
+
+#[test]
+fn serialization_of_empty_read() {
+    let item = ReadRequest::empty();
+    let serialized = item.serialize();
+    let deserialized = ReadRequest::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
+
+#[test]
+fn serialization_of_empty_scoped() {
+    let item = ScopedReadRequest::empty();
+    let serialized = item.serialize();
+    let deserialized = ScopedReadRequest::deserialize(serialized);
+    assert(item.eq(deserialized));
 }

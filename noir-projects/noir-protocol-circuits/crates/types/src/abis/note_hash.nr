@@ -125,3 +125,19 @@ impl ScopedNoteHash {
         NoteHash { value: self.note_hash.value, counter: 0 }
     }
 }
+
+#[test]
+fn serialization_of_empty() {
+    let item = NoteHash::empty();
+    let serialized = item.serialize();
+    let deserialized = NoteHash::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
+
+#[test]
+fn serialization_of_empty_scoped() {
+    let item = ScopedNoteHash::empty();
+    let serialized = item.serialize();
+    let deserialized = ScopedNoteHash::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

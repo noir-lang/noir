@@ -1,8 +1,9 @@
 use crate::transaction::tx_context::TxContext;
 use crate::header::Header;
-use crate::traits::{Empty, Serialize};
+use crate::traits::{Empty, Serialize, Deserialize};
 use crate::abis::global_variables::GlobalVariables;
 use crate::constants::COMBINED_CONSTANT_DATA_LENGTH;
+use crate::utils::reader::Reader;
 
 struct CombinedConstantData {
     historical_header: Header,
@@ -43,4 +44,34 @@ impl Serialize<COMBINED_CONSTANT_DATA_LENGTH> for CombinedConstantData {
 
     fields.storage
   }
+}
+
+impl Deserialize<COMBINED_CONSTANT_DATA_LENGTH> for CombinedConstantData {
+  fn deserialize(fields: [Field; COMBINED_CONSTANT_DATA_LENGTH]) -> CombinedConstantData {
+    let mut reader = Reader::new(fields);
+
+    let item = CombinedConstantData {
+      historical_header: reader.read_struct(Header::deserialize),
+      tx_context: reader.read_struct(TxContext::deserialize),
+      global_variables: reader.read_struct(GlobalVariables::deserialize),
+    };
+    reader.finish();
+    item
+  }
+}
+
+impl Eq for CombinedConstantData {
+  fn eq(self, other: Self) -> bool {
+    (self.historical_header.eq(other.historical_header)) &
+    (self.tx_context.eq(other.tx_context)) &
+    (self.global_variables.eq(other.global_variables))
+  }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let item = CombinedConstantData::empty();
+    let serialized = item.serialize();
+    let deserialized = CombinedConstantData::deserialize(serialized);
+    assert(item.eq(deserialized));
 }

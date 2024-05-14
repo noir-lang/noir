@@ -1,5 +1,5 @@
 use dep::types::abis::public_call_data::PublicCallData;
-use dep::types::abis::kernel_data::PublicKernelData;
+use dep::types::abis::public_kernel_data::PublicKernelData;
 use dep::types::PublicKernelCircuitPublicInputs;
 use dep::types::abis::kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder;
 use dep::types::utils::arrays::array_to_bounded_vec;

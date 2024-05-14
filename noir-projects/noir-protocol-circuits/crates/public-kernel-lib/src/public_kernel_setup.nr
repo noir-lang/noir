@@ -1,7 +1,7 @@
 use crate::common;
 use dep::types::abis::{
     kernel_circuit_public_inputs::{PublicKernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
-    kernel_data::PublicKernelData, public_call_data::PublicCallData
+    public_kernel_data::PublicKernelData, public_call_data::PublicCallData
 };
 
 struct PublicKernelSetupCircuitPrivateInputs {

@@ -5,7 +5,7 @@ use crate::{
     accumulated_data::{CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder, PublicAccumulatedData},
     global_variables::GlobalVariables, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
-    kernel_data::{PublicKernelData, KernelData}, max_block_number::MaxBlockNumber,
+    kernel_data::KernelData, public_kernel_data::PublicKernelData, max_block_number::MaxBlockNumber,
     private_kernel_data::PrivateKernelData, note_hash::{NoteHash, ScopedNoteHash},
     nullifier::{Nullifier, ScopedNullifier},
     nullifier_key_validation_request::ScopedNullifierKeyValidationRequest,

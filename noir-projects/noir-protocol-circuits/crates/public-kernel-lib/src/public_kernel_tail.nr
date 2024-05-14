@@ -6,7 +6,7 @@ use dep::reset_kernel_lib::{
 use dep::types::{
     abis::{
     accumulated_data::CombinedAccumulatedData, kernel_circuit_public_inputs::KernelCircuitPublicInputs,
-    kernel_data::PublicKernelData
+    public_kernel_data::PublicKernelData
 },
     constants::MAX_PUBLIC_DATA_HINTS,
     merkle_tree::{conditionally_assert_check_membership, MembershipWitness},
@@ -114,7 +114,7 @@ mod tests {
     };
     use dep::types::{
         abis::{
-        kernel_circuit_public_inputs::KernelCircuitPublicInputs, kernel_data::PublicKernelData,
+        kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
         nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage
     },
         address::AztecAddress,

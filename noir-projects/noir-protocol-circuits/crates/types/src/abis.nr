@@ -28,6 +28,7 @@ mod private_kernel;
 mod kernel_circuit_public_inputs;
 mod kernel_data;
 mod private_kernel_data;
+mod public_kernel_data;
 
 mod call_request;
 mod private_call_stack_item;

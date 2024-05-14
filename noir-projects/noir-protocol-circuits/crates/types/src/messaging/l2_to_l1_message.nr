@@ -93,3 +93,19 @@ impl Deserialize<SCOPED_L2_TO_L1_MESSAGE_LENGTH> for ScopedL2ToL1Message {
         res
     }
 }
+
+#[test]
+fn serialization_of_empty_l2() {
+    let item = L2ToL1Message::empty();
+    let serialized = item.serialize();
+    let deserialized = L2ToL1Message::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
+
+#[test]
+fn serialization_of_empty_scoped_l2() {
+    let item = ScopedL2ToL1Message::empty();
+    let serialized = item.serialize();
+    let deserialized = ScopedL2ToL1Message::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

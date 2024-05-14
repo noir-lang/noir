@@ -74,6 +74,14 @@ impl MaxBlockNumber {
 }
 
 #[test]
+fn serialization_of_empty() {
+    let item = MaxBlockNumber::empty();
+    let serialized = item.serialize();
+    let deserialized = MaxBlockNumber::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
+
+#[test]
 fn zeroed_is_none() {
     // Large parts of the kernel rely on zeroed to initialize structs. This conveniently matches what `default` does,
     // and though we should eventually move everything to use `default`, it's good to check for now that both are

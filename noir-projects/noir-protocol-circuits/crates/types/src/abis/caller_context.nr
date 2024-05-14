@@ -1,7 +1,8 @@
 use crate::address::AztecAddress;
 use dep::std::cmp::Eq;
-use crate::traits::{Empty, Serialize};
+use crate::traits::{Empty, Serialize, Deserialize};
 use crate::constants::CALLER_CONTEXT_LENGTH;
+use crate::utils::reader::Reader;
 
 struct CallerContext {
     msg_sender: AztecAddress,
@@ -41,4 +42,25 @@ impl Serialize<CALLER_CONTEXT_LENGTH> for CallerContext {
 
     fields.storage
   }
+}
+
+impl Deserialize<CALLER_CONTEXT_LENGTH> for CallerContext {
+  fn deserialize(fields: [Field; CALLER_CONTEXT_LENGTH]) -> CallerContext {
+    let mut reader = Reader::new(fields);
+
+    let item = CallerContext {
+      msg_sender: reader.read_struct(AztecAddress::deserialize),
+      storage_contract_address: reader.read_struct(AztecAddress::deserialize),
+    };
+    reader.finish();
+    item
+  }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let item = CallerContext::empty();
+    let serialized = item.serialize();
+    let deserialized = CallerContext::deserialize(serialized);
+    assert(item.eq(deserialized));
 }

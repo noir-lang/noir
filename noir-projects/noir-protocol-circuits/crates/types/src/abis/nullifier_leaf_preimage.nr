@@ -75,3 +75,19 @@ impl NullifierLeafPreimage {
         Self { nullifier: fields[0], next_nullifier: fields[1], next_index: fields[2] as u64 }
     }
 }
+
+impl Eq for NullifierLeafPreimage {
+  fn eq(self, other: Self) -> bool {
+    (self.nullifier == other.nullifier) &
+    (self.next_nullifier == other.next_nullifier) &
+    (self.next_index == other.next_index)
+  }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let item = NullifierLeafPreimage::empty();
+    let serialized = item.serialize();
+    let deserialized = NullifierLeafPreimage::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

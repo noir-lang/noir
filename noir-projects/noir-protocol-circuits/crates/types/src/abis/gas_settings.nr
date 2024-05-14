@@ -69,3 +69,11 @@ impl Deserialize<GAS_SETTINGS_LENGTH> for GasSettings {
         GasSettings::new(reader.read_struct(Gas::deserialize), reader.read_struct(Gas::deserialize), reader.read_struct(GasFees::deserialize), reader.read())
     }
 }
+
+#[test]
+fn serialization_of_empty() {
+    let item = GasSettings::empty();
+    let serialized = item.serialize();
+    let deserialized = GasSettings::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

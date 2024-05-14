@@ -75,3 +75,11 @@ impl Deserialize<SIDE_EFFECT_LENGTH> for SideEffect {
         }
     }
 }
+
+#[test]
+fn serialization_of_empty() {
+    let item = SideEffect::empty();
+    let serialized = item.serialize();
+    let deserialized = SideEffect::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

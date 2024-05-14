@@ -37,3 +37,18 @@ impl Empty for VerificationKey {
     }
   }
 }
+
+impl Eq for VerificationKey {
+    fn eq(self, other: Self) -> bool {
+        (self.hash == other.hash) &
+        (self.key == other.key)
+    }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let key = VerificationKey::empty();
+    let serialized = key.serialize();
+    let deserialized = VerificationKey::deserialize(serialized);
+    assert(key.eq(deserialized));
+}

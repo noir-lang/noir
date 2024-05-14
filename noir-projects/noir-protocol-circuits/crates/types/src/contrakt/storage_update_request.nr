@@ -51,3 +51,11 @@ impl StorageUpdateRequest {
         self.storage_slot == 0
     }
 }
+
+#[test]
+fn serialization_of_empty() {
+    let item = StorageUpdateRequest::empty();
+    let serialized = item.serialize();
+    let deserialized = StorageUpdateRequest::deserialize(serialized);
+    assert(item.eq(deserialized));
+}
