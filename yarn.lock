@@ -18059,6 +18059,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"recursive-proofs-30599d@workspace:examples/recursive-proofs":
+  version: 0.0.0-use.local
+  resolution: "recursive-proofs-30599d@workspace:examples/recursive-proofs"
+  dependencies:
+    "@noir-lang/backend_barretenberg": "workspace:*"
+    "@noir-lang/noir_js": "workspace:*"
+    "@noir-lang/noir_wasm": "workspace:*"
+    "@types/chai": ^4
+    "@types/mocha": ^10.0.1
+    "@types/node": ^20.6.2
+    "@types/prettier": ^3
+    chai: ^4.4.1
+    eslint: ^8.57.0
+    eslint-plugin-prettier: ^5.1.3
+    mocha: ^10.2.0
+    prettier: 3.2.5
+    ts-node: ^10.9.1
+    tsx: ^4.6.2
+    typescript: ^5.4.2
+  languageName: unknown
+  linkType: soft
+
 "recursive-readdir@npm:^2.2.2":
   version: 2.2.3
   resolution: "recursive-readdir@npm:2.2.3"

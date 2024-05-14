@@ -1,22 +1,34 @@
 {
+  "type": "module",
   "private": true,
   "license": "(MIT OR Apache-2.0)",
   "scripts": {
-    "clean": "rm -rf build",
-    "compile": "yarn clean && tsc",
-    "start": "node build/main.js",
-    "export:leaf": "nargo export --program-dir=./circuits/sum",
-    "export:recurseLeaf": "nargo export --program-dir=./circuits/recurseLeaf",
-    "export:recurseNode": "nargo export --program-dir=./circuits/recurseNode",
-    "export:all": "yarn export:leaf && yarn export:recurseLeaf && yarn export:recurseNode",
-    "compile:all": "yarn export:all && yarn compile"
+    "dev": "tsc-multi --watch",
+    "build": "tsc",
+    "test": "yarn test:node",
+    "test:node": "mocha --timeout 120000 --exit --config ./.mocharc.json",
+    "prettier": "prettier 'src/**/*.ts'",
+    "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "publish": "echo (nothing to publish `$npm_package_name`)",
+    "clean": "rm -rf ./build",
+    "start": "node build/main.js"
   },
   "devDependencies": {
-    "@noir-lang/backend_barretenberg": "^0.26.0",
-    "@noir-lang/noir_codegen": "^0.26.0",
-    "@noir-lang/noir_js": "^0.26.0",
-    "@noir-lang/noir_wasm": "^0.26.0",
-    "@types/node": "^20.12.2",
-    "typescript": "^5.4.3"
+    "@noir-lang/backend_barretenberg": "workspace:*",
+    "@noir-lang/noir_js": "workspace:*",
+    "@noir-lang/noir_wasm": "workspace:*",
+    "@types/chai": "^4",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.6.2",
+    "@types/prettier": "^3",
+    "chai": "^4.4.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "mocha": "^10.2.0",
+    "prettier": "3.2.5",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.6.2",
+    "typescript": "^5.4.2"
   }
 }

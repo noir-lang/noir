@@ -1,4 +1,4 @@
-node_modules
 build
-codegen
-circuits/*/export
+test/*/export
+
+test/recursive
