@@ -76,7 +76,7 @@ describe('e2e_token_contract reading constants', () => {
     await reader.methods.check_symbol_private(t.asset.address, TOKEN_SYMBOL).send().wait();
 
     await expect(reader.methods.check_symbol_private(t.asset.address, 'WRONG_SYMBOL').simulate()).rejects.toThrow(
-      "Cannot satisfy constraint 'symbol.is_eq(_what)'",
+      "'symbol.is_eq(_what)'",
     );
   });
 
@@ -87,7 +87,7 @@ describe('e2e_token_contract reading constants', () => {
     await reader.methods.check_symbol_public(t.asset.address, TOKEN_SYMBOL).send().wait();
 
     await expect(reader.methods.check_symbol_public(t.asset.address, 'WRONG_SYMBOL').simulate()).rejects.toThrow(
-      "Failed to solve brillig function 'symbol.is_eq(_what)'",
+      "'symbol.is_eq(_what)'",
     );
   });
 
@@ -108,8 +108,6 @@ describe('e2e_token_contract reading constants', () => {
 
     await reader.methods.check_decimals_public(t.asset.address, TOKEN_DECIMALS).send().wait();
 
-    await expect(reader.methods.check_decimals_public(t.asset.address, 99).simulate()).rejects.toThrow(
-      "Failed to solve brillig function 'ret == what'",
-    );
+    await expect(reader.methods.check_decimals_public(t.asset.address, 99).simulate()).rejects.toThrow("'ret == what'");
   });
 });
