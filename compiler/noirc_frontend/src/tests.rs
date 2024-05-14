@@ -1378,3 +1378,41 @@ fn deny_fold_attribute_on_unconstrained() {
         CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
     ));
 }
+
+#[test]
+fn mutate_with_reference_in_closure() {
+    let src = r#"
+        fn main() {
+            let x = &mut 3;
+
+            let f = || {
+                *x += 2;
+            };
+
+            f();
+            assert(*x == 5);
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn deny_mutate_without_reference_in_closure() {
+    let src = r#"
+        fn main() {
+            let mut x = 3;
+
+            let f = || {
+                x += 2;
+            };
+
+            f();
+            assert(x == 5);
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::MutableCaptureNeedsRef { .. })
+    ));
+}
