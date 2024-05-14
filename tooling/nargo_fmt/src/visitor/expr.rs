@@ -110,13 +110,21 @@ impl FmtVisitor<'_> {
 
                 format!("{collection}{index}")
             }
-            ExpressionKind::Tuple(exprs) => {
-                format_parens(None, self.fork(), self.shape(), exprs.len() == 1, exprs, span, false, NewlineMode::Normal)
-            }
+            ExpressionKind::Tuple(exprs) => format_parens(
+                None,
+                self.fork(),
+                self.shape(),
+                exprs.len() == 1,
+                exprs,
+                span,
+                false,
+                NewlineMode::Normal,
+            ),
             ExpressionKind::Literal(literal) => match literal {
-                Literal::Integer(_, _) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
-                    self.slice(span).to_string()
-                }
+                Literal::Integer(_, _)
+                | Literal::Bool(_)
+                | Literal::Str(_)
+                | Literal::FmtStr(_) => self.slice(span).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     let repeated = self.format_sub_expr(*repeated_element);
                     let length = self.format_sub_expr(*length);

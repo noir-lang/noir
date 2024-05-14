@@ -783,10 +783,12 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
     })
 }
 
-fn named_type<'a>(type_parser: impl NoirParser<UnresolvedType> + 'a ) -> impl NoirParser<UnresolvedType> + 'a {
-    path()
-        .then(generic_type_args(type_parser))
-        .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args, false).with_span(span))
+fn named_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
+        UnresolvedTypeData::Named(path, args, false).with_span(span)
+    })
 }
 
 fn named_trait<'a>(

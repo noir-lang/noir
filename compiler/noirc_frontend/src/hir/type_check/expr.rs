@@ -349,7 +349,12 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     /// Returns the type of the given identifier
-    fn check_ident(&mut self, ident: HirIdent, expr_id: &ExprId, generics: Option<Vec<Type>>) -> Type {
+    fn check_ident(
+        &mut self,
+        ident: HirIdent,
+        expr_id: &ExprId,
+        generics: Option<Vec<Type>>,
+    ) -> Type {
         let mut bindings = TypeBindings::new();
 
         // Add type bindings from any constraints that were used.
@@ -376,13 +381,12 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(expr_id);
 
         let definition = self.interner.try_definition(ident.id);
-        let expected_generic_count =
-            definition.map_or(0, |definition| match &definition.kind {
-                DefinitionKind::Function(function) => {
-                    self.interner.function_modifiers(function).generic_count
-                }
-                _ => 0,
-            });
+        let expected_generic_count = definition.map_or(0, |definition| match &definition.kind {
+            DefinitionKind::Function(function) => {
+                self.interner.function_modifiers(function).generic_count
+            }
+            _ => 0,
+        });
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?

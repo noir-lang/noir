@@ -245,7 +245,7 @@ pub struct FunctionModifiers {
     pub is_unconstrained: bool,
 
     pub generic_count: usize,
-    
+
     pub is_comptime: bool,
 }
 

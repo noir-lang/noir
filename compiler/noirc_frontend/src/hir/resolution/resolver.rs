@@ -1480,11 +1480,14 @@ impl<'a> Resolver<'a> {
                     generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
                 if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
                 {
-                    HirExpression::Ident(HirIdent {
-                        location: Location::new(expr.span, self.file),
-                        id: self.interner.trait_method_id(method),
-                        impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
-                    }, generics)
+                    HirExpression::Ident(
+                        HirIdent {
+                            location: Location::new(expr.span, self.file),
+                            id: self.interner.trait_method_id(method),
+                            impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                        },
+                        generics,
+                    )
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1522,7 +1525,7 @@ impl<'a> Resolver<'a> {
                     }
 
                     // let generics =
-                        // generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+                    // generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
                     HirExpression::Ident(hir_ident, generics)
                 }
             }

@@ -1485,7 +1485,11 @@ impl Type {
     /// is used and generic substitutions are provided manually by users.
     ///
     /// Expects the given type vector to be the same length as the Forall type variables.
-    pub fn instantiate_with(&self, types: Vec<Type>, interner: &NodeInterner) -> (Type, TypeBindings) {
+    pub fn instantiate_with(
+        &self,
+        types: Vec<Type>,
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
                 assert_eq!(types.len(), typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
@@ -1493,7 +1497,9 @@ impl Type {
                 let replacements = typevars
                     .iter()
                     .zip(types)
-                    .map(|(var, binding)| (interner.next_type_variable_id(), (var.clone(), binding)))
+                    .map(|(var, binding)| {
+                        (interner.next_type_variable_id(), (var.clone(), binding))
+                    })
                     .collect();
 
                 let instantiated = typ.substitute(&replacements);

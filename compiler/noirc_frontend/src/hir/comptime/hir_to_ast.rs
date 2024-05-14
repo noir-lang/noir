@@ -84,7 +84,10 @@ impl ExprId {
         let kind = match expression {
             HirExpression::Ident(ident, generics) => {
                 let path = Path::from_ident(ident.to_ast(interner));
-                ExpressionKind::Variable(path, generics.map(|option| option.iter().map(|generic| generic.to_ast()).collect()))
+                ExpressionKind::Variable(
+                    path,
+                    generics.map(|option| option.iter().map(|generic| generic.to_ast()).collect()),
+                )
             }
             HirExpression::Literal(HirLiteral::Array(array)) => {
                 let array = array.into_ast(interner, span);
@@ -146,7 +149,9 @@ impl ExprId {
                     object: method_call.object.to_ast(interner),
                     method_name: method_call.method,
                     arguments: vecmap(method_call.arguments, |arg| arg.to_ast(interner)),
-                    generics: method_call.generics.map(|option| option.iter().map(|generic| generic.to_ast()).collect()),
+                    generics: method_call
+                        .generics
+                        .map(|option| option.iter().map(|generic| generic.to_ast()).collect()),
                 }))
             }
             HirExpression::Cast(cast) => {
