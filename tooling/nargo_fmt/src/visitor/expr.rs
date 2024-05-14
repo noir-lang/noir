@@ -1,10 +1,10 @@
-use noirc_frontend::ast::Expression;
+use noirc_frontend::ast::{ArrayLiteral, Expression, Literal, UnaryOp};
 use noirc_frontend::ast::{
     BlockExpression, ConstructorExpression, ExpressionKind, IfExpression, Statement, StatementKind,
 };
 use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
-use super::{ExpressionType, FmtVisitor, Shape};
+use super::{ExpressionType, FmtVisitor, Indent, Shape};
 use crate::{
     items::{HasItem, Item, Items},
     rewrite,
@@ -66,9 +66,12 @@ impl FmtVisitor<'_> {
                 let args = format_parens(
                     self.config.fn_call_width.into(),
                     self.fork(),
+                    self.shape(),
                     false,
                     call_expr.arguments,
                     args_span,
+                    false,
+                    NewlineMode::Normal,
                 );
 
                 format!("{callee}{args}")
@@ -84,9 +87,12 @@ impl FmtVisitor<'_> {
                 let args = format_parens(
                     self.config.fn_call_width.into(),
                     self.fork(),
+                    self.shape(),
                     false,
                     method_call_expr.arguments,
                     args_span,
+                    false,
+                    NewlineMode::Normal,
                 );
 
                 format!("{object}.{method}{args}")
@@ -105,10 +111,10 @@ impl FmtVisitor<'_> {
                 format!("{collection}{index}")
             }
             ExpressionKind::Tuple(exprs) => {
-                format_parens(None, self.fork(), exprs.len() == 1, exprs, span)
+                format_parens(None, self.fork(), self.shape(), exprs.len() == 1, exprs, span, false, NewlineMode::Normal)
             }
             ExpressionKind::Literal(literal) => match literal {
-                Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
+                Literal::Integer(_, _) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
                     self.slice(span).to_string()
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
@@ -121,6 +127,8 @@ impl FmtVisitor<'_> {
                     rewrite::array(self.fork(), exprs, span, false)
                 }
                 Literal::Unit => "()".to_string(),
+                Literal::Slice(_) => todo!(),
+                Literal::RawStr(_, _) => todo!(),
             },
             ExpressionKind::Parenthesized(mut sub_expr) => {
                 let remove_nested_parens = self.config.remove_nested_parens;
@@ -204,10 +212,12 @@ impl FmtVisitor<'_> {
                 self.slice(span).to_string()
             }
             ExpressionKind::Error => unreachable!(),
+            ExpressionKind::Quote(_) => todo!(),
+            ExpressionKind::Comptime(_) => todo!(),
         }
     }
 
-    fn format_if(&self, if_expr: IfExpression) -> String {
+    pub(crate) fn format_if(&self, if_expr: IfExpression) -> String {
         let condition_str = rewrite::sub_expr(self, self.shape(), if_expr.condition);
         let consequence_str = rewrite::sub_expr(self, self.shape(), if_expr.consequence);
 

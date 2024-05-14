@@ -680,7 +680,7 @@ fn add_struct_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
 fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
     // let identifier_as_bytes = identifier.as_bytes();
     let var = variable_ident(identifier.clone());
-    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+    let contents = if let ExpressionKind::Variable(p, _) = &var.kind {
         p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
     } else {
         panic!("Unexpected identifier type")

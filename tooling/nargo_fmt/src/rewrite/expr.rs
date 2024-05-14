@@ -157,7 +157,7 @@ pub(crate) fn rewrite(
 
             visitor.format_if(*if_expr)
         }
-        ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => visitor.slice(span).to_string(),
+        ExpressionKind::Lambda(_) | ExpressionKind::Variable(_, _) => visitor.slice(span).to_string(),
         ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
         ExpressionKind::Comptime(block) => {
             format!("comptime {}", rewrite_block(visitor, block, span))
