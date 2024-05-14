@@ -1634,38 +1634,6 @@ mod test {
     }
 
     #[test]
-    fn parse_path() {
-        let cases = vec![
-            ("std", vec!["std"]),
-            ("std::hash", vec!["std", "hash"]),
-            ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("dep::foo::bar", vec!["foo", "bar"]),
-            ("crate::std::hash", vec!["std", "hash"]),
-        ];
-
-        for (src, expected_segments) in cases {
-            let path: Path = parse_with(path(), src).unwrap();
-            for (segment, expected) in path.segments.into_iter().zip(expected_segments) {
-                assert_eq!(segment.0.contents, expected);
-            }
-        }
-
-        parse_all_failing(path(), vec!["std::", "::std", "std::hash::", "foo::1"]);
-    }
-
-    #[test]
-    fn parse_unary() {
-        parse_all(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
-        );
-        parse_all_failing(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["+hello", "/hello"],
-        );
-    }
-
-    #[test]
     fn parse_use() {
         let valid_use_statements = [
             "use std::hash",
