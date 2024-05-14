@@ -804,10 +804,6 @@ export class PXEService implements PXE {
     return Promise.resolve(this.synchronizer.getSyncStatus());
   }
 
-  public getKeyStore() {
-    return this.keyStore;
-  }
-
   public async isContractClassPubliclyRegistered(id: Fr): Promise<boolean> {
     return !!(await this.node.getContractClass(id));
   }

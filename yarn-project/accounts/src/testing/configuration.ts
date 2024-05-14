@@ -1,8 +1,7 @@
 import { generatePublicKey } from '@aztec/aztec.js';
 import { type AccountWalletWithSecretKey } from '@aztec/aztec.js/wallet';
 import { type PXE } from '@aztec/circuit-types';
-import { GeneratorIndex } from '@aztec/circuits.js/constants';
-import { sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
+import { deriveMasterIncomingViewingSecretKey, deriveSigningKey } from '@aztec/circuits.js/keys';
 import { Fr } from '@aztec/foundation/fields';
 
 import { getSchnorrAccount } from '../schnorr/index.js';
@@ -14,7 +13,7 @@ export const INITIAL_TEST_SECRET_KEYS = [
 ];
 
 export const INITIAL_TEST_ENCRYPTION_KEYS = INITIAL_TEST_SECRET_KEYS.map(secretKey =>
-  sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]),
+  deriveMasterIncomingViewingSecretKey(secretKey),
 );
 // TODO(#5837): come up with a standard signing key derivation scheme instead of using ivsk_m as signing keys here
 export const INITIAL_TEST_SIGNING_KEYS = INITIAL_TEST_ENCRYPTION_KEYS;
@@ -43,14 +42,14 @@ export async function getDeployedTestAccountsWallets(pxe: PXE): Promise<AccountW
   const registeredAccounts = await pxe.getRegisteredAccounts();
   return Promise.all(
     INITIAL_TEST_SECRET_KEYS.filter(initialSecretKey => {
-      const initialEncryptionKey = sha512ToGrumpkinScalar([initialSecretKey, GeneratorIndex.IVSK_M]);
+      const initialEncryptionKey = deriveMasterIncomingViewingSecretKey(initialSecretKey);
       const publicKey = generatePublicKey(initialEncryptionKey);
       return (
         registeredAccounts.find(registered => registered.publicKeys.masterIncomingViewingPublicKey.equals(publicKey)) !=
         undefined
       );
     }).map(secretKey => {
-      const signingKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]);
+      const signingKey = deriveSigningKey(secretKey);
       // TODO(#5726): use actual salt here instead of hardcoding Fr.ZERO
       return getSchnorrAccount(pxe, secretKey, signingKey, Fr.ZERO).getWallet();
     }),

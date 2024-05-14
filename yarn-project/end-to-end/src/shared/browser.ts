@@ -218,7 +218,6 @@ export const browserTestSuite = (
             createPXEClient,
             getSchnorrAccount,
             Contract,
-            deriveKeys,
             Fr,
             ExtendedNote,
             Note,
@@ -248,11 +247,9 @@ export const browserTestSuite = (
             knownAccounts.push(newAccount);
           }
           const owner = knownAccounts[0];
-          // TODO(#5726): this is messy, maybe we should expose publicKeysHash on account
-          const publicKeysHash = deriveKeys(INITIAL_TEST_SECRET_KEYS[0]).publicKeys.hash();
           const ownerAddress = owner.getAddress();
           const tx = new DeployMethod(
-            publicKeysHash,
+            owner.getCompleteAddress().publicKeys.hash(),
             owner,
             TokenContractArtifact,
             (a: AztecJs.AztecAddress) => Contract.at(a, TokenContractArtifact, owner),

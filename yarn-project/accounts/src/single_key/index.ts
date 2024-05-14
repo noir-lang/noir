@@ -7,8 +7,7 @@
 import { AccountManager, type Salt } from '@aztec/aztec.js/account';
 import { type AccountWallet, getWallet } from '@aztec/aztec.js/wallet';
 import { type GrumpkinPrivateKey, type PXE } from '@aztec/circuit-types';
-import { type AztecAddress, type Fr, GeneratorIndex } from '@aztec/circuits.js';
-import { sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
+import { type AztecAddress, type Fr, deriveMasterIncomingViewingSecretKey } from '@aztec/circuits.js';
 
 import { SingleKeyAccountContract } from './account_contract.js';
 
@@ -23,7 +22,7 @@ export { SchnorrSingleKeyAccountContractArtifact as SingleKeyAccountContractArti
  * @param salt - Deployment salt.
  */
 export function getSingleKeyAccount(pxe: PXE, secretKey: Fr, salt?: Salt): AccountManager {
-  const encryptionPrivateKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.IVSK_M]);
+  const encryptionPrivateKey = deriveMasterIncomingViewingSecretKey(secretKey);
   return new AccountManager(pxe, secretKey, new SingleKeyAccountContract(encryptionPrivateKey), salt);
 }
 
