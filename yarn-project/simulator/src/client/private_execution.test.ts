@@ -865,6 +865,23 @@ describe('Private Execution test suite', () => {
     });
   });
 
+  describe('setting fee payer', () => {
+    it('should default to not being a fee payer', async () => {
+      // arbitrary random function that doesn't set a fee payer
+      const entrypoint = getFunctionArtifact(TestContractArtifact, 'emit_msg_sender');
+      const contractAddress = AztecAddress.random();
+      const result = await runSimulator({ artifact: entrypoint, contractAddress });
+      expect(result.callStackItem.publicInputs.isFeePayer).toBe(false);
+    });
+
+    it('should be able to set a fee payer', async () => {
+      const entrypoint = getFunctionArtifact(TestContractArtifact, 'test_setting_fee_payer');
+      const contractAddress = AztecAddress.random();
+      const result = await runSimulator({ artifact: entrypoint, contractAddress });
+      expect(result.callStackItem.publicInputs.isFeePayer).toBe(true);
+    });
+  });
+
   describe('pending note hashes contract', () => {
     beforeEach(() => {
       oracle.getFunctionArtifact.mockImplementation((_, selector) =>

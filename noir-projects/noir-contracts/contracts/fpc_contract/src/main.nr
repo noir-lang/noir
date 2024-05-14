@@ -22,6 +22,7 @@ contract FPC {
     fn fee_entrypoint_private(amount: Field, asset: AztecAddress, secret_hash: Field, nonce: Field) {
         assert(asset == storage.other_asset.read_private());
         Token::at(asset).unshield(context.msg_sender(), context.this_address(), amount, nonce).call(&mut context);
+        context.set_as_fee_payer();
         // Would like to get back to
         // FPC::at(context.this_address()).pay_fee_with_shielded_rebate(amount, asset, secret_hash).set_public_teardown_function(&mut context);
         context.set_public_teardown_function(
@@ -34,6 +35,7 @@ contract FPC {
     #[aztec(private)]
     fn fee_entrypoint_public(amount: Field, asset: AztecAddress, nonce: Field) {
         FPC::at(context.this_address()).prepare_fee(context.msg_sender(), amount, asset, nonce).enqueue(&mut context);
+        context.set_as_fee_payer();
         // TODO(#6277) for improving interface:
         // FPC::at(context.this_address()).pay_fee(context.msg_sender(), amount, asset).set_public_teardown_function(&mut context);
         context.set_public_teardown_function(

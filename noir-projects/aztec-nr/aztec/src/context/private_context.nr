@@ -183,6 +183,10 @@ impl PrivateContext {
         }
     }
 
+    pub fn set_as_fee_payer(&mut self) {
+        self.is_fee_payer = true;
+    }
+
     pub fn end_setup(&mut self) {
         self.min_revertible_side_effect_counter = self.side_effect_counter;
     }
