@@ -39,3 +39,11 @@ Previously in [Aztec Connect](https://medium.com/aztec-protocol/sunsetting-aztec
 Aztec will be launched with a fully permissionless proving network that anyone can participate in.
 
 How this works will be discussed via a future RFP process on Discourse, similarly to the Sequencer RFP.
+
+### Proving Key
+
+A key that is used to generate a proof. In the case of Aztec, these are compiled from Noir smart contracts.
+
+### Verification Key
+
+A key that is used to verify the validity of a proof generated from a proving key from the same smart contract.
