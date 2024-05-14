@@ -11,8 +11,7 @@
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
     "publish": "echo (nothing to publish `$npm_package_name`)",
-    "clean": "rm -rf ./build",
-    "start": "node build/main.js"
+    "clean": "rm -rf ./build"
   },
   "devDependencies": {
     "@noir-lang/backend_barretenberg": "workspace:*",

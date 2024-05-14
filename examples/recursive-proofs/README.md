@@ -19,5 +19,7 @@ That is:
 
 ## Using this project
 - Install dependencies: `yarn`
-- Compile all the things: `yarn compile:all`
-- Run main typescript: `yarn start`
+- Check build succeeds: `yarn build`
+- Run tests: `yarn test`
+
+Note: the test functions take some time (can be 2mins or so for nested/recursive proofs).
