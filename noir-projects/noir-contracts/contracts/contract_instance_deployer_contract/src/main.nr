@@ -35,7 +35,7 @@ contract ContractInstanceDeployer {
         // Broadcast the event
         let event = ContractInstanceDeployed { contract_class_id, address, public_keys_hash, initialization_hash, salt, deployer, version: 1 };
         let event_payload = event.serialize();
-        dep::aztec::oracle::debug_log::debug_log_array_with_prefix("ContractInstanceDeployed", event_payload);
+        dep::aztec::oracle::debug_log::debug_log_format("ContractInstanceDeployed: {}", event_payload);
         context.emit_unencrypted_log(event_payload);
     }
 }

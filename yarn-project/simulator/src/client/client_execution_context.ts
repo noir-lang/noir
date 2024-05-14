@@ -24,7 +24,7 @@ import { computePublicDataTreeLeafSlot, computeUniqueNoteHash, siloNoteHash } fr
 import { type FunctionAbi, type FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, type Point } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { applyStringFormatting, createDebugLogger } from '@aztec/foundation/log';
 
 import { type NoteData, toACVMWitness } from '../acvm/index.js';
 import { type PackedValuesCache } from '../common/packed_values_cache.js';
@@ -641,5 +641,9 @@ export class ClientExecutionContext extends ViewDataOracle {
   public override aes128Encrypt(input: Buffer, initializationVector: Buffer, key: Buffer): Buffer {
     const aes128 = new Aes128();
     return aes128.encryptBufferCBC(input, initializationVector, key);
+  }
+
+  public override debugLog(message: string, fields: Fr[]) {
+    this.log.verbose(`debug_log ${applyStringFormatting(message, fields)}`);
   }
 }

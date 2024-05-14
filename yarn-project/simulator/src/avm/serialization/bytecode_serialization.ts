@@ -1,5 +1,4 @@
 import { DAGasLeft, L2GasLeft } from '../opcodes/context_getters.js';
-import { ToRadixLE } from '../opcodes/conversion.js';
 import { Keccak, Pedersen, Poseidon2, Sha256 } from '../opcodes/hashing.js';
 import type { Instruction } from '../opcodes/index.js';
 import {
@@ -12,6 +11,7 @@ import {
   CalldataCopy,
   Cast,
   ChainId,
+  DebugLog,
   Div,
   EmitNoteHash,
   EmitNullifier,
@@ -47,6 +47,7 @@ import {
   StorageAddress,
   Sub,
   Timestamp,
+  ToRadixLE,
   TransactionFee,
   Version,
   Xor,
@@ -131,6 +132,9 @@ const INSTRUCTION_SET = () =>
     //[DelegateCall.opcode, DelegateCall],
     [Return.opcode, Return],
     [Revert.opcode, Revert],
+
+    // Misc
+    [DebugLog.opcode, DebugLog],
 
     // //// Gadgets
     [Keccak.opcode, Keccak],

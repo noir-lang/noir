@@ -2,6 +2,7 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  Fr,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type ParityPublicInputs,
@@ -16,16 +17,15 @@ import {
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
-  acvmFieldMessageToString,
-  oracleDebugCallToFormattedStr,
 } from '@aztec/circuits.js';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { applyStringFormatting, createDebugLogger } from '@aztec/foundation/log';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import { type ForeignCallInput, type ForeignCallOutput } from '@noir-lang/acvm_js';
 import { type CompiledCircuit } from '@noir-lang/noir_js';
 import { type Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
 import { type WitnessMap } from '@noir-lang/types';
+import { strict as assert } from 'assert';
 
 import BaseParityJson from './target/parity_base.json' assert { type: 'json' };
 import RootParityJson from './target/parity_root.json' assert { type: 'json' };
@@ -631,13 +631,20 @@ export function convertPublicTailOutputFromWitnessMap(outputs: WitnessMap): Kern
   return mapKernelCircuitPublicInputsFromNoir(returnType);
 }
 
+function fromACVMField(field: string): Fr {
+  return Fr.fromBuffer(Buffer.from(field.slice(2), 'hex'));
+}
+
 export function foreignCallHandler(name: string, args: ForeignCallInput[]): Promise<ForeignCallOutput[]> {
+  // ForeignCallInput is actually a string[], so the args are string[][].
   const log = createDebugLogger('aztec:noir-protocol-circuits:oracle');
 
   if (name === 'debugLog') {
-    log.info(oracleDebugCallToFormattedStr(args));
-  } else if (name === 'debugLogWithPrefix') {
-    log.info(`${acvmFieldMessageToString(args[0])}: ${oracleDebugCallToFormattedStr(args.slice(1))}`);
+    assert(args.length === 3, 'expected 3 arguments for debugLog: msg, fields_length, fields');
+    const [msgRaw, _ignoredFieldsSize, fields] = args;
+    const msg: string = msgRaw.map(acvmField => String.fromCharCode(fromACVMField(acvmField).toNumber())).join('');
+    const fieldsFr: Fr[] = fields.map((field: string) => fromACVMField(field));
+    log.verbose('debug_log ' + applyStringFormatting(msg, fieldsFr));
   } else {
     throw Error(`unexpected oracle during execution: ${name}`);
   }

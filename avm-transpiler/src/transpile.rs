@@ -359,6 +359,7 @@ fn handle_foreign_call(
         }
         "storageRead" => handle_storage_read(avm_instrs, destinations, inputs),
         "storageWrite" => handle_storage_write(avm_instrs, destinations, inputs),
+        "debugLog" => handle_debug_log(avm_instrs, destinations, inputs),
         // Getters.
         _ if inputs.is_empty() && destinations.len() == 1 => {
             handle_getter_instruction(avm_instrs, function, destinations, inputs)
@@ -431,12 +432,14 @@ fn handle_external_call(
         opcode: opcode,
         // (left to right)
         //   * selector direct
+        //   * success offset direct
+        //   * (n/a) ret size is an immeadiate
         //   * ret offset INDIRECT
         //   * arg size offset direct
         //   * args offset INDIRECT
         //   * address offset direct
         //   * gas offset INDIRECT
-        indirect: Some(0b010101),
+        indirect: Some(0b00010101),
         operands: vec![
             AvmOperand::U32 { value: gas_offset },
             AvmOperand::U32 {
@@ -1003,6 +1006,57 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
         _ => panic!("Transpiler doesn't know how to process {:?}", operation),
     }
 }
+
+fn handle_debug_log(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    if !destinations.is_empty() || inputs.len() != 3 {
+        panic!(
+            "Transpiler expects ForeignCall::DEBUGLOG to have 0 destinations and 3 inputs, got {} and {}",
+            destinations.len(),
+            inputs.len()
+        );
+    }
+    let (message_offset, message_size) = match &inputs[0] {
+        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0 as u32, *size as u32),
+        _ => panic!("Message for ForeignCall::DEBUGLOG should be a HeapArray."),
+    };
+    // The fields are a slice, and this is represented as a (length: Field, slice: HeapVector).
+    // The length field is redundant and we skipt it.
+    let (fields_offset_ptr, fields_size_ptr) = match &inputs[2] {
+        ValueOrArray::HeapVector(HeapVector { pointer, size }) => (pointer.0 as u32, size.0 as u32),
+        _ => panic!("List of fields for ForeignCall::DEBUGLOG should be a HeapVector (slice)."),
+    };
+    avm_instrs.push(AvmInstruction {
+        opcode: AvmOpcode::DEBUGLOG,
+        // (left to right)
+        //  * fields_size_ptr direct
+        //  * fields_offset_ptr INDIRECT
+        //  * (N/A) message_size is an immediate
+        //  * message_offset direct
+        indirect: Some(0b011),
+        operands: vec![
+            AvmOperand::U32 {
+                value: message_offset,
+            },
+            AvmOperand::U32 {
+                value: message_size,
+            },
+            // indirect
+            AvmOperand::U32 {
+                value: fields_offset_ptr,
+            },
+            // indirect
+            AvmOperand::U32 {
+                value: fields_size_ptr,
+            },
+        ],
+        ..Default::default()
+    });
+}
+
 /// Emit a storage write opcode
 /// The current implementation writes an array of values into storage ( contiguous slots in memory )
 fn handle_storage_write(

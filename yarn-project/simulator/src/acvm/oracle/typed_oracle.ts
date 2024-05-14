@@ -249,4 +249,8 @@ export abstract class TypedOracle {
   aes128Encrypt(_input: Buffer, _initializationVector: Buffer, _key: Buffer): Buffer {
     throw new OracleMethodNotAvailableError('encrypt');
   }
+
+  debugLog(_message: string, _fields: Fr[]): void {
+    throw new OracleMethodNotAvailableError('debugLog');
+  }
 }

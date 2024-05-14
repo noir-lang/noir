@@ -69,6 +69,8 @@ export enum Opcode {
   DELEGATECALL,
   RETURN,
   REVERT,
+  // Misc
+  DEBUGLOG,
   // Gadgets
   KECCAK,
   POSEIDON2,

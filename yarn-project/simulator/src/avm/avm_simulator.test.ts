@@ -121,6 +121,15 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     });
   });
 
+  it('Logging', async () => {
+    const context = initContext();
+    const bytecode = getAvmTestContractBytecode('debug_logging');
+    const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+    expect(results.reverted).toBe(false);
+    expect(results.output).toEqual([]);
+  });
+
   it('Assertion message', async () => {
     const calldata: Fr[] = [new Fr(20)];
     const context = initContext({ env: initExecutionEnvironment({ calldata }) });

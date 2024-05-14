@@ -177,6 +177,14 @@ contract AvmTest {
         helper_with_failed_assertion()
     }
 
+    #[aztec(public-vm)]
+    fn debug_logging() {
+        dep::aztec::oracle::debug_log::debug_log("just text");
+        dep::aztec::oracle::debug_log::debug_log_format("second: {1}", [1, 2, 3, 4]);
+        dep::aztec::oracle::debug_log::debug_log_format("whole array: {}", [1, 2, 3, 4]);
+        dep::aztec::oracle::debug_log::debug_log("tabs and newlines\n\t- first\n\t- second");
+    }
+
     /************************************************************************
      * Hashing functions
      ************************************************************************/

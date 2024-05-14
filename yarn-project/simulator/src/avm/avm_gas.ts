@@ -118,6 +118,8 @@ export const GasCosts: Record<Opcode, Gas | typeof DynamicGasCost> = {
   [Opcode.DELEGATECALL]: TemporaryDefaultGasCost,
   [Opcode.RETURN]: TemporaryDefaultGasCost,
   [Opcode.REVERT]: TemporaryDefaultGasCost,
+  // Misc
+  [Opcode.DEBUGLOG]: TemporaryDefaultGasCost,
   // Gadgets
   [Opcode.KECCAK]: TemporaryDefaultGasCost,
   [Opcode.POSEIDON2]: TemporaryDefaultGasCost,
