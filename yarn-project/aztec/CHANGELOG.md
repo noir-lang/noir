@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.39.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.38.0...aztec-package-v0.39.0) (2024-05-14)
+
+
+### Features
+
+* **p2p:** GossibSub ([#6170](https://github.com/AztecProtocol/aztec-packages/issues/6170)) ([98d32f1](https://github.com/AztecProtocol/aztec-packages/commit/98d32f112971e6cc96896ddd2c95500f61ba3e8d)), closes [#5055](https://github.com/AztecProtocol/aztec-packages/issues/5055)
+* PublicKeys struct ([#6333](https://github.com/AztecProtocol/aztec-packages/issues/6333)) ([2633cfc](https://github.com/AztecProtocol/aztec-packages/commit/2633cfccef8513151f80e5d43b2baf58e3c244e9))
+
+
+### Miscellaneous
+
+* `CompleteAddress` cleanup ([#6300](https://github.com/AztecProtocol/aztec-packages/issues/6300)) ([9c30759](https://github.com/AztecProtocol/aztec-packages/commit/9c30759ad9d45bc14f487b602837228392fab44f)), closes [#5834](https://github.com/AztecProtocol/aztec-packages/issues/5834)
+
 ## [0.38.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.37.0...aztec-package-v0.38.0) (2024-05-07)
 
 
