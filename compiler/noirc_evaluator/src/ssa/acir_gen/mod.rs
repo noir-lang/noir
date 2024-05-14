@@ -1729,15 +1729,15 @@ impl<'a> Context<'a> {
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg)?;
         let mut warnings = Vec::new();
-        for acir_var in return_acir_vars {
-            if self.acir_context.is_constant(&acir_var.0) {
+        for (acir_var, is_databus) in return_acir_vars {
+            if self.acir_context.is_constant(&acir_var) {
                 warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
                     call_stack: call_stack.clone(),
                 }));
             }
-            if !acir_var.1 {
+            if !is_databus {
                 // We do not return value for the data bus.
-                self.acir_context.return_var(acir_var.0)?;
+                self.acir_context.return_var(acir_var)?;
             }
         }
         Ok(warnings)
