@@ -157,15 +157,15 @@ export class WorldStateAccessTrace {
    */
   public acceptAndMerge(incomingTrace: WorldStateAccessTrace) {
     // Merge storage read and write journals
-    this.publicStorageReads = this.publicStorageReads.concat(incomingTrace.publicStorageReads);
-    this.publicStorageWrites = this.publicStorageWrites.concat(incomingTrace.publicStorageWrites);
+    this.publicStorageReads.push(...incomingTrace.publicStorageReads);
+    this.publicStorageWrites.push(...incomingTrace.publicStorageWrites);
     // Merge new note hashes and nullifiers
-    this.noteHashChecks = this.noteHashChecks.concat(incomingTrace.noteHashChecks);
-    this.newNoteHashes = this.newNoteHashes.concat(incomingTrace.newNoteHashes);
-    this.nullifierChecks = this.nullifierChecks.concat(incomingTrace.nullifierChecks);
-    this.newNullifiers = this.newNullifiers.concat(incomingTrace.newNullifiers);
-    this.l1ToL2MessageChecks = this.l1ToL2MessageChecks.concat(incomingTrace.l1ToL2MessageChecks);
-    this.newLogsHashes = this.newLogsHashes.concat(incomingTrace.newLogsHashes);
+    this.noteHashChecks.push(...incomingTrace.noteHashChecks);
+    this.newNoteHashes.push(...incomingTrace.newNoteHashes);
+    this.nullifierChecks.push(...incomingTrace.nullifierChecks);
+    this.newNullifiers.push(...incomingTrace.newNullifiers);
+    this.l1ToL2MessageChecks.push(...incomingTrace.l1ToL2MessageChecks);
+    this.newLogsHashes.push(...incomingTrace.newLogsHashes);
     // it is assumed that the incoming trace was initialized with this as parent, so accept counter
     this.accessCounter = incomingTrace.accessCounter;
   }

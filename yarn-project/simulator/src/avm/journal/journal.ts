@@ -332,12 +332,12 @@ export class AvmPersistableStateManager {
     this.trace.acceptAndMerge(nestedJournal.trace);
 
     // Accrued Substate
-    this.newL1Messages = this.newL1Messages.concat(nestedJournal.newL1Messages);
-    this.newLogs = this.newLogs.concat(nestedJournal.newLogs);
+    this.newL1Messages.push(...nestedJournal.newL1Messages);
+    this.newLogs.push(...nestedJournal.newLogs);
 
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
-    this.transitionalExecutionResult.allUnencryptedLogs.concat(
-      nestedJournal.transitionalExecutionResult.allUnencryptedLogs,
+    this.transitionalExecutionResult.allUnencryptedLogs.push(
+      ...nestedJournal.transitionalExecutionResult.allUnencryptedLogs,
     );
   }
 
