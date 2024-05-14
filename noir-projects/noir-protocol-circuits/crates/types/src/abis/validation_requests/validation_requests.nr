@@ -89,7 +89,7 @@ impl Empty for ValidationRequests {
 
 impl Eq for ValidationRequests {
     fn eq(self, other: Self) -> bool {
-        self.for_rollup.eq(other.for_rollup) &
+        (self.for_rollup.eq(other.for_rollup)) &
         (self.note_hash_read_requests == other.note_hash_read_requests) &
         (self.nullifier_read_requests == other.nullifier_read_requests) &
         (self.nullifier_non_existent_read_requests == other.nullifier_non_existent_read_requests) &
