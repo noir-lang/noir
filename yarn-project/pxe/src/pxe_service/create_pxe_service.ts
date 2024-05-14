@@ -1,4 +1,5 @@
-import { type AztecNode } from '@aztec/circuit-types';
+import { BBNativeProofCreator } from '@aztec/bb-prover';
+import { type AztecNode, type ProofCreator } from '@aztec/circuit-types';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { TestKeyStore } from '@aztec/key-store';
 import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
@@ -13,8 +14,6 @@ import { join } from 'path';
 
 import { type PXEServiceConfig } from '../config/index.js';
 import { KVPxeDatabase } from '../database/kv_pxe_database.js';
-import { BBNativeProofCreator } from '../kernel_prover/bb_prover/bb_native_proof_creator.js';
-import { type ProofCreator } from '../kernel_prover/interface/proof_creator.js';
 import { TestProofCreator } from '../kernel_prover/test/test_circuit_prover.js';
 import { PXEService } from './pxe_service.js';
 

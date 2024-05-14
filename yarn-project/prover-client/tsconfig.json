@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../bb-prover"
+    },
+    {
       "path": "../circuit-types"
     },
     {
@@ -28,5 +31,5 @@
       "path": "../world-state"
     }
   ],
-  "include": ["src"]
+  "include": ["src", "../bb-prover/src/test/test_circuit_prover.ts"]
 }

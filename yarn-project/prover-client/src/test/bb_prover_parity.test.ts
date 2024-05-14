@@ -1,3 +1,4 @@
+import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
 import {
   BaseParityInputs,
   Fr,
@@ -16,7 +17,6 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import { TestContext } from '../mocks/test_context.js';
-import { BBNativeRollupProver, type BBProverConfig } from './bb_prover.js';
 
 const logger = createDebugLogger('aztec:bb-prover-parity');
 
@@ -53,7 +53,7 @@ describe('prover/bb_prover/parity', () => {
 
     // Verify the base parity proofs
     await expect(
-      Promise.all(rootInputs.map(input => context.prover.verifyProof('BaseParityArtifact', input.proof.binaryProof))),
+      Promise.all(rootInputs.map(input => bbProver.verifyProof('BaseParityArtifact', input.proof.binaryProof))),
     ).resolves.not.toThrow();
 
     // Now generate the root parity proof
@@ -63,7 +63,7 @@ describe('prover/bb_prover/parity', () => {
     const rootOutput = await context.prover.getRootParityProof(rootParityInputs);
 
     // Verify the root parity proof
-    await expect(context.prover.verifyProof('RootParityArtifact', rootOutput.proof.binaryProof)).resolves.not.toThrow();
+    await expect(bbProver.verifyProof('RootParityArtifact', rootOutput.proof.binaryProof)).resolves.not.toThrow();
 
     // Now test for negative cases. We will try and generate 3 invalid proofs.
     // One where a single child has an invalid proof
@@ -125,7 +125,7 @@ describe('prover/bb_prover/parity', () => {
     for (const t of defectiveTuples) {
       try {
         const result = await context.prover.getRootParityProof(new RootParityInputs(t));
-        await context.prover.verifyProof('RootParityArtifact', result.proof.binaryProof);
+        await bbProver.verifyProof('RootParityArtifact', result.proof.binaryProof);
         fail('Proof should not be generated and verified');
       } catch (error) {
         expect([

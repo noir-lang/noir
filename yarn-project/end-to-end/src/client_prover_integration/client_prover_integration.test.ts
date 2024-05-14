@@ -1,6 +1,6 @@
 import { type Tx } from '@aztec/aztec.js';
+import { type BBNativeProofCreator } from '@aztec/bb-prover';
 import { type ClientProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
-import { type BBNativeProofCreator } from '@aztec/pxe';
 
 import { ClientProverTest } from './client_prover_test.js';
 

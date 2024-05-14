@@ -1,3 +1,4 @@
+import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
 import { PublicKernelType, mockTx } from '@aztec/circuit-types';
 import { type Proof, makeEmptyProof } from '@aztec/circuits.js';
 import { makePublicCallRequest } from '@aztec/circuits.js/testing';
@@ -5,22 +6,23 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { type ServerProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
 
 import { TestContext } from '../mocks/test_context.js';
-import { BBNativeRollupProver, type BBProverConfig } from './bb_prover.js';
 
 const logger = createDebugLogger('aztec:bb-prover-public-kernel');
 
 describe('prover/bb_prover/public-kernel', () => {
   let context: TestContext;
+  let prover: BBNativeRollupProver;
 
   beforeAll(async () => {
-    const buildProver = (bbConfig: BBProverConfig) => {
+    const buildProver = async (bbConfig: BBProverConfig) => {
       bbConfig.circuitFilter = [
         'PublicKernelAppLogicArtifact',
         'PublicKernelSetupArtifact',
         'PublicKernelTailArtifact',
         'PublicKernelTeardownArtifact',
       ];
-      return BBNativeRollupProver.new(bbConfig);
+      prover = await BBNativeRollupProver.new(bbConfig);
+      return prover;
     };
     context = await TestContext.new(logger, 1, buildProver);
   });
@@ -84,7 +86,7 @@ describe('prover/bb_prover/public-kernel', () => {
       }
 
       logger.verbose(`Verifying kernel type: ${PublicKernelType[request.type]}`);
-      await expect(context.prover.verifyProof(artifact, proof)).resolves.not.toThrow();
+      await expect(prover.verifyProof(artifact, proof)).resolves.not.toThrow();
     }
   });
 });

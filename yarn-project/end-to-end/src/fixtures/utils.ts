@@ -27,6 +27,7 @@ import {
 } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
+import { type BBNativeProofCreator } from '@aztec/bb-prover';
 import {
   CANONICAL_KEY_REGISTRY_ADDRESS,
   computeContractAddressFromInstance,
@@ -54,13 +55,7 @@ import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
 import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { type ProverClient } from '@aztec/prover-client';
-import {
-  type BBNativeProofCreator,
-  PXEService,
-  type PXEServiceConfig,
-  createPXEService,
-  getPXEServiceConfig,
-} from '@aztec/pxe';
+import { PXEService, type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { type SequencerClient } from '@aztec/sequencer-client';
 
 import { type Anvil, createAnvil } from '@viem/anvil';

@@ -1,3 +1,4 @@
+import { type ServerCircuitProver } from '@aztec/circuit-types';
 import {
   Fr,
   NESTED_RECURSIVE_PROOF_LENGTH,
@@ -14,17 +15,16 @@ import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
-import { type CircuitProver } from '../prover/index.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 describe('prover/orchestrator', () => {
   describe('workflow', () => {
     let orchestrator: ProvingOrchestrator;
-    let mockProver: MockProxy<CircuitProver>;
+    let mockProver: MockProxy<ServerCircuitProver>;
     let actualDb: MerkleTreeOperations;
     beforeEach(async () => {
       actualDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
-      mockProver = mock<CircuitProver>();
+      mockProver = mock<ServerCircuitProver>();
       orchestrator = new ProvingOrchestrator(actualDb, mockProver);
     });
 

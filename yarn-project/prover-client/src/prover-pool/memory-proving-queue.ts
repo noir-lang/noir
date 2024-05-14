@@ -7,6 +7,7 @@ import {
   type PublicInputsAndProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
+  type ServerCircuitProver,
 } from '@aztec/circuit-types';
 import type {
   BaseOrMergeRollupPublicInputs,
@@ -28,8 +29,6 @@ import { MemoryFifo } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type PromiseWithResolvers, promiseWithResolvers } from '@aztec/foundation/promise';
 
-import { type CircuitProver } from '../prover/interface.js';
-
 type ProvingJobWithResolvers<T extends ProvingRequest = ProvingRequest> = {
   id: string;
   request: T;
@@ -41,7 +40,7 @@ const MAX_RETRIES = 3;
 
 const defaultIdGenerator = () => randomBytes(4).toString('hex');
 
-export class MemoryProvingQueue implements CircuitProver, ProvingJobSource {
+export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource {
   private log = createDebugLogger('aztec:prover-client:prover-pool:queue');
   private queue = new MemoryFifo<ProvingJobWithResolvers>();
   private jobsInProgress = new Map<string, ProvingJobWithResolvers>();

@@ -4,6 +4,7 @@ import {
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
   PublicKernelType,
+  type ServerCircuitProver,
   makePublicInputsAndProof,
 } from '@aztec/circuit-types';
 import {
@@ -63,16 +64,19 @@ import {
   generateProof,
   verifyProof,
 } from '../bb/execute.js';
+import { PublicKernelArtifactMapping } from '../mappings/mappings.js';
 import { circuitTypeToCircuitName, emitCircuitProvingStats, emitCircuitWitnessGenerationStats } from '../stats.js';
-import { type CircuitProver, KernelArtifactMapping } from './interface.js';
+import {
+  AGGREGATION_OBJECT_SIZE,
+  CIRCUIT_PUBLIC_INPUTS_INDEX,
+  CIRCUIT_RECURSIVE_INDEX,
+  CIRCUIT_SIZE_INDEX,
+  type VerificationKeyData,
+} from './verification_key_data.js';
 
 const logger = createDebugLogger('aztec:bb-prover');
 
 const CIRCUITS_WITHOUT_AGGREGATION: Set<ServerProtocolArtifact> = new Set(['BaseParityArtifact']);
-const AGGREGATION_OBJECT_SIZE = 16;
-const CIRCUIT_SIZE_INDEX = 3;
-const CIRCUIT_PUBLIC_INPUTS_INDEX = 4;
-const CIRCUIT_RECURSIVE_INDEX = 5;
 
 export type BBProverConfig = {
   bbBinaryPath: string;
@@ -83,19 +87,10 @@ export type BBProverConfig = {
   circuitFilter?: ServerProtocolArtifact[];
 };
 
-type VerificationKeyData = {
-  hash: Fr;
-  keyAsFields: Tuple<Fr, typeof VERIFICATION_KEY_LENGTH_IN_FIELDS>;
-  keyAsBytes: Buffer;
-  numPublicInputs: number;
-  circuitSize: number;
-  isRecursive: boolean;
-};
-
 /**
  * Prover implementation that uses barretenberg native proving
  */
-export class BBNativeRollupProver implements CircuitProver {
+export class BBNativeRollupProver implements ServerCircuitProver {
   private verificationKeys: Map<ServerProtocolArtifact, Promise<VerificationKeyData>> = new Map<
     ServerProtocolArtifact,
     Promise<VerificationKeyData>
@@ -164,7 +159,7 @@ export class BBNativeRollupProver implements CircuitProver {
   public async getPublicKernelProof(
     kernelRequest: PublicKernelNonTailRequest,
   ): Promise<PublicInputsAndProof<PublicKernelCircuitPublicInputs>> {
-    const kernelOps = KernelArtifactMapping[kernelRequest.type];
+    const kernelOps = PublicKernelArtifactMapping[kernelRequest.type];
     if (kernelOps === undefined) {
       throw new Error(`Unable to prove kernel type ${PublicKernelType[kernelRequest.type]}`);
     }
@@ -287,7 +282,7 @@ export class BBNativeRollupProver implements CircuitProver {
       this.config.bbBinaryPath,
       bbWorkingDirectory,
       circuitType,
-      artifact,
+      Buffer.from(artifact.bytecode, 'base64'),
       outputWitnessFile,
       logger.debug,
     );
@@ -374,7 +369,7 @@ export class BBNativeRollupProver implements CircuitProver {
         this.config.bbBinaryPath,
         bbWorkingDirectory,
         circuitType,
-        artifact,
+        Buffer.from(artifact.bytecode, 'base64'),
         outputWitnessFile,
         logger.debug,
       );

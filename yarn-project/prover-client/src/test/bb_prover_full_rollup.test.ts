@@ -1,3 +1,4 @@
+import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
 import { PROVING_STATUS, makeEmptyProcessedTx, mockTx } from '@aztec/circuit-types';
 import { Fr, Header, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
@@ -5,15 +6,19 @@ import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { TestContext } from '../mocks/test_context.js';
-import { BBNativeRollupProver } from './bb_prover.js';
 
 const logger = createDebugLogger('aztec:bb-prover-full-rollup');
 
 describe('prover/bb_prover/full-rollup', () => {
   let context: TestContext;
+  let prover: BBNativeRollupProver;
 
   beforeAll(async () => {
-    context = await TestContext.new(logger, 1, BBNativeRollupProver.new);
+    const buildProver = async (bbConfig: BBProverConfig) => {
+      prover = await BBNativeRollupProver.new(bbConfig);
+      return prover;
+    };
+    context = await TestContext.new(logger, 1, buildProver);
   });
 
   afterAll(async () => {
@@ -57,6 +62,6 @@ describe('prover/bb_prover/full-rollup', () => {
 
     const blockResult = await context.orchestrator.finaliseBlock();
 
-    await expect(context.prover.verifyProof('RootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
+    await expect(prover.verifyProof('RootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
   });
 });

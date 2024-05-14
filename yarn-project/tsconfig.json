@@ -25,6 +25,7 @@
     { "path": "aztec-faucet/tsconfig.json" },
     { "path": "aztec.js/tsconfig.json" },
     { "path": "aztec-node/tsconfig.json" },
+    { "path": "bb-prover/tsconfig.json" },
     { "path": "pxe/tsconfig.json" },
     { "path": "aztec/tsconfig.json" },
     { "path": "circuits.js/tsconfig.json" },

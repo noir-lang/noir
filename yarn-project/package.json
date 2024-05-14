@@ -24,6 +24,7 @@
     "archiver",
     "aztec-faucet",
     "aztec-node",
+    "bb-prover",
     "pxe",
     "aztec",
     "aztec.js",

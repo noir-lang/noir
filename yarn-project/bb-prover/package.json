@@ -1,21 +1,22 @@
 {
-  "name": "@aztec/prover-client",
+  "name": "@aztec/bb-prover",
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./dest/index.js",
-    "./prover-pool": "./dest/prover-pool/index.js"
+    ".": "./dest/index.js"
+  },
+  "bin": {
+    "bb-cli": "./dest/bb/index.js"
   },
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"
     ],
-    "name": "Prover Client",
+    "name": "BB Prover",
     "tsconfig": "./tsconfig.json"
   },
   "inherits": [
-    "../package.common.json",
-    "./package.local.json"
+    "../package.common.json"
   ],
   "scripts": {
     "build": "yarn clean && tsc -b",
@@ -24,7 +25,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "bb": "node --no-warnings ./dest/bb/index.js",
-    "test": "LOG_LEVEL=${LOG_LEVEL:-silent} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=750000 --forceExit"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
   },
   "jest": {
     "moduleNameMapper": {
@@ -50,17 +51,14 @@
     ]
   },
   "dependencies": {
-    "@aztec/bb-prover": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/kv-store": "workspace:^",
     "@aztec/noir-protocol-circuits-types": "workspace:^",
     "@aztec/simulator": "workspace:^",
-    "@aztec/world-state": "workspace:^",
+    "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi",
     "@noir-lang/types": "portal:../../noir/packages/types",
     "commander": "^9.0.0",
-    "lodash.chunk": "^4.2.0",
     "source-map-support": "^0.5.21",
     "tslib": "^2.4.0"
   },

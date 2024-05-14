@@ -1,4 +1,4 @@
-import { PROVING_STATUS, type ProvingFailure } from '@aztec/circuit-types';
+import { PROVING_STATUS, type ProvingFailure, type ServerCircuitProver } from '@aztec/circuit-types';
 import {
   type GlobalVariables,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -12,10 +12,9 @@ import { sleep } from '@aztec/foundation/sleep';
 
 import { jest } from '@jest/globals';
 
+import { TestCircuitProver } from '../../../bb-prover/src/test/test_circuit_prover.js';
 import { makeBloatedProcessedTx, makeEmptyProcessedTestTx, makeGlobals } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
-import { type CircuitProver } from '../prover/interface.js';
-import { TestCircuitProver } from '../prover/test_circuit_prover.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 const logger = createDebugLogger('aztec:orchestrator-lifecycle');
@@ -137,7 +136,7 @@ describe('prover/orchestrator/lifecycle', () => {
     }, 60000);
 
     it('cancels proving requests', async () => {
-      const prover: CircuitProver = new TestCircuitProver();
+      const prover: ServerCircuitProver = new TestCircuitProver();
       const orchestrator = new ProvingOrchestrator(context.actualDb, prover);
 
       const spy = jest.spyOn(prover, 'getBaseParityProof');

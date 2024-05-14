@@ -1,16 +1,15 @@
-import { PROVING_STATUS } from '@aztec/circuit-types';
+import { PROVING_STATUS, type ServerCircuitProver } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { WASMSimulator } from '@aztec/simulator';
 
 import { jest } from '@jest/globals';
 
+import { TestCircuitProver } from '../../../bb-prover/src/test/test_circuit_prover.js';
 import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
 import { ProverAgent } from '../prover-pool/prover-agent.js';
 import { ProverPool } from '../prover-pool/prover-pool.js';
-import { type CircuitProver } from '../prover/index.js';
-import { TestCircuitProver } from '../prover/test_circuit_prover.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 const logger = createDebugLogger('aztec:orchestrator-failures');
@@ -29,7 +28,7 @@ describe('prover/orchestrator/failures', () => {
   });
 
   describe('error handling', () => {
-    let mockProver: CircuitProver;
+    let mockProver: ServerCircuitProver;
     let queue: MemoryProvingQueue;
 
     beforeEach(async () => {

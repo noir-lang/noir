@@ -7,43 +7,19 @@
   },
   "references": [
     {
-      "path": "../bb-prover"
-    },
-    {
-      "path": "../builder"
-    },
-    {
       "path": "../circuit-types"
     },
     {
       "path": "../circuits.js"
     },
     {
-      "path": "../ethereum"
-    },
-    {
       "path": "../foundation"
-    },
-    {
-      "path": "../key-store"
-    },
-    {
-      "path": "../kv-store"
     },
     {
       "path": "../noir-protocol-circuits-types"
     },
     {
-      "path": "../protocol-contracts"
-    },
-    {
       "path": "../simulator"
-    },
-    {
-      "path": "../types"
-    },
-    {
-      "path": "../noir-contracts.js"
     }
   ],
   "include": ["src"]

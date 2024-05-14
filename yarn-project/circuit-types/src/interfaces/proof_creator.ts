@@ -11,7 +11,8 @@ import {
   type VerificationKeyAsFields,
 } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
-import { type ACVMField } from '@aztec/simulator';
+
+import { type WitnessMap } from '@noir-lang/acvm_js';
 
 /**
  * Represents the output of the proof creation process for init and inner private kernel circuit.
@@ -93,5 +94,5 @@ export interface ProofCreator {
    * @param bytecode - The circuit bytecode in gzipped bincode format
    * @returns A Promise resolving to a Proof object
    */
-  createAppCircuitProof(partialWitness: Map<number, ACVMField>, bytecode: Buffer): Promise<AppCircuitProofOutput>;
+  createAppCircuitProof(partialWitness: WitnessMap, bytecode: Buffer): Promise<AppCircuitProofOutput>;
 }

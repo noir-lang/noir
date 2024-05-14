@@ -96,6 +96,7 @@ deploy_package kv-store
 deploy_package merkle-tree
 deploy_package noir-protocol-circuits-types
 deploy_package simulator
+deploy_package bb-prover
 deploy_package key-store
 deploy_package pxe
 deploy_package archiver

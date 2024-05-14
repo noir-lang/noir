@@ -1,3 +1,4 @@
+import { type ServerCircuitProver } from '@aztec/circuit-types';
 import {
   RECURSIVE_PROOF_LENGTH,
   RootParityInput,
@@ -8,17 +9,16 @@ import { makeBaseParityInputs, makeParityPublicInputs } from '@aztec/circuits.js
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { type CircuitProver } from '../prover/interface.js';
 import { MemoryProvingQueue } from './memory-proving-queue.js';
 import { ProverAgent } from './prover-agent.js';
 
 describe('ProverAgent', () => {
   let queue: MemoryProvingQueue;
   let agent: ProverAgent;
-  let prover: MockProxy<CircuitProver>;
+  let prover: MockProxy<ServerCircuitProver>;
 
   beforeEach(() => {
-    prover = mock<CircuitProver>();
+    prover = mock<ServerCircuitProver>();
     queue = new MemoryProvingQueue();
     agent = new ProverAgent(prover);
   });
