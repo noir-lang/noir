@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0"
 # local
 acvm = { path = "../noir/noir-repo/acvm-repo/acvm" }
 noirc_driver = { path = "../noir/noir-repo/compiler/noirc_driver" }
+noirc_errors = { path = "../noir/noir-repo/compiler/noirc_errors" }
 
 # external
 base64 = "0.21"

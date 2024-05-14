@@ -313,6 +313,7 @@ dependencies = [
  "env_logger",
  "log",
  "noirc_driver",
+ "noirc_errors",
  "regex",
  "serde",
  "serde_json",

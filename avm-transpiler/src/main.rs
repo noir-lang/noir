@@ -9,7 +9,7 @@ mod transpile;
 mod transpile_contract;
 mod utils;
 
-use transpile_contract::{CompiledAcirContract, TranspiledContract};
+use transpile_contract::{CompiledAcirContractArtifact, TranspiledContractArtifact};
 
 fn main() {
     env_logger::init();
@@ -38,11 +38,11 @@ fn main() {
     .expect("Unable to backup file");
 
     // Parse json into contract object
-    let contract: CompiledAcirContract =
+    let contract: CompiledAcirContractArtifact =
         serde_json::from_str(&contract_json).expect("Unable to parse json");
 
     // Transpile contract to AVM bytecode
-    let transpiled_contract = TranspiledContract::from(contract);
+    let transpiled_contract = TranspiledContractArtifact::from(contract);
     let transpiled_json =
         serde_json::to_string(&transpiled_contract).expect("Unable to serialize json");
     fs::write(out_transpiled_artifact_path, transpiled_json).expect("Unable to write file");
