@@ -111,11 +111,6 @@ while [ "$(aws ec2 describe-volumes \
   elapsed_time=$((elapsed_time + WAIT_INTERVAL))
 done
 
-# First, make sure this is detached from any instances stuck in stopping state
-aws ec2 detach-volume \
-  --region $REGION \
-  --volume-id $VOLUME_ID || true
-
 # Attach volume to the instance
 aws ec2 attach-volume \
   --region $REGION \
