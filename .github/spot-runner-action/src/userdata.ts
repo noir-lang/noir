@@ -20,7 +20,7 @@ export class UserData {
       `shutdown -P +${this.config.ec2InstanceTtl}`,
       `echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json`,
       `sudo service docker restart`,
-      "sudo wget -q https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-$(dpkg --print-architecture) -O /usr/local/bin/earthly",
+      "sudo wget -q https://github.com/earthly/earthly/releases/download/v0.8.10/earthly-linux-$(dpkg --print-architecture) -O /usr/local/bin/earthly",
       "sudo chmod +x /usr/local/bin/earthly",
       "sudo apt install -y brotli",
       'echo "MaxStartups 1000" >> /etc/ssh/sshd_config',

@@ -42,7 +42,7 @@ runs:
         # permission issue with spot runners, simpler to leave out
         use-cache: false
         # NOTE also update in .github/spot-runner-action/src/userdata.ts
-        version: "v0.8.9"
+        version: "v0.8.10"
 
     - name: Setup Env
       shell: bash
