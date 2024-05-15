@@ -20,6 +20,9 @@ import {NaiveMerkle} from "../merkle/Naive.sol";
 import {TokenPortal} from "./TokenPortal.sol";
 import {UniswapPortal} from "./UniswapPortal.sol";
 
+// Portal tokens
+import {PortalERC20} from "./PortalERC20.sol";
+
 contract UniswapPortalTest is Test {
   using Hash for DataStructures.L2ToL1Msg;
 
@@ -48,8 +51,10 @@ contract UniswapPortalTest is Test {
     vm.selectFork(forkId);
 
     registry = new Registry();
-    rollup = new Rollup(registry, new AvailabilityOracle());
+    PortalERC20 portalERC20 = new PortalERC20();
+    rollup = new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)));
     registry.upgrade(address(rollup), address(rollup.INBOX()), address(rollup.OUTBOX()));
+    portalERC20.mint(address(rollup), 1000000);
 
     daiTokenPortal = new TokenPortal();
     daiTokenPortal.initialize(address(registry), address(DAI), l2TokenAddress);

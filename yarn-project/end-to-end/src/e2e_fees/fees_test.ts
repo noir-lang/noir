@@ -14,8 +14,9 @@ import {
   createDebugLogger,
 } from '@aztec/aztec.js';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
-import { GasSettings } from '@aztec/circuits.js';
+import { EthAddress, GasSettings } from '@aztec/circuits.js';
 import { createL1Clients } from '@aztec/ethereum';
+import { PortalERC20Abi } from '@aztec/l1-artifacts';
 import {
   AppSubscriptionContract,
   TokenContract as BananaCoin,
@@ -23,6 +24,8 @@ import {
   FPCContract,
   GasTokenContract,
 } from '@aztec/noir-contracts.js';
+
+import { getContract } from 'viem';
 
 import { MNEMONIC } from '../fixtures/fixtures.js';
 import {
@@ -58,6 +61,7 @@ export class FeesTest {
   public bobWallet!: AccountWallet;
   public bobAddress!: AztecAddress;
   public sequencerAddress!: AztecAddress;
+  public coinbase!: EthAddress;
 
   public gasSettings = GasSettings.default();
   public maxFee = this.gasSettings.getFeeLimit().toBigInt();
@@ -68,6 +72,7 @@ export class FeesTest {
   public counterContract!: CounterContract;
   public subscriptionContract!: AppSubscriptionContract;
 
+  public getCoinbaseBalance!: () => Promise<bigint>;
   public gasBalances!: BalancesFn;
   public bananaPublicBalances!: BalancesFn;
   public bananaPrivateBalances!: BalancesFn;
@@ -84,7 +89,7 @@ export class FeesTest {
 
   async setup() {
     const context = await this.snapshotManager.setup();
-    await context.aztecNode.setConfig({ feeRecipient: this.sequencerAddress });
+    await context.aztecNode.setConfig({ feeRecipient: this.sequencerAddress, coinbase: this.coinbase });
     ({ pxe: this.pxe, aztecNode: this.aztecNode } = context);
     return this;
   }
@@ -138,6 +143,7 @@ export class FeesTest {
         this.wallets.forEach((w, i) => this.logger.verbose(`Wallet ${i} address: ${w.getAddress()}`));
         [this.aliceWallet, this.bobWallet] = this.wallets.slice(0, 2);
         [this.aliceAddress, this.bobAddress, this.sequencerAddress] = this.wallets.map(w => w.getAddress());
+        this.coinbase = EthAddress.random();
       },
     );
   }
@@ -185,6 +191,8 @@ export class FeesTest {
           bananaCoinAddress: bananaCoin.address,
           bananaFPCAddress: bananaFPC.address,
           gasTokenAddress: gasTokenContract.address,
+          l1GasTokenAddress: harness.l1GasTokenAddress,
+          rpcUrl: context.aztecNodeConfig.rpcUrl,
         };
       },
       async data => {
@@ -199,6 +207,16 @@ export class FeesTest {
         this.bananaPublicBalances = getBalancesFn('🍌.public', bananaCoin.methods.balance_of_public, this.logger);
         this.bananaPrivateBalances = getBalancesFn('🍌.private', bananaCoin.methods.balance_of_private, this.logger);
         this.gasBalances = getBalancesFn('⛽', gasTokenContract.methods.balance_of_public, this.logger);
+
+        this.getCoinbaseBalance = async () => {
+          const { walletClient } = createL1Clients(data.rpcUrl, MNEMONIC);
+          const gasL1 = getContract({
+            address: data.l1GasTokenAddress.toString(),
+            abi: PortalERC20Abi,
+            client: walletClient,
+          });
+          return await gasL1.read.balanceOf([this.coinbase.toString()]);
+        };
       },
     );
   }

@@ -36,6 +36,8 @@ describe('e2e_fees private_payment', () => {
     await t.teardown();
   });
 
+  let InitialSequencerL1Gas: bigint;
+
   let InitialAlicePublicBananas: bigint;
   let InitialAlicePrivateBananas: bigint;
   let InitialAliceGas: bigint;
@@ -58,6 +60,8 @@ describe('e2e_fees private_payment', () => {
     refundSecret = Fr.random();
 
     expect(gasSettings.getFeeLimit().toBigInt()).toEqual(maxFee);
+
+    InitialSequencerL1Gas = await t.getCoinbaseBalance();
 
     [
       [InitialAlicePrivateBananas, InitialBobPrivateBananas, InitialFPCPrivateBananas],
@@ -104,7 +108,6 @@ describe('e2e_fees private_payment', () => {
      */
     const transferAmount = 5n;
     const interaction = bananaCoin.methods.transfer(aliceAddress, bobAddress, transferAmount, 0n);
-
     const localTx = await interaction.prove({
       fee: {
         gasSettings,
@@ -114,6 +117,8 @@ describe('e2e_fees private_payment', () => {
     expect(localTx.data.feePayer).toEqual(bananaFPC.address);
 
     const tx = await interaction.send().wait();
+
+    await expect(t.getCoinbaseBalance()).resolves.toEqual(InitialSequencerL1Gas + 1n);
 
     /**
      * at present the user is paying DA gas for:

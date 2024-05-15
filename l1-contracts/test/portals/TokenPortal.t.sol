@@ -14,6 +14,7 @@ import {Errors} from "../../src/core/libraries/Errors.sol";
 // Interfaces
 import {IInbox} from "../../src/core/interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "../../src/core/interfaces/messagebridge/IOutbox.sol";
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
 // Portal tokens
 import {TokenPortal} from "./TokenPortal.sol";
@@ -57,13 +58,14 @@ contract TokenPortalTest is Test {
 
   function setUp() public {
     registry = new Registry();
-    rollup = new Rollup(registry, new AvailabilityOracle());
+    portalERC20 = new PortalERC20();
+    rollup = new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)));
     inbox = rollup.INBOX();
     outbox = rollup.OUTBOX();
 
     registry.upgrade(address(rollup), address(inbox), address(outbox));
 
-    portalERC20 = new PortalERC20();
+    portalERC20.mint(address(rollup), 1000000);
     tokenPortal = new TokenPortal();
 
     tokenPortal.initialize(address(registry), address(portalERC20), l2TokenAddress);

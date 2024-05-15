@@ -8,6 +8,7 @@ import {IAvailabilityOracle} from "./interfaces/IAvailabilityOracle.sol";
 import {IInbox} from "./interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "./interfaces/messagebridge/IOutbox.sol";
 import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
 // Libraries
 import {HeaderLib} from "./libraries/HeaderLib.sol";
@@ -33,6 +34,7 @@ contract Rollup is IRollup {
   IInbox public immutable INBOX;
   IOutbox public immutable OUTBOX;
   uint256 public immutable VERSION;
+  IERC20 public immutable GAS_TOKEN;
 
   bytes32 public archive; // Root of the archive tree
   uint256 public lastBlockTs;
@@ -40,10 +42,11 @@ contract Rollup is IRollup {
   // See https://github.com/AztecProtocol/aztec-packages/issues/1614
   uint256 public lastWarpedBlockTs;
 
-  constructor(IRegistry _registry, IAvailabilityOracle _availabilityOracle) {
+  constructor(IRegistry _registry, IAvailabilityOracle _availabilityOracle, IERC20 _gasToken) {
     VERIFIER = new MockVerifier();
     REGISTRY = _registry;
     AVAILABILITY_ORACLE = _availabilityOracle;
+    GAS_TOKEN = _gasToken;
     INBOX = new Inbox(address(this), Constants.L1_TO_L2_MSG_SUBTREE_HEIGHT);
     OUTBOX = new Outbox(address(this));
     VERSION = 1;
@@ -91,6 +94,11 @@ contract Rollup is IRollup {
     OUTBOX.insert(
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeHeight
     );
+
+    // pay the coinbase 1 gas token if it is not empty
+    if (header.globalVariables.coinbase != address(0)) {
+      GAS_TOKEN.transfer(address(header.globalVariables.coinbase), 1);
+    }
 
     emit L2BlockProcessed(header.globalVariables.blockNumber);
   }

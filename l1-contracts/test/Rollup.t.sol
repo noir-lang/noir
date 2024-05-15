@@ -2,6 +2,8 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+
 import {DecoderBase} from "./decoders/Base.sol";
 
 import {DataStructures} from "../src/core/libraries/DataStructures.sol";
@@ -15,6 +17,7 @@ import {Rollup} from "../src/core/Rollup.sol";
 import {AvailabilityOracle} from "../src/core/availability_oracle/AvailabilityOracle.sol";
 import {NaiveMerkle} from "./merkle/Naive.sol";
 import {MerkleTestUtil} from "./merkle/TestUtil.sol";
+import {PortalERC20} from "./portals/PortalERC20.sol";
 
 import {TxsDecoderHelper} from "./decoders/helpers/TxsDecoderHelper.sol";
 
@@ -29,17 +32,22 @@ contract RollupTest is DecoderBase {
   Rollup internal rollup;
   MerkleTestUtil internal merkleTestUtil;
   TxsDecoderHelper internal txsHelper;
+  PortalERC20 internal portalERC20;
 
   AvailabilityOracle internal availabilityOracle;
 
   function setUp() public virtual {
     registry = new Registry();
     availabilityOracle = new AvailabilityOracle();
-    rollup = new Rollup(registry, availabilityOracle);
+    portalERC20 = new PortalERC20();
+    rollup = new Rollup(registry, availabilityOracle, IERC20(address(portalERC20)));
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
 
     registry.upgrade(address(rollup), address(inbox), address(outbox));
+
+    // mint some tokens to the rollup
+    portalERC20.mint(address(rollup), 1000000);
 
     merkleTestUtil = new MerkleTestUtil();
     txsHelper = new TxsDecoderHelper();
