@@ -5,7 +5,7 @@ use noirc_frontend::{macros_api::Span, token::Token};
 
 use crate::rewrite;
 use crate::visitor::{
-    expr::{format_brackets, format_parens, format_turbofish, NewlineMode},
+    expr::{format_brackets, format_parens, NewlineMode},
     ExpressionType, FmtVisitor, Indent, Shape,
 };
 
@@ -87,7 +87,7 @@ pub(crate) fn rewrite(
             if let Some(generics) = method_call_expr.generics {
                 let mut turbofish = "".to_owned();
                 for (i, generic) in generics.into_iter().enumerate() {
-                    let generic = rewrite::typ(&visitor, shape, generic);
+                    let generic = rewrite::typ(visitor, shape, generic);
                     turbofish = if i == 0 {
                         format!("<{}", generic)
                     } else {
