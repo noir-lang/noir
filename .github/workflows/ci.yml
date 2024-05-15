@@ -159,11 +159,11 @@ jobs:
           concurrency_key: noir-format-${{ github.event.pull_request.user.login || github.actor }}-x86
       - name: "Format Noir"
         working-directory: ./noir/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./+format
       - name: "Format noir-projects"
         working-directory: ./noir-projects/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./+format
 
   # barretenberg (prover) native and AVM (public VM) tests
@@ -181,7 +181,7 @@ jobs:
           concurrency_key: bb-native-tests-${{ github.event.pull_request.user.login || github.actor }}-x86
       - name: "Native Prover Tests"
         working-directory: ./barretenberg/cpp/
-        timeout-minutes: 35
+        timeout-minutes: 40
         # limit our parallelism to half our cores
         run: earthly-ci --no-output +test --hardware_concurrency=64
 
@@ -196,7 +196,7 @@ jobs:
           concurrency_key: bb-js-test-${{ github.actor }}-x86
       - name: "bb.js Tests"
         working-directory: ./barretenberg/ts/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./+test
 
   noir-test:
@@ -233,7 +233,7 @@ jobs:
         with:
           concurrency_key: noir-projects-${{ github.event.pull_request.user.login || github.actor }}-x86
       - name: "Noir Projects"
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./noir-projects/+test
 
   yarn-project-formatting:
@@ -247,7 +247,7 @@ jobs:
         with:
           concurrency_key: yarn-project-formatting-${{ github.actor }}-x86
       - name: "Yarn Project Tests"
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./yarn-project/+format-check
 
   yarn-project-test:
@@ -262,7 +262,7 @@ jobs:
         with:
           concurrency_key: yarn-project-test-${{ github.actor }}-x86
       - name: "Yarn Project Tests"
-        timeout-minutes: 30
+        timeout-minutes: 40
         run: earthly-ci --no-output ./yarn-project/+test
 
   prover-client-test:
@@ -275,7 +275,7 @@ jobs:
         with:
           concurrency_key: prover-client-test-${{ github.actor }}-x86
       - name: "Prover Client Tests"
-        timeout-minutes: 35
+        timeout-minutes: 40
         run: earthly-ci --no-output ./yarn-project/+prover-client-test
 
   build-acir-tests:
@@ -288,7 +288,7 @@ jobs:
         with:
           concurrency_key: build-acir-tests-${{ github.actor }}-x86
       - name: "Build Acir Tests"
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./noir/+build-acir-tests
 
   barretenberg-acir-tests-bb:
@@ -302,7 +302,7 @@ jobs:
           concurrency_key: barretenberg-acir-tests-bb-${{ github.actor }}-x86
       - name: "BB Native Acir Tests"
         working-directory: ./noir/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./+barretenberg-acir-tests-bb
 
   barretenberg-acir-tests-sol:
@@ -316,7 +316,7 @@ jobs:
           concurrency_key: barretenberg-acir-tests-sol-${{ github.actor }}-x86
       - name: "BB Solidity Acir Tests"
         working-directory: ./noir/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./+barretenberg-acir-tests-sol
 
   barretenberg-acir-tests-bb-js:
@@ -330,7 +330,7 @@ jobs:
           concurrency_key: barretenberg-acir-tests-bb-js-${{ github.actor }}-x86
       - name: "BB JS Acir Tests"
         working-directory: ./noir/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
 
   docs-preview:
@@ -344,7 +344,7 @@ jobs:
         with:
           concurrency_key: docs-preview-${{ github.event.pull_request.user.login || github.actor }}-x86
       - name: "Docs Preview"
-        timeout-minutes: 30
+        timeout-minutes: 40
         run: earthly-ci --no-output ./docs/+deploy-preview --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
 
   bb-bench:
@@ -364,7 +364,7 @@ jobs:
             scripts/earthly-ci --push ./barretenberg/cpp/+bench-binaries
       - name: Run Bench
         uses: ./.github/ensure-tester
-        timeout-minutes: 25
+        timeout-minutes: 40
         with:
           runner_type: 16core-tester-x86
           run: |
@@ -385,7 +385,7 @@ jobs:
           concurrency_key: protocol-circuits-gates-report-${{ github.event.pull_request.user.login || github.actor }}-x86
       - name: "Noir Protocol Circuits Report"
         working-directory: ./noir-projects/
-        timeout-minutes: 25
+        timeout-minutes: 40
         run: |
           earthly-ci --artifact +gates-report/gates_report.json
           mv gates_report.json ../protocol_circuits_report.json
