@@ -239,7 +239,7 @@ export class Ec2Instance {
       LaunchTemplateConfigs: [fleetLaunchConfig],
       ClientToken: this.config.clientToken || undefined,
       SpotOptions: {
-        AllocationStrategy: "price-capacity-optimized",
+        AllocationStrategy: "capacity-optimized",
       },
       TargetCapacitySpecification: {
         TotalTargetCapacity: 1,
