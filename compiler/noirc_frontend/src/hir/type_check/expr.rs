@@ -392,7 +392,6 @@ impl<'interner> TypeChecker<'interner> {
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) = self.instantiate(t, bindings, generics, expected_generic_count, span);
-        // let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
@@ -438,7 +437,6 @@ impl<'interner> TypeChecker<'interner> {
         match generics {
             Some(generics) => {
                 if generics.len() != expected_generic_count {
-                    dbg!("got this");
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: expected_generic_count,
                         actual_count: generics.len(),
@@ -463,12 +461,9 @@ impl<'interner> TypeChecker<'interner> {
     ) {
         match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
             Ok(impl_kind) => {
-                // dbg!(impl_kind.clone());
-                // dbg!(self.errors.len());
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
             Err(erroring_constraints) => {
-                dbg!(erroring_constraints.len());
                 if erroring_constraints.is_empty() {
                     self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 } else {
