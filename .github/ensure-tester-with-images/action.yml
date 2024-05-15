@@ -41,9 +41,9 @@ runs:
             docker images --no-trunc --quiet \$image
           done" > .success_key
         # TODO better image key
-        echo "IMAGE_KEY=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        echo "IMAGE_KEY=$(cat .success_key | md5sum | awk '{print $1}')-$(git rev-parse HEAD)" >> $GITHUB_ENV
         echo "${{ inputs.run }}" >> .success_key
-        echo "SUCCESS_KEY=$(cat .success_key | md5sum | awk '{print $1}') " >> $GITHUB_ENV
+        echo "SUCCESS_KEY=$(cat .success_key | md5sum | awk '{print $1}')" >> $GITHUB_ENV
 
     - name: Check Cached Success
       uses: ./.github/cache-success
@@ -64,7 +64,7 @@ runs:
 
             sudo flock /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.lock bash -c '
               if ! [ -f /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli ] ; then
-                docker save aztecprotocol/aztec:${{ env.IMAGE_KEY }} aztecprotocol/end-to-end:${{ env.IMAGE_KEY }} | brotli -2 > /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli.tmp
+                docker save ${{ inputs.builder_images_to_copy }} | brotli -2 > /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli.tmp
                 mv /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli.tmp /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli
               fi'
             sudo cat /var/lib/docker/tmp-images/${{ env.IMAGE_KEY }}.brotli
