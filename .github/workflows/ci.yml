@@ -333,6 +333,18 @@ jobs:
         timeout-minutes: 40
         run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
 
+  l1-contracts-test:
+    needs: setup
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: l1-contracts-${{ github.event.pull_request.user.login || github.actor }}-x86
+      - name: "Test l1 contracts"
+        run: earthly-ci --no-output ./l1-contracts+test
+
   docs-preview:
     needs: build
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86

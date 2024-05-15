@@ -8,5 +8,10 @@ build:
     # "slither": "forge clean && forge build --build-info --skip '*/test/**' --force && slither . --checklist --ignore-compile --show-ignored-findings --config-file ./slither.config.json | tee slither_output.md",
     # "slither-has-diff": "./slither_has_diff.sh"
     RUN solhint --config ./.solhint.json --fix "src/**/*.sol"
-    RUN forge clean && forge fmt --check && forge build && forge test --no-match-contract UniswapPortalTest
+    RUN forge clean && forge fmt --check
+    RUN forge build
     SAVE ARTIFACT /usr/src/l1-contracts /usr/src/l1-contracts
+
+test:
+    FROM +build
+    RUN forge test --no-match-contract UniswapPortalTest
