@@ -107,6 +107,11 @@
     [[maybe_unused]] auto avm_byte_lookup_table_input_b = View(new_term.avm_byte_lookup_table_input_b);                \
     [[maybe_unused]] auto avm_byte_lookup_table_op_id = View(new_term.avm_byte_lookup_table_op_id);                    \
     [[maybe_unused]] auto avm_byte_lookup_table_output = View(new_term.avm_byte_lookup_table_output);                  \
+    [[maybe_unused]] auto avm_conversion_clk = View(new_term.avm_conversion_clk);                                      \
+    [[maybe_unused]] auto avm_conversion_input = View(new_term.avm_conversion_input);                                  \
+    [[maybe_unused]] auto avm_conversion_num_limbs = View(new_term.avm_conversion_num_limbs);                          \
+    [[maybe_unused]] auto avm_conversion_radix = View(new_term.avm_conversion_radix);                                  \
+    [[maybe_unused]] auto avm_conversion_to_radix_le_sel = View(new_term.avm_conversion_to_radix_le_sel);              \
     [[maybe_unused]] auto avm_kernel_kernel_inputs__is_public = View(new_term.avm_kernel_kernel_inputs__is_public);    \
     [[maybe_unused]] auto avm_kernel_kernel_sel = View(new_term.avm_kernel_kernel_sel);                                \
     [[maybe_unused]] auto avm_kernel_q_public_input_kernel_add_to_table =                                              \
@@ -173,6 +178,7 @@
     [[maybe_unused]] auto avm_main_sel_op_not = View(new_term.avm_main_sel_op_not);                                    \
     [[maybe_unused]] auto avm_main_sel_op_or = View(new_term.avm_main_sel_op_or);                                      \
     [[maybe_unused]] auto avm_main_sel_op_portal = View(new_term.avm_main_sel_op_portal);                              \
+    [[maybe_unused]] auto avm_main_sel_op_radix_le = View(new_term.avm_main_sel_op_radix_le);                          \
     [[maybe_unused]] auto avm_main_sel_op_sender = View(new_term.avm_main_sel_op_sender);                              \
     [[maybe_unused]] auto avm_main_sel_op_shl = View(new_term.avm_main_sel_op_shl);                                    \
     [[maybe_unused]] auto avm_main_sel_op_shr = View(new_term.avm_main_sel_op_shr);                                    \
@@ -216,6 +222,7 @@
     [[maybe_unused]] auto avm_mem_w_in_tag = View(new_term.avm_mem_w_in_tag);                                          \
     [[maybe_unused]] auto perm_main_alu = View(new_term.perm_main_alu);                                                \
     [[maybe_unused]] auto perm_main_bin = View(new_term.perm_main_bin);                                                \
+    [[maybe_unused]] auto perm_main_conv = View(new_term.perm_main_conv);                                              \
     [[maybe_unused]] auto perm_main_mem_a = View(new_term.perm_main_mem_a);                                            \
     [[maybe_unused]] auto perm_main_mem_b = View(new_term.perm_main_mem_b);                                            \
     [[maybe_unused]] auto perm_main_mem_c = View(new_term.perm_main_mem_c);                                            \

@@ -15,6 +15,9 @@ class Execution {
     Execution() = default;
 
     static std::vector<Row> gen_trace(std::vector<Instruction> const& instructions,
+                                      std::vector<FF>& returndata,
+                                      std::vector<FF> const& calldata = {});
+    static std::vector<Row> gen_trace(std::vector<Instruction> const& instructions,
                                       std::vector<FF> const& calldata = {});
     static std::tuple<AvmFlavor::VerificationKey, bb::HonkProof> prove(std::vector<uint8_t> const& bytecode,
                                                                        std::vector<FF> const& calldata = {});

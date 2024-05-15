@@ -4,6 +4,7 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
+#include <memory>
 
 namespace tests_avm {
 
@@ -621,6 +622,76 @@ TEST_F(AvmExecutionTests, setAndCastOpcodes)
     validate_trace(std::move(trace));
 }
 
+// Positive test with TO_RADIX_LE.
+TEST_F(AvmExecutionTests, toRadixLeOpcode)
+{
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // opcode CALLDATACOPY
+                               "00"                           // Indirect flag
+                               "00000000"                     // cd_offset
+                               "00000001"                     // copy_size
+                               "00000001"                     // dst_offset
+                               + to_hex(OpCode::SET) +        // opcode SET for indirect src
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000001"                     // value 1 (i.e. where the src from calldata is copied)
+                               "00000011"                     // dst_offset 17
+                               + to_hex(OpCode::SET) +        // opcode SET for indirect dst
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000005"                     // value 5 (i.e. where the dst will be written to)
+                               "00000015"                     // dst_offset 21
+                               + to_hex(OpCode::TORADIXLE) +  // opcode TO_RADIX_LE
+                               "03"                           // Indirect flag
+                               "00000011"                     // src_offset 17 (indirect)
+                               "00000015"                     // dst_offset 21 (indirect)
+                               "00000002"                     // radix: 2 (i.e. perform bitwise decomposition)
+                               "00000100"                     // limbs: 256
+                               + to_hex(OpCode::RETURN) +     // opcode RETURN
+                               "00"                           // Indirect flag
+                               "00000005"                     // ret offset 0
+                               "00000100";                    // ret size 0
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    ASSERT_THAT(instructions, SizeIs(5));
+
+    // TORADIXLE
+    EXPECT_THAT(instructions.at(3),
+                AllOf(Field(&Instruction::op_code, OpCode::TORADIXLE),
+                      Field(&Instruction::operands,
+                            ElementsAre(VariantWith<uint8_t>(3),
+                                        VariantWith<uint32_t>(17),
+                                        VariantWith<uint32_t>(21),
+                                        VariantWith<uint32_t>(2),
+                                        VariantWith<uint32_t>(256)))));
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata = std::vector<FF>();
+    auto trace = Execution::gen_trace(instructions, returndata, std::vector<FF>{ FF::modulus - FF(1) });
+
+    // Find the first row enabling the TORADIXLE selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_radix_le == 1; });
+    EXPECT_EQ(row->avm_main_ind_a, 17);
+    EXPECT_EQ(row->avm_main_ind_b, 21);
+    EXPECT_EQ(row->avm_main_mem_idx_a, 1);                // Indirect(17) -> 1
+    EXPECT_EQ(row->avm_main_mem_idx_b, 5);                // Indirect(21) -> 5
+    EXPECT_EQ(row->avm_main_ia, FF(FF::modulus - FF(1))); //  Indirect(17) -> Direct(1) -> FF::modulus - FF(1)
+    EXPECT_EQ(row->avm_main_ib, 0);                       //  Indirect(21) -> 5 -> Unintialized memory
+    EXPECT_EQ(row->avm_main_ic, 2);
+    EXPECT_EQ(row->avm_main_id, 256);
+
+    // Expected output is bitwise decomposition of MODULUS - 1..could hardcode the result but it's a bit long
+    std::vector<FF> expected_output;
+    // Extract each bit.
+    for (size_t i = 0; i < 256; i++) {
+        FF expected_limb = (FF::modulus - 1) >> i & 1;
+        expected_output.emplace_back(expected_limb);
+    }
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace));
+}
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmExecutionTests, invalidOpcode)
 {

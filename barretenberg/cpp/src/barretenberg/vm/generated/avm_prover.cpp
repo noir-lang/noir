@@ -163,6 +163,11 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_byte_lookup_table_input_b = commitment_key->commit(key->avm_byte_lookup_table_input_b);
     witness_commitments.avm_byte_lookup_table_op_id = commitment_key->commit(key->avm_byte_lookup_table_op_id);
     witness_commitments.avm_byte_lookup_table_output = commitment_key->commit(key->avm_byte_lookup_table_output);
+    witness_commitments.avm_conversion_clk = commitment_key->commit(key->avm_conversion_clk);
+    witness_commitments.avm_conversion_input = commitment_key->commit(key->avm_conversion_input);
+    witness_commitments.avm_conversion_num_limbs = commitment_key->commit(key->avm_conversion_num_limbs);
+    witness_commitments.avm_conversion_radix = commitment_key->commit(key->avm_conversion_radix);
+    witness_commitments.avm_conversion_to_radix_le_sel = commitment_key->commit(key->avm_conversion_to_radix_le_sel);
     witness_commitments.avm_kernel_kernel_inputs__is_public =
         commitment_key->commit(key->avm_kernel_kernel_inputs__is_public);
     witness_commitments.avm_kernel_kernel_sel = commitment_key->commit(key->avm_kernel_kernel_sel);
@@ -230,6 +235,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_main_sel_op_not = commitment_key->commit(key->avm_main_sel_op_not);
     witness_commitments.avm_main_sel_op_or = commitment_key->commit(key->avm_main_sel_op_or);
     witness_commitments.avm_main_sel_op_portal = commitment_key->commit(key->avm_main_sel_op_portal);
+    witness_commitments.avm_main_sel_op_radix_le = commitment_key->commit(key->avm_main_sel_op_radix_le);
     witness_commitments.avm_main_sel_op_sender = commitment_key->commit(key->avm_main_sel_op_sender);
     witness_commitments.avm_main_sel_op_shl = commitment_key->commit(key->avm_main_sel_op_shl);
     witness_commitments.avm_main_sel_op_shr = commitment_key->commit(key->avm_main_sel_op_shr);
@@ -424,6 +430,13 @@ void AvmProver::execute_wire_commitments_round()
                                  witness_commitments.avm_byte_lookup_table_op_id);
     transcript->send_to_verifier(commitment_labels.avm_byte_lookup_table_output,
                                  witness_commitments.avm_byte_lookup_table_output);
+    transcript->send_to_verifier(commitment_labels.avm_conversion_clk, witness_commitments.avm_conversion_clk);
+    transcript->send_to_verifier(commitment_labels.avm_conversion_input, witness_commitments.avm_conversion_input);
+    transcript->send_to_verifier(commitment_labels.avm_conversion_num_limbs,
+                                 witness_commitments.avm_conversion_num_limbs);
+    transcript->send_to_verifier(commitment_labels.avm_conversion_radix, witness_commitments.avm_conversion_radix);
+    transcript->send_to_verifier(commitment_labels.avm_conversion_to_radix_le_sel,
+                                 witness_commitments.avm_conversion_to_radix_le_sel);
     transcript->send_to_verifier(commitment_labels.avm_kernel_kernel_inputs__is_public,
                                  witness_commitments.avm_kernel_kernel_inputs__is_public);
     transcript->send_to_verifier(commitment_labels.avm_kernel_kernel_sel, witness_commitments.avm_kernel_kernel_sel);
@@ -501,6 +514,8 @@ void AvmProver::execute_wire_commitments_round()
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_not, witness_commitments.avm_main_sel_op_not);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_or, witness_commitments.avm_main_sel_op_or);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_portal, witness_commitments.avm_main_sel_op_portal);
+    transcript->send_to_verifier(commitment_labels.avm_main_sel_op_radix_le,
+                                 witness_commitments.avm_main_sel_op_radix_le);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_sender, witness_commitments.avm_main_sel_op_sender);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_shl, witness_commitments.avm_main_sel_op_shl);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_shr, witness_commitments.avm_main_sel_op_shr);
@@ -608,6 +623,7 @@ void AvmProver::execute_log_derivative_inverse_round()
     // Commit to all logderivative inverse polynomials
     witness_commitments.perm_main_alu = commitment_key->commit(key->perm_main_alu);
     witness_commitments.perm_main_bin = commitment_key->commit(key->perm_main_bin);
+    witness_commitments.perm_main_conv = commitment_key->commit(key->perm_main_conv);
     witness_commitments.perm_main_mem_a = commitment_key->commit(key->perm_main_mem_a);
     witness_commitments.perm_main_mem_b = commitment_key->commit(key->perm_main_mem_b);
     witness_commitments.perm_main_mem_c = commitment_key->commit(key->perm_main_mem_c);
@@ -654,6 +670,7 @@ void AvmProver::execute_log_derivative_inverse_round()
     // Send all commitments to the verifier
     transcript->send_to_verifier(commitment_labels.perm_main_alu, witness_commitments.perm_main_alu);
     transcript->send_to_verifier(commitment_labels.perm_main_bin, witness_commitments.perm_main_bin);
+    transcript->send_to_verifier(commitment_labels.perm_main_conv, witness_commitments.perm_main_conv);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_a, witness_commitments.perm_main_mem_a);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_b, witness_commitments.perm_main_mem_b);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_c, witness_commitments.perm_main_mem_c);

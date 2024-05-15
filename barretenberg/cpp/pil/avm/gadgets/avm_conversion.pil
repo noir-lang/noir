@@ -1,0 +1,21 @@
+include "../avm_main.pil";
+
+namespace avm_conversion(256);
+
+    pol commit clk;
+
+    // Selector for Radix Operation
+    pol commit to_radix_le_sel;
+    to_radix_le_sel * (1 - to_radix_le_sel) = 0;
+
+    // ===== DRAFT: Planned Constraints for To Radix LE
+    // Similar to the binary trace; multi-row decomposition of the input using the number of limbs specified as the row count.
+    // (1) limb_ctr' - limb_ctr + 1 = 0; // Next row decrements the limb_ctr
+    // (2) Check equality to 0 of limb_ctr to terminate the operations.
+    // (3) An accumulation column to track the partial re-composition of the limbs
+    // (4) Range check each row.limb < radix
+    // (5) TODO: Is there a risk of over/under flow.
+
+    pol commit input;
+    pol commit radix;
+    pol commit num_limbs;

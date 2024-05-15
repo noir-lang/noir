@@ -8,6 +8,7 @@
 #include "avm_instructions.hpp"
 #include "avm_mem_trace.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/vm/avm_trace/gadgets/avm_conversion_trace.hpp"
 #include "constants.hpp"
 
 #include "barretenberg/relations/generated/avm/avm_main.hpp"
@@ -131,6 +132,11 @@ class AvmTraceBuilder {
     // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])
     std::vector<FF> return_op(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
 
+    // Gadgets
+    // --- Conversions
+    // To Radix LE conversion operation.
+    void op_to_radix_le(uint8_t indirect, uint32_t src_offset, uint32_t dst_offset, uint32_t radix, uint32_t num_limbs);
+
   private:
     // Used for the standard indirect address resolution of three operands opcode.
     struct IndirectThreeResolution {
@@ -149,6 +155,7 @@ class AvmTraceBuilder {
     AvmAluTraceBuilder alu_trace_builder;
     AvmBinaryTraceBuilder bin_trace_builder;
     AvmKernelTraceBuilder kernel_trace_builder;
+    AvmConversionTraceBuilder conversion_trace_builder;
 
     Row create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag);
     void finalise_mem_trace_lookup_counts();

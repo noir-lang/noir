@@ -15,6 +15,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/relations/generated/avm/avm_alu.hpp"
 #include "barretenberg/relations/generated/avm/avm_binary.hpp"
+#include "barretenberg/relations/generated/avm/avm_conversion.hpp"
 #include "barretenberg/relations/generated/avm/avm_main.hpp"
 #include "barretenberg/relations/generated/avm/avm_mem.hpp"
 #include "barretenberg/relations/generated/avm/incl_main_tag_err.hpp"
@@ -53,6 +54,7 @@
 #include "barretenberg/relations/generated/avm/lookup_u8_1.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_alu.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_bin.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_conv.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_a.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_c.hpp"
@@ -82,14 +84,15 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 287;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 294;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 341;
+    static constexpr size_t NUM_ALL_ENTITIES = 348;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
+                                             perm_main_conv_relation<FF>,
                                              perm_main_mem_a_relation<FF>,
                                              perm_main_mem_b_relation<FF>,
                                              perm_main_mem_c_relation<FF>,
@@ -135,10 +138,12 @@ class AvmFlavor {
 
     using Relations = std::tuple<Avm_vm::avm_alu<FF>,
                                  Avm_vm::avm_binary<FF>,
+                                 Avm_vm::avm_conversion<FF>,
                                  Avm_vm::avm_main<FF>,
                                  Avm_vm::avm_mem<FF>,
                                  perm_main_alu_relation<FF>,
                                  perm_main_bin_relation<FF>,
+                                 perm_main_conv_relation<FF>,
                                  perm_main_mem_a_relation<FF>,
                                  perm_main_mem_b_relation<FF>,
                                  perm_main_mem_c_relation<FF>,
@@ -317,6 +322,11 @@ class AvmFlavor {
                               avm_byte_lookup_table_input_b,
                               avm_byte_lookup_table_op_id,
                               avm_byte_lookup_table_output,
+                              avm_conversion_clk,
+                              avm_conversion_input,
+                              avm_conversion_num_limbs,
+                              avm_conversion_radix,
+                              avm_conversion_to_radix_le_sel,
                               avm_kernel_kernel_inputs__is_public,
                               avm_kernel_kernel_sel,
                               avm_kernel_q_public_input_kernel_add_to_table,
@@ -382,6 +392,7 @@ class AvmFlavor {
                               avm_main_sel_op_not,
                               avm_main_sel_op_or,
                               avm_main_sel_op_portal,
+                              avm_main_sel_op_radix_le,
                               avm_main_sel_op_sender,
                               avm_main_sel_op_shl,
                               avm_main_sel_op_shr,
@@ -425,6 +436,7 @@ class AvmFlavor {
                               avm_mem_w_in_tag,
                               perm_main_alu,
                               perm_main_bin,
+                              perm_main_conv,
                               perm_main_mem_a,
                               perm_main_mem_b,
                               perm_main_mem_c,
@@ -607,6 +619,11 @@ class AvmFlavor {
                      avm_byte_lookup_table_input_b,
                      avm_byte_lookup_table_op_id,
                      avm_byte_lookup_table_output,
+                     avm_conversion_clk,
+                     avm_conversion_input,
+                     avm_conversion_num_limbs,
+                     avm_conversion_radix,
+                     avm_conversion_to_radix_le_sel,
                      avm_kernel_kernel_inputs__is_public,
                      avm_kernel_kernel_sel,
                      avm_kernel_q_public_input_kernel_add_to_table,
@@ -672,6 +689,7 @@ class AvmFlavor {
                      avm_main_sel_op_not,
                      avm_main_sel_op_or,
                      avm_main_sel_op_portal,
+                     avm_main_sel_op_radix_le,
                      avm_main_sel_op_sender,
                      avm_main_sel_op_shl,
                      avm_main_sel_op_shr,
@@ -715,6 +733,7 @@ class AvmFlavor {
                      avm_mem_w_in_tag,
                      perm_main_alu,
                      perm_main_bin,
+                     perm_main_conv,
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
@@ -902,6 +921,11 @@ class AvmFlavor {
                               avm_byte_lookup_table_input_b,
                               avm_byte_lookup_table_op_id,
                               avm_byte_lookup_table_output,
+                              avm_conversion_clk,
+                              avm_conversion_input,
+                              avm_conversion_num_limbs,
+                              avm_conversion_radix,
+                              avm_conversion_to_radix_le_sel,
                               avm_kernel_kernel_inputs__is_public,
                               avm_kernel_kernel_sel,
                               avm_kernel_q_public_input_kernel_add_to_table,
@@ -967,6 +991,7 @@ class AvmFlavor {
                               avm_main_sel_op_not,
                               avm_main_sel_op_or,
                               avm_main_sel_op_portal,
+                              avm_main_sel_op_radix_le,
                               avm_main_sel_op_sender,
                               avm_main_sel_op_shl,
                               avm_main_sel_op_shr,
@@ -1010,6 +1035,7 @@ class AvmFlavor {
                               avm_mem_w_in_tag,
                               perm_main_alu,
                               perm_main_bin,
+                              perm_main_conv,
                               perm_main_mem_a,
                               perm_main_mem_b,
                               perm_main_mem_c,
@@ -1246,6 +1272,11 @@ class AvmFlavor {
                      avm_byte_lookup_table_input_b,
                      avm_byte_lookup_table_op_id,
                      avm_byte_lookup_table_output,
+                     avm_conversion_clk,
+                     avm_conversion_input,
+                     avm_conversion_num_limbs,
+                     avm_conversion_radix,
+                     avm_conversion_to_radix_le_sel,
                      avm_kernel_kernel_inputs__is_public,
                      avm_kernel_kernel_sel,
                      avm_kernel_q_public_input_kernel_add_to_table,
@@ -1311,6 +1342,7 @@ class AvmFlavor {
                      avm_main_sel_op_not,
                      avm_main_sel_op_or,
                      avm_main_sel_op_portal,
+                     avm_main_sel_op_radix_le,
                      avm_main_sel_op_sender,
                      avm_main_sel_op_shl,
                      avm_main_sel_op_shr,
@@ -1354,6 +1386,7 @@ class AvmFlavor {
                      avm_mem_w_in_tag,
                      perm_main_alu,
                      perm_main_bin,
+                     perm_main_conv,
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
@@ -1590,6 +1623,11 @@ class AvmFlavor {
                      avm_byte_lookup_table_input_b,
                      avm_byte_lookup_table_op_id,
                      avm_byte_lookup_table_output,
+                     avm_conversion_clk,
+                     avm_conversion_input,
+                     avm_conversion_num_limbs,
+                     avm_conversion_radix,
+                     avm_conversion_to_radix_le_sel,
                      avm_kernel_kernel_inputs__is_public,
                      avm_kernel_kernel_sel,
                      avm_kernel_q_public_input_kernel_add_to_table,
@@ -1655,6 +1693,7 @@ class AvmFlavor {
                      avm_main_sel_op_not,
                      avm_main_sel_op_or,
                      avm_main_sel_op_portal,
+                     avm_main_sel_op_radix_le,
                      avm_main_sel_op_sender,
                      avm_main_sel_op_shl,
                      avm_main_sel_op_shr,
@@ -1698,6 +1737,7 @@ class AvmFlavor {
                      avm_mem_w_in_tag,
                      perm_main_alu,
                      perm_main_bin,
+                     perm_main_conv,
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
@@ -1958,6 +1998,8 @@ class AvmFlavor {
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_alu_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_bin_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, perm_main_conv_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_a_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
@@ -2248,6 +2290,11 @@ class AvmFlavor {
             Base::avm_byte_lookup_table_input_b = "AVM_BYTE_LOOKUP_TABLE_INPUT_B";
             Base::avm_byte_lookup_table_op_id = "AVM_BYTE_LOOKUP_TABLE_OP_ID";
             Base::avm_byte_lookup_table_output = "AVM_BYTE_LOOKUP_TABLE_OUTPUT";
+            Base::avm_conversion_clk = "AVM_CONVERSION_CLK";
+            Base::avm_conversion_input = "AVM_CONVERSION_INPUT";
+            Base::avm_conversion_num_limbs = "AVM_CONVERSION_NUM_LIMBS";
+            Base::avm_conversion_radix = "AVM_CONVERSION_RADIX";
+            Base::avm_conversion_to_radix_le_sel = "AVM_CONVERSION_TO_RADIX_LE_SEL";
             Base::avm_kernel_kernel_inputs__is_public = "AVM_KERNEL_KERNEL_INPUTS__IS_PUBLIC";
             Base::avm_kernel_kernel_sel = "AVM_KERNEL_KERNEL_SEL";
             Base::avm_kernel_q_public_input_kernel_add_to_table = "AVM_KERNEL_Q_PUBLIC_INPUT_KERNEL_ADD_TO_TABLE";
@@ -2313,6 +2360,7 @@ class AvmFlavor {
             Base::avm_main_sel_op_not = "AVM_MAIN_SEL_OP_NOT";
             Base::avm_main_sel_op_or = "AVM_MAIN_SEL_OP_OR";
             Base::avm_main_sel_op_portal = "AVM_MAIN_SEL_OP_PORTAL";
+            Base::avm_main_sel_op_radix_le = "AVM_MAIN_SEL_OP_RADIX_LE";
             Base::avm_main_sel_op_sender = "AVM_MAIN_SEL_OP_SENDER";
             Base::avm_main_sel_op_shl = "AVM_MAIN_SEL_OP_SHL";
             Base::avm_main_sel_op_shr = "AVM_MAIN_SEL_OP_SHR";
@@ -2356,6 +2404,7 @@ class AvmFlavor {
             Base::avm_mem_w_in_tag = "AVM_MEM_W_IN_TAG";
             Base::perm_main_alu = "PERM_MAIN_ALU";
             Base::perm_main_bin = "PERM_MAIN_BIN";
+            Base::perm_main_conv = "PERM_MAIN_CONV";
             Base::perm_main_mem_a = "PERM_MAIN_MEM_A";
             Base::perm_main_mem_b = "PERM_MAIN_MEM_B";
             Base::perm_main_mem_c = "PERM_MAIN_MEM_C";
@@ -2554,6 +2603,11 @@ class AvmFlavor {
         Commitment avm_byte_lookup_table_input_b;
         Commitment avm_byte_lookup_table_op_id;
         Commitment avm_byte_lookup_table_output;
+        Commitment avm_conversion_clk;
+        Commitment avm_conversion_input;
+        Commitment avm_conversion_num_limbs;
+        Commitment avm_conversion_radix;
+        Commitment avm_conversion_to_radix_le_sel;
         Commitment avm_kernel_kernel_inputs__is_public;
         Commitment avm_kernel_kernel_sel;
         Commitment avm_kernel_q_public_input_kernel_add_to_table;
@@ -2619,6 +2673,7 @@ class AvmFlavor {
         Commitment avm_main_sel_op_not;
         Commitment avm_main_sel_op_or;
         Commitment avm_main_sel_op_portal;
+        Commitment avm_main_sel_op_radix_le;
         Commitment avm_main_sel_op_sender;
         Commitment avm_main_sel_op_shl;
         Commitment avm_main_sel_op_shr;
@@ -2662,6 +2717,7 @@ class AvmFlavor {
         Commitment avm_mem_w_in_tag;
         Commitment perm_main_alu;
         Commitment perm_main_bin;
+        Commitment perm_main_conv;
         Commitment perm_main_mem_a;
         Commitment perm_main_mem_b;
         Commitment perm_main_mem_c;
@@ -2861,6 +2917,11 @@ class AvmFlavor {
             avm_byte_lookup_table_input_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_byte_lookup_table_op_id = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_byte_lookup_table_output = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_conversion_clk = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_conversion_input = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_conversion_num_limbs = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_conversion_radix = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_conversion_to_radix_le_sel = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_kernel_kernel_inputs__is_public =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_kernel_kernel_sel = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -2928,6 +2989,7 @@ class AvmFlavor {
             avm_main_sel_op_not = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_or = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_portal = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_op_radix_le = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_sender = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_shl = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_shr = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -2971,6 +3033,7 @@ class AvmFlavor {
             avm_mem_w_in_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_alu = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_bin = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            perm_main_conv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3173,6 +3236,11 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_byte_lookup_table_input_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_byte_lookup_table_op_id, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_byte_lookup_table_output, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_conversion_clk, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_conversion_input, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_conversion_num_limbs, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_conversion_radix, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_conversion_to_radix_le_sel, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_kernel_inputs__is_public, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_kernel_sel, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_q_public_input_kernel_add_to_table, Transcript::proof_data);
@@ -3238,6 +3306,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_sel_op_not, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_or, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_portal, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_op_radix_le, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_sender, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_shl, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_shr, Transcript::proof_data);
@@ -3281,6 +3350,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_mem_w_in_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_alu, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_bin, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(perm_main_conv, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_c, Transcript::proof_data);

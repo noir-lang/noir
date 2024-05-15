@@ -18,6 +18,7 @@
 
 #include "barretenberg/relations/generated/avm/avm_alu.hpp"
 #include "barretenberg/relations/generated/avm/avm_binary.hpp"
+#include "barretenberg/relations/generated/avm/avm_conversion.hpp"
 #include "barretenberg/relations/generated/avm/avm_main.hpp"
 #include "barretenberg/relations/generated/avm/avm_mem.hpp"
 #include "barretenberg/relations/generated/avm/incl_main_tag_err.hpp"
@@ -56,6 +57,7 @@
 #include "barretenberg/relations/generated/avm/lookup_u8_1.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_alu.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_bin.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_conv.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_a.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_c.hpp"
@@ -174,6 +176,11 @@ template <typename FF> struct AvmFullRow {
     FF avm_byte_lookup_table_input_b{};
     FF avm_byte_lookup_table_op_id{};
     FF avm_byte_lookup_table_output{};
+    FF avm_conversion_clk{};
+    FF avm_conversion_input{};
+    FF avm_conversion_num_limbs{};
+    FF avm_conversion_radix{};
+    FF avm_conversion_to_radix_le_sel{};
     FF avm_kernel_kernel_inputs__is_public{};
     FF avm_kernel_kernel_sel{};
     FF avm_kernel_q_public_input_kernel_add_to_table{};
@@ -239,6 +246,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_not{};
     FF avm_main_sel_op_or{};
     FF avm_main_sel_op_portal{};
+    FF avm_main_sel_op_radix_le{};
     FF avm_main_sel_op_sender{};
     FF avm_main_sel_op_shl{};
     FF avm_main_sel_op_shr{};
@@ -282,6 +290,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_mem_w_in_tag{};
     FF perm_main_alu{};
     FF perm_main_bin{};
+    FF perm_main_conv{};
     FF perm_main_mem_a{};
     FF perm_main_mem_b{};
     FF perm_main_mem_c{};
@@ -422,8 +431,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 341;
-    static constexpr size_t num_polys = 289;
+    static constexpr size_t num_fixed_columns = 348;
+    static constexpr size_t num_polys = 296;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -544,6 +553,11 @@ class AvmCircuitBuilder {
             polys.avm_byte_lookup_table_input_b[i] = rows[i].avm_byte_lookup_table_input_b;
             polys.avm_byte_lookup_table_op_id[i] = rows[i].avm_byte_lookup_table_op_id;
             polys.avm_byte_lookup_table_output[i] = rows[i].avm_byte_lookup_table_output;
+            polys.avm_conversion_clk[i] = rows[i].avm_conversion_clk;
+            polys.avm_conversion_input[i] = rows[i].avm_conversion_input;
+            polys.avm_conversion_num_limbs[i] = rows[i].avm_conversion_num_limbs;
+            polys.avm_conversion_radix[i] = rows[i].avm_conversion_radix;
+            polys.avm_conversion_to_radix_le_sel[i] = rows[i].avm_conversion_to_radix_le_sel;
             polys.avm_kernel_kernel_inputs__is_public[i] = rows[i].avm_kernel_kernel_inputs__is_public;
             polys.avm_kernel_kernel_sel[i] = rows[i].avm_kernel_kernel_sel;
             polys.avm_kernel_q_public_input_kernel_add_to_table[i] =
@@ -610,6 +624,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_not[i] = rows[i].avm_main_sel_op_not;
             polys.avm_main_sel_op_or[i] = rows[i].avm_main_sel_op_or;
             polys.avm_main_sel_op_portal[i] = rows[i].avm_main_sel_op_portal;
+            polys.avm_main_sel_op_radix_le[i] = rows[i].avm_main_sel_op_radix_le;
             polys.avm_main_sel_op_sender[i] = rows[i].avm_main_sel_op_sender;
             polys.avm_main_sel_op_shl[i] = rows[i].avm_main_sel_op_shl;
             polys.avm_main_sel_op_shr[i] = rows[i].avm_main_sel_op_shr;
@@ -820,6 +835,11 @@ class AvmCircuitBuilder {
                                                                                  Avm_vm::get_relation_label_avm_binary);
         };
 
+        auto avm_conversion = [=]() {
+            return evaluate_relation.template operator()<Avm_vm::avm_conversion<FF>>(
+                "avm_conversion", Avm_vm::get_relation_label_avm_conversion);
+        };
+
         auto avm_main = [=]() {
             return evaluate_relation.template operator()<Avm_vm::avm_main<FF>>("avm_main",
                                                                                Avm_vm::get_relation_label_avm_main);
@@ -836,6 +856,10 @@ class AvmCircuitBuilder {
 
         auto perm_main_bin = [=]() {
             return evaluate_logderivative.template operator()<perm_main_bin_relation<FF>>("PERM_MAIN_BIN");
+        };
+
+        auto perm_main_conv = [=]() {
+            return evaluate_logderivative.template operator()<perm_main_conv_relation<FF>>("PERM_MAIN_CONV");
         };
 
         auto perm_main_mem_a = [=]() {
@@ -1018,6 +1042,8 @@ class AvmCircuitBuilder {
 
         relation_futures.emplace_back(std::async(std::launch::async, avm_binary));
 
+        relation_futures.emplace_back(std::async(std::launch::async, avm_conversion));
+
         relation_futures.emplace_back(std::async(std::launch::async, avm_main));
 
         relation_futures.emplace_back(std::async(std::launch::async, avm_mem));
@@ -1025,6 +1051,8 @@ class AvmCircuitBuilder {
         relation_futures.emplace_back(std::async(std::launch::async, perm_main_alu));
 
         relation_futures.emplace_back(std::async(std::launch::async, perm_main_bin));
+
+        relation_futures.emplace_back(std::async(std::launch::async, perm_main_conv));
 
         relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_a));
 
@@ -1123,6 +1151,8 @@ class AvmCircuitBuilder {
 
         avm_binary();
 
+        avm_conversion();
+
         avm_main();
 
         avm_mem();
@@ -1130,6 +1160,8 @@ class AvmCircuitBuilder {
         perm_main_alu();
 
         perm_main_bin();
+
+        perm_main_conv();
 
         perm_main_mem_a();
 

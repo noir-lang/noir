@@ -3,6 +3,7 @@ include "avm_mem.pil";
 include "avm_alu.pil";
 include "avm_binary.pil";
 include "avm_kernel.pil";
+include "gadgets/avm_conversion.pil";
 
 namespace avm_main(256);
     // Kernel lookup selector opcodes
@@ -25,6 +26,9 @@ namespace avm_main(256);
     pol commit sel_op_coinbase;
     pol commit sel_op_timestamp;
 
+    //===== Gadget Selectors ======================================================
+    pol commit sel_op_radix_le;
+    
     //===== CONSTANT POLYNOMIALS ==================================================
     pol constant clk(i) { i };
     pol constant first = [1] + [0]*; // Used mostly to toggle off the first row consisting
@@ -166,6 +170,8 @@ namespace avm_main(256);
     sel_op_fee_per_l2_gas * (1 - sel_op_fee_per_l2_gas) = 0;
     sel_op_fee_per_da_gas * (1 - sel_op_fee_per_da_gas) = 0;
     sel_op_transaction_fee * (1 - sel_op_transaction_fee) = 0;
+
+    sel_op_radix_le * (1 - sel_op_radix_le) = 0;
 
     sel_op_add * (1 - sel_op_add) = 0;
     sel_op_sub * (1 - sel_op_sub) = 0;
@@ -450,6 +456,11 @@ namespace avm_main(256);
     bin_sel {clk, ia, ib, ic, bin_op_id, r_in_tag}
     is
     avm_binary.start {avm_binary.clk, avm_binary.acc_ia, avm_binary.acc_ib, avm_binary.acc_ic, avm_binary.op_id, avm_binary.in_tag};
+
+    #[PERM_MAIN_CONV]
+    sel_op_radix_le {clk, ia, ic, id}
+    is
+    avm_conversion.to_radix_le_sel {avm_conversion.clk, avm_conversion.input, avm_conversion.radix, avm_conversion.num_limbs};
 
     #[PERM_MAIN_MEM_A]
     mem_op_a {clk, mem_idx_a, ia, rwa
