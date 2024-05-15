@@ -6,6 +6,7 @@ import {
   type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
   type PrivateKernelInnerCircuitPrivateInputs,
+  type PrivateKernelResetCircuitPrivateInputs,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
   Proof,
@@ -25,6 +26,8 @@ import {
   convertPrivateKernelInitOutputsFromWitnessMap,
   convertPrivateKernelInnerInputsToWitnessMap,
   convertPrivateKernelInnerOutputsFromWitnessMap,
+  convertPrivateKernelResetInputsToWitnessMap,
+  convertPrivateKernelResetOutputsFromWitnessMap,
   convertPrivateKernelTailForPublicOutputsFromWitnessMap,
   convertPrivateKernelTailInputsToWitnessMap,
   convertPrivateKernelTailOutputsFromWitnessMap,
@@ -69,6 +72,9 @@ const PrivateKernelArtifactMapping: Record<ClientProtocolArtifact, PrivateKernel
   PrivateKernelTailArtifact: {
     convertOutputs: convertPrivateKernelTailOutputsFromWitnessMap,
   },
+  PrivateKernelResetArtifact: {
+    convertOutputs: convertPrivateKernelResetOutputsFromWitnessMap,
+  },
   PrivateKernelTailToPublicArtifact: {
     convertOutputs: convertPrivateKernelTailForPublicOutputsFromWitnessMap,
   },
@@ -112,6 +118,13 @@ export class BBNativeProofCreator implements ProofCreator {
   ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
     const witnessMap = convertPrivateKernelInnerInputsToWitnessMap(inputs);
     return await this.createSafeProof(witnessMap, 'PrivateKernelInnerArtifact');
+  }
+
+  public async createProofReset(
+    inputs: PrivateKernelResetCircuitPrivateInputs,
+  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
+    const witnessMap = convertPrivateKernelResetInputsToWitnessMap(inputs);
+    return await this.createSafeProof(witnessMap, 'PrivateKernelResetArtifact');
   }
 
   public async createProofTail(

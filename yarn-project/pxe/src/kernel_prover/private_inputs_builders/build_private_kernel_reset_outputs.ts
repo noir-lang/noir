@@ -1,14 +1,14 @@
 import {
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
-  PrivateKernelTailOutputs,
+  PrivateKernelResetOutputs,
   ScopedNoteHash,
   ScopedNullifier,
 } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { type Tuple } from '@aztec/foundation/serialize';
 
-export function buildPrivateKernelTailOutputs(
+export function buildPrivateKernelResetOutputs(
   prevNoteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
   prevNullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
 ) {
@@ -26,5 +26,5 @@ export function buildPrivateKernelTailOutputs(
     MAX_NEW_NULLIFIERS_PER_TX,
   );
 
-  return new PrivateKernelTailOutputs(noteHashes, nullifiers);
+  return new PrivateKernelResetOutputs(noteHashes, nullifiers);
 }

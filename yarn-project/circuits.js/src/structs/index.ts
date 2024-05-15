@@ -23,6 +23,7 @@ export * from './kernel/private_kernel_init_circuit_private_inputs.js';
 export * from './kernel/private_kernel_circuit_public_inputs.js';
 export * from './kernel/private_kernel_data.js';
 export * from './kernel/private_kernel_inner_circuit_private_inputs.js';
+export * from './kernel/private_kernel_reset_circuit_private_inputs.js';
 export * from './kernel/private_kernel_tail_circuit_private_inputs.js';
 export * from './kernel/private_kernel_tail_circuit_public_inputs.js';
 export * from './kernel/public_call_data.js';

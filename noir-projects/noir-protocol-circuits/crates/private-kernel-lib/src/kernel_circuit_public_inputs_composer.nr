@@ -1,4 +1,3 @@
-use dep::reset_kernel_lib::verify_squashed_transient_note_hashes_and_nullifiers;
 use dep::types::{
     abis::{
     private_kernel_data::PrivateKernelData,
@@ -23,12 +22,7 @@ fn asc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {
 struct KernelCircuitPublicInputsComposer {
     public_inputs: PrivateKernelCircuitPublicInputsBuilder,
     previous_kernel: PrivateKernelData,
-    // Final data
-    note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
-    nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
     // Hints
-    transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
-    transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
@@ -42,10 +36,6 @@ struct KernelCircuitPublicInputsComposer {
 impl KernelCircuitPublicInputsComposer {
     pub fn new(
         previous_kernel: PrivateKernelData,
-        note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
-        nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
-        transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
-        transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
         sorted_note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
         sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
         sorted_nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
@@ -60,10 +50,6 @@ impl KernelCircuitPublicInputsComposer {
         KernelCircuitPublicInputsComposer {
             public_inputs,
             previous_kernel,
-            note_hashes,
-            nullifiers,
-            transient_nullifier_indexes_for_note_hashes,
-            transient_note_hash_indexes_for_nullifiers,
             sorted_note_hashes,
             sorted_note_hashes_indexes,
             sorted_nullifiers,
@@ -79,6 +65,7 @@ impl KernelCircuitPublicInputsComposer {
         assert_eq(
             array_length(self.previous_kernel.public_inputs.end.private_call_stack), 0, "Private call stack must be empty when executing the tail circuit"
         );
+        self.verify_empty_validation_requests();
 
         self.propagate_rollup_validation_requests();
 
@@ -88,8 +75,7 @@ impl KernelCircuitPublicInputsComposer {
 
         self.propagate_fee_payer();
 
-        // TODO: Should be done in a reset circuit.
-        self.squash_transient_data();
+        self.verify_no_transient_data();
 
         self.silo_values();
 
@@ -236,26 +222,28 @@ impl KernelCircuitPublicInputsComposer {
         self.public_inputs.fee_payer = self.previous_kernel.public_inputs.fee_payer;
     }
 
-    fn squash_transient_data(&mut self) {
-        verify_squashed_transient_note_hashes_and_nullifiers(
-            self.public_inputs.end.new_note_hashes.storage,
-            self.public_inputs.end.new_nullifiers.storage,
-            self.note_hashes,
-            self.nullifiers,
-            self.transient_nullifier_indexes_for_note_hashes,
-            self.transient_note_hash_indexes_for_nullifiers
+    fn verify_no_transient_data(self) {
+        // Currently all the transient note hashes and nullifiers must be cleared in the reset circuits.
+        // Check that the propagated note hashes don't link to a nullifier, and vice versa.
+        for note_hash in self.public_inputs.end.new_note_hashes.storage {
+            assert(note_hash.nullifier_counter == 0, "Unresolved transient note hash");
+        }
+        for new_nullifier in self.public_inputs.end.new_nullifiers.storage {
+            assert(new_nullifier.nullified_note_hash() == 0, "Unresolved transient nullifier");
+        }
+    }
+
+    fn verify_empty_validation_requests(self) {
+        assert_eq(
+            array_length(self.previous_kernel.public_inputs.validation_requests.note_hash_read_requests), 0, "Non empty note hash read requests"
         );
 
-        // Currently all the transient note hashes and nullifiers must be cleared in the tail circuits.
-        // Check that the propagated note hashes don't link to a nullifier, and vice versa.
-        for i in 0..self.note_hashes.len() {
-            assert(self.note_hashes[i].nullifier_counter == 0, "Unresolved transient note hash");
-        }
-        for i in 0..self.nullifiers.len() {
-            assert(self.nullifiers[i].nullified_note_hash() == 0, "Unresolved transient nullifier");
-        }
+        assert_eq(
+            array_length(self.previous_kernel.public_inputs.validation_requests.nullifier_read_requests), 0, "Non empty nullifier read requests"
+        );
 
-        self.public_inputs.end.new_note_hashes = array_to_bounded_vec(self.note_hashes);
-        self.public_inputs.end.new_nullifiers = array_to_bounded_vec(self.nullifiers);
+        assert_eq(
+            array_length(self.previous_kernel.public_inputs.validation_requests.nullifier_key_validation_requests), 0, "Non empty nullifier key validation requests"
+        );
     }
 }

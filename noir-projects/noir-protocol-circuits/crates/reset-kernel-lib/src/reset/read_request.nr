@@ -1,7 +1,8 @@
 // This will be moved to a separate Read Request Reset Circuit.
 use dep::types::{
     abis::{read_request::ScopedReadRequest, side_effect::Readable},
-    merkle_tree::{assert_check_membership, LeafPreimage, MembershipWitness}, traits::{Empty, is_empty}
+    merkle_tree::{assert_check_membership, LeafPreimage, MembershipWitness}, traits::{Empty, is_empty},
+    utils::arrays::filter_array_to_bounded_vec
 };
 
 struct ReadRequestStateEnum {
@@ -102,13 +103,13 @@ fn propagate_unverified_read_requests<READ_REQUEST_LEN, T, NUM_PENDING_READS, S,
     pending_read_hints: [T; NUM_PENDING_READS],
     settled_read_hints: [S; NUM_SETTLED_READS]
 ) -> BoundedVec<ScopedReadRequest, READ_REQUEST_LEN> where T: ReadValueHint, S: ReadValueHint {
-    let mut propagated_read_requests = BoundedVec::new();
+    let mut should_propagate = [false; READ_REQUEST_LEN];
+
     for i in 0..READ_REQUEST_LEN {
-        let read_request = read_requests[i];
-        if !is_empty(read_request) {
+        if !is_empty(read_requests[i]) {
             let status = read_request_statuses[i];
             if status.state == ReadRequestState.NADA {
-                propagated_read_requests.push(read_request);
+                should_propagate[i] = true;
             } else if status.state == ReadRequestState.PENDING {
                 assert(
                     pending_read_hints[status.hint_index].read_request_index() == i, "Hinted pending read request does not match status"
@@ -120,7 +121,7 @@ fn propagate_unverified_read_requests<READ_REQUEST_LEN, T, NUM_PENDING_READS, S,
             }
         }
     }
-    propagated_read_requests
+    filter_array_to_bounded_vec(read_requests, should_propagate)
 }
 
 pub fn reset_read_requests<READ_REQUEST_LEN, P, PENDING_VALUE_LEN, NUM_PENDING_READS, NUM_SETTLED_READS, H, TREE_HEIGHT, LEAF_PREIMAGE>(

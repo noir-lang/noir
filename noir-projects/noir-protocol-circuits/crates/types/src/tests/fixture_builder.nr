@@ -8,7 +8,7 @@ use crate::{
     kernel_data::KernelData, public_kernel_data::PublicKernelData, max_block_number::MaxBlockNumber,
     private_kernel_data::PrivateKernelData, note_hash::{NoteHash, ScopedNoteHash},
     nullifier::{Nullifier, ScopedNullifier},
-    nullifier_key_validation_request::ScopedNullifierKeyValidationRequest,
+    nullifier_key_validation_request::{ScopedNullifierKeyValidationRequest, NullifierKeyValidationRequest},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::{ReadRequest, ScopedReadRequest}, side_effect::SideEffect,
     validation_requests::{ValidationRequests, ValidationRequestsBuilder}
@@ -25,7 +25,8 @@ use crate::{
     hash::silo_nullifier, header::Header,
     messaging::l2_to_l1_message::{L2ToL1Message, ScopedL2ToL1Message},
     partial_state_reference::PartialStateReference, tests::fixtures, transaction::tx_context::TxContext,
-    traits::Empty, recursion::{verification_key::VerificationKey, proof::NestedRecursiveProof}
+    traits::Empty, recursion::{verification_key::VerificationKey, proof::NestedRecursiveProof},
+    grumpkin_point::GrumpkinPoint
 };
 
 struct FixtureBuilder {
@@ -392,6 +393,18 @@ impl FixtureBuilder {
         let read_request = PublicDataRead { leaf_slot: public_write.leaf_slot, value: public_write.new_value };
         self.public_data_reads.push(read_request);
         new_read_request_index
+    }
+
+    pub fn add_request_for_nullifier_key_validation(
+        &mut self,
+        master_nullifier_public_key: GrumpkinPoint,
+        app_nullifier_secret_key: Field
+    ) -> u64 {
+        let new_request_index = self.nullifier_key_validation_requests.len();
+        let request = NullifierKeyValidationRequest { master_nullifier_public_key, app_nullifier_secret_key };
+        self.nullifier_key_validation_requests.push(request.scope(self.storage_contract_address));
+
+        new_request_index
     }
 
     pub fn set_encrypted_logs(&mut self, hash: Field, preimages_length: Field) {

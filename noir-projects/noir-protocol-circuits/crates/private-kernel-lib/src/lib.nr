@@ -6,8 +6,10 @@ mod private_kernel_inner;
 mod private_kernel_tail;
 mod private_kernel_tail_to_public;
 mod tests;
+mod private_kernel_reset;
 
 use private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
 use private_kernel_inner::PrivateKernelInnerCircuitPrivateInputs;
+use private_kernel_reset::PrivateKernelResetCircuitPrivateInputs;
 use private_kernel_tail::PrivateKernelTailCircuitPrivateInputs;
 use private_kernel_tail_to_public::PrivateKernelTailToPublicCircuitPrivateInputs;

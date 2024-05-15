@@ -4,6 +4,7 @@ import {
   type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
   type PrivateKernelInnerCircuitPrivateInputs,
+  type PrivateKernelResetCircuitPrivateInputs,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
@@ -75,6 +76,16 @@ export interface ProofCreator {
    */
   createProofInner(
     privateKernelInputsInner: PrivateKernelInnerCircuitPrivateInputs,
+  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>>;
+
+  /**
+   * Creates a proof output by resetting the arrays using the reset circuit.
+   *
+   * @param privateKernelInputsTail - The private input data structure for the reset circuit.
+   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
+   */
+  createProofReset(
+    privateKernelInputsReset: PrivateKernelResetCircuitPrivateInputs,
   ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>>;
 
   /**
