@@ -1,7 +1,7 @@
 use crate::foreign_calls::DebugForeignCallExecutor;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
-use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
@@ -29,6 +29,8 @@ pub(super) enum DebugCommandResult {
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'a, B>,
     brillig_solver: Option<BrilligSolver<'a, B>>,
+
+    witness_stack: WitnessStack,
     foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     debug_artifact: &'a DebugArtifact,
     breakpoints: HashSet<OpcodeLocation>,
@@ -61,6 +63,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 &circuit.assert_messages,
             ),
             brillig_solver: None,
+            witness_stack: WitnessStack::default(),
             foreign_call_executor,
             debug_artifact,
             breakpoints: HashSet::new(),
@@ -539,8 +542,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         matches!(self.acvm.get_status(), ACVMStatus::Solved)
     }
 
-    pub fn finalize(self) -> WitnessMap {
-        self.acvm.finalize()
+    pub fn finalize(mut self) -> WitnessStack {
+        let last_witness_map = self.acvm.finalize();
+        self.witness_stack.push(0, last_witness_map);
+        self.witness_stack
     }
 }
 

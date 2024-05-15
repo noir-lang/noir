@@ -2,7 +2,7 @@ use crate::context::{DebugCommandResult, DebugContext};
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
-use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use noirc_driver::CompiledProgram;
@@ -372,7 +372,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         self.context.is_solved()
     }
 
-    fn finalize(self) -> WitnessMap {
+    fn finalize(self) -> WitnessStack {
         self.context.finalize()
     }
 }
@@ -381,8 +381,8 @@ pub fn run<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap,
-) -> Result<Option<WitnessMap>, NargoError> {
-    let circuit = &program.program.functions[0];
+) -> Result<Option<WitnessStack>, NargoError> {
+    let circuits = &program.program.functions;
     let debug_artifact = &DebugArtifact {
         debug_symbols: program.debug,
         file_map: program.file_map,
@@ -581,8 +581,8 @@ pub fn run<B: BlackBoxFunctionSolver>(
     drop(repl);
 
     if context.borrow().is_solved() {
-        let solved_witness = context.into_inner().finalize();
-        Ok(Some(solved_witness))
+        let solved_witness_stack = context.into_inner().finalize();
+        Ok(Some(solved_witness_stack))
     } else {
         Ok(None)
     }

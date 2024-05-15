@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -167,10 +167,10 @@ fn run_async(
 
     runtime.block_on(async {
         println!("[{}] Starting debugger", package.name);
-        let (return_value, solved_witness) =
+        let (return_value, witness_stack) =
             debug_program_and_decode(program, package, prover_name)?;
 
-        if let Some(solved_witness) = solved_witness {
+        if let Some(solved_witness_stack) = witness_stack {
             println!("[{}] Circuit witness successfully solved", package.name);
 
             if let Some(return_value) = return_value {
@@ -178,11 +178,8 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path = save_witness_to_dir(
-                    WitnessStack::from(solved_witness),
-                    witness_name,
-                    target_dir,
-                )?;
+                let witness_path =
+                    save_witness_to_dir(solved_witness_stack, witness_name, target_dir)?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
@@ -198,17 +195,21 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessMap>), CliError> {
+) -> Result<(Option<InputValue>, Option<WitnessStack>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let public_abi = program.abi.clone().public_abi();
-    let solved_witness = debug_program(program, &inputs_map)?;
+    let witness_stack = debug_program(program, &inputs_map)?;
 
-    match solved_witness {
-        Some(witness) => {
-            let (_, return_value) = public_abi.decode(&witness)?;
-            Ok((return_value, Some(witness)))
+    match witness_stack {
+        Some(witness_stack) => {
+            let main_witness = &witness_stack
+                .peek()
+                .expect("Should have at least one witness on the stack")
+                .witness;
+            let (_, return_value) = public_abi.decode(main_witness)?;
+            Ok((return_value, Some(witness_stack)))
         }
         None => Ok((None, None)),
     }
@@ -217,7 +218,7 @@ fn debug_program_and_decode(
 pub(crate) fn debug_program(
     compiled_program: CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<Option<WitnessMap>, CliError> {
+) -> Result<Option<WitnessStack>, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;

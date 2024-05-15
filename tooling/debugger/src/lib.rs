@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 
 use ::dap::errors::ServerError;
 use ::dap::server::Server;
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use acvm::BlackBoxFunctionSolver;
 
 use nargo::NargoError;
@@ -19,7 +19,7 @@ pub fn run_repl_session<B: BlackBoxFunctionSolver>(
     solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap,
-) -> Result<Option<WitnessMap>, NargoError> {
+) -> Result<Option<WitnessStack>, NargoError> {
     repl::run(solver, program, initial_witness)
 }
 
