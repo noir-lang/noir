@@ -226,12 +226,8 @@ contract Test {
 
     // Purely exists for testing
     #[aztec(public)]
-    fn create_nullifier_public(amount: Field, secret_hash: Field) {
-        // Create a commitment to the amount
-        let note = DummyNote::new(amount, secret_hash);
-
-        // Public oracle call to emit new commitment.
-        context.push_new_nullifier(note.get_commitment(), 0);
+    fn emit_nullifier_public(nullifier: Field) {
+        context.push_new_nullifier(nullifier, 0);
     }
 
     // Forcefully emits a nullifier (for testing purposes)

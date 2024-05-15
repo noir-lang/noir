@@ -405,10 +405,11 @@ describe('ACIR public execution simulator', () => {
 
     it('Should be able to create a nullifier from the public context', async () => {
       const createNullifierPublicArtifact = TestContractArtifact.functions.find(
-        f => f.name === 'create_nullifier_public',
+        f => f.name === 'emit_nullifier_public',
       )!;
 
-      const args = encodeArguments(createNullifierPublicArtifact, params);
+      const nullifier = new Fr(1234);
+      const args = encodeArguments(createNullifierPublicArtifact, [nullifier]);
 
       const callContext = makeCallContext(contractAddress);
 
@@ -417,11 +418,7 @@ describe('ACIR public execution simulator', () => {
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
       const result = await simulate(execution, globalVariables);
 
-      // Assert the l2 to l1 message was created
-      expect(result.newNullifiers.length).toEqual(1);
-
-      const expectedNewMessageValue = pedersenHash(params);
-      expect(result.newNullifiers[0].value).toEqual(expectedNewMessageValue);
+      expect(result.newNullifiers).toEqual([expect.objectContaining({ value: nullifier })]);
     });
 
     describe('L1 to L2 messages', () => {

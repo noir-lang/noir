@@ -253,7 +253,9 @@ export class AvmPersistableStateManager {
    */
   public async writeNullifier(storageAddress: Fr, nullifier: Fr) {
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
-    this.transitionalExecutionResult.newNullifiers.push(new Nullifier(nullifier, this.trace.accessCounter, Fr.ZERO));
+    this.transitionalExecutionResult.newNullifiers.push(
+      new Nullifier(nullifier, this.trace.accessCounter, /*noteHash=*/ Fr.ZERO),
+    );
 
     this.log.debug(`nullifiers(${storageAddress}) += ${nullifier}.`);
     // Cache pending nullifiers for later access
