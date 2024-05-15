@@ -88,9 +88,11 @@ async function requestAndWaitForSpot(config: ActionConfig): Promise<string> {
       // wait 10 seconds
       await new Promise((r) => setTimeout(r, 5000 * 2 ** backoff));
       backoff += 1;
+      core.info("Polling to see if we somehow have an instance up");
+      instanceId = await ec2Client.getInstancesForTags("running")[0]?.instanceId;
     }
     if (instanceId) {
-      core.info("Successfully requested instance with ID " + instanceId);
+      core.info("Successfully requested/found instance with ID " + instanceId);
       break;
     }
   }
