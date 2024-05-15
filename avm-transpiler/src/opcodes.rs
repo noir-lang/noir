@@ -1,5 +1,6 @@
 /// All AVM opcodes
 /// Keep updated with TS, cpp, and docs protocol specs!
+#[allow(clippy::upper_case_acronyms, dead_code)]
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum AvmOpcode {
     // Compute

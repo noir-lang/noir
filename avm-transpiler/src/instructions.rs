@@ -88,6 +88,7 @@ impl Default for AvmInstruction {
 }
 
 /// AVM instructions may include a type tag
+#[allow(clippy::upper_case_acronyms, dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub enum AvmTypeTag {
     UNINITIALIZED,

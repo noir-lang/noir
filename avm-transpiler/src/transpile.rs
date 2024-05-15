@@ -425,7 +425,7 @@ fn handle_external_call(
         _ => panic!("Call instruction's success destination should be a basic MemoryAddress",),
     };
     avm_instrs.push(AvmInstruction {
-        opcode: opcode,
+        opcode,
         // (left to right)
         //   * selector direct
         //   * success offset direct
@@ -735,7 +735,7 @@ fn handle_send_l2_to_l1_msg(
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    if destinations.len() != 0 || inputs.len() != 2 {
+    if !destinations.is_empty() || inputs.len() != 2 {
         panic!(
             "Transpiler expects ForeignCall::SENDL2TOL1MSG to have 0 destinations and 2 inputs, got {} and {}",
             destinations.len(),
@@ -1268,10 +1268,7 @@ pub fn map_brillig_pcs_to_avm_pcs(brillig_bytecode: &[BrilligOpcode]) -> Vec<usi
 }
 
 fn is_integral_bit_size(bit_size: u32) -> bool {
-    match bit_size {
-        1 | 8 | 16 | 32 | 64 | 128 => true,
-        _ => false,
-    }
+    matches!(bit_size, 1 | 8 | 16 | 32 | 64 | 128)
 }
 
 fn tag_from_bit_size(bit_size: u32) -> AvmTypeTag {
