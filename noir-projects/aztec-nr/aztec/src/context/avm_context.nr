@@ -118,7 +118,7 @@ impl PublicContextInterface for AvmContext {
     fn call_public_function<RETURNS_COUNT>(
         self: &mut Self,
         contract_address: AztecAddress,
-        temporary_function_selector: FunctionSelector,
+        function_selector: FunctionSelector,
         args: [Field],
         gas_opts: GasOpts
     ) -> FunctionReturns<RETURNS_COUNT> {        
@@ -126,7 +126,7 @@ impl PublicContextInterface for AvmContext {
             gas_for_call(gas_opts),
             contract_address,
             args,
-            temporary_function_selector.to_field()
+            function_selector.to_field()
         );
         let data_to_return: [Field; RETURNS_COUNT] = results.0;
         let success: u8 = results.1;
@@ -138,7 +138,7 @@ impl PublicContextInterface for AvmContext {
     fn static_call_public_function<RETURNS_COUNT>(
         self: &mut Self,
         contract_address: AztecAddress,
-        temporary_function_selector: FunctionSelector,
+        function_selector: FunctionSelector,
         args: [Field],
         gas_opts: GasOpts
     ) -> FunctionReturns<RETURNS_COUNT> {
@@ -146,7 +146,7 @@ impl PublicContextInterface for AvmContext {
             gas_for_call(gas_opts),
             contract_address,
             args,
-            temporary_function_selector.to_field()
+            function_selector.to_field()
         );
 
         assert(success == 1, "Nested static call failed!");
@@ -206,83 +206,162 @@ fn gas_for_call(user_gas: GasOpts) -> [Field; 2] {
     ]
 }
 
+// Unconstrained opcode wrappers (do not use directly).
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/6420): reconsider.
+fn address() -> AztecAddress {
+    address_opcode()
+}
+fn storage_address() -> AztecAddress {
+    storage_address_opcode()
+}
+fn sender() -> AztecAddress {
+    sender_opcode()
+}
+fn portal() -> EthAddress {
+    portal_opcode()
+}
+fn fee_per_l2_gas() -> Field {
+    fee_per_l2_gas_opcode()
+}
+fn fee_per_da_gas() -> Field {
+    fee_per_da_gas_opcode()
+}
+fn transaction_fee() -> Field {
+    transaction_fee_opcode()
+}
+fn chain_id() -> Field {
+    chain_id_opcode()
+}
+fn version() -> Field {
+    version_opcode()
+}
+fn block_number() -> Field {
+    block_number_opcode()
+}
+fn timestamp() -> u64 {
+    timestamp_opcode()
+}
+fn l2_gas_left() -> Field {
+    l2_gas_left_opcode()
+}
+fn da_gas_left() -> Field {
+    da_gas_left_opcode()
+}
+fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {
+    note_hash_exists_opcode(note_hash, leaf_index)
+}
+fn emit_note_hash(note_hash: Field) {
+    emit_note_hash_opcode(note_hash)
+}
+fn nullifier_exists(nullifier: Field, address: Field) -> u8 {
+    nullifier_exists_opcode(nullifier, address)
+}
+fn emit_nullifier(nullifier: Field) {
+    emit_nullifier_opcode(nullifier)
+}
+fn emit_unencrypted_log<T>(event_selector: Field, message: T) {
+    emit_unencrypted_log_opcode(event_selector, message)
+}
+fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {
+    l1_to_l2_msg_exists_opcode(msg_hash, msg_leaf_index)
+}
+fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
+    send_l2_to_l1_msg_opcode(recipient, content)
+}
+fn call<RET_SIZE>(
+    gas: [Field; 2],
+    address: AztecAddress,
+    args: [Field],
+    function_selector: Field
+) -> ([Field; RET_SIZE], u8) {
+    call_opcode(gas, address, args, function_selector)
+}
+fn call_static<RET_SIZE>(
+    gas: [Field; 2],
+    address: AztecAddress,
+    args: [Field],
+    function_selector: Field
+) -> ([Field; RET_SIZE], u8) {
+    call_static_opcode(gas, address, args, function_selector)
+}
+
 // AVM oracles (opcodes) follow, do not use directly.
 #[oracle(avmOpcodeAddress)]
-fn address() -> AztecAddress {}
+fn address_opcode() -> AztecAddress {}
 
 #[oracle(avmOpcodeStorageAddress)]
-fn storage_address() -> AztecAddress {}
+fn storage_address_opcode() -> AztecAddress {}
 
 #[oracle(avmOpcodeSender)]
-fn sender() -> AztecAddress {}
+fn sender_opcode() -> AztecAddress {}
 
 #[oracle(avmOpcodePortal)]
-fn portal() -> EthAddress {}
+fn portal_opcode() -> EthAddress {}
 
 #[oracle(avmOpcodeFeePerL2Gas)]
-fn fee_per_l2_gas() -> Field {}
+fn fee_per_l2_gas_opcode() -> Field {}
 
 #[oracle(avmOpcodeFeePerDaGas)]
-fn fee_per_da_gas() -> Field {}
+fn fee_per_da_gas_opcode() -> Field {}
 
 #[oracle(avmOpcodeTransactionFee)]
-fn transaction_fee() -> Field {}
+fn transaction_fee_opcode() -> Field {}
 
 #[oracle(avmOpcodeChainId)]
-fn chain_id() -> Field {}
+fn chain_id_opcode() -> Field {}
 
 #[oracle(avmOpcodeVersion)]
-fn version() -> Field {}
+fn version_opcode() -> Field {}
 
 #[oracle(avmOpcodeBlockNumber)]
-fn block_number() -> Field {}
+fn block_number_opcode() -> Field {}
 
 #[oracle(avmOpcodeTimestamp)]
-fn timestamp() -> u64 {}
+fn timestamp_opcode() -> u64 {}
 
 #[oracle(avmOpcodeL2GasLeft)]
-fn l2_gas_left() -> Field {}
+fn l2_gas_left_opcode() -> Field {}
 
 #[oracle(avmOpcodeDaGasLeft)]
-fn da_gas_left() -> Field {}
+fn da_gas_left_opcode() -> Field {}
 
 #[oracle(avmOpcodeNoteHashExists)]
-fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {}
+fn note_hash_exists_opcode(note_hash: Field, leaf_index: Field) -> u8 {}
 
 #[oracle(avmOpcodeEmitNoteHash)]
-fn emit_note_hash(note_hash: Field) {}
+fn emit_note_hash_opcode(note_hash: Field) {}
 
 #[oracle(avmOpcodeNullifierExists)]
-fn nullifier_exists(nullifier: Field, address: Field) -> u8 {}
+fn nullifier_exists_opcode(nullifier: Field, address: Field) -> u8 {}
 
 #[oracle(avmOpcodeEmitNullifier)]
-fn emit_nullifier(nullifier: Field) {}
+fn emit_nullifier_opcode(nullifier: Field) {}
 
 #[oracle(amvOpcodeEmitUnencryptedLog)]
-fn emit_unencrypted_log<T>(event_selector: Field, message: T) {}
+fn emit_unencrypted_log_opcode<T>(event_selector: Field, message: T) {}
 
 #[oracle(avmOpcodeL1ToL2MsgExists)]
-fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {}
+fn l1_to_l2_msg_exists_opcode(msg_hash: Field, msg_leaf_index: Field) -> u8 {}
 
 #[oracle(avmOpcodeSendL2ToL1Msg)]
-fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {}
+fn send_l2_to_l1_msg_opcode(recipient: EthAddress, content: Field) {}
 
 #[oracle(avmOpcodeCall)]
-fn call<RET_SIZE>(
+fn call_opcode<RET_SIZE>(
     gas: [Field; 2], // gas allocation: [l2_gas, da_gas]
     address: AztecAddress,
     args: [Field],
     // TODO(5110): consider passing in calldata directly
-    temporary_function_selector: Field
+    function_selector: Field
 ) -> ([Field; RET_SIZE], u8) {}
 //    ^ return data      ^ success
 
 #[oracle(avmOpcodeStaticCall)]
-fn call_static<RET_SIZE>(
+fn call_static_opcode<RET_SIZE>(
     gas: [Field; 2], // gas allocation: [l2_gas, da_gas]
     address: AztecAddress,
     args: [Field],
     // TODO(5110): consider passing in calldata directly
-    temporary_function_selector: Field
+    function_selector: Field
 ) -> ([Field; RET_SIZE], u8) {}
 //    ^ return data      ^ success
