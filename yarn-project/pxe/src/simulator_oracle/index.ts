@@ -37,17 +37,18 @@ export class SimulatorOracle implements DBOracle {
     private log = createDebugLogger('aztec:pxe:simulator_oracle'),
   ) {}
 
-  async getNullifierKeys(accountAddress: AztecAddress, contractAddress: AztecAddress): Promise<NullifierKeys> {
-    const masterNullifierPublicKey = await this.keyStore.getMasterNullifierPublicKey(accountAddress);
-    const appNullifierSecretKey = await this.keyStore.getAppNullifierSecretKey(accountAddress, contractAddress);
+  async getNullifierKeys(accountOrNpkMHash: AztecAddress | Fr, contractAddress: AztecAddress): Promise<NullifierKeys> {
+    const masterNullifierPublicKey = await this.keyStore.getMasterNullifierPublicKey(accountOrNpkMHash);
+    const appNullifierSecretKey = await this.keyStore.getAppNullifierSecretKey(accountOrNpkMHash, contractAddress);
     return { masterNullifierPublicKey, appNullifierSecretKey };
   }
 
-  async getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
-    const completeAddress = await this.db.getCompleteAddress(address);
+  async getCompleteAddress(accountOrNpkMHash: AztecAddress | Fr): Promise<CompleteAddress> {
+    const completeAddress = await this.db.getCompleteAddress(accountOrNpkMHash);
     if (!completeAddress) {
       throw new Error(
-        `No public key registered for address ${address.toString()}. Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...).\nSee docs for context: https://docs.aztec.network/developers/debugging/aztecnr-errors#simulation-error-No-public-key-registered-for-address-0x0-Register-it-by-calling-pxeregisterRecipient-or-pxeregisterAccount`,
+        `No public key registered for address or master nullifier public key hash ${accountOrNpkMHash}.
+        Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...).\nSee docs for context: https://docs.aztec.network/developers/debugging/aztecnr-errors#simulation-error-No-public-key-registered-for-address-0x0-Register-it-by-calling-pxeregisterRecipient-or-pxeregisterAccount`,
       );
     }
     return completeAddress;

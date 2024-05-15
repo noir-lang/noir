@@ -44,11 +44,12 @@ export interface DBOracle extends CommitmentsDB {
   getContractInstance(address: AztecAddress): Promise<ContractInstance>;
 
   /**
-   * Retrieve the complete address associated to a given address.
-   * @param address - Address to fetch the pubkey for.
-   * @returns A complete address associated with the input address.
+   * Retrieve the complete address associated to a given address or master nullifier public key hash.
+   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * @returns A complete address associated with the input address or master nullifier public key hash
+   * @throws An error if the account is not registered in the database.
    */
-  getCompleteAddress(address: AztecAddress): Promise<CompleteAddress>;
+  getCompleteAddress(accountOrNpkMHash: AztecAddress | Fr): Promise<CompleteAddress>;
 
   /**
    * Retrieve the auth witness for a given message hash.
@@ -65,14 +66,12 @@ export interface DBOracle extends CommitmentsDB {
   popCapsule(): Promise<Fr[]>;
 
   /**
-   * Retrieve nullifier keys associated with a specific account and app/contract address.
-   *
-   * @param accountAddress - The account address.
-   * @param contractAddress - The contract address.
-   * @returns A Promise that resolves to nullifier keys of a requested account and contract.
-   * @throws An error if the account is not registered in the database.
+   * Retrieve nullifier keys associated with a specific account or master nullifier public key and app address.
+   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * @returns A Promise that resolves to nullifier keys.
+   * @throws If the nullifier keys are not registered in the key store.
    */
-  getNullifierKeys(accountAddress: AztecAddress, contractAddress: AztecAddress): Promise<NullifierKeys>;
+  getNullifierKeys(accountOrNpkMHash: AztecAddress | Fr, contractAddress: AztecAddress): Promise<NullifierKeys>;
 
   /**
    * Retrieves a set of notes stored in the database for a given contract address and storage slot.

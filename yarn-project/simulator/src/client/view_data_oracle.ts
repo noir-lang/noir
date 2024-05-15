@@ -35,14 +35,13 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
-   * Retrieve nullifier keys associated with a specific account and app/contract address.
-   *
-   * @param accountAddress - The account address.
-   * @returns A Promise that resolves to nullifier keys of a requested account and contract.
-   * @throws An error if the account is not registered in the database.
+   * Retrieve nullifier keys associated with a specific account or master nullifier public key and app address.
+   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * @returns A Promise that resolves to nullifier keys.
+   * @throws If the nullifier keys are not registered in the key store.
    */
-  public override getNullifierKeys(account: AztecAddress): Promise<NullifierKeys> {
-    return this.db.getNullifierKeys(account, this.contractAddress);
+  public override getNullifierKeys(accountOrNpkMHash: AztecAddress | Fr): Promise<NullifierKeys> {
+    return this.db.getNullifierKeys(accountOrNpkMHash, this.contractAddress);
   }
 
   /**
@@ -128,12 +127,13 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
-   * Retrieve the complete address associated to a given address.
-   * @param address - Address to fetch the complete address for.
-   * @returns A complete address associated with the input address.
+   * Retrieve the complete address associated to a given address or master nullifier public key hash.
+   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * @returns A complete address associated with the input address or master nullifier public key hash
+   * @throws An error if the account is not registered in the database.
    */
-  public override getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
-    return this.db.getCompleteAddress(address);
+  public override getCompleteAddress(accountOrNpkMHash: AztecAddress | Fr): Promise<CompleteAddress> {
+    return this.db.getCompleteAddress(accountOrNpkMHash);
   }
 
   /**

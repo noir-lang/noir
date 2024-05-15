@@ -310,6 +310,7 @@ describe('e2e_2_pxes', () => {
     await sharedAccountOnB.register();
     const sharedWalletOnB = await sharedAccountOnB.getWallet();
 
+    // Register wallet B in the pxe of wallet A
     await pxeA.registerRecipient(walletB.getCompleteAddress());
 
     // deploy the contract on PXE A

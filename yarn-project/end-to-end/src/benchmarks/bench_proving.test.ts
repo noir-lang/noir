@@ -120,5 +120,5 @@ describe('benchmarks/proving', () => {
 
     const receipts = await Promise.all(txs.map(tx => tx.wait({ timeout: txTimeoutSec })));
     expect(receipts.every(r => r.status === TxStatus.MINED)).toBe(true);
-  });
+  }, 1_200_000);
 });

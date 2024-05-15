@@ -8,6 +8,21 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## TBD
 
+### [Aztec.nr] Keys: Token note now stores an owner master nullifying public key hash instead of an owner address.
+
+i.e.
+
+struct TokenNote {
+    amount: U128,
+    ```diff
+    - owner: AztecAddress,
+    + npk_m_hash: Field,
+    ```
+    randomness: Field,
+}
+
+Computing the nullifier similarly changes to use this master nullifying public key hash.
+
 ### [Aztec.nr] Debug logging
 
 The function `debug_log_array_with_prefix` has been removed. Use `debug_log_format` with `{}` instead. The special sequence `{}` will be replaced with the whole array. You can also use `{0}`, `{1}`, ... as usual with `debug_log_format`.

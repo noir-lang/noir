@@ -190,35 +190,37 @@ describe('Private Execution test suite', () => {
   beforeEach(async () => {
     trees = {};
     oracle = mock<DBOracle>();
-    oracle.getNullifierKeys.mockImplementation((accountAddress: AztecAddress, contractAddress: AztecAddress) => {
-      if (accountAddress.equals(ownerCompleteAddress.address)) {
-        return Promise.resolve({
-          masterNullifierPublicKey: ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
-          appNullifierSecretKey: computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
-        });
-      }
-      if (accountAddress.equals(recipientCompleteAddress.address)) {
-        return Promise.resolve({
-          masterNullifierPublicKey: recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
-          appNullifierSecretKey: computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
-        });
-      }
-      throw new Error(`Unknown address ${accountAddress}`);
-    });
+    oracle.getNullifierKeys.mockImplementation(
+      (accountOrNpkMHash: AztecAddress | Fr, contractAddress: AztecAddress) => {
+        if (accountOrNpkMHash.equals(ownerCompleteAddress.address)) {
+          return Promise.resolve({
+            masterNullifierPublicKey: ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
+            appNullifierSecretKey: computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
+          });
+        }
+        if (accountOrNpkMHash.equals(recipientCompleteAddress.address)) {
+          return Promise.resolve({
+            masterNullifierPublicKey: recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
+            appNullifierSecretKey: computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
+          });
+        }
+        throw new Error(`Unknown address ${accountOrNpkMHash}`);
+      },
+    );
 
     // We call insertLeaves here with no leaves to populate empty public data tree root --> this is necessary to be
     // able to get ivpk_m during execution
     await insertLeaves([], 'publicData');
     oracle.getHeader.mockResolvedValue(header);
 
-    oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
-      if (address.equals(owner)) {
+    oracle.getCompleteAddress.mockImplementation((accountOrNpkMHash: AztecAddress | Fr) => {
+      if (accountOrNpkMHash.equals(owner)) {
         return Promise.resolve(ownerCompleteAddress);
       }
-      if (address.equals(recipient)) {
+      if (accountOrNpkMHash.equals(recipient)) {
         return Promise.resolve(recipientCompleteAddress);
       }
-      throw new Error(`Unknown address ${address}`);
+      throw new Error(`Unknown address ${accountOrNpkMHash}`);
     });
     // This oracle gets called when reading ivpk_m from key registry --> we return zero witness indicating that
     // the keys were not registered. This triggers non-registered keys flow in which getCompleteAddress oracle

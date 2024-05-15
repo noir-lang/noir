@@ -64,7 +64,7 @@ describe('guides/writing_an_account_contract', () => {
     logger.info(`Deployed account contract at ${address}`);
 
     // docs:start:account-contract-works
-    const token = await TokenContract.deploy(wallet, { address }, 'TokenName', 'TokenSymbol', 18).send().deployed();
+    const token = await TokenContract.deploy(wallet, address, 'TokenName', 'TokenSymbol', 18).send().deployed();
     logger.info(`Deployed token contract at ${token.address}`);
 
     const secret = Fr.random();
@@ -84,9 +84,9 @@ describe('guides/writing_an_account_contract', () => {
     );
     await pxe.addNote(extendedNote);
 
-    await token.methods.redeem_shield({ address }, mintAmount, secret).send().wait();
+    await token.methods.redeem_shield(address, mintAmount, secret).send().wait();
 
-    const balance = await token.methods.balance_of_private({ address }).simulate();
+    const balance = await token.methods.balance_of_private(address).simulate();
     logger.info(`Balance of wallet is now ${balance}`);
     // docs:end:account-contract-works
     expect(balance).toEqual(50n);
