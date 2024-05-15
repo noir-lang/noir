@@ -2,17 +2,17 @@ import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
-import { EncryptedLogBody } from './encrypted_log_body.js';
+import { EncryptedLogIncomingBody } from './encrypted_log_incoming_body.js';
 import { Note } from './l1_note_payload/note.js';
 
-describe('encrypt log body', () => {
+describe('encrypt log incoming body', () => {
   let grumpkin: Grumpkin;
 
   beforeAll(() => {
     grumpkin = new Grumpkin();
   });
 
-  it('encrypt and decrypt a log body', () => {
+  it('encrypt and decrypt a log incoming body', () => {
     const ephSecretKey = GrumpkinScalar.random();
     const viewingSecretKey = GrumpkinScalar.random();
 
@@ -23,16 +23,16 @@ describe('encrypt log body', () => {
     const noteTypeId = Fr.random();
     const storageSlot = Fr.random();
 
-    const body = new EncryptedLogBody(noteTypeId, storageSlot, note);
+    const body = new EncryptedLogIncomingBody(noteTypeId, storageSlot, note);
 
     const encrypted = body.computeCiphertext(ephSecretKey, viewingPubKey);
 
-    const recreated = EncryptedLogBody.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
+    const recreated = EncryptedLogIncomingBody.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
 
     expect(recreated.toBuffer()).toEqual(body.toBuffer());
   });
 
-  it('encrypt a log body, generate input for noir test', () => {
+  it('encrypt a log incoming body, generate input for noir test', () => {
     // The following 2 are arbitrary fixed values - fixed in order to test a match with Noir
     const viewingSecretKey: GrumpkinScalar = new GrumpkinScalar(
       0x23b3127c127b1f29a7adff5cccf8fb06649e7ca01d9de27b21624098b897babdn,
@@ -47,7 +47,7 @@ describe('encrypt log body', () => {
     const noteTypeId = new Fr(1);
     const storageSlot = new Fr(2);
 
-    const body = new EncryptedLogBody(storageSlot, noteTypeId, note);
+    const body = new EncryptedLogIncomingBody(storageSlot, noteTypeId, note);
 
     const encrypted = body.computeCiphertext(ephSecretKey, viewingPubKey);
 
@@ -58,7 +58,7 @@ describe('encrypt log body', () => {
 
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
     updateInlineTestData(
-      'noir-projects/aztec-nr/aztec/src/encrypted_logs/body.nr',
+      'noir-projects/aztec-nr/aztec/src/encrypted_logs/incoming_body.nr',
       'expected_body_ciphertext',
       byteArrayString,
     );

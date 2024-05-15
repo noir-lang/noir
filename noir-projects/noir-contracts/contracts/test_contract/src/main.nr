@@ -16,7 +16,7 @@ contract Test {
     };
 
     use dep::aztec::encrypted_logs::header::EncryptedLogHeader;
-    use dep::aztec::encrypted_logs::body::EncryptedLogBody;
+    use dep::aztec::encrypted_logs::incoming_body::EncryptedLogIncomingBody;
 
     use dep::aztec::note::constants::MAX_NOTES_PER_PAGE;
 
@@ -364,14 +364,14 @@ contract Test {
 
     // 64 bytes + 32 * #fields + 16 = 112 bytes
     #[aztec(private)]
-    fn compute_note_body_ciphertext(
+    fn compute_incoming_log_body_ciphertext(
         secret: GrumpkinPrivateKey,
         point: GrumpkinPoint,
         storage_slot: Field,
         value: Field
     ) -> [u8; 112] {
         let note = TestNote::new(value);
-        EncryptedLogBody::new(storage_slot, TestNote::get_note_type_id(), note).compute_ciphertext(secret, point).as_array()
+        EncryptedLogIncomingBody::new(storage_slot, TestNote::get_note_type_id(), note).compute_ciphertext(secret, point).as_array()
     }
 
     #[aztec(public)]

@@ -124,7 +124,7 @@ export {
   Comparator,
   SiblingPath,
   EncryptedLogHeader,
-  EncryptedLogBody,
+  EncryptedLogIncomingBody,
 } from '@aztec/circuit-types';
 export { NodeInfo } from '@aztec/types/interfaces';
 

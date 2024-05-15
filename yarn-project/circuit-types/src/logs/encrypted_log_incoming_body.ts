@@ -4,7 +4,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { Note, deriveAESSecret } from './l1_note_payload/index.js';
 
-export class EncryptedLogBody {
+export class EncryptedLogIncomingBody {
   constructor(public storageSlot: Fr, public noteTypeId: Fr, public note: Note) {}
 
   /**
@@ -23,7 +23,7 @@ export class EncryptedLogBody {
    * @param buf - The buffer to deserialize
    * @returns The deserialized log body
    */
-  public static fromBuffer(buf: Buffer): EncryptedLogBody {
+  public static fromBuffer(buf: Buffer): EncryptedLogIncomingBody {
     const reader = BufferReader.asReader(buf);
     const storageSlot = Fr.fromBuffer(reader);
     const noteTypeId = Fr.fromBuffer(reader);
@@ -32,19 +32,19 @@ export class EncryptedLogBody {
     const fieldsInNote = reader.getLength() / 32 - 2;
     const note = new Note(reader.readArray(fieldsInNote, Fr));
 
-    return new EncryptedLogBody(storageSlot, noteTypeId, note);
+    return new EncryptedLogIncomingBody(storageSlot, noteTypeId, note);
   }
 
   /**
    * Encrypts a log body
    *
-   * @param secret - The ephemeral secret key
-   * @param publicKey - The incoming viewing key for the recipient of this log
+   * @param ephSk - The ephemeral secret key
+   * @param ivpkApp - The application scoped incoming viewing key for the recipient of this log
    *
    * @returns The ciphertext of the encrypted log body
    */
-  public computeCiphertext(secret: GrumpkinPrivateKey, publicKey: PublicKey) {
-    const aesSecret = deriveAESSecret(secret, publicKey);
+  public computeCiphertext(ephSk: GrumpkinPrivateKey, ivpkApp: PublicKey) {
+    const aesSecret = deriveAESSecret(ephSk, ivpkApp);
     const key = aesSecret.subarray(0, 16);
     const iv = aesSecret.subarray(16, 32);
 
@@ -58,24 +58,27 @@ export class EncryptedLogBody {
    * Decrypts a log body
    *
    * @param ciphertext - The ciphertext buffer
-   * @param secret - The private key matching the public key used in encryption (the viewing key secret)
-   * @param publicKey - The public key generated with the ephemeral secret key used in encryption
+   * @param ivskAppOrEphSk - The private key matching the public key used in encryption (the viewing key secret or)
+   * @param ephPkOrIvpkApp - The public key generated with the ephemeral secret key used in encryption
+   *
+   * The "odd" input stems from ivskApp * ephPk == ivpkApp * ephSk producing the same value.
+   * This is used to allow for the same decryption function to be used by both the sender and the recipient.
    *
    * @returns The decrypted log body
    */
   public static fromCiphertext(
     ciphertext: Buffer | bigint[],
-    secret: GrumpkinPrivateKey,
-    publicKey: PublicKey,
-  ): EncryptedLogBody {
+    ivskAppOrEphSk: GrumpkinPrivateKey,
+    ephPkOrIvpkApp: PublicKey,
+  ): EncryptedLogIncomingBody {
     const input = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext.map((x: bigint) => Number(x)));
 
-    const aesSecret = deriveAESSecret(secret, publicKey);
+    const aesSecret = deriveAESSecret(ivskAppOrEphSk, ephPkOrIvpkApp);
     const key = aesSecret.subarray(0, 16);
     const iv = aesSecret.subarray(16, 32);
 
     const aes128 = new Aes128();
     const buffer = aes128.decryptBufferCBC(input, iv, key);
-    return EncryptedLogBody.fromBuffer(buffer);
+    return EncryptedLogIncomingBody.fromBuffer(buffer);
   }
 }

@@ -4,13 +4,13 @@ use dep::protocol_types::{grumpkin_private_key::GrumpkinPrivateKey, grumpkin_poi
 use dep::std::aes128::aes128_encrypt_slice;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 
-struct EncryptedLogBody<Note> {
+struct EncryptedLogIncomingBody<Note> {
     storage_slot: Field,
     note_type_id: Field,
     note: Note,
 }
 
-impl<Note> EncryptedLogBody<Note> {
+impl<Note> EncryptedLogIncomingBody<Note> {
     pub fn new<N>(
         storage_slot: Field,
         note_type_id: Field,
@@ -21,8 +21,8 @@ impl<Note> EncryptedLogBody<Note> {
 
     pub fn compute_ciphertext<N>(
         self,
-        secret: GrumpkinPrivateKey,
-        point: GrumpkinPoint
+        eph_sk: GrumpkinPrivateKey,
+        ivpk_app: GrumpkinPoint
     ) -> [u8] where Note: NoteInterface<N> {
         let serialized_note: [Field; N] = self.note.serialize_content();
 
@@ -46,7 +46,7 @@ impl<Note> EncryptedLogBody<Note> {
             }
         }
 
-        let full_key = point_to_symmetric_key(secret, point);
+        let full_key = point_to_symmetric_key(eph_sk, ivpk_app);
         let mut sym_key = [0; 16];
         let mut iv = [0; 16];
 
@@ -59,7 +59,7 @@ impl<Note> EncryptedLogBody<Note> {
 }
 
 mod test {
-    use crate::encrypted_logs::body::EncryptedLogBody;
+    use crate::encrypted_logs::incoming_body::EncryptedLogIncomingBody;
     use dep::protocol_types::{
         address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
         grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint
@@ -109,7 +109,7 @@ mod test {
     }
 
     #[test]
-    fn test_encrypted_log_body() {
+    fn test_encrypted_log_incoming_body() {
         let note = AddressNote::new(
             AztecAddress::from_field(0x1),
             AztecAddress::from_field(0x2),
@@ -118,18 +118,18 @@ mod test {
 
         let note_type_id = 1;
         let storage_slot = 2;
-        let body = EncryptedLogBody::new(storage_slot, note_type_id, note);
+        let body = EncryptedLogIncomingBody::new(storage_slot, note_type_id, note);
 
-        let secret = GrumpkinPrivateKey::new(
+        let eph_sk = GrumpkinPrivateKey::new(
             0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06,
             0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd
         );
-        let point = GrumpkinPoint::new(
+        let ivpk_app = GrumpkinPoint::new(
             0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,
             0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e
         );
 
-        let ciphertext = body.compute_ciphertext(secret, point);
+        let ciphertext = body.compute_ciphertext(eph_sk, ivpk_app);
 
         let expected_body_ciphertext = [
             131, 119, 105, 129, 244, 32, 151, 205, 12, 99, 93, 62, 10, 180, 72, 21, 47, 232, 95, 17, 240, 230, 80, 129, 174, 158, 23, 76, 114, 185, 43, 18, 254, 148, 147, 230, 66, 216, 167, 62, 180, 213, 238, 33, 108, 29, 84, 139, 99, 206, 212, 253, 92, 116, 137, 31, 0, 104, 45, 91, 250, 109, 141, 114, 189, 53, 35, 60, 108, 156, 170, 206, 150, 114, 150, 187, 198, 13, 62, 153, 133, 13, 169, 167, 242, 221, 40, 168, 186, 203, 104, 82, 47, 238, 142, 179, 90, 37, 9, 70, 245, 176, 122, 247, 42, 87, 75, 7, 20, 89, 166, 123, 14, 26, 230, 156, 49, 94, 0, 94, 72, 58, 171, 239, 115, 174, 155, 7, 151, 17, 60, 206, 193, 134, 70, 87, 215, 88, 21, 194, 63, 26, 106, 105, 124, 213, 252, 152, 192, 71, 115, 13, 181, 5, 169, 15, 170, 196, 174, 228, 170, 192, 91, 76, 110, 220, 89, 47, 248, 144, 189, 251, 167, 149, 248, 226
