@@ -12,21 +12,38 @@ import type { CommitmentsDB } from '../../index.js';
 export class Nullifiers {
   /** Cached nullifiers. */
   public cache: NullifierCache;
-  /** Parent's nullifier cache. Checked on cache-miss. */
-  private readonly parentCache: NullifierCache | undefined;
-  /** Reference to node storage. Checked on parent cache-miss. */
-  private readonly hostNullifiers: CommitmentsDB;
 
-  constructor(hostNullifiers: CommitmentsDB, parent?: Nullifiers) {
-    this.hostNullifiers = hostNullifiers;
-    this.parentCache = parent?.cache;
+  constructor(
+    /** Reference to node storage. Checked on parent cache-miss. */
+    private readonly hostNullifiers: CommitmentsDB,
+    /** Parent's nullifiers. Checked on this' cache-miss. */
+    private readonly parent?: Nullifiers | undefined,
+  ) {
     this.cache = new NullifierCache();
+  }
+
+  /**
+   * Get a nullifier's existence in this' cache or parent's (recursively).
+   * DOES NOT CHECK HOST STORAGE!
+   * @param storageAddress - the address of the contract whose storage is being read from
+   * @param nullifier - the nullifier to check for
+   * @returns exists: whether the nullifier exists in cache here or in parent's
+   */
+  private checkExistsHereOrParent(storageAddress: Fr, nullifier: Fr): boolean {
+    // First check this cache
+    let existsAsPending = this.cache.exists(storageAddress, nullifier);
+    // Then try parent's nullifier cache
+    if (!existsAsPending && this.parent) {
+      // Note: this will recurse to grandparent/etc until a cache-hit is encountered.
+      existsAsPending = this.parent.checkExistsHereOrParent(storageAddress, nullifier);
+    }
+    return existsAsPending;
   }
 
   /**
    * Get a nullifier's existence status.
    * 1. Check cache.
-   * 2. Check parent's cache.
+   * 2. Check parent cache.
    * 3. Fall back to the host state.
    * 4. Not found! Nullifier does not exist.
    *
@@ -40,12 +57,8 @@ export class Nullifiers {
     storageAddress: Fr,
     nullifier: Fr,
   ): Promise<[/*exists=*/ boolean, /*isPending=*/ boolean, /*leafIndex=*/ Fr]> {
-    // First check this cache
-    let existsAsPending = this.cache.exists(storageAddress, nullifier);
-    // Then check parent's cache
-    if (!existsAsPending && this.parentCache) {
-      existsAsPending = this.parentCache?.exists(storageAddress, nullifier);
-    }
+    // Check this cache and parent's (recursively)
+    const existsAsPending = this.checkExistsHereOrParent(storageAddress, nullifier);
     // Finally try the host's Aztec state (a trip to the database)
     // If the value is found in the database, it will be associated with a leaf index!
     let leafIndex: bigint | undefined = undefined;

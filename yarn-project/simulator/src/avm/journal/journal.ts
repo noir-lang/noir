@@ -141,7 +141,7 @@ export class AvmPersistableStateManager {
    * @param value - the value being written to the slot
    */
   public writeStorage(storageAddress: Fr, slot: Fr, value: Fr) {
-    this.log.debug(`storage(${storageAddress})@${slot} <- ${value}`);
+    this.log.debug(`Storage write (address=${storageAddress}, slot=${slot}): value=${value}`);
     // Cache storage writes for later reference/reads
     this.publicStorage.write(storageAddress, slot, value);
 
@@ -172,7 +172,9 @@ export class AvmPersistableStateManager {
    */
   public async readStorage(storageAddress: Fr, slot: Fr): Promise<Fr> {
     const { value, exists, cached } = await this.publicStorage.read(storageAddress, slot);
-    this.log.debug(`storage(${storageAddress})@${slot} ?? value: ${value}, exists: ${exists}, cached: ${cached}.`);
+    this.log.debug(
+      `Storage read  (address=${storageAddress}, slot=${slot}): value=${value}, exists=${exists}, cached=${cached}`,
+    );
 
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
     // The current info to the kernel kernel does not consider cached reads.

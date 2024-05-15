@@ -67,6 +67,21 @@ describe('avm public storage', () => {
       expect(cached).toEqual(true);
     });
 
+    it('Reading works on fallback to grandparent (gets value & exists)', async () => {
+      const contractAddress = new Fr(1);
+      const slot = new Fr(2);
+      const value = new Fr(3);
+      const childStorage = new PublicStorage(publicDb, publicStorage);
+      const grandChildStorage = new PublicStorage(publicDb, childStorage);
+
+      publicStorage.write(contractAddress, slot, value);
+      const { exists, value: gotValue, cached } = await grandChildStorage.read(contractAddress, slot);
+      // exists because it was previously written!
+      expect(exists).toEqual(true);
+      expect(gotValue).toEqual(value);
+      expect(cached).toEqual(true);
+    });
+
     it('When reading from storage, should check cache, then parent, then host', async () => {
       // Store a different value in storage vs the cache, and make sure the cache is returned
       const contractAddress = new Fr(1);

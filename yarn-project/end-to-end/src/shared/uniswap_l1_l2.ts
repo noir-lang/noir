@@ -940,7 +940,7 @@ export const uniswapL1L2TestSuite = (
         uniswapPortal.simulate.swapPublic(swapArgs, {
           account: ownerEthAddress.toString(),
         } as any),
-      ).rejects.toThrow('The contract function "swapPublic" reverted.');
+      ).rejects.toThrow('The contract function "swapPublic" reverted');
     });
 
     it("can't call swap_private on L1 if called swap_public on L2", async () => {

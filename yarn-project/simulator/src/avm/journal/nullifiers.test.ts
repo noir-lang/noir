@@ -64,6 +64,21 @@ describe('avm nullifier caching', () => {
       expect(isPending).toEqual(true);
       expect(gotIndex).toEqual(Fr.ZERO);
     });
+    it('Existence check works on fallback to grandparent (gets value, exists, is pending)', async () => {
+      const contractAddress = new Fr(1);
+      const nullifier = new Fr(2);
+      const childNullifiers = new Nullifiers(commitmentsDb, nullifiers);
+      const grandChildNullifiers = new Nullifiers(commitmentsDb, childNullifiers);
+
+      // Write to parent cache
+      await nullifiers.append(contractAddress, nullifier);
+      // Get from child cache
+      const [exists, isPending, gotIndex] = await grandChildNullifiers.checkExists(contractAddress, nullifier);
+      // exists (in parent), isPending, index is zero (not in tree)
+      expect(exists).toEqual(true);
+      expect(isPending).toEqual(true);
+      expect(gotIndex).toEqual(Fr.ZERO);
+    });
   });
 
   describe('Nullifier collision failures', () => {
