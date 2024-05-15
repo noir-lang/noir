@@ -4,7 +4,8 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
-    ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
+    ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
+    OpcodeNotSolvable, StepResult, ACVM,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
@@ -31,10 +32,16 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     brillig_solver: Option<BrilligSolver<'a, B>>,
 
     witness_stack: WitnessStack,
+    acvm_stack: Vec<ACVM<'a, B>>,
+
+    backend: &'a B,
     foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
+
     debug_artifact: &'a DebugArtifact,
     breakpoints: HashSet<OpcodeLocation>,
     source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
+
+    circuits: &'a [Circuit],
     unconstrained_functions: &'a [BrilligBytecode],
 
     // Absolute (in terms of all the opcodes ACIR+Brillig) addresses of the ACIR
@@ -64,10 +71,13 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             ),
             brillig_solver: None,
             witness_stack: WitnessStack::default(),
+            acvm_stack: vec![],
+            backend: blackbox_solver,
             foreign_call_executor,
             debug_artifact,
             breakpoints: HashSet::new(),
             source_to_opcodes,
+            circuits,
             unconstrained_functions,
             acir_opcode_addresses,
         }
@@ -322,13 +332,59 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    fn handle_acvm_status(&mut self, status: ACVMStatus) -> DebugCommandResult {
-        if let ACVMStatus::RequiresForeignCall(foreign_call) = status {
-            return self.handle_foreign_call(foreign_call);
-        }
+    fn handle_acir_call(&mut self, call_info: AcirCallWaitInfo) -> DebugCommandResult {
+        let callee_circuit = &self.circuits[call_info.id as usize];
+        let callee_witness_map = call_info.initial_witness;
+        let callee_acvm = ACVM::new(
+            self.backend,
+            &callee_circuit.opcodes,
+            callee_witness_map,
+            self.unconstrained_functions,
+            &callee_circuit.assert_messages,
+        );
+        let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
+        self.acvm_stack.push(caller_acvm);
+        DebugCommandResult::Ok
+    }
 
+    fn handle_acir_call_finished(&mut self) -> DebugCommandResult {
+        let caller_acvm = self.acvm_stack.pop().expect("ACVM stack should not be empty");
+        let callee_acvm = std::mem::replace(&mut self.acvm, caller_acvm);
+        let call_solved_witness = callee_acvm.finalize();
+
+        let ACVMStatus::RequiresAcirCall(call_info) = self.acvm.get_status() else {
+            unreachable!("Resolving an ACIR call, the caller is in an invalid state");
+        };
+        let acir_to_call = &self.circuits[call_info.id as usize];
+
+        let mut call_resolved_outputs = Vec::new();
+        for return_witness_index in acir_to_call.return_values.indices() {
+            if let Some(return_value) = call_solved_witness.get_index(return_witness_index) {
+                call_resolved_outputs.push(*return_value);
+            } else {
+                return DebugCommandResult::Error(
+                    ExecutionError::SolvingError(
+                        OpcodeNotSolvable::MissingAssignment(return_witness_index).into(),
+                        None, // Missing assignment errors do not supply user-facing diagnostics so we do not need to attach a call stack
+                    )
+                    .into(),
+                );
+            }
+        }
+        self.acvm.resolve_pending_acir_call(call_resolved_outputs);
+
+        DebugCommandResult::Ok
+    }
+
+    fn handle_acvm_status(&mut self, status: ACVMStatus) -> DebugCommandResult {
         match status {
-            ACVMStatus::Solved => DebugCommandResult::Done,
+            ACVMStatus::Solved => {
+                if self.acvm_stack.is_empty() {
+                    return DebugCommandResult::Done;
+                }
+
+                self.handle_acir_call_finished()
+            }
             ACVMStatus::InProgress => {
                 if self.breakpoint_reached() {
                     DebugCommandResult::BreakpointReached(
@@ -340,15 +396,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not not handle multiple acir calls
                 ExecutionError::SolvingError(error, None),
             )),
-            ACVMStatus::RequiresForeignCall(_) => {
-                unreachable!("Unexpected pending foreign call resolution");
-            }
-            ACVMStatus::RequiresAcirCall(_) => {
-                todo!("Multiple ACIR calls are not supported");
-            }
+            ACVMStatus::RequiresForeignCall(foreign_call) => self.handle_foreign_call(foreign_call),
+            ACVMStatus::RequiresAcirCall(call_info) => self.handle_acir_call(call_info),
         }
     }
 
