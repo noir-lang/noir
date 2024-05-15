@@ -880,7 +880,9 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const results = await new AvmSimulator(context).executeBytecode(callBytecode);
 
       expect(results.reverted).toBe(true); // The outer call should revert.
-      expect(results.revertReason?.message).toEqual('Static calls cannot alter storage');
+      expect(results.revertReason?.message).toEqual(
+        'Static call cannot update the state, emit L2->L1 messages or generate logs',
+      );
     });
 
     it(`Nested calls rethrow exceptions`, async () => {

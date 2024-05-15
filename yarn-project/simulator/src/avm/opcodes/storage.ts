@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import type { AvmContext } from '../avm_context.js';
 import { type Gas, getBaseGasCost, getMemoryGasCost, mulGas, sumGas } from '../avm_gas.js';
 import { Field, type MemoryOperations } from '../avm_memory_types.js';
-import { InstructionExecutionError } from '../errors.js';
+import { StaticCallAlterationError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
@@ -44,7 +44,7 @@ export class SStore extends BaseStorageInstruction {
 
   public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
-      throw new StaticCallStorageAlterError();
+      throw new StaticCallAlterationError();
     }
 
     const memoryOperations = { reads: this.size + 1, indirect: this.indirect };
@@ -98,15 +98,5 @@ export class SLoad extends BaseStorageInstruction {
 
     context.machineState.incrementPc();
     memory.assert(memoryOperations);
-  }
-}
-
-/**
- * Error is thrown when a static call attempts to alter storage
- */
-export class StaticCallStorageAlterError extends InstructionExecutionError {
-  constructor() {
-    super('Static calls cannot alter storage');
-    this.name = 'StaticCallStorageAlterError';
   }
 }

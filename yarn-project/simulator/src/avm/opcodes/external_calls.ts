@@ -40,7 +40,7 @@ abstract class ExternalCall extends Instruction {
     // Function selector is temporary since eventually public contract bytecode will be one blob
     // containing all functions, and function selector will become an application-level mechanism
     // (e.g. first few bytes of calldata + compiler-generated jump table)
-    private temporaryFunctionSelectorOffset: number,
+    private functionSelectorOffset: number,
   ) {
     super();
   }
@@ -59,7 +59,9 @@ abstract class ExternalCall extends Instruction {
     const calldata = memory.getSlice(argsOffset, calldataSize).map(f => f.toFr());
     const l2Gas = memory.get(gasOffset).toNumber();
     const daGas = memory.getAs<Field>(gasOffset + 1).toNumber();
-    const functionSelector = memory.getAs<Field>(this.temporaryFunctionSelectorOffset).toFr();
+    const functionSelector = memory.getAs<Field>(this.functionSelectorOffset).toFr();
+    // If we are already in a static call, we propagate the environment.
+    const callType = context.environment.isStaticCall ? 'STATICCALL' : this.type;
 
     const allocatedGas = { l2Gas, daGas };
     const memoryOperations = { reads: calldataSize + 5, writes: 1 + this.retSize, indirect: this.indirect };
@@ -71,7 +73,7 @@ abstract class ExternalCall extends Instruction {
       callAddress.toFr(),
       calldata,
       allocatedGas,
-      this.type,
+      callType,
       FunctionSelector.fromField(functionSelector),
     );
     const startSideEffectCounter = nestedContext.persistableState.trace.accessCounter;

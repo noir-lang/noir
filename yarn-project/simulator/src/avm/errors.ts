@@ -69,6 +69,16 @@ export class OutOfGasError extends AvmExecutionError {
 }
 
 /**
+ * Error is thrown when a static call attempts to alter some state
+ */
+export class StaticCallAlterationError extends InstructionExecutionError {
+  constructor() {
+    super('Static call cannot update the state, emit L2->L1 messages or generate logs');
+    this.name = 'StaticCallAlterationError';
+  }
+}
+
+/**
  * Error thrown to propagate a nested call's revert.
  * @param message - the error's message
  * @param nestedError - the revert reason of the nested call

@@ -5,9 +5,10 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { type AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
+import { StaticCallAlterationError } from '../errors.js';
 import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
 import { type AvmPersistableStateManager } from '../journal/journal.js';
-import { SLoad, SStore, StaticCallStorageAlterError } from './storage.js';
+import { SLoad, SStore } from './storage.js';
 
 describe('Storage Instructions', () => {
   let context: AvmContext;
@@ -68,7 +69,7 @@ describe('Storage Instructions', () => {
 
       const instruction = () =>
         new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*size=*/ 1, /*slotOffset=*/ 1).execute(context);
-      await expect(instruction()).rejects.toThrow(StaticCallStorageAlterError);
+      await expect(instruction()).rejects.toThrow(StaticCallAlterationError);
     });
   });
 

@@ -243,7 +243,9 @@ describe('External Calls', () => {
         successOffset,
         /*temporaryFunctionSelectorOffset=*/ 0,
       );
-      await expect(() => instruction.execute(context)).rejects.toThrow(/Static calls cannot alter storage/);
+      await expect(() => instruction.execute(context)).rejects.toThrow(
+        'Static call cannot update the state, emit L2->L1 messages or generate logs',
+      );
     });
   });
 

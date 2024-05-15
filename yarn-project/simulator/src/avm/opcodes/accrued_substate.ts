@@ -1,11 +1,10 @@
 import type { AvmContext } from '../avm_context.js';
 import { Uint8 } from '../avm_memory_types.js';
-import { InstructionExecutionError } from '../errors.js';
+import { InstructionExecutionError, StaticCallAlterationError } from '../errors.js';
 import { NullifierCollisionError } from '../journal/nullifiers.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
-import { StaticCallStorageAlterError } from './storage.js';
 
 export class NoteHashExists extends Instruction {
   static type: string = 'NOTEHASHEXISTS';
@@ -65,7 +64,7 @@ export class EmitNoteHash extends Instruction {
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
     if (context.environment.isStaticCall) {
-      throw new StaticCallStorageAlterError();
+      throw new StaticCallAlterationError();
     }
 
     const noteHash = memory.get(this.noteHashOffset).toFr();
@@ -125,7 +124,7 @@ export class EmitNullifier extends Instruction {
 
   public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
-      throw new StaticCallStorageAlterError();
+      throw new StaticCallAlterationError();
     }
 
     const memoryOperations = { reads: 1, indirect: this.indirect };
@@ -210,7 +209,7 @@ export class EmitUnencryptedLog extends Instruction {
 
   public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
-      throw new StaticCallStorageAlterError();
+      throw new StaticCallAlterationError();
     }
 
     const memoryOperations = { reads: 1 + this.logSize, indirect: this.indirect };
@@ -244,7 +243,7 @@ export class SendL2ToL1Message extends Instruction {
 
   public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
-      throw new StaticCallStorageAlterError();
+      throw new StaticCallAlterationError();
     }
 
     const memoryOperations = { reads: 2, indirect: this.indirect };
