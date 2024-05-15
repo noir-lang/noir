@@ -35,7 +35,7 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
     InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
+    Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess, UnresolvedTraitConstraint,
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
@@ -1080,7 +1080,7 @@ where
         Call(Vec<Expression>),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
-        MemberAccess((Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>)),
+        MemberAccess(UnaryRhsMemberAccess),
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
@@ -1353,24 +1353,6 @@ where
     let long_form = ident().then_ignore(just(Token::Colon)).then(expr_parser);
     let short_form = ident().map(|ident| (ident.clone(), ident.into()));
     long_form.or(short_form)
-}
-
-fn literal_with_sign() -> impl NoirParser<ExpressionKind> {
-    choice((
-        literal(),
-        just(Token::Minus).then(literal()).map(|(_, exp)| match exp {
-            ExpressionKind::Literal(Literal::Integer(value, sign)) => {
-                ExpressionKind::Literal(Literal::Integer(value, !sign))
-            }
-            _ => unreachable!(),
-        }),
-    ))
-}
-
-fn literal_or_collection<'a>(
-    expr_parser: impl ExprParser + 'a,
-) -> impl NoirParser<ExpressionKind> + 'a {
-    choice((literal_with_sign(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
 #[cfg(test)]

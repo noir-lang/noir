@@ -2053,7 +2053,7 @@ impl<'a> Resolver<'a> {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Ident(ident, generics) => {
+            HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
                 match definition.kind {
                     DefinitionKind::Global(global_id) => {

@@ -132,6 +132,10 @@ pub struct UnresolvedType {
     pub span: Option<Span>,
 }
 
+/// Type wrapper for a member access
+pub(crate) type UnaryRhsMemberAccess =
+    (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
+
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
 /// and numeric binary operators are allowed here.

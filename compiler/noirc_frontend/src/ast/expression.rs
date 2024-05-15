@@ -10,6 +10,8 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
+use super::UnaryRhsMemberAccess;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
     Literal(Literal),
@@ -166,7 +168,7 @@ impl Expression {
 
     pub fn member_access_or_method_call(
         lhs: Expression,
-        (rhs, args): (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>),
+        (rhs, args): UnaryRhsMemberAccess,
         span: Span,
     ) -> Expression {
         let kind = match args {

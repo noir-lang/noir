@@ -446,7 +446,7 @@ impl<'interner> TypeChecker<'interner> {
                     });
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
-                    typ.instantiate_with(generics, &self.interner)
+                    typ.instantiate_with(generics)
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
