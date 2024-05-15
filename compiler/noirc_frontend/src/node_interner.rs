@@ -52,12 +52,12 @@ pub struct NodeInterner {
 
     function_definition_ids: HashMap<FuncId, DefinitionId>,
 
-    // For a given function ID, this gives the function's modifiers which includes
-    // its visibility and whether it is unconstrained, among other information.
-    // Unlike func_meta, this map is filled out during definition collection rather than name resolution.
+    /// For a given function ID, this gives the function's modifiers which includes
+    /// its visibility and whether it is unconstrained, among other information.
+    /// Unlike func_meta, this map is filled out during definition collection rather than name resolution.
     function_modifiers: HashMap<FuncId, FunctionModifiers>,
 
-    // Contains the source module each function was defined in
+    /// Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
 
     /// This graph tracks dependencies between different global definitions.
@@ -68,49 +68,49 @@ pub struct NodeInterner {
     /// this separate graph to map between the ids and indices.
     dependency_graph_indices: HashMap<DependencyId, PetGraphIndex>,
 
-    // Map each `Index` to it's own location
+    /// Map each `Index` to it's own location
     pub(crate) id_to_location: HashMap<Index, Location>,
 
-    // Maps each DefinitionId to a DefinitionInfo.
+    /// Maps each DefinitionId to a DefinitionInfo.
     definitions: Vec<DefinitionInfo>,
 
-    // Type checking map
-    //
-    // This should only be used with indices from the `nodes` arena.
-    // Otherwise the indices used may overwrite other existing indices.
-    // Each type for each index is filled in during type checking.
+    /// Type checking map
+    ///
+    /// This should only be used with indices from the `nodes` arena.
+    /// Otherwise the indices used may overwrite other existing indices.
+    /// Each type for each index is filled in during type checking.
     id_to_type: HashMap<Index, Type>,
 
-    // Similar to `id_to_type` but maps definitions to their type
+    /// Similar to `id_to_type` but maps definitions to their type
     definition_to_type: HashMap<DefinitionId, Type>,
 
-    // Struct map.
-    //
-    // Each struct definition is possibly shared across multiple type nodes.
-    // It is also mutated through the RefCell during name resolution to append
-    // methods from impls to the type.
+    /// Struct map.
+    ///
+    /// Each struct definition is possibly shared across multiple type nodes.
+    /// It is also mutated through the RefCell during name resolution to append
+    /// methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
 
-    // Maps TypeAliasId -> Shared<TypeAlias>
-    //
-    // Map type aliases to the actual type.
-    // When resolving types, check against this map to see if a type alias is defined.
+    /// Maps TypeAliasId -> Shared<TypeAlias>
+    ///
+    /// Map type aliases to the actual type.
+    /// When resolving types, check against this map to see if a type alias is defined.
     pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
 
-    // Trait map.
-    //
-    // Each trait definition is possibly shared across multiple type nodes.
-    // It is also mutated through the RefCell during name resolution to append
-    // methods from impls to the type.
+    /// Trait map.
+    ///
+    /// Each trait definition is possibly shared across multiple type nodes.
+    /// It is also mutated through the RefCell during name resolution to append
+    /// methods from impls to the type.
     pub(crate) traits: HashMap<TraitId, Trait>,
 
-    // Trait implementation map
-    // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
-    // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
-    //
-    // Indexed by TraitImplIds
+    /// Trait implementation map
+    /// For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
+    /// The purpose for this hashmap is to detect duplication of trait implementations ( if any )
+    ///
+    /// Indexed by TraitImplIds
     pub(crate) trait_implementations: Vec<Shared<TraitImpl>>,
 
     /// Trait implementations on each type. This is expected to always have the same length as
@@ -144,7 +144,7 @@ pub struct NodeInterner {
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
-    // Maps GlobalId -> GlobalInfo
+    /// Maps GlobalId -> GlobalInfo
     // NOTE: currently only used for checking repeat globals and restricting their scope to a module
     globals: Vec<GlobalInfo>,
     global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
@@ -266,7 +266,9 @@ impl FunctionModifiers {
 pub struct DefinitionId(usize);
 
 impl DefinitionId {
-    //dummy id for error reporting
+    /// Dummy ID for error reporting.
+    ///
+    /// This can be anything, as the program will ultimately fail after resolution.
     pub fn dummy_id() -> DefinitionId {
         DefinitionId(std::usize::MAX)
     }
@@ -277,7 +279,9 @@ impl DefinitionId {
 pub struct GlobalId(usize);
 
 impl GlobalId {
-    // Dummy id for error reporting
+    /// Dummy ID for error reporting.
+    ///
+    /// This can be anything, as the program will ultimately fail after resolution.
     pub fn dummy_id() -> Self {
         GlobalId(std::usize::MAX)
     }
@@ -287,9 +291,9 @@ impl GlobalId {
 pub struct StmtId(Index);
 
 impl StmtId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
+    /// Dummy ID for error reporting.
+    ///
+    /// This can be anything, as the program will ultimately fail after resolution.
     pub fn dummy_id() -> StmtId {
         StmtId(Index::dummy())
     }
@@ -307,9 +311,9 @@ impl ExprId {
 pub struct FuncId(Index);
 
 impl FuncId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
+    /// Dummy ID for error reporting.
+    ///
+    /// This can be anything, as the program will ultimately fail after resolution.
     pub fn dummy_id() -> FuncId {
         FuncId(Index::dummy())
     }
@@ -325,9 +329,9 @@ impl fmt::Display for FuncId {
 pub struct StructId(ModuleId);
 
 impl StructId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
+    /// Dummy ID for error reporting.
+    ///
+    /// This can be anything, as the program will ultimately fail after resolution.
     pub fn dummy_id() -> StructId {
         StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
@@ -358,9 +362,9 @@ impl TypeAliasId {
 pub struct TraitId(pub ModuleId);
 
 impl TraitId {
-    // dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
+    /// Dummy ID for error reporting.
+    ///
+    /// This can be anything, as the program will ultimately fail after resolution.
     pub fn dummy_id() -> TraitId {
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
@@ -512,6 +516,7 @@ impl NodeInterner {
     pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
         StmtId(self.nodes.insert(Node::Statement(stmt)))
     }
+
     /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
@@ -727,7 +732,7 @@ impl NodeInterner {
             .map(|(func_id, _meta)| *func_id)
     }
 
-    ///Interns a function's metadata.
+    /// Interns a function's metadata.
     ///
     /// Note that the FuncId has been created already.
     /// See ModCollector for it's usage.

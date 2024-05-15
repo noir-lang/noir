@@ -126,9 +126,9 @@ pub enum UnresolvedTypeData {
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
 
-    // The span is None in the cases where the User omitted a type:
-    //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
-    //  let x = 100; --- type is UnresolvedType::Unspecified without a span
+    /// The span is `None` in the cases where the User omitted a type:
+    /// - `fn Foo() {}`  --- return type is UnresolvedType::Unit without a span
+    /// - `let x = 100;` --- type is UnresolvedType::Unspecified without a span
     pub span: Option<Span>,
 }
 
@@ -359,20 +359,20 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the definition can be referenced outside its module/crate
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ItemVisibility {
     Public,
     Private,
     PublicCrate,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Represents whether the parameter is public or known only to the prover.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Visibility {
     Public,
-    // Constants are not allowed in the ABI for main at the moment.
-    // Constant,
+    /// Constants are not allowed in the ABI for main at the moment.
+    /// Constant,
     Private,
     /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.
@@ -389,7 +389,6 @@ impl std::fmt::Display for Visibility {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the return value should compromise of unique witness indices such that no
 /// index occurs within the program's abi more than once.
 ///
@@ -398,6 +397,7 @@ impl std::fmt::Display for Visibility {
 /// reaches the output unaltered and is thus referenced directly, causing the input and output
 /// witness indices to overlap. Similarly, repetitions of copied values in the output may be
 /// optimized away.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Distinctness {
     Distinct,
     DuplicationAllowed,
