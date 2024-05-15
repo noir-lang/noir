@@ -836,7 +836,7 @@ describe('Private Execution test suite', () => {
           functionSelector: childSelector,
           isDelegateCall: false,
           isStaticCall: false,
-          sideEffectCounter: 1,
+          sideEffectCounter: 2,
         }),
         parentCallContext: CallContext.from({
           msgSender: parentAddress,

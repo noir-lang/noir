@@ -10,6 +10,12 @@ struct Nullifier {
     note_hash: Field,
 }
 
+impl Ordered for Nullifier {
+    fn counter(self) -> u32 {
+        self.counter
+    }
+}
+
 impl OrderedValue<Field> for Nullifier {
     fn value(self) -> Field {
         self.value

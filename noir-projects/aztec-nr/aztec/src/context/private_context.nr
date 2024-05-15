@@ -108,15 +108,10 @@ impl ContextInterface for PrivateContext {
 
 impl PrivateContext {
     pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
-        let side_effect_counter = inputs.start_side_effect_counter;
-        let mut min_revertible_side_effect_counter = 0;
-        if is_empty(inputs.call_context.msg_sender) {
-            min_revertible_side_effect_counter = side_effect_counter;
-        }
         PrivateContext {
             inputs,
-            side_effect_counter,
-            min_revertible_side_effect_counter,
+            side_effect_counter: inputs.start_side_effect_counter + 1,
+            min_revertible_side_effect_counter: 0,
             is_fee_payer: false,
             args_hash,
             return_hash: 0,

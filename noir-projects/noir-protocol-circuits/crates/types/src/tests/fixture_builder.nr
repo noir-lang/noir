@@ -185,7 +185,7 @@ impl FixtureBuilder {
         validation_requests.finish()
     }
 
-    pub fn to_private_circuit_public_inputs(self) -> PrivateKernelCircuitPublicInputs {
+    pub fn to_private_kernel_circuit_public_inputs(self) -> PrivateKernelCircuitPublicInputs {
         let end = self.to_private_accumulated_data();
         let validation_requests = self.to_validation_requests();
         let constants = self.to_constant_data();
@@ -201,7 +201,7 @@ impl FixtureBuilder {
     }
 
     pub fn to_private_kernel_data(self) -> PrivateKernelData {
-        let public_inputs = self.to_private_circuit_public_inputs();
+        let public_inputs = self.to_private_kernel_circuit_public_inputs();
         PrivateKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 

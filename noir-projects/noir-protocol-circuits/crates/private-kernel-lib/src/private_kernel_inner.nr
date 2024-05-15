@@ -117,7 +117,7 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // The current call stack has 1 note_hash;
-        builder.private_call.public_inputs.new_note_hashes.push(NoteHash { value: 4321, counter: 0 });
+        builder.private_call.public_inputs.append_new_note_hashes(1);
 
         // Mock the previous new note hashes to be full, therefore no more note_hashes can be added.
         builder.previous_kernel.append_new_note_hashes(MAX_NEW_NOTE_HASHES_PER_TX);
@@ -128,12 +128,7 @@ mod tests {
     #[test]
     fn propagate_note_hashes_with_nullifier_counters() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
-        let note_hashes = [
-            NoteHash { value: 12, counter: 3 },
-            NoteHash { value: 45, counter: 6 },
-            NoteHash { value: 78, counter: 9 }
-        ];
-        builder.private_call.public_inputs.new_note_hashes.extend_from_array(note_hashes);
+        builder.private_call.public_inputs.append_new_note_hashes(3);
         builder.hints.note_hash_nullifier_counters[0] = 10;
         builder.hints.note_hash_nullifier_counters[2] = 20;
 
@@ -147,8 +142,9 @@ mod tests {
     #[test(should_fail_with="Invalid nullifier counter")]
     fn propagate_note_hashes_with_incorrect_nullifier_counters_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.private_call.public_inputs.new_note_hashes.push(NoteHash { value: 12, counter: 3 });
-        builder.hints.note_hash_nullifier_counters[0] = 2; // Less than the note hash's counter 3.
+        builder.private_call.public_inputs.append_new_note_hashes(2);
+        let note_hash_counter = builder.private_call.public_inputs.new_note_hashes.get(1).counter;
+        builder.hints.note_hash_nullifier_counters[1] = note_hash_counter - 1;
 
         builder.failed();
     }
@@ -165,7 +161,7 @@ mod tests {
     #[test]
     fn propagate_max_block_number_request() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.private_call.set_tx_max_block_number(42);
+        builder.private_call.public_inputs.set_tx_max_block_number(42);
         let public_inputs = builder.execute();
 
         assert_eq(public_inputs.validation_requests.for_rollup.max_block_number.unwrap(), 42);
@@ -177,7 +173,7 @@ mod tests {
         builder.previous_kernel.max_block_number = MaxBlockNumber::new(13);
         // A private call requesting a larger max_block_number should not change the current one as that constraint is
         // already satisfied.
-        builder.private_call.set_tx_max_block_number(42);
+        builder.private_call.public_inputs.set_tx_max_block_number(42);
         let public_inputs = builder.execute();
 
         assert_eq(public_inputs.validation_requests.for_rollup.max_block_number.unwrap(), 13);
@@ -188,10 +184,10 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         builder.previous_kernel.append_note_hash_read_requests(2);
-        let prev_requests = builder.previous_kernel.note_hash_read_requests;
+        let prev_requests = builder.previous_kernel.note_hash_read_requests.storage;
 
-        let cur_requests = [ReadRequest { value: 123, counter: 4567 }, ReadRequest { value: 777888, counter: 90 }];
-        builder.private_call.public_inputs.note_hash_read_requests.extend_from_array(cur_requests);
+        builder.private_call.public_inputs.append_note_hash_read_requests(2);
+        let cur_requests = builder.private_call.public_inputs.note_hash_read_requests.storage;
         let cur_storage_contract_address = builder.private_call.public_inputs.call_context.storage_contract_address;
 
         let public_inputs = builder.execute();
@@ -199,8 +195,8 @@ mod tests {
         let end_note_hash_read_requests = public_inputs.validation_requests.note_hash_read_requests;
         assert_eq(array_length(end_note_hash_read_requests), 4);
 
-        assert_eq(end_note_hash_read_requests[0], prev_requests.storage[0]);
-        assert_eq(end_note_hash_read_requests[1], prev_requests.storage[1]);
+        assert_eq(end_note_hash_read_requests[0], prev_requests[0]);
+        assert_eq(end_note_hash_read_requests[1], prev_requests[1]);
 
         let request = end_note_hash_read_requests[2];
         assert_eq(request.read_request, cur_requests[0]);
@@ -220,8 +216,8 @@ mod tests {
         let encrypted_log_preimages_length = 100;
         let unencrypted_logs_hash = 26;
         let unencrypted_log_preimages_length = 50;
-        builder.private_call.set_encrypted_logs(encrypted_logs_hash, encrypted_log_preimages_length);
-        builder.private_call.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
+        builder.private_call.public_inputs.add_encrypted_log(encrypted_logs_hash, encrypted_log_preimages_length);
+        builder.private_call.public_inputs.add_unencrypted_log(unencrypted_logs_hash, unencrypted_log_preimages_length);
 
         // Logs for the previous call stack.
         let prev_encrypted_logs_hash = 80;
@@ -250,19 +246,25 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn propagate_fee_payer() {
+    unconstrained fn propagate_fee_payer_init_succeeds() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
         let fee_payer = builder.private_call.public_inputs.call_context.storage_contract_address;
         builder.private_call.public_inputs.is_fee_payer = true;
         let public_inputs = builder.execute();
         assert_eq(public_inputs.fee_payer, fee_payer);
+    }
 
+    #[test]
+    unconstrained fn propagate_fee_payer_not_set_succeeds() {
         // Check that the fee payer is not set if is_fee_payer is false
         let mut builder = PrivateKernelInnerInputsBuilder::new();
         assert_eq(builder.private_call.public_inputs.is_fee_payer, false);
         let public_inputs = builder.execute();
         assert_eq(public_inputs.fee_payer, AztecAddress::empty());
+    }
 
+    #[test]
+    unconstrained fn propagate_fee_payer_carry_forward_succeeds() {
         // Check that we carry forward if the fee payer is already set
         let mut builder = PrivateKernelInnerInputsBuilder::new();
         let fee_payer = AztecAddress::from_field(123);

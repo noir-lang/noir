@@ -1,9 +1,8 @@
-use crate::address::AztecAddress;
 use dep::std::cmp::Eq;
-use crate::traits::{Empty, Serialize, Deserialize};
-use crate::abis::caller_context::CallerContext;
-use crate::constants::CALL_REQUEST_LENGTH;
-use crate::utils::reader::Reader;
+use crate::{
+    abis::{caller_context::CallerContext, side_effect::Ordered}, address::AztecAddress,
+    constants::CALL_REQUEST_LENGTH, traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
+};
 
 struct CallRequest {
     hash: Field,
@@ -11,6 +10,12 @@ struct CallRequest {
     caller_context: CallerContext,
     start_side_effect_counter: u32,
     end_side_effect_counter: u32,
+}
+
+impl Ordered for CallRequest {
+    fn counter(self) -> u32 {
+        self.start_side_effect_counter
+    }
 }
 
 impl Eq for CallRequest {

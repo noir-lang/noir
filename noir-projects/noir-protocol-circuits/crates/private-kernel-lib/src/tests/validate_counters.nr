@@ -1,0 +1,227 @@
+use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
+
+/**
+ * Private call.
+ */
+
+#[test]
+fn validate_counters_private_call_succeeds() {
+    let builder = PrivateCallDataValidatorBuilder::new_with_counter(23);
+    builder.validate();
+}
+
+#[test]
+fn validate_counters_private_call_from_0_counter_succeeds() {
+    let builder = PrivateCallDataValidatorBuilder::new_with_counter(0);
+    builder.validate();
+}
+
+#[test(should_fail_with="private call has incorrect counter range")]
+fn validate_counters_private_call_no_counter_range_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.counter_end = builder.private_call.public_inputs.counter_start;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="private call has incorrect counter range")]
+fn validate_counters_private_call_negative_call_counter_range_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.counter_end = builder.private_call.public_inputs.counter_start - 1;
+
+    builder.validate();
+}
+
+/**
+ * Note hashes
+ */
+
+#[test]
+fn validate_counters_note_hashes_succeeds() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(2);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="counter must be larger than the counter of the previous item")]
+fn validate_counters_note_hash_counter_same_as_call_counter_start_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(1);
+    // Tweak the counter of the first note hash to EQUAL the start counter of the call.
+    builder.private_call.public_inputs.new_note_hashes.storage[0].counter = builder.private_call.public_inputs.counter_start;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="counter must be larger than the counter of the previous item")]
+fn validate_counters_note_hash_counter_smaller_than_call_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(1);
+    // Tweak the counter of the first note hash to be LESS than the start counter of the call.
+    builder.private_call.public_inputs.new_note_hashes.storage[0].counter = builder.private_call.public_inputs.counter_start - 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="counter must be larger than the counter of the previous item")]
+fn validate_counters_note_hash_identical_counters_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(2);
+    let counter_start = builder.private_call.public_inputs.counter_start;
+    // Tweak the counter of the second note hash to EQUAL the counter of the first note hash.
+    builder.private_call.public_inputs.new_note_hashes.storage[0].counter = counter_start + 1;
+    builder.private_call.public_inputs.new_note_hashes.storage[1].counter = counter_start + 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="counter must be larger than the counter of the previous item")]
+fn validate_counters_note_hash_unordered_counters_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(2);
+    let counter_start = builder.private_call.public_inputs.counter_start;
+    // Tweak the counter of the second note hash to be LESS than the counter of the first note hash.
+    builder.private_call.public_inputs.new_note_hashes.storage[0].counter = counter_start + 2;
+    builder.private_call.public_inputs.new_note_hashes.storage[1].counter = counter_start + 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="counter must be smaller than the end counter of the call")]
+fn validate_counters_note_hash_counter_larger_than_call_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(2);
+    // Tweak the counter of the second note hash to be GREATER than the end counter of the call.
+    builder.private_call.public_inputs.new_note_hashes.storage[1].counter = builder.private_call.public_inputs.counter_end + 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="counter must be smaller than the end counter of the call")]
+fn validate_counters_note_hash_counter_same_as_call_counter_end_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.append_new_note_hashes(2);
+    // Tweak the counter of the second note hash to EQUAL the end counter of the call.
+    builder.private_call.public_inputs.new_note_hashes.storage[1].counter = builder.private_call.public_inputs.counter_end;
+
+    builder.validate();
+}
+
+/**
+ * Private call requests.
+ */
+
+#[test]
+fn validate_counters_private_call_requests_succeeds() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(2, false);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="start counter must be larger than the end counter of the previous call")]
+fn validate_counters_private_call_requests_less_than_call_start_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1, false);
+    // Tweak the start counter of the first nested call to be LESS than the start counter of the call.
+    let counter_start = builder.private_call.public_inputs.counter_start;
+    builder.private_call.private_call_stack.storage[0].start_side_effect_counter = counter_start - 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="start counter must be larger than the end counter of the previous call")]
+fn validate_counters_private_call_requests_equal_call_start_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1, false);
+    // Tweak the start counter of the call to EQUAL the start counter of the first nested call.
+    let counter_start = builder.private_call.public_inputs.counter_start;
+    builder.private_call.private_call_stack.storage[0].start_side_effect_counter = counter_start;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="start counter must be larger than the end counter of the previous call")]
+fn validate_counters_private_call_requests_less_than_previous_end_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(2, false);
+    // Tweak the start counter of the second nested call to be LESS than the end counter of the first nested call.
+    let counter_end = builder.private_call.private_call_stack.get(0).end_side_effect_counter;
+    builder.private_call.private_call_stack.storage[1].start_side_effect_counter = counter_end - 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="start counter must be larger than the end counter of the previous call")]
+fn validate_counters_private_call_requests_same_as_previous_end_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(2, false);
+    // Tweak the start counter of the second nested call to EQUAL the end counter of the first nested call.
+    let counter_end = builder.private_call.private_call_stack.get(0).end_side_effect_counter;
+    builder.private_call.private_call_stack.storage[1].start_side_effect_counter = counter_end;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="nested call has incorrect counter range")]
+fn validate_counters_private_call_requests_end_less_than_start_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1, false);
+    // Tweak the end counter of the first nested call to be LESS than its start counter.
+    let counter_start = builder.private_call.private_call_stack.get(0).start_side_effect_counter;
+    builder.private_call.private_call_stack.storage[0].end_side_effect_counter = counter_start - 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="nested call has incorrect counter range")]
+fn validate_counters_private_call_requests_end_equal_start_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1, false);
+    // Tweak the end counter of the first nested call to EQUAL its start counter.
+    let counter_start = builder.private_call.private_call_stack.get(0).start_side_effect_counter;
+    builder.private_call.private_call_stack.storage[0].end_side_effect_counter = counter_start;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="end counter must be smaller than the end counter of the parent call")]
+fn validate_counters_private_call_requests_greater_than_call_end_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1, false);
+    // Tweak the end counter of the nested call to be GREATER than the end counter of the call.
+    let counter_end = builder.private_call.public_inputs.counter_end;
+    builder.private_call.private_call_stack.storage[0].end_side_effect_counter = counter_end + 1;
+
+    builder.validate();
+}
+
+#[test(should_fail_with="end counter must be smaller than the end counter of the parent call")]
+fn validate_counters_private_call_requests_equal_call_end_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1, false);
+    // Tweak the end counter of the nested call to EQUAL the end counter of the call.
+    let counter_end = builder.private_call.public_inputs.counter_end;
+    builder.private_call.private_call_stack.storage[0].end_side_effect_counter = counter_end;
+
+    builder.validate();
+}

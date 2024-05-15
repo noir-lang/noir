@@ -82,7 +82,8 @@ async function executeTopLevelPublicFunctionAvm(
   for (const nullifier of executionContext.pendingNullifiers) {
     worldStateJournal.nullifiers.cache.appendSiloed(nullifier.value);
   }
-  worldStateJournal.trace.accessCounter = startSideEffectCounter;
+  // All the subsequent side effects will have a counter larger than the call's start counter.
+  worldStateJournal.trace.accessCounter = startSideEffectCounter + 1;
 
   const executionEnv = createAvmExecutionEnvironment(
     executionContext.execution,

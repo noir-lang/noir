@@ -1,0 +1,136 @@
+use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
+use dep::types::{
+    abis::{note_hash::NoteHash, nullifier::Nullifier, read_request::ReadRequest, side_effect::SideEffect},
+    address::EthAddress, grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message
+};
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_note_hash_read_requests_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.note_hash_read_requests.extend_from_array(
+        [
+        ReadRequest::empty(),
+        ReadRequest { value: 9123, counter: 1 }
+    ]
+    );
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_nullifier_read_requests_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.nullifier_read_requests.extend_from_array(
+        [
+        ReadRequest::empty(),
+        ReadRequest { value: 9123, counter: 1 }
+    ]
+    );
+
+    builder.validate();
+}
+
+// Enable this test if MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL is greater than 1.
+// #[test(should_fail_with="invalid array")]
+// fn validate_arrays_malformed_nullifier_key_validation_requests_fails() {
+//     let mut builder = PrivateCallDataValidatorBuilder::new();
+
+//     builder.private_call.public_inputs.nullifier_key_validation_requests.extend_from_array(
+//         [
+//         NullifierKeyValidationRequest::empty(),
+//         NullifierKeyValidationRequest { master_nullifier_public_key: GrumpkinPoint { x: 12, y: 34 }, app_nullifier_secret_key: 5 }
+//     ]
+//     );
+
+//     builder.validate();
+// }
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_note_hashes_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.new_note_hashes.extend_from_array(
+        [
+        NoteHash::empty(),
+        NoteHash { value: 9123, counter: 1 }
+    ]
+    );
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_nullifiers_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.new_nullifiers.extend_from_array(
+        [
+        Nullifier::empty(),
+        Nullifier { value: 9123, note_hash: 0, counter: 1 }
+    ]
+    );
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_l2_to_l1_msgs_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(
+        [
+        L2ToL1Message::empty(),
+        L2ToL1Message { recipient: EthAddress::from_field(6), content: 9123, counter: 0 }
+    ]
+    );
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_private_call_stack_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.private_call_stack_hashes.extend_from_array([0, 9123]);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_public_call_stack_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.public_call_stack_hashes.extend_from_array([0, 9123]);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_encrypted_logs_hashes_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.encrypted_logs_hashes.extend_from_array(
+        [
+        SideEffect { value: 0, counter: 0 },
+        SideEffect { value: 9123, counter: 1 }
+    ]
+    );
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_unencrypted_logs_hashes_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.unencrypted_logs_hashes.extend_from_array(
+        [
+        SideEffect { value: 0, counter: 0 },
+        SideEffect { value: 9123, counter: 1 }
+    ]
+    );
+
+    builder.validate();
+}

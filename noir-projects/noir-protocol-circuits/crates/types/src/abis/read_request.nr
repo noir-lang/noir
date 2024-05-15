@@ -1,5 +1,5 @@
 use crate::{
-    traits::{Empty, Serialize, Deserialize}, address::AztecAddress,
+    abis::side_effect::Ordered, traits::{Empty, Serialize, Deserialize}, address::AztecAddress,
     constants::{READ_REQUEST_LENGTH, SCOPED_READ_REQUEST_LEN},
     utils::{arrays::array_concat, reader::Reader}
 };
@@ -8,6 +8,12 @@ use dep::std::cmp::Eq;
 struct ReadRequest {
     value: Field,
     counter: u32,
+}
+
+impl Ordered for ReadRequest {
+    fn counter(self) -> u32 {
+        self.counter
+    }
 }
 
 impl Eq for ReadRequest {

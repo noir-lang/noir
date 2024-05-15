@@ -11,6 +11,12 @@ struct L2ToL1Message {
     counter: u32,
 }
 
+impl Ordered for L2ToL1Message {
+    fn counter(self) -> u32 {
+        self.counter
+    }
+}
+
 impl Empty for L2ToL1Message {
     fn empty() -> Self {
         Self {

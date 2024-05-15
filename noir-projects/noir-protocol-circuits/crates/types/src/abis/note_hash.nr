@@ -11,6 +11,12 @@ struct NoteHash {
     counter: u32,
 }
 
+impl Ordered for NoteHash {
+    fn counter(self) -> u32 {
+        self.counter
+    }
+}
+
 impl Eq for NoteHash {
     fn eq(self, other: NoteHash) -> bool {
         (self.value == other.value)
