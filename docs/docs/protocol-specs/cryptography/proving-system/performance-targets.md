@@ -22,19 +22,10 @@ The following is a list of the relevant properties that affect the performance o
 - Time to compute a 2-to-1 rollup proof
 - Memory required to compute a 2-to-1 rollup proof
 
-<!-- We can break these properties down into metrics linked to specific cryptographic components:
-
-* Size of Goblin Plonk proofs
-* Size of Honk proofs
-* Honk prover time
-* Goblin Plonk prover time
-* Protogalaxy recursion -->
-
 "MVP" = minimum standards that we can go to main-net with.
 
 Note: gb = gigabytes (not gigabits, gigibits or gigibytes)
 
-<!-- prettier-ignore -->
 | metric | how to measure | MVP (10tps) | ideal (100tps) |
 | --- | --- | --- | --- |
 | proof size | total size of a user tx incl. goblin plonk proofs | 80kb | 8kb |
@@ -168,13 +159,12 @@ A large AWS instance can consume 128Gb of memory which puts an upper limit for A
 
 ### 2-to-1 rollup proving time
 
-For a rollup block containing $2^d$ transactions, we need to compute 2-to-1 rollup proofs across $d$ layers (i.e. 2^{d-1} 2-to-1 proofs, followed by 2^{d-2} proofs, followed by... etc down to requiring 1 2-to-1 proof). To hit 10tps, we must produce 1 block in $\frac{2^d}{10}$ seconds.
+For a rollup block containing $2^d$ transactions, we need to compute 2-to-1 rollup proofs across $d$ layers (i.e. $2^{d-1}$ 2-to-1 proofs, followed by $2^{d-2}$ proofs, followed by... etc down to requiring 1 2-to-1 proof). To hit 10tps, we must produce 1 block in $\frac{2^d}{10}$ seconds.
 
 Note: this excludes network coordination costs, latency costs, block construction costs, public VM proof construction costs (must be computed before the 2-to-1 rollup proofs), cost to compute the final UltraPlonk proof.
 
 To accomodate the above costs, we assume that we can budget 40% of block production time towards making proofs. Given these constraints, the following table describes maximum allowable proof construction times for a selection of block sizes.
 
-<!-- prettier-ignore -->
 | block size | number of successive 2-to-1 rollup proofs | number of parallel Prover machines required for base layer proofs | time required to construct a rollup proof |
 | --- | --- | --- | --- |
 | $1,024$ | $10$ | $512$ | 4.1s |

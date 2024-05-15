@@ -20,7 +20,7 @@ The incorporation of these circuits not only enhances the modularity and repeata
 
 ### Read Request Reset Private Kernel Circuit.
 
-This reset circuit conducts verification on some or all accumulated read requests and subsequently removes them from the [`transient_accumulated_data`](./private-kernel-initial.mdx#transientaccumulateddata) within the [`public_inputs`](./private-kernel-initial.mdx#publicinputs) of the [`previous_kernel`](#previouskernel).
+This reset circuit conducts verification on some or all accumulated read requests and subsequently removes them from the [`transient_accumulated_data`](./private-kernel-initial#transientaccumulateddata) within the [`public_inputs`](./private-kernel-initial#publicinputs) of the [`previous_kernel`](#previouskernel).
 
 Depending on the value specified in [`hints`](#hints-for-read-request-reset-private-kernel-circuit).`reset_type`, it can target different read requests for resetting:
 
@@ -42,7 +42,7 @@ A read request can pertain to one of two types of values:
    3. Perform a membership check on the value being read. Where:
       - The leaf corresponds to the value: `read_request.value`
       - The index and sibling path are in: `hints.read_request_membership_witnesses[i]`.
-      - The root is sourced from the [block_header](./private-function.md#header) within [`public_inputs`](#public-inputs).[`constant_data`](./private-kernel-initial.mdx#constantdata):
+      - The root is sourced from the [block_header](./private-function.md#header) within [`public_inputs`](#public-inputs).[`constant_data`](./private-kernel-initial#constantdata):
         - For note hash: `note_hash_tree_root`
         - For nullifier: `nullifier_tree_root`
 
@@ -67,7 +67,7 @@ A read request can pertain to one of two types of values:
 
    > Given that a reset circuit can execute between two private kernel circuits, there's a possibility that the value being read is emitted in a nested execution and hasn't been included in the `public_inputs`. In such cases, the read request cannot be verified in the current reset circuit and must be processed in another reset circuit after the value has been aggregated to the `public_inputs`.
 
-3. This circuit then ensures that the read requests that haven't been verified should remain in the [transient_accumulated_data](./private-kernel-initial.mdx#transientaccumulateddata) within its `public_inputs`.
+3. This circuit then ensures that the read requests that haven't been verified should remain in the [transient_accumulated_data](./private-kernel-initial#transientaccumulateddata) within its `public_inputs`.
 
    For each `read_request` at index `i` in the `target_read_requests`, find its `status` at `hints.read_request_statuses[i]`. Verify the following:
 
@@ -77,7 +77,7 @@ A read request can pertain to one of two types of values:
 
 ### Parent Secret Key Validation Request Reset Private Kernel Circuit.
 
-This reset circuit validates the correct derivation of secret keys used in private functions, and subsequently removes them from the [`transient_accumulated_data`](./private-kernel-initial.mdx#transientaccumulateddata) within the `public_inputs` of the [`previous_kernel`](#previouskernel).
+This reset circuit validates the correct derivation of secret keys used in private functions, and subsequently removes them from the [`transient_accumulated_data`](./private-kernel-initial#transientaccumulateddata) within the `public_inputs` of the [`previous_kernel`](#previouskernel).
 
 <!-- Mike: Outgoing viewing keys will also use this pattern. -->
 
@@ -107,7 +107,7 @@ In the event that a pending note is nullified within the same transaction, its n
    For each `note_hash` at index `i` in `note_hash_contexts` within the `private_inputs`, find the index of its nullifier at `transient_nullifier_indices[i]`, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
 
    - If `transient_nullifier_indices[i] == nullifier_contexts.len()`:
-     - Verify that the `note_hash` remains within the [transient_accumulated_data](./private-kernel-initial.mdx#transientaccumulateddata) in the `public_inputs`:
+     - Verify that the `note_hash` remains within the [transient_accumulated_data](./private-kernel-initial#transientaccumulateddata) in the `public_inputs`:
        `note_hash == public_inputs.transient_accumulated_data.note_hash_contexts[notes_kept]`
      - Increment `notes_kept` by 1: `notes_kept += 1`
    - Else, locate the `nullifier` at `nullifier_contexts[transient_nullifier_indices[i]]`:
@@ -121,16 +121,16 @@ In the event that a pending note is nullified within the same transaction, its n
        - `public_inputs.transient_accumulated_data.note_hash_contexts[N - notes_removed].is_empty() == true`
        - Where `N` is the length of `note_hash_contexts`.
 
-     > Note that the check `nullifier.counter > note_hash.counter` is not necessary as the `nullifier_counter` is assured to be greater than the counter of the note hash when [propagated](./private-kernel-initial.mdx#verifying-the-transient-accumulated-data) from either the initial or inner private kernel circuits.
+     > Note that the check `nullifier.counter > note_hash.counter` is not necessary as the `nullifier_counter` is assured to be greater than the counter of the note hash when [propagated](./private-kernel-initial#verifying-the-transient-accumulated-data) from either the initial or inner private kernel circuits.
 
-2. Ensure that nullifiers not associated with note hashes removed in the previous step are retained within the [transient_accumulated_data](./private-kernel-initial.mdx#transientaccumulateddata) in the `public_inputs`.
+2. Ensure that nullifiers not associated with note hashes removed in the previous step are retained within the [transient_accumulated_data](./private-kernel-initial#transientaccumulateddata) in the `public_inputs`.
 
    Initialize both `nullifiers_kept` and `nullifiers_removed` to `0`.
 
    For each `nullifier` at index `i` in the `nullifier_contexts` within the `private_inputs`, find the index of its corresponding transient nullifier at `nullifier_index_hints[i]`, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
 
    - If `nullifier_index_hints[i] == transient_nullifier_indices.len()`:
-     - Verify that the `nullifier` remains within the [`transient_accumulated_data`](./private-kernel-initial.mdx#transientaccumulateddata) in the `public_inputs`:
+     - Verify that the `nullifier` remains within the [`transient_accumulated_data`](./private-kernel-initial#transientaccumulateddata) in the `public_inputs`:
        `nullifier == public_inputs.transient_accumulated_data.nullifier_contexts[nullifiers_kept]`
      - Increment `nullifiers_kept` by 1: `nullifiers_kept += 1`
    - Else, compute `transient_nullifier_index` as `transient_nullifier_indices[nullifier_index_hints[i]]`:
@@ -144,7 +144,7 @@ In the event that a pending note is nullified within the same transaction, its n
 
    `nullifiers_removed == notes_removed`
 
-3. Ensure that `encrypted_note_preimage_hashes` not associated with note hashes removed in the previous step are retained within the `[transient_accumulated_data](./private-kernel-initial.mdx#transientaccumulateddata)` in the `public_inputs`.
+3. Ensure that `encrypted_note_preimage_hashes` not associated with note hashes removed in the previous step are retained within the `[transient_accumulated_data](./private-kernel-initial#transientaccumulateddata)` in the `public_inputs`.
 
    Initialize both `hashes_kept` and `hashes_removed` to `0`.
 
@@ -191,11 +191,11 @@ The preceding proof can be:
 
 #### Verifying the accumulated data.
 
-It ensures that the `accumulated_data` in the [`public_inputs`](#public-inputs) matches the `accumulated_data` in [`private_inputs`](#private-inputs).[`previous_kernel`](#previouskernel).[`public_inputs`](./private-kernel-initial.mdx#public-inputs).
+It ensures that the `accumulated_data` in the [`public_inputs`](#public-inputs) matches the `accumulated_data` in [`private_inputs`](#private-inputs).[`previous_kernel`](#previouskernel).[`public_inputs`](./private-kernel-initial#public-inputs).
 
 #### Verifying the transient accumulated data.
 
-All arrays in the `transient_accumulated_data` in the [`public_inputs`](#public-inputs) must equal their corresponding arrays in [`private_inputs`](#private-inputs).[`previous_kernel`](#previouskernel).[`public_inputs`](./private-kernel-initial.mdx#public-inputs).[`transient_accumulated_data`](./private-kernel-initial.mdx#transientaccumulateddata), with the exception of those modified by the reset circuits:
+All arrays in the `transient_accumulated_data` in the [`public_inputs`](#public-inputs) must equal their corresponding arrays in [`private_inputs`](#private-inputs).[`previous_kernel`](#previouskernel).[`public_inputs`](./private-kernel-initial#public-inputs).[`transient_accumulated_data`](./private-kernel-initial#transientaccumulateddata), with the exception of those modified by the reset circuits:
 
 1. [Read request reset circuit](#note-hash-read-request-reset-private-kernel-circuit) (for note hashes): `note_hash_read_requests`
 2. [Read request reset circuit](#nullifier-read-request-reset-private-kernel-circuit) (for nullifiers): `nullifier_read_requests`
@@ -204,13 +204,13 @@ All arrays in the `transient_accumulated_data` in the [`public_inputs`](#public-
 
 #### Verifying other data.
 
-This section follows the same [process](./private-kernel-inner.mdx#verifying-other-data) as outlined in the inner private kernel circuit.
+This section follows the same [process](./private-kernel-inner#verifying-other-data) as outlined in the inner private kernel circuit.
 
 ## `PrivateInputs`
 
 ### `PreviousKernel`
 
-The format aligns with the [`PreviousKernel`](./private-kernel-inner.mdx#previouskernel) of the inner private kernel circuit.
+The format aligns with the [`PreviousKernel`](./private-kernel-inner#previouskernel) of the inner private kernel circuit.
 
 ### _Hints_ for [Read Request Reset Private Kernel Circuit](#read-request-reset-private-kernel-circuit)
 
@@ -220,7 +220,7 @@ The format aligns with the [`PreviousKernel`](./private-kernel-inner.mdx#previou
 | `transient_read_indices`            | [`field`; `N`]                                                               | Indices of the read requests for transient values.                                                                                                                                                                                                                    |
 | `pending_value_indices`             | [`field`; `N`]                                                               | Indices of the values for transient reads.                                                                                                                                                                                                                            |
 | `persistent_read_indices`           | [`field`; `M`]                                                               | Indices of the read requests for settled values.                                                                                                                                                                                                                      |
-| `read_request_membership_witnesses` | [[`MembershipWitness`](./private-kernel-initial.mdx#membershipwitness); `M`] | Membership witnesses for the settled values.                                                                                                                                                                                                                          |
+| `read_request_membership_witnesses` | [[`MembershipWitness`](./private-kernel-initial#membershipwitness); `M`] | Membership witnesses for the settled values.                                                                                                                                                                                                                          |
 | `read_request_statuses`             | [[`ReadRequestStatus`](#readrequeststatus); `C`]                             | Statuses of the values being read. `C` equals [`MAX_NOTE_HASH_READ_REQUESTS_PER_TX`](../constants.md#circuit-constants) when `reset_type` is `note_hash`; [`MAX_NULLIFIER_READ_REQUESTS_PER_TX`](../constants.md#circuit-constants) when `reset_type` is `nullifier`. |
 
 > There can be multiple versions of the read request reset private kernel circuit, each with a different values of `N` and `M`.
@@ -249,4 +249,4 @@ The format aligns with the [`PreviousKernel`](./private-kernel-inner.mdx#previou
 
 ## `PublicInputs`
 
-The format aligns with the [`PublicInputs`](./private-kernel-initial.mdx#publicinputs) of the initial private kernel circuit.
+The format aligns with the [`PublicInputs`](./private-kernel-initial#publicinputs) of the initial private kernel circuit.

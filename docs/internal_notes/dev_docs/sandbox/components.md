@@ -8,7 +8,7 @@ title: Components
 This page needs to be updated.
 :::
 
-import Disclaimer from '../../misc/common/\_disclaimer.mdx';
+import Disclaimer from '../../src/components/Disclaimers/\_wip_disclaimer.mdx';
 
 <Disclaimer/>
 

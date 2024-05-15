@@ -96,7 +96,7 @@ function markdownInstructionSetSection(docsDir) {
     const instr = INSTRUCTION_SET[i];
     const name = instr["Name"];
     let subsection = `### <a id='isa-section-${instr["id"]}'/>${name}\n`;
-    subsection += `${instr["Summary"]}\n\n`;
+    subsection += `${instr["Summary"].replace(/[<>=]/g, "\\$&")}\n\n`;
     subsection += `[See in table.](#isa-table-${instr["id"]})\n\n`;
     subsection += `- **Opcode**: ${toOpcode(i)}\n`;
     for (let t = 0; t < TOPICS_IN_SECTIONS.length; t++) {

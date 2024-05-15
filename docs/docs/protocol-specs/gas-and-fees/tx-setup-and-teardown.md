@@ -66,7 +66,7 @@ Because a transaction is invalid if it fails in the public setup phase, sequence
 
 The private function that is executed first is referred to as the "entrypoint".
 
-Tracking which side effects belong to setup versus app logic is done by keeping track of [side effect counters](../circuits/private-kernel-initial.mdx#processing-a-private-function-call), and storing the value of the counter at which the setup phase ends within the private context.
+Tracking which side effects belong to setup versus app logic is done by keeping track of [side effect counters](../circuits/private-kernel-initial#processing-a-private-function-call), and storing the value of the counter at which the setup phase ends within the private context.
 
 This value is stored in the `PrivateContext` as the `min_revertible_side_effect_counter`, and is set by calling `context.end_setup()`.
 

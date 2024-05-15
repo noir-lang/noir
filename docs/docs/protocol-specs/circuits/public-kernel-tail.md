@@ -1,6 +1,6 @@
 # Public Kernel Circuit - Tail
 
-:::Danger
+:::danger
 The public kernel circuits are being redesigned to accommodate the latest AVM designs. This page is therefore highly likely to change significantly.
 :::
 
@@ -22,7 +22,7 @@ The preceding proof can only be:
 
 The following must be empty to ensure all the public function calls are processed:
 
-- `public_call_requests` in both `revertible_accumulated_data` and `non_revertible_accumulated_data` within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./public-kernel-tail.md#public-inputs).
+- `public_call_requests` in both `revertible_accumulated_data` and `non_revertible_accumulated_data` within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./public-kernel-tail#public-inputs).
 
 ### Processing Final Outputs
 
@@ -49,7 +49,7 @@ This circuit ensures the correct ordering of the following:
 - `storage_writes`
 - `ordered_unencrypted_log_hashes`
 
-1. For `note_hashes`, `nullifiers`, and `ordered_unencrypted_log_hashes`, they undergo the same [process](./private-kernel-tail.md#verifying-ordered-arrays) as outlined in the tail private kernel circuit. With the exception that the loop starts from index `offset + i`, where `offset` is the number of non-zero values in the `note_hashes` and `nullifiers` arrays within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./public-kernel-tail.md#public-inputs)[`.accumulated_data`](./public-kernel-tail.md#accumulateddata).
+1. For `note_hashes`, `nullifiers`, and `ordered_unencrypted_log_hashes`, they undergo the same [process](./private-kernel-tail.md#verifying-ordered-arrays) as outlined in the tail private kernel circuit. With the exception that the loop starts from index `offset + i`, where `offset` is the number of non-zero values in the `note_hashes` and `nullifiers` arrays within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./public-kernel-tail#public-inputs)[`.accumulated_data`](./public-kernel-tail#accumulateddata).
 
 2. For `storage_reads`, an `ordered_storage_reads` and `storage_read_hints` are provided as [hints](#hints) through `private_inputs`. This circuit checks that:
 
@@ -260,7 +260,7 @@ This section follows the same [process](./private-kernel-inner.mdx#verifying-the
 | `public_inputs`      | [`PublicKernelPublicInputs`](#public-inputs)                          | Public inputs of the proof.                  |
 | `proof`              | `Proof`                                                               | Proof of the kernel circuit.                 |
 | `vk`                 | `VerificationKey`                                                     | Verification key of the kernel circuit.      |
-| `membership_witness` | [`MembershipWitness`](./private-kernel-initial.mdx#membershipwitness) | Membership witness for the verification key. |
+| `membership_witness` | [`MembershipWitness`](./private-kernel-initial#membershipwitness) | Membership witness for the verification key. |
 
 ### _Hints_
 
@@ -283,10 +283,10 @@ Data that aids in the verifications carried out in this circuit:
 | `persistent_read_hints`              | `[field; C]`                                                               | Indices of `ordered_storage_writes` for persistent reads. `C` equals the length of `ordered_storage_reads`.                                |
 | `public_data_snap_indices`           | `[field; C]`                                                               | Indices of `public_data_snaps` for persistent write. `C` equals the length of `ordered_storage_writes`.                                    |
 | `storage_read_low_leaf_preimages`    | [`[PublicDataLeafPreimage; C]`](#publicdataleafpreimage)                   | Preimages for public data leaf. `C` equals the length of `ordered_storage_writes`.                                                         |
-| `storage_read_membership_witnesses`  | [`[MembershipWitness; C]`](./private-kernel-initial.mdx#membershipwitness) | Membership witnesses for persistent reads. `C` equals the length of `ordered_storage_writes`.                                              |
+| `storage_read_membership_witnesses`  | [`[MembershipWitness; C]`](./private-kernel-initial#membershipwitness) | Membership witnesses for persistent reads. `C` equals the length of `ordered_storage_writes`.                                              |
 | `storage_write_low_leaf_preimages`   | [`[PublicDataLeafPreimage; C]`](#publicdataleafpreimage)                   | Preimages for public data. `C` equals the length of `ordered_storage_writes`.                                                              |
-| `storage_write_membership_witnesses` | [`[MembershipWitness; C]`](./private-kernel-initial.mdx#membershipwitness) | Membership witnesses for public data tree. `C` equals the length of `ordered_storage_writes`.                                              |
-| `subtree_membership_witnesses`       | [`[MembershipWitness; C]`](./private-kernel-initial.mdx#membershipwitness) | Membership witnesses for the public data subtree. `C` equals the length of `ordered_storage_writes`.                                       |
+| `storage_write_membership_witnesses` | [`[MembershipWitness; C]`](./private-kernel-initial#membershipwitness) | Membership witnesses for public data tree. `C` equals the length of `ordered_storage_writes`.                                              |
+| `subtree_membership_witnesses`       | [`[MembershipWitness; C]`](./private-kernel-initial#membershipwitness) | Membership witnesses for the public data subtree. `C` equals the length of `ordered_storage_writes`.                                       |
 
 ## Public Inputs
 
@@ -301,7 +301,7 @@ Data that aids in the verifications carried out in this circuit:
 
 ### `ConstantData`
 
-These are constants that remain the same throughout the entire transaction. Its format aligns with the [ConstantData](./private-kernel-initial.mdx#constantdata) of the initial private kernel circuit.
+These are constants that remain the same throughout the entire transaction. Its format aligns with the [ConstantData](./private-kernel-initial#constantdata) of the initial private kernel circuit.
 
 ### `RevertibleAccumulatedData`
 
@@ -345,9 +345,9 @@ Data accumulated during the execution of the transaction.
 
 | Field                       | Type                                                                             | Description                                            |
 | --------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `note_hash_contexts`        | [`[NoteHashContext; C]`](./private-kernel-initial.mdx#notehashcontext)           | Note hashes with extra data aiding verification.       |
-| `nullifier_contexts`        | [`[NullifierContext; C]`](./private-kernel-initial.mdx#nullifiercontext)         | Nullifiers with extra data aiding verification.        |
-| `l2_to_l1_message_contexts` | [`[L2toL1MessageContext; C]`](./private-kernel-initial.mdx#l2tol1messagecontext) | L2-to-l1 messages with extra data aiding verification. |
+| `note_hash_contexts`        | [`[NoteHashContext; C]`](./private-kernel-initial#notehashcontext)           | Note hashes with extra data aiding verification.       |
+| `nullifier_contexts`        | [`[NullifierContext; C]`](./private-kernel-initial#nullifiercontext)         | Nullifiers with extra data aiding verification.        |
+| `l2_to_l1_message_contexts` | [`[L2toL1MessageContext; C]`](./private-kernel-initial#l2tol1messagecontext) | L2-to-l1 messages with extra data aiding verification. |
 | `storage_reads`             | [`[StorageRead; C]`](#storageread)                                               | Reads of the public data.                              |
 | `storage_writes`            | [`[StorageWrite; C]`](#storagewrite)                                             | Writes of the public data.                             |
 
@@ -426,4 +426,4 @@ Data accumulated during the execution of the transaction.
 | `call_stack_item_hash`    | `field`                                                       | Hash of the call stack item.                  |
 | `counter`                 | `u32`                                                         | Counter at which the request was made.        |
 | `caller_contract_address` | `AztecAddress`                                                | Address of the contract calling the function. |
-| `caller_context`          | [`CallerContext`](./private-kernel-initial.mdx#callercontext) | Context of the contract calling the function. |
+| `caller_context`          | [`CallerContext`](./private-kernel-initial#callercontext) | Context of the contract calling the function. |

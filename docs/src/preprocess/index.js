@@ -19,7 +19,7 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
       contentUpdates.push(processMarkdownFilesInDir(rootDir, filepath, regex));
     } else if (
       stat.isFile() &&
-      (file.endsWith(".md") || file.endsWith(".mdx"))
+      (file.endsWith(".md") || file.endsWith(".mdx") || file.endsWith(".json"))
     ) {
       const markdownContent = fs.readFileSync(filepath, "utf-8");
 

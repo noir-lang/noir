@@ -1,8 +1,7 @@
 ---
 title: Addresses and Keys
 ---
-
-<!-- TODO, given rearranging of pages -->
+import DocCardList from '@theme/DocCardList';
 
 Aztec has no concept of externally-owned accounts. Every address identifies a smart contract in the network.
 
@@ -18,6 +17,5 @@ The [requirements](./keys-requirements.md) section outlines the features that we
 
 Last, the [diversified and stealth accounts](./diversified-and-stealth.md) sections describe application-level recommendations for diversified and stealth accounts.
 
-import DocCardList from '@theme/DocCardList';
 
 <DocCardList />

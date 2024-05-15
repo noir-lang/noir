@@ -21,7 +21,7 @@ Each can have several transactions. Thus, an block is presently encoded as:
 | 0x0                                                                                                      | 0x4       | len(newL1ToL2Msgs) (denoted a)          |
 | 0x4                                                                                                      | a \* 0x20 | newL1ToL2Msgs                           |
 | 0x4 + a \* 0x20 = tx0Start                                                                               | 0x4       | len(numTxs) (denoted t)                 |
-|                                                                                                          |           | TxEffect 0 {                            |
+|                                                                                                          |           | TxEffect 0                            |
 | tx0Start                                                                                                 | 0x20      | revertCode                              |
 | tx0Start + 0x20                                                                                          | 0x1       | len(newNoteHashes) (denoted b)          |
 | tx0Start + 0x20 + 0x1                                                                                    | b \* 0x20 | newNoteHashes                           |
@@ -36,10 +36,10 @@ Each can have several transactions. Thus, an block is presently encoded as:
 | tx0Start + 0x20 + 0x1 + b \* 0x20 + 0x1 + c \* 0x20 + 0x1 + d \* 0x20 + 0x01 + e \* 0x40 + 0x4 + f       | 0x04      | byteLen(newUnencryptedLogs) (denoted g) |
 | tx0Start + 0x20 + 0x1 + b \* 0x20 + 0x1 + c \* 0x20 + 0x1 + d \* 0x20 + 0x01 + e \* 0x40 + 0x4 + f + 0x4 | g         | newUnencryptedLogs                      |
 |                                                                                                          |           | },                                      |
-|                                                                                                          |           | TxEffect 1 {                            |
+|                                                                                                          |           | TxEffect 1                            |
 |                                                                                                          |           | ...                                     |
 |                                                                                                          |           | },                                      |
 |                                                                                                          |           | ...                                     |
-|                                                                                                          |           | TxEffect (t - 1) {                      |
+|                                                                                                          |           | TxEffect (t - 1)                      |
 |                                                                                                          |           | ...                                     |
 |                                                                                                          |           | },                                      |

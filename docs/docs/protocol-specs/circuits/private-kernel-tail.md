@@ -20,7 +20,7 @@ An inner iteration may be omitted when there's only a single private function ca
 
 #### Ensuring the previous iteration is the last.
 
-It checks the data within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./private-kernel-initial.mdx#public-inputs)[`.transient_accumulated_data`](./private-kernel-initial.mdx#transientaccumulateddata) to ensure that no further private kernel iteration is needed.
+It checks the data within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./private-kernel-initial#public-inputs)[`.transient_accumulated_data`](./private-kernel-initial#transientaccumulateddata) to ensure that no further private kernel iteration is needed.
 
 1. The following must be empty to ensure all the private function calls are processed:
 
@@ -48,7 +48,7 @@ Siloing a value with the address of the contract generating the value ensures th
 
    `nullifier_contexts[i].value = hash(nullifier.contract_address, nullifier.value)`
 
-   > This process does not apply to `nullifier_contexts[0]`, which is the [hash of the transaction request](./private-kernel-initial.mdx#ensuring-transaction-uniqueness) created by the initial private kernel circuit.
+   > This process does not apply to `nullifier_contexts[0]`, which is the [hash of the transaction request](./private-kernel-initial#ensuring-transaction-uniqueness) created by the initial private kernel circuit.
 
    <!-- TODO / DANGER :A thought: we might need to include an optional `randomness` field in the TransactionRequest, to prevent observers from attempting to do dictionary attacks on the tx_hash (the nullifier), in an attempt to learn its preimage, and thereby learn everything about the nature of the transaction -->
 
@@ -73,7 +73,7 @@ Siloing a value with the address of the contract generating the value ensures th
 
    `l2_to_l1_message_contexts[i].value = hash(l2_to_l1_message.contract_address, version_id, l2_to_l1_message.portal_contract_address, chain_id, l2_to_l1_message.value)`
 
-   Where `version_id` and `chain_id` are defined in [`public_inputs`](#public-inputs)[`.constant_data`](./private-kernel-initial.mdx#constantdata)[`.tx_context`](./private-kernel-initial.mdx#transactioncontext).
+   Where `version_id` and `chain_id` are defined in [`public_inputs`](#public-inputs)[`.constant_data`](./private-kernel-initial#constantdata)[`.tx_context`](./private-kernel-initial#transactioncontext).
 
 4. Silo `unencrypted_log_hashes`:
 
@@ -173,7 +173,7 @@ The requests in the `public_call_requests` within `public_inputs` have been [sor
 - The `counter`s of the other non-empty requests are continuous values in descending order:
   - `public_call_requests[i].counter = public_call_requests[i + 1].counter + 1`
 
-> It's crucial for the `counter` of the last request to be `1`, as it's assumed in the [tail public kernel circuit](./public-kernel-tail.md#grouping-storage-writes) that no storage writes have a counter `1`.
+> It's crucial for the `counter` of the last request to be `1`, as it's assumed in the [tail public kernel circuit](./public-kernel-tail#grouping-storage-writes) that no storage writes have a counter `1`.
 
 ### Validating Public Inputs
 
@@ -204,7 +204,7 @@ The requests in the `public_call_requests` within `public_inputs` have been [sor
 
 #### Verifying the transient accumulated data.
 
-It ensures that all data in the [`transient_accumulated_data`](./public-kernel-tail.md#transientaccumulateddata) within [`public_inputs`](#public-inputs) is empty.
+It ensures that all data in the [`transient_accumulated_data`](./public-kernel-tail#transientaccumulateddata) within [`public_inputs`](#public-inputs) is empty.
 
 #### Verifying other data.
 
@@ -250,4 +250,4 @@ Data that aids in the verifications carried out in this circuit:
 
 ## `PublicInputs`
 
-The format aligns with the [Public Inputs](./public-kernel-tail.md#public-inputs) of the tail public kernel circuit.
+The format aligns with the [Public Inputs](./public-kernel-tail#public-inputs) of the tail public kernel circuit.

@@ -55,7 +55,7 @@ When a private function calls a public function:
 1. The arguments to the public function are hashed into an `args_hash`.
 1. A `public_call_stack_item` <!-- todo: link to definition --> is created, which includes the public function's `function_selector` <!-- TODO: do we have en explanation for function_selectors, and how the notion is enshrined for private functions (although languages can still choose how they compute a function selector)? -->, `contract_address`, and `args_hash`.
 1. A hash of the `public_call_stack_item` gets enqueued into a separate [`public_call_stack`](../circuits/private-function.md#public-inputs) and passed as inputs to the private kernel.
-1. The private kernel pushes these hashes onto its own the [`public_inputs`](../circuits/private-kernel-initial.mdx#public-inputs), which the sequencer can see.
+1. The private kernel pushes these hashes onto its own the [`public_inputs`](../circuits/private-kernel-initial#public-inputs), which the sequencer can see.
 1. The PXE creates a [`transaction_object`](../transactions/tx-object.md) which includes the kernel's `public_inputs`.
 1. The PXE sends the `transaction_object` to the sequencer.
 1. Sequencer then unpacks the `public_call_stack_item` and executes each of the functions.

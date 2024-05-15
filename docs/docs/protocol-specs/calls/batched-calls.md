@@ -8,7 +8,7 @@ Calls to private functions can be _batched_ instead of executed [synchronously](
 
 <!-- TODO (possibly in Q2): work with the circuits team to decide on how exactly the kernel circuit(s) will do batched calls -->
 
-Batched calls are implemented by pushing a [`PrivateCallStackItem`](../circuits/private-kernel-initial.mdx#privatecallstackitem) with the flag `is_execution_request` into a `private_batched_queue` in the execution context, and require an oracle call to a `batchPrivateFunctionCall` function with the same argument types as for other oracle function calls.
+Batched calls are implemented by pushing a [`PrivateCallStackItem`](../circuits/private-kernel-initial#privatecallstackitem) with the flag `is_execution_request` into a `private_batched_queue` in the execution context, and require an oracle call to a `batchPrivateFunctionCall` function with the same argument types as for other oracle function calls.
 
 Batched calls are processed by the private kernel circuit. On each kernel circuit iteration, if the private call stack is not empty, the kernel circuit pops and processes the topmost entry. Otherwise, if the batched queue is not empty, the kernel pops the first item, collects and deletes all other items with the same target, and calls into the target. Note that this allows batched calls to trigger further synchronous calls.
 

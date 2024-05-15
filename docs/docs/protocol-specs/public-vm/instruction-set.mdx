@@ -1,8 +1,11 @@
+import GeneratedInstructionSet from "./gen/_instruction-set.mdx";
+
 # Instruction Set
 
 This page lists all of the instructions supported by the Aztec Virtual Machine (AVM).
 
 The following notes are relevant to the table and sections below:
+
 - `M[offset]` notation is shorthand for `context.machineState.memory[offset]`
 - `S[slot]` notation is shorthand for an access to the specified slot in the current contract's public storage (`context.worldState.publicStorage`) after the slot has been siloed by the storage address (`hash(context.environment.storageAddress, slot)`)
 - Any instruction whose description does not mention a program counter change simply increments it: `context.machineState.pc++`
@@ -10,7 +13,5 @@ The following notes are relevant to the table and sections below:
 - Any instruction can lead to an exceptional halt as specified in ["Exceptional halting"](./execution#exceptional-halting)
 - The term `hash` used in expressions below represents a Poseidon hash operation.
 - Type structures used in world state tracing operations are defined in ["Type Definitions"](./type-structs)
-
-import GeneratedInstructionSet from "./gen/_instruction-set.mdx";
 
 <GeneratedInstructionSet />

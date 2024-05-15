@@ -1,6 +1,6 @@
 # Public Kernel Circuit - Inner
 
-:::Danger
+:::danger
 The public kernel circuits are being redesigned to accommodate the latest AVM designs. This page is therefore highly likely to change significantly.
 :::
 
@@ -23,7 +23,7 @@ The preceding proof can be:
 
 #### Ensuring the function being called exists in the contract.
 
-This section follows the same [process](./private-kernel-initial.mdx#ensuring-the-function-being-called-exists-in-the-contract) as outlined in the initial private kernel circuit.
+This section follows the same [process](./private-kernel-initial#ensuring-the-function-being-called-exists-in-the-contract) as outlined in the initial private kernel circuit.
 
 #### Ensuring the contract instance being called is deployed.
 
@@ -33,7 +33,7 @@ It verifies the public deployment of the contract instance by conducting a membe
   - `deployer_address` is defined in [`private_inputs`](#private-inputs)[`.public_call`](#publiccall)[`.contract_data`](../contract-deployment/instances.md#structure).
   - `contract_data` is defined in [`private_inputs`](#private-inputs)[`.public_call`](#publiccall)[`.call_stack_item`](#publiccallstackitem).
 - The index and sibling path are provided in `contract_deployment_membership_witness` through [`private_inputs`](#private-inputs)[`.public_call`](#publiccall)\_.
-- The root is the `nullifier_tree_root` in the [`header`](./private-function.md#header) within [`public_inputs`](#public-inputs)[`.constant_data`](./private-kernel-initial.mdx#constantdata).
+- The root is the `nullifier_tree_root` in the [`header`](./private-function.md#header) within [`public_inputs`](#public-inputs)[`.constant_data`](./private-kernel-initial#constantdata).
 
 #### Ensuring the current call matches the call request.
 
@@ -64,7 +64,7 @@ It verifies that the public function was executed with the provided proof data, 
 
 It ensures the public function's intention by checking the following in [`public_call`](#publiccall)[`.call_stack_item`](#publiccallstackitem)[`.public_inputs`](#publicfunctionpublicinputs):
 
-- The `header` must match the one in the [`constant_data`](./private-kernel-initial.mdx#constantdata).
+- The `header` must match the one in the [`constant_data`](./private-kernel-initial#constantdata).
 - If it is a static call (`public_inputs.call_context.is_static_call == true`), it ensures that the function does not induce any state changes by verifying that the following arrays are empty:
   - `note_hashes`
   - `nullifiers`
@@ -118,7 +118,7 @@ It verifies that each value listed below is associated with a legitimate counter
 
 #### Verifying the transient accumulated data.
 
-The [`transient_accumulated_data`](./public-kernel-tail.md#transientaccumulateddata) in this circuit's [`public_inputs`](#public-inputs)\_ includes values from both the previous iterations and the [`public_call`](#publiccall).
+The [`transient_accumulated_data`](./public-kernel-tail#transientaccumulateddata) in this circuit's [`public_inputs`](#public-inputs)\_ includes values from both the previous iterations and the [`public_call`](#publiccall).
 
 For each array in the `transient_accumulated_data`, this circuit verifies that it is populated with the values from the previous iterations, specifically:
 
@@ -160,7 +160,7 @@ For the subsequent items appended after the values from the previous iterations,
    - `storage_writes`
    - `unencrypted_log_hash_contexts`
 
-   > Ensuring the alignment of the contract addresses is crucial, as it is later used to [silo the values](./public-kernel-tail.md#siloing-values) and to establish associations with values within the same contract.
+   > Ensuring the alignment of the contract addresses is crucial, as it is later used to [silo the values](./public-kernel-tail#siloing-values) and to establish associations with values within the same contract.
 
 4. The _portal_contract_address_ for each non-empty item in `l2_to_l1_message_contexts` must equal the _portal_contract_address_ defined in _public_function_public_inputs.call_context_.
 
@@ -194,13 +194,13 @@ Data that holds details about the current public function call.
 | `vk`                                     | `VerificationKey`                                                   | Verification key of the public function circuit.                    |
 | `bytecode_hash`                          | `field`                                                             | Hash of the function bytecode.                                      |
 | `contract_data`                          | [`ContractInstance`](../contract-deployment/instances.md#structure) | Data of the contract instance being called.                         |
-| `contract_class_data`                    | [`ContractClass`](./private-kernel-initial.mdx#contractclassdata)   | Data of the contract class.                                         |
+| `contract_class_data`                    | [`ContractClass`](./private-kernel-initial#contractclassdata)   | Data of the contract class.                                         |
 | `function_leaf_membership_witness`       | [`MembershipWitness`](./private-kernel-inner.mdx#membershipwitness) | Membership witness for the function being called.                   |
 | `contract_deployment_membership_witness` | [`MembershipWitness`](./private-kernel-inner.mdx#membershipwitness) | Membership witness for the deployment of the contract being called. |
 
 ## `PublicInputs`
 
-The format aligns with the [`PublicInputs`](./public-kernel-tail.md#public-inputs) of the tail public kernel circuit.
+The format aligns with the [`PublicInputs`](./public-kernel-tail#public-inputs) of the tail public kernel circuit.
 
 ## Types
 
@@ -209,7 +209,7 @@ The format aligns with the [`PublicInputs`](./public-kernel-tail.md#public-input
 | Field              | Type                                                        | Description                                               |
 | ------------------ | ----------------------------------------------------------- | --------------------------------------------------------- |
 | `contract_address` | `AztecAddress`                                              | Address of the contract on which the function is invoked. |
-| `function_data`    | [`FunctionData`](./private-kernel-initial.mdx#functiondata) | Data of the function being called.                        |
+| `function_data`    | [`FunctionData`](./private-kernel-initial#functiondata) | Data of the function being called.                        |
 | `public_inputs`    | [`PublicFunctionPublicInputs`](#publicfunctionpublicinputs) | Public inputs of the public vm circuit.                   |
 | `counter_start`    | `field`                                                     | Counter at which the function call was initiated.         |
 | `counter_end`      | `field`                                                     | Counter at which the function call ended.                 |
@@ -224,8 +224,8 @@ The format aligns with the [`PublicInputs`](./public-kernel-tail.md#public-input
 | `note_hashes`                   | `[`[`NoteHash`](./private-function.md#notehash)`; C]`                 | New note hashes created in this function call.                  |
 | `nullifiers`                    | [`[Nullifier; C]`](./private-function.md#nullifier)                   | New nullifiers created in this function call.                   |
 | `l2_to_l1_messages`             | `[field; C]`                                                          | New L2 to L1 messages created in this function call.            |
-| `storage_reads`                 | [`[StorageRead_; C]`](./public-kernel-tail.md#storageread)            | Data read from the public data tree.                            |
-| `storage_writes`                | [`[StorageWrite; C]`](./public-kernel-tail.md#storagewrite)           | Data written to the public data tree.                           |
+| `storage_reads`                 | [`[StorageRead_; C]`](./public-kernel-tail#storageread)            | Data read from the public data tree.                            |
+| `storage_writes`                | [`[StorageWrite; C]`](./public-kernel-tail#storagewrite)           | Data written to the public data tree.                           |
 | `unencrypted_log_hashes`        | [`[UnencryptedLogHash; C]`](./private-function.md#unencryptedloghash) | Hashes of the unencrypted logs emitted in this function call.   |
 | `public_call_stack_item_hashes` | `[field; C]`                                                          | Hashes of the public function calls initiated by this function. |
 | `header`                        | [`Header`](./private-function.md#header)                              | Information about the trees used for the transaction.           |
