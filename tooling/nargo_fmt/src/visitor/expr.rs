@@ -1,7 +1,7 @@
-use noirc_frontend::ast::Expression;
 use noirc_frontend::ast::{
     BlockExpression, ConstructorExpression, ExpressionKind, IfExpression, Statement, StatementKind,
 };
+use noirc_frontend::ast::{Expression, UnresolvedType};
 use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
 use super::{ExpressionType, FmtVisitor, Shape};
@@ -207,8 +207,10 @@ pub(crate) fn format_seq<T: HasItem>(
     nested_indent.indent.block_indent(visitor.config);
 
     let exprs: Vec<_> = Items::new(&visitor, nested_indent, span, exprs).collect();
+    // dbg!(exprs.clone());
+    // dbg!("abotu format exprs");
     let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent, reduce);
-
+    // dbg!("got here");
     wrap_exprs(prefix, suffix, exprs, nested_indent, shape, mode)
 }
 
@@ -247,6 +249,20 @@ pub(crate) fn format_parens(
 ) -> String {
     let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
     format_seq(shape, "(", ")", visitor, trailing_comma, exprs, span, tactic, mode, reduce)
+}
+
+pub(crate) fn format_turbofish(
+    max_width: Option<usize>,
+    visitor: FmtVisitor,
+    shape: Shape,
+    trailing_comma: bool,
+    generics: Vec<UnresolvedType>,
+    span: Span,
+    reduce: bool,
+    mode: NewlineMode,
+) -> String {
+    let tactic = max_width.map(Tactic::LimitedHorizontalVertical).unwrap_or(Tactic::Horizontal);
+    format_seq(shape, "<", ">", visitor, trailing_comma, generics, span, tactic, mode, reduce)
 }
 
 pub(crate) fn format_exprs(

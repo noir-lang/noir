@@ -3,8 +3,9 @@ use noirc_frontend::ast::{
 };
 use noirc_frontend::{macros_api::Span, token::Token};
 
+use crate::rewrite;
 use crate::visitor::{
-    expr::{format_brackets, format_parens, NewlineMode},
+    expr::{format_brackets, format_parens, format_turbofish, NewlineMode},
     ExpressionType, FmtVisitor, Indent, Shape,
 };
 
@@ -83,7 +84,21 @@ pub(crate) fn rewrite(
                 NewlineMode::IfContainsNewLineAndWidth,
             );
 
-            format!("{object}.{method}{args}")
+            if let Some(generics) = method_call_expr.generics {
+                let mut turbofish = "".to_owned();
+                for (i, generic) in generics.into_iter().enumerate() {
+                    let generic = rewrite::typ(&visitor, shape, generic);
+                    turbofish = if i == 0 {
+                        format!("<{}", generic)
+                    } else {
+                        format!("{turbofish}, {}", generic)
+                    };
+                }
+                turbofish = format!("{turbofish}>");
+                format!("{object}.{method}::{turbofish}{args}")
+            } else {
+                format!("{object}.{method}{args}")
+            }
         }
         ExpressionKind::MemberAccess(member_access_expr) => {
             let lhs_str = rewrite_sub_expr(visitor, shape, member_access_expr.lhs);

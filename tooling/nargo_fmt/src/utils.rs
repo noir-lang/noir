@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::items::HasItem;
 use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
-use noirc_frontend::ast::{Expression, Ident, Param, Visibility};
+use noirc_frontend::ast::{Expression, Ident, Param, UnresolvedType, Visibility};
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
@@ -156,6 +156,22 @@ impl HasItem for Param {
             let ty = rewrite::typ(visitor, shape, self.typ);
             let visibility = append_space_if_nonempty(visibility.into());
             format!("{pattern}: {visibility}{ty}")
+        }
+    }
+}
+
+impl HasItem for UnresolvedType {
+    fn span(&self) -> Span {
+        self.span.unwrap_or(Span::default())
+    }
+
+    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
+        dbg!("got here");
+        if self.is_synthesized() {
+            self.to_string()
+        } else {
+            let typ = rewrite::typ(visitor, shape, self);
+            format!("{typ}")
         }
     }
 }
