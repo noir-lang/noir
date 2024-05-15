@@ -19,17 +19,21 @@ use crate::source_code_printer::print_source_code_location;
 pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver> {
     context: DebugContext<'a, B>,
     blackbox_solver: &'a B,
-    circuit: &'a Circuit,
     debug_artifact: &'a DebugArtifact,
     initial_witness: WitnessMap,
     last_result: DebugCommandResult,
+
+    // ACIR functions to debug
+    circuits: &'a [Circuit],
+
+    // Brillig functions referenced from the ACIR circuits above
     unconstrained_functions: &'a [BrilligBytecode],
 }
 
 impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     pub fn new(
         blackbox_solver: &'a B,
-        circuit: &'a Circuit,
+        circuits: &'a [Circuit],
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
         unconstrained_functions: &'a [BrilligBytecode],
@@ -38,7 +42,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let context = DebugContext::new(
             blackbox_solver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness.clone(),
             foreign_call_executor,
@@ -53,7 +57,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         Self {
             context,
             blackbox_solver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             last_result,
@@ -287,7 +291,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, self.debug_artifact));
         self.context = DebugContext::new(
             self.blackbox_solver,
-            self.circuit,
+            self.circuits,
             self.debug_artifact,
             self.initial_witness.clone(),
             foreign_call_executor,
@@ -391,7 +395,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
     let unconstrained_functions = &program.program.unconstrained_functions;
     let context = RefCell::new(ReplDebugger::new(
         blackbox_solver,
-        circuit,
+        circuits,
         debug_artifact,
         initial_witness,
         unconstrained_functions,

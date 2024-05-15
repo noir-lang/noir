@@ -61,14 +61,14 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     pub fn new(
         server: Server<R, W>,
         solver: &'a B,
-        circuit: &'a Circuit,
+        circuits: &'a [Circuit],
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
         unconstrained_functions: &'a [BrilligBytecode],
     ) -> Self {
         let context = DebugContext::new(
             solver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact)),
@@ -616,7 +616,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
     let mut session = DapSession::new(
         server,
         solver,
-        &program.program.functions[0],
+        &program.program.functions,
         &debug_artifact,
         initial_witness,
         &program.program.unconstrained_functions,

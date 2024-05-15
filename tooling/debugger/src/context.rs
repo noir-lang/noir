@@ -45,22 +45,22 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     pub(super) fn new(
         blackbox_solver: &'a B,
-        circuit: &'a Circuit,
+        circuits: &'a [Circuit],
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
         unconstrained_functions: &'a [BrilligBytecode],
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
-        let acir_opcode_addresses = build_acir_opcode_offsets(circuit, unconstrained_functions);
+        let initial_circuit = &circuits[0];
+        let acir_opcode_addresses = build_acir_opcode_offsets(initial_circuit, unconstrained_functions);
         Self {
-            // TODO: need to handle brillig pointer in the debugger
             acvm: ACVM::new(
                 blackbox_solver,
-                &circuit.opcodes,
+                &initial_circuit.opcodes,
                 initial_witness,
                 unconstrained_functions,
-                &circuit.assert_messages,
+                &initial_circuit.assert_messages,
             ),
             brillig_solver: None,
             witness_stack: WitnessStack::default(),
@@ -676,7 +676,8 @@ mod tests {
         }];
         let brillig_funcs = &vec![brillig_bytecode];
         let current_witness_index = 2;
-        let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuits = &vec![circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -689,7 +690,7 @@ mod tests {
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
@@ -786,7 +787,8 @@ mod tests {
             }),
         ];
         let current_witness_index = 3;
-        let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuits = &vec![circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -800,7 +802,7 @@ mod tests {
         let brillig_funcs = &vec![brillig_bytecode];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
@@ -844,12 +846,13 @@ mod tests {
             Opcode::AssertZero(Expression::default()),
         ];
         let circuit = Circuit { opcodes, ..Circuit::default() };
+        let circuits = vec![circuit];
         let debug_artifact =
             DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
         let brillig_funcs = &vec![brillig_bytecode];
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,
-            &circuit,
+            &circuits,
             &debug_artifact,
             WitnessMap::new(),
             Box::new(DefaultDebugForeignCallExecutor::new(true)),
