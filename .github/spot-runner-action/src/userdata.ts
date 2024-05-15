@@ -22,7 +22,7 @@ export class UserData {
       `sudo service docker restart`,
       "sudo wget -q https://github.com/earthly/earthly/releases/download/v0.8.10/earthly-linux-$(dpkg --print-architecture) -O /usr/local/bin/earthly",
       "sudo chmod +x /usr/local/bin/earthly",
-      "sudo apt install -y brotli",
+      "for i in {1..3} ; do sudo apt install -y brotli && break; sleep 10; done",
       'echo "MaxStartups 1000" >> /etc/ssh/sshd_config',
       'echo "ClientAliveInterval=30" >> /etc/ssh/sshd_config',
       'echo "ClientAliveCountMax=20" >> /etc/ssh/sshd_config',

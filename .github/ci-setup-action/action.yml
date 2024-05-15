@@ -75,3 +75,7 @@ runs:
           [ -f ~/.setup-complete ] && ( ! [ -f ~/.user-data-started ] || [ -f ~/.user-data-finished ] ) && break
           sleep 1
         done
+        if ! [ -f ~/.setup-complete ] && [ -f ~/.user-data-started ] ; then
+          echo "Cache mount not seeming to be complete, exiting!"
+          exit 1
+        fi
