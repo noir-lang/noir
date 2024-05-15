@@ -28,6 +28,8 @@ on:
       DOCKERHUB_PASSWORD:
         required: true
 
+concurrency:
+  group: ci-${{ inputs.username }}-${{ inputs.runner_type }}-${{ inputs.runner_action }}
 env:
   DOCKERHUB_PASSWORD: "${{ secrets.DOCKERHUB_PASSWORD }}"
   RUN_ID: ${{ github.run_id }}
