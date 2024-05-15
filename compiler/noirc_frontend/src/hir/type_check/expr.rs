@@ -234,18 +234,50 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
+                        if method_call.generics.is_none() {
+                            dbg!(method_ref.clone());
+                        }
                         // Automatically add `&mut` if the method expects a mutable reference and
                         // the object is not already one.
-                        if let HirMethodReference::FuncId(func_id) = &method_ref {
-                            if *func_id != FuncId::dummy_id() {
-                                let function_type =
-                                    self.interner.function_meta(func_id).typ.clone();
-
-                                self.try_add_mutable_reference_to_object(
-                                    &mut method_call,
-                                    &function_type,
-                                    &mut object_type,
-                                );
+                        // if let HirMethodReference::FuncId(func_id) = &method_ref {
+                        //     if *func_id != FuncId::dummy_id() {
+                        //         let function_type =
+                        //             self.interner.function_meta(func_id).typ.clone();
+                        //         self.try_add_mutable_reference_to_object(
+                        //             &mut method_call,
+                        //             &function_type,
+                        //             &mut object_type,
+                        //         );
+                        //     }
+                        // }
+                        match &method_ref {
+                            HirMethodReference::FuncId(func_id) => {
+                                if *func_id != FuncId::dummy_id() {
+                                    let function_type =
+                                        self.interner.function_meta(func_id).typ.clone();
+                                    self.try_add_mutable_reference_to_object(
+                                        &mut method_call,
+                                        &function_type,
+                                        &mut object_type,
+                                    );
+                                }
+                            }
+                            HirMethodReference::TraitMethodId(method_id, _) => {
+                                let id = self.interner.trait_method_id(*method_id);
+                                let definition = self.interner.definition(id);
+                                match definition.kind {
+                                    DefinitionKind::Function(func_id) => {
+                                        let function_type =
+                                        self.interner.function_meta(&func_id).typ.clone();
+                                        dbg!(function_type.clone());
+                                        self.try_add_mutable_reference_to_object(
+                                            &mut method_call,
+                                            &function_type,
+                                            &mut object_type,
+                                        );
+                                    }
+                                    _ => {},
+                                }
                             }
                         }
 
@@ -357,6 +389,9 @@ impl<'interner> TypeChecker<'interner> {
     ) -> Type {
         let mut bindings = TypeBindings::new();
 
+        if generics.is_some() {
+            dbg!(ident.impl_kind.clone());
+        }
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
@@ -378,7 +413,6 @@ impl<'interner> TypeChecker<'interner> {
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-
         let span = self.interner.expr_span(expr_id);
 
         let definition = self.interner.try_definition(ident.id);
@@ -388,22 +422,31 @@ impl<'interner> TypeChecker<'interner> {
             }
             _ => 0,
         });
+        if generics.is_some() {
+            dbg!(t.clone());
+            dbg!(expected_generic_count);
+        }
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = self.instantiate(t, bindings, generics, expected_generic_count, span);
+        let (typ, bindings) = self.instantiate(t, bindings, generics.clone(), expected_generic_count, span);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
-
+                if generics.is_some() {
+                    dbg!(function.trait_constraints.clone());
+                }
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
                     self.trait_constraints.push((constraint, *expr_id));
                 }
             }
+        }
+        if generics.is_some() {
+            dbg!(self.trait_constraints.len());            
         }
 
         if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
@@ -444,6 +487,7 @@ impl<'interner> TypeChecker<'interner> {
                     });
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
+                    dbg!(generics.clone());
                     typ.instantiate_with(generics)
                 }
             }
@@ -515,7 +559,8 @@ impl<'interner> TypeChecker<'interner> {
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
         };
-
+        dbg!(function_type.clone());
+        dbg!(expected_object_type.clone());
         if let Some(expected_object_type) = expected_object_type {
             let actual_type = object_type.follow_bindings();
 

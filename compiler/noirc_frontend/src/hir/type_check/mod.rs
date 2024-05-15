@@ -91,6 +91,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
     if !type_checker.errors.is_empty() {
+        dbg!("After checking params");
         dbg!(type_checker.errors.len());
     }
 
@@ -153,7 +154,9 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             variable.bind(kind.default_type().expect(msg));
         }
     }
-
+    if !type_checker.errors.is_empty() {
+        dbg!(type_checker.errors.len());
+    }
     // Verify any remaining trait constraints arising from the function body
     for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);

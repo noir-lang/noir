@@ -231,7 +231,7 @@ impl HirMethodCallExpression {
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), None));
+        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
         interner.push_expr_location(func, location.span, location.file);
         let expr = HirCallExpression { func, arguments, location };
         ((func, func_var), expr)
