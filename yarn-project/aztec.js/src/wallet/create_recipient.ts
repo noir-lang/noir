@@ -8,6 +8,8 @@ import { CompleteAddress } from '@aztec/circuits.js';
  */
 export async function createRecipient(pxe: PXE): Promise<CompleteAddress> {
   const completeAddress = CompleteAddress.random();
+  // docs:start:register-recipient
   await pxe.registerRecipient(completeAddress);
+  // docs:end:register-recipient
   return completeAddress;
 }

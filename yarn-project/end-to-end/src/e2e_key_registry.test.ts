@@ -159,11 +159,13 @@ describe('Key Registry', () => {
     const secondNewMasterNullifierPublicKey = Point.random();
 
     it('rotates npk_m', async () => {
+      // docs:start:key-rotation
       await keyRegistry
         .withWallet(wallets[0])
         .methods.rotate_npk_m(wallets[0].getAddress(), firstNewMasterNullifierPublicKey, Fr.ZERO)
         .send()
         .wait();
+      // docs:end:key-rotation
 
       // We check if our rotated nullifier key is equal to the key obtained from the getter by reading our registry
       // contract from the test contract. We expect this to fail because the change has not been applied yet

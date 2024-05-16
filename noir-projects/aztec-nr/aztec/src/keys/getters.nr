@@ -14,6 +14,7 @@ use crate::{
 
 global DELAY = 5;
 
+// docs:start:key-getters
 pub fn get_npk_m(context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
     get_master_key(context, address, NULLIFIER_INDEX)
 }
@@ -34,6 +35,7 @@ pub fn get_ivpk_m(context: &mut PrivateContext, address: AztecAddress) -> Grumpk
 // pub fn get_tpk_m(context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
 //     get_master_key(context, address, TAGGING_INDEX)
 // }
+// docs:end:key-getters
 
 fn get_master_key(
     context: &mut PrivateContext,
