@@ -551,6 +551,12 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
+        // TODO cleanup
+        if crate_id != CrateId::Stdlib(0) {
+            dbg!("parse_module_declaration", mod_decl, crate_id);
+            panic!("hm");
+        }
+
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =
             match find_module(&context.file_manager, self.file_id, &mod_decl.ident.0.contents) {
@@ -681,11 +687,29 @@ fn find_module(
     anchor: FileId,
     mod_name: &str,
 ) -> Result<FileId, String> {
+    // TODO cleanup
+
     let anchor_path = file_manager
         .path(anchor)
         .expect("File must exist in file manager in order for us to be resolving its imports.")
         .with_extension("");
+
+    // TODO cleanup
+    if true {
+        // dbg!("find_module", anchor, mod_name);
+        dbg!("find_module", mod_name, &anchor, &anchor_path);
+        dbg!("file_manager", &file_manager.as_file_map().name_to_id.iter().filter(|(x, _)| !x.to_string().contains("std")).collect::<Vec<_>>());
+    }
     let anchor_dir = anchor_path.parent().unwrap();
+
+    // TODO cleanup
+    if true {
+        dbg!(&anchor_dir);
+    }
+
+    if mod_name == "bar" {
+        panic!("ok?")
+    }
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
     // the anchor at `base/mod_name.nr`.
@@ -696,6 +720,16 @@ fn find_module(
         anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
     };
 
+    dbg!(&candidate);
+    // // TODO cleanup before PR
+    // if !candidate.display().to_string().contains("std") {
+    //     panic!("{:?}", candidate);
+    // }
+    if file_manager.name_to_id(candidate.clone()).is_none() {
+        dbg!(&candidate);
+        panic!("hi!");
+    }
+
     file_manager
         .name_to_id(candidate.clone())
         .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
@@ -704,6 +738,11 @@ fn find_module(
 /// Returns true if a module's child modules are expected to be in the same directory.
 /// Returns false if they are expected to be in a subdirectory matching the name of the module.
 fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
+    // // // TODO cleanup
+    // // dbg!("should_check_siblings_for_module", module_path, parent_path);
+    // return true;
+
+
     if let Some(filename) = module_path.file_stem() {
         // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
         // check its same directory for child modules instead of a subdirectory. Should we prohibit

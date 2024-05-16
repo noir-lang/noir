@@ -297,6 +297,9 @@ impl DefCollector {
         for collected_import in std::mem::take(&mut def_collector.imports) {
             match resolve_import(crate_id, &collected_import, &context.def_maps) {
                 Ok(resolved_import) => {
+                    // TODO cleanup
+                    // dbg!("match resolve_import", &resolved_import);
+
                     if let Some(error) = resolved_import.error {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(error).into(),
@@ -323,6 +326,9 @@ impl DefCollector {
                     }
                 }
                 Err(error) => {
+                    // TODO cleanup
+                    // dbg!("match resolve_import(err)", &error);
+
                     let current_def_map = context.def_maps.get(&crate_id).unwrap();
                     let file_id = current_def_map.file_id(collected_import.module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);

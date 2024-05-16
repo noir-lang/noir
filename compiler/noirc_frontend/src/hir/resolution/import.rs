@@ -88,6 +88,10 @@ pub fn resolve_import(
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Result<ResolvedImport, PathResolutionError> {
+
+    // // TODO cleanup
+    // dbg!("resolve_import", crate_id, import_directive, def_maps.keys().collect::<Vec<_>>());
+
     let allow_contracts =
         allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
@@ -97,6 +101,9 @@ pub fn resolve_import(
         namespace: resolved_namespace,
         mut error,
     } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
+
+    // TODO cleanup
+    // dbg!("resolve_import: err", &error);
 
     let name = resolve_path_name(import_directive);
 
@@ -146,6 +153,9 @@ fn resolve_path_to_ns(
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
+
+    // TODO cleanup
+    // dbg!("resolve_path_to_ns", &import_path);
 
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
@@ -221,6 +231,10 @@ fn resolve_name_in_module(
     }
 
     let first_segment = import_path.first().expect("ice: could not fetch first segment");
+
+    // TODO: cleanup
+    // dbg!("resolve_name_in_module (ran)", &current_mod, &first_segment);
+
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
@@ -228,6 +242,10 @@ fn resolve_name_in_module(
 
     let mut warning: Option<PathResolutionError> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
+
+        // TODO cleanup
+        // dbg!("resolve_name_in_module", &last_segment, &current_segment, &current_ns);
+
         let (typ, visibility) = match current_ns.types {
             None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
             Some((typ, visibility, _)) => (typ, visibility),
