@@ -102,6 +102,7 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
       public:
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
         {
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/983): Think about if these should be witnesses
             this->circuit_size = circuit_size;
             this->log_circuit_size = numeric::get_msb(circuit_size);
             this->num_public_inputs = num_public_inputs;
@@ -151,6 +152,40 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
             this->lagrange_ecc_op = Commitment::from_witness(builder, native_key->lagrange_ecc_op);
             this->databus_id = Commitment::from_witness(builder, native_key->databus_id);
         };
+
+        /**
+         * @brief Deserialize a verification key from a vector of field elements
+         *
+         * @param builder
+         * @param elements
+         */
+        VerificationKey(CircuitBuilder& builder, std::span<FF> elements)
+        {
+            // deserialize circuit size
+            size_t num_frs_read = 0;
+            size_t num_frs_FF = bb::stdlib::field_conversion::calc_num_bn254_frs<CircuitBuilder, FF>();
+            size_t num_frs_Comm = bb::stdlib::field_conversion::calc_num_bn254_frs<CircuitBuilder, Commitment>();
+
+            this->circuit_size = uint64_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
+                                              builder, elements.subspan(num_frs_read, num_frs_read + num_frs_FF))
+                                              .get_value());
+            num_frs_read += num_frs_FF;
+            this->num_public_inputs = uint64_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
+                                                   builder, elements.subspan(num_frs_read, num_frs_read + num_frs_FF))
+                                                   .get_value());
+            num_frs_read += num_frs_FF;
+
+            this->pub_inputs_offset = uint64_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
+                                                   builder, elements.subspan(num_frs_read, num_frs_read + num_frs_FF))
+                                                   .get_value());
+            num_frs_read += num_frs_FF;
+
+            for (Commitment& comm : this->get_all()) {
+                comm = bb::stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, Commitment>(
+                    builder, elements.subspan(num_frs_read, num_frs_read + num_frs_Comm));
+                num_frs_read += num_frs_Comm;
+            }
+        }
     };
 
     /**

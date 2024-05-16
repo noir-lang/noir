@@ -18,7 +18,7 @@ namespace bb::field_conversion {
  */
 template <typename T> constexpr size_t calc_num_bn254_frs()
 {
-    if constexpr (IsAnyOf<T, uint32_t, bool>) {
+    if constexpr (IsAnyOf<T, uint32_t, uint64_t, bool>) {
         return 1;
     } else if constexpr (IsAnyOf<T, bb::fr, grumpkin::fr>) {
         return T::Params::NUM_BN254_SCALARS;
@@ -48,7 +48,7 @@ template <typename T> T convert_from_bn254_frs(std::span<const bb::fr> fr_vec)
     if constexpr (IsAnyOf<T, bool>) {
         ASSERT(fr_vec.size() == 1);
         return bool(fr_vec[0]);
-    } else if constexpr (IsAnyOf<T, uint32_t, bb::fr>) {
+    } else if constexpr (IsAnyOf<T, uint32_t, uint64_t, bb::fr>) {
         ASSERT(fr_vec.size() == 1);
         return static_cast<T>(fr_vec[0]);
     } else if constexpr (IsAnyOf<T, grumpkin::fr>) {
@@ -89,7 +89,7 @@ std::vector<bb::fr> convert_grumpkin_fr_to_bn254_frs(const grumpkin::fr& val);
  */
 template <typename T> std::vector<bb::fr> convert_to_bn254_frs(const T& val)
 {
-    if constexpr (IsAnyOf<T, bool, uint32_t, bb::fr>) {
+    if constexpr (IsAnyOf<T, bool, uint32_t, uint64_t, bb::fr>) {
         std::vector<bb::fr> fr_vec{ val };
         return fr_vec;
     } else if constexpr (IsAnyOf<T, grumpkin::fr>) {
