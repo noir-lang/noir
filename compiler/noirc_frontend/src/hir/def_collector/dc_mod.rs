@@ -699,6 +699,8 @@ fn find_module(
         // dbg!("find_module", anchor, mod_name);
         dbg!("find_module", mod_name, &anchor, &anchor_path);
         dbg!("file_manager", &file_manager.as_file_map().name_to_id.iter().filter(|(x, _)| !x.to_string().contains("std")).collect::<Vec<_>>());
+
+        dbg!(file_manager.path(anchor));
     }
     let anchor_dir = anchor_path.parent().unwrap();
 
@@ -707,7 +709,7 @@ fn find_module(
         dbg!(&anchor_dir);
     }
 
-    if mod_name == "bar" {
+    if mod_name == "main" || mod_name == "foo" || mod_name == "bar" || anchor_dir.display().to_string().contains("mod_nr_entrypoint") {
         panic!("ok?")
     }
 

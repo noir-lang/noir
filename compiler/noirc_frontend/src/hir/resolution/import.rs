@@ -237,6 +237,12 @@ fn resolve_name_in_module(
 
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
+        dbg!("this?", krate, importing_crate, import_path, starting_mod);
+        if matches!(krate, CrateId::Root(..)) {
+            panic!("this.")
+        }
+        // panic!("ok?");
+
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
@@ -247,7 +253,10 @@ fn resolve_name_in_module(
         // dbg!("resolve_name_in_module", &last_segment, &current_segment, &current_ns);
 
         let (typ, visibility) = match current_ns.types {
-            None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
+            None => {
+                panic!("okkk?");
+                return Err(PathResolutionError::Unresolved(last_segment.clone()))
+            },
             Some((typ, visibility, _)) => (typ, visibility),
         };
 
@@ -282,6 +291,7 @@ fn resolve_name_in_module(
         let found_ns = current_mod.find_name(current_segment);
 
         if found_ns.is_none() {
+            panic!("kk");
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
@@ -317,7 +327,9 @@ fn resolve_external_dep(
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name.0.contents)
-        .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
+        .ok_or_else(|| {
+            panic!("external"); PathResolutionError::Unresolved(crate_name.to_owned())
+        })?;
 
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
