@@ -1,10 +1,10 @@
 use crate::{
     context::{inputs::PrivateContextInputs, interface::ContextInterface},
-    keys::getters::get_nullifier_keys, messaging::process_l1_to_l2_message,
+    messaging::process_l1_to_l2_message,
     hash::{hash_args_array, ArgsHasher, compute_encrypted_log_hash, compute_unencrypted_log_hash},
     note::{note_interface::NoteInterface, utils::compute_note_hash_for_insertion},
     oracle::{
-    nullifier_keys::NullifierKeys, arguments, returns,
+    nullifier_keys::get_nullifier_key_validation_request, arguments, returns,
     call_private_function::call_private_function_internal, header::get_header_at,
     logs::emit_encrypted_log, logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog},
     enqueue_public_function_call::{
@@ -71,7 +71,7 @@ struct PrivateContext {
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
 
-    nullifier_key: Option<NullifierKeys>,
+    last_nullifier_key_validation_request: Option<NullifierKeyValidationRequest>,
 }
 
 impl ContextInterface for PrivateContext {
@@ -133,7 +133,7 @@ impl PrivateContext {
             unencrypted_logs_hashes: BoundedVec::new(),
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
-            nullifier_key: Option::none()
+            last_nullifier_key_validation_request: Option::none()
         }
     }
 
@@ -208,24 +208,22 @@ impl PrivateContext {
     }
 
     pub fn request_nsk_app(&mut self, npk_m_hash: Field) -> Field {
-        // A value of empty nullifier keys will fail the key validation request.
-        let cached_nullifier_keys = self.nullifier_key.unwrap_or(NullifierKeys::empty());
+        let cached_request = self.last_nullifier_key_validation_request.unwrap_or(NullifierKeyValidationRequest::empty());
 
-        let nullifier_keys = if cached_nullifier_keys.master_nullifier_public_key.hash() == npk_m_hash {
-            cached_nullifier_keys
+        if cached_request.master_nullifier_public_key.hash() == npk_m_hash {
+            // We get a match so the cached request is the latest one 
+            cached_request.app_nullifier_secret_key
         } else {
-            let fetched_nullifier_keys = get_nullifier_keys(npk_m_hash);
-            let request = NullifierKeyValidationRequest {
-                master_nullifier_public_key: fetched_nullifier_keys.master_nullifier_public_key,
-                app_nullifier_secret_key: fetched_nullifier_keys.app_nullifier_secret_key
-            };
+            // We didn't get a match meaning the cached result is stale. We fetch new values from oracle and instruct
+            // protocol circuits to validate them by storing the validation request in context.
+            let request = get_nullifier_key_validation_request(npk_m_hash);
+            // We constrain that the npk_m_hash matches the one in the request (otherwise we could get an arbitrary
+            // valid key request and not the one corresponding to npk_m_hash).
+            assert(request.master_nullifier_public_key.hash() == npk_m_hash);
             self.nullifier_key_validation_requests.push(request);
-            self.nullifier_key = Option::some(fetched_nullifier_keys);
-            fetched_nullifier_keys
-        };
-
-        assert_eq(nullifier_keys.master_nullifier_public_key.hash(), npk_m_hash);
-        nullifier_keys.app_nullifier_secret_key
+            self.last_nullifier_key_validation_request = Option::some(request);
+            request.app_nullifier_secret_key
+        }
     }
 
     // docs:start:context_message_portal
@@ -675,7 +673,7 @@ impl Empty for PrivateContext {
             unencrypted_logs_hashes: BoundedVec::new(),
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
-            nullifier_key: Option::none(),
+            last_nullifier_key_validation_request: Option::none(),
         }
     }
 }

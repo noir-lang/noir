@@ -1,10 +1,9 @@
-use dep::protocol_types::{address::AztecAddress, constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{
+    abis::nullifier_key_validation_request::NullifierKeyValidationRequest, address::AztecAddress,
+    constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint
+};
 use crate::{
-    context::PrivateContext,
-    oracle::{
-    keys::get_public_keys_and_partial_address,
-    nullifier_keys::{NullifierKeys, get_nullifier_keys as get_nullifier_keys_oracle}
-},
+    context::PrivateContext, oracle::{keys::get_public_keys_and_partial_address},
     keys::public_keys::{PublicKeys, NULLIFIER_INDEX, INCOMING_INDEX},
     state_vars::{
     map::derive_storage_slot_in_map,
@@ -89,17 +88,4 @@ fn fetch_and_constrain_keys(address: AztecAddress) -> PublicKeys {
     assert(computed_address.eq(address));
 
     public_keys
-}
-
-// We get the full struct Nullifier Keys here
-pub fn get_nullifier_keys(npk_m_hash: Field) -> NullifierKeys {
-    let nullifier_keys = get_nullifier_keys_oracle(npk_m_hash);
-    assert_eq(nullifier_keys.master_nullifier_public_key.hash(), npk_m_hash);
-
-    nullifier_keys
-}
-
-// We are only getting the app_nullifier_secret_key here
-pub fn get_nsk_app(npk_m_hash: Field) -> Field {
-    get_nullifier_keys(npk_m_hash).app_nullifier_secret_key
 }

@@ -119,10 +119,9 @@ This is a snippet of our Schnorr Account contract implementation, which uses Sch
 Still, different accounts may use different signing schemes, may require multi-factor authentication, or _may not even use signing keys_ and instead rely on other authentication mechanisms. Read [how to write an account contract](/tutorials/tutorials/write_accounts_contract.md) for a full example of how to manage authentication.
 
 Furthermore, and since signatures are fully abstracted, how the key is stored in the contract is abstracted as well and left to the developer of the account contract.
-Below are a few ideas on how to store them, each with their pros and cons.
+In the following section we describe a few ways how an account contract could be architected to store signing keys.
 
-### Ways to store signing keys
-Below we described a few ways how an account contract could be architected to obtain signing keys.
+### Storing signing keys
 
 #### Using a private note
 
