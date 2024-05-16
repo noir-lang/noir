@@ -1,7 +1,7 @@
 name: CI (ARM)
 on:
   push:
-    branches: [disabled] # [master]
+    branches: [master]
   workflow_dispatch:
     inputs: {}
 concurrency:
@@ -20,14 +20,10 @@ jobs:
     needs: setup
     runs-on: master-arm
     steps:
-      - {
-          uses: actions/checkout@v4,
-          with: { ref: "${{ github.event.pull_request.head.sha }}" },
-        }
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.pull_request.head.sha }}" }
       - uses: ./.github/ci-setup-action
         with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          # must be globally unique for build x runner
           concurrency_key: build-master-arm
       # prepare images locally, tagged by commit hash
       - name: "Build E2E Image"
@@ -39,13 +35,10 @@ jobs:
     needs: build
     runs-on: master-arm
     steps:
-      - {
-          uses: actions/checkout@v4,
-          with: { ref: "${{ github.event.pull_request.head.sha }}" },
-        }
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.pull_request.head.sha }}" }
       - uses: ./.github/ci-setup-action
         with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           concurrency_key: e2e-master-arm-e2e-tests
       - name: Test
         working-directory: ./yarn-project/end-to-end/
