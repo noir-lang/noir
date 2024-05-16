@@ -144,11 +144,9 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             variable.bind(kind.default_type().expect(msg));
         }
     }
-    if !type_checker.errors.is_empty() {
-        dbg!(type_checker.errors.len());
-    }
+
     // Verify any remaining trait constraints arising from the function body
-    for (mut constraint, mut expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+    for (mut constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
 
         if matches!(&constraint.typ, Type::MutableReference(_)) {

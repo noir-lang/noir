@@ -1457,32 +1457,6 @@ impl Type {
         }
     }
 
-    /// Instantiates a type with the given types.
-    /// This differs from substitute in that only the quantified type variables
-    /// are matched against the type list and are eligible for substitution - similar
-    /// to normal instantiation. This function is used when the turbofish operator
-    /// is used and generic substitutions are provided manually by users.
-    ///
-    /// Expects the given type vector to be the same length as the Forall type variables.
-    pub fn instantiate_with(&self, types: Vec<Type>) -> (Type, TypeBindings) {
-        dbg!(self.clone());
-        match self {
-            Type::Forall(typevars, typ) => {
-                assert_eq!(types.len(), typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
-
-                let replacements = typevars
-                    .iter()
-                    .zip(types)
-                    .map(|(var, binding)| (var.id(), (var.clone(), binding)))
-                    .collect();
-
-                let instantiated = typ.substitute(&replacements);
-                (instantiated, replacements)
-            }
-            other => (other.clone(), HashMap::new()),
-        }
-    }
-
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
@@ -1498,6 +1472,31 @@ impl Type {
                     .collect();
 
                 let instantiated = typ.force_substitute(&replacements);
+                (instantiated, replacements)
+            }
+            other => (other.clone(), HashMap::new()),
+        }
+    }
+
+    /// Instantiates a type with the given types.
+    /// This differs from substitute in that only the quantified type variables
+    /// are matched against the type list and are eligible for substitution - similar
+    /// to normal instantiation. This function is used when the turbofish operator
+    /// is used and generic substitutions are provided manually by users.
+    ///
+    /// Expects the given type vector to be the same length as the Forall type variables.
+    pub fn instantiate_with(&self, types: Vec<Type>) -> (Type, TypeBindings) {
+        match self {
+            Type::Forall(typevars, typ) => {
+                assert_eq!(types.len(), typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
+
+                let replacements = typevars
+                    .iter()
+                    .zip(types)
+                    .map(|(var, binding)| (var.id(), (var.clone(), binding)))
+                    .collect();
+
+                let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
