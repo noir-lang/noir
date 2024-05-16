@@ -237,11 +237,11 @@ fn resolve_name_in_module(
 
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
-        if matches!(krate, CrateId::Root(..)) {
-            dbg!("this?", krate, importing_crate, import_path, starting_mod);
-            dbg!(def_maps.values().map(|x| x.modules.iter().collect::<Vec<_>>()).collect::<Vec<_>>());
-            panic!("this.")
-        }
+        // if matches!(krate, CrateId::Root(..)) {
+        //     dbg!("this?", krate, importing_crate, import_path, starting_mod);
+        //     dbg!(def_maps.values().map(|x| x.modules.iter().collect::<Vec<_>>()).collect::<Vec<_>>());
+        //     panic!("this.")
+        // }
         // panic!("ok?");
 
         return Err(PathResolutionError::Unresolved(first_segment.clone()));

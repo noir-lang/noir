@@ -688,6 +688,7 @@ fn find_module(
     mod_name: &str,
 ) -> Result<FileId, String> {
     // TODO cleanup
+    dbg!("file_manager", &file_manager.as_file_map().name_to_id.iter().filter(|(x, _)| !x.to_string().contains("std")).collect::<Vec<_>>());
 
     let anchor_path = file_manager
         .path(anchor)
@@ -716,26 +717,54 @@ fn find_module(
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
     // the anchor at `base/mod_name.nr`.
-    let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
-        anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
-    } else {
-        // Otherwise, we check for children of the anchor at `base/anchor/mod_name.nr`
-        anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
-    };
 
-    dbg!(&candidate);
-    // // TODO cleanup before PR
-    // if !candidate.display().to_string().contains("std") {
-    //     panic!("{:?}", candidate);
-    // }
-    if file_manager.name_to_id(candidate.clone()).is_none() {
-        dbg!(&candidate);
-        panic!("hi!");
+
+    let mod_nr_candidate = anchor_dir.join(mod_name).join(format!("mod.{FILE_EXTENSION}"));
+    let parent_candidate = anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"));
+    let child_candidate = anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"));
+
+    let mod_nr_result = file_manager
+        .name_to_id(mod_nr_candidate.clone())
+        .ok_or_else(|| mod_nr_candidate.as_os_str().to_string_lossy().to_string());
+    let parent_result = file_manager
+        .name_to_id(parent_candidate.clone())
+        .ok_or_else(|| parent_candidate.as_os_str().to_string_lossy().to_string());
+    let child_result = file_manager
+        .name_to_id(child_candidate.clone())
+        .ok_or_else(|| child_candidate.as_os_str().to_string_lossy().to_string());
+
+    if mod_nr_result.is_ok() && parent_result.is_err() && child_result.is_err() {
+        mod_nr_result
+    } else if mod_nr_result.is_err() && parent_result.is_ok() && child_result.is_err() {
+        parent_result
+    } else if mod_nr_result.is_err() && parent_result.is_err() && child_result.is_ok() {
+        child_result
+    } else {
+        Err(mod_nr_candidate.as_os_str().to_string_lossy().to_string())
     }
 
-    file_manager
-        .name_to_id(candidate.clone())
-        .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
+
+    // let candidate = if true {
+    // } else if should_check_siblings_for_module(&anchor_path, anchor_dir) {
+    //     anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
+    // } else {
+    //     // Otherwise, we check for children of the anchor at `base/anchor/mod_name.nr`
+    //     anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
+    // };
+    //
+    // // dbg!(&candidate);
+    // // // // TODO cleanup before PR
+    // // // if !candidate.display().to_string().contains("std") {
+    // // //     panic!("{:?}", candidate);
+    // // // }
+    // // if file_manager.name_to_id(candidate.clone()).is_none() {
+    // //     dbg!(&candidate);
+    // //     panic!("hi!");
+    // // }
+    //
+    // file_manager
+    //     .name_to_id(candidate.clone())
+    //     .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
 }
 
 /// Returns true if a module's child modules are expected to be in the same directory.
