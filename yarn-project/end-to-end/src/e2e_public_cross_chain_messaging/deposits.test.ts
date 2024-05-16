@@ -1,8 +1,6 @@
-import { Fr, L1Actor, L1ToL2Message, L2Actor, computeAuthWitMessageHash } from '@aztec/aztec.js';
-import { sha256ToField } from '@aztec/foundation/crypto';
+import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
 
-import { toFunctionSelector } from 'viem';
-
+import { NO_L1_TO_L2_MSG_ERROR } from '../fixtures/fixtures.js';
 import { PublicCrossChainMessagingContractTest } from './public_cross_chain_messaging_contract_test.js';
 
 describe('e2e_public_cross_chain_messaging deposits', () => {
@@ -122,18 +120,6 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
 
     await crossChainTestHarness.makeMessageConsumable(msgHash);
 
-    const content = sha256ToField([
-      Buffer.from(toFunctionSelector('mint_public(bytes32,uint256)').substring(2), 'hex'),
-      user2Wallet.getAddress(),
-      new Fr(bridgeAmount),
-    ]);
-    const wrongMessage = new L1ToL2Message(
-      new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
-      new L2Actor(l2Bridge.address, 1),
-      content,
-      secretHash,
-    );
-
     // get message leaf index, needed for claiming in public
     const maybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness('latest', msgHash, 0n);
     expect(maybeIndexAndPath).toBeDefined();
@@ -145,7 +131,7 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
         .withWallet(user2Wallet)
         .methods.claim_public(user2Wallet.getAddress(), bridgeAmount, secret, messageLeafIndex)
         .prove(),
-    ).rejects.toThrow(`No non-nullified L1 to L2 message found for message hash ${wrongMessage.hash().toString()}`);
+    ).rejects.toThrow(NO_L1_TO_L2_MSG_ERROR);
 
     // user2 consumes owner's L1-> L2 message on bridge contract and mints public tokens on L2
     logger.info("user2 consumes owner's message on L2 Publicly");

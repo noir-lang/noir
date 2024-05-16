@@ -18,6 +18,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import 'jest-extended';
 
 import { TaggedNote } from '../../circuit-types/src/logs/l1_note_payload/tagged_note.js';
+import { DUPLICATE_NULLIFIER_ERROR } from './fixtures/fixtures.js';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_block_building', () => {
@@ -114,9 +115,6 @@ describe('e2e_block_building', () => {
   describe('double-spends', () => {
     let contract: TestContract;
     let teardown: () => Promise<void>;
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/5818): clean up
-    // Under current public, we expect 'dropped', under the AVM, we expect 'reverted'.
-    const DUPLICATE_NULLIFIER_ERROR = /dropped|reverted/;
 
     beforeAll(async () => {
       ({ teardown, pxe, logger, wallet: owner } = await setup(1));

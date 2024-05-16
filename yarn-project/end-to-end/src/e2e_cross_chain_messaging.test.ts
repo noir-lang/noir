@@ -15,6 +15,7 @@ import { type TokenBridgeContract, type TokenContract } from '@aztec/noir-contra
 
 import { toFunctionSelector } from 'viem/utils';
 
+import { NO_L1_TO_L2_MSG_ERROR } from './fixtures/fixtures.js';
 import { setup } from './fixtures/utils.js';
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 
@@ -233,18 +234,6 @@ describe('e2e_cross_chain_messaging', () => {
     // Wait for the message to be available for consumption
     await crossChainTestHarness.makeMessageConsumable(msgHash);
 
-    const content = sha256ToField([
-      Buffer.from(toFunctionSelector('mint_public(bytes32,uint256)').substring(2), 'hex'),
-      ownerAddress,
-      new Fr(bridgeAmount),
-    ]);
-    const wrongMessage = new L1ToL2Message(
-      new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
-      new L2Actor(l2Bridge.address, 1),
-      content,
-      secretHashForL2MessageConsumption,
-    );
-
     // get message leaf index, needed for claiming in public
     const maybeIndexAndPath = await aztecNode.getL1ToL2MessageMembershipWitness('latest', msgHash, 0n);
     expect(maybeIndexAndPath).toBeDefined();
@@ -256,6 +245,6 @@ describe('e2e_cross_chain_messaging', () => {
         .withWallet(user2Wallet)
         .methods.claim_public(ownerAddress, bridgeAmount, secretForL2MessageConsumption, messageLeafIndex)
         .prove(),
-    ).rejects.toThrow(`No non-nullified L1 to L2 message found for message hash ${wrongMessage.hash().toString()}`);
+    ).rejects.toThrow(NO_L1_TO_L2_MSG_ERROR);
   });
 });
