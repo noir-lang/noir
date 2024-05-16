@@ -111,7 +111,6 @@ describe('can verify recursive proofs', () => {
     console.log('artifacts2.proof length = ', artifacts2.proofAsFields.length);
 
     pub_inputs.push(returnValue.toString()); // leaf returns sum
-    pub_inputs.push(returnValue.toString()); // node also coded to return same value
 
     // Generate outer proof artifacts (S3: verify 4+5=9)
     outerParams = {

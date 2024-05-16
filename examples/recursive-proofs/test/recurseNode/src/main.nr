@@ -2,7 +2,7 @@ use dep::std;
 
 fn main(
     verification_key: [Field; 114],
-    public_inputs: pub [Field; 5],
+    public_inputs: pub [Field; 4],
     key_hash: Field,
     proof: [Field; 93] // 109 bytes were supposed to be required to verify recursive proofs (WIP)
 ) -> pub u64 {
@@ -13,5 +13,5 @@ fn main(
         public_inputs.as_slice(),
         key_hash
     );
-    public_inputs[4] as u64
+    public_inputs[3] as u64
 }
