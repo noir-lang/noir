@@ -39,6 +39,9 @@ export class Ec2Instance {
     this.client = new AWS.EC2({
       credentials: this.credentials,
       region: this.config.awsRegion,
+      maxRetries: 3,
+      // base 10 seconds for the exponential backoff, up to 3 times
+      retryDelayOptions: { base: 10000 },
     });
 
     this.tags = this.getTags();
