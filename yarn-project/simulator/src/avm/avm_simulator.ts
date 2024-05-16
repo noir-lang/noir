@@ -2,7 +2,7 @@ import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { strict as assert } from 'assert';
 
-import { isAvmBytecode } from '../public/transitional_adaptors.js';
+import { decompressBytecodeIfCompressed, isAvmBytecode } from '../public/transitional_adaptors.js';
 import type { AvmContext } from './avm_context.js';
 import { AvmContractCallResults } from './avm_message_call_result.js';
 import {
@@ -39,7 +39,6 @@ export class AvmSimulator {
     if (!bytecode) {
       throw new NoBytecodeForContractError(this.context.environment.address);
     }
-    assert(isAvmBytecode(bytecode), "AVM simulator can't execute non-AVM bytecode");
 
     return await this.executeBytecode(bytecode);
   }
@@ -49,7 +48,10 @@ export class AvmSimulator {
    * This method is useful for testing and debugging.
    */
   public async executeBytecode(bytecode: Buffer): Promise<AvmContractCallResults> {
-    return await this.executeInstructions(decodeFromBytecode(bytecode));
+    const decompressedBytecode = await decompressBytecodeIfCompressed(bytecode);
+    assert(isAvmBytecode(decompressedBytecode), "AVM simulator can't execute non-AVM bytecode");
+
+    return await this.executeInstructions(decodeFromBytecode(decompressedBytecode));
   }
 
   /**

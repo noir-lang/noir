@@ -11,6 +11,7 @@ import {
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { spawn } from 'child_process';
+import { assert } from 'console';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -27,7 +28,12 @@ import { PackedValuesCache } from '../common/packed_values_cache.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
 import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { PublicExecutionContext } from './public_execution_context.js';
-import { convertAvmResultsToPxResult, createAvmExecutionEnvironment, isAvmBytecode } from './transitional_adaptors.js';
+import {
+  convertAvmResultsToPxResult,
+  createAvmExecutionEnvironment,
+  decompressBytecodeIfCompressed,
+  isAvmBytecode,
+} from './transitional_adaptors.js';
 
 /**
  * Execute a public function and return the execution result.
@@ -46,7 +52,7 @@ export async function executePublicFunction(
     );
   }
 
-  if (isAvmBytecode(bytecode)) {
+  if (await isAvmBytecode(bytecode)) {
     return await executeTopLevelPublicFunctionAvm(context, bytecode);
   } else {
     return await executePublicFunctionAcvm(context, bytecode, nested);
@@ -355,7 +361,10 @@ export class PublicExecutor {
     const proofPath = path.join(artifactsPath, 'proof');
 
     const { args, functionData, contractAddress } = avmExecution;
-    const bytecode = await this.contractsDb.getBytecode(contractAddress, functionData.selector);
+    let bytecode = await this.contractsDb.getBytecode(contractAddress, functionData.selector);
+    assert(!!bytecode, `Bytecode not found for ${contractAddress}:${functionData.selector}`);
+    // This should be removed once we do bytecode validation.
+    bytecode = await decompressBytecodeIfCompressed(bytecode!);
     // Write call data and bytecode to files.
     await fs.writeFile(
       calldataPath,

@@ -1,9 +1,10 @@
+use std::io::Read;
+
 use base64::Engine;
 use log::info;
 use serde::{Deserialize, Serialize};
 
 use acvm::acir::circuit::Program;
-use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::debug_info::ProgramDebugInfo;
 
 use crate::transpile::{brillig_to_avm, map_brillig_pcs_to_avm_pcs, patch_debug_info_pcs};
@@ -104,6 +105,21 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
                 // Transpile to AVM
                 let avm_bytecode = brillig_to_avm(brillig_bytecode, &brillig_pcs_to_avm_pcs);
 
+                // Gzip AVM bytecode. This has to be removed once we need to do bytecode verification.
+                let mut compressed_avm_bytecode = Vec::new();
+                let mut encoder =
+                    flate2::read::GzEncoder::new(&avm_bytecode[..], flate2::Compression::best());
+                let _ = encoder.read_to_end(&mut compressed_avm_bytecode);
+
+                log::info!(
+                    "{}::{}: compressed {} to {} bytes ({}% reduction)",
+                    contract.name,
+                    function.name,
+                    avm_bytecode.len(),
+                    compressed_avm_bytecode.len(),
+                    100 - (compressed_avm_bytecode.len() * 100 / avm_bytecode.len())
+                );
+
                 // Patch the debug infos with updated PCs
                 let debug_infos = patch_debug_info_pcs(
                     &function.debug_symbols.debug_infos,
@@ -117,7 +133,7 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
                         is_unconstrained: function.is_unconstrained,
                         custom_attributes: function.custom_attributes,
                         abi: function.abi,
-                        bytecode: base64::prelude::BASE64_STANDARD.encode(avm_bytecode),
+                        bytecode: base64::prelude::BASE64_STANDARD.encode(compressed_avm_bytecode),
                         debug_symbols: ProgramDebugInfo { debug_infos },
                     },
                 ));
