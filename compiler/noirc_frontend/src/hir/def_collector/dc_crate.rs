@@ -293,7 +293,12 @@ impl DefCollector {
         if !skip_prelude {
             inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
             for submodule in submodules {
-                inject_prelude(crate_id, context, LocalModuleId(submodule), &mut def_collector.imports);
+                inject_prelude(
+                    crate_id,
+                    context,
+                    LocalModuleId(submodule),
+                    &mut def_collector.imports,
+                );
             }
         }
 

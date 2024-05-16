@@ -260,7 +260,8 @@ pub fn check_crate(
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, skip_prelude, macros);
+    let diagnostics =
+        CrateDefMap::collect_defs(crate_id, context, use_elaborator, skip_prelude, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
