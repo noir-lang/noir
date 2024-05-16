@@ -237,8 +237,8 @@ fn resolve_name_in_module(
 
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
-        dbg!("this?", krate, importing_crate, import_path, starting_mod);
         if matches!(krate, CrateId::Root(..)) {
+            dbg!("this?", krate, importing_crate, import_path, starting_mod);
             panic!("this.")
         }
         // panic!("ok?");

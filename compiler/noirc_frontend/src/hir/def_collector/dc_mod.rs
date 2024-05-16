@@ -694,15 +694,16 @@ fn find_module(
         .expect("File must exist in file manager in order for us to be resolving its imports.")
         .with_extension("");
 
+    let anchor_dir = anchor_path.parent().unwrap();
+
     // TODO cleanup
-    if true {
+    if !(anchor_path.display().to_string().contains("std") || anchor_dir.display().to_string().contains("std")) {
         // dbg!("find_module", anchor, mod_name);
         dbg!("find_module", mod_name, &anchor, &anchor_path);
         dbg!("file_manager", &file_manager.as_file_map().name_to_id.iter().filter(|(x, _)| !x.to_string().contains("std")).collect::<Vec<_>>());
 
         dbg!(file_manager.path(anchor));
     }
-    let anchor_dir = anchor_path.parent().unwrap();
 
     // TODO cleanup
     if true {
