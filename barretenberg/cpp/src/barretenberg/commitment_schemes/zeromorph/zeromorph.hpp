@@ -41,7 +41,7 @@ template <typename PCS> class ZeroMorphProver_ {
 
     // TODO(#742): Set this N_max to be the number of G1 elements in the mocked zeromorph SRS once it's in place.
     // (Then, eventually, set it based on the real SRS). For now we set it to be large but more or less arbitrary.
-    static const size_t N_max = 1 << 22;
+    static const size_t N_max = 1 << 23;
 
   public:
     /**
