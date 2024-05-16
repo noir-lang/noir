@@ -1,6 +1,7 @@
 import {
   type AztecAddress,
   type CompleteAddress,
+  type Fq,
   type Fr,
   type GrumpkinPrivateKey,
   type PartialAddress,
@@ -32,12 +33,12 @@ export interface KeyStore {
   getAccounts(): Promise<AztecAddress[]>;
 
   /**
-   * Gets the master nullifier public key for a given account or master nullifier public key hash.
-   * @throws If the account does not exist in the key store.
-   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * Gets the master nullifier public key for a given master nullifier public key hash.
+   * @throws If the account corresponding to the master nullifier public key hash does not exist in the key store.
+   * @param npkMHash - The master nullifier public key hash.
    * @returns The master nullifier public key for the account.
    */
-  getMasterNullifierPublicKey(accountOrNpkMHash: AztecAddress | Fr): Promise<PublicKey>;
+  getMasterNullifierPublicKey(npkMHash: Fr): Promise<PublicKey>;
 
   /**
    * Gets the master incoming viewing public key for a given account.
@@ -64,13 +65,13 @@ export interface KeyStore {
   getMasterTaggingPublicKey(account: AztecAddress): Promise<PublicKey>;
 
   /**
-   * Derives and returns the application nullifier secret key for a given account or master nullifier public key hash.
-   * @throws If the account does not exist in the key store.
-   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * Derives and returns the application nullifier secret key for a given master nullifier public key hash.
+   * @throws If the account corresponding to the master nullifier public key hash does not exist in the key store.
+   * @param npkMHash - The master nullifier public key hash.
    * @param app - The application address to retrieve the nullifier secret key for.
    * @returns A Promise that resolves to the application nullifier secret key.
    */
-  getAppNullifierSecretKey(accountOrNpkMHash: AztecAddress | Fr, app: AztecAddress): Promise<Fr>;
+  getAppNullifierSecretKey(npkMHash: Fr, app: AztecAddress): Promise<Fr>;
 
   /**
    * Retrieves application incoming viewing secret key.
@@ -117,4 +118,6 @@ export interface KeyStore {
    * @returns A Promise that resolves to the public keys hash.
    */
   getPublicKeysHash(account: AztecAddress): Promise<Fr>;
+
+  rotateMasterNullifierKey(account: AztecAddress, secretKey: Fq): Promise<void>;
 }

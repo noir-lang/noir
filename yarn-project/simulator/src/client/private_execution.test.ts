@@ -141,7 +141,7 @@ describe('Private Execution test suite', () => {
     // Create a new snapshot.
     const newSnap = new AppendOnlyTreeSnapshot(Fr.fromBuffer(tree.getRoot(true)), Number(tree.getNumLeaves(true)));
 
-    if (name === 'noteHash' || name === 'l1ToL2Messages' || 'publicData') {
+    if (name === 'noteHash' || name === 'l1ToL2Messages' || name === 'publicData') {
       header = new Header(
         header.lastArchive,
         header.contentCommitment,
@@ -190,37 +190,35 @@ describe('Private Execution test suite', () => {
   beforeEach(async () => {
     trees = {};
     oracle = mock<DBOracle>();
-    oracle.getNullifierKeys.mockImplementation(
-      (accountOrNpkMHash: AztecAddress | Fr, contractAddress: AztecAddress) => {
-        if (accountOrNpkMHash.equals(ownerCompleteAddress.address)) {
-          return Promise.resolve({
-            masterNullifierPublicKey: ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
-            appNullifierSecretKey: computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
-          });
-        }
-        if (accountOrNpkMHash.equals(recipientCompleteAddress.address)) {
-          return Promise.resolve({
-            masterNullifierPublicKey: recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
-            appNullifierSecretKey: computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
-          });
-        }
-        throw new Error(`Unknown address ${accountOrNpkMHash}`);
-      },
-    );
+    oracle.getNullifierKeys.mockImplementation((masterNullifierPublicKeyHash: Fr, contractAddress: AztecAddress) => {
+      if (masterNullifierPublicKeyHash.equals(ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
+        return Promise.resolve({
+          masterNullifierPublicKey: ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
+          appNullifierSecretKey: computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
+        });
+      }
+      if (masterNullifierPublicKeyHash.equals(recipientCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
+        return Promise.resolve({
+          masterNullifierPublicKey: recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
+          appNullifierSecretKey: computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
+        });
+      }
+      throw new Error(`Unknown master nullifier public key hash: ${masterNullifierPublicKeyHash}`);
+    });
 
     // We call insertLeaves here with no leaves to populate empty public data tree root --> this is necessary to be
     // able to get ivpk_m during execution
     await insertLeaves([], 'publicData');
     oracle.getHeader.mockResolvedValue(header);
 
-    oracle.getCompleteAddress.mockImplementation((accountOrNpkMHash: AztecAddress | Fr) => {
-      if (accountOrNpkMHash.equals(owner)) {
+    oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
+      if (address.equals(owner)) {
         return Promise.resolve(ownerCompleteAddress);
       }
-      if (accountOrNpkMHash.equals(recipient)) {
+      if (address.equals(recipient)) {
         return Promise.resolve(recipientCompleteAddress);
       }
-      throw new Error(`Unknown address ${accountOrNpkMHash}`);
+      throw new Error(`Unknown address: ${address}`);
     });
     // This oracle gets called when reading ivpk_m from key registry --> we return zero witness indicating that
     // the keys were not registered. This triggers non-registered keys flow in which getCompleteAddress oracle
@@ -282,7 +280,7 @@ describe('Private Execution test suite', () => {
     const mockFirstNullifier = new Fr(1111);
     let currentNoteIndex = 0n;
 
-    const buildNote = (amount: bigint, owner: AztecAddress, storageSlot: Fr, noteTypeId: Fr) => {
+    const buildNote = (amount: bigint, ownerNpkMHash: Fr, storageSlot: Fr, noteTypeId: Fr) => {
       // WARNING: this is not actually how nonces are computed!
       // For the purpose of this test we use a mocked firstNullifier and and a random number
       // to compute the nonce. Proper nonces are only enforced later by the kernel/later circuits
@@ -293,7 +291,7 @@ describe('Private Execution test suite', () => {
       // `hash(firstNullifier, noteHashIndex)`
       const noteHashIndex = randomInt(1); // mock index in TX's final newNoteHashes array
       const nonce = computeNoteHashNonce(mockFirstNullifier, noteHashIndex);
-      const note = new Note([new Fr(amount), owner.toField(), Fr.random()]);
+      const note = new Note([new Fr(amount), ownerNpkMHash, Fr.random()]);
       const innerNoteHash = pedersenHash(note.items);
       return {
         contractAddress,
@@ -394,7 +392,10 @@ describe('Private Execution test suite', () => {
 
       const noteTypeId = StatefulTestContractArtifact.notes['ValueNote'].id;
 
-      const notes = [buildNote(60n, owner, storageSlot, noteTypeId), buildNote(80n, owner, storageSlot, noteTypeId)];
+      const notes = [
+        buildNote(60n, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, noteTypeId),
+        buildNote(80n, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, noteTypeId),
+      ];
       oracle.getNotes.mockResolvedValue(notes);
 
       const consumedNotes = await asyncMap(notes, ({ nonce, note }) =>
@@ -451,7 +452,9 @@ describe('Private Execution test suite', () => {
       const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       const noteTypeId = StatefulTestContractArtifact.notes['ValueNote'].id;
 
-      const notes = [buildNote(balance, owner, storageSlot, noteTypeId)];
+      const notes = [
+        buildNote(balance, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, noteTypeId),
+      ];
       oracle.getNotes.mockResolvedValue(notes);
 
       const consumedNotes = await asyncMap(notes, ({ nonce, note }) =>

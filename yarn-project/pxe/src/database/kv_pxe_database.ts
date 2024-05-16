@@ -2,7 +2,6 @@ import { MerkleTreeId, type NoteFilter, NoteStatus, type PublicKey } from '@azte
 import { AztecAddress, CompleteAddress, Header } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { Fr, type Point } from '@aztec/foundation/fields';
 import {
   type AztecArray,
@@ -386,27 +385,12 @@ export class KVPxeDatabase implements PxeDatabase {
     return value ? CompleteAddress.fromBuffer(value) : undefined;
   }
 
-  getCompleteAddress(accountOrNpkMHash: AztecAddress | Fr): Promise<CompleteAddress | undefined> {
-    return Promise.resolve(
-      this.#getCompleteAddress(accountOrNpkMHash) ?? this.#getCompleteAddressWithNpkMHash(accountOrNpkMHash),
-    );
-  }
-
-  #getCompleteAddressWithNpkMHash(npkMHash: Fr): Promise<CompleteAddress | undefined> {
-    const completeAddresses = this.#getCompleteAddresses();
-
-    const completeAddress = completeAddresses.find(completeAddress =>
-      poseidon2Hash(completeAddress.publicKeys.masterNullifierPublicKey.toFields()).equals(npkMHash),
-    );
-    return Promise.resolve(completeAddress);
-  }
-
-  #getCompleteAddresses(): CompleteAddress[] {
-    return Array.from(this.#addresses).map(v => CompleteAddress.fromBuffer(v));
+  getCompleteAddress(account: AztecAddress): Promise<CompleteAddress | undefined> {
+    return Promise.resolve(this.#getCompleteAddress(account));
   }
 
   getCompleteAddresses(): Promise<CompleteAddress[]> {
-    return Promise.resolve(this.#getCompleteAddresses());
+    return Promise.resolve(Array.from(this.#addresses).map(v => CompleteAddress.fromBuffer(v)));
   }
 
   getSynchedBlockNumberForPublicKey(publicKey: Point): number | undefined {

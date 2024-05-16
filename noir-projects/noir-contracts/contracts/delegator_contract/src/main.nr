@@ -1,6 +1,7 @@
 // A contract used along with `Parent` contract to test nested calls.
 contract Delegator {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteViewerOptions, PublicMutable, PrivateSet, Deserialize};
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PublicMutable, PrivateSet, Deserialize};
+    use dep::aztec::keys::getters::get_npk_m_hash;
     use dep::value_note::value_note::ValueNote;
     use dep::delegated_on::DelegatedOn;
 
@@ -30,14 +31,18 @@ contract Delegator {
         DelegatedOn::at(target_contract).public_set_value(value).delegate_call(&mut context)
     }
 
-    unconstrained fn view_private_value(amount: Field, owner: AztecAddress) -> pub Field {
-        let mut options = NoteViewerOptions::new();
+    #[aztec(private)]
+    fn get_private_value(amount: Field, owner: AztecAddress) -> pub Field {
+        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
+
+        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
+        let mut options = NoteGetterOptions::new();
         options = options.select(ValueNote::properties().value, amount, Option::none()).select(
-            ValueNote::properties().owner,
-            owner.to_field(),
+            ValueNote::properties().npk_m_hash,
+            owner_npk_m_hash,
             Option::none()
         ).set_limit(1);
-        let notes = storage.a_private_value.view_notes(options);
+        let notes = storage.a_private_value.get_notes(options);
         notes[0].unwrap_unchecked().value
     }
 

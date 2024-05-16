@@ -1,4 +1,4 @@
-import { type AztecAddress, type CompleteAddress, type Fr, type PartialAddress } from '@aztec/circuits.js';
+import { type AztecAddress, type CompleteAddress, type Fq, type Fr, type PartialAddress } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { type NodeInfo } from '@aztec/types/interfaces';
@@ -60,6 +60,8 @@ export interface PXE {
    * @returns The complete address of the account.
    */
   registerAccount(secretKey: Fr, partialAddress: PartialAddress): Promise<CompleteAddress>;
+
+  rotateMasterNullifierKey(account: AztecAddress, secretKey: Fq): Promise<void>;
 
   /**
    * Registers a recipient in PXE. This is required when sending encrypted notes to

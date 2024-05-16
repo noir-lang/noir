@@ -18,7 +18,7 @@ contract Benchmarking {
     // Creates a new value note for the target owner. Use this method to seed an initial set of notes.
     #[aztec(private)]
     fn create_note(owner: AztecAddress, value: Field) {
-        increment(storage.notes.at(owner), value, owner);
+        increment(context, storage.notes.at(owner), value, owner);
     }
 
     // Deletes a note at a specific index in the set and creates a new one with the same value.
@@ -33,7 +33,7 @@ contract Benchmarking {
         let notes = owner_notes.get_notes(getter_options.set_limit(1).set_offset(index));
         let note = notes[0].unwrap_unchecked();
         owner_notes.remove(note);
-        increment(owner_notes, note.value, owner);
+        increment(context, owner_notes, note.value, owner);
     }
 
     // Reads and writes to public storage and enqueues a call to another public function.

@@ -38,7 +38,7 @@ import {
 import { computeNoteHashNonce, siloNullifier } from '@aztec/circuits.js/hash';
 import { type ContractArtifact, type DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
+import { Fq, Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
@@ -189,6 +189,10 @@ export class PXEService implements PXE {
 
     await this.db.addCompleteAddress(accountCompleteAddress);
     return accountCompleteAddress;
+  }
+
+  public async rotateMasterNullifierKey(account: AztecAddress, secretKey: Fq = Fq.random()): Promise<void> {
+    await this.keyStore.rotateMasterNullifierKey(account, secretKey);
   }
 
   public async getRegisteredAccounts(): Promise<CompleteAddress[]> {

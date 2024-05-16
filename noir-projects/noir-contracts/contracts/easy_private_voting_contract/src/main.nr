@@ -4,7 +4,7 @@ contract EasyPrivateVoting {
         AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext,
         Map, PublicMutable
     };
-    use dep::aztec::context::Context;
+    use dep::aztec::{context::Context, keys::getters::get_npk_m_hash};
     // docs:end:imports
     // docs:start:storage_struct
     #[aztec(storage)]
@@ -27,7 +27,9 @@ contract EasyPrivateVoting {
     // docs:start:cast_vote
     #[aztec(private)] // annotation to mark function as private and expose private context
     fn cast_vote(candidate: Field) {
-        let secret = context.request_app_nullifier_secret_key(context.msg_sender()); // get secret key of caller of function
+        let msg_sender_npk_m_hash = get_npk_m_hash(&mut context, context.msg_sender());
+        // TODO (#6312): This will break with key rotation. Fix this. Can vote multiple times by rotating keys.
+        let secret = context.request_nsk_app(msg_sender_npk_m_hash); // get secret key of caller of function
         let nullifier = dep::std::hash::pedersen_hash([context.msg_sender().to_field(), secret]); // derive nullifier from sender and secret
         context.push_new_nullifier(nullifier, 0); // push nullifier
         EasyPrivateVoting::at(context.this_address()).add_to_tally_public(candidate).enqueue(&mut context);

@@ -2,8 +2,8 @@ use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteInterf
 
 use dep::aztec::{
     keys::getters::get_ivpk_m, note::utils::compute_note_hash_for_consumption,
-    oracle::nullifier_key::get_app_nullifier_secret_key, hash::poseidon2_hash,
-    protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER
+    keys::getters::get_nsk_app,
+    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash}
 };
 
 global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 5;
@@ -14,7 +14,8 @@ global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 5;
 struct EcdsaPublicKeyNote {
     x: [u8; 32],
     y: [u8; 32],
-    owner: AztecAddress, // We store the owner address only to get the secret key to compute the nullifier
+    // We store the npk_m_hash only to get the secret key to compute the nullifier
+    npk_m_hash: Field,
 }
 
 impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
@@ -40,7 +41,7 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
         let last_x = self.x[31] as Field;
         let last_y = self.y[31] as Field;
         
-        [x, last_x, y, last_y, self.owner.to_field()]
+        [x, last_x, y, last_y, self.npk_m_hash]
     }
 
     // Cannot use the automatic deserialization for the aforementioned reasons
@@ -60,12 +61,12 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
         }
         y[31] = serialized_note[3].to_be_bytes(32)[31];
 
-        EcdsaPublicKeyNote { x, y, owner: AztecAddress::from_field(serialized_note[4]), header: NoteHeader::empty() }
+        EcdsaPublicKeyNote { x, y, npk_m_hash: serialized_note[4], header: NoteHeader::empty() }
     }
 
    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
-        let secret = context.request_app_nullifier_secret_key(self.owner);
+        let secret = context.request_nsk_app(self.npk_m_hash);
         poseidon2_hash([
             note_hash_for_nullify,
             secret,
@@ -75,7 +76,7 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
 
     fn compute_nullifier_without_context(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
-        let secret = get_app_nullifier_secret_key(self.owner);
+        let secret = get_nsk_app(self.npk_m_hash);
         poseidon2_hash([
             note_hash_for_nullify,
             secret,
@@ -84,8 +85,7 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
     }
 
     // Broadcasts the note as an encrypted log on L1.
-    fn broadcast(self, context: &mut PrivateContext, slot: Field) {
-        let ivpk_m = get_ivpk_m(context, self.owner);
+    fn broadcast(self, context: &mut PrivateContext, slot: Field, ivpk_m: GrumpkinPoint) {
         context.emit_encrypted_log(
             (*context).this_address(),
             slot,
@@ -97,7 +97,7 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
 }
 
 impl EcdsaPublicKeyNote {
-    pub fn new(x: [u8; 32], y: [u8; 32], owner: AztecAddress) -> Self {
-        EcdsaPublicKeyNote { x, y, owner, header: NoteHeader::empty() }
+    pub fn new(x: [u8; 32], y: [u8; 32], npk_m_hash: Field) -> Self {
+        EcdsaPublicKeyNote { x, y, npk_m_hash, header: NoteHeader::empty() }
     }
 }

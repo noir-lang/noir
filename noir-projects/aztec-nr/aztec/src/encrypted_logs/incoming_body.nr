@@ -67,8 +67,7 @@ mod test {
 
     use crate::{
         note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
-        oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_app_nullifier_secret_key},
-        context::PrivateContext, hash::poseidon2_hash
+        oracle::unsafe_rand::unsafe_rand, context::PrivateContext
     };
 
     struct AddressNote {
@@ -93,7 +92,7 @@ mod test {
 
         fn compute_nullifier_without_context(self) -> Field {1}
 
-        fn broadcast(self, context: &mut PrivateContext, slot: Field) {}
+        fn broadcast(self, context: &mut PrivateContext, slot: Field, ivpk_m: GrumpkinPoint) {}
 
         fn serialize_content(self) -> [Field; ADDRESS_NOTE_LEN] { [self.address.to_field(), self.owner.to_field(), self.randomness]}
 

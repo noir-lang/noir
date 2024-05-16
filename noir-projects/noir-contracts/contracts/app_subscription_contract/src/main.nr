@@ -9,7 +9,8 @@ contract AppSubscription {
         AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
         SharedImmutable
     },
-        protocol_types::traits::is_empty
+        protocol_types::{traits::is_empty, grumpkin_point::GrumpkinPoint},
+        keys::getters::{get_npk_m_hash, get_ivpk_m}
     },
         authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit},
         gas_token::GasToken, token::Token
@@ -37,11 +38,13 @@ contract AppSubscription {
         assert(context.msg_sender().to_field() == 0);
         assert_current_call_valid_authwit(&mut context, user_address);
 
-        let mut note = storage.subscriptions.at(user_address).get_note(false);
+        let mut note = storage.subscriptions.at(user_address).get_note(false, GrumpkinPoint::zero());
         assert(note.remaining_txs as u64 > 0, "you're out of txs");
 
         note.remaining_txs -= 1;
-        storage.subscriptions.at(user_address).replace(&mut note, true);
+
+        let subscriber_ivpk_m = get_ivpk_m(&mut context, user_address);
+        storage.subscriptions.at(user_address).replace(&mut note, true, subscriber_ivpk_m);
 
         context.set_as_fee_payer();
         let gas_limit = storage.gas_token_limit_per_tx.read_private();
@@ -109,12 +112,14 @@ contract AppSubscription {
 
         // Assert that the given expiry_block_number < current_block_number + SUBSCRIPTION_DURATION_IN_BLOCKS.
         AppSubscription::at(context.this_address()).assert_block_number(expiry_block_number).static_enqueue(&mut context);
+        let subscriber_npk_m_hash = get_npk_m_hash(&mut context, subscriber_address);
+        let subscriber_ivpk_m = get_ivpk_m(&mut context, subscriber_address);
 
-        let mut subscription_note = SubscriptionNote::new(subscriber_address, expiry_block_number, tx_count);
+        let mut subscription_note = SubscriptionNote::new(subscriber_npk_m_hash, expiry_block_number, tx_count);
         if (!is_initialized(subscriber_address)) {
-            storage.subscriptions.at(subscriber_address).initialize(&mut subscription_note, true);
+            storage.subscriptions.at(subscriber_address).initialize(&mut subscription_note, true, subscriber_ivpk_m);
         } else {
-            storage.subscriptions.at(subscriber_address).replace(&mut subscription_note, true)
+            storage.subscriptions.at(subscriber_address).replace(&mut subscription_note, true, subscriber_ivpk_m)
         }
     }
 

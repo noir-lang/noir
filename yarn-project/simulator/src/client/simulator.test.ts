@@ -9,7 +9,7 @@ import {
 import { ABIParameterVisibility, type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, type Point } from '@aztec/foundation/fields';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
@@ -22,7 +22,7 @@ describe('Simulator', () => {
   let node: MockProxy<AztecNode>;
 
   let simulator: AcirSimulator;
-  let owner: AztecAddress;
+  let ownerMasterNullifierPublicKey: Point;
   let contractAddress: AztecAddress;
   let appNullifierSecretKey: Fr;
 
@@ -30,14 +30,13 @@ describe('Simulator', () => {
     const ownerSk = Fr.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
     const allOwnerKeys = deriveKeys(ownerSk);
 
-    const ownerMasterNullifierPublicKey = allOwnerKeys.publicKeys.masterNullifierPublicKey;
+    ownerMasterNullifierPublicKey = allOwnerKeys.publicKeys.masterNullifierPublicKey;
     const ownerMasterNullifierSecretKey = allOwnerKeys.masterNullifierSecretKey;
 
     contractAddress = AztecAddress.random();
 
     const ownerPartialAddress = Fr.random();
     const ownerCompleteAddress = CompleteAddress.fromSecretKeyAndPartialAddress(ownerSk, ownerPartialAddress);
-    owner = ownerCompleteAddress.address;
 
     appNullifierSecretKey = computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress);
 
@@ -58,7 +57,7 @@ describe('Simulator', () => {
     const storageSlot = TokenContractArtifact.storageLayout['balances'].slot;
     const noteTypeId = TokenContractArtifact.notes['TokenNote'].id;
 
-    const createNote = (amount = 123n) => new Note([new Fr(amount), owner.toField(), Fr.random()]);
+    const createNote = (amount = 123n) => new Note([new Fr(amount), ownerMasterNullifierPublicKey.hash(), Fr.random()]);
 
     it('should compute note hashes and nullifier', async () => {
       oracle.getFunctionArtifactByName.mockResolvedValue(artifact);

@@ -1,5 +1,8 @@
 use dep::aztec::context::PrivateContext;
-use dep::aztec::note::{note_header::NoteHeader, note_interface::NoteInterface};
+use dep::aztec::{
+    note::{note_header::NoteHeader, note_interface::NoteInterface},
+    protocol_types::grumpkin_point::GrumpkinPoint
+};
 
 global TEST_NOTE_LENGTH = 1;
 
@@ -44,7 +47,7 @@ impl NoteInterface<TEST_NOTE_LENGTH> for TestNote {
       0
     }
 
-    fn broadcast(self, context: &mut PrivateContext, slot: Field) {
+    fn broadcast(self, context: &mut PrivateContext, slot: Field, ivpk_m: GrumpkinPoint) {
       assert(
         false, "TestNote does not support broadcast."
       );

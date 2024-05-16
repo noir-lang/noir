@@ -6,6 +6,7 @@ contract EcdsaAccount {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateImmutable};
 
     use dep::aztec::protocol_types::abis::call_context::CallContext;
+    use dep::aztec::keys::getters::{get_npk_m_hash, get_ivpk_m};
     use dep::std;
 
     use dep::aztec::context::Context;
@@ -28,8 +29,11 @@ contract EcdsaAccount {
     #[aztec(initializer)]
     fn constructor(signing_pub_key_x: [u8; 32], signing_pub_key_y: [u8; 32]) {
         let this = context.this_address();
-        let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        storage.public_key.initialize(&mut pub_key_note, true);
+        let this_npk_m_hash = get_npk_m_hash(&mut context, this);
+        let this_ivpk_m = get_ivpk_m(&mut context, this);
+
+        let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this_npk_m_hash);
+        storage.public_key.initialize(&mut pub_key_note, true, this_ivpk_m);
     }
 
     // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts

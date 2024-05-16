@@ -22,25 +22,3 @@ fn get_public_keys_and_partial_address(address: AztecAddress) -> (PublicKeys, Pa
 
     (keys, partial_address)
 }
-
-#[oracle(getPublicKeysAndPartialAddressWithNpkMHash)]
-fn get_public_keys_and_partial_address_with_npk_m_hash_oracle(_npk_m_hash: Field) -> [Field; 9] {}
-
-unconstrained fn get_public_keys_and_partial_address_with_npk_m_hash_oracle_wrapper(npk_m_hash: Field) -> [Field; 9] {
-    get_public_keys_and_partial_address_with_npk_m_hash_oracle(npk_m_hash)
-}
-
-fn get_public_keys_and_partial_address_with_npk_m_hash(npk_m_hash: Field) -> (PublicKeys, PartialAddress) {
-    let result = get_public_keys_and_partial_address_with_npk_m_hash_oracle_wrapper(npk_m_hash);
-
-    let keys = PublicKeys {
-        npk_m: GrumpkinPoint::new(result[0], result[1]),
-        ivpk_m: GrumpkinPoint::new(result[2], result[3]),
-        ovpk_m: GrumpkinPoint::new(result[4], result[5]),
-        tpk_m: GrumpkinPoint::new(result[6], result[7])
-    };
-
-    let partial_address = PartialAddress::from_field(result[8]);
-
-    (keys, partial_address)
-}

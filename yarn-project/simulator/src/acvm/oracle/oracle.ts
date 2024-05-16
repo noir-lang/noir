@@ -40,19 +40,7 @@ export class Oracle {
     return unpacked.map(toACVMField);
   }
 
-  async getNullifierKeys([accountAddress]: ACVMField[]): Promise<ACVMField[]> {
-    const { masterNullifierPublicKey, appNullifierSecretKey } = await this.typedOracle.getNullifierKeys(
-      fromACVMField(accountAddress),
-    );
-    return [
-      toACVMField(masterNullifierPublicKey.x),
-      toACVMField(masterNullifierPublicKey.y),
-      toACVMField(appNullifierSecretKey),
-    ];
-  }
-
-  // Keeping this oracle separate from above because I don't want an implicit overload in noir code
-  async getNullifierKeysWithNpkMHash([masterNullifierPublicKeyHash]: ACVMField[]): Promise<ACVMField[]> {
+  async getNullifierKeys([masterNullifierPublicKeyHash]: ACVMField[]): Promise<ACVMField[]> {
     const { masterNullifierPublicKey, appNullifierSecretKey } = await this.typedOracle.getNullifierKeys(
       fromACVMField(masterNullifierPublicKeyHash),
     );
@@ -178,14 +166,6 @@ export class Oracle {
   async getPublicKeysAndPartialAddress([address]: ACVMField[]): Promise<ACVMField[]> {
     const parsedAddress = AztecAddress.fromField(fromACVMField(address));
     const { publicKeys, partialAddress } = await this.typedOracle.getCompleteAddress(parsedAddress);
-
-    return [...publicKeys.toFields(), partialAddress].map(toACVMField);
-  }
-
-  // Keeping this oracle separate from above because I don't want an implicit overload in noir code
-  async getPublicKeysAndPartialAddressWithNpkMHash([masterNullifierPublicKeyHash]: ACVMField[]) {
-    const parsedNpkMHash = fromACVMField(masterNullifierPublicKeyHash);
-    const { publicKeys, partialAddress } = await this.typedOracle.getCompleteAddress(parsedNpkMHash);
 
     return [...publicKeys.toFields(), partialAddress].map(toACVMField);
   }

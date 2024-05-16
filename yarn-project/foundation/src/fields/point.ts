@@ -1,3 +1,4 @@
+import { poseidon2Hash } from '../crypto/index.js';
 import { BufferReader, FieldReader, serializeToBuffer } from '../serialize/index.js';
 import { Fr } from './fields.js';
 
@@ -128,6 +129,10 @@ export class Point {
 
   isZero() {
     return this.x.isZero() && this.y.isZero();
+  }
+
+  hash() {
+    return poseidon2Hash(this.toFields());
   }
 }
 

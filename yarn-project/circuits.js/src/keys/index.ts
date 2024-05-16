@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash, sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
-import { type Fr, type GrumpkinScalar } from '@aztec/foundation/fields';
+import { type Fq, type Fr, type GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { Grumpkin } from '../barretenberg/crypto/grumpkin/index.js';
 import { GeneratorIndex } from '../constants.gen.js';
@@ -29,13 +29,17 @@ export function computeAddress(publicKeysHash: Fr, partialAddress: Fr) {
   return AztecAddress.fromField(addressFr);
 }
 
+export function derivePublicKeyFromSecretKey(secretKey: Fq) {
+  const curve = new Grumpkin();
+  return curve.mul(curve.generator(), secretKey);
+}
+
 /**
  * Computes secret and public keys and public keys hash from a secret key.
  * @param secretKey - The secret key to derive keys from.
  * @returns The derived keys.
  */
 export function deriveKeys(secretKey: Fr) {
-  const curve = new Grumpkin();
   // First we derive master secret keys -  we use sha512 here because this derivation will never take place
   // in a circuit
   const masterNullifierSecretKey = deriveMasterNullifierSecretKey(secretKey);
@@ -44,11 +48,17 @@ export function deriveKeys(secretKey: Fr) {
   const masterTaggingSecretKey = sha512ToGrumpkinScalar([secretKey, GeneratorIndex.TSK_M]);
 
   // Then we derive master public keys
+  const masterNullifierPublicKey = derivePublicKeyFromSecretKey(masterNullifierSecretKey);
+  const masterIncomingViewingPublicKey = derivePublicKeyFromSecretKey(masterIncomingViewingSecretKey);
+  const masterOutgoingViewingPublicKey = derivePublicKeyFromSecretKey(masterOutgoingViewingSecretKey);
+  const masterTaggingPublicKey = derivePublicKeyFromSecretKey(masterTaggingSecretKey);
+
+  // We hash the public keys to get the public keys hash
   const publicKeys = new PublicKeys(
-    curve.mul(curve.generator(), masterNullifierSecretKey),
-    curve.mul(curve.generator(), masterIncomingViewingSecretKey),
-    curve.mul(curve.generator(), masterOutgoingViewingSecretKey),
-    curve.mul(curve.generator(), masterTaggingSecretKey),
+    masterNullifierPublicKey,
+    masterIncomingViewingPublicKey,
+    masterOutgoingViewingPublicKey,
+    masterTaggingPublicKey,
   );
 
   return {

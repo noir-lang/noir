@@ -4,8 +4,9 @@ use dep::aztec::prelude::{
 };
 use dep::aztec::{
     context::{PublicContext, Context}, hash::pedersen_hash,
-    protocol_types::{constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, hash::poseidon2_hash},
-    note::{note_getter::view_notes, note_getter_options::SortOrder}, keys::getters::get_npk_m_hash
+    protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+    note::{note_getter::view_notes, note_getter_options::SortOrder},
+    keys::getters::{get_npk_m_hash, get_ivpk_m}
 };
 use crate::types::token_note::{TokenNote, OwnedNote};
 
@@ -60,13 +61,15 @@ impl<T> BalancesMap<T> {
         owner: AztecAddress,
         addend: U128
     ) where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
-        // We fetch the nullifier public key hash in the registry / from our PXE
-        let owner_npk_m_hash = get_npk_m_hash(self.map.context.private.unwrap(), owner);
+        let context = self.map.context.private.unwrap();
+        let owner_ivpk_m = get_ivpk_m(context, owner);
 
+        // We fetch the nullifier public key hash from the registry / from our PXE
+        let owner_npk_m_hash = get_npk_m_hash(context, owner);
         let mut addend_note = T::new(addend, owner_npk_m_hash);
 
         // docs:start:insert
-        self.map.at(owner).insert(&mut addend_note, true);
+        self.map.at(owner).insert(&mut addend_note, true, owner_ivpk_m);
         // docs:end:insert
     }
 

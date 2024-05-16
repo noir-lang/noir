@@ -1,4 +1,4 @@
-use crate::traits::{Serialize, Deserialize};
+use crate::{traits::{Serialize, Deserialize, Hash}, hash::poseidon2_hash};
 use dep::std::cmp::Eq;
 
 global GRUMPKIN_POINT_SERIALIZED_LEN: Field = 2;
@@ -27,6 +27,12 @@ impl Deserialize<GRUMPKIN_POINT_SERIALIZED_LEN> for GrumpkinPoint {
 impl Eq for GrumpkinPoint {
     fn eq(self, point: GrumpkinPoint) -> bool {
         (point.x == self.x) & (point.y == self.y)
+    }
+}
+
+impl Hash for GrumpkinPoint {
+    fn hash(self) -> Field {
+        poseidon2_hash(self.serialize())
     }
 }
 

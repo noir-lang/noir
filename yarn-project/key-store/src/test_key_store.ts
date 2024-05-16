@@ -2,6 +2,7 @@ import { type KeyStore, type PublicKey } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CompleteAddress,
+  Fq,
   Fr,
   GeneratorIndex,
   type GrumpkinPrivateKey,
@@ -11,6 +12,7 @@ import {
   computeAddress,
   computeAppNullifierSecretKey,
   deriveKeys,
+  derivePublicKeyFromSecretKey,
 } from '@aztec/circuits.js';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
@@ -58,15 +60,22 @@ export class TestKeyStore implements KeyStore {
     await this.#keys.set(`${accountAddress.toString()}-public_keys_hash`, publicKeysHash.toBuffer());
 
     // Naming of keys is as follows ${from}-${to}_m
-    await this.#keys.set(`${accountAddress.toString()}-nsk_m`, masterNullifierSecretKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-ivsk_m`, masterIncomingViewingSecretKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-ovsk_m`, masterOutgoingViewingSecretKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-tsk_m`, masterTaggingSecretKey.toBuffer());
+    // The key of the following is different from the others because the buffer can store multiple keys
+    await this.#keys.set(`${accountAddress.toString()}-ns_keys_m`, masterNullifierSecretKey.toBuffer());
 
-    await this.#keys.set(`${accountAddress.toString()}-npk_m`, publicKeys.masterNullifierPublicKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-np_keys_m`, publicKeys.masterNullifierPublicKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-ivpk_m`, publicKeys.masterIncomingViewingPublicKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-ovpk_m`, publicKeys.masterOutgoingViewingPublicKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-tpk_m`, publicKeys.masterTaggingPublicKey.toBuffer());
+
+    // We store a npk_m_hash-account_address map to make address easy to obtain with the hash later on
+    await this.#keys.set(
+      `${publicKeys.masterNullifierPublicKey.hash().toString()}-npk_m_hash`,
+      accountAddress.toBuffer(),
+    );
 
     // At last, we return the newly derived account address
     return Promise.resolve(new CompleteAddress(accountAddress, publicKeys, partialAddress));
@@ -78,28 +87,49 @@ export class TestKeyStore implements KeyStore {
    */
   public getAccounts(): Promise<AztecAddress[]> {
     const allMapKeys = Array.from(this.#keys.keys());
-    // We return account addresses based on the map keys that end with '-nsk_m'
-    const accounts = allMapKeys.filter(key => key.endsWith('-nsk_m')).map(key => key.split('-')[0]);
+    // We return account addresses based on the map keys that end with '-ivsk_m'
+    const accounts = allMapKeys.filter(key => key.endsWith('-ivsk_m')).map(key => key.split('-')[0]);
     return Promise.resolve(accounts.map(account => AztecAddress.fromString(account)));
   }
 
   /**
-   * Gets the master nullifier public key for a given account or master nullifier public key hash.
-   * @throws If the account does not exist in the key store.
-   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * Gets the master nullifier public key for a given master nullifier public key hash.
+   * @throws If the account corresponding to the master nullifier public key hash does not exist in the key store.
+   * @param npkMHash - The master nullifier public key hash.
    * @returns The master nullifier public key for the account.
    */
-  public async getMasterNullifierPublicKey(accountOrNpkMHash: AztecAddress | Fr): Promise<PublicKey> {
-    const masterNullifierPublicKeyBuffer =
-      this.#keys.get(`${accountOrNpkMHash.toString()}-npk_m`) ??
-      this.#keys.get(`${this.#getAccountAddressForMasterNullifierPublicKeyHash(accountOrNpkMHash)?.toString()}-npk_m`);
+  public getMasterNullifierPublicKey(npkMHash: Fr): Promise<PublicKey> {
+    // Get the address for npk_m_hash
+    const accountAddressBuffer = this.#keys.get(`${npkMHash.toString()}-npk_m_hash`);
+    if (!accountAddressBuffer) {
+      throw new Error(`Could no find address for master nullifier public key hash ${npkMHash}.`);
+    }
+    const accountAddress = AztecAddress.fromBuffer(accountAddressBuffer);
 
-    if (!masterNullifierPublicKeyBuffer) {
+    // Get the master nullifier public keys buffer for the account
+    const masterNullifierPublicKeysBuffer = this.#keys.get(`${accountAddress.toString()}-np_keys_m`);
+    if (!masterNullifierPublicKeysBuffer) {
       throw new Error(
-        `Account or master nullifier public key hash ${accountOrNpkMHash} does not exist. Registered accounts: ${await this.getAccounts()}.`,
+        `Could not find master nullifier public key for account ${accountAddress.toString()} whose address was successfully obtained with npk_m_hash ${npkMHash.toString()}.`,
       );
     }
-    return Promise.resolve(Point.fromBuffer(masterNullifierPublicKeyBuffer));
+
+    // We check that the buffer's length is a multiple of Point.SIZE_IN_BYTES
+    if (masterNullifierPublicKeysBuffer.byteLength % Point.SIZE_IN_BYTES !== 0) {
+      throw new Error("Master nullifier public key buffer's length is not a multiple of Point.SIZE_IN_BYTES.");
+    }
+
+    // Now we iterate over the public keys in the buffer to find the one that matches the hash
+    const numKeys = masterNullifierPublicKeysBuffer.byteLength / Point.SIZE_IN_BYTES;
+    for (let i = 0; i < numKeys; i++) {
+      const masterNullifierPublicKey = Point.fromBuffer(
+        masterNullifierPublicKeysBuffer.subarray(i * Point.SIZE_IN_BYTES, (i + 1) * Point.SIZE_IN_BYTES),
+      );
+      if (masterNullifierPublicKey.hash().equals(npkMHash)) {
+        return Promise.resolve(masterNullifierPublicKey);
+      }
+    }
+    throw new Error(`Could not find master nullifier public key for npk_m_hash ${npkMHash.toString()}.`);
   }
 
   /**
@@ -151,25 +181,47 @@ export class TestKeyStore implements KeyStore {
   }
 
   /**
-   * Derives and returns the application nullifier secret key for a given account or master nullifier public key hash.
-   * @throws If the account does not exist in the key store.
-   * @param accountOrNpkMHash - account address or master nullifier public key hash.
+   * Derives and returns the application nullifier secret key for a given master nullifier public key hash.
+   * @throws If the account corresponding to the master nullifier public key hash does not exist in the key store.
+   * @param npkMHash - The master nullifier public key hash.
    * @param app - The application address to retrieve the nullifier secret key for.
    * @returns A Promise that resolves to the application nullifier secret key.
    */
-  public async getAppNullifierSecretKey(accountOrNpkMHash: AztecAddress | Fr, app: AztecAddress): Promise<Fr> {
-    const masterNullifierSecretKeyBuffer =
-      this.#keys.get(`${accountOrNpkMHash.toString()}-nsk_m`) ??
-      this.#keys.get(`${this.#getAccountAddressForMasterNullifierPublicKeyHash(accountOrNpkMHash)?.toString()}-nsk_m`);
+  public getAppNullifierSecretKey(npkMHash: Fr, app: AztecAddress): Promise<Fr> {
+    // First we get the account address for npk_m_hash
+    const accountAddressBuffer = this.#keys.get(`${npkMHash.toString()}-npk_m_hash`);
+    if (!accountAddressBuffer) {
+      throw new Error(`Could no find address for master nullifier public key hash ${npkMHash}.`);
+    }
 
-    if (!masterNullifierSecretKeyBuffer) {
+    // Now we get the master nullifier secret keys for the account
+    const masterNullifierSecretKeysBuffer = this.#keys.get(
+      `${AztecAddress.fromBuffer(accountAddressBuffer).toString()}-ns_keys_m`,
+    );
+    if (!masterNullifierSecretKeysBuffer) {
       throw new Error(
-        `Account or master nullifier public key hash ${accountOrNpkMHash} does not exist. Registered accounts: ${await this.getAccounts()}.`,
+        `Could not find master nullifier secret keys for account ${AztecAddress.fromBuffer(
+          accountAddressBuffer,
+        ).toString()}`,
       );
     }
-    const masterNullifierSecretKey = GrumpkinScalar.fromBuffer(masterNullifierSecretKeyBuffer);
-    const appNullifierSecretKey = computeAppNullifierSecretKey(masterNullifierSecretKey, app);
-    return Promise.resolve(appNullifierSecretKey);
+
+    // Now we iterate over all the secret keys to find the one that matches the hash
+    const numKeys = masterNullifierSecretKeysBuffer.byteLength / GrumpkinScalar.SIZE_IN_BYTES;
+    for (let i = 0; i < numKeys; i++) {
+      const secretKey = GrumpkinScalar.fromBuffer(
+        masterNullifierSecretKeysBuffer.subarray(
+          i * GrumpkinScalar.SIZE_IN_BYTES,
+          (i + 1) * GrumpkinScalar.SIZE_IN_BYTES,
+        ),
+      );
+      const publicKey = derivePublicKeyFromSecretKey(secretKey);
+      if (publicKey.hash().equals(npkMHash)) {
+        return Promise.resolve(computeAppNullifierSecretKey(secretKey, app));
+      }
+    }
+
+    throw new Error(`Could not find master nullifier secret key for npk_m_hash ${npkMHash.toString()}.`);
   }
 
   /**
@@ -233,21 +285,60 @@ export class TestKeyStore implements KeyStore {
    * @dev Used when feeding the master nullifier secret key to the kernel circuit for nullifier keys verification.
    */
   public getMasterNullifierSecretKeyForPublicKey(masterNullifierPublicKey: PublicKey): Promise<GrumpkinPrivateKey> {
-    // We iterate over the map keys to find the account address that corresponds to the provided public key
-    for (const [key, value] of this.#keys.entries()) {
-      if (value.equals(masterNullifierPublicKey.toBuffer()) && key.endsWith('-npk_m')) {
-        // We extract the account address from the map key
-        const accountAddress = key.split('-')[0];
-        // We fetch the secret key and return it
-        const masterNullifierSecretKeyBuffer = this.#keys.get(`${accountAddress.toString()}-nsk_m`);
-        if (!masterNullifierSecretKeyBuffer) {
-          throw new Error(`Could not find master nullifier secret key for account ${accountAddress.toString()}`);
-        }
-        return Promise.resolve(GrumpkinScalar.fromBuffer(masterNullifierSecretKeyBuffer));
+    // We get the account address associated with the master nullifier public key hash
+    const accountAddressBuffer = this.#keys.get(`${masterNullifierPublicKey.hash().toString()}-npk_m_hash`);
+    if (!accountAddressBuffer) {
+      throw new Error(
+        `Could not find account address for master nullifier public key ${masterNullifierPublicKey.toString()}`,
+      );
+    }
+    const accountAddress = AztecAddress.fromBuffer(accountAddressBuffer);
+
+    // We fetch the public keys and find this specific public key's position in the buffer
+    const masterNullifierPublicKeysBuffer = this.#keys.get(`${accountAddress.toString()}-np_keys_m`);
+    if (!masterNullifierPublicKeysBuffer) {
+      throw new Error(`Could not find master nullifier public keys for account ${accountAddress.toString()}`);
+    }
+
+    // We check that the buffer's length is a multiple of Point.SIZE_IN_BYTES
+    if (masterNullifierPublicKeysBuffer.byteLength % Point.SIZE_IN_BYTES !== 0) {
+      throw new Error("Master nullifier public key buffer's length is not a multiple of Point.SIZE_IN_BYTES.");
+    }
+
+    // Now we iterate over the public keys in the buffer to find the one that matches the hash
+    const numKeys = masterNullifierPublicKeysBuffer.byteLength / Point.SIZE_IN_BYTES;
+    let keyIndex = -1;
+    for (let i = 0; i < numKeys; i++) {
+      const publicKey = Point.fromBuffer(
+        masterNullifierPublicKeysBuffer.subarray(i * Point.SIZE_IN_BYTES, (i + 1) * Point.SIZE_IN_BYTES),
+      );
+      if (publicKey.equals(masterNullifierPublicKey)) {
+        keyIndex = i;
+        break;
       }
     }
 
-    throw new Error(`Could not find master nullifier secret key for public key ${masterNullifierPublicKey.toString()}`);
+    // Now we fetch the secret keys buffer and extract the secret key at the same index
+    const masterNullifierSecretKeysBuffer = this.#keys.get(`${accountAddress.toString()}-ns_keys_m`);
+    if (!masterNullifierSecretKeysBuffer) {
+      throw new Error(`Could not find master nullifier secret keys for account ${accountAddress.toString()}`);
+    }
+
+    // We extract the secret key from the buffer
+    const secretKeyBuffer = masterNullifierSecretKeysBuffer.subarray(
+      keyIndex * GrumpkinScalar.SIZE_IN_BYTES,
+      (keyIndex + 1) * GrumpkinScalar.SIZE_IN_BYTES,
+    );
+    const secretKey = GrumpkinScalar.fromBuffer(secretKeyBuffer);
+
+    // We sanity check that it's possible to derive the public key from the secret key
+    if (!derivePublicKeyFromSecretKey(secretKey).equals(masterNullifierPublicKey)) {
+      throw new Error(
+        `Could not find master nullifier secret key for public key ${masterNullifierPublicKey.toString()}`,
+      );
+    }
+
+    return Promise.resolve(secretKey);
   }
 
   /**
@@ -296,18 +387,41 @@ export class TestKeyStore implements KeyStore {
     return Promise.resolve(Fr.fromBuffer(publicKeysHashBuffer));
   }
 
-  #getAccountAddressForMasterNullifierPublicKeyHash(masterNullifierPublicKeyHash: Fr): AztecAddress | undefined {
-    for (const [key, value] of this.#keys.entries()) {
-      if (key.endsWith('-npk_m')) {
-        const computedMasterNullifierPublicKeyHash = poseidon2Hash(Point.fromBuffer(value).toFields());
-        if (computedMasterNullifierPublicKeyHash.equals(masterNullifierPublicKeyHash)) {
-          // We extract the account address from the map key
-          const accountAddress = key.split('-')[0];
-          return AztecAddress.fromString(accountAddress);
-        }
-      }
+  /**
+   * Rotates the master nullifier key for the specified account.
+   *
+   * @dev This function updates the secret and public keys associated with the account.
+   * It appends a new secret key to the existing secret keys, derives the
+   * corresponding public key, and updates the stored keys accordingly.
+   *
+   * @param account - The account address for which the master nullifier key is being rotated.
+   * @param newSecretKey - (Optional) A new secret key of type Fq. If not provided, a random key is generated.
+   * @throws If the account does not have existing nullifier secret keys or public keys.
+   * @returns A Promise that resolves when the key rotation is complete.
+   */
+  public async rotateMasterNullifierKey(account: AztecAddress, newSecretKey: Fq = Fq.random()) {
+    // We append the secret key to the original secret key
+    const secretKeysBuffer = this.#keys.get(`${account.toString()}-ns_keys_m`);
+    if (!secretKeysBuffer) {
+      throw new Error(`Could not find nullifier secret keys for account ${account.toString()}`);
     }
 
-    return undefined;
+    // We append the new secret key to the buffer of secret keys
+    const newSecretKeysBuffer = Buffer.concat([secretKeysBuffer, newSecretKey.toBuffer()]);
+    await this.#keys.set(`${account.toString()}-ns_keys_m`, newSecretKeysBuffer);
+
+    // Now we derive the public key from the new secret key and append it to the buffer of original public keys
+    const newPublicKey = derivePublicKeyFromSecretKey(newSecretKey);
+    const publicKeysBuffer = this.#keys.get(`${account.toString()}-np_keys_m`);
+    if (!publicKeysBuffer) {
+      throw new Error(`Could not find nullifier public keys for account ${account.toString()}`);
+    }
+
+    // We append the new public key to the buffer of public keys
+    const newPublicKeysBuffer = Buffer.concat([publicKeysBuffer, newPublicKey.toBuffer()]);
+    await this.#keys.set(`${account.toString()}-np_keys_m`, newPublicKeysBuffer);
+
+    // We store a npk_m_hash-account_address map to make address easy to obtain with the hash later on
+    await this.#keys.set(`${newPublicKey.hash().toString()}-npk_m_hash`, account.toBuffer());
   }
 }

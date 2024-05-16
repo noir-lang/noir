@@ -1,8 +1,8 @@
 use dep::aztec::prelude::{AztecAddress, PrivateContext, NoteHeader, NoteInterface};
 use dep::aztec::{
-    keys::getters::get_ivpk_m, protocol_types::constants::GENERATOR_INDEX__NOTE_NULLIFIER,
-    note::utils::compute_note_hash_for_consumption, hash::poseidon2_hash,
-    oracle::{nullifier_key::get_app_nullifier_secret_key}
+    keys::getters::get_ivpk_m,
+    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash},
+    note::utils::compute_note_hash_for_consumption, keys::getters::get_nsk_app
 };
 
 global SUBSCRIPTION_NOTE_LEN: Field = 3;
@@ -11,7 +11,8 @@ global SUBSCRIPTION_NOTE_LEN: Field = 3;
 // TODO: Do we need to include a nonce, in case we want to read/nullify/recreate with the same pubkey value?
 #[aztec(note)]
 struct SubscriptionNote {
-    owner: AztecAddress,
+    // The nullifying public key hash is used with the nsk_app to ensure that the note can be privately spent.
+    npk_m_hash: Field,
     expiry_block_number: Field,
     remaining_txs: Field,
 }
@@ -19,7 +20,7 @@ struct SubscriptionNote {
 impl NoteInterface<SUBSCRIPTION_NOTE_LEN> for SubscriptionNote {
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
-        let secret = context.request_app_nullifier_secret_key(self.owner);
+        let secret = context.request_nsk_app(self.npk_m_hash);
         poseidon2_hash([
             note_hash_for_nullify,
             secret,
@@ -29,7 +30,7 @@ impl NoteInterface<SUBSCRIPTION_NOTE_LEN> for SubscriptionNote {
 
     fn compute_nullifier_without_context(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
-        let secret = get_app_nullifier_secret_key(self.owner);
+        let secret = get_nsk_app(self.npk_m_hash);
         poseidon2_hash([
             note_hash_for_nullify,
             secret,
@@ -38,8 +39,7 @@ impl NoteInterface<SUBSCRIPTION_NOTE_LEN> for SubscriptionNote {
     }
 
     // Broadcasts the note as an encrypted log on L1.
-    fn broadcast(self, context: &mut PrivateContext, slot: Field) {
-        let ivpk_m = get_ivpk_m(context, self.owner);
+    fn broadcast(self, context: &mut PrivateContext, slot: Field, ivpk_m: GrumpkinPoint) {
         context.emit_encrypted_log(
             (*context).this_address(),
             slot,
@@ -51,7 +51,7 @@ impl NoteInterface<SUBSCRIPTION_NOTE_LEN> for SubscriptionNote {
 }
 
 impl SubscriptionNote {
-    pub fn new(owner: AztecAddress, expiry_block_number: Field, remaining_txs: Field) -> Self {
-        SubscriptionNote { owner, expiry_block_number, remaining_txs, header: NoteHeader::empty() }
+    pub fn new(npk_m_hash: Field, expiry_block_number: Field, remaining_txs: Field) -> Self {
+        SubscriptionNote { npk_m_hash, expiry_block_number, remaining_txs, header: NoteHeader::empty() }
     }
 }

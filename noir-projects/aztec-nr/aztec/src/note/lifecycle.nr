@@ -1,3 +1,4 @@
+use dep::protocol_types::grumpkin_point::GrumpkinPoint;
 use crate::context::{PrivateContext, PublicContext};
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
@@ -9,7 +10,8 @@ pub fn create_note<Note, N>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note: &mut Note,
-    broadcast: bool
+    broadcast: bool,
+    ivpk_m: GrumpkinPoint
 ) where Note: NoteInterface<N> {
     let contract_address = (*context).this_address();
 
@@ -36,7 +38,7 @@ pub fn create_note<Note, N>(
     context.push_new_note_hash(inner_note_hash);
 
     if broadcast {
-        Note::broadcast(*note, context, storage_slot);
+        Note::broadcast(*note, context, storage_slot, ivpk_m);
     }
 }
 

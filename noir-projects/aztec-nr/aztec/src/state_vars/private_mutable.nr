@@ -1,4 +1,7 @@
-use dep::protocol_types::{address::AztecAddress, constants::GENERATOR_INDEX__INITIALIZATION_NULLIFIER, hash::pedersen_hash};
+use dep::protocol_types::{
+    address::AztecAddress, constants::GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
+    grumpkin_point::GrumpkinPoint, hash::pedersen_hash
+};
 
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
@@ -48,19 +51,29 @@ impl<Note> PrivateMutable<Note> {
     // docs:end:is_initialized
 
     // docs:start:initialize
-    pub fn initialize<N>(self, note: &mut Note, broadcast: bool) where Note: NoteInterface<N> {
+    pub fn initialize<N>(
+        self,
+        note: &mut Note,
+        broadcast: bool,
+        ivpk_m: GrumpkinPoint
+    ) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
         context.push_new_nullifier(nullifier, 0);
 
-        create_note(context, self.storage_slot, note, broadcast);
+        create_note(context, self.storage_slot, note, broadcast, ivpk_m);
     }
     // docs:end:initialize
 
     // docs:start:replace
-    pub fn replace<N>(self, new_note: &mut Note, broadcast: bool) where Note: NoteInterface<N> {
+    pub fn replace<N>(
+        self,
+        new_note: &mut Note,
+        broadcast: bool,
+        ivpk_m: GrumpkinPoint
+    ) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
         let prev_note: Note = get_note(context, self.storage_slot);
 
@@ -68,12 +81,16 @@ impl<Note> PrivateMutable<Note> {
         destroy_note(context, prev_note);
 
         // Add replacement note.
-        create_note(context, self.storage_slot, new_note, broadcast);
+        create_note(context, self.storage_slot, new_note, broadcast, ivpk_m);
     }
     // docs:end:replace
 
     // docs:start:get_note
-    pub fn get_note<N>(self, broadcast: bool) -> Note where Note: NoteInterface<N> {
+    pub fn get_note<N>(
+        self,
+        broadcast: bool,
+        ivpk_m: GrumpkinPoint
+    ) -> Note where Note: NoteInterface<N> {
         let context = self.context.unwrap();
         let mut note = get_note(context, self.storage_slot);
 
@@ -82,7 +99,7 @@ impl<Note> PrivateMutable<Note> {
 
         // Add the same note again.
         // Because a nonce is added to every note in the kernel, its nullifier will be different.
-        create_note(context, self.storage_slot, &mut note, broadcast);
+        create_note(context, self.storage_slot, &mut note, broadcast, ivpk_m);
 
         note
     }

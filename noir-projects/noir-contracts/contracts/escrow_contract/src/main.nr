@@ -4,6 +4,8 @@ contract Escrow {
 
     use dep::aztec::context::{PublicContext, Context};
 
+    use dep::aztec::keys::getters::{get_npk_m_hash, get_ivpk_m};
+
     use dep::address_note::address_note::AddressNote;
 
     use dep::token::Token;
@@ -17,8 +19,11 @@ contract Escrow {
     #[aztec(private)]
     #[aztec(initializer)]
     fn constructor(owner: AztecAddress) {
-        let mut note = AddressNote::new(owner, owner);
-        storage.owner.initialize(&mut note, true);
+        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+
+        let mut note = AddressNote::new(owner, owner_npk_m_hash);
+        storage.owner.initialize(&mut note, true, owner_ivpk_m);
     }
 
     // Withdraws balance. Requires that msg.sender is the owner.

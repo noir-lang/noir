@@ -37,7 +37,7 @@ contract StatefulTest {
     fn create_note(owner: AztecAddress, value: Field) {
         if (value != 0) {
             let loc = storage.notes.at(owner);
-            increment(loc, value, owner);
+            increment(context, loc, value, owner);
         }
     }
 
@@ -46,7 +46,8 @@ contract StatefulTest {
     fn create_note_no_init_check(owner: AztecAddress, value: Field) {
         if (value != 0) {
             let loc = storage.notes.at(owner);
-            increment(loc, value, owner);
+            // TODO (#6312): This will break with key rotation. Fix this. Will not be able to spend / increment any notes after rotating key.
+            increment(context, loc, value, owner);
         }
     }
 
@@ -56,10 +57,10 @@ contract StatefulTest {
         let sender = context.msg_sender();
 
         let sender_notes = storage.notes.at(sender);
-        decrement(sender_notes, amount, sender);
+        decrement(context, sender_notes, amount, sender);
 
         let recipient_notes = storage.notes.at(recipient);
-        increment(recipient_notes, amount, recipient);
+        increment(context, recipient_notes, amount, recipient);
     }
 
     #[aztec(private)]
@@ -68,10 +69,10 @@ contract StatefulTest {
         let sender = context.msg_sender();
 
         let sender_notes = storage.notes.at(sender);
-        decrement(sender_notes, amount, sender);
+        decrement(context, sender_notes, amount, sender);
 
         let recipient_notes = storage.notes.at(recipient);
-        increment(recipient_notes, amount, recipient);
+        increment(context, recipient_notes, amount, recipient);
     }
 
     #[aztec(public)]

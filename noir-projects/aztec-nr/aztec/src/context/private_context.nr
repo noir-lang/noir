@@ -1,11 +1,11 @@
 use crate::{
     context::{inputs::PrivateContextInputs, interface::ContextInterface},
-    messaging::process_l1_to_l2_message,
+    keys::getters::get_nullifier_keys, messaging::process_l1_to_l2_message,
     hash::{hash_args_array, ArgsHasher, compute_encrypted_log_hash, compute_unencrypted_log_hash},
     oracle::{
-    arguments, returns, call_private_function::call_private_function_internal, header::get_header_at,
+    nullifier_keys::NullifierKeys, arguments, returns,
+    call_private_function::call_private_function_internal, header::get_header_at,
     logs::emit_encrypted_log, logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog},
-    nullifier_key::{get_nullifier_keys, get_nullifier_keys_with_npk_m_hash, NullifierKeys},
     enqueue_public_function_call::{
     enqueue_public_function_call_internal, set_public_teardown_function_call_internal,
     parse_public_call_stack_item_from_oracle
@@ -31,7 +31,7 @@ use dep::protocol_types::{
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader,
-    traits::{is_empty, Deserialize, Empty}, hash::poseidon2_hash
+    traits::{is_empty, Deserialize, Empty}
 };
 
 // When finished, one can call .finish() to convert back to the abi
@@ -203,47 +203,25 @@ impl PrivateContext {
         self.nullifier_read_requests.push(request);
     }
 
-    pub fn request_app_nullifier_secret_key(&mut self, account: AztecAddress) -> Field {
-        let keys = if self.nullifier_key.is_none() {
-            let keys = get_nullifier_keys(account);
+    pub fn request_nsk_app(&mut self, npk_m_hash: Field) -> Field {
+        // A value of empty nullifier keys will fail the key validation request.
+        let cached_nullifier_keys = self.nullifier_key.unwrap_or(NullifierKeys::empty());
+
+        let nullifier_keys = if cached_nullifier_keys.master_nullifier_public_key.hash() == npk_m_hash {
+            cached_nullifier_keys
+        } else {
+            let fetched_nullifier_keys = get_nullifier_keys(npk_m_hash);
             let request = NullifierKeyValidationRequest {
-                master_nullifier_public_key: keys.master_nullifier_public_key,
-                app_nullifier_secret_key: keys.app_nullifier_secret_key
+                master_nullifier_public_key: fetched_nullifier_keys.master_nullifier_public_key,
+                app_nullifier_secret_key: fetched_nullifier_keys.app_nullifier_secret_key
             };
             self.nullifier_key_validation_requests.push(request);
-            self.nullifier_key = Option::some(keys);
-            keys
-        } else {
-            let keys = self.nullifier_key.unwrap_unchecked();
-            // If MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL is larger than 1, need to update the way the key pair is cached.
-            assert(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL == 1);
-            assert(keys.account == account, "Cannot query nullifier key for more than one account per call");
-            keys
-        };
-        keys.app_nullifier_secret_key
-    }
-
-    // TODO(#5630) Replace request_app_nullifier_secret_key above with this once we no longer get app nullifier secret key with address
-    pub fn request_nsk_app_with_npk_m_hash(&mut self, npk_m_hash: Field) -> Field {
-        let keys = if self.nullifier_key.is_none() {
-            let keys = get_nullifier_keys_with_npk_m_hash(npk_m_hash);
-            let request = NullifierKeyValidationRequest {
-                master_nullifier_public_key: keys.master_nullifier_public_key,
-                app_nullifier_secret_key: keys.app_nullifier_secret_key
-            };
-            self.nullifier_key_validation_requests.push(request);
-            self.nullifier_key = Option::some(keys);
-            keys
-        } else {
-            let keys = self.nullifier_key.unwrap_unchecked();
-            // If MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL is larger than 1, need to update the way the key pair is cached.
-            assert(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL == 1);
-            keys
+            self.nullifier_key = Option::some(fetched_nullifier_keys);
+            fetched_nullifier_keys
         };
 
-        // We have to check if the key that was requested or cached corresponds to the one we request for
-        assert_eq(poseidon2_hash(keys.master_nullifier_public_key.serialize()), npk_m_hash);
-        keys.app_nullifier_secret_key
+        assert_eq(nullifier_keys.master_nullifier_public_key.hash(), npk_m_hash);
+        nullifier_keys.app_nullifier_secret_key
     }
 
     // docs:start:context_message_portal

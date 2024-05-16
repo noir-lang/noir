@@ -7,6 +7,8 @@ contract PendingNoteHashes {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet};
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::context::{PublicContext, Context};
+    use dep::aztec::keys::getters::{get_npk_m_hash, get_ivpk_m};
+    use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
 
     #[aztec(storage)]
     struct Storage {
@@ -22,10 +24,14 @@ contract PendingNoteHashes {
     #[aztec(private)]
     fn test_insert_then_get_then_nullify_flat(amount: Field, owner: AztecAddress) -> Field {
         let owner_balance = storage.balances.at(owner);
-        let mut note = ValueNote::new(amount, owner);
+
+        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+
+        let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note, true);
+        owner_balance.insert(&mut note, true, owner_ivpk_m);
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note inserted above
@@ -52,9 +58,12 @@ contract PendingNoteHashes {
         assert(maybe_notes[0].is_none());
         assert(maybe_notes[1].is_none());
 
+        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+
         // Insert note
-        let mut note = ValueNote::new(amount, owner);
-        owner_balance.insert(&mut note, true);
+        let mut note = ValueNote::new(amount, owner_npk_m_hash);
+        owner_balance.insert(&mut note, true, owner_ivpk_m);
 
         0
     }
@@ -67,10 +76,14 @@ contract PendingNoteHashes {
     #[aztec(private)]
     fn insert_note(amount: Field, owner: AztecAddress) {
         let owner_balance = storage.balances.at(owner);
-        let mut note = ValueNote::new(amount, owner);
+
+        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+
+        let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note, true);
+        owner_balance.insert(&mut note, true, owner_ivpk_m);
     }
 
     // Nested/inner function to get a note and confirm it matches the expected value
