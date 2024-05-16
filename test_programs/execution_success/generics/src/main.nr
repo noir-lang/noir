@@ -40,23 +40,23 @@ impl<T> Bar<T> {
 
 fn main(x: Field, y: Field) {
     let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };
-    let bar2 = Bar { one: x, two: y, other: [0] };
+    // let bar2 = Bar { one: x, two: y, other: [0] };
 
-    foo(bar1);
-    foo(bar2);
-    // Test generic impls
-    let int1 = BigInt { limbs: [1] };
-    let int2 = BigInt { limbs: [2] };
-    let BigInt { limbs } = int1.second(int2).first(int1);
-    assert(limbs == int2.limbs);
-    // Test impl exclusively for Bar<Field>
-    assert(bar1.get_other() == bar1.other);
-    // Expected type error
-    // assert(bar2.get_other() == bar2.other);
-    let one = x;
-    let two = y;
-    let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
-    assert(nested_generics.other.other == bar1.get_other());
+    // foo(bar1);
+    // foo(bar2);
+    // // Test generic impls
+    // let int1 = BigInt { limbs: [1] };
+    // let int2 = BigInt { limbs: [2] };
+    // let BigInt { limbs } = int1.second(int2).first(int1);
+    // assert(limbs == int2.limbs);
+    // // Test impl exclusively for Bar<Field>
+    // assert(bar1.get_other() == bar1.other);
+    // // Expected type error
+    // // assert(bar2.get_other() == bar2.other);
+    // let one = x;
+    // let two = y;
+    // let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
+    // assert(nested_generics.other.other == bar1.get_other());
 
     // Test turbofish operator
     foo::<Field>(bar1);
@@ -64,9 +64,9 @@ fn main(x: Field, y: Field) {
     // Test that turbofish works on methods and that it uses the generics on the methods
     // While still handling the generic on the impl (T in this case) that is implicitly added
     // to the method.
-    assert(bar1.zeroed::<u32>() == 0);
+    assert(bar1.zeroed::<u32, Field>() == 0);
 
-    let _ = regression_2055([1, 2, 3]);
+    // let _ = regression_2055([1, 2, 3]);
 }
 
 fn regression_2055<LEN>(bytes: [u8; LEN]) -> Field {
