@@ -77,7 +77,7 @@ pub enum ResolverError {
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
-    AbiAttributeOusideContract { span: Span },
+    AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -86,31 +86,35 @@ pub enum ResolverError {
     JumpInConstrainedFn { is_break: bool, span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
-    #[error("#[inline(tag)] attribute is only allowed on constrained functions")]
-    InlineAttributeOnUnconstrained { ident: Ident },
+    #[error("Only `comptime` globals can be mutable")]
+    MutableGlobal { span: Span },
+    #[error("Self-referential structs are not supported")]
+    SelfReferentialStruct { span: Span },
+    #[error("#[no_predicates] attribute is only allowed on constrained functions")]
+    NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
 }
 
 impl ResolverError {
-    pub fn into_file_diagnostic(self, file: fm::FileId) -> FileDiagnostic {
+    pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
         Diagnostic::from(self).in_file(file)
     }
 }
 
-impl From<ResolverError> for Diagnostic {
+impl<'a> From<&'a ResolverError> for Diagnostic {
     /// Only user errors can be transformed into a Diagnostic
     /// ICEs will make the compiler panic, as they could affect the
     /// soundness of the generated program
-    fn from(error: ResolverError) -> Diagnostic {
+    fn from(error: &'a ResolverError) -> Diagnostic {
         match error {
             ResolverError::DuplicateDefinition { name, first_span, second_span } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {name} found"),
                     "first definition found here".to_string(),
-                    first_span,
+                    *first_span,
                 );
-                diag.add_secondary("second definition found here".to_string(), second_span);
+                diag.add_secondary("second definition found here".to_string(), *second_span);
                 diag
             }
             ResolverError::UnusedVariable { ident } => {
@@ -125,18 +129,18 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
                 "not found in this scope".to_string(),
-                span,
+                *span,
             ),
             ResolverError::PathIsNotIdent { span } => Diagnostic::simple_error(
                 "cannot use path as an identifier".to_string(),
                 String::new(),
-                span,
+                *span,
             ),
             ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { span, expected, got } => Diagnostic::simple_error(
                 format!("expected {expected} got {got}"),
                 String::new(),
-                span,
+                *span,
             ),
             ResolverError::DuplicateField { field } => Diagnostic::simple_error(
                 format!("duplicate field {field}"),
@@ -150,7 +154,7 @@ impl From<ResolverError> for Diagnostic {
                     field.span(),
                 )
             }
-            ResolverError::MissingFields { span, mut missing_fields, struct_definition } => {
+            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
                 let remaining_fields_names = match &missing_fields[..] {
                     [field1] => field1.clone(),
@@ -161,7 +165,7 @@ impl From<ResolverError> for Diagnostic {
                         let len_plural = if len != 1 {"s"} else {""};
 
                         let truncated_fields = format!(" and {len} other field{len_plural}");
-                        missing_fields.truncate(3);
+                        let missing_fields = &missing_fields[0..3];
                         format!("{}{truncated_fields}", missing_fields.join(", "))
                     }
                 };
@@ -169,18 +173,18 @@ impl From<ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("missing field{plural} {remaining_fields_names} in struct {struct_definition}"),
                     String::new(),
-                    span,
+                    *span,
                 )
             }
             ResolverError::UnnecessaryMut { first_mut, second_mut } => {
                 let mut error = Diagnostic::simple_error(
                     "'mut' here is not necessary".to_owned(),
                     "".to_owned(),
-                    second_mut,
+                    *second_mut,
                 );
                 error.add_secondary(
                     "Pattern was already made mutable from this 'mut'".to_owned(),
-                    first_mut,
+                    *first_mut,
                 );
                 error
             }
@@ -225,17 +229,17 @@ impl From<ResolverError> for Diagnostic {
                     "no expression specifying the value stored by the constant variable {name}"
                 ),
                 "expected expression to be stored for let statement".to_string(),
-                span,
+                *span,
             ),
             ResolverError::InvalidArrayLengthExpr { span } => Diagnostic::simple_error(
                 "Expression invalid in an array-length context".into(),
                 "Array-length expressions can only have simple integer operations and any variables used must be global constants".into(),
-                span,
+                *span,
             ),
             ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
                 "Integer too large to be evaluated to an array-length".into(),
                 "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
-                span,
+                *span,
             ),
             ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(
                 format!("Cannot find a global or generic type parameter named `{path}`"),
@@ -245,57 +249,57 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::CapturedMutableVariable { span } => Diagnostic::simple_error(
                 "Closures cannot capture mutable variables".into(),
                 "Mutable variable".into(),
-                span,
+                *span,
             ),
             ResolverError::TestFunctionHasParameters { span } => Diagnostic::simple_error(
                 "Test functions cannot have any parameters".into(),
                 "Try removing the parameters or moving the test into a wrapper function".into(),
-                span,
+                *span,
             ),
             ResolverError::NonStructUsedInConstructor { typ, span } => Diagnostic::simple_error(
                 "Only struct types can be used in constructor expressions".into(),
                 format!("{typ} has no fields to construct it with"),
-                span,
+                *span,
             ),
             ResolverError::NonStructWithGenerics { span } => Diagnostic::simple_error(
                 "Only struct types can have generic arguments".into(),
                 "Try removing the generic arguments".into(),
-                span,
+                *span,
             ),
             ResolverError::GenericsOnSelfType { span } => Diagnostic::simple_error(
                 "Cannot apply generics to Self type".into(),
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
-                span,
+                *span,
             ),
             ResolverError::IncorrectGenericCount { span, item_name, actual, expected } => {
-                let expected_plural = if expected == 1 { "" } else { "s" };
-                let actual_plural = if actual == 1 { "is" } else { "are" };
+                let expected_plural = if *expected == 1 { "" } else { "s" };
+                let actual_plural = if *actual == 1 { "is" } else { "are" };
 
                 Diagnostic::simple_error(
                     format!("`{item_name}` has {expected} generic argument{expected_plural} but {actual} {actual_plural} given here"),
                     "Incorrect number of generic arguments".into(),
-                    span,
+                    *span,
                 )
             }
-            ResolverError::ParserError(error) => (*error).into(),
+            ResolverError::ParserError(error) => error.as_ref().into(),
             ResolverError::MutableReferenceToImmutableVariable { variable, span } => {
-                Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), span)
+                Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), *span)
             },
             ResolverError::MutableReferenceToArrayElement { span } => {
-                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), span)
+                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *span)
             },
             ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
                 "Numeric constants should be printed without formatting braces".to_string(),
-                span,
+                *span,
             ),
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
-                "Closure environment must be a tuple or unit type".to_string(), span),
+                "Closure environment must be a tuple or unit type".to_string(), *span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
                 "Nested slices are not supported".into(),
                 "Try to use a constant sized array instead".into(),
-                span,
+                *span,
             ),
             ResolverError::MisplacedRecursiveAttribute { ident } => {
                 let name = &ident.0.contents;
@@ -309,11 +313,11 @@ impl From<ResolverError> for Diagnostic {
                 diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
                 diag
             }
-            ResolverError::AbiAttributeOusideContract { span } => {
+            ResolverError::AbiAttributeOutsideContract { span } => {
                 Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
-                    span,
+                    *span,
                 )
             },
             ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
@@ -325,35 +329,49 @@ impl From<ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
                     format!("'{item}' recursively depends on itself: {cycle}"),
-                    span,
+                    *span,
                 )
             },
             ResolverError::JumpInConstrainedFn { is_break, span } => {
-                let item = if is_break { "break" } else { "continue" };
+                let item = if *is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
                     format!("{item} is only allowed in unconstrained functions"),
                     "Constrained code must always have a known number of loop iterations".into(),
-                    span,
+                    *span,
                 )
             },
             ResolverError::JumpOutsideLoop { is_break, span } => {
-                let item = if is_break { "break" } else { "continue" };
+                let item = if *is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
                     format!("{item} is only allowed within loops"),
                     "".into(),
-                    span,
+                    *span,
                 )
             },
-            ResolverError::InlineAttributeOnUnconstrained { ident } => {
+            ResolverError::MutableGlobal { span } => {
+                Diagnostic::simple_error(
+                    "Only `comptime` globals may be mutable".into(),
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::SelfReferentialStruct { span } => {
+                Diagnostic::simple_error(
+                    "Self-referential structs are not supported".into(),
+                    "".into(),
+                    *span,
+                )
+            },
+            ResolverError::NoPredicatesAttributeOnUnconstrained { ident } => {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[inline(tag)] attribute on unconstrained function {name}. Only allowed on constrained functions"),
-                    "misplaced #[inline(tag)] attribute".to_string(),
+                    format!("misplaced #[no_predicates] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    "misplaced #[no_predicates] attribute".to_string(),
                     ident.0.span(),
                 );
 
-                diag.add_note("The `#[inline(tag)]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
+                diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident } => {

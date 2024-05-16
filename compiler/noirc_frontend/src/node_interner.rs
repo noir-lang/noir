@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::ops::Deref;
 
 use fm::FileId;
@@ -314,6 +315,12 @@ impl FuncId {
     }
 }
 
+impl fmt::Display for FuncId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct StructId(ModuleId);
 
@@ -525,7 +532,7 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    /// Store the type for an interned expression
+    /// Store the type for a definition
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.definition_to_type.insert(definition_id, typ);
     }
@@ -653,11 +660,13 @@ impl NodeInterner {
         let_statement: StmtId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
+        mutable: bool,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
-        let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+        let definition_id =
+            self.push_definition(name, mutable, DefinitionKind::Global(id), location);
 
         self.globals.push(GlobalInfo {
             id,
@@ -682,9 +691,13 @@ impl NodeInterner {
         local_id: LocalModuleId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
+        mutable: bool,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        self.push_global(name, local_id, statement, file, attributes)
+        let span = name.span();
+        let id = self.push_global(name, local_id, statement, file, attributes, mutable);
+        self.push_stmt_location(statement, span, file);
+        id
     }
 
     /// Intern an empty function.
@@ -929,7 +942,7 @@ impl NodeInterner {
         self.id_location(stmt_id)
     }
 
-    pub fn push_statement_location(&mut self, id: StmtId, span: Span, file: FileId) {
+    pub fn push_stmt_location(&mut self, id: StmtId, span: Span, file: FileId) {
         self.id_to_location.insert(id.into(), Location::new(span, file));
     }
 

@@ -33,13 +33,14 @@ fn sample_program(num_opcodes: usize) -> Program {
         functions: vec![Circuit {
             current_witness_index: 4000,
             opcodes: assert_zero_opcodes.to_vec(),
-            expression_width: ExpressionWidth::Bounded { width: 3 },
+            expression_width: ExpressionWidth::Bounded { width: 4 },
             private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3), Witness(4)]),
             public_parameters: PublicInputs(BTreeSet::from([Witness(5)])),
             return_values: PublicInputs(BTreeSet::from([Witness(6)])),
             assert_messages: Vec::new(),
             recursive: false,
         }],
+        unconstrained_functions: Vec::new(),
     }
 }
 

@@ -304,7 +304,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     ///
-    /// If the result is unsigned, we simply range check against the bit size
+    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for bit-shifts, because we will convert them to field multiplication
     ///
     /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
     /// an unsigned value representing the signed integer.
@@ -344,58 +344,19 @@ impl<'a> FunctionContext<'a> {
                         self.insert_safe_cast(result, result_type, location)
                     }
                     BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location, true)
+                        self.check_shift_overflow(result, rhs, bit_size, location)
                     }
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
             }
             Type::Numeric(NumericType::Unsigned { bit_size }) => {
                 let dfg = &self.builder.current_function.dfg;
-
-                let max_lhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(lhs);
-                let max_rhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(rhs);
+                let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
 
                 match operator {
-                    BinaryOpKind::Add => {
-                        if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
-                            // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                            return result;
-                        }
-
-                        let message = "attempt to add with overflow".to_string();
-                        self.builder.set_location(location).insert_range_check(
-                            result,
-                            bit_size,
-                            Some(message),
-                        );
-                    }
-                    BinaryOpKind::Subtract => {
-                        if dfg.is_constant(lhs) && max_lhs_bits > max_rhs_bits {
-                            // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                            // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                            return result;
-                        }
-
-                        let message = "attempt to subtract with overflow".to_string();
-                        self.builder.set_location(location).insert_range_check(
-                            result,
-                            bit_size,
-                            Some(message),
-                        );
-                    }
-                    BinaryOpKind::Multiply => {
-                        if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
-                            // Either performing boolean multiplication (which cannot overflow),
-                            // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                            return result;
-                        }
-
-                        let message = "attempt to multiply with overflow".to_string();
-                        self.builder.set_location(location).insert_range_check(
-                            result,
-                            bit_size,
-                            Some(message),
-                        );
+                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
+                        // Overflow check is deferred to acir-gen
+                        return result;
                     }
                     BinaryOpKind::ShiftLeft => {
                         if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
@@ -408,7 +369,7 @@ impl<'a> FunctionContext<'a> {
                             }
                         }
 
-                        self.check_shift_overflow(result, rhs, bit_size, location, false);
+                        self.check_shift_overflow(result, rhs, bit_size, location);
                     }
 
                     _ => unreachable!("operator {} should not overflow", operator),
@@ -430,32 +391,12 @@ impl<'a> FunctionContext<'a> {
         rhs: ValueId,
         bit_size: u32,
         location: Location,
-        is_signed: bool,
     ) -> ValueId {
         let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
-        let rhs = if is_signed {
-            self.insert_safe_cast(rhs, Type::unsigned(bit_size), location)
-        } else {
-            rhs
-        };
-        // Bit-shift with a negative number is an overflow
-        if is_signed {
-            // We compute the sign of rhs.
-            let half_width = self.builder.numeric_constant(
-                FieldElement::from(2_i128.pow(bit_size - 1)),
-                Type::unsigned(bit_size),
-            );
-            let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
-            self.builder.set_location(location).insert_constrain(
-                sign,
-                one,
-                Some("attempt to bit-shift with overflow".to_owned().into()),
-            );
-        }
+        assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
-        let max = self
-            .builder
-            .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
+        let max =
+            self.builder.numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(8));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
             overflow,

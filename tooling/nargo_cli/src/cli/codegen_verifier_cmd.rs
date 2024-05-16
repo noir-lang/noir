@@ -44,7 +44,6 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = backend.get_backend_info()?;
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let compilation_result = compile_program(
@@ -62,7 +61,7 @@ pub(crate) fn run(
             args.compile_options.silence_warnings,
         )?;
 
-        let program = nargo::ops::transform_program(program, expression_width);
+        let program = nargo::ops::transform_program(program, args.compile_options.expression_width);
 
         // TODO(https://github.com/noir-lang/noir/issues/4428):
         // We do not expect to have a smart contract verifier for a foldable program with multiple circuits.

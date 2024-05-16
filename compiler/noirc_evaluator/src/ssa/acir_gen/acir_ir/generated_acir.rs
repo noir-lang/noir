@@ -7,12 +7,11 @@ use crate::{
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
-
 use acvm::acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        OpcodeLocation,
+        AssertionPayload, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -61,7 +60,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload>,
 
     pub(crate) warnings: Vec<SsaReport>,
 
@@ -189,6 +188,18 @@ impl GeneratedAcir {
         let outputs_clone = outputs.clone();
 
         let black_box_func_call = match func_name {
+            BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
+                inputs: inputs[0].clone(),
+                iv: inputs[1]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                key: inputs[2]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs,
+            },
             BlackBoxFunc::AND => {
                 BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
@@ -279,9 +290,9 @@ impl GeneratedAcir {
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                low: inputs[0][0],
-                high: inputs[1][0],
+            BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
+                points: inputs[0].clone(),
+                scalars: inputs[1].clone(),
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -603,12 +614,12 @@ impl GeneratedAcir {
             );
         }
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
-            self.assert_messages.insert(
+            self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
                     acir_index: self.opcodes.len() - 1,
                     brillig_index: *brillig_index,
                 },
-                message.clone(),
+                AssertionPayload::StaticString(message.clone()),
             );
         }
     }
@@ -643,7 +654,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
-        BlackBoxFunc::Keccak256
+        BlackBoxFunc::AES128Encrypt
+        | BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Blake3
@@ -666,9 +678,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => None,
 
-        // Inputs for fixed based scalar multiplication
-        // is the low and high limbs of the scalar
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
+        BlackBoxFunc::MultiScalarMul => None,
 
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
@@ -724,7 +735,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd
@@ -738,6 +749,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
+
+        // AES encryption returns a variable number of outputs
+        BlackBoxFunc::AES128Encrypt => None,
     }
 }
 

@@ -19,6 +19,20 @@ export type AbiParameter = {
   visibility: Visibility;
 };
 
+export type AbiErrorType =
+  | {
+      error_kind: 'fmtstring';
+      length: number;
+      item_types: AbiType[];
+    }
+  | ({ error_kind: 'custom' } & AbiType);
+
+// The payload for a raw assertion error returned on execution.
+export type RawAssertionPayload = {
+  selector: string;
+  data: string[];
+};
+
 // Map from witness index to hex string value of witness.
 export type WitnessMap = Map<number, string>;
 
@@ -27,6 +41,7 @@ export type Abi = {
   param_witnesses: Record<string, { start: number; end: number }[]>;
   return_type: { abi_type: AbiType; visibility: Visibility } | null;
   return_witnesses: number[];
+  error_types: Record<string, AbiErrorType>;
 };
 
 export interface VerifierBackend {

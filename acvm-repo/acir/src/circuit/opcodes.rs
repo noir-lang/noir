@@ -1,5 +1,5 @@
 use super::{
-    brillig::{Brillig, BrilligInputs, BrilligOutputs},
+    brillig::{BrilligInputs, BrilligOutputs},
     directives::Directive,
 };
 use crate::native_types::{Expression, Witness};
@@ -20,7 +20,6 @@ pub enum Opcode {
     /// Often used for exposing more efficient implementations of SNARK-unfriendly computations.  
     BlackBoxFuncCall(BlackBoxFuncCall),
     Directive(Directive),
-    Brillig(Brillig),
     /// Atomic operation on a block of memory
     MemoryOp {
         block_id: BlockId,
@@ -87,12 +86,6 @@ impl std::fmt::Display for Opcode {
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
                 )
-            }
-            Opcode::Brillig(brillig) => {
-                write!(f, "BRILLIG: ")?;
-                writeln!(f, "inputs: {:?}", brillig.inputs)?;
-                writeln!(f, "outputs: {:?}", brillig.outputs)?;
-                writeln!(f, "{:?}", brillig.bytecode)
             }
             Opcode::MemoryOp { block_id, op, predicate } => {
                 write!(f, "MEM ")?;

@@ -643,9 +643,11 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
-            | Type::Code
-            | Type::TraitAsType(..) => false,
+            | Type::Code => false,
 
+            Type::TraitAsType(_, _, args) => {
+                args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+            }
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
@@ -1421,14 +1423,14 @@ impl Type {
 
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
-    pub fn get_field_type(&self, field_name: &str) -> Type {
+    pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
         match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap().0,
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).map(|(typ, _)| typ),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
+                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ).cloned()
             }
-            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
+            _ => None,
         }
     }
 
@@ -1591,11 +1593,17 @@ impl Type {
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
             )),
 
+            Type::TraitAsType(s, name, args) => {
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                Type::TraitAsType(*s, name.clone(), args)
+            }
+
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
-            | Type::TraitAsType(..)
             | Type::Error
             | Type::Code
             | Type::Unit => self.clone(),
@@ -1613,7 +1621,9 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
+            Type::Struct(_, generic_args)
+            | Type::Alias(_, generic_args)
+            | Type::TraitAsType(_, _, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
@@ -1637,7 +1647,6 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
-            | Type::TraitAsType(..)
             | Type::Error
             | Type::Code
             | Type::Unit => false,
@@ -1689,16 +1698,14 @@ impl Type {
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
+            TraitAsType(s, name, args) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                TraitAsType(*s, name.clone(), args)
+            }
+
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(..)
-            | FieldElement
-            | Integer(_, _)
-            | Bool
-            | Constant(_)
-            | Unit
-            | Code
-            | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => self.clone(),
         }
     }
 
@@ -1780,7 +1787,7 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u64();
+                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }

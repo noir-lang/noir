@@ -305,8 +305,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 }
                 self.increment_program_counter()
             }
-            Opcode::Trap { revert_data_offset, revert_data_size } => {
-                self.trap(*revert_data_offset, *revert_data_size)
+            Opcode::Trap { revert_data } => {
+                if revert_data.size > 0 {
+                    self.trap(self.memory.read_ref(revert_data.pointer).0, revert_data.size)
+                } else {
+                    self.trap(0, 0)
+                }
             }
             Opcode::Stop { return_data_offset, return_data_size } => {
                 self.finish(*return_data_offset, *return_data_size)
@@ -715,7 +719,7 @@ mod tests {
 
         let jump_opcode = Opcode::Jump { location: 3 };
 
-        let trap_opcode = Opcode::Trap { revert_data_offset: 0, revert_data_size: 0 };
+        let trap_opcode = Opcode::Trap { revert_data: HeapArray::default() };
 
         let not_equal_cmp_opcode = Opcode::BinaryFieldOp {
             op: BinaryFieldOp::Equals,

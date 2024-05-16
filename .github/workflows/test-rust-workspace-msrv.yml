@@ -88,7 +88,8 @@ jobs:
       - name: Run tests
         run: |
           cargo nextest run --archive-file nextest-archive.tar.zst \
-            --partition count:${{ matrix.partition }}/4
+            --partition count:${{ matrix.partition }}/4 \
+            --no-fail-fast
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.

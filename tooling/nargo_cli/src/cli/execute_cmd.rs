@@ -18,7 +18,6 @@ use noirc_frontend::graph::CrateName;
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
@@ -48,11 +47,7 @@ pub(crate) struct ExecuteCommand {
     oracle_resolver: Option<String>,
 }
 
-pub(crate) fn run(
-    backend: &Backend,
-    args: ExecuteCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -68,10 +63,6 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = args
-        .compile_options
-        .expression_width
-        .unwrap_or_else(|| backend.get_backend_info_or_default());
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let compilation_result = compile_program(
@@ -89,7 +80,8 @@ pub(crate) fn run(
             args.compile_options.silence_warnings,
         )?;
 
-        let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+        let compiled_program =
+            nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
 
         let (return_value, witness_stack) = execute_program_and_decode(
             compiled_program,
@@ -154,7 +146,9 @@ pub(crate) fn execute_program(
                 warnings: compiled_program.warnings.clone(),
             };
 
-            if let Some(diagnostic) = try_to_diagnose_runtime_error(&err, &compiled_program.debug) {
+            if let Some(diagnostic) =
+                try_to_diagnose_runtime_error(&err, &compiled_program.abi, &compiled_program.debug)
+            {
                 diagnostic.report(&debug_artifact, false);
             }
 
