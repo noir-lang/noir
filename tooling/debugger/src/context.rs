@@ -16,8 +16,63 @@ use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
 use noirc_driver::DebugFile;
 
+use thiserror::Error;
+
 use std::collections::BTreeMap;
 use std::collections::{hash_set::Iter, HashSet};
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct DebugLocation {
+    pub circuit_id: u32,
+    pub opcode_location: OpcodeLocation,
+}
+
+impl std::fmt::Display for DebugLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let circuit_id = self.circuit_id;
+        match self.opcode_location {
+            OpcodeLocation::Acir(index) => write!(f, "{circuit_id}:{index}"),
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                write!(f, "{circuit_id}:{acir_index}.{brillig_index}")
+            }
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DebugLocationFromStrError {
+    #[error("Invalid debug location string: {0}")]
+    InvalidDebugLocationString(String),
+}
+
+impl std::str::FromStr for DebugLocation {
+    type Err = DebugLocationFromStrError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<_> = s.split(':').collect();
+
+        if parts.is_empty() || parts.len() > 2 {
+            return Err(DebugLocationFromStrError::InvalidDebugLocationString(s.to_string()));
+        }
+
+        fn parse_components(parts: &Vec<&str>) -> Option<DebugLocation> {
+            match parts.len() {
+                1 => {
+                    let opcode_location = OpcodeLocation::from_str(parts[0]).ok()?;
+                    Some(DebugLocation { circuit_id: 0, opcode_location })
+                }
+                2 => {
+                    let circuit_id = parts[0].parse().ok()?;
+                    let opcode_location = OpcodeLocation::from_str(parts[1]).ok()?;
+                    Some(DebugLocation { circuit_id, opcode_location })
+                }
+                _ => unreachable!("`DebugLocation` has too many components"),
+            }
+        }
+
+        parse_components(&parts)
+            .ok_or(DebugLocationFromStrError::InvalidDebugLocationString(s.to_string()))
+    }
+}
 
 #[derive(Debug)]
 pub(super) enum DebugCommandResult {
