@@ -1,4 +1,4 @@
-use crate::context::{DebugCommandResult, DebugContext};
+use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -48,7 +48,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             foreign_call_executor,
             unconstrained_functions,
         );
-        let last_result = if context.get_current_opcode_location().is_none() {
+        let last_result = if context.get_current_debug_location().is_none() {
             // handle circuit with no opcodes
             DebugCommandResult::Done
         } else {
@@ -66,38 +66,41 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     pub fn show_current_vm_status(&self) {
-        let location = self.context.get_current_opcode_location();
-        let opcodes = self.context.get_opcodes();
+        let location = self.context.get_current_debug_location();
 
+        // TODO: show the circuit the frame belongs to
         match location {
             None => println!("Finished execution"),
             Some(location) => {
-                match location {
+                let circuit_id = location.circuit_id;
+                let opcodes = self.context.get_opcodes_of_circuit(circuit_id);
+                match &location.opcode_location {
                     OpcodeLocation::Acir(ip) => {
-                        println!("At opcode {}: {}", ip, opcodes[ip]);
+                        println!("At opcode {}: {}", ip, opcodes[*ip]);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
                         let brillig_bytecode =
-                            if let Opcode::BrilligCall { id, .. } = opcodes[acir_index] {
+                            if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index] {
                                 &self.unconstrained_functions[id as usize].bytecode
                             } else {
                                 unreachable!("Brillig location does not contain Brillig opcodes");
                             };
                         println!(
                             "At opcode {}.{}: {:?}",
-                            acir_index, brillig_index, brillig_bytecode[brillig_index]
+                            acir_index, brillig_index, brillig_bytecode[*brillig_index]
                         );
                     }
                 }
-                let locations = self.context.get_source_location_for_opcode_location(&location);
+                let locations = self.context.get_source_location_for_debug_location(&location);
                 print_source_code_location(self.debug_artifact, &locations);
             }
         }
     }
 
-    fn show_stack_frame(&self, index: usize, location: &OpcodeLocation) {
+    fn show_stack_frame(&self, index: usize, debug_location: &DebugLocation) {
+        // TODO: show the circuit the frame belongs to
         let opcodes = self.context.get_opcodes();
-        match location {
+        match &debug_location.opcode_location {
             OpcodeLocation::Acir(instruction_pointer) => {
                 println!(
                     "Frame #{index}, opcode {}: {}",
@@ -117,7 +120,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 );
             }
         }
-        let locations = self.context.get_source_location_for_opcode_location(location);
+        let locations = self.context.get_source_location_for_debug_location(debug_location);
         print_source_code_location(self.debug_artifact, &locations);
     }
 
@@ -134,8 +137,12 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn display_opcodes(&self) {
+        // TODO: handle multiple circuits
+        let current_opcode_location = self
+            .context
+            .get_current_debug_location()
+            .map(|debug_location| debug_location.opcode_location);
         let opcodes = self.context.get_opcodes();
-        let current_opcode_location = self.context.get_current_opcode_location();
         let current_acir_index = match current_opcode_location {
             Some(OpcodeLocation::Acir(ip)) => Some(ip),
             Some(OpcodeLocation::Brillig { acir_index, .. }) => Some(acir_index),
@@ -148,7 +155,10 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         let outer_marker = |acir_index| {
             if current_acir_index == Some(acir_index) {
                 "->"
-            } else if self.context.is_breakpoint_set(&OpcodeLocation::Acir(acir_index)) {
+            } else if self.context.is_breakpoint_set(&DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Acir(acir_index),
+            }) {
                 " *"
             } else {
                 ""
@@ -157,10 +167,10 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         let brillig_marker = |acir_index, brillig_index| {
             if current_acir_index == Some(acir_index) && brillig_index == current_brillig_index {
                 "->"
-            } else if self
-                .context
-                .is_breakpoint_set(&OpcodeLocation::Brillig { acir_index, brillig_index })
-            {
+            } else if self.context.is_breakpoint_set(&DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index, brillig_index },
+            }) {
                 " *"
             } else {
                 ""
@@ -194,21 +204,21 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn add_breakpoint_at(&mut self, location: OpcodeLocation) {
-        if !self.context.is_valid_opcode_location(&location) {
-            println!("Invalid opcode location {location}");
+    fn add_breakpoint_at(&mut self, location: DebugLocation) {
+        if !self.context.is_valid_debug_location(&location) {
+            println!("Invalid location {location}");
         } else if self.context.add_breakpoint(location) {
-            println!("Added breakpoint at opcode {location}");
+            println!("Added breakpoint at {location}");
         } else {
-            println!("Breakpoint at opcode {location} already set");
+            println!("Breakpoint at {location} already set");
         }
     }
 
-    fn delete_breakpoint_at(&mut self, location: OpcodeLocation) {
+    fn delete_breakpoint_at(&mut self, location: DebugLocation) {
         if self.context.delete_breakpoint(&location) {
-            println!("Breakpoint at opcode {location} deleted");
+            println!("Breakpoint at {location} deleted");
         } else {
-            println!("Breakpoint at opcode {location} not set");
+            println!("Breakpoint at {location} not set");
         }
     }
 
@@ -285,8 +295,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn restart_session(&mut self) {
-        let breakpoints: Vec<OpcodeLocation> =
-            self.context.iterate_breakpoints().copied().collect();
+        let breakpoints: Vec<DebugLocation> = self.context.iterate_breakpoints().copied().collect();
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, self.debug_artifact));
         self.context = DebugContext::new(
@@ -297,8 +306,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             foreign_call_executor,
             self.unconstrained_functions,
         );
-        for opcode_location in breakpoints {
-            self.context.add_breakpoint(opcode_location);
+        for debug_location in breakpoints {
+            self.context.add_breakpoint(debug_location);
         }
         self.last_result = DebugCommandResult::Ok;
         println!("Restarted debugging session.");
@@ -489,7 +498,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
             "break",
             command! {
                 "add a breakpoint at an opcode location",
-                (LOCATION:OpcodeLocation) => |location| {
+                (LOCATION:DebugLocation) => |location| {
                     ref_context.borrow_mut().add_breakpoint_at(location);
                     Ok(CommandStatus::Done)
                 }
@@ -499,7 +508,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
             "delete",
             command! {
                 "delete breakpoint at an opcode location",
-                (LOCATION:OpcodeLocation) => |location| {
+                (LOCATION:DebugLocation) => |location| {
                     ref_context.borrow_mut().delete_breakpoint_at(location);
                     Ok(CommandStatus::Done)
                 }
