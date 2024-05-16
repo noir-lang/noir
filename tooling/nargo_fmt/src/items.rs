@@ -38,8 +38,6 @@ impl<'me, T: HasItem> Items<'me, T> {
         span: Span,
         elements: Vec<T>,
     ) -> Self {
-        dbg!(span.start());
-        dbg!(span.end());
         Self {
             visitor,
             shape,

@@ -1181,8 +1181,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Type::FmtString(_, elements) => {
                         match *elements {
                             Type::Tuple(element_types) => {
-                                for element in element_types {
-                                    Self::append_printable_type_info_inner(&element, arguments);
+                                for typ in element_types {
+                                    Self::append_printable_type_info_inner(&typ, arguments);
                                 }
                             }
                             _ => unreachable!(
@@ -1191,7 +1191,7 @@ impl<'interner> Monomorphizer<'interner> {
                         }
                         true
                     }
-                    typ => {
+                    _ => {
                         Self::append_printable_type_info_inner(&typ, arguments);
                         false
                     }

@@ -207,10 +207,8 @@ pub(crate) fn format_seq<T: HasItem>(
     nested_indent.indent.block_indent(visitor.config);
 
     let exprs: Vec<_> = Items::new(&visitor, nested_indent, span, exprs).collect();
-    // dbg!(exprs.clone());
-    // dbg!("abotu format exprs");
     let exprs = format_exprs(visitor.config, tactic, trailing_comma, exprs, nested_indent, reduce);
-    // dbg!("got here");
+
     wrap_exprs(prefix, suffix, exprs, nested_indent, shape, mode)
 }
 

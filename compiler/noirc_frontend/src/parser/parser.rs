@@ -905,12 +905,6 @@ where
         })
 }
 
-// fn turbofish<'a>(
-//     type_parser: impl NoirParser<UnresolvedType> + 'a,
-// ) -> impl NoirParser<Option<Vec<UnresolvedType>>> + 'a {
-//     just(Token::DoubleColon).ignore_then(generic_type_args(type_parser)).or_not()
-// }
-
 fn expression() -> impl ExprParser {
     recursive(|expr| {
         expression_with_precedence(
@@ -1391,7 +1385,7 @@ mod test {
                 fresh_statement(),
                 true,
             ),
-            vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
+            vec!["x as u8", "x as u16", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
             atom_or_right_unary(expression(), expression_nc, fresh_statement(), true),
@@ -1589,8 +1583,14 @@ mod test {
 
     #[test]
     fn parse_parenthesized_expression() {
-        parse_all(expression(), vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"]);
-        parse_all_failing(expression(), vec!["(x+a", "((x+a)", "(,)"]);
+        parse_all(
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
+        );
+        parse_all_failing(
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            vec!["(x+a", "((x+a)", "(,)"],
+        );
     }
 
     #[test]
