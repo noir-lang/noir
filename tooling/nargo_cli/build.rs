@@ -3,6 +3,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
+use nargo_toml::{find_package_root, ManifestError};
+
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
@@ -230,6 +232,11 @@ fn compile_success_empty_{test_name}() {{
         panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap_or_default());
     }}
 
+    // skip empty test packages
+    if std::str::from_utf8(&output.stdout).unwrap_or("").contains("cannot find any files visible to git at the following path") {{
+        return ()
+    }}
+
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
         panic!("JSON was not well-formatted {{:?}}\n\n{{:?}}", e, std::str::from_utf8(&output.stdout))
@@ -298,6 +305,16 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             );
         };
         let test_dir = &test_dir.path();
+
+        match find_package_root(test_dir) {
+            Ok(_) => (),
+            Err(err) => {
+                // avoid testing when there are no files in the test_dir
+                return if matches!(err, ManifestError::InvisibleToGit(..)) {
+                    continue;
+                };
+            }
+        }
 
         write!(
             test_file,

@@ -12,6 +12,10 @@ pub enum ManifestError {
     #[error("cannot find a Nargo.toml for {0}")]
     MissingFile(PathBuf),
 
+    /// Package doesn't contain any files that are visible to git
+    #[error("cannot find any files visible to git at the following path (skipping): {0}")]
+    InvisibleToGit(PathBuf),
+
     #[error("Cannot read file {0} - does it exist?")]
     ReadFailed(PathBuf),
 

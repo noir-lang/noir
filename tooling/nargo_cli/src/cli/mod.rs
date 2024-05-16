@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use nargo_toml::find_package_root;
+use nargo_toml::{find_package_root, ManifestError};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use std::path::PathBuf;
 
@@ -100,7 +100,18 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             | NargoCommand::Backend(_)
             | NargoCommand::Dap(_)
     ) {
-        config.program_dir = find_package_root(&config.program_dir)?;
+        match find_package_root(&config.program_dir) {
+            Ok(program_dir) => config.program_dir = program_dir,
+            Err(err) => {
+                // avoid erroring when there are no files in the program_dir
+                return if matches!(err, ManifestError::InvisibleToGit(..)) {
+                    println!("{}", err);
+                    Ok(())
+                } else {
+                    Err(err.into())
+                };
+            }
+        }
     }
 
     let active_backend = get_active_backend();

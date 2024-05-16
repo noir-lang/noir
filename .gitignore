@@ -30,6 +30,7 @@ tooling/noir_js/lib
 **/target
 !test_programs/acir_artifacts/*/target
 !test_programs/acir_artifacts/*/target/witness.gz
+!test_programs/compile_success_empty/workspace_usually_gitignored/bin/Verifier.toml
 !compiler/wasm/noir-script/target
 
 gates_report.json

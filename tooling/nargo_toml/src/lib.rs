@@ -5,6 +5,7 @@
 
 use std::{
     collections::BTreeMap,
+    ffi::OsStr,
     path::{Component, Path, PathBuf},
 };
 
@@ -92,7 +93,13 @@ pub fn find_package_manifest(
         }
 
         // Return the shallowest Nargo.toml, which will be the last in the list
-        found_toml_paths.pop().ok_or_else(|| ManifestError::MissingFile(current_path.to_path_buf()))
+        found_toml_paths.pop().ok_or_else(|| {
+            if is_package_visible_to_git(current_path) {
+                ManifestError::MissingFile(current_path.to_path_buf())
+            } else {
+                ManifestError::InvisibleToGit(current_path.to_path_buf())
+            }
+        })
     } else {
         Err(ManifestError::NoCommonAncestor {
             root: root_path.to_path_buf(),
@@ -100,6 +107,33 @@ pub fn find_package_manifest(
         })
     }
 }
+
+/// Check whether the given path is visible to git.
+/// A package can become invisible to git when its visible contents are deleted,
+/// but its folders remain, as can happen from git merges.
+fn is_package_visible_to_git(current_path: &Path) -> bool {
+    if current_path.is_file() {
+        // **/Verifier.toml
+        if current_path.file_name() != Some(OsStr::new("Verifier.toml")) {
+            return true;
+        }
+    } else {
+        // **/target
+        // !test_programs/acir_artifacts/*/target
+        if current_path.file_name() == Some(OsStr::new("target")) {
+            return current_path.to_str().unwrap_or("").contains("acir_artifacts");
+        }
+
+        for sub_path_entry in current_path.read_dir().expect("path to exist during compilation") {
+            let sub_path = sub_path_entry.expect("path to exist during compilation").path();
+            if is_package_visible_to_git(&sub_path) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
 ///
 /// Returns a [ManifestError] if `current_path` does not contain a manifest file.
