@@ -1,8 +1,5 @@
 use crate::hash::{compute_secret_hash, compute_message_hash, compute_message_nullifier};
-use dep::protocol_types::{
-    address::{AztecAddress, EthAddress},
-    constants::{L1_TO_L2_MESSAGE_LENGTH, NESTED_CALL_L2_GAS_BUFFER}, header::Header
-};
+use dep::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH, header::Header};
 use dep::protocol_types::traits::{Deserialize, Serialize, Empty};
 use dep::protocol_types::abis::function_selector::FunctionSelector;
 use dep::protocol_types::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
@@ -200,9 +197,12 @@ impl Empty for AvmContext {
 
 // Helper functions
 fn gas_for_call(user_gas: GasOpts) -> [Field; 2] {
+    // It's ok to use the max possible gas here, because the gas will be
+    // capped by the gas left in the (STATIC)CALL instruction.
+    let MAX_POSSIBLE_FIELD: Field = 0 - 1;
     [
-        user_gas.l2_gas.unwrap_or_else(|| l2_gas_left() - NESTED_CALL_L2_GAS_BUFFER),
-        user_gas.da_gas.unwrap_or_else(|| da_gas_left())
+        user_gas.l2_gas.unwrap_or(MAX_POSSIBLE_FIELD),
+        user_gas.da_gas.unwrap_or(MAX_POSSIBLE_FIELD)
     ]
 }
 

@@ -11,6 +11,7 @@ import { adjustCalldataIndex, initContext } from '../fixtures/index.js';
 import { HostStorage } from '../journal/host_storage.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
 import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
+import { L2GasLeft } from './context_getters.js';
 import { Call, Return, Revert, StaticCall } from './external_calls.js';
 import { type Instruction } from './instruction.js';
 import { CalldataCopy } from './memory.js';
@@ -40,7 +41,7 @@ describe('External Calls', () => {
         ...Buffer.from('d2345678', 'hex'), // retOffset
         ...Buffer.from('e2345678', 'hex'), // retSize
         ...Buffer.from('f2345678', 'hex'), // successOffset
-        ...Buffer.from('f3345678', 'hex'), // temporaryFunctionSelectorOffset
+        ...Buffer.from('f3345678', 'hex'), // functionSelectorOffset
       ]);
       const inst = new Call(
         /*indirect=*/ 0x01,
@@ -51,7 +52,7 @@ describe('External Calls', () => {
         /*retOffset=*/ 0xd2345678,
         /*retSize=*/ 0xe2345678,
         /*successOffset=*/ 0xf2345678,
-        /*temporaryFunctionSelectorOffset=*/ 0xf3345678,
+        /*functionSelectorOffset=*/ 0xf3345678,
       );
 
       expect(Call.deserialize(buf)).toEqual(inst);
@@ -86,8 +87,7 @@ describe('External Calls', () => {
         ]),
       );
 
-      // const {  l2GasLeft: initialL2Gas, daGasLeft: initialDaGas } = context.machineState;
-      const { daGasLeft: initialDaGas } = context.machineState;
+      const { l2GasLeft: initialL2Gas, daGasLeft: initialDaGas } = context.machineState;
 
       context.machineState.memory.set(0, new Field(l2Gas));
       context.machineState.memory.set(1, new Field(daGas));
@@ -107,7 +107,7 @@ describe('External Calls', () => {
         retOffset,
         retSize,
         successOffset,
-        /*temporaryFunctionSelectorOffset=*/ 0,
+        /*functionSelectorOffset=*/ 0,
       );
       await instruction.execute(context);
 
@@ -128,48 +128,60 @@ describe('External Calls', () => {
       const expectedStoredValue = new Fr(1n);
       expect(nestedContractWrites!.get(slotNumber)).toEqual(expectedStoredValue);
 
-      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/5625): gas not plumbed through correctly in nested calls.
-      // expect(context.machineState.l2GasLeft).toEqual(initialL2Gas - otherContextInstructionsL2GasCost);
+      expect(context.machineState.l2GasLeft).toBeLessThan(initialL2Gas);
       expect(context.machineState.daGasLeft).toEqual(initialDaGas);
     });
 
-    it('Should refuse to execute a call if not enough gas', async () => {
+    it('Should cap to available gas if allocated is bigger', async () => {
       const gasOffset = 0;
       const l2Gas = 1e9;
-      const daGas = 3e6;
+      const daGas = 1e9;
       const addrOffset = 2;
       const addr = new Fr(123456n);
-      const argsOffset = 3;
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
-      const argsSize = args.length;
+      const argsSize = 0;
       const argsSizeOffset = 20;
       const retOffset = 7;
-      const retSize = 2;
+      const retSize = 1;
       const successOffset = 6;
+
+      const otherContextInstructionsBytecode = markBytecodeAsAvm(
+        encodeToBytecode([
+          new L2GasLeft(/*indirect=*/ 0, /*dstOffset=*/ 0),
+          new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 1),
+        ]),
+      );
+
+      const { l2GasLeft: initialL2Gas, daGasLeft: initialDaGas } = context.machineState;
 
       context.machineState.memory.set(0, new Field(l2Gas));
       context.machineState.memory.set(1, new Field(daGas));
       context.machineState.memory.set(2, new Field(addr));
       context.machineState.memory.set(argsSizeOffset, new Uint32(argsSize));
-      context.machineState.memory.setSlice(3, args);
-
       jest
         .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
-        .mockRejectedValue(new Error('No bytecode expected to be requested since not enough gas'));
+        .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new Call(
         /*indirect=*/ 0,
         gasOffset,
         addrOffset,
-        argsOffset,
+        /*argsOffset=*/ 0,
         argsSizeOffset,
         retOffset,
         retSize,
         successOffset,
-        /*temporaryFunctionSelectorOffset=*/ 0,
+        /*functionSelectorOffset=*/ 0,
       );
+      await instruction.execute(context);
 
-      await expect(() => instruction.execute(context)).rejects.toThrow(/Not enough.*gas left/i);
+      const successValue = context.machineState.memory.get(successOffset);
+      expect(successValue).toEqual(new Uint8(1n));
+
+      const retValue = context.machineState.memory.get(retOffset).toBigInt();
+      expect(retValue).toBeLessThan(initialL2Gas);
+
+      expect(context.machineState.l2GasLeft).toBeLessThan(initialL2Gas);
+      expect(context.machineState.daGasLeft).toEqual(initialDaGas);
     });
   });
 
@@ -185,7 +197,7 @@ describe('External Calls', () => {
         ...Buffer.from('d2345678', 'hex'), // retOffset
         ...Buffer.from('e2345678', 'hex'), // retSize
         ...Buffer.from('f2345678', 'hex'), // successOffset
-        ...Buffer.from('f3345678', 'hex'), // temporaryFunctionSelectorOffset
+        ...Buffer.from('f3345678', 'hex'), // functionSelectorOffset
       ]);
       const inst = new StaticCall(
         /*indirect=*/ 0x01,
@@ -196,7 +208,7 @@ describe('External Calls', () => {
         /*retOffset=*/ 0xd2345678,
         /*retSize=*/ 0xe2345678,
         /*successOffset=*/ 0xf2345678,
-        /*temporaryFunctionSelectorOffset=*/ 0xf3345678,
+        /*functionSelectorOffset=*/ 0xf3345678,
       );
 
       expect(StaticCall.deserialize(buf)).toEqual(inst);
@@ -241,7 +253,7 @@ describe('External Calls', () => {
         retOffset,
         retSize,
         successOffset,
-        /*temporaryFunctionSelectorOffset=*/ 0,
+        /*functionSelectorOffset=*/ 0,
       );
       await expect(() => instruction.execute(context)).rejects.toThrow(
         'Static call cannot update the state, emit L2->L1 messages or generate logs',
