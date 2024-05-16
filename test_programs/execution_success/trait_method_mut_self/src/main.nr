@@ -3,18 +3,23 @@ use dep::std::hash::poseidon2::Poseidon2Hasher;
 
 fn main(x: Field, y: pub Field) {
     let mut a_mut_ref = AType::new(x);
+
     pass_trait_by_value(a_mut_ref, y);
     assert(a_mut_ref.x == x);
-    // pass_trait_by_mut_ref(&mut a_mut_ref, y);
-    // assert(a_mut_ref.x == y);
 
-    // let mut hasher = Poseidon2Hasher::default();
-    // hasher.write(x);
-    // hasher.write(y);
-    // let expected_hash = hasher.finish();
-    // // Check that we get the same result when using the hasher in a 
-    // // method that purely uses trait methods without a supplied implementation.
-    // assert(hash_simple_array::<Poseidon2Hasher>([x, y]) == expected_hash);
+    pass_tarit_by_value_impl_param(a_mut_ref, y);
+    assert(a_mut_ref.x == x);
+
+    pass_trait_by_mut_ref(&mut a_mut_ref, y);
+    assert(a_mut_ref.x == y);
+
+    let mut hasher = Poseidon2Hasher::default();
+    hasher.write(x);
+    hasher.write(y);
+    let expected_hash = hasher.finish();
+    // Check that we get the same result when using the hasher in a 
+    // method that purely uses trait methods without a supplied implementation.
+    assert(hash_simple_array::<Poseidon2Hasher>([x, y]) == expected_hash);
 }
 
 trait SomeTrait {
@@ -43,8 +48,13 @@ impl SomeTrait for AType {
     }
 }
 
-fn pass_trait_by_value<T>(mut a_mut_ref: impl SomeTrait, value: Field) {
-// where T: SomeTrait {
+fn pass_tarit_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field) {
+    // We auto add a mutable reference to the object type if the method call expects a mutable self
+    a_mut_ref.set_value(value);
+    assert(a_mut_ref.get_value() == value);
+}
+
+fn pass_trait_by_value<T>(mut a_mut_ref: T, value: Field) where T: SomeTrait {
     // We auto add a mutable reference to the object type if the method call expects a mutable self
     a_mut_ref.set_value(value);
     assert(a_mut_ref.get_value() == value);
