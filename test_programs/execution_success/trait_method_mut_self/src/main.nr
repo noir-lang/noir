@@ -67,7 +67,9 @@ fn pass_trait_by_mut_ref<T>(a_mut_ref: &mut T, value: Field) where T: SomeTrait 
 
 fn hash_simple_array<H>(input: [Field; 2]) -> Field where H: Hasher + Default {
     // Check that we can a trait method to instead a trait implementation
-    let mut hasher: H = H::default();
+    // TODO: Need to remove the need for this type annotation
+    // TODO: Curently, without the annotation we will get `Expression type is ambiguous` when trying to use the `hasher`
+    let mut hasher = H::default();
     // Regression that the object is converted to a mutable reference type `&mut _`.
     // Otherwise will see `Expected type &mut _, found type H`.
     // Then we need to make sure to also auto dereference later in the type checking process
