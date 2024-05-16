@@ -12,6 +12,8 @@ BASE_BENCHMARK_FILE_JSON="${BENCH_FOLDER}/base-benchmark.json"
 # If on a pull request, get the data from the most recent commit on master where it's available to generate a comment comparing them
 if [ -n "${PULL_REQUEST:-}" ]; then
   MASTER_COMMIT_HASH=$(curl -s "https://api.github.com/repos/AztecProtocol/aztec-packages/pulls/${PULL_REQUEST##*/}" | jq -r '.base.sha')
+  # master could have diverged since starting this job, refresh history
+  git fetch --depth 50 origin master
   MASTER_COMMIT_HASHES=($(git log $MASTER_COMMIT_HASH --format="%H" -n 50))
 
   mkdir -p $BENCH_FOLDER

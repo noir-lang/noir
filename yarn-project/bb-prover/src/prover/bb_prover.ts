@@ -7,6 +7,7 @@ import {
   type ServerCircuitProver,
   makePublicInputsAndProof,
 } from '@aztec/circuit-types';
+import { type CircuitProvingStats, type CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
 import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
@@ -14,12 +15,11 @@ import {
   Fr,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
-  type NESTED_RECURSIVE_PROOF_LENGTH,
-  type ParityPublicInputs,
+  NESTED_RECURSIVE_PROOF_LENGTH,
   type PreviousRollupData,
   Proof,
   type PublicKernelCircuitPublicInputs,
-  type RECURSIVE_PROOF_LENGTH,
+  RECURSIVE_PROOF_LENGTH,
   RecursiveProof,
   RollupTypes,
   RootParityInput,
@@ -65,7 +65,7 @@ import {
   verifyProof,
 } from '../bb/execute.js';
 import { PublicKernelArtifactMapping } from '../mappings/mappings.js';
-import { circuitTypeToCircuitName, emitCircuitProvingStats, emitCircuitWitnessGenerationStats } from '../stats.js';
+import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
 import {
   AGGREGATION_OBJECT_SIZE,
   CIRCUIT_PUBLIC_INPUTS_INDEX,
@@ -114,11 +114,11 @@ export class BBNativeRollupProver implements ServerCircuitProver {
    * @returns The public inputs of the parity circuit.
    */
   public async getBaseParityProof(inputs: BaseParityInputs): Promise<RootParityInput<typeof RECURSIVE_PROOF_LENGTH>> {
-    const witnessMap = convertBaseParityInputsToWitnessMap(inputs);
-
-    const [circuitOutput, proof] = await this.createRecursiveProof<typeof RECURSIVE_PROOF_LENGTH, ParityPublicInputs>(
-      witnessMap,
+    const [circuitOutput, proof] = await this.createRecursiveProof(
+      inputs,
       'BaseParityArtifact',
+      RECURSIVE_PROOF_LENGTH,
+      convertBaseParityInputsToWitnessMap,
       convertBaseParityOutputsFromWitnessMap,
     );
 
@@ -137,12 +137,13 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   public async getRootParityProof(
     inputs: RootParityInputs,
   ): Promise<RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>> {
-    const witnessMap = convertRootParityInputsToWitnessMap(inputs);
-
-    const [circuitOutput, proof] = await this.createRecursiveProof<
-      typeof NESTED_RECURSIVE_PROOF_LENGTH,
-      ParityPublicInputs
-    >(witnessMap, 'RootParityArtifact', convertRootParityOutputsFromWitnessMap);
+    const [circuitOutput, proof] = await this.createRecursiveProof(
+      inputs,
+      'RootParityArtifact',
+      NESTED_RECURSIVE_PROOF_LENGTH,
+      convertRootParityInputsToWitnessMap,
+      convertRootParityOutputsFromWitnessMap,
+    );
 
     const verificationKey = await this.getVerificationKeyDataForCircuit('RootParityArtifact');
 
@@ -163,11 +164,13 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     if (kernelOps === undefined) {
       throw new Error(`Unable to prove kernel type ${PublicKernelType[kernelRequest.type]}`);
     }
-    const witnessMap = kernelOps.convertInputs(kernelRequest.inputs);
+    const [result, proof] = await this.createProof(
+      kernelRequest.inputs,
+      kernelOps.artifact,
+      kernelOps.convertInputs,
+      kernelOps.convertOutputs,
+    );
 
-    const [outputWitness, proof] = await this.createProof(witnessMap, kernelOps.artifact);
-
-    const result = kernelOps.convertOutputs(outputWitness);
     return makePublicInputsAndProof(result, proof);
   }
 
@@ -179,11 +182,13 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   public async getPublicTailProof(
     kernelRequest: PublicKernelTailRequest,
   ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
-    const witnessMap = convertPublicTailInputsToWitnessMap(kernelRequest.inputs);
+    const [result, proof] = await this.createProof(
+      kernelRequest.inputs,
+      'PublicKernelTailArtifact',
+      convertPublicTailInputsToWitnessMap,
+      convertPublicTailOutputFromWitnessMap,
+    );
 
-    const [outputWitness, proof] = await this.createProof(witnessMap, 'PublicKernelTailArtifact');
-
-    const result = convertPublicTailOutputFromWitnessMap(outputWitness);
     return makePublicInputsAndProof(result, proof);
   }
 
@@ -195,11 +200,12 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   public async getBaseRollupProof(
     input: BaseRollupInputs,
   ): Promise<PublicInputsAndProof<BaseOrMergeRollupPublicInputs>> {
-    const witnessMap = convertBaseRollupInputsToWitnessMap(input);
-
-    const [outputWitness, proof] = await this.createProof(witnessMap, 'BaseRollupArtifact');
-
-    const result = convertBaseRollupOutputsFromWitnessMap(outputWitness);
+    const [result, proof] = await this.createProof(
+      input,
+      'BaseRollupArtifact',
+      convertBaseRollupInputsToWitnessMap,
+      convertBaseRollupOutputsFromWitnessMap,
+    );
 
     return makePublicInputsAndProof(result, proof);
   }
@@ -214,11 +220,12 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     // verify both inputs
     await Promise.all(input.previousRollupData.map(prev => this.verifyPreviousRollupProof(prev)));
 
-    const witnessMap = convertMergeRollupInputsToWitnessMap(input);
-
-    const [outputWitness, proof] = await this.createProof(witnessMap, 'MergeRollupArtifact');
-
-    const result = convertMergeRollupOutputsFromWitnessMap(outputWitness);
+    const [result, proof] = await this.createProof(
+      input,
+      'MergeRollupArtifact',
+      convertMergeRollupInputsToWitnessMap,
+      convertMergeRollupOutputsFromWitnessMap,
+    );
 
     return makePublicInputsAndProof(result, proof);
   }
@@ -232,18 +239,25 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     // verify the inputs
     await Promise.all(input.previousRollupData.map(prev => this.verifyPreviousRollupProof(prev)));
 
-    const witnessMap = convertRootRollupInputsToWitnessMap(input);
-
-    const [outputWitness, proof] = await this.createProof(witnessMap, 'RootRollupArtifact');
+    const [result, proof] = await this.createProof(
+      input,
+      'RootRollupArtifact',
+      convertRootRollupInputsToWitnessMap,
+      convertRootRollupOutputsFromWitnessMap,
+    );
 
     await this.verifyProof('RootRollupArtifact', proof);
 
-    const result = convertRootRollupOutputsFromWitnessMap(outputWitness);
     return makePublicInputsAndProof(result, proof);
   }
 
   // TODO(@PhilWindle): Delete when no longer required
-  public async createProof(witnessMap: WitnessMap, circuitType: ServerProtocolArtifact): Promise<[WitnessMap, Proof]> {
+  public async createProof<Input extends { toBuffer: () => Buffer }, Output extends { toBuffer: () => Buffer }>(
+    input: Input,
+    circuitType: ServerProtocolArtifact,
+    convertInput: (input: Input) => WitnessMap,
+    convertOutput: (outputWitness: WitnessMap) => Output,
+  ): Promise<[Output, Proof]> {
     // Create random directory to be used for temp files
     const bbWorkingDirectory = `${this.config.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
     await fs.mkdir(bbWorkingDirectory, { recursive: true });
@@ -265,15 +279,16 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     logger.debug(`Generating witness data for ${circuitType}`);
 
+    const witnessMap = convertInput(input);
     const timer = new Timer();
     const outputWitness = await simulator.simulateCircuit(witnessMap, artifact);
-    emitCircuitWitnessGenerationStats(
-      circuitTypeToCircuitName(circuitType),
-      timer.ms(),
-      witnessMap.size * Fr.SIZE_IN_BYTES,
-      outputWitness.size * Fr.SIZE_IN_BYTES,
-      logger,
-    );
+    logger.debug(`Generated witness`, {
+      circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+      duration: timer.ms(),
+      inputSize: witnessMap.size * Fr.SIZE_IN_BYTES,
+      outputSize: outputWitness.size * Fr.SIZE_IN_BYTES,
+      eventName: 'circuit-witness-generation',
+    } satisfies CircuitWitnessGenerationStats);
 
     // Now prove the circuit from the generated witness
     logger.debug(`Proving ${circuitType}...`);
@@ -293,38 +308,51 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     }
 
     // Ensure our vk cache is up to date
-    await this.updateVerificationKeyAfterProof(provingResult.vkPath!, circuitType);
+    const vkData = await this.updateVerificationKeyAfterProof(provingResult.vkPath!, circuitType);
 
     // Read the proof and then cleanup up our temporary directory
-    const proof = await fs.readFile(`${provingResult.proofPath!}/${PROOF_FILENAME}`);
-
-    // does not include reading the proof from disk above because duration comes from the bb wrapper
-    emitCircuitProvingStats(
-      circuitTypeToCircuitName(circuitType),
-      provingResult.duration,
-      witnessMap.size * Fr.SIZE_IN_BYTES,
-      outputWitness.size * Fr.SIZE_IN_BYTES,
-      proof.length,
-      logger,
-    );
+    const rawProof = await fs.readFile(`${provingResult.proofPath!}/${PROOF_FILENAME}`);
 
     await fs.rm(bbWorkingDirectory, { recursive: true, force: true });
 
-    logger.info(`Generated proof for ${circuitType} in ${provingResult.duration} ms, size: ${proof.length} fields`);
+    const output = convertOutput(outputWitness);
+    const proof = new Proof(rawProof);
+    logger.info(
+      `Generated proof for ${circuitType} in ${provingResult.duration} ms, size: ${proof.buffer.length} fields`,
+      {
+        circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+        // does not include reading the proof from disk
+        duration: provingResult.duration,
+        proofSize: proof.buffer.length,
+        eventName: 'circuit-proving',
+        inputSize: input.toBuffer().length,
+        outputSize: output.toBuffer().length,
+        circuitSize: vkData.circuitSize,
+        numPublicInputs: vkData.numPublicInputs,
+      } satisfies CircuitProvingStats,
+    );
 
-    return [outputWitness, new Proof(proof)];
+    return [output, proof];
   }
 
   /**
    * Executes a circuit and returns it's outputs and corresponding proof with embedded aggregation object
    * @param witnessMap - The input witness
    * @param circuitType - The type of circuit to be executed
+   * @param proofLength - The length of the proof to be generated. This is a dummy parameter to aid in type checking
+   * @param convertInput - Function for mapping the input object to a witness map.
    * @param convertOutput - Function for parsing the output witness to it's corresponding object
    * @returns The circuits output object and it's proof
    */
-  public async createRecursiveProof<PROOF_LENGTH extends number, CircuitOutputType>(
-    witnessMap: WitnessMap,
+  public async createRecursiveProof<
+    PROOF_LENGTH extends number,
+    CircuitInputType extends { toBuffer: () => Buffer },
+    CircuitOutputType extends { toBuffer: () => Buffer },
+  >(
+    input: CircuitInputType,
     circuitType: ServerProtocolArtifact,
+    proofLength: PROOF_LENGTH,
+    convertInput: (input: CircuitInputType) => WitnessMap,
     convertOutput: (outputWitness: WitnessMap) => CircuitOutputType,
   ): Promise<[CircuitOutputType, RecursiveProof<PROOF_LENGTH>]> {
     // Create random directory to be used for temp files
@@ -350,17 +378,20 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       logger.debug(`Generating witness data for ${circuitType}`);
 
       const timer = new Timer();
+      const witnessMap = convertInput(input);
       const outputWitness = await simulator.simulateCircuit(witnessMap, artifact);
 
-      emitCircuitWitnessGenerationStats(
-        circuitTypeToCircuitName(circuitType),
-        timer.ms(),
-        witnessMap.size * Fr.SIZE_IN_BYTES,
-        outputWitness.size * Fr.SIZE_IN_BYTES,
-        logger,
-      );
+      const output = convertOutput(outputWitness);
 
-      const outputType = convertOutput(outputWitness);
+      const inputSize = input.toBuffer().length;
+      const outputSize = output.toBuffer().length;
+      logger.debug(`Generated witness`, {
+        circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+        duration: timer.ms(),
+        inputSize,
+        outputSize,
+        eventName: 'circuit-witness-generation',
+      } satisfies CircuitWitnessGenerationStats);
 
       // Now prove the circuit from the generated witness
       logger.debug(`Proving ${circuitType}...`);
@@ -380,25 +411,26 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       }
 
       // Ensure our vk cache is up to date
-      await this.updateVerificationKeyAfterProof(provingResult.vkPath!, circuitType);
+      const vkData = await this.updateVerificationKeyAfterProof(provingResult.vkPath!, circuitType);
 
       // Read the proof and then cleanup up our temporary directory
-      const proof = await this.readProofAsFields<PROOF_LENGTH>(provingResult.proofPath!, circuitType);
+      const proof = await this.readProofAsFields(provingResult.proofPath!, circuitType, proofLength);
 
       logger.info(
         `Generated proof for ${circuitType} in ${provingResult.duration} ms, size: ${proof.proof.length} fields`,
+        {
+          circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+          circuitSize: vkData.circuitSize,
+          duration: provingResult.duration,
+          inputSize,
+          outputSize,
+          proofSize: proof.binaryProof.buffer.length,
+          eventName: 'circuit-proving',
+          numPublicInputs: vkData.numPublicInputs,
+        } satisfies CircuitProvingStats,
       );
 
-      emitCircuitProvingStats(
-        circuitTypeToCircuitName(circuitType),
-        provingResult.duration,
-        witnessMap.size * Fr.SIZE_IN_BYTES,
-        outputWitness.size * Fr.SIZE_IN_BYTES,
-        proof.binaryProof.buffer.length,
-        logger,
-      );
-
-      return [outputType, proof];
+      return [output, proof];
     } finally {
       await fs.rm(bbWorkingDirectory, { recursive: true, force: true });
     }
@@ -515,13 +547,16 @@ export class BBNativeRollupProver implements ServerCircuitProver {
    * @param filePath - The directory containing the verification key data files
    * @param circuitType - The type of circuit to which the verification key corresponds
    */
-  private async updateVerificationKeyAfterProof(filePath: string, circuitType: ServerProtocolArtifact) {
+  private async updateVerificationKeyAfterProof(
+    filePath: string,
+    circuitType: ServerProtocolArtifact,
+  ): Promise<VerificationKeyData> {
     let promise = this.verificationKeys.get(circuitType);
     if (!promise) {
       promise = this.convertVk(filePath);
       this.verificationKeys.set(circuitType, promise);
     }
-    await promise;
+    return promise;
   }
 
   /**
@@ -533,6 +568,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   private async readProofAsFields<PROOF_LENGTH extends number>(
     filePath: string,
     circuitType: ServerProtocolArtifact,
+    proofLength: PROOF_LENGTH,
   ): Promise<RecursiveProof<PROOF_LENGTH>> {
     const [binaryProof, proofString] = await Promise.all([
       fs.readFile(`${filePath}/${PROOF_FILENAME}`),
@@ -552,6 +588,10 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       `Circuit type: ${circuitType}, complete proof length: ${fields.length}, without public inputs: ${fieldsWithoutPublicInputs.length}, num public inputs: ${numPublicInputs}, circuit size: ${vkData.circuitSize}, is recursive: ${vkData.isRecursive}, raw length: ${binaryProof.length}`,
     );
     const proof = new RecursiveProof<PROOF_LENGTH>(fieldsWithoutPublicInputs, new Proof(binaryProof));
+    if (proof.proof.length !== proofLength) {
+      throw new Error("Proof length doesn't match expected length");
+    }
+
     return proof;
   }
 }

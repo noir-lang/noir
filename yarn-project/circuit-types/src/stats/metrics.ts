@@ -4,7 +4,8 @@ import { type StatsEventName } from './stats.js';
 export type MetricGroupBy =
   | 'block-size'
   | 'chain-length'
-  | 'circuit-name'
+  | 'protocol-circuit-name'
+  | 'app-circuit-name'
   | 'classes-registered'
   | 'leaf-count'
   | 'data-writes'
@@ -111,39 +112,99 @@ export const Metrics = [
     events: ['note-processor-caught-up'],
   },
   {
-    name: 'circuit_simulation_time_in_ms',
-    groupBy: 'circuit-name',
+    name: 'protocol_circuit_simulation_time_in_ms',
+    groupBy: 'protocol-circuit-name',
     description: 'Time to run a circuit simulation.',
     events: ['circuit-simulation'],
   },
   {
-    name: 'circuit_witness_generation_time_in_ms',
-    groupBy: 'circuit-name',
+    name: 'protocol_circuit_witness_generation_time_in_ms',
+    groupBy: 'protocol-circuit-name',
     description: 'Time to generate the partial witness for a circuit',
     events: ['circuit-simulation'],
   },
   {
-    name: 'circuit_proving_time_in_ms',
-    groupBy: 'circuit-name',
+    name: 'protocol_circuit_proving_time_in_ms',
+    groupBy: 'protocol-circuit-name',
     description: 'Time to prove circuit execution.',
     events: ['circuit-proving'],
   },
   {
-    name: 'circuit_input_size_in_bytes',
-    groupBy: 'circuit-name',
+    name: 'protocol_circuit_input_size_in_bytes',
+    groupBy: 'protocol-circuit-name',
     description: 'Size of the inputs to a circuit simulation.',
     events: ['circuit-simulation'],
   },
   {
-    name: 'circuit_output_size_in_bytes',
-    groupBy: 'circuit-name',
+    name: 'protocol_circuit_output_size_in_bytes',
+    groupBy: 'protocol-circuit-name',
     description: 'Size of the outputs (ie public inputs) from a circuit simulation.',
     events: ['circuit-simulation'],
   },
   {
-    name: 'circuit_proof_size_in_bytes',
-    groupBy: 'circuit-name',
+    name: 'protocol_circuit_proof_size_in_bytes',
+    groupBy: 'protocol-circuit-name',
     description: 'Size of the proof produced by a circuit.',
+    events: ['circuit-proving'],
+  },
+  {
+    name: 'protocol_circuit_num_public_inputs',
+    groupBy: 'protocol-circuit-name',
+    description: 'Number of public inputs.',
+    events: ['circuit-proving'],
+  },
+  {
+    name: 'protocol_circuit_size_in_gates',
+    groupBy: 'protocol-circuit-name',
+    description: 'Size of the proof produced by a circuit.',
+    events: ['circuit-proving'],
+  },
+  {
+    name: 'app_circuit_simulation_time_in_ms',
+    groupBy: 'app-circuit-name',
+    description: 'Time to run a circuit simulation.',
+    events: ['circuit-simulation'],
+  },
+  {
+    name: 'app_circuit_input_size_in_bytes',
+    groupBy: 'app-circuit-name',
+    description: 'Size of the inputs to a circuit simulation.',
+    events: ['circuit-simulation'],
+  },
+  {
+    name: 'app_circuit_output_size_in_bytes',
+    groupBy: 'app-circuit-name',
+    description: 'Size of the outputs (ie public inputs) from a circuit simulation.',
+    events: ['circuit-simulation'],
+  },
+  {
+    name: 'app_circuit_proof_size_in_bytes',
+    groupBy: 'app-circuit-name',
+    description: 'Size of the proof produced by a circuit.',
+    events: ['circuit-proving'],
+  },
+  {
+    name: 'app_circuit_witness_generation_time_in_ms',
+    groupBy: 'app-circuit-name',
+    description: 'Time to generate the partial witness for a circuit',
+    events: ['circuit-simulation'],
+  },
+  {
+    name: 'app_circuit_proving_time_in_ms',
+    groupBy: 'app-circuit-name',
+    description: 'Duration of proving an app circuit.',
+    events: ['circuit-proving'],
+  },
+  {
+    name: 'app_circuit_size_in_gates',
+    groupBy: 'app-circuit-name',
+    description: 'Size of an app circuit.',
+    events: ['circuit-proving'],
+  },
+  {
+    name: 'app_circuit_num_public_inputs',
+    groupBy: 'app-circuit-name',
+    description: 'Number of public inputs.',
     events: ['circuit-proving'],
   },
   {

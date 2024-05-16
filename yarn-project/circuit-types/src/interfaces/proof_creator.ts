@@ -103,7 +103,12 @@ export interface ProofCreator {
    *
    * @param partialWitness - The witness produced via circuit simulation
    * @param bytecode - The circuit bytecode in gzipped bincode format
+   * @param appCircuitName - Optionally specify the name of the app circuit
    * @returns A Promise resolving to a Proof object
    */
-  createAppCircuitProof(partialWitness: WitnessMap, bytecode: Buffer): Promise<AppCircuitProofOutput>;
+  createAppCircuitProof(
+    partialWitness: WitnessMap,
+    bytecode: Buffer,
+    appCircuitName?: string,
+  ): Promise<AppCircuitProofOutput>;
 }

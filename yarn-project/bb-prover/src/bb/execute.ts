@@ -32,6 +32,12 @@ export type BBFailure = {
 
 export type BBResult = BBSuccess | BBFailure;
 
+type BBExecResult = {
+  status: BB_RESULT;
+  exitCode: number;
+  signal: string | undefined;
+};
+
 /**
  * Invokes the Barretenberg binary with the provided command and args
  * @param pathToBB - The path to the BB binary
@@ -47,26 +53,20 @@ export function executeBB(
   args: string[],
   logger: LogFn,
   resultParser = (code: number) => code === 0,
-) {
-  return new Promise<BB_RESULT.SUCCESS | BB_RESULT.FAILURE>((resolve, reject) => {
+): Promise<BBExecResult> {
+  return new Promise<BBExecResult>(resolve => {
     // spawn the bb process
-    const bb = proc.spawn(pathToBB, [command, ...args]);
-    bb.stdout.on('data', data => {
-      const message = data.toString('utf-8').replace(/\n$/, '');
-      logger(message);
+    const bb = proc.spawn(pathToBB, [command, ...args], {
+      stdio: 'pipe',
     });
-    bb.stderr.on('data', data => {
-      const message = data.toString('utf-8').replace(/\n$/, '');
-      logger(message);
-    });
-    bb.on('close', (code: number) => {
-      if (resultParser(code)) {
-        resolve(BB_RESULT.SUCCESS);
+    bb.on('close', (exitCode: number, signal?: string) => {
+      if (resultParser(exitCode)) {
+        resolve({ status: BB_RESULT.SUCCESS, exitCode, signal });
       } else {
-        reject();
+        resolve({ status: BB_RESULT.FAILURE, exitCode, signal });
       }
     });
-  }).catch(_ => BB_RESULT.FAILURE);
+  }).catch(_ => ({ status: BB_RESULT.FAILURE, exitCode: -1, signal: undefined }));
 }
 
 const bytecodeHashFilename = 'bytecode_hash';
@@ -154,14 +154,14 @@ export async function generateKeyForNoirCircuit(
     const timer = new Timer();
     let result = await executeBB(pathToBB, `write_${key}`, args, log);
     // If we succeeded and the type of key if verification, have bb write the 'fields' version too
-    if (result == BB_RESULT.SUCCESS && key === 'vk') {
+    if (result.status == BB_RESULT.SUCCESS && key === 'vk') {
       const asFieldsArgs = ['-k', `${outputPath}/${VK_FILENAME}`, '-o', `${outputPath}/${VK_FIELDS_FILENAME}`, '-v'];
       result = await executeBB(pathToBB, `vk_as_fields`, asFieldsArgs, log);
     }
     const duration = timer.ms();
     // Cleanup the bytecode file
     await fs.rm(bytecodePath, { force: true });
-    if (result == BB_RESULT.SUCCESS) {
+    if (result.status == BB_RESULT.SUCCESS) {
       // Store the bytecode hash so we don't need to regenerate at a later time
       await fs.writeFile(bytecodeHashPath, bytecodeHash);
       return {
@@ -173,7 +173,10 @@ export async function generateKeyForNoirCircuit(
       };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
-    return { status: BB_RESULT.FAILURE, reason: `Failed to generate key` };
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to generate key. Exit code: ${result.exitCode}. Signal ${result.signal}.`,
+    };
   } catch (error) {
     return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }
@@ -231,7 +234,7 @@ export async function generateProof(
     const duration = timer.ms();
     // cleanup the bytecode
     await fs.rm(bytecodePath, { force: true });
-    if (result == BB_RESULT.SUCCESS) {
+    if (result.status == BB_RESULT.SUCCESS) {
       return {
         status: BB_RESULT.SUCCESS,
         duration,
@@ -241,7 +244,10 @@ export async function generateProof(
       };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
-    return { status: BB_RESULT.FAILURE, reason: `Failed to generate proof` };
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to generate proof. Exit code ${result.exitCode}. Signal ${result.signal}.`,
+    };
   } catch (error) {
     return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }
@@ -274,11 +280,14 @@ export async function verifyProof(
     const timer = new Timer();
     const result = await executeBB(pathToBB, 'verify', args, log);
     const duration = timer.ms();
-    if (result == BB_RESULT.SUCCESS) {
+    if (result.status == BB_RESULT.SUCCESS) {
       return { status: BB_RESULT.SUCCESS, duration };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
-    return { status: BB_RESULT.FAILURE, reason: `Failed to verify proof` };
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to verify proof. Exit code ${result.exitCode}. Signal ${result.signal}.`,
+    };
   } catch (error) {
     return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }
@@ -311,11 +320,14 @@ export async function writeVkAsFields(
     const timer = new Timer();
     const result = await executeBB(pathToBB, 'vk_as_fields', args, log);
     const duration = timer.ms();
-    if (result == BB_RESULT.SUCCESS) {
+    if (result.status == BB_RESULT.SUCCESS) {
       return { status: BB_RESULT.SUCCESS, duration, vkPath: verificationKeyPath };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
-    return { status: BB_RESULT.FAILURE, reason: `Failed to create vk as fields` };
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to create vk as fields. Exit code ${result.exitCode}. Signal ${result.signal}.`,
+    };
   } catch (error) {
     return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }
@@ -348,11 +360,14 @@ export async function writeProofAsFields(
     const timer = new Timer();
     const result = await executeBB(pathToBB, 'proof_as_fields', args, log);
     const duration = timer.ms();
-    if (result == BB_RESULT.SUCCESS) {
+    if (result.status == BB_RESULT.SUCCESS) {
       return { status: BB_RESULT.SUCCESS, duration, proofPath: proofPath };
     }
     // Not a great error message here but it is difficult to decipher what comes from bb
-    return { status: BB_RESULT.FAILURE, reason: `Failed to create proof as fields` };
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to create proof as fields. Exit code ${result.exitCode}. Signal ${result.signal}.`,
+    };
   } catch (error) {
     return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }

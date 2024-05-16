@@ -1,4 +1,5 @@
 import { type AppCircuitProofOutput, type KernelProofOutput, type ProofCreator } from '@aztec/circuit-types';
+import { type CircuitProvingStats, type CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
 import {
   Fr,
   NESTED_RECURSIVE_PROOF_LENGTH,
@@ -19,6 +20,7 @@ import { siloNoteHash } from '@aztec/circuits.js/hash';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type Tuple } from '@aztec/foundation/serialize';
+import { Timer } from '@aztec/foundation/timer';
 import {
   ClientCircuitArtifacts,
   type ClientProtocolArtifact,
@@ -50,6 +52,7 @@ import {
   generateProof,
   verifyProof,
 } from '../bb/execute.js';
+import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
 import {
   AGGREGATION_OBJECT_SIZE,
   CIRCUIT_PUBLIC_INPUTS_INDEX,
@@ -57,28 +60,6 @@ import {
   CIRCUIT_SIZE_INDEX,
   type VerificationKeyData,
 } from './verification_key_data.js';
-
-type PrivateKernelProvingOps = {
-  convertOutputs: (outputs: WitnessMap) => PrivateKernelCircuitPublicInputs | PrivateKernelTailCircuitPublicInputs;
-};
-
-const PrivateKernelArtifactMapping: Record<ClientProtocolArtifact, PrivateKernelProvingOps> = {
-  PrivateKernelInitArtifact: {
-    convertOutputs: convertPrivateKernelInitOutputsFromWitnessMap,
-  },
-  PrivateKernelInnerArtifact: {
-    convertOutputs: convertPrivateKernelInnerOutputsFromWitnessMap,
-  },
-  PrivateKernelTailArtifact: {
-    convertOutputs: convertPrivateKernelTailOutputsFromWitnessMap,
-  },
-  PrivateKernelResetArtifact: {
-    convertOutputs: convertPrivateKernelResetOutputsFromWitnessMap,
-  },
-  PrivateKernelTailToPublicArtifact: {
-    convertOutputs: convertPrivateKernelTailForPublicOutputsFromWitnessMap,
-  },
-};
 
 /**
  * This proof creator implementation uses the native bb binary.
@@ -109,45 +90,66 @@ export class BBNativeProofCreator implements ProofCreator {
   public async createProofInit(
     inputs: PrivateKernelInitCircuitPrivateInputs,
   ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
-    const witnessMap = convertPrivateKernelInitInputsToWitnessMap(inputs);
-    return await this.createSafeProof(witnessMap, 'PrivateKernelInitArtifact');
+    return await this.createSafeProof(
+      inputs,
+      'PrivateKernelInitArtifact',
+      convertPrivateKernelInitInputsToWitnessMap,
+      convertPrivateKernelInitOutputsFromWitnessMap,
+    );
   }
 
   public async createProofInner(
     inputs: PrivateKernelInnerCircuitPrivateInputs,
   ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
-    const witnessMap = convertPrivateKernelInnerInputsToWitnessMap(inputs);
-    return await this.createSafeProof(witnessMap, 'PrivateKernelInnerArtifact');
+    return await this.createSafeProof(
+      inputs,
+      'PrivateKernelInnerArtifact',
+      convertPrivateKernelInnerInputsToWitnessMap,
+      convertPrivateKernelInnerOutputsFromWitnessMap,
+    );
   }
 
   public async createProofReset(
     inputs: PrivateKernelResetCircuitPrivateInputs,
   ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
-    const witnessMap = convertPrivateKernelResetInputsToWitnessMap(inputs);
-    return await this.createSafeProof(witnessMap, 'PrivateKernelResetArtifact');
+    return await this.createSafeProof(
+      inputs,
+      'PrivateKernelResetArtifact',
+      convertPrivateKernelResetInputsToWitnessMap,
+      convertPrivateKernelResetOutputsFromWitnessMap,
+    );
   }
 
   public async createProofTail(
     inputs: PrivateKernelTailCircuitPrivateInputs,
   ): Promise<KernelProofOutput<PrivateKernelTailCircuitPublicInputs>> {
     if (!inputs.isForPublic()) {
-      const witnessMap = convertPrivateKernelTailInputsToWitnessMap(inputs);
-      return await this.createSafeProof(witnessMap, 'PrivateKernelTailArtifact');
+      return await this.createSafeProof(
+        inputs,
+        'PrivateKernelTailArtifact',
+        convertPrivateKernelTailInputsToWitnessMap,
+        convertPrivateKernelTailOutputsFromWitnessMap,
+      );
     }
-    const witnessMap = convertPrivateKernelTailToPublicInputsToWitnessMap(inputs);
-    return await this.createSafeProof(witnessMap, 'PrivateKernelTailToPublicArtifact');
+    return await this.createSafeProof(
+      inputs,
+      'PrivateKernelTailToPublicArtifact',
+      convertPrivateKernelTailToPublicInputsToWitnessMap,
+      convertPrivateKernelTailForPublicOutputsFromWitnessMap,
+    );
   }
 
   public async createAppCircuitProof(
     partialWitness: Map<number, ACVMField>,
     bytecode: Buffer,
+    appCircuitName?: string,
   ): Promise<AppCircuitProofOutput> {
     const directory = `${this.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
     await fs.mkdir(directory, { recursive: true });
     this.log.debug(`Created directory: ${directory}`);
     try {
       this.log.debug(`Proving app circuit`);
-      const proofOutput = await this.createProof(directory, partialWitness, bytecode, 'App');
+      const proofOutput = await this.createProof(directory, partialWitness, bytecode, 'App', 0, 0, appCircuitName);
       if (proofOutput.proof.proof.length != RECURSIVE_PROOF_LENGTH) {
         throw new Error(`Incorrect proof length`);
       }
@@ -276,48 +278,66 @@ export class BBNativeProofCreator implements ProofCreator {
     return await promise;
   }
 
-  private async createSafeProof<T>(
-    inputs: WitnessMap,
+  private async createSafeProof<I extends { toBuffer: () => Buffer }, O extends { toBuffer: () => Buffer }>(
+    inputs: I,
     circuitType: ClientProtocolArtifact,
-  ): Promise<KernelProofOutput<T>> {
+    convertInputs: (inputs: I) => WitnessMap,
+    convertOutputs: (outputs: WitnessMap) => O,
+  ): Promise<KernelProofOutput<O>> {
     const directory = `${this.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
     await fs.mkdir(directory, { recursive: true });
     this.log.debug(`Created directory: ${directory}`);
     try {
-      return await this.generateWitnessAndCreateProof(inputs, circuitType, directory);
+      return await this.generateWitnessAndCreateProof(inputs, circuitType, directory, convertInputs, convertOutputs);
     } finally {
       await fs.rm(directory, { recursive: true, force: true });
       this.log.debug(`Deleted directory: ${directory}`);
     }
   }
 
-  private async generateWitnessAndCreateProof<T>(
-    inputs: WitnessMap,
+  private async generateWitnessAndCreateProof<
+    I extends { toBuffer: () => Buffer },
+    O extends { toBuffer: () => Buffer },
+  >(
+    inputs: I,
     circuitType: ClientProtocolArtifact,
     directory: string,
-  ): Promise<KernelProofOutput<T>> {
+    convertInputs: (inputs: I) => WitnessMap,
+    convertOutputs: (outputs: WitnessMap) => O,
+  ): Promise<KernelProofOutput<O>> {
     this.log.debug(`Generating witness for ${circuitType}`);
     const compiledCircuit: NoirCompiledCircuit = ClientCircuitArtifacts[circuitType];
 
-    const outputWitness = await this.simulator.simulateCircuit(inputs, compiledCircuit);
+    const witnessMap = convertInputs(inputs);
+    const timer = new Timer();
+    const outputWitness = await this.simulator.simulateCircuit(witnessMap, compiledCircuit);
+    const output = convertOutputs(outputWitness);
 
-    this.log.debug(`Generated witness for ${circuitType}`);
-
-    const publicInputs = PrivateKernelArtifactMapping[circuitType].convertOutputs(outputWitness) as T;
+    const inputSize = inputs.toBuffer().length;
+    const outputSize = output.toBuffer().length;
+    this.log.debug(`Generated witness for ${circuitType}`, {
+      eventName: 'circuit-witness-generation',
+      circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+      duration: timer.ms(),
+      inputSize,
+      outputSize,
+    } satisfies CircuitWitnessGenerationStats);
 
     const proofOutput = await this.createProof(
       directory,
       outputWitness,
       Buffer.from(compiledCircuit.bytecode, 'base64'),
       circuitType,
+      inputSize,
+      outputSize,
     );
     if (proofOutput.proof.proof.length != NESTED_RECURSIVE_PROOF_LENGTH) {
       throw new Error(`Incorrect proof length`);
     }
     const nestedProof = proofOutput.proof as RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
 
-    const kernelOutput: KernelProofOutput<T> = {
-      publicInputs,
+    const kernelOutput: KernelProofOutput<O> = {
+      publicInputs: output,
       proof: nestedProof,
       verificationKey: proofOutput.verificationKey,
     };
@@ -329,6 +349,9 @@ export class BBNativeProofCreator implements ProofCreator {
     partialWitness: WitnessMap,
     bytecode: Buffer,
     circuitType: ClientProtocolArtifact | 'App',
+    inputSize: number,
+    outputSize: number,
+    appCircuitName?: string,
   ): Promise<{
     proof: RecursiveProof<typeof RECURSIVE_PROOF_LENGTH> | RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
     verificationKey: VerificationKeyAsFields;
@@ -358,11 +381,36 @@ export class BBNativeProofCreator implements ProofCreator {
     if (circuitType === 'App') {
       const vkData = await this.convertVk(directory);
       const proof = await this.readProofAsFields<typeof RECURSIVE_PROOF_LENGTH>(directory, circuitType, vkData);
+
+      this.log.debug(`Generated proof`, {
+        eventName: 'circuit-proving',
+        circuitName: 'app-circuit',
+        duration: provingResult.duration,
+        inputSize,
+        outputSize,
+        proofSize: proof.binaryProof.buffer.length,
+        appCircuitName,
+        circuitSize: vkData.circuitSize,
+        numPublicInputs: vkData.numPublicInputs,
+      } as CircuitProvingStats);
+
       return { proof, verificationKey: new VerificationKeyAsFields(vkData.keyAsFields, vkData.hash) };
     }
 
     const vkData = await this.updateVerificationKeyAfterProof(directory, circuitType);
     const proof = await this.readProofAsFields<typeof NESTED_RECURSIVE_PROOF_LENGTH>(directory, circuitType, vkData);
+
+    this.log.debug(`Generated proof`, {
+      circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+      duration: provingResult.duration,
+      eventName: 'circuit-proving',
+      inputSize,
+      outputSize,
+      proofSize: proof.binaryProof.buffer.length,
+      circuitSize: vkData.circuitSize,
+      numPublicInputs: vkData.numPublicInputs,
+    } as CircuitProvingStats);
+
     return { proof, verificationKey: new VerificationKeyAsFields(vkData.keyAsFields, vkData.hash) };
   }
 

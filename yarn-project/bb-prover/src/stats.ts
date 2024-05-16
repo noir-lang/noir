@@ -1,45 +1,6 @@
 import { type PublicKernelRequest, PublicKernelType } from '@aztec/circuit-types';
-import type { CircuitName, CircuitProvingStats, CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
-import { type Logger } from '@aztec/foundation/log';
-import { type ServerProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
-
-export function emitCircuitWitnessGenerationStats(
-  circuitName: CircuitName,
-  duration: number,
-  inputSize: number,
-  outputSize: number,
-  logger: Logger,
-) {
-  const stats: CircuitWitnessGenerationStats = {
-    eventName: 'circuit-witness-generation',
-    circuitName,
-    inputSize,
-    outputSize,
-    duration,
-  };
-
-  logger.debug('Circuit witness generation stats', stats);
-}
-
-export function emitCircuitProvingStats(
-  circuitName: CircuitName,
-  duration: number,
-  inputSize: number,
-  outputSize: number,
-  proofSize: number,
-  logger: Logger,
-) {
-  const stats: CircuitProvingStats = {
-    eventName: 'circuit-proving',
-    circuitName,
-    duration,
-    inputSize,
-    outputSize,
-    proofSize,
-  };
-
-  logger.debug('Circuit proving stats', stats);
-}
+import type { CircuitName } from '@aztec/circuit-types/stats';
+import { type ClientProtocolArtifact, type ServerProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
 
 export function mapPublicKernelToCircuitName(kernelType: PublicKernelRequest['type']): CircuitName {
   switch (kernelType) {
@@ -56,8 +17,10 @@ export function mapPublicKernelToCircuitName(kernelType: PublicKernelRequest['ty
   }
 }
 
-export function circuitTypeToCircuitName(circuitType: ServerProtocolArtifact): CircuitName {
-  switch (circuitType) {
+export function mapProtocolArtifactNameToCircuitName(
+  artifact: ServerProtocolArtifact | ClientProtocolArtifact,
+): CircuitName {
+  switch (artifact) {
     case 'BaseParityArtifact':
       return 'base-parity';
     case 'RootParityArtifact':
@@ -76,7 +39,17 @@ export function circuitTypeToCircuitName(circuitType: ServerProtocolArtifact): C
       return 'public-kernel-teardown';
     case 'PublicKernelTailArtifact':
       return 'public-kernel-tail';
+    case 'PrivateKernelInitArtifact':
+      return 'private-kernel-init';
+    case 'PrivateKernelInnerArtifact':
+      return 'private-kernel-inner';
+    case 'PrivateKernelTailArtifact':
+      return 'private-kernel-tail';
+    case 'PrivateKernelTailToPublicArtifact':
+      return 'private-kernel-tail-to-public';
+    case 'PrivateKernelResetArtifact':
+      return 'private-kernel-reset';
     default:
-      throw new Error(`Unknown circuit type: ${circuitType}`);
+      throw new Error(`Unknown circuit type: ${artifact}`);
   }
 }

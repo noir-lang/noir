@@ -84,9 +84,15 @@ export class KernelProver {
         ? CallRequest.empty()
         : currentExecution.publicTeardownFunctionCall.toCallRequest();
 
+      const functionName = await this.oracle.getFunctionName(
+        currentExecution.callStackItem.contractAddress,
+        currentExecution.callStackItem.functionData.selector,
+      );
+
       const proofOutput = await this.proofCreator.createAppCircuitProof(
         currentExecution.partialWitness,
         currentExecution.acir,
+        functionName,
       );
 
       const privateCallData = await this.createPrivateCallData(

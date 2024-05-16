@@ -76,4 +76,6 @@ export interface ProvingDataOracle {
    * @returns the master nullifier secret key.
    */
   getMasterNullifierSecretKey(nullifierPublicKey: Point): Promise<GrumpkinPrivateKey>;
+
+  getFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string | undefined>;
 }

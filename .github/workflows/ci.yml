@@ -106,7 +106,7 @@ jobs:
         timeout-minutes: 40
         uses: ./.github/ensure-tester-with-images
         with:
-          runner_type: ${{ matrix.test == 'client-prover-integration' && '32core-tester-x86' || '8core-tester-x86' }}
+          runner_type: ${{ contains(matrix.test, 'prover') && '64core-tester-x86' || '8core-tester-x86' }}
           builder_type: builder-x86
           # these are copied to the tester and expected by the earthly command below
           # if they fail to copy, it will try to build them on the tester and fail
@@ -135,7 +135,7 @@ jobs:
         uses: ./.github/ensure-tester-with-images
         timeout-minutes: 40
         with:
-          runner_type: 16core-tester-x86
+          runner_type: ${{ contains(matrix.test, 'prover') && '64core-tester-x86' || '16core-tester-x86' }}
           builder_type: builder-x86
           # these are copied to the tester and expected by the earthly command below
           # if they fail to copy, it will try to build them on the tester and fail

@@ -1,6 +1,7 @@
 import { BBNativeProofCreator } from '@aztec/bb-prover';
 import { type AztecNode, type ProofCreator } from '@aztec/circuit-types';
 import { randomBytes } from '@aztec/foundation/crypto';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { TestKeyStore } from '@aztec/key-store';
 import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 import { initStoreForRollup } from '@aztec/kv-store/utils';
@@ -54,7 +55,11 @@ export async function createPXEService(
     }
     prover = !config.proverEnabled
       ? new TestProofCreator()
-      : new BBNativeProofCreator(config.bbBinaryPath!, config.bbWorkingDirectory!);
+      : new BBNativeProofCreator(
+          config.bbBinaryPath!,
+          config.bbWorkingDirectory!,
+          createDebugLogger('aztec:pxe:bb-native-prover' + (logSuffix ? `:${logSuffix}` : '')),
+        );
   }
 
   const server = new PXEService(keyStore, aztecNode, db, prover, config, logSuffix);

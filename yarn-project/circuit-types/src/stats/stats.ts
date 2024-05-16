@@ -52,12 +52,14 @@ export type CircuitName =
   | 'base-parity'
   | 'root-parity'
   | 'base-rollup'
-  | 'private-kernel-init'
-  | 'private-kernel-ordering'
-  | 'root-rollup'
   | 'merge-rollup'
+  | 'root-rollup'
+  | 'private-kernel-init'
   | 'private-kernel-inner'
   | 'private-kernel-reset'
+  | 'private-kernel-tail'
+  | 'private-kernel-tail-to-public'
+  | 'app-circuit'
   | 'public-kernel-setup'
   | 'public-kernel-app-logic'
   | 'public-kernel-teardown'
@@ -69,6 +71,8 @@ export type CircuitSimulationStats = {
   eventName: 'circuit-simulation';
   /** Name of the circuit. */
   circuitName: CircuitName;
+  /** Optional. The function name that's being simulated */
+  appCircuitName?: string;
   /** Duration in ms. */
   duration: number;
   /** Size in bytes of circuit inputs. */
@@ -83,6 +87,8 @@ export type CircuitWitnessGenerationStats = {
   eventName: 'circuit-witness-generation';
   /** Name of the circuit. */
   circuitName: CircuitName;
+  /** Optional. The function name that's being proven */
+  appCircuitName?: string;
   /** Duration in ms. */
   duration: number;
   /** Size in bytes of circuit inputs. */
@@ -97,14 +103,20 @@ export type CircuitProvingStats = {
   eventName: 'circuit-proving';
   /** Name of the circuit. */
   circuitName: CircuitName;
+  /** Optional. The function name that was proven */
+  appCircuitName?: string;
   /** Duration in ms. */
   duration: number;
+  /** The size of the circuit (in gates) */
+  circuitSize: number;
   /** Size in bytes of circuit inputs. */
   inputSize: number;
-  /** Size in bytes of circuit outputs (aka public inputs). */
+  /** Size in bytes of circuit output. */
   outputSize: number;
   /** Size in bytes of the proof. */
   proofSize: number;
+  /** The number of public inputs */
+  numPublicInputs: number;
 };
 
 /** Stats for an L2 block built by a sequencer. */

@@ -89,7 +89,7 @@ export class TestProofCreator implements ProofCreator {
     );
     this.log.debug(`Simulated private kernel ordering`, {
       eventName: 'circuit-simulation',
-      circuitName: 'private-kernel-ordering',
+      circuitName: 'private-kernel-tail',
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
