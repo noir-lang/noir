@@ -235,9 +235,9 @@ impl<'interner> TypeChecker<'interner> {
                         let location = method_call.location;
 
                         // if method_call.generics.is_none() {
-                            // dbg!(method_ref.clone());
+                        // dbg!(method_ref.clone());
                         // }
-                        
+
                         // Automatically add `&mut` if the method expects a mutable reference and
                         // the object is not already one.
                         // if let HirMethodReference::FuncId(func_id) = &method_ref {
@@ -270,7 +270,7 @@ impl<'interner> TypeChecker<'interner> {
                                 match definition.kind {
                                     DefinitionKind::Function(func_id) => {
                                         let function_type =
-                                        self.interner.function_meta(&func_id).typ.clone();
+                                            self.interner.function_meta(&func_id).typ.clone();
                                         // dbg!(function_type.clone());
                                         self.try_add_mutable_reference_to_object(
                                             &mut method_call,
@@ -278,7 +278,7 @@ impl<'interner> TypeChecker<'interner> {
                                             &mut object_type,
                                         );
                                     }
-                                    _ => {},
+                                    _ => {}
                                 }
                             }
                         }

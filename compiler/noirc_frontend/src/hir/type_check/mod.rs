@@ -152,7 +152,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         let span = type_checker.interner.expr_span(&expr_id);
 
         if matches!(&constraint.typ, Type::MutableReference(_)) {
-            let (_, dereferenced_typ) = type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
+            let (_, dereferenced_typ) =
+                type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
             constraint.typ = dereferenced_typ;
         }
 

@@ -1483,7 +1483,6 @@ impl Type {
         }
     }
 
-
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
