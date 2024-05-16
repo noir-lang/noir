@@ -1478,6 +1478,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Variable(path, generics) => {
                 let generics =
                     generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
                 {
                     HirExpression::Ident(
@@ -1524,8 +1525,6 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    // let generics =
-                    // generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
                     HirExpression::Ident(hir_ident, generics)
                 }
             }

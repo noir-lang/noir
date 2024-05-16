@@ -24,6 +24,7 @@ use crate::{
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
     Type, TypeBindings,
 };
+use fxhash::FxHashMap as HashMap;
 
 pub use self::errors::Source;
 
@@ -42,6 +43,10 @@ pub struct TypeChecker<'interner> {
     /// This map is used to default any integer type variables at the end of
     /// a function (before checking trait constraints) if a type wasn't already chosen.
     type_variables: Vec<Type>,
+
+    /// Method calls can have implicit generics from generic impls.
+    /// These need to be tracked separately for accurate type checking.
+    method_call_implicit_generic_counts: HashMap<ExprId, usize>,
 }
 
 /// Type checks a function and assigns the
@@ -79,9 +84,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             }
         }
     }
-    if !type_checker.errors.is_empty() {
-        dbg!(type_checker.errors.len());
-    }
 
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
@@ -90,16 +92,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         check_if_type_is_valid_for_program_input(&type_checker, func_id, &param, &mut errors);
         type_checker.bind_pattern(&param.0, param.1);
     }
-    if !type_checker.errors.is_empty() {
-        dbg!("After checking params");
-        dbg!(type_checker.errors.len());
-    }
 
     let function_last_type = type_checker.check_function_body(function_body_id);
-    if !type_checker.errors.is_empty() {
-        dbg!(type_checker.errors.len());
-    }
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
@@ -140,10 +134,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             );
         }
     }
-    if !type_checker.errors.is_empty() {
-        dbg!(errors.len());
-        dbg!(type_checker.errors.len());
-    }
 
     // Default any type variables that still need defaulting.
     // This is done before trait impl search since leaving them bindable can lead to errors
@@ -158,8 +148,14 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         dbg!(type_checker.errors.len());
     }
     // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+    for (mut constraint, mut expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
+
+        if matches!(&constraint.typ, Type::MutableReference(_)) {
+            let (_, dereferenced_typ) = type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
+            constraint.typ = dereferenced_typ;
+        }
+
         type_checker.verify_trait_constraint(
             &constraint.typ,
             constraint.trait_id,
@@ -168,16 +164,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             span,
         );
     }
-    if !type_checker.errors.is_empty() {
-        dbg!(type_checker.errors.len());
-    }
 
     // Now remove all the `where` clause constraints we added
     for constraint in &expected_trait_constraints {
         type_checker.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
-    }
-    if !type_checker.errors.is_empty() {
-        dbg!(type_checker.errors.len());
     }
 
     errors.append(&mut type_checker.errors);
@@ -377,6 +367,7 @@ impl<'interner> TypeChecker<'interner> {
             trait_constraints: Vec::new(),
             type_variables: Vec::new(),
             current_function: None,
+            method_call_implicit_generic_counts: HashMap::default(),
         }
     }
 
@@ -394,6 +385,7 @@ impl<'interner> TypeChecker<'interner> {
             trait_constraints: Vec::new(),
             type_variables: Vec::new(),
             current_function: None,
+            method_call_implicit_generic_counts: HashMap::default(),
         };
         let statement = this.interner.get_global(id).let_statement;
         this.check_statement(&statement);

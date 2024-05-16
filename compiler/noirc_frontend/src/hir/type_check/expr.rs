@@ -234,9 +234,10 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        if method_call.generics.is_none() {
-                            dbg!(method_ref.clone());
-                        }
+                        // if method_call.generics.is_none() {
+                            // dbg!(method_ref.clone());
+                        // }
+                        
                         // Automatically add `&mut` if the method expects a mutable reference and
                         // the object is not already one.
                         // if let HirMethodReference::FuncId(func_id) = &method_ref {
@@ -262,6 +263,7 @@ impl<'interner> TypeChecker<'interner> {
                                     );
                                 }
                             }
+                            // _ => {},
                             HirMethodReference::TraitMethodId(method_id, _) => {
                                 let id = self.interner.trait_method_id(*method_id);
                                 let definition = self.interner.definition(id);
@@ -269,7 +271,7 @@ impl<'interner> TypeChecker<'interner> {
                                     DefinitionKind::Function(func_id) => {
                                         let function_type =
                                         self.interner.function_meta(&func_id).typ.clone();
-                                        dbg!(function_type.clone());
+                                        // dbg!(function_type.clone());
                                         self.try_add_mutable_reference_to_object(
                                             &mut method_call,
                                             &function_type,
@@ -281,13 +283,18 @@ impl<'interner> TypeChecker<'interner> {
                             }
                         }
 
+                        // Need to borrow `generics` here as `method_call` is moved when calling `into_function_call`
+                        // We don't save the expected generic count just yet though as `into_function_call` also accounts
+                        // for any implicit generics such as from a generic impl.
+                        let has_turbofish_generics = method_call.generics.is_some();
                         // TODO: update object_type here?
-                        let (_, function_call) = method_call.into_function_call(
-                            &method_ref,
-                            object_type,
-                            location,
-                            self.interner,
-                        );
+                        let (_, function_call, implicit_generics_count) = method_call
+                            .into_function_call(&method_ref, object_type, location, self.interner);
+
+                        if has_turbofish_generics {
+                            self.method_call_implicit_generic_counts
+                                .insert(function_call.func, implicit_generics_count);
+                        }
 
                         self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
 
@@ -416,20 +423,27 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(expr_id);
 
         let definition = self.interner.try_definition(ident.id);
-        let expected_generic_count = definition.map_or(0, |definition| match &definition.kind {
+        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
             DefinitionKind::Function(function) => {
                 self.interner.function_modifiers(function).generic_count
             }
             _ => 0,
         });
-        if generics.is_some() {
-            dbg!(t.clone());
-            dbg!(expected_generic_count);
-        }
+
+        let implicit_generic_count =
+            self.method_call_implicit_generic_counts.get(expr_id).copied().unwrap_or_default();
+
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = self.instantiate(t, bindings, generics.clone(), expected_generic_count, span);
+        let (typ, bindings) = self.instantiate(
+            t,
+            bindings,
+            generics.clone(),
+            function_generic_count,
+            implicit_generic_count,
+            span,
+        );
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
@@ -446,9 +460,8 @@ impl<'interner> TypeChecker<'interner> {
             }
         }
         if generics.is_some() {
-            dbg!(self.trait_constraints.len());            
+            dbg!(ident.impl_kind.clone());
         }
-
         if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
             constraint.apply_bindings(&bindings);
             if assumed {
@@ -475,19 +488,23 @@ impl<'interner> TypeChecker<'interner> {
         bindings: TypeBindings,
         generics: Option<Vec<Type>>,
         expected_generic_count: usize,
+        implicit_generic_count: usize,
         span: Span,
     ) -> (Type, TypeBindings) {
         match generics {
             Some(generics) => {
-                if generics.len() != expected_generic_count {
+                if generics.len() != (expected_generic_count + implicit_generic_count) {
+                    // The list of generics as well as the `expected_generic_count` represent
+                    // the total number of generics on a function, including implicit generics.
+                    // In a user facing error we want to display only the number of function generics though
+                    // as this is what the user will actually be specifying.
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: expected_generic_count,
-                        actual_count: generics.len(),
+                        actual_count: generics.len() - implicit_generic_count,
                         span,
                     });
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
-                    dbg!(generics.clone());
                     typ.instantiate_with(generics)
                 }
             }
@@ -559,8 +576,7 @@ impl<'interner> TypeChecker<'interner> {
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
         };
-        dbg!(function_type.clone());
-        dbg!(expected_object_type.clone());
+
         if let Some(expected_object_type) = expected_object_type {
             let actual_type = object_type.follow_bindings();
 
@@ -605,7 +621,7 @@ impl<'interner> TypeChecker<'interner> {
 
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
-    fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
+    pub(crate) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
         if let Type::MutableReference(element) = typ {
             let location = self.interner.id_location(object);
 

@@ -212,7 +212,28 @@ impl HirMethodCallExpression {
         object_type: Type,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> ((ExprId, HirIdent), HirCallExpression) {
+    ) -> ((ExprId, HirIdent), HirCallExpression, usize) {
+        // Attach any generics which may not be a part of the function call's explicit generics
+        // This includes types such as implicit generics if the function is part of an impl
+        let (generics, generics_count) = if let Some(mut function_generics) = self.generics.clone()
+        {
+            let mut generics = Vec::new();
+            match object_type.clone() {
+                Type::Struct(_, mut struct_generics) => {
+                    generics.append(&mut struct_generics);
+                }
+                _ => {
+                    // TODO: Support other types that may contain generics such as `TraitAsType`
+                    unreachable!("Only struct method calls are supported");
+                }
+            };
+            let implicit_generics_count = generics.len();
+            generics.append(&mut function_generics);
+            (Some(generics), implicit_generics_count)
+        } else {
+            (None, 0)
+        };
+
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
@@ -231,10 +252,10 @@ impl HirMethodCallExpression {
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
+        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
         interner.push_expr_location(func, location.span, location.file);
         let expr = HirCallExpression { func, arguments, location };
-        ((func, func_var), expr)
+        ((func, func_var), expr, generics_count)
     }
 }
 
