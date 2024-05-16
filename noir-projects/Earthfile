@@ -44,10 +44,12 @@ format:
 
 gates-report:
   FROM +build
-  WORKDIR /usr/src/noir-projects/noir-protocol-circuits
+  WORKDIR /usr/src/noir-projects
 
+  COPY ./gates_report.sh ./gates_report.sh
   COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
 
-  RUN  NARGO_BACKEND_PATH=/usr/src/barretenberg/cpp/build/bin/bb nargo info --json > gates_report.json
+  ENV BB_BIN /usr/src/barretenberg/cpp/build/bin/bb
+  RUN ./gates_report.sh
    
-  SAVE ARTIFACT gates_report.json gates_report.json
+  SAVE ARTIFACT ./noir-protocol-circuits/gates_report.json gates_report.json
