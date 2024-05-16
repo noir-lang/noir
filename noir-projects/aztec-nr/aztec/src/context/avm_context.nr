@@ -208,67 +208,67 @@ fn gas_for_call(user_gas: GasOpts) -> [Field; 2] {
 
 // Unconstrained opcode wrappers (do not use directly).
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6420): reconsider.
-fn address() -> AztecAddress {
+unconstrained fn address() -> AztecAddress {
     address_opcode()
 }
-fn storage_address() -> AztecAddress {
+unconstrained fn storage_address() -> AztecAddress {
     storage_address_opcode()
 }
-fn sender() -> AztecAddress {
+unconstrained fn sender() -> AztecAddress {
     sender_opcode()
 }
-fn portal() -> EthAddress {
+unconstrained fn portal() -> EthAddress {
     portal_opcode()
 }
-fn fee_per_l2_gas() -> Field {
+unconstrained fn fee_per_l2_gas() -> Field {
     fee_per_l2_gas_opcode()
 }
-fn fee_per_da_gas() -> Field {
+unconstrained fn fee_per_da_gas() -> Field {
     fee_per_da_gas_opcode()
 }
-fn transaction_fee() -> Field {
+unconstrained fn transaction_fee() -> Field {
     transaction_fee_opcode()
 }
-fn chain_id() -> Field {
+unconstrained fn chain_id() -> Field {
     chain_id_opcode()
 }
-fn version() -> Field {
+unconstrained fn version() -> Field {
     version_opcode()
 }
-fn block_number() -> Field {
+unconstrained fn block_number() -> Field {
     block_number_opcode()
 }
-fn timestamp() -> u64 {
+unconstrained fn timestamp() -> u64 {
     timestamp_opcode()
 }
-fn l2_gas_left() -> Field {
+unconstrained fn l2_gas_left() -> Field {
     l2_gas_left_opcode()
 }
-fn da_gas_left() -> Field {
+unconstrained fn da_gas_left() -> Field {
     da_gas_left_opcode()
 }
-fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {
+unconstrained fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {
     note_hash_exists_opcode(note_hash, leaf_index)
 }
-fn emit_note_hash(note_hash: Field) {
+unconstrained fn emit_note_hash(note_hash: Field) {
     emit_note_hash_opcode(note_hash)
 }
-fn nullifier_exists(nullifier: Field, address: Field) -> u8 {
+unconstrained fn nullifier_exists(nullifier: Field, address: Field) -> u8 {
     nullifier_exists_opcode(nullifier, address)
 }
-fn emit_nullifier(nullifier: Field) {
+unconstrained fn emit_nullifier(nullifier: Field) {
     emit_nullifier_opcode(nullifier)
 }
-fn emit_unencrypted_log<T>(event_selector: Field, message: T) {
+unconstrained fn emit_unencrypted_log<T>(event_selector: Field, message: T) {
     emit_unencrypted_log_opcode(event_selector, message)
 }
-fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {
+unconstrained fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {
     l1_to_l2_msg_exists_opcode(msg_hash, msg_leaf_index)
 }
-fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
+unconstrained fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
     send_l2_to_l1_msg_opcode(recipient, content)
 }
-fn call<RET_SIZE>(
+unconstrained fn call<RET_SIZE>(
     gas: [Field; 2],
     address: AztecAddress,
     args: [Field],
@@ -276,7 +276,7 @@ fn call<RET_SIZE>(
 ) -> ([Field; RET_SIZE], u8) {
     call_opcode(gas, address, args, function_selector)
 }
-fn call_static<RET_SIZE>(
+unconstrained fn call_static<RET_SIZE>(
     gas: [Field; 2],
     address: AztecAddress,
     args: [Field],
