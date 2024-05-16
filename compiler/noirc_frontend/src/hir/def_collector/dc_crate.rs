@@ -237,6 +237,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         use_elaborator: bool,
+        skip_prelude: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -254,6 +255,7 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 use_elaborator,
+                skip_prelude,
                 macro_processors,
             ));
 
@@ -288,9 +290,16 @@ impl DefCollector {
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
-        inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
-        for submodule in submodules {
-            inject_prelude(crate_id, context, LocalModuleId(submodule), &mut def_collector.imports);
+        if !skip_prelude {
+            inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
+            for submodule in submodules {
+                inject_prelude(
+                    crate_id,
+                    context,
+                    LocalModuleId(submodule),
+                    &mut def_collector.imports,
+                );
+            }
         }
 
         // Resolve unresolved imports collected from the crate, one by one.

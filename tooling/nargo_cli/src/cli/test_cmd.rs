@@ -176,6 +176,7 @@ fn run_test<S: BlackBoxFunctionSolver + Default>(
         compile_options.deny_warnings,
         compile_options.disable_macros,
         compile_options.use_elaborator,
+        compile_options.skip_prelude,
     )
     .expect("Any errors should have occurred when collecting test functions");
 
@@ -210,6 +211,7 @@ fn get_tests_in_package(
         compile_options.disable_macros,
         compile_options.silence_warnings,
         compile_options.use_elaborator,
+        compile_options.skip_prelude,
     )?;
 
     Ok(context

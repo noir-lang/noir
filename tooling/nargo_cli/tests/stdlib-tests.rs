@@ -29,7 +29,7 @@ fn run_stdlib_tests(use_elaborator: bool) {
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let result = check_crate(&mut context, dummy_crate_id, true, false, use_elaborator);
+    let result = check_crate(&mut context, dummy_crate_id, true, false, use_elaborator, false);
     report_errors(result, &context.file_manager, true, false)
         .expect("Error encountered while compiling standard library");
 

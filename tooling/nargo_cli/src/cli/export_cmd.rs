@@ -90,6 +90,7 @@ fn compile_exported_functions(
         compile_options.disable_macros,
         compile_options.silence_warnings,
         compile_options.use_elaborator,
+        compile_options.skip_prelude,
     )?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
