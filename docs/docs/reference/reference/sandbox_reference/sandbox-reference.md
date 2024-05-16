@@ -10,57 +10,6 @@ For a quick start, follow the [guide](/getting_started/getting_started) to insta
 
 ## Manual Install
 
-You can manually install the sandbox via the underlying script used in the [Aztec Boxes](/getting_started/getting_started/index.md#run-the-npx-script).
-
-### Prerequisites
-
-- Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
-- Docker (visit [this page of the Docker docs](https://docs.docker.com/get-docker/) on how to install it)
-
-### Install the sandbox
-
-To install the latest Sandbox version, run:
-
-```bash
-bash -i <(curl -s install.aztec.network)
-```
-
-This will install the following tools:
-
-- **aztec** - launches various infrastructure subsystems (sequencer, prover, pxe, etc).
-- **aztec-nargo** - aztec's build of nargo, the noir compiler toolchain.
-- **aztec-sandbox** - a wrapper around docker-compose that launches services needed for sandbox testing.
-- **aztec-up** - a tool to upgrade the aztec toolchain to the latest, or specific versions.
-- **aztec-builder** - A useful tool for projects to generate ABIs and update their dependencies.
-
-Once these have been installed, to start the sandbox, run:
-
-```bash
-aztec-sandbox
-```
-
-### Have fun!
-
-**Congratulations, you have just installed and run the Aztec Sandbox!**
-
-```bash                
-     /\        | |
-    /  \    ___| |_ ___  ___
-   / /\ \  |_  / __/ _ \/ __|
-  / ____ \  / /| ||  __/ (__
- /_/___ \_\/___|\__\___|\___|
-
-```
-
-In the terminal, you will see some logs:
-1. Sandbox version
-2. Contract addresses of rollup contracts
-3. PXE (private execution environment) setup logs
-4. Initial accounts that are shipped with the sandbox and can be used in tests
-
-
-## Manual Install
-
 You can manually install the sandbox via the underlying script used in the [Aztec Boxes](getting_started/getting_started/index.md#run-the-npx-script).
 
 ### Prerequisites
@@ -94,7 +43,7 @@ aztec-sandbox
 
 **Congratulations, you have just installed and run the Aztec Sandbox!**
 
-```bash                
+```bash
      /\        | |
     /  \    ___| |_ ___  ___
    / /\ \  |_  / __/ _ \/ __|
@@ -104,11 +53,11 @@ aztec-sandbox
 ```
 
 In the terminal, you will see some logs:
+
 1. Sandbox version
 2. Contract addresses of rollup contracts
 3. PXE (private execution environment) setup logs
 4. Initial accounts that are shipped with the sandbox and can be used in tests
-
 
 ## Running Aztec PXE / Node / P2P-Bootstrap node
 
@@ -220,7 +169,7 @@ You can find the cheat code reference [here](/reference/reference/sandbox_refere
 
 ## Contracts
 
-We have shipped a number of example contracts in the `@aztec/noir-contracts.js` [npm package](https://www.npmjs.com/package/@aztec/noir-contracts.js). This is included with the sandbox by default so you are able to use these contracts to test with. 
+We have shipped a number of example contracts in the `@aztec/noir-contracts.js` [npm package](https://www.npmjs.com/package/@aztec/noir-contracts.js). This is included with the sandbox by default so you are able to use these contracts to test with.
 
 ```bash
 AppSubscriptionContractArtifact

@@ -4,7 +4,7 @@ title: Token Bridge
 
 import Image from "@theme/IdealImage";
 
-In this tutorial, we will learn how to build the entire flow of a cross-chain token using portals. If this is your first time hearing the word portal, you’ll want to read [this](/aztec/aztec/concepts/smart_contracts/communication/cross_chain_calls).
+In this tutorial, we will learn how to build the entire flow of a cross-chain token using portals. If this is your first time hearing the word portal, you’ll want to read [this](/protocol-specs/l1-smart-contracts/index.md).
 
 ## A refresher on Portals
 
@@ -35,7 +35,7 @@ Aztec has the following core smart contracts on L1 that we need to know about:
 - `Outbox.sol` - a mailbox to the rollup for L2 to L1 messages (e.g. withdrawing tokens). Aztec contracts emit these messages and the sequencer adds these to the outbox. Portals then consume these messages.
 - `Registry.sol` - just like L1, we assume there will be various versions of Aztec (due to upgrades, forks etc). In such a case messages must not be replayable in other Aztec “domains”. A portal must decide which version/ID of Aztec the message is for. The registry stores the rollup, inbox and outbox address for each version of Aztec deployments, so the portal can find out the address of the mailbox it wants to talk to
 
-For more information, read [cross-chain calls](/aztec/aztec/concepts/smart_contracts/communication/cross_chain_calls).
+For more information, read [cross-chain calls](/protocol-specs/l1-smart-contracts/index.md).
 
 ## Building a Token Bridge with Portals
 

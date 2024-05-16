@@ -1,6 +1,6 @@
 ---
 title: Core Components
-sidebar_position: 2
+sidebar_position: 1
 ---
 
 Aztec Labs is building a layer 2 rollup on Ethereum focused on 3 things:
@@ -39,7 +39,7 @@ A user of the Aztec network will interact with the network through Aztec.js. Azt
 
 ### Private Execution Environment
 
-The PXE provides a secure environment for the execution of sensitive operations, ensuring private information and decrypted data are not accessible to unauthorized applications. It hides the details of the [state model](/aztec/aztec/concepts/state_model/index.md) from end users, but the state model is important for Aztec developers to understand as it has implications for [private/public execution](/aztec/aztec/concepts/smart_contracts/communication/public_private_calls.md) and [L1/L2 communication](/aztec/aztec/concepts/smart_contracts/communication/cross_chain_calls). The PXE also includes the [ACIR Simulator](/aztec/aztec/concepts/pxe/acir_simulator.md) for private executions and the KeyStore for secure key management.
+The PXE provides a secure environment for the execution of sensitive operations, ensuring private information and decrypted data are not accessible to unauthorized applications. It hides the details of the [state model](/aztec/aztec/concepts/state_model/index.md) from end users, but the state model is important for Aztec developers to understand as it has implications for [private/public execution](/aztec/aztec/concepts/smart_contracts/communication/public_private_calls.md) and [L1/L2 communication](../../protocol-specs/l1-smart-contracts/index.md). The PXE also includes the [ACIR Simulator](/aztec/aztec/concepts/pxe/acir_simulator.md) for private executions and the KeyStore for secure key management.
 
 Procedurally, the PXE sends results of private function execution and requests for public function executions to the [sequencer](/aztec/aztec/concepts/nodes_clients/sequencer), which will update the state of the rollup.
 

@@ -23,7 +23,6 @@ The structure of a contract instance is defined as:
 | `deployer` | `AztecAddress` | Optional address of the deployer of the contract. |
 | `contract_class_id` | `Field` | Identifier of the contract class for this instance. |
 | `initialization_hash` | `Field` | Hash of the selector and arguments to the constructor. |
-| `portal_contract_address` | `EthereumAddress` | Optional address of the L1 portal contract. |
 | `public_keys_hash` | `Field` | Optional hash of the struct of public keys used for encryption and nullifying by this contract. |
 
 <!-- TODO: define the `initialization_hash` derivation more explicitly. -->

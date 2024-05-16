@@ -35,7 +35,7 @@ Say that we wish to add `admin` public state variable into our storage struct. I
 
 #### Mapping example
 
-Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](/aztec/aztec/concepts/smart_contracts/communication/cross_chain_calls#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
+Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because access control in private is quite cumbersome. In the `Storage` struct we can add it as follows:
 
 #include_code storage-minters-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 

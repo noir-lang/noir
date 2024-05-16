@@ -29,7 +29,7 @@ Private state works with UTXOs, or what we call notes. To keep things private, e
 
 Public state works similarly to other chains like Ethereum, behaving like a public ledger. Public data is stored in a [public data tree](/aztec/aztec/concepts/storage/trees/index.md#public-state-tree).
 
-Aztec [smart contract](/aztec/aztec/concepts/smart_contracts/index.md) developers should keep in mind that different types are used when manipulating private or public state. Working with private state is creating commitments and nullifiers to state, whereas working with public state is directly updating state. 
+Aztec [smart contract](/aztec/aztec/concepts/smart_contracts/index.md) developers should keep in mind that different types are used when manipulating private or public state. Working with private state is creating commitments and nullifiers to state, whereas working with public state is directly updating state.
 
 ## Accounts
 
@@ -51,7 +51,7 @@ Aztec allows private communications with Ethereum - ie no-one knows where the tr
 
 This is achieved through portals - these are smart contracts deployed on an EVM that are related to the Ethereum smart contract you want to interact with.
 
-Learn more about portals [here](/aztec/aztec/concepts/smart_contracts/communication/cross_chain_calls).
+Learn more about portals [here](/protocol-specs/l1-smart-contracts/index.md).
 
 ## Circuits
 
@@ -72,4 +72,3 @@ Explore the Concepts for a deeper understanding into the components that make up
 ### Start coding
 
 Follow the [developer getting started guide](/getting_started/getting_started).
-

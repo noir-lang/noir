@@ -12,6 +12,7 @@ The purpose of the L1 contracts are simple:
 
 - Facilitate cross-chain communication such that L1 liquidity can be used on L2
 - Act as a validating light node for L2 that every L1 node implicitly run
+
 :::
 
 ## Overview
@@ -230,26 +231,24 @@ This way, multiple rollup instances can use the same inbox/outbox contracts.
 :::info Why a single hash?
 Compute on L1 is expensive, but storage is extremely expensive!
 To reduce overhead, we trade storage for computation and only commit to the messages and then "open" these for consumption later.
-However, since computation also bears significant we need to use a hash function that is relatively cheap on L1, while still being doable inside a snark.
-For this purpose a modded SHA256 was chosen, modded here meaning that it fits the output value into a single field element using the modulo operator.
+However, since computation also bears significant cost we need to use a hash function that is relatively cheap on L1, while still being doable inside a snark.
+For this purpose a modified SHA256 was chosen, modified by fitting the output value into a single field element using the modulo operator.
 :::
 
-Some additional discussion/comments on the message structure can be found in [The Republic](https://forum.aztec.network/t/the-republic-a-flexible-optional-governance-proposal-with-self-governed-portals/609/2#supporting-pending-messages-5).
+Some additional discussion/comments on the message structure can be found in the forum post, [The Republic](https://forum.aztec.network/t/the-republic-a-flexible-optional-governance-proposal-with-self-governed-portals/609/2#supporting-pending-messages-5).
 
-Since any data that is moving from one chain to the other at some point will live on L1, it will be PUBLIC.
-While this is fine for L1 consumption (which is public in itself), we want to ensure that the L2 consumption can be private.
+Since any data that is moving from one chain to the other at some point will live on L1, it will be public. While this is fine for L1 consumption (which is always public), we want to ensure that the L2 consumption can be private.
 To support this, we use a nullifier scheme similar to what we are doing for the other [notes](./../state/note-hash-tree.md).
-As part of the nullifier computation we then use the `secret` which hashes to the `secretHash`, this ensures that only actors with knowledge of `secret` will be able to see when it is spent on L2.
+As part of the nullifier computation we use a `secret` which hashes to a `secretHash`, which ensures that only actors with knowledge of the `secret` will be able to see when it is spent on L2.
 
 Any message that is consumed on one side MUST be moved to the other side.
 This is to ensure that the messages exist AND are only consumed once.
-The L1 contracts can handle one side, but the circuits must handle the other.
+The L1 contracts handle one side and the circuits must handle the other.
 
 :::info Is `secretHash` required?
-We are using the `secretHash` to ensure that the user can spend the message privately with a generic nullifier computation.
-However, as the nullifier computation is almost entirely controlled by the app circuit (except the siloing, see [Nullifier Tree](./../state/nullifier-tree.md) ) applications could be made to simply use a different nullifier computation and have it become part of the content.
-However, this reduces the developer burden and is quite easy to mess up.
-For those reasons we have decided to use the `secretHash` as part of the message.
+We are using the `secretHash` to ensure that the user can spend the message privately with a nullifier computation.
+However, as the nullifier computation is almost entirely controlled by the Aztec contract (the application circuit, except the contract siloing - see [Nullifier Tree](./../state/nullifier-tree.md)). Contracts could compute a custom nullifier to have the `secretHash` included as part of the computation.
+However, the chosen approach reduces the developer burden and reduces the likelihood of mistakes.
 :::
 
 <!-- TODO: the name "inbox" feels wrong in this context. -->
@@ -259,53 +258,43 @@ For those reasons we have decided to use the `secretHash` as part of the message
 When we say inbox, we are generally referring to the L1 contract that handles the L1 to L2 messages.
 
 The inbox takes messages from L1 contracts and inserts them into a series of message trees.
-We build multiple "trees" instead of a single tree, since we are building one tree for every block and not one large with all the messages.
+We build multiple "trees" instead of a single tree, since we are building one tree per block and not one large tree with all messages for all blocks.
 
-The reasoning is fairly straight-forward; we need to split it into epochs such that a sequencer can build a proof based on a tree that is not going to update in the middle of the proof building. Such updates would allow DOS attacks on the sequencer, which is undesirable.
+We need to split trees into epochs such that a sequencer can build a proof based on a tree that is not going to update in the middle of the proof building. Having one tree that updates across blocks would allow DOS attacks on the sequencer, which is undesirable.
 
-To support this, we can simply introduce a "lag" between when trees are built and when they must be included.
-We can actually do this quite easily.
-Say that whenever a new block is published, we start building a new tree.
-Essentially meaning that at block $n$ we include tree $n$ which was created earlier (during block $n-1$).
+In practice, we introduce a "lag" between when trees are built and when they must be included. Whenever a new block is published, we start building a new tree, essentially meaning that at block $n$ we include tree $n$ which was created earlier (during block $n-1$).
 
-Example visualized below.
-Here we have that tree $n$ is "fixed" when block $n$ needs to be published.
-And that tree $n+1$ is being built upon until block $n$ is being published.
+Below, tree $n$ is "fixed" when block $n$ needs to be published. Tree $n+1$ is being built upon until block $n$ is published.
 
 ![Feeding trees into the blocks](/img/protocol-specs/l1-smart-contracts/tree-order.png)
 
-When the state transitioner is consuming a tree, it MUST insert the subtree into the "L2 outbox" ([message tree](./../state/index.md)).
+When the state transitioner processes a tree, it MUST insert the subtree into the "L2 outbox" ([message tree](./../state/index.md) included in global state).
 
 When a message is inserted into the inbox, the inbox **MUST** fill in the `sender`:
 
 - `L1Actor.actor`: The sender of the message (the caller), `msg.sender`
 - `L1Actor.chainId`: The chainId of the L1 chain sending the message, `block.chainId`
 
-We MUST populate these values in the inbox, since we cannot rely on the user providing anything meaningful.
+We MUST populate these values in the inbox, since we cannot rely on user input.
 From the `L1ToL2Msg` we compute a hash of the message.
 This hash is what is moved by the state transitioner to the L2 outbox.
 
-Since message from L1 to L2 can be inserted independently of the L2 block, the message transfer (moving from inbox into outbox) is not synchronous as it is for L2 to L1 messages.
+Since message from L1 to L2 can be inserted independently of the L2 block, the message transfer (moving from L1 inbox into L2 outbox) is not synchronous as it is for L2 to L1 messages.
 This means that the message can be inserted into the inbox, but not yet moved to the outbox.
-The message will then be moved to the outbox when the state transitioner is consuming the message as part of a block.
-Since the sequencers are required to move the entire subtree at once, you can be sure that the message will be moved to the outbox at some point.
+The message will be moved to the outbox when the state transitioner processes the message as part of a block.
+Since sequencers are required to move the entire subtree at once, you can be sure that the message will be moved to the outbox. As mentioned earlier, segmenting updates is done to ensure that the messages are not used to DOS the state transitioner.
 
-As mentioned earlier, this is done to ensure that the messages are not used to DOS the state transitioner.
-
-Since we will be building the tree on L1, we need to use a gas-friendly hash-function such as SHA256.
-However, as we need to allow users to prove inclusion in this tree, we cannot just insert the SHA256 tree into the rollup state, it requires too many constraints to be used by most small users.
-Therefore, we need to "convert" the tree into a tree using a more snark-friendly hash.
+The message tree is built on L1, so we need to use a gas-friendly hash-function such as SHA256.
+However, we need to allow users to prove inclusion in this tree, so we cannot just insert the SHA256 tree into the rollup state, since it expensive to process in a zk circuit.
+Therefore, we need to "convert" the SHA256 tree into a tree that uses a more snark-friendly hash.
 This part is done in the [tree parity circuits](./../rollup-circuits/tree-parity.md).
 
-Furthermore, to build the tree on L1, we need to put some storage on L1 such that the insertions don't need to provide a lot of merkle-related data which could be cumbersome to do and prone to race-conditions.
-For example two insertions based on inclusion paths that are created at the same time will invalidate each other.
-As storage costs an arm and a leg on L1, we need to be careful with how we store this.
+Furthermore, to build the tree on L1, we can optimize storage on L1 such that the insertions don't require a lot of merkle tree related data which could be cumbersome and prone to race-conditions (e.g., two insertions based on inclusion paths that are created at the same time will invalidate each other).
 
-Luckily for us, we can use a "frontier" merkle tree to store the messages.
-This is a special kind of append-only merkle tree that allows us to store very few elements in storage, but just enough for us to be able to extend it, and compute the root of the tree.
-Consult [Frontier Merkle Tree](#frontier-merkle-tree]) for more information on this.
+The solution is to use a "frontier" merkle tree to store the messages.
+This is a special kind of append-only merkle tree that allows us to store very few elements in storage, while still being able to extend it and compute the root of the tree. See the [Frontier Merkle Tree](#frontier-merkle-tree]) for more information on this.
 
-Assuming that we have these trees, we can build an `inbox` utilizing them as follows.
+Assuming that we have these trees, we can build an `Inbox` as follows.
 When a new block is published, we start building a new tree.
 Notice however, that if we have entirely filled the current tree, we can start building a new one immediately, and the blocks can then "catch up".
 
@@ -367,19 +356,18 @@ class Inbox:
 
 #### L2 Inbox
 
-While the L2 inbox is not a real contract, it is a logical contract that apply mutations to the data similar to the L1 inbox to ensure that the sender cannot fake his position.
-This logic is handled by the kernel and rollup circuits.
+While the L2 inbox is not a contract, it is a logical concept that apply mutations to the data similar to the L1 inbox to ensure that the sender cannot fake his position. This logic is handled by the kernel and rollup circuits.
 
 Just like the L1 variant, we must populate the `sender`:
 
 - `L2Actor.actor`: The sender of the message (the caller)
 - `L2Actor.version`: The version of the L2 chain sending the message
 
-In practice, this is done in the kernel circuit of the L2, and the message hashes are then aggregated into a tree as outlined in the [Rollup Circuits section](./../rollup-circuits/index.md) before it is inserted into the L1 outbox which we will address now.
+In practice, this is done in the kernel circuit of the L2, and the message hashes are then aggregated into a tree as outlined in the [Rollup Circuits section](./../rollup-circuits/index.md) before it is inserted into the L1 outbox.
 
 ### Outbox
 
-The outboxes are the location where a user can consume messages from.
+The outboxes are the location where a user can consume messages from on the destination chain.
 An outbox can only contain elements that have previously been removed from the paired inbox.
 
 <!--
@@ -390,13 +378,13 @@ That's not what an outbox is... that's an inbox!
 Our L1 outbox is pretty simple, like the L1 inbox, it is a series of trees.
 The trees are built from the messages of all the transactions in the block, and the root and height is then pushed to the L1 outbox.
 
-Whenever a portal wishes to consume a message, it must prove that it is included in one of these roots and that it has not been consumed before. This is a very similar structure to what we are doing within the rollup for UTXO's already, so it should be familiar.
+Whenever a portal wishes to consume a message, it proves that it is included in one of these roots and that it has not been consumed before.
 
-To address the nullifier (marking it is spent), we can simply use a bitmap and flip just 1 bit per message. This shares some of the cost of consuming.
+To address the nullifier (marking it is spent), we can simply use a bitmap and flip just 1 bit per message. This shares some of the cost of processing messages.
 
-This structure is the same as is used in many merkle airdrop contracts, and is a well known pattern. Nevertheless, it require a bit more work from the developers side, as they need to prepare the inclusion proof before they can consume the message. The proof can be prepared based on the published data, so with good libraries it should be very straight forward for most cases.
+This structure is used in many merkle airdrop contracts. Nevertheless, it requires some consideration from the developers side, as the portal needs to prepare the inclusion proof for the message before it can be consumed. The proof can be prepared based on the published data, so with good libraries it should be very straight forward for most cases.
 
-:::info Checking sender
+:::danger Checking sender
 When consuming a message on L1, the portal contract must check that it was sent from the expected contract given that it is possible for multiple contracts on L2 to send to it.
 If the check is not done this could go horribly wrong.
 :::
@@ -439,31 +427,29 @@ class Outbox:
 
 #### L2 Outbox
 
-The L2 outbox is quite different.
-It is a merkle tree that is populated with the messages moved by the state transitioner through the converted tree as seen in [Rollup Circuits](./../rollup-circuits/index.md).
-As mentioned earlier, the messages are consumed on L2 by emitting a nullifier from the application circuit.
+The L2 outbox is a merkle tree that is populated with the messages moved by the state transitioner through the converted tree as seen in [Rollup Circuits](./../rollup-circuits/index.md).
+The messages are consumed on L2 by emitting a nullifier from the application circuit (Aztec contract).
 
 This means that all validation is done by the application circuit.
 The application should:
 
 - Ensure that the message exists in the outbox (message tree)
 - Ensure that the message sender is the expected contract
-- Ensure that the message recipient is itself and that the version matches
+- Ensure that the message recipient is itself and that the version matches the expected version
 - Ensure that the user knows `secret` that hashes to the `secretHash` of the message
-- Compute a nullifier that includes the `secret` along with the msg hash and the index of the message in the tree
+- Compute a nullifier that includes the `secret` along with the message hash and the index of the message in the tree
   - The index is included to ensure that the nullifier is unique for each message
 
 ## Validity conditions
 
 While there are multiple contracts, they work in unison to ensure that the rollup is valid and that messages are correctly moved between the chains.
-In practice this means that the contracts are to ensure that the following constraints are met in order for the validating light node to accept a block.
+In practice this means that the contracts ensure that the following constraints are met in order for the validating light node to accept a block.
 
-Note that some conditions are marked as SHOULD, which is not strictly needed for security of the rollup, but the security of the individual applications or for UX.
-Also, some of the conditions are repetitions of what we saw earlier from the [state transitioner](#state-transitioner).
+Note that some conditions are marked as SHOULD, which is not strictly needed for security of the rollup, but need for the security of the individual applications or for UX. Some of the conditions are repetitions of what we saw earlier from the [state transitioner](#state-transitioner).
 
 - **Data Availability**: The block content MUST be available. To validate this, the `AvailabilityOracle` is used.
 - **Header Validation**: See the checks from the [state transitioner](#state-transitioner)
-- **Proof validation**: The proof MUST be valid when validated with the header and archive.
+- **Proof validation**: The proof MUST be validated with the header and archive.
 - **Inserting messages**: for messages that are inserted into the inboxes:
   - The `sender.actor` MUST be the caller
   - The `(sender|recipient).chainId` MUST be the chainId of the L1 where the state transitioner is deployed
@@ -488,15 +474,17 @@ Also, some of the conditions are repetitions of what we saw earlier from the [st
     - The consumer contract SHOULD check that the message exists in the state
 
 :::info
+
 - For cost purposes, it can be useful to commit to the public inputs to just pass a single value into the circuit.
 - Time constraints might change depending on the exact sequencer selection mechanism.
+
 :::
 
 ## Logical Execution
 
 Below, we will outline the **LOGICAL** execution of a L2 block and how the contracts interact with the circuits.
 We will be executing cross-chain communication before and after the block itself.
-Note that in reality, the L2 inbox does not exists, and its functionality is handled by the kernel and the rollup circuits.
+Note that the L2 inbox only exists conceptually and its functionality is handled by the kernel and the rollup circuits.
 
 ```mermaid
 sequenceDiagram
@@ -567,31 +555,31 @@ We will walk briefly through the steps of the diagram above.
 The numbering matches the numbering of nodes in the diagram, the start of the action.
 
 1. A portal contract on L1 wants to send a message for L2
-1. The L1 inbox populates the message with information of the `sender` (using `msg.sender` and `block.chainid`)
-1. The L1 inbox contract inserts the message into its the tree
-1. On the L2, as part of a L2 block, a transaction wish to consume a message from the L2 outbox.
-1. The L2 outbox ensures that the message is included, and that the caller is the recipient and knows the secret to spend. (This is practically done by the application circuit)
-1. The nullifier of the message is emitted to privately spend the message (This is practically done by the application circuit)
-1. The L2 contract wishes to send a message to L1 (specifying a recipient)
-1. The L2 inbox populates the message with `sender` information
-1. The L2 inbox inserts the message into its storage
-1. The rollup circuit starts consuming the messages from the inbox
-1. The L2 inbox deletes the messages from its storage
-1. The L2 block includes messages from the L1 inbox that are to be inserted into the L2 outbox.
-1. The L2 outbox state is updated to include the messages
-1. The L2 block is submitted to L1
-1. The state transitioner receives the block and verifies the proof + validate constraints on block.
-1. The state transitioner updates it state to the ending state of the block
-1. The state transitioner consumes the messages from the L1 inbox that was specified in the block. Note that they have logically been inserted into the L2 outbox, ensuring atomicity.
-1. The L1 inbox updates it local state by marking the message tree messages as consumed
-1. The state transitioner inserts the messages tree root into the L1 Outbox. Note that they have logically been consumed from the L2 inbox, ensuring atomicity.
-1. The L1 outbox updates it local state by inserting the message root and height
-1. The portal later consumes a message from the L1 outbox
-1. The L1 outbox validates that the message exists and that the caller is indeed the recipient
-1. The L1 outbox updates it local state by nullifying the message
+2. The L1 inbox populates the message with information of the `sender` (using `msg.sender` and `block.chainid`)
+3. The L1 inbox contract inserts the message into its tree
+4. On the L2, as part of a L2 block, a transaction consumes a message from the L2 outbox
+5. The L2 outbox ensures that the message is included, and that the caller is the recipient and knows the secret to spend. (This is done by the application circuit)
+6. The nullifier of the message is emitted to privately spend the message (This is done by the application circuit)
+7. The L2 contract sends a message to L1 (specifying a recipient)
+8. The L2 inbox populates the message with `sender` information
+9. The L2 inbox inserts the message into its storage
+10. The rollup circuit starts consuming the messages from the inbox
+11. The L2 inbox deletes the messages from its storage
+12. The L2 block includes messages from the L1 inbox that are to be inserted into the L2 outbox
+13. The L2 outbox state is updated to include the messages
+14. The L2 block is submitted to L1
+15. The state transitioner receives the block and verifies the proof + validates constraints on block
+16. The state transitioner updates it's state to the ending state of the block
+17. The state transitioner consumes the messages from the L1 inbox that was specified in the block. They have been inserted into the L2 outbox, ensuring atomicity.
+18. The L1 inbox updates it local state by marking the message tree messages as consumed
+19. The state transitioner inserts the messages tree root into the L1 Outbox. They have been consumed from the L2 inbox, ensuring atomicity.
+20. The L1 outbox updates it local state by inserting the message root and height
+21. The portal later consumes a message from the L1 outbox
+22. The L1 outbox validates that the message exists and that the caller is indeed the recipient
+23. The L1 outbox updates it local state by nullifying the message
 
 :::info L2 inbox is not real
-As should be clear from above, the L2 inbox doesn't need to exist for itself, it keeps no state between blocks, as every message created in the block will also be consumed in the same block.
+The L2 inbox doesn't need to exist independently because it keeps no state between blocks. Every message created on L2 in a block will be consumed and added to the L1 outbox in the same block.
 :::
 
 ## Future work
