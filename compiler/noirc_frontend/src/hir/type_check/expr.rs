@@ -487,19 +487,19 @@ impl<'interner> TypeChecker<'interner> {
         typ: Type,
         bindings: TypeBindings,
         generics: Option<Vec<Type>>,
-        expected_generic_count: usize,
+        function_generic_count: usize,
         implicit_generic_count: usize,
         span: Span,
     ) -> (Type, TypeBindings) {
         match generics {
             Some(generics) => {
-                if generics.len() != (expected_generic_count + implicit_generic_count) {
-                    // The list of generics as well as the `expected_generic_count` represent
-                    // the total number of generics on a function, including implicit generics.
-                    // In a user facing error we want to display only the number of function generics though
+                if generics.len() != (function_generic_count + implicit_generic_count) {
+                    // The list of `generics` represents the total number of generics on a function, including implicit generics.
+                    // We calculate any implicit generics earlier when type checking a method call,
+                    // In a user facing error we want to display only the number of function generics
                     // as this is what the user will actually be specifying.
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
-                        expected_count: expected_generic_count,
+                        expected_count: function_generic_count,
                         actual_count: generics.len() - implicit_generic_count,
                         span,
                     });
