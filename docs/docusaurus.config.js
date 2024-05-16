@@ -168,6 +168,9 @@ const config = {
     ],
     // ["./src/plugins/plugin-embed-code", {}],
   ],
+  customFields: {
+    MATOMO_ENV: process.env.ENV,
+  },
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({

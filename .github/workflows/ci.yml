@@ -390,7 +390,7 @@ jobs:
           concurrency_key: docs-preview-x86
       - name: "Docs Preview"
         timeout-minutes: 40
-        run: earthly-ci --no-output ./docs/+deploy-preview --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+        run: earthly-ci --no-output ./docs/+deploy-preview --ENV=staging --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
 
   bb-bench:
     runs-on: ubuntu-latest

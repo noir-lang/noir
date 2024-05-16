@@ -10,19 +10,18 @@ deps:
   RUN yarn install --frozen-lockfile
 
 build:
+  ARG ENV
   BUILD ../yarn-project/+build-dev
   BUILD ../+release-meta
   FROM +deps
-
   COPY --dir ../yarn-project/+build-dev/usr/src /usr
   COPY ../+release-meta/usr/src/.release-please-manifest.json /usr/src
-
   COPY . .
-
   RUN ./scripts/build.sh
   SAVE ARTIFACT build
 
 serve:
+  ARG ENV
   FROM +deps
   COPY +build/build build
   COPY ./static static
@@ -34,8 +33,10 @@ serve:
   SAVE ARTIFACT /usr/src/docs
   SAVE IMAGE aztecprotocol/docs-server
 
+
 deploy-preview:
   BUILD ../yarn-project/+scripts-prod
+  ARG ENV
   ARG NETLIFY_AUTH_TOKEN
   ARG NETLIFY_SITE_ID
   ARG AZTEC_BOT_COMMENTER_GITHUB_TOKEN

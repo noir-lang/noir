@@ -6,10 +6,10 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-font-family-base: 'Plain-Regular';
+  --ifm-font-family-base: "Plain-Regular";
 }
 
-[data-theme='light'] {
+[data-theme="light"] {
   --ifm-color-primary: #9f3fff;
   --ifm-color-primary-dark: #8f1fff;
   --ifm-color-primary-darker: #870fff;
@@ -18,13 +18,13 @@
   --ifm-color-primary-lighter: #b76fff;
   --ifm-color-primary-lightest: #cf9eff;
   --ifm-breadcrumb-item-background-active: #e9ddf7;
-  --ifm-menu-color: #2f1f49; 
+  --ifm-menu-color: #2f1f49;
   /* --ifm-menu-color-background-active: #e9ddf7; */
   background: #f6fbfc;
   color: #2f1f49;
 }
 /* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
+[data-theme="dark"] {
   --ifm-color-primary: #9ba5e9;
   --ifm-color-primary-dark: #7b88e2;
   --ifm-color-primary-darker: #6b7adf;
@@ -35,39 +35,40 @@
   background: #211733;
 }
 
-[data-theme='dark'] .navbar {
+[data-theme="dark"] .navbar {
   background-color: #2f1f49;
   box-shadow: var(--ifm-navbar-shadow);
   display: flex;
   height: var(--ifm-navbar-height);
-  padding: var(--ifm-navbar-padding-vertical) var(--ifm-navbar-padding-horizontal);
+  padding: var(--ifm-navbar-padding-vertical)
+    var(--ifm-navbar-padding-horizontal);
 }
 
-[data-theme='dark'] .footer {
+[data-theme="dark"] .footer {
   --ifm-footer-background-color: #211733;
   --ifm-footer-color: var(--ifm-footer-link-color);
   --ifm-footer-link-color: var(--ifm-color-secondary);
   --ifm-footer-title-color: var(--ifm-color-white);
 }
 
-[data-theme='light'] .navbar {
+[data-theme="light"] .navbar {
   background-color: #f6fbfc;
 }
 
-[data-theme='light'] .footer {
+[data-theme="light"] .footer {
   --ifm-footer-background-color: #f6fbfc;
   --ifm-footer-color: #2f1f49;
   --ifm-footer-link-color: #2f1f49;
   --ifm-footer-title-color: #2f1f49;
 }
 
-[data-theme='light'] {
+[data-theme="light"] {
   /* --docusaurus-highlighted-code-line-bg: rgb(72, 77, 91); */
   --docusaurus-highlighted-code-line-bg: rgba(230, 211, 238, 0.75);
 }
 
 /* If you have a different syntax highlighting theme for dark mode. */
-[data-theme='dark'] {
+[data-theme="dark"] {
   /* Color which works with dark mode syntax highlighting theme */
   /* --docusaurus-highlighted-code-line-bg: rgb(100, 100, 100); */
   --docusaurus-highlighted-code-line-bg: rgb(72, 77, 91);
@@ -82,10 +83,9 @@
 }
 
 @font-face {
-  font-family: 'Plain-Regular';
-  src: url('../../static/font/Plain-Regular.otf');
+  font-family: "Plain-Regular";
+  src: url("../../static/font/Plain-Regular.otf");
 }
-
 
 .sidebar-divider {
   border-top: 1px solid var(--ifm-color-gray-200);
@@ -93,7 +93,7 @@
   margin: 0.5rem 0 0.25rem 1rem;
 }
 
-html[data-theme='dark'] .sidebar-divider {
+html[data-theme="dark"] .sidebar-divider {
   border-top: 1px solid var(--ifm-color-gray-800);
 }
 
@@ -105,6 +105,38 @@ html[data-theme='dark'] .sidebar-divider {
   color: var(--ifm-color-gray-600);
 }
 
-html[data-theme='dark'] .sidebar-divider {
+html[data-theme="dark"] .sidebar-divider {
   color: var(--ifm-color-gray-200);
+}
+
+[data-theme="dark"] #optout-form {
+  background: #211733;
+}
+
+[data-theme="light"] #optout-form {
+  background: #f6fbfc;
+}
+
+#optout-form {
+  position: sticky;
+  bottom: 10px;
+  flex-direction: column;
+  display: flex;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.homepage_footer {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #bec2c3;
+  border-radius: 12px;
+}
+
+.homepage_cta_footer_container {
+  display: flex;
+  justify-content: center;
 }
