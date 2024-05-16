@@ -3,7 +3,7 @@ use dep::protocol_types::{
     function_selector::FunctionSelector, public_call_stack_item::PublicCallStackItem,
     function_data::FunctionData, public_circuit_public_inputs::PublicCircuitPublicInputs,
     call_context::CallContext, read_request::ReadRequest, note_hash::NoteHash, nullifier::Nullifier,
-    side_effect::SideEffect, global_variables::GlobalVariables, gas::Gas
+    log_hash::LogHash, global_variables::GlobalVariables, gas::Gas
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     messaging::l2_to_l1_message::L2ToL1Message, header::Header, address::AztecAddress,
@@ -95,7 +95,7 @@ pub fn parse_public_call_stack_item_from_oracle(fields: [Field; ENQUEUE_PUBLIC_F
             new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
             start_side_effect_counter: 0,
             end_side_effect_counter: 0,
-            unencrypted_logs_hashes: [SideEffect::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
+            unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
             unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
             global_variables: GlobalVariables::empty(),

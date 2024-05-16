@@ -490,7 +490,7 @@ export function getLogger() {
  * @param aztecNode - The instance of aztec node for retrieving the logs.
  * @param numEncryptedLogs - The number of expected logs.
  */
-export const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (
+export const expectsNumOfNoteEncryptedLogsInTheLastBlockToBe = async (
   aztecNode: AztecNode | undefined,
   numEncryptedLogs: number,
 ) => {
@@ -500,7 +500,7 @@ export const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (
     return;
   }
   const l2BlockNum = await aztecNode.getBlockNumber();
-  const encryptedLogs = await aztecNode.getLogs(l2BlockNum, 1, LogType.ENCRYPTED);
+  const encryptedLogs = await aztecNode.getLogs(l2BlockNum, 1, LogType.NOTEENCRYPTED);
   const unrolledLogs = EncryptedL2BlockL2Logs.unrollLogs(encryptedLogs);
   expect(unrolledLogs.length).toBe(numEncryptedLogs);
 };

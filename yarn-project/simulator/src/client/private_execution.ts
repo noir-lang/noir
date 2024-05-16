@@ -42,6 +42,8 @@ export async function executePrivateFunction(
   const returnWitness = witnessMapToFields(acirExecutionResult.returnWitness);
   const publicInputs = PrivateCircuitPublicInputs.fromFields(returnWitness);
 
+  context.chopNoteEncryptedLogs();
+  const noteEncryptedLogs = context.getNoteEncryptedLogs();
   const encryptedLogs = context.getEncryptedLogs();
   const unencryptedLogs = context.getUnencryptedLogs();
 
@@ -69,6 +71,7 @@ export async function executePrivateFunction(
     vk: Buffer.from(artifact.verificationKey!, 'hex'),
     nestedExecutions,
     enqueuedPublicFunctionCalls,
+    noteEncryptedLogs,
     publicTeardownFunctionCall,
     encryptedLogs,
     unencryptedLogs,

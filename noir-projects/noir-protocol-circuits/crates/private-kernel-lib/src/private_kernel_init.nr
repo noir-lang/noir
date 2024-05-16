@@ -55,7 +55,7 @@ mod tests {
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, note_hash::NoteHash,
         nullifier_key_validation_request::NullifierKeyValidationRequest,
         private_kernel::private_call_data::PrivateCallData, read_request::ReadRequest,
-        nullifier::Nullifier, side_effect::SideEffect
+        nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
     },
         address::{AztecAddress, EthAddress}, constants::MAX_NEW_NOTE_HASHES_PER_CALL,
         grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message,
@@ -209,6 +209,15 @@ mod tests {
         assert_eq(
             request.contract_address, builder.private_call.public_inputs.call_context.storage_contract_address
         );
+    }
+
+    #[test(should_fail_with = "Could not find note hash linked to note log.")]
+    fn input_validation_note_log_not_linked() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+
+        builder.private_call.public_inputs.note_encrypted_logs_hashes.extend_from_array([NoteLogHash { value: 9123, counter: 2, length: 2, note_hash_counter: 1 }]);
+
+        builder.failed();
     }
 
     #[test]

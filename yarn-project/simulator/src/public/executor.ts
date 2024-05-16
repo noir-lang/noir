@@ -185,7 +185,7 @@ async function executePublicFunctionAcvm(
       nestedExecutions: [],
       unencryptedLogsHashes: [],
       unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
-      unencryptedLogPreimagesLength: new Fr(4n), // empty logs have len 4
+      unencryptedLogPreimagesLength: Fr.ZERO,
       allUnencryptedLogs: UnencryptedFunctionL2Logs.empty(),
       reverted,
       revertReason,

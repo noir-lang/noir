@@ -105,6 +105,15 @@ describe('Archiver', () => {
     }
 
     // Expect logs to correspond to what is set by L2Block.random(...)
+    const noteEncryptedLogs = await archiver.getLogs(1, 100, LogType.NOTEENCRYPTED);
+    expect(noteEncryptedLogs.length).toEqual(blockNumbers.length);
+
+    for (const [index, x] of blockNumbers.entries()) {
+      const expectedTotalNumEncryptedLogs = 4 * x * 2;
+      const totalNumEncryptedLogs = EncryptedL2BlockL2Logs.unrollLogs([noteEncryptedLogs[index]]).length;
+      expect(totalNumEncryptedLogs).toEqual(expectedTotalNumEncryptedLogs);
+    }
+
     const encryptedLogs = await archiver.getLogs(1, 100, LogType.ENCRYPTED);
     expect(encryptedLogs.length).toEqual(blockNumbers.length);
 

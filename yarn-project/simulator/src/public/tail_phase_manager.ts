@@ -1,9 +1,10 @@
 import { type PublicKernelRequest, PublicKernelType, type Tx } from '@aztec/circuit-types';
 import {
-  Fr,
+  type Fr,
   type GlobalVariables,
   type Header,
   type KernelCircuitPublicInputs,
+  type LogHash,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -12,7 +13,6 @@ import {
   type Proof,
   type PublicKernelCircuitPublicInputs,
   PublicKernelTailCircuitPrivateInputs,
-  SideEffect,
   makeEmptyProof,
   mergeAccumulatedData,
   sortByCounter,
@@ -159,10 +159,8 @@ export class TailPhaseManager extends AbstractPhaseManager {
     return sortByCounter(noteHashes).map(n => n.value) as Tuple<Fr, N>;
   }
 
-  private sortLogsHashes<N extends number>(unencryptedLogsHashes: Tuple<SideEffect, N>): Tuple<SideEffect, N> {
+  private sortLogsHashes<N extends number>(unencryptedLogsHashes: Tuple<LogHash, N>): Tuple<LogHash, N> {
     // TODO(6052): logs here may have duplicate counters from nested calls
-    return sortByCounter(
-      unencryptedLogsHashes.map(n => ({ ...n, counter: n.counter.toNumber(), isEmpty: () => n.isEmpty() })),
-    ).map(h => new SideEffect(h.value, new Fr(h.counter))) as Tuple<SideEffect, N>;
+    return sortByCounter(unencryptedLogsHashes);
   }
 }

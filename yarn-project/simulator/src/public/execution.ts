@@ -4,13 +4,13 @@ import {
   type ContractStorageUpdateRequest,
   type Fr,
   type L2ToL1Message,
+  type LogHash,
   type NoteHash,
   type Nullifier,
   type PublicCallRequest,
   PublicDataRead,
   PublicDataUpdateRequest,
   type ReadRequest,
-  type SideEffect,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot, computePublicDataTreeValue } from '@aztec/circuits.js/hash';
 
@@ -48,7 +48,7 @@ export interface PublicExecutionResult {
    * The hashed logs with side effect counter.
    * Note: required as we don't track the counter anywhere else.
    */
-  unencryptedLogsHashes: SideEffect[];
+  unencryptedLogsHashes: LogHash[];
   /**
    * Unencrypted logs emitted during execution of this function call.
    * Note: These are preimages to `unencryptedLogsHashes`.

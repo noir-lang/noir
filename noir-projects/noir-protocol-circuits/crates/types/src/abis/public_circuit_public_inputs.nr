@@ -1,7 +1,7 @@
 use crate::{
     abis::{
     call_context::CallContext, note_hash::NoteHash, nullifier::Nullifier, read_request::ReadRequest,
-    side_effect::SideEffect, gas::Gas, global_variables::GlobalVariables
+    gas::Gas, global_variables::GlobalVariables, log_hash::LogHash
 },
     address::AztecAddress,
     constants::{
@@ -36,7 +36,7 @@ struct PublicCircuitPublicInputs {
     start_side_effect_counter: u32,
     end_side_effect_counter: u32,
 
-    unencrypted_logs_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_CALL],
+    unencrypted_logs_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_CALL],
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.
@@ -130,7 +130,7 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             new_l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
             start_side_effect_counter: reader.read() as u32,
             end_side_effect_counter: reader.read() as u32,
-            unencrypted_logs_hashes: reader.read_struct_array(SideEffect::deserialize, [SideEffect::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL]),
+            unencrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL]),
             unencrypted_log_preimages_length: reader.read(),
             historical_header: reader.read_struct(Header::deserialize),
             global_variables: reader.read_struct(GlobalVariables::deserialize),
@@ -168,7 +168,7 @@ impl Empty for PublicCircuitPublicInputs {
             new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
             start_side_effect_counter: 0 as u32,
             end_side_effect_counter: 0 as u32,
-            unencrypted_logs_hashes: [SideEffect::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
+            unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
             unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
             global_variables: GlobalVariables::empty(),
@@ -195,6 +195,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x132559f41b7adc7388e0cd52b91fd6837c296b2f9ec1b6d2ed046f7a56db18f8;
+    let test_data_empty_hash = 0x048912d56248af479f8d7ecedbba7092d27741b10075a989e040f8e3242a7a3f;
     assert_eq(hash, test_data_empty_hash);
 }

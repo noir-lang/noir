@@ -409,6 +409,18 @@ export class ProvingOrchestrator {
       return;
     }
     if (
+      !tx.baseRollupInputs.kernelData.publicInputs.end.noteEncryptedLogsHash
+        .toBuffer()
+        .equals(tx.processedTx.noteEncryptedLogs.hash(0))
+    ) {
+      provingState.reject(
+        `Note encrypted logs hash mismatch: ${
+          tx.baseRollupInputs.kernelData.publicInputs.end.noteEncryptedLogsHash
+        } === ${Fr.fromBuffer(tx.processedTx.noteEncryptedLogs.hash(0))}`,
+      );
+      return;
+    }
+    if (
       !tx.baseRollupInputs.kernelData.publicInputs.end.encryptedLogsHash
         .toBuffer()
         .equals(tx.processedTx.encryptedLogs.hash())

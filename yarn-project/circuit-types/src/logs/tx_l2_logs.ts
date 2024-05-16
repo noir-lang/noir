@@ -1,4 +1,8 @@
-import { MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX } from '@aztec/circuits.js';
+import {
+  MAX_ENCRYPTED_LOGS_PER_TX,
+  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+  MAX_UNENCRYPTED_LOGS_PER_TX,
+} from '@aztec/circuits.js';
 import { sha256Trunc } from '@aztec/foundation/crypto';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
@@ -6,6 +10,7 @@ import isEqual from 'lodash.isequal';
 
 import { type EncryptedL2Log } from './encrypted_l2_log.js';
 import { EncryptedFunctionL2Logs, type FunctionL2Logs, UnencryptedFunctionL2Logs } from './function_l2_logs.js';
+import { LogType } from './log_type.js';
 import { type UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
@@ -83,7 +88,7 @@ export abstract class TxL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
    * Note: This is a TS implementation of `computeKernelLogsHash` function in Decoder.sol. See that function documentation
    *       for more details.
    */
-  public hash(): Buffer {
+  public hash(logType: LogType = LogType.ENCRYPTED): Buffer {
     if (this.unrollLogs().length == 0) {
       return Buffer.alloc(32);
     }
@@ -94,7 +99,8 @@ export abstract class TxL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
     }
     // pad the end of logs with 0s
     // NB - This assumes MAX_ENCRYPTED_LOGS_PER_TX == MAX_UNENCRYPTED_LOGS_PER_TX
-    for (let i = 0; i < MAX_ENCRYPTED_LOGS_PER_TX - this.unrollLogs().length; i++) {
+    const pad = logType == LogType.NOTEENCRYPTED ? MAX_NOTE_ENCRYPTED_LOGS_PER_TX : MAX_ENCRYPTED_LOGS_PER_TX;
+    for (let i = 0; i < pad - this.unrollLogs().length; i++) {
       flattenedLogs = Buffer.concat([flattenedLogs, Buffer.alloc(32)]);
     }
 

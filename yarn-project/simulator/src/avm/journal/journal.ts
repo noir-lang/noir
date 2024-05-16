@@ -6,10 +6,10 @@ import {
   ContractStorageUpdateRequest,
   EthAddress,
   L2ToL1Message,
+  LogHash,
   NoteHash,
   Nullifier,
   ReadRequest,
-  SideEffect,
 } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
@@ -64,7 +64,7 @@ type PartialPublicExecutionResult = {
   newNullifiers: Nullifier[];
   contractStorageReads: ContractStorageRead[];
   contractStorageUpdateRequests: ContractStorageUpdateRequest[];
-  unencryptedLogsHashes: SideEffect[];
+  unencryptedLogsHashes: LogHash[];
   unencryptedLogs: UnencryptedL2Log[];
   unencryptedLogPreimagesLength: Fr;
   allUnencryptedLogs: UnencryptedL2Log[];
@@ -119,8 +119,7 @@ export class AvmPersistableStateManager {
       contractStorageUpdateRequests: [],
       unencryptedLogsHashes: [],
       unencryptedLogs: [],
-      // The length starts at 4 because it will always include the size.
-      unencryptedLogPreimagesLength: new Fr(4),
+      unencryptedLogPreimagesLength: Fr.ZERO,
       allUnencryptedLogs: [],
       nestedExecutions: [],
     };
@@ -311,12 +310,14 @@ export class AvmPersistableStateManager {
     this.transitionalExecutionResult.allUnencryptedLogs.push(ulog);
     // this duplicates exactly what happens in the trace just for the purpose of transitional integration with the kernel
     this.transitionalExecutionResult.unencryptedLogsHashes.push(
-      new SideEffect(logHash, new Fr(this.trace.accessCounter)),
+      new LogHash(logHash, this.trace.accessCounter, new Fr(ulog.length)),
     );
     // Duplicates computation performed in public_context.nr::emit_unencrypted_log
     // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4).
-    this.transitionalExecutionResult.unencryptedLogPreimagesLength = new Fr(
-      this.transitionalExecutionResult.unencryptedLogPreimagesLength.toNumber() + 44 + log.length * Fr.SIZE_IN_BYTES,
+    // Note that ulog.length includes all the above bytes apart from processed log len
+    // Processed log len is added to replicate conversion to function_l2_logs at the end of exec.
+    this.transitionalExecutionResult.unencryptedLogPreimagesLength = new Fr(ulog.length + 4).add(
+      this.transitionalExecutionResult.unencryptedLogPreimagesLength,
     );
     // TODO(6206): likely need to track this here and not just in the transitional logic.
 

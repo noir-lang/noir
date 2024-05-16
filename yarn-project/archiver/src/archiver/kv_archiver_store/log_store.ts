@@ -20,12 +20,14 @@ import { type BlockStore } from './block_store.js';
  * A store for logs
  */
 export class LogStore {
+  #noteEncryptedLogs: AztecMap<number, Buffer>;
   #encryptedLogs: AztecMap<number, Buffer>;
   #unencryptedLogs: AztecMap<number, Buffer>;
   #logsMaxPageSize: number;
   #log = createDebugLogger('aztec:archiver:log_store');
 
   constructor(private db: AztecKVStore, private blockStore: BlockStore, logsMaxPageSize: number = 1000) {
+    this.#noteEncryptedLogs = db.openMap('archiver_note_encrypted_logs');
     this.#encryptedLogs = db.openMap('archiver_encrypted_logs');
     this.#unencryptedLogs = db.openMap('archiver_unencrypted_logs');
 
@@ -40,11 +42,16 @@ export class LogStore {
    * @returns True if the operation is successful.
    */
   addLogs(
+    noteEncryptedLogs: EncryptedL2BlockL2Logs | undefined,
     encryptedLogs: EncryptedL2BlockL2Logs | undefined,
     unencryptedLogs: UnencryptedL2BlockL2Logs | undefined,
     blockNumber: number,
   ): Promise<boolean> {
     return this.db.transaction(() => {
+      if (noteEncryptedLogs) {
+        void this.#noteEncryptedLogs.set(blockNumber, noteEncryptedLogs.toBuffer());
+      }
+
       if (encryptedLogs) {
         void this.#encryptedLogs.set(blockNumber, encryptedLogs.toBuffer());
       }
@@ -69,8 +76,18 @@ export class LogStore {
     limit: number,
     logType: TLogType,
   ): IterableIterator<L2BlockL2Logs<FromLogType<TLogType>>> {
-    const logMap = logType === LogType.ENCRYPTED ? this.#encryptedLogs : this.#unencryptedLogs;
-    const L2BlockL2Logs = logType === LogType.ENCRYPTED ? EncryptedL2BlockL2Logs : UnencryptedL2BlockL2Logs;
+    const logMap = (() => {
+      switch (logType) {
+        case LogType.ENCRYPTED:
+          return this.#encryptedLogs;
+        case LogType.NOTEENCRYPTED:
+          return this.#noteEncryptedLogs;
+        case LogType.UNENCRYPTED:
+        default:
+          return this.#unencryptedLogs;
+      }
+    })();
+    const L2BlockL2Logs = logType === LogType.UNENCRYPTED ? UnencryptedL2BlockL2Logs : EncryptedL2BlockL2Logs;
     for (const buffer of logMap.values({ start, limit })) {
       yield L2BlockL2Logs.fromBuffer(buffer) as L2BlockL2Logs<FromLogType<TLogType>>;
     }

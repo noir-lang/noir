@@ -77,6 +77,7 @@ describe('Kernel Prover', () => {
       partialWitness: new Map(),
       enqueuedPublicFunctionCalls: [],
       publicTeardownFunctionCall: PublicCallRequest.empty(),
+      noteEncryptedLogs: [],
       encryptedLogs: [],
       unencryptedLogs: [],
     };

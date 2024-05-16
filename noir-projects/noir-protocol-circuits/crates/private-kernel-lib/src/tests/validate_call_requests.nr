@@ -201,7 +201,7 @@ fn validate_public_call_requests_more_hashes_fails() {
 fn validate_teardown_call_request_succeeds() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(false);
+    builder.private_call.add_teardown_call_request(false);
 
     builder.validate();
 }
@@ -210,7 +210,7 @@ fn validate_teardown_call_request_succeeds() {
 fn validate_teardown_call_request_delegate_calls_succeeds() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
 
     builder.validate();
 }
@@ -219,7 +219,7 @@ fn validate_teardown_call_request_delegate_calls_succeeds() {
 fn validate_teardown_call_request_incorrect_hash_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
     // Change the hash to be a different value.
     builder.private_call.public_teardown_call_request.hash += 1;
 
@@ -230,7 +230,7 @@ fn validate_teardown_call_request_incorrect_hash_fails() {
 fn validate_teardown_call_request_incorrect_caller_address_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
     // Change the caller contract address to be a different value.
     builder.private_call.public_teardown_call_request.caller_contract_address.inner += 1;
 
@@ -241,7 +241,7 @@ fn validate_teardown_call_request_incorrect_caller_address_fails() {
 fn validate_teardown_call_request_incorrect_caller_storage_contract_address_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
     // Change the storage contract to be a different value.
     builder.private_call.public_teardown_call_request.caller_context.storage_contract_address.inner += 1;
 
@@ -252,7 +252,7 @@ fn validate_teardown_call_request_incorrect_caller_storage_contract_address_fail
 fn validate_teardown_call_request_incorrect_caller_msg_sender_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
     // Change the msg_sender to be a different value.
     builder.private_call.public_teardown_call_request.caller_context.msg_sender.inner += 1;
 
@@ -263,7 +263,7 @@ fn validate_teardown_call_request_incorrect_caller_msg_sender_fails() {
 fn validate_teardown_call_request_fewer_hashes_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
     // Remove the call stack item hash.
     builder.private_call.public_inputs.public_teardown_function_hash = 0;
 
@@ -274,7 +274,7 @@ fn validate_teardown_call_request_fewer_hashes_fails() {
 fn validate_teardown_call_request_more_hashes_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.add_teaddown_call_request(true);
+    builder.private_call.add_teardown_call_request(true);
     // Remove the call request.
     builder.private_call.public_teardown_call_request = CallRequest::empty();
 

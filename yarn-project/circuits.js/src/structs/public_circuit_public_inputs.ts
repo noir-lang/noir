@@ -33,11 +33,11 @@ import { Gas } from './gas.js';
 import { GlobalVariables } from './global_variables.js';
 import { Header } from './header.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
+import { LogHash } from './log_hash.js';
 import { NoteHash } from './note_hash.js';
 import { Nullifier } from './nullifier.js';
 import { ReadRequest } from './read_request.js';
 import { RevertCode } from './revert_code.js';
-import { SideEffect } from './side_effects.js';
 
 /**
  * Public inputs to a public circuit.
@@ -106,7 +106,7 @@ export class PublicCircuitPublicInputs {
      * Hash of the unencrypted logs emitted in this function call.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHashes: Tuple<SideEffect, typeof MAX_UNENCRYPTED_LOGS_PER_CALL>,
+    public unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_CALL>,
     /**
      * Length of the unencrypted log preimages emitted in this function call.
      */
@@ -166,7 +166,7 @@ export class PublicCircuitPublicInputs {
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
       Fr.ZERO,
       Fr.ZERO,
-      makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect.empty),
+      makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash.empty),
       Fr.ZERO,
       Header.empty(),
       GlobalVariables.empty(),
@@ -277,7 +277,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readObject(Fr),
       reader.readObject(Fr),
-      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
       reader.readObject(Fr),
       reader.readObject(Header),
       reader.readObject(GlobalVariables),
@@ -306,7 +306,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readField(),
       reader.readField(),
-      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, SideEffect),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
       reader.readField(),
       Header.fromFields(reader),
       GlobalVariables.fromFields(reader),

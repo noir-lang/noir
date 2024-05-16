@@ -3,7 +3,7 @@ use crate::{
     gas_settings::GasSettings, call_request::{CallerContext, CallRequest},
     private_call_stack_item::PrivateCallStackItem, function_data::FunctionData,
     max_block_number::MaxBlockNumber, private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    private_kernel::private_call_data::PrivateCallData, side_effect::SideEffect
+    private_kernel::private_call_data::PrivateCallData, log_hash::LogHash
 },
     merkle_tree::membership::MembershipWitness,
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
@@ -130,7 +130,7 @@ impl PrivateCallDataBuilder {
         }
     }
 
-    pub fn add_teaddown_call_request(&mut self, is_delegate_call: bool) {
+    pub fn add_teardown_call_request(&mut self, is_delegate_call: bool) {
         let hash = 909090;
         self.public_teardown_call_request = self.public_inputs.generate_call_request(hash, is_delegate_call);
         self.public_inputs.add_teardown_call_request(hash);

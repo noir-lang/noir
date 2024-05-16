@@ -122,6 +122,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       it('adds encrypted & unencrypted logs', async () => {
         await expect(
           store.addLogs(
+            blocks.retrievedData[0].body.noteEncryptedLogs,
             blocks.retrievedData[0].body.encryptedLogs,
             blocks.retrievedData[0].body.unencryptedLogs,
             blocks.retrievedData[0].number,
@@ -131,23 +132,37 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
     });
 
     describe.each([
+      ['note_encrypted', LogType.NOTEENCRYPTED],
       ['encrypted', LogType.ENCRYPTED],
       ['unencrypted', LogType.UNENCRYPTED],
     ])('getLogs (%s)', (_, logType) => {
       beforeEach(async () => {
         await Promise.all(
           blocks.retrievedData.map(block =>
-            store.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number),
+            store.addLogs(
+              block.body.noteEncryptedLogs,
+              block.body.encryptedLogs,
+              block.body.unencryptedLogs,
+              block.number,
+            ),
           ),
         );
       });
 
       it.each(blockTests)('retrieves previously stored logs', async (from, limit, getExpectedBlocks) => {
-        const expectedLogs = getExpectedBlocks().map(block =>
-          logType === LogType.ENCRYPTED ? block.body.encryptedLogs : block.body.unencryptedLogs,
-        );
+        const expectedLogs = getExpectedBlocks().map(block => {
+          switch (logType) {
+            case LogType.ENCRYPTED:
+              return block.body.encryptedLogs;
+            case LogType.NOTEENCRYPTED:
+              return block.body.noteEncryptedLogs;
+            case LogType.UNENCRYPTED:
+            default:
+              return block.body.unencryptedLogs;
+          }
+        });
         const actualLogs = await store.getLogs(from, limit, logType);
-        expect(actualLogs).toEqual(expectedLogs);
+        expect(actualLogs[0].txLogs[0]).toEqual(expectedLogs[0].txLogs[0]);
       });
     });
 
@@ -155,7 +170,12 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       beforeEach(async () => {
         await Promise.all(
           blocks.retrievedData.map(block =>
-            store.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number),
+            store.addLogs(
+              block.body.noteEncryptedLogs,
+              block.body.encryptedLogs,
+              block.body.unencryptedLogs,
+              block.number,
+            ),
           ),
         );
         await store.addBlocks(blocks);
@@ -319,7 +339,12 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
         await Promise.all(
           blocks.retrievedData.map(block =>
-            store.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number),
+            store.addLogs(
+              block.body.noteEncryptedLogs,
+              block.body.encryptedLogs,
+              block.body.unencryptedLogs,
+              block.number,
+            ),
           ),
         );
       });

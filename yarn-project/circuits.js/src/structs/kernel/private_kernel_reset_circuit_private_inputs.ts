@@ -4,10 +4,12 @@ import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/s
 import {
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
 import { type GrumpkinPrivateKey } from '../../types/grumpkin_private_key.js';
 import { countAccumulatedItems } from '../../utils/index.js';
+import { NoteLogHash } from '../log_hash.js';
 import { ScopedNoteHash } from '../note_hash.js';
 import { ScopedNullifier } from '../nullifier.js';
 import {
@@ -22,10 +24,11 @@ export class PrivateKernelResetOutputs {
   constructor(
     public noteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
     public nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    public noteEncryptedLogHashes: Tuple<NoteLogHash, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.noteHashes, this.nullifiers);
+    return serializeToBuffer(this.noteHashes, this.nullifiers, this.noteEncryptedLogHashes);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
@@ -33,6 +36,7 @@ export class PrivateKernelResetOutputs {
     return new PrivateKernelResetOutputs(
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, ScopedNoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, ScopedNullifier),
+      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
     );
   }
 }
@@ -47,6 +51,10 @@ export class PrivateKernelResetHints {
      * Contains hints for the transient nullifiers to locate corresponding note hashes.
      */
     public transientNoteHashIndexesForNullifiers: Tuple<number, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    /**
+     * Contains hints for the transient logs to locate corresponding note hashes.
+     */
+    public transientNoteHashIndexesForLogs: Tuple<number, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
     /**
      * Contains hints for the transient read requests to localize corresponding commitments.
      */
@@ -66,6 +74,7 @@ export class PrivateKernelResetHints {
     return serializeToBuffer(
       this.transientNullifierIndexesForNoteHashes,
       this.transientNoteHashIndexesForNullifiers,
+      this.transientNoteHashIndexesForLogs,
       this.noteHashReadRequestHints,
       this.nullifierReadRequestHints,
       this.masterNullifierSecretKeys,
@@ -82,6 +91,7 @@ export class PrivateKernelResetHints {
     return new PrivateKernelResetHints(
       reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
       reader.readNumbers(MAX_NEW_NULLIFIERS_PER_TX),
+      reader.readNumbers(MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
       reader.readObject({ fromBuffer: noteHashReadRequestHintsFromBuffer }),
       reader.readObject({ fromBuffer: nullifierReadRequestHintsFromBuffer }),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GrumpkinScalar),

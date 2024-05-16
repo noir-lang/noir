@@ -4,7 +4,7 @@ use crate::{
     gas_settings::GasSettings, gas::Gas, max_block_number::MaxBlockNumber, note_hash::NoteHash,
     nullifier::Nullifier, nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
-    side_effect::SideEffect
+    log_hash::{LogHash, NoteLogHash}
 },
     address::{AztecAddress, compute_initialization_hash}, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, tests::fixtures, transaction::tx_context::TxContext
@@ -15,7 +15,7 @@ use crate::{
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_ENCRYPTED_LOGS_PER_CALL,
-    MAX_UNENCRYPTED_LOGS_PER_CALL
+    MAX_UNENCRYPTED_LOGS_PER_CALL, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
 },
     traits::Empty
 };
@@ -44,8 +44,9 @@ struct PrivateCircuitPublicInputsBuilder {
     public_teardown_function_hash: Field,
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
-    encrypted_logs_hashes: BoundedVec<SideEffect, MAX_ENCRYPTED_LOGS_PER_CALL>,
-    unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL>,
+    note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL>,
+    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
+    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
 
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
@@ -153,13 +154,13 @@ impl PrivateCircuitPublicInputsBuilder {
     }
 
     pub fn add_encrypted_log(&mut self, hash: Field, preimages_length: Field) {
-        let side_effect = SideEffect { value: hash, counter: self.next_counter() };
+        let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
         self.encrypted_logs_hashes.push(side_effect);
         self.encrypted_log_preimages_length += preimages_length;
     }
 
     pub fn add_unencrypted_log(&mut self, hash: Field, preimages_length: Field) {
-        let side_effect = SideEffect { value: hash, counter: self.next_counter() };
+        let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
         self.unencrypted_logs_hashes.push(side_effect);
         self.unencrypted_log_preimages_length += preimages_length;
     }
@@ -216,6 +217,7 @@ impl PrivateCircuitPublicInputsBuilder {
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             start_side_effect_counter: self.counter_start,
             end_side_effect_counter: self.counter_end,
+            note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
@@ -251,6 +253,7 @@ impl Empty for PrivateCircuitPublicInputsBuilder {
             public_call_stack_hashes: BoundedVec::new(),
             public_teardown_function_hash: 0,
             new_l2_to_l1_msgs: BoundedVec::new(),
+            note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
             encrypted_log_preimages_length: 0,

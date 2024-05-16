@@ -76,6 +76,12 @@ export class Body {
     return computeRoot(leaves);
   }
 
+  get noteEncryptedLogs(): EncryptedL2BlockL2Logs {
+    const logs = this.txEffects.map(txEffect => txEffect.noteEncryptedLogs);
+
+    return new EncryptedL2BlockL2Logs(logs);
+  }
+
   get encryptedLogs(): EncryptedL2BlockL2Logs {
     const logs = this.txEffects.map(txEffect => txEffect.encryptedLogs);
 

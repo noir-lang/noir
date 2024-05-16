@@ -2,7 +2,7 @@ use crate::{
     abis::{
     gas::Gas, call_context::CallContext, note_hash::NoteHash, nullifier::Nullifier,
     public_circuit_public_inputs::PublicCircuitPublicInputs, read_request::ReadRequest,
-    side_effect::SideEffect, global_variables::GlobalVariables
+    log_hash::LogHash, global_variables::GlobalVariables
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
@@ -32,7 +32,7 @@ struct PublicCircuitPublicInputsBuilder {
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     start_side_effect_counter: u32,
     end_side_effect_counter: u32,
-    unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL>,
+    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
     unencrypted_log_preimages_length: Field,
     historical_header: Header,
     global_variables: GlobalVariables,

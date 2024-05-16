@@ -55,7 +55,7 @@ mod tests {
         abis::{
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
         max_block_number::MaxBlockNumber, note_hash::NoteHash, nullifier::Nullifier,
-        read_request::ReadRequest, side_effect::SideEffect
+        read_request::ReadRequest, log_hash::{LogHash, NoteLogHash}
     },
         address::{AztecAddress, EthAddress}, constants::MAX_NEW_NOTE_HASHES_PER_CALL,
         messaging::l2_to_l1_message::L2ToL1Message, utils::{arrays::array_length},
@@ -120,7 +120,7 @@ mod tests {
         builder.private_call.public_inputs.append_new_note_hashes(1);
 
         // Mock the previous new note hashes to be full, therefore no more note_hashes can be added.
-        builder.previous_kernel.append_new_note_hashes(MAX_NEW_NOTE_HASHES_PER_TX);
+        builder.previous_kernel.append_new_note_hashes(MAX_NEW_NOTE_HASHES_PER_TX, false);
 
         builder.failed();
     }
@@ -243,6 +243,14 @@ mod tests {
         assert_eq(public_inputs.end.unencrypted_logs_hashes[0].value, prev_unencrypted_logs_hash);
         assert_eq(public_inputs.end.encrypted_logs_hashes[1].value, encrypted_logs_hash);
         assert_eq(public_inputs.end.unencrypted_logs_hashes[1].value, unencrypted_logs_hash);
+    }
+
+    #[test(should_fail_with = "Could not find note hash linked to note log.")]
+    unconstrained fn input_validation_note_log_not_linked() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+
+        builder.private_call.public_inputs.note_encrypted_logs_hashes.push(NoteLogHash { value: 9123, counter: 2, length: 2, note_hash_counter: 1 });
+        builder.failed();
     }
 
     #[test]

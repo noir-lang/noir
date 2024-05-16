@@ -22,6 +22,7 @@ fn validate_arrays(data: PrivateCallData) -> ArrayLengths {
         new_l2_to_l1_msgs: validate_array(public_inputs.new_l2_to_l1_msgs),
         private_call_stack_hashes: validate_array(public_inputs.private_call_stack_hashes),
         public_call_stack_hashes: validate_array(public_inputs.public_call_stack_hashes),
+        note_encrypted_logs_hashes: validate_array(public_inputs.note_encrypted_logs_hashes),
         encrypted_logs_hashes: validate_array(public_inputs.encrypted_logs_hashes),
         unencrypted_logs_hashes: validate_array(public_inputs.unencrypted_logs_hashes)
     }
@@ -148,6 +149,7 @@ struct ArrayLengths {
     new_l2_to_l1_msgs: u64,
     private_call_stack_hashes: u64,
     public_call_stack_hashes: u64,
+    note_encrypted_logs_hashes: u64,
     encrypted_logs_hashes: u64,
     unencrypted_logs_hashes: u64,
 }

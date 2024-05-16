@@ -67,28 +67,28 @@ describe('benchmarks/tx_size_fees', () => {
       'native fee',
       () => NativeFeePaymentMethod.create(aliceWallet),
       // DA:
-      // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 624 B enc logs, 8 B unenc logs, teardown
+      // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 616 B enc logs, 0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200012672n,
+      200012416n,
     ],
     [
       'public fee',
       () => Promise.resolve(new PublicFeePaymentMethod(token.address, fpc.address, aliceWallet)),
       // DA:
-      // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 628 B enc logs, 12 B unenc logs, teardown
+      // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 616 B enc logs, 0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200012800n,
+      200012416n,
     ],
     [
       'private fee',
       () => Promise.resolve(new PrivateFeePaymentMethod(token.address, fpc.address, aliceWallet)),
       // DA:
-      // non-rev: 3 nullifiers, overhead; rev: 2 note hashes, 944 B enc logs, 20 B unenc logs, teardown
+      // non-rev: 3 nullifiers, overhead; rev: 2 note hashes, 616 B enc logs, 0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200018496n,
+      200012928n,
     ],
   ] as const)(
     'sends a tx with a fee with %s payment method',

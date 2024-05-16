@@ -10,7 +10,7 @@ use crate::{
     nullifier::{Nullifier, ScopedNullifier},
     nullifier_key_validation_request::{ScopedNullifierKeyValidationRequest, NullifierKeyValidationRequest},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-    read_request::{ReadRequest, ScopedReadRequest}, side_effect::SideEffect,
+    read_request::{ReadRequest, ScopedReadRequest}, log_hash::{LogHash, NoteLogHash},
     validation_requests::{ValidationRequests, ValidationRequestsBuilder}
 },
     address::{AztecAddress, EthAddress},
@@ -20,7 +20,8 @@ use crate::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-    VK_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
+    VK_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
+    MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
     hash::silo_nullifier, header::Header,
     messaging::l2_to_l1_message::{L2ToL1Message, ScopedL2ToL1Message},
@@ -44,8 +45,10 @@ struct FixtureBuilder {
     new_note_hashes: BoundedVec<ScopedNoteHash, MAX_NEW_NOTE_HASHES_PER_TX>,
     new_nullifiers: BoundedVec<ScopedNullifier, MAX_NEW_NULLIFIERS_PER_TX>,
     new_l2_to_l1_msgs: BoundedVec<ScopedL2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
-    encrypted_logs_hashes: BoundedVec<SideEffect, MAX_ENCRYPTED_LOGS_PER_TX>,
-    unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_TX>,
+    note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
+    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
+    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
+    note_encrypted_logs_hash: Field,
     encrypted_logs_hash: Field,
     unencrypted_logs_hash: Field,
     encrypted_log_preimages_length: Field,
@@ -92,8 +95,10 @@ impl FixtureBuilder {
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),
+            note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
+            note_encrypted_logs_hash: 0,
             encrypted_logs_hash: 0,
             unencrypted_logs_hash: 0,
             encrypted_log_preimages_length: 0,
@@ -135,6 +140,7 @@ impl FixtureBuilder {
             new_note_hashes: self.new_note_hashes,
             new_nullifiers: self.new_nullifiers,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs,
+            note_encrypted_logs_hashes: self.note_encrypted_logs_hashes,
             encrypted_logs_hashes: self.encrypted_logs_hashes,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
@@ -150,6 +156,7 @@ impl FixtureBuilder {
             new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash),
             new_nullifiers: self.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
+            note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
@@ -165,6 +172,7 @@ impl FixtureBuilder {
             new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value),
             new_nullifiers: self.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier.value),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
+            note_encrypted_logs_hash: self.note_encrypted_logs_hash,
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
@@ -275,12 +283,24 @@ impl FixtureBuilder {
         self.new_note_hashes.push(NoteHash { value, counter: self.next_counter() }.scope(0, self.storage_contract_address));
     }
 
-    pub fn append_new_note_hashes(&mut self, num_new_note_hashes: u64) {
+    pub fn add_broadcast_new_note_hash(&mut self, value: Field) {
+        self.new_note_hashes.push(NoteHash { value, counter: self.next_counter() }.scope(0, self.storage_contract_address));
+        self.note_encrypted_logs_hashes.push(
+            NoteLogHash { value: value + 1, counter: self.next_counter(), length: 64, note_hash_counter: self.counter - 2 }
+        );
+        self.encrypted_log_preimages_length += 64;
+    }
+
+    pub fn append_new_note_hashes(&mut self, num_new_note_hashes: u64, broadcast: bool) {
         let index_offset = self.new_note_hashes.len();
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             if i < num_new_note_hashes {
                 let mocked_value = self.get_mocked_note_hash_value(index_offset + i);
-                self.add_new_note_hash(mocked_value);
+                if (broadcast) {
+                    self.add_broadcast_new_note_hash(mocked_value);
+                } else {
+                    self.add_new_note_hash(mocked_value);
+                }
             }
         }
     }
@@ -408,13 +428,13 @@ impl FixtureBuilder {
     }
 
     pub fn set_encrypted_logs(&mut self, hash: Field, preimages_length: Field) {
-        let side_effect = SideEffect { value: hash, counter: self.next_counter() };
+        let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
         self.encrypted_logs_hashes.push(side_effect);
         self.encrypted_log_preimages_length += preimages_length;
     }
 
     pub fn set_unencrypted_logs(&mut self, hash: Field, preimages_length: Field) {
-        let side_effect = SideEffect { value: hash, counter: self.next_counter() };
+        let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
         self.unencrypted_logs_hashes.push(side_effect);
         self.unencrypted_log_preimages_length += preimages_length;
     }
@@ -507,8 +527,10 @@ impl Empty for FixtureBuilder {
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),
+            note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
+            note_encrypted_logs_hash: 0,
             encrypted_logs_hash: 0,
             unencrypted_logs_hash: 0,
             encrypted_log_preimages_length: 0,

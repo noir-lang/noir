@@ -105,18 +105,18 @@ export class Synchronizer {
         return false;
       }
 
-      const encryptedLogs = blocks.flatMap(block => block.body.encryptedLogs);
+      const noteEncryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
 
       // Update latest tree roots from the most recent block
       const latestBlock = blocks[blocks.length - 1];
       await this.setHeaderFromBlock(latestBlock);
 
-      const logCount = L2BlockL2Logs.getTotalLogCount(encryptedLogs);
+      const logCount = L2BlockL2Logs.getTotalLogCount(noteEncryptedLogs);
       this.log.debug(
         `Forwarding ${logCount} encrypted logs and blocks to ${this.noteProcessors.length} note processors`,
       );
       for (const noteProcessor of this.noteProcessors) {
-        await noteProcessor.process(blocks, encryptedLogs);
+        await noteProcessor.process(blocks, noteEncryptedLogs);
       }
       return true;
     } catch (err) {
@@ -182,9 +182,9 @@ export class Synchronizer {
         throw new Error('No blocks in processor catch up mode');
       }
 
-      const encryptedLogs = blocks.flatMap(block => block.body.encryptedLogs);
+      const noteEncryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
 
-      const logCount = L2BlockL2Logs.getTotalLogCount(encryptedLogs);
+      const logCount = L2BlockL2Logs.getTotalLogCount(noteEncryptedLogs);
       this.log.debug(`Forwarding ${logCount} encrypted logs and blocks to note processors in catch up mode`);
 
       for (const noteProcessor of catchUpGroup) {
@@ -202,7 +202,7 @@ export class Synchronizer {
             blocks.length - index
           } blocks`,
         );
-        await noteProcessor.process(blocks.slice(index), encryptedLogs.slice(index));
+        await noteProcessor.process(blocks.slice(index), noteEncryptedLogs.slice(index));
 
         if (noteProcessor.status.syncedToBlock === toBlockNumber) {
           // Note processor caught up, move it to `noteProcessors` from `noteProcessorsToCatchUp`.

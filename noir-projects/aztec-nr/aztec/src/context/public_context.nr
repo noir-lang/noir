@@ -9,19 +9,15 @@ use crate::{
 };
 use dep::protocol_types::{
     abis::{
-    global_variables::GlobalVariables, function_selector::FunctionSelector,
-    private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    public_call_stack_item::PublicCallStackItem,
-    public_circuit_public_inputs::PublicCircuitPublicInputs, read_request::ReadRequest,
-    note_hash::NoteHash, nullifier::Nullifier, side_effect::SideEffect
+    function_selector::FunctionSelector, public_circuit_public_inputs::PublicCircuitPublicInputs,
+    read_request::ReadRequest, note_hash::NoteHash, nullifier::Nullifier, log_hash::LogHash
 },
     hash::silo_nullifier, address::{AztecAddress, EthAddress},
     constants::{
     MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
-    MAX_UNENCRYPTED_LOGS_PER_CALL
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
+    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::{Deserialize, Empty}
@@ -45,7 +41,7 @@ struct PublicContext {
 
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
-    unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL>,
+    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
     unencrypted_log_preimages_length: Field,
 
     // Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
@@ -158,7 +154,7 @@ impl PublicContext {
             start_side_effect_counter: self.inputs.start_side_effect_counter,
             end_side_effect_counter: self.side_effect_counter,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length + 4,
+            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.inputs.historical_header,
             global_variables: self.inputs.public_global_variables,
             prover_address: self.prover_address,
@@ -285,10 +281,11 @@ impl PublicContextInterface for PublicContext {
             event_selector,
             log
         );
-        let side_effect = SideEffect { value: log_hash, counter: self.next_counter() };
-        self.unencrypted_logs_hashes.push(side_effect);
         // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
-        self.unencrypted_log_preimages_length = self.unencrypted_log_preimages_length + 44 + log_slice.len().to_field();
+        let len = 44 + log_slice.len().to_field();
+        let side_effect = LogHash { value: log_hash, counter: self.next_counter(), length: len };
+        self.unencrypted_logs_hashes.push(side_effect);
+        self.unencrypted_log_preimages_length += len; 
         // Call oracle to broadcast log
         let _void = emit_unencrypted_log_oracle(contract_address, event_selector, log, side_effect.counter);
     }

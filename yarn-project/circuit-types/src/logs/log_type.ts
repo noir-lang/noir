@@ -5,10 +5,11 @@ import { type UnencryptedL2Log } from './unencrypted_l2_log.js';
  * Defines possible log types.
  */
 export enum LogType {
+  NOTEENCRYPTED,
   ENCRYPTED,
   UNENCRYPTED,
 }
 
-export type FromLogType<TLogType extends LogType> = TLogType extends LogType.ENCRYPTED
-  ? EncryptedL2Log
-  : UnencryptedL2Log;
+export type FromLogType<TLogType extends LogType> = TLogType extends LogType.UNENCRYPTED
+  ? UnencryptedL2Log
+  : EncryptedL2Log;

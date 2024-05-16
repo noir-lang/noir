@@ -16,7 +16,7 @@ import { ChildContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 
-import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
+import { expectsNumOfNoteEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
 
 const TIMEOUT = 120_000;
 
@@ -132,7 +132,7 @@ describe('e2e_2_pxes', () => {
     // Check initial balances and logs are as expected
     await expectTokenBalance(walletA, tokenAddress, walletA.getAddress(), initialBalance);
     await expectTokenBalance(walletB, tokenAddress, walletB.getAddress(), 0n);
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
+    await expectsNumOfNoteEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
 
     // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);
@@ -144,7 +144,7 @@ describe('e2e_2_pxes', () => {
     // Check balances and logs are as expected
     await expectTokenBalance(walletA, tokenAddress, walletA.getAddress(), initialBalance - transferAmount1);
     await expectTokenBalance(walletB, tokenAddress, walletB.getAddress(), transferAmount1);
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
+    await expectsNumOfNoteEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
 
     // Transfer funds from B to A via PXE B
     const contractWithWalletB = await TokenContract.at(tokenAddress, walletB);
@@ -161,7 +161,7 @@ describe('e2e_2_pxes', () => {
       initialBalance - transferAmount1 + transferAmount2,
     );
     await expectTokenBalance(walletB, tokenAddress, walletB.getAddress(), transferAmount1 - transferAmount2);
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
+    await expectsNumOfNoteEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
   });
 
   const deployChildContractViaServerA = async () => {
@@ -276,7 +276,7 @@ describe('e2e_2_pxes', () => {
     await expectTokenBalance(walletA, tokenAddress, walletA.getAddress(), initialBalance);
     // don't check userB yet
 
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
+    await expectsNumOfNoteEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
 
     // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);

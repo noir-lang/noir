@@ -165,10 +165,14 @@ export type TxStats = {
   size: number;
   /** Size of the proof. */
   proofSize: number;
+  /** Number of note encrypted logs. */
+  noteEncryptedLogCount: number;
   /** Number of encrypted logs. */
   encryptedLogCount: number;
   /** Number of unencrypted logs. */
   unencryptedLogCount: number;
+  /** Serialized size of note encrypted logs. */
+  noteEncryptedLogSize: number;
   /** Serialized size of encrypted logs. */
   encryptedLogSize: number;
   /** Serialized size of unencrypted logs. */

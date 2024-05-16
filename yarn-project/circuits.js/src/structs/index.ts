@@ -34,6 +34,7 @@ export * from './kernel/public_kernel_tail_circuit_private_inputs.js';
 export * from './kernel/kernel_circuit_public_inputs.js';
 export * from './kernel/kernel_data.js';
 export * from './l2_to_l1_message.js';
+export * from './log_hash.js';
 export * from './max_block_number.js';
 export * from './membership_witness.js';
 export * from './non_existent_read_request_hints.js';

@@ -3,11 +3,12 @@ use dep::types::{
     abis::{
     private_kernel_data::{PrivateKernelData, verify_previous_kernel_proof},
     kernel_circuit_public_inputs::KernelCircuitPublicInputs, note_hash::ScopedNoteHash,
-    nullifier::ScopedNullifier, side_effect::SideEffect
+    nullifier::ScopedNullifier, log_hash::{LogHash, NoteLogHash}
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
+    MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length, traits::is_empty
 };
@@ -17,9 +18,11 @@ struct PrivateKernelTailHints {
     sorted_new_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_new_nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_new_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
-    sorted_encrypted_log_hashes: [SideEffect; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_note_encrypted_log_hashes: [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+    sorted_note_encrypted_log_hashes_indexes: [u64; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+    sorted_encrypted_log_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
-    sorted_unencrypted_log_hashes: [SideEffect; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
 }
 
@@ -47,6 +50,8 @@ impl PrivateKernelTailCircuitPrivateInputs {
             self.hints.sorted_new_note_hashes_indexes,
             self.hints.sorted_new_nullifiers,
             self.hints.sorted_new_nullifiers_indexes,
+            self.hints.sorted_note_encrypted_log_hashes,
+            self.hints.sorted_note_encrypted_log_hashes_indexes,
             self.hints.sorted_encrypted_log_hashes,
             self.hints.sorted_encrypted_log_hashes_indexes,
             self.hints.sorted_unencrypted_log_hashes,
@@ -61,20 +66,21 @@ mod tests {
         tests::{
         note_hash_read_request_hints_builder::NoteHashReadRequestHintsBuilder,
         nullifier_read_request_hints_builder::NullifierReadRequestHintsBuilder,
-        squash_transient_data::{squash_transient_note_hashes, squash_transient_nullifiers}
+        squash_transient_data::{squash_transient_note_hashes, squash_transient_nullifiers, squash_transient_logs}
     },
         reset::read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus}
     };
     use dep::types::constants::{
         MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
         MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-        MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE
+        MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+        DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE
     };
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, max_block_number::MaxBlockNumber,
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
-        side_effect::SideEffect, gas::Gas
+        log_hash::{LogHash, NoteLogHash}, gas::Gas
     },
         address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey,
         hash::{compute_note_hash_nonce, compute_unique_note_hash, sha256_to_field, silo_note_hash, silo_nullifier},
@@ -88,6 +94,7 @@ mod tests {
         previous_kernel: FixtureBuilder,
         transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
         transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+        transient_note_hash_indexes_for_logs: [u64; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
         note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder,
         nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder,
     }
@@ -103,6 +110,7 @@ mod tests {
                 previous_kernel,
                 transient_nullifier_indexes_for_note_hashes: [MAX_NEW_NULLIFIERS_PER_TX; MAX_NEW_NOTE_HASHES_PER_TX],
                 transient_note_hash_indexes_for_nullifiers: [MAX_NEW_NOTE_HASHES_PER_TX; MAX_NEW_NULLIFIERS_PER_TX],
+                transient_note_hash_indexes_for_logs: [MAX_NEW_NOTE_HASHES_PER_TX; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
                 note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder::new(MAX_NOTE_HASH_READ_REQUESTS_PER_TX),
                 nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(MAX_NULLIFIER_READ_REQUESTS_PER_TX)
             }
@@ -149,15 +157,22 @@ mod tests {
             let sorted_new_nullifiers_indexes = sorted.sorted_index_hints;
 
             let sorted = sort_get_sorted_hints(
+                self.previous_kernel.note_encrypted_logs_hashes.storage,
+                |a: NoteLogHash, b: NoteLogHash| a.counter < b.counter
+            );
+            let sorted_note_encrypted_log_hashes = sorted.sorted_array;
+            let sorted_note_encrypted_log_hashes_indexes = sorted.sorted_index_hints;
+
+            let sorted = sort_get_sorted_hints(
                 self.previous_kernel.encrypted_logs_hashes.storage,
-                |a: SideEffect, b: SideEffect| a.counter < b.counter
+                |a: LogHash, b: LogHash| a.counter < b.counter
             );
             let sorted_encrypted_log_hashes = sorted.sorted_array;
             let sorted_encrypted_log_hashes_indexes = sorted.sorted_index_hints;
 
             let sorted = sort_get_sorted_hints(
                 self.previous_kernel.unencrypted_logs_hashes.storage,
-                |a: SideEffect, b: SideEffect| a.counter < b.counter
+                |a: LogHash, b: LogHash| a.counter < b.counter
             );
             let sorted_unencrypted_log_hashes = sorted.sorted_array;
             let sorted_unencrypted_log_hashes_indexes = sorted.sorted_index_hints;
@@ -185,6 +200,8 @@ mod tests {
                 sorted_new_note_hashes_indexes,
                 sorted_new_nullifiers,
                 sorted_new_nullifiers_indexes,
+                sorted_note_encrypted_log_hashes,
+                sorted_note_encrypted_log_hashes_indexes,
                 sorted_encrypted_log_hashes,
                 sorted_encrypted_log_hashes_indexes,
                 sorted_unencrypted_log_hashes,
@@ -268,7 +285,7 @@ mod tests {
     unconstrained fn ordering_of_note_hashes_and_nullifiers() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
 
-        builder.previous_kernel.append_new_note_hashes(10);
+        builder.previous_kernel.append_new_note_hashes(10, false);
         builder.previous_kernel.append_new_nullifiers(10);
 
         let sorted_note_hashes = builder.previous_kernel.new_note_hashes.storage;
@@ -298,7 +315,7 @@ mod tests {
     #[test]
     unconstrained fn native_empty_nullified_note_hash_means_persistent_nullifier_0() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_note_hashes(2);
+        builder.previous_kernel.append_new_note_hashes(2, false);
         builder.previous_kernel.append_new_nullifiers(2);
         let public_inputs = builder.execute();
         assert_eq(array_length(public_inputs.end.new_note_hashes), 2);
@@ -331,8 +348,8 @@ mod tests {
     #[test(should_fail_with="Non empty note hash read requests")]
     unconstrained fn non_empty_note_hash_read_requests() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_note_hashes(3);
-        builder.previous_kernel.add_read_request_for_pending_note_hash(1);
+        builder.previous_kernel.append_new_note_hashes(3, false);
+        let _void = builder.previous_kernel.add_read_request_for_pending_note_hash(1);
         builder.failed();
     }
 
@@ -340,14 +357,14 @@ mod tests {
     unconstrained fn non_empty_nullifier_read_requests() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
         builder.previous_kernel.append_new_nullifiers(3);
-        builder.previous_kernel.add_read_request_for_pending_nullifier(1);
+        let _void = builder.previous_kernel.add_read_request_for_pending_nullifier(1);
         builder.failed();
     }
 
     #[test(should_fail_with="Non empty nullifier key validation requests")]
     unconstrained fn non_empty_nullifier_key_validations() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.add_request_for_nullifier_key_validation(GrumpkinPoint::new(1, 2), 27);
+        let _void = builder.previous_kernel.add_request_for_nullifier_key_validation(GrumpkinPoint::new(1, 2), 27);
         builder.failed();
     }
 

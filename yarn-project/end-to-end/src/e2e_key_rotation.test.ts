@@ -19,7 +19,7 @@ import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-re
 
 import { jest } from '@jest/globals';
 
-import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
+import { expectsNumOfNoteEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
 
 const TIMEOUT = 120_000;
 
@@ -168,7 +168,7 @@ describe('e2e_key_rotation', () => {
       // Check balances and logs are as expected
       await expectTokenBalance(walletA, tokenAddress, walletA.getAddress(), initialBalance - transfer1Amount);
       await expectTokenBalance(walletB, tokenAddress, walletB.getAddress(), transfer1Amount);
-      await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
+      await expectsNumOfNoteEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
     }
 
     // 3. Rotates B key

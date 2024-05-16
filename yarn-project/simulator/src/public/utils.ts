@@ -11,6 +11,7 @@ export function lastSideEffectCounter(tx: Tx): number {
   const sideEffectCounters = [
     ...data.endNonRevertibleData.newNoteHashes,
     ...data.endNonRevertibleData.newNullifiers,
+    ...data.endNonRevertibleData.unencryptedLogsHashes,
     ...data.endNonRevertibleData.publicCallStack,
     ...data.end.newNoteHashes,
     ...data.end.newNullifiers,
@@ -24,8 +25,7 @@ export function lastSideEffectCounter(tx: Tx): number {
       // look at both start and end counters because for enqueued public calls start > 0 while end === 0
       max = Math.max(max, sideEffect.startSideEffectCounter.toNumber(), sideEffect.endSideEffectCounter.toNumber());
     } else {
-      const counter = typeof sideEffect.counter === 'number' ? sideEffect.counter : sideEffect.counter.toNumber();
-      max = Math.max(max, counter);
+      max = Math.max(max, sideEffect.counter);
     }
   }
 

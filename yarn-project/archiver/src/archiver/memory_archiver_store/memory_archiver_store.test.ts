@@ -27,7 +27,12 @@ describe('MemoryArchiverStore', () => {
       await archiverStore.addBlocks(blocks);
       await Promise.all(
         blocks.retrievedData.map(block =>
-          archiverStore.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number),
+          archiverStore.addLogs(
+            block.body.noteEncryptedLogs,
+            block.body.encryptedLogs,
+            block.body.unencryptedLogs,
+            block.number,
+          ),
         ),
       );
 

@@ -19,6 +19,7 @@ function emptyExecutionResult(): ExecutionResult {
     nestedExecutions: [],
     enqueuedPublicFunctionCalls: [],
     publicTeardownFunctionCall: PublicCallRequest.empty(),
+    noteEncryptedLogs: [],
     encryptedLogs: [],
     unencryptedLogs: [],
   };

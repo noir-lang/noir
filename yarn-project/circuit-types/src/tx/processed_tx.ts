@@ -46,7 +46,7 @@ export type PublicKernelRequest = PublicKernelTailRequest | PublicKernelNonTailR
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs'> & {
+export type ProcessedTx = Pick<Tx, 'proof' | 'noteEncryptedLogs' | 'encryptedLogs' | 'unencryptedLogs'> & {
   /**
    * Output of the private tail or public tail kernel circuit for this tx.
    */
@@ -134,6 +134,8 @@ export function makeProcessedTx(
     hash: tx.getTxHash(),
     data: kernelOutput,
     proof,
+    // TODO(4712): deal with non-revertible logs here
+    noteEncryptedLogs: revertReason ? EncryptedTxL2Logs.empty() : tx.noteEncryptedLogs,
     encryptedLogs: revertReason ? EncryptedTxL2Logs.empty() : tx.encryptedLogs,
     unencryptedLogs: revertReason ? UnencryptedTxL2Logs.empty() : tx.unencryptedLogs,
     isEmpty: false,
@@ -157,6 +159,7 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
   const hash = new TxHash(Fr.ZERO.toBuffer());
   return {
     hash,
+    noteEncryptedLogs: EncryptedTxL2Logs.empty(),
     encryptedLogs: EncryptedTxL2Logs.empty(),
     unencryptedLogs: UnencryptedTxL2Logs.empty(),
     data: emptyKernelOutput,
@@ -178,6 +181,7 @@ export function toTxEffect(tx: ProcessedTx): TxEffect {
     tx.data.end.publicDataUpdateRequests
       .map(t => new PublicDataWrite(t.leafSlot, t.newValue))
       .filter(h => !h.isEmpty()),
+    tx.noteEncryptedLogs || EncryptedTxL2Logs.empty(),
     tx.encryptedLogs || EncryptedTxL2Logs.empty(),
     tx.unencryptedLogs || UnencryptedTxL2Logs.empty(),
   );

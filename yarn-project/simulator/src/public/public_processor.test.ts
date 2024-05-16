@@ -102,6 +102,7 @@ describe('public_processor', () => {
         hash,
         data: tx.data.toKernelCircuitPublicInputs(),
         proof: tx.proof,
+        noteEncryptedLogs: tx.noteEncryptedLogs,
         encryptedLogs: tx.encryptedLogs,
         unencryptedLogs: tx.unencryptedLogs,
         isEmpty: false,

@@ -1,6 +1,6 @@
 use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
 use dep::types::{
-    abis::{note_hash::NoteHash, nullifier::Nullifier, read_request::ReadRequest, side_effect::SideEffect},
+    abis::{note_hash::NoteHash, nullifier::Nullifier, read_request::ReadRequest, log_hash::{LogHash, NoteLogHash}},
     address::EthAddress, grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message
 };
 
@@ -113,8 +113,8 @@ fn validate_arrays_malformed_encrypted_logs_hashes_fails() {
 
     builder.private_call.public_inputs.encrypted_logs_hashes.extend_from_array(
         [
-        SideEffect { value: 0, counter: 0 },
-        SideEffect { value: 9123, counter: 1 }
+        LogHash { value: 0, counter: 0, length: 0 },
+        LogHash { value: 9123, counter: 1, length: 2 }
     ]
     );
 
@@ -127,8 +127,22 @@ fn validate_arrays_malformed_unencrypted_logs_hashes_fails() {
 
     builder.private_call.public_inputs.unencrypted_logs_hashes.extend_from_array(
         [
-        SideEffect { value: 0, counter: 0 },
-        SideEffect { value: 9123, counter: 1 }
+        LogHash { value: 0, counter: 0, length: 0 },
+        LogHash { value: 9123, counter: 1, length: 2 }
+    ]
+    );
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn input_validation_malformed_arrays_note_logs() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.public_inputs.note_encrypted_logs_hashes.extend_from_array(
+        [
+        NoteLogHash { value: 0, counter: 0, length: 0, note_hash_counter: 0 },
+        NoteLogHash { value: 9123, counter: 2, length: 2, note_hash_counter: 1 }
     ]
     );
 

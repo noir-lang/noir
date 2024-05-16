@@ -140,6 +140,7 @@ export class KernelProver {
     const expectedOutputs = buildPrivateKernelResetOutputs(
       output.publicInputs.end.newNoteHashes,
       output.publicInputs.end.newNullifiers,
+      output.publicInputs.end.noteEncryptedLogsHashes,
     );
 
     output = await this.proofCreator.createProofReset(

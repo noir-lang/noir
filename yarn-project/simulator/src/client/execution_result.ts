@@ -59,6 +59,11 @@ export interface ExecutionResult {
   /** Public function execution requested for teardown */
   publicTeardownFunctionCall: PublicCallRequest;
   /**
+   * Encrypted note logs emitted during execution of this function call.
+   * Note: These are preimages to `noteEncryptedLogsHashes`.
+   */
+  noteEncryptedLogs: CountedLog<EncryptedL2Log>[];
+  /**
    * Encrypted logs emitted during execution of this function call.
    * Note: These are preimages to `encryptedLogsHashes`.
    */
@@ -87,8 +92,27 @@ export function collectNullifiedNoteHashCounters(execResult: ExecutionResult, ac
  * @param execResult - The topmost execution result.
  * @returns All encrypted logs.
  */
+function collectNoteEncryptedLogs(execResult: ExecutionResult): CountedLog<EncryptedL2Log>[] {
+  return [execResult.noteEncryptedLogs, ...execResult.nestedExecutions.flatMap(collectNoteEncryptedLogs)].flat();
+}
+
+/**
+ * Collect all encrypted logs across all nested executions and sorts by counter.
+ * @param execResult - The topmost execution result.
+ * @returns All encrypted logs.
+ */
+export function collectSortedNoteEncryptedLogs(execResult: ExecutionResult): EncryptedFunctionL2Logs {
+  const allLogs = collectNoteEncryptedLogs(execResult);
+  const sortedLogs = sortByCounter(allLogs);
+  return new EncryptedFunctionL2Logs(sortedLogs.map(l => l.log));
+}
+/**
+ * Collect all encrypted logs across all nested executions.
+ * @param execResult - The topmost execution result.
+ * @returns All encrypted logs.
+ */
 function collectEncryptedLogs(execResult: ExecutionResult): CountedLog<EncryptedL2Log>[] {
-  return [execResult.encryptedLogs, ...[...execResult.nestedExecutions].flatMap(collectEncryptedLogs)].flat();
+  return [execResult.encryptedLogs, ...execResult.nestedExecutions.flatMap(collectEncryptedLogs)].flat();
 }
 
 /**
@@ -108,7 +132,7 @@ export function collectSortedEncryptedLogs(execResult: ExecutionResult): Encrypt
  * @returns All unencrypted logs.
  */
 function collectUnencryptedLogs(execResult: ExecutionResult): CountedLog<UnencryptedL2Log>[] {
-  return [execResult.unencryptedLogs, ...[...execResult.nestedExecutions].flatMap(collectUnencryptedLogs)].flat();
+  return [execResult.unencryptedLogs, ...execResult.nestedExecutions.flatMap(collectUnencryptedLogs)].flat();
 }
 
 /**

@@ -2,6 +2,7 @@ use crate::{
     context::{inputs::PrivateContextInputs, interface::ContextInterface},
     keys::getters::get_nullifier_keys, messaging::process_l1_to_l2_message,
     hash::{hash_args_array, ArgsHasher, compute_encrypted_log_hash, compute_unencrypted_log_hash},
+    note::{note_interface::NoteInterface, utils::compute_note_hash_for_insertion},
     oracle::{
     nullifier_keys::NullifierKeys, arguments, returns,
     call_private_function::call_private_function_internal, header::get_header_at,
@@ -18,7 +19,7 @@ use dep::protocol_types::{
     nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem, read_request::ReadRequest, note_hash::NoteHash,
-    nullifier::Nullifier, side_effect::SideEffect
+    nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
 },
     address::{AztecAddress, EthAddress},
     constants::{
@@ -26,12 +27,12 @@ use dep::protocol_types::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_ENCRYPTED_LOGS_PER_CALL,
-    MAX_UNENCRYPTED_LOGS_PER_CALL
+    MAX_UNENCRYPTED_LOGS_PER_CALL, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader,
-    traits::{is_empty, Deserialize, Empty}
+    traits::{is_empty, Deserialize, Empty}, utils::arrays::find_index
 };
 
 // When finished, one can call .finish() to convert back to the abi
@@ -64,8 +65,9 @@ struct PrivateContext {
     // Header of a block whose state is used during private execution (not the block the transaction is included in).
     historical_header: Header,
 
-    encrypted_logs_hashes: BoundedVec<SideEffect, MAX_ENCRYPTED_LOGS_PER_CALL>,
-    unencrypted_logs_hashes: BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL>,
+    note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL>,
+    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
+    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
 
@@ -126,6 +128,7 @@ impl PrivateContext {
             public_call_stack_hashes: BoundedVec::new(),
             public_teardown_function_hash: 0,
             new_l2_to_l1_msgs: BoundedVec::new(),
+            note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
             encrypted_log_preimages_length: 0,
@@ -170,10 +173,11 @@ impl PrivateContext {
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             start_side_effect_counter: self.inputs.start_side_effect_counter,
             end_side_effect_counter: self.side_effect_counter,
+            note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            encrypted_log_preimages_length: self.encrypted_log_preimages_length + 4,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length + 4,
+            encrypted_log_preimages_length: self.encrypted_log_preimages_length,
+            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
             tx_context: self.inputs.tx_context
         }
@@ -257,14 +261,16 @@ impl PrivateContext {
     pub fn emit_unencrypted_log<T, N, M>(&mut self, log: T) where T: ToBytesForUnencryptedLog<N, M> {
         let event_selector = 5; // TODO: compute actual event selector.
         let contract_address = self.this_address();
+        let counter = self.next_counter();
         let log_slice = log.to_be_bytes_arr();
         let log_hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-        let side_effect = SideEffect { value: log_hash, counter: self.next_counter() };
-        self.unencrypted_logs_hashes.push(side_effect);
         // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
-        self.unencrypted_log_preimages_length += 44 + log_slice.len().to_field();
+        let len = 44 + log_slice.len().to_field();
+        let side_effect = LogHash { value: log_hash, counter, length: len };
+        self.unencrypted_logs_hashes.push(side_effect);
+        self.unencrypted_log_preimages_length += len;
         // call oracle
-        let _void = emit_unencrypted_log_private_internal(contract_address, event_selector, log, side_effect.counter);
+        let _void = emit_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
     }
 
     // This fn exists separately from emit_unencrypted_log because sha hashing the preimage
@@ -279,12 +285,13 @@ impl PrivateContext {
         let contract_address = self.this_address();
         let counter = self.next_counter();
         let log_hash = emit_contract_class_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
-        let side_effect = SideEffect { value: log_hash, counter };
-        self.unencrypted_logs_hashes.push(side_effect);
         // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
-        self.unencrypted_log_preimages_length += 44 + N*32;
+        let len = 44 + N * 32;
+        let side_effect = LogHash { value: log_hash, counter, length: len };
+        self.unencrypted_logs_hashes.push(side_effect);
+        self.unencrypted_log_preimages_length += len;
     }
-
+    // TODO(1139): Convert to generic input once we encrypt inside the circuit
     pub fn emit_encrypted_log<N, M, L>(
         &mut self,
         contract_address: AztecAddress,
@@ -304,12 +311,49 @@ impl PrivateContext {
             preimage,
             counter
         );
+        // = 32*all fields + bytes for encryption (112) + processed log len (4)
+        let len = 112 + 32 * (N + 3) + 4;
         let log_hash = compute_encrypted_log_hash(encrypted_log);
-        let side_effect = SideEffect { value: log_hash, counter };
+        let side_effect = LogHash { value: log_hash, counter, length: len };
         self.encrypted_logs_hashes.push(side_effect);
-        let encrypted_log_byte_len = 112 + 32 * (N + 3);
-        // + processed log len (4)
-        self.encrypted_log_preimages_length += encrypted_log_byte_len + 4;
+        self.encrypted_log_preimages_length += len;
+    }
+
+    pub fn emit_note_encrypted_log<Note, N, M, L>(
+        &mut self,
+        contract_address: AztecAddress,
+        storage_slot: Field,
+        note_type_id: Field,
+        encryption_pub_key: GrumpkinPoint,
+        note: Note
+    ) where Note: NoteInterface<N>, [Field; N]: LensForEncryptedLog<N, M, L> {
+        let note_hash = compute_note_hash_for_insertion(note);
+        let note_exists_index = find_index(
+            self.new_note_hashes.storage,
+            |n: NoteHash| n.value == note_hash
+        );
+        assert(
+            note_exists_index != MAX_NEW_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
+        );
+        let note_hash_counter = self.new_note_hashes.storage[note_exists_index].counter;
+        let preimage = note.serialize_content();
+        let counter = self.next_counter();
+        // TODO(1139): perform encryption in the circuit
+        // The oracle call should come last, but we require the encrypted value for now
+        let encrypted_log: [Field; M] = emit_encrypted_log(
+            contract_address,
+            storage_slot,
+            note_type_id,
+            encryption_pub_key,
+            preimage,
+            counter
+        );
+        // = 32*all fields + bytes for encryption (112) + processed log len (4)
+        let len = 112 + 32 * (preimage.len() as Field + 3) + 4;
+        let log_hash = compute_encrypted_log_hash(encrypted_log);
+        let side_effect = NoteLogHash { value: log_hash, counter, length: len, note_hash_counter };
+        self.note_encrypted_logs_hashes.push(side_effect);
+        self.encrypted_log_preimages_length += len;
     }
 
     pub fn call_private_function<ARGS_COUNT>(
@@ -626,6 +670,7 @@ impl Empty for PrivateContext {
             public_teardown_function_hash: 0,
             new_l2_to_l1_msgs : BoundedVec::new(),
             historical_header: Header::empty(),
+            note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
             encrypted_log_preimages_length: 0,

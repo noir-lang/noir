@@ -4,7 +4,7 @@ use dep::types::{
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
     public_kernel_data::PublicKernelData, note_hash::NoteHash, nullifier::Nullifier,
     public_call_data::PublicCallData, public_data_read::PublicDataRead,
-    public_data_update_request::PublicDataUpdateRequest, side_effect::SideEffect,
+    public_data_update_request::PublicDataUpdateRequest, log_hash::LogHash,
     global_variables::GlobalVariables, combined_constant_data::CombinedConstantData
 },
     address::AztecAddress,
@@ -95,6 +95,7 @@ pub fn initialize_emitted_end_values(
         circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
         circuit_outputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
         circuit_outputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
+        circuit_outputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
         circuit_outputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
         circuit_outputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
     }
@@ -106,6 +107,7 @@ pub fn initialize_emitted_end_values(
     circuit_outputs.end_non_revertible.public_data_update_requests = array_to_bounded_vec(start_non_revertible.public_data_update_requests);
     circuit_outputs.end_non_revertible.unencrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.unencrypted_logs_hashes);
     circuit_outputs.end_non_revertible.unencrypted_log_preimages_length = start_non_revertible.unencrypted_log_preimages_length;
+    circuit_outputs.end_non_revertible.note_encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.note_encrypted_logs_hashes);
     circuit_outputs.end_non_revertible.encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.encrypted_logs_hashes);
     circuit_outputs.end_non_revertible.encrypted_log_preimages_length = start_non_revertible.encrypted_log_preimages_length;
 
@@ -160,10 +162,8 @@ fn perform_static_call_checks(public_call: PublicCallData) {
         let new_l2_to_l1_msgs_length = array_length(public_inputs.new_l2_to_l1_msgs);
         assert(new_l2_to_l1_msgs_length == 0, "new_l2_to_l1_msgs must be empty for static calls");
 
-        // TODO: reevaluate when implementing https://github.com/AztecProtocol/aztec-packages/issues/1165
-        // This 4 magical number is the minimum size of the buffer, since it has to store the total length of all the serialized logs.
         assert(
-            public_inputs.unencrypted_log_preimages_length == 4, "No unencrypted logs are allowed for static calls"
+            public_inputs.unencrypted_log_preimages_length == 0, "No unencrypted logs are allowed for static calls"
         );
     }
 }
@@ -571,7 +571,7 @@ pub fn propagate_new_unencrypted_logs(public_call: PublicCallData, public_inputs
     // new unencrypted logs
     let new_logs = public_call.call_stack_item.public_inputs.unencrypted_logs_hashes;
     // TODO(Miranda): silo logs here once we have finalised struct
-    let mut new_logs_to_insert : BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
+    let mut new_logs_to_insert : BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
@@ -590,7 +590,7 @@ pub fn propagate_new_unencrypted_logs_non_revertible(
     // new unencrypted logs
     let new_logs = public_call.call_stack_item.public_inputs.unencrypted_logs_hashes;
     // TODO(Miranda): silo logs here once we have finalised struct
-    let mut new_logs_to_insert : BoundedVec<SideEffect, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
+    let mut new_logs_to_insert : BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
