@@ -107,6 +107,10 @@ pub struct CompileOptions {
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
     pub use_elaborator: bool,
+
+    /// Skip loading the prelude (stdlib)
+    #[arg(long, hide = true)]
+    pub skip_prelude: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -250,12 +254,13 @@ pub fn check_crate(
     deny_warnings: bool,
     disable_macros: bool,
     use_elaborator: bool,
+    skip_prelude: bool,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, skip_prelude, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -293,6 +298,7 @@ pub fn compile_main(
         options.deny_warnings,
         options.disable_macros,
         options.use_elaborator,
+        options.skip_prelude,
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -334,6 +340,7 @@ pub fn compile_contract(
         options.deny_warnings,
         options.disable_macros,
         options.use_elaborator,
+        options.skip_prelude,
     )?;
 
     // TODO: We probably want to error if contracts is empty
