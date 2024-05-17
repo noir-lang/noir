@@ -483,6 +483,9 @@ workflows:
     #   # Used to generate a dynamic 'system' workflow
     #   # This is rewritten to 'system' on the real workflow (otherwise this is ignored by circleci)
     #   equal: [NEVER, << pipeline.parameters.workflow >>]
+    when:
+      and:
+        - equal: [ master, << pipeline.git.branch >> ]
     jobs:
       # Noir
       - noir-x86_64: *defaults
