@@ -241,8 +241,20 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           concurrency_key: noir-x86
-      - name: "Test Noir JS packages"
+      - name: "Test Nargo"
         run: earthly-ci --no-output ./noir+test
+
+  noir-examples:
+    needs: setup
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: noir-examples-x86
+      - name: "Test Noir examples"
+        run: earthly-ci --no-output ./noir+examples
 
   noir-packages-test:
     needs: setup

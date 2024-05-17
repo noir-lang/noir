@@ -44,6 +44,21 @@ test:
   COPY noir-repo/.rustfmt.toml noir-repo/.rustfmt.toml
   RUN ./scripts/test_native.sh
 
+examples:
+  FROM +nargo
+  ENV PATH="/usr/src/noir-repo/target/release:${PATH}"
+
+  COPY --dir noir-repo/examples noir-repo
+  COPY ../barretenberg/cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+
+  ENV BACKEND=/usr/src/barretenberg/cpp/build/bin/bb
+
+  WORKDIR noir-repo/examples/codegen-verifier
+  RUN ./test.sh
+
+  WORKDIR ../prove_and_verify
+  RUN ./test.sh
+
 format:
   FROM +nargo
   ENV PATH=$PATH:/usr/src/noir-repo/target/release
