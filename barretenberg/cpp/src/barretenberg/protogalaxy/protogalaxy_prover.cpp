@@ -192,7 +192,7 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::accum
     FF combiner_challenge = transcript->template get_challenge<FF>("combiner_quotient_challenge");
     std::shared_ptr<Instance> next_accumulator =
         compute_next_accumulator(instances, state.combiner_quotient, combiner_challenge, state.compressed_perturbator);
-    state.result.folding_data = transcript->proof_data;
+    state.result.proof = transcript->proof_data;
     state.result.accumulator = next_accumulator;
 };
 

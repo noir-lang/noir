@@ -23,8 +23,6 @@ class ClientIVC {
     using VerificationKey = Flavor::VerificationKey;
     using FF = Flavor::FF;
     using FoldProof = std::vector<FF>;
-    using ProverAccumulator = std::shared_ptr<ProverInstance_<Flavor>>;
-    using VerifierAccumulator = std::shared_ptr<VerifierInstance_<Flavor>>;
     using ProverInstance = ProverInstance_<Flavor>;
     using VerifierInstance = VerifierInstance_<Flavor>;
     using ClientCircuit = GoblinUltraCircuitBuilder; // can only be GoblinUltra
@@ -34,6 +32,11 @@ class ClientIVC {
     using FoldingProver = ProtoGalaxyProver_<ProverInstances>;
     using VerifierInstances = VerifierInstances_<Flavor>;
     using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
+
+    using GURecursiveFlavor = GoblinUltraRecursiveFlavor_<bb::GoblinUltraCircuitBuilder>;
+    using RecursiveVerifierInstances = bb::stdlib::recursion::honk::RecursiveVerifierInstances_<GURecursiveFlavor, 2>;
+    using FoldingRecursiveVerifier =
+        bb::stdlib::recursion::honk::ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
 
     // A full proof for the IVC scheme
     struct Proof {
@@ -57,13 +60,6 @@ class ClientIVC {
         }
     };
 
-    struct PrecomputedVerificationKeys {
-        std::shared_ptr<VerificationKey> first_func_vk;
-        std::shared_ptr<VerificationKey> func_vk;
-        std::shared_ptr<VerificationKey> first_kernel_vk;
-        std::shared_ptr<VerificationKey> kernel_vk;
-    };
-
   private:
     using ProverFoldOutput = FoldingResult<Flavor>;
     // Note: We need to save the last instance that was folded in order to compute its verification key, this will not
@@ -71,28 +67,28 @@ class ClientIVC {
 
   public:
     Goblin goblin;
-    ProverFoldOutput prover_fold_output;
-    ProverAccumulator prover_accumulator;
-    PrecomputedVerificationKeys vks;
+    ProverFoldOutput fold_output;
+    std::shared_ptr<ProverInstance> prover_accumulator;
+    std::shared_ptr<VerifierInstance> verifier_accumulator;
     // Note: We need to save the last instance that was folded in order to compute its verification key, this will not
     // be needed in the real IVC as they are provided as inputs
     std::shared_ptr<ProverInstance> prover_instance;
+    std::shared_ptr<VerificationKey> instance_vk;
 
     // A flag indicating whether or not to construct a structured trace in the ProverInstance
     bool structured_flag = false;
 
-    void initialize(ClientCircuit& circuit);
+    // A flag indicating whether the IVC has been initialized with an initial instance
+    bool initialized = false;
 
-    FoldProof accumulate(ClientCircuit& circuit);
+    void accumulate(ClientCircuit& circuit, const std::shared_ptr<VerificationKey>& precomputed_vk = nullptr);
 
     Proof prove();
 
-    bool verify(Proof& proof, const std::vector<VerifierAccumulator>& verifier_instances);
+    bool verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances);
 
     HonkProof decider_prove() const;
 
-    void decider_prove_and_verify(const VerifierAccumulator&) const;
-
-    void precompute_folding_verification_keys();
+    std::vector<std::shared_ptr<VerificationKey>> precompute_folding_verification_keys(std::vector<ClientCircuit>);
 };
 } // namespace bb
