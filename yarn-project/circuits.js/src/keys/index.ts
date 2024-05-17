@@ -1,14 +1,34 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash, sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
-import { type Fq, type Fr, type GrumpkinScalar } from '@aztec/foundation/fields';
+import { Fq, type Fr, type GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { Grumpkin } from '../barretenberg/crypto/grumpkin/index.js';
 import { GeneratorIndex } from '../constants.gen.js';
-import { type GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
+import { GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
+import { type PublicKey } from '../types/public_key.js';
 import { PublicKeys } from '../types/public_keys.js';
+
+const curve = new Grumpkin();
 
 export function computeAppNullifierSecretKey(masterNullifierSecretKey: GrumpkinPrivateKey, app: AztecAddress): Fr {
   return poseidon2Hash([masterNullifierSecretKey.high, masterNullifierSecretKey.low, app, GeneratorIndex.NSK_M]);
+}
+
+export function computeIvpkApp(ivpk: PublicKey, address: AztecAddress) {
+  const I = Fq.fromBuffer(poseidon2Hash([address.toField(), ivpk.x, ivpk.y, GeneratorIndex.IVSK_M]).toBuffer());
+  return curve.add(curve.mul(Grumpkin.generator, I), ivpk);
+}
+
+export function computeIvskApp(ivsk: GrumpkinPrivateKey, address: AztecAddress) {
+  const ivpk = curve.mul(Grumpkin.generator, ivsk);
+  const I = Fq.fromBuffer(poseidon2Hash([address.toField(), ivpk.x, ivpk.y, GeneratorIndex.IVSK_M]).toBuffer());
+  return new Fq((I.toBigInt() + ivsk.toBigInt()) % Fq.MODULUS);
+}
+
+export function computeOvskApp(ovsk: GrumpkinPrivateKey, address: AztecAddress) {
+  return GrumpkinPrivateKey.fromBuffer(
+    poseidon2Hash([address.toField(), ovsk.high, ovsk.low, GeneratorIndex.OVSK_M]).toBuffer(),
+  );
 }
 
 export function deriveMasterNullifierSecretKey(secretKey: Fr): GrumpkinScalar {

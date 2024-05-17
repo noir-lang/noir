@@ -15,6 +15,17 @@ WASM_EXPORT void ecc_grumpkin__mul(uint8_t const* point_buf, uint8_t const* scal
     write(result, r);
 }
 
+// Silencing warnings about reserved identifiers. Fixing would break downstream code that calls our WASM API.
+// NOLINTBEGIN(cert-dcl37-c, cert-dcl51-cpp, bugprone-reserved-identifier)
+WASM_EXPORT void ecc_grumpkin__add(uint8_t const* point_a_buf, uint8_t const* point_b_buf, uint8_t* result)
+{
+    using serialize::write;
+    auto point_a = from_buffer<grumpkin::g1::affine_element>(point_a_buf);
+    auto point_b = from_buffer<grumpkin::g1::affine_element>(point_b_buf);
+    grumpkin::g1::affine_element r = point_a + point_b;
+    write(result, r);
+}
+
 // multiplies a vector of points by a single scalar. Returns a vector of points (this is NOT a multi-exponentiation)
 WASM_EXPORT void ecc_grumpkin__batch_mul(uint8_t const* point_buf,
                                          uint8_t const* scalar_buf,
