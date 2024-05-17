@@ -47,10 +47,23 @@ pub fn decrement_by_at_most(
     let options = create_note_getter_options_for_decreasing_balance(max_amount);
     let opt_notes = balance.get_notes(options);
 
+    let owner_npk_m_hash = get_npk_m_hash(balance.context.private.unwrap(), owner);
+
     let mut decremented = 0;
     for i in 0..opt_notes.len() {
         if opt_notes[i].is_some() {
-            decremented += destroy_note(balance, owner, opt_notes[i].unwrap_unchecked());
+            let note = opt_notes[i].unwrap_unchecked();
+
+            // This is similar to destroy_note, except we only compute the owner_npk_m_hash once instead of doing it in
+            // each loop iteration.
+
+            // Ensure the note is actually owned by the owner (to prevent user from generating a valid proof while
+            // spending someone else's notes).
+            // TODO (#6312): This will break with key rotation. Fix this. Will not be able to pass this after rotating keys.
+            assert(note.npk_m_hash.eq(owner_npk_m_hash));
+            decremented += note.value;
+
+            balance.remove(note);
         }
     }
 
