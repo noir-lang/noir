@@ -17,6 +17,7 @@ contract Test {
 
     use dep::aztec::encrypted_logs::header::EncryptedLogHeader;
     use dep::aztec::encrypted_logs::incoming_body::EncryptedLogIncomingBody;
+    use dep::aztec::encrypted_logs::outgoing_body::EncryptedLogOutgoingBody;
 
     use dep::aztec::note::constants::MAX_NOTES_PER_PAGE;
 
@@ -375,6 +376,17 @@ contract Test {
     ) -> [u8; 112] {
         let note = TestNote::new(value);
         EncryptedLogIncomingBody::new(storage_slot, TestNote::get_note_type_id(), note).compute_ciphertext(secret, point).as_array()
+    }
+
+    #[aztec(private)]
+    fn compute_outgoing_log_body_ciphertext(
+        eph_sk: GrumpkinPrivateKey,
+        recipient: AztecAddress,
+        recipient_ivpk_app: GrumpkinPoint,
+        ovsk_app: GrumpkinPrivateKey
+    ) -> [u8; 176] {
+        let eph_pk = eph_sk.derive_public_key();
+        EncryptedLogOutgoingBody::new(eph_sk, recipient, recipient_ivpk_app).compute_ciphertext(ovsk_app, eph_pk)
     }
 
     #[aztec(public)]

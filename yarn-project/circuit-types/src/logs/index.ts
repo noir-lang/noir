@@ -12,3 +12,4 @@ export * from './unencrypted_l2_log.js';
 export * from './extended_unencrypted_l2_log.js';
 export * from './encrypted_log_header.js';
 export * from './encrypted_log_incoming_body.js';
+export * from './encrypted_log_outgoing_body.js';
