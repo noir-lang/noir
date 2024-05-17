@@ -48,6 +48,11 @@ template <typename Builder, typename T> class bigfield {
         field_t<Builder> element;
         uint256_t maximum_value;
     };
+    static constexpr size_t NUM_LIMBS = 4;
+
+    Builder* context;
+    mutable Limb binary_basis_limbs[NUM_LIMBS];
+    mutable field_t<Builder> prime_basis_limb;
 
     bigfield(const field_t<Builder>& low_bits,
              const field_t<Builder>& high_bits,
@@ -121,11 +126,11 @@ template <typename Builder, typename T> class bigfield {
     static constexpr uint256_t DEFAULT_MAXIMUM_LIMB = (uint256_t(1) << NUM_LIMB_BITS) - uint256_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB =
         (uint256_t(1) << NUM_LAST_LIMB_BITS) - uint256_t(1);
-    static constexpr uint64_t LOG2_BINARY_MODULUS = NUM_LIMB_BITS * 4;
+    static constexpr uint64_t LOG2_BINARY_MODULUS = NUM_LIMB_BITS * NUM_LIMBS;
     static constexpr bool is_composite = true; // false only when fr is native
 
     static constexpr uint256_t prime_basis_maximum_limb =
-        uint256_t(modulus_u512.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4));
+        uint256_t(modulus_u512.slice(NUM_LIMB_BITS * (NUM_LIMBS - 1), NUM_LIMB_BITS* NUM_LIMBS));
     static constexpr Basis prime_basis{ uint512_t(bb::fr::modulus), bb::fr::modulus.get_msb() + 1 };
     static constexpr Basis binary_basis{ uint512_t(1) << LOG2_BINARY_MODULUS, LOG2_BINARY_MODULUS };
     static constexpr Basis target_basis{ modulus_u512, modulus_u512.get_msb() + 1 };
@@ -136,13 +141,13 @@ template <typename Builder, typename T> class bigfield {
     static constexpr bb::fr shift_right_2 = bb::fr(1) / shift_2;
     static constexpr bb::fr negative_prime_modulus_mod_binary_basis = -bb::fr(uint256_t(modulus_u512));
     static constexpr uint512_t negative_prime_modulus = binary_basis.modulus - target_basis.modulus;
-    static constexpr uint256_t neg_modulus_limbs_u256[4]{
+    static constexpr uint256_t neg_modulus_limbs_u256[NUM_LIMBS]{
         uint256_t(negative_prime_modulus.slice(0, NUM_LIMB_BITS).lo),
         uint256_t(negative_prime_modulus.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2).lo),
         uint256_t(negative_prime_modulus.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3).lo),
         uint256_t(negative_prime_modulus.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4).lo),
     };
-    static constexpr bb::fr neg_modulus_limbs[4]{
+    static constexpr bb::fr neg_modulus_limbs[NUM_LIMBS]{
         bb::fr(negative_prime_modulus.slice(0, NUM_LIMB_BITS).lo),
         bb::fr(negative_prime_modulus.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2).lo),
         bb::fr(negative_prime_modulus.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3).lo),
@@ -428,9 +433,6 @@ template <typename Builder, typename T> class bigfield {
     static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << MAX_UNREDUCED_LIMB_SIZE; }
 
     static_assert(MAX_UNREDUCED_LIMB_SIZE < (NUM_LIMB_BITS * 2));
-    Builder* context;
-    mutable Limb binary_basis_limbs[4];
-    mutable field_t<Builder> prime_basis_limb;
 
   private:
     static std::pair<uint512_t, uint512_t> compute_quotient_remainder_values(const bigfield& a,
