@@ -1378,3 +1378,18 @@ fn deny_fold_attribute_on_unconstrained() {
         CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
     ));
 }
+
+#[test]
+fn specify_function_types_with_turbofish() {
+    let src = r#"
+        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+            (T::default(), U::default())
+        }
+    
+        fn main() {
+            let _ = generic_func::<u64, Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
