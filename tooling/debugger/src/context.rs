@@ -439,7 +439,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.acvm_stack
             .push(ExecutionFrame { circuit_id: self.current_circuit_id, acvm: caller_acvm });
         self.current_circuit_id = call_info.id;
-        DebugCommandResult::Ok
+
+        // Explicitly handling the new ACVM status here handles two edge cases:
+        // 1. there is a breakpoint set at the beginning of a circuit
+        // 2. the called circuit has no opcodes
+        self.handle_acvm_status(self.acvm.get_status().clone())
     }
 
     fn handle_acir_call_finished(&mut self) -> DebugCommandResult {

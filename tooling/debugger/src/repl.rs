@@ -135,12 +135,21 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn display_opcodes(&self) {
-        // TODO: handle multiple circuits
-        let current_opcode_location = self
-            .context
-            .get_current_debug_location()
-            .map(|debug_location| debug_location.opcode_location);
-        let opcodes = self.context.get_opcodes();
+        for i in 0..(self.circuits.len()) {
+            self.display_opcodes_of_circuit(i as u32);
+        }
+    }
+
+    fn display_opcodes_of_circuit(&self, circuit_id: u32) {
+        let current_opcode_location =
+            self.context.get_current_debug_location().and_then(|debug_location| {
+                if debug_location.circuit_id == circuit_id {
+                    Some(debug_location.opcode_location)
+                } else {
+                    None
+                }
+            });
+        let opcodes = self.context.get_opcodes_of_circuit(circuit_id);
         let current_acir_index = match current_opcode_location {
             Some(OpcodeLocation::Acir(ip)) => Some(ip),
             Some(OpcodeLocation::Brillig { acir_index, .. }) => Some(acir_index),
@@ -154,7 +163,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             if current_acir_index == Some(acir_index) {
                 "->"
             } else if self.context.is_breakpoint_set(&DebugLocation {
-                circuit_id: 0,
+                circuit_id,
                 opcode_location: OpcodeLocation::Acir(acir_index),
             }) {
                 " *"
@@ -166,7 +175,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             if current_acir_index == Some(acir_index) && brillig_index == current_brillig_index {
                 "->"
             } else if self.context.is_breakpoint_set(&DebugLocation {
-                circuit_id: 0,
+                circuit_id,
                 opcode_location: OpcodeLocation::Brillig { acir_index, brillig_index },
             }) {
                 " *"
@@ -177,7 +186,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         let print_brillig_bytecode = |acir_index, bytecode: &[BrilligOpcode]| {
             for (brillig_index, brillig_opcode) in bytecode.iter().enumerate() {
                 println!(
-                    "{:>3}.{:<2} |{:2} {:?}",
+                    "{:>2}:{:>3}.{:<2} |{:2} {:?}",
+                    circuit_id,
                     acir_index,
                     brillig_index,
                     brillig_marker(acir_index, brillig_index),
@@ -190,14 +200,14 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             match &opcode {
                 Opcode::BrilligCall { id, inputs, outputs, .. } => {
                     println!(
-                        "{:>3} {:2} BRILLIG CALL id={} inputs={:?}",
-                        acir_index, marker, id, inputs
+                        "{:>2}:{:>3} {:2} BRILLIG CALL id={} inputs={:?}",
+                        circuit_id, acir_index, marker, id, inputs
                     );
-                    println!("       |       outputs={:?}", outputs);
+                    println!("          |       outputs={:?}", outputs);
                     let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
                     print_brillig_bytecode(acir_index, bytecode);
                 }
-                _ => println!("{:>3} {:2} {:?}", acir_index, marker, opcode),
+                _ => println!("{:>2}:{:>3} {:2} {:?}", circuit_id, acir_index, marker, opcode),
             }
         }
     }
