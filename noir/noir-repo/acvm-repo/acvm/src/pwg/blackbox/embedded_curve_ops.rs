@@ -11,7 +11,7 @@ pub(super) fn multi_scalar_mul(
     initial_witness: &mut WitnessMap,
     points: &[FunctionInput],
     scalars: &[FunctionInput],
-    outputs: (Witness, Witness),
+    outputs: (Witness, Witness, Witness),
 ) -> Result<(), OpcodeResolutionError> {
     let points: Result<Vec<_>, _> =
         points.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
@@ -19,35 +19,44 @@ pub(super) fn multi_scalar_mul(
 
     let scalars: Result<Vec<_>, _> =
         scalars.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
-    let scalars: Vec<_> = scalars?.into_iter().cloned().collect();
-
+    let mut scalars_lo = Vec::new();
+    let mut scalars_hi = Vec::new();
+    for (i, scalar) in scalars?.into_iter().enumerate() {
+        if i % 2 == 0 {
+            scalars_lo.push(*scalar);
+        } else {
+            scalars_hi.push(*scalar);
+        }
+    }
     // Call the backend's multi-scalar multiplication function
-    let (res_x, res_y) = backend.multi_scalar_mul(&points, &scalars)?;
+    let (res_x, res_y, is_infinite) =
+        backend.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
 
     // Insert the resulting point into the witness map
     insert_value(&outputs.0, res_x, initial_witness)?;
     insert_value(&outputs.1, res_y, initial_witness)?;
-
+    insert_value(&outputs.2, is_infinite, initial_witness)?;
     Ok(())
 }
 
 pub(super) fn embedded_curve_add(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
-    input1_x: FunctionInput,
-    input1_y: FunctionInput,
-    input2_x: FunctionInput,
-    input2_y: FunctionInput,
-    outputs: (Witness, Witness),
+    input1: [FunctionInput; 3],
+    input2: [FunctionInput; 3],
+    outputs: (Witness, Witness, Witness),
 ) -> Result<(), OpcodeResolutionError> {
-    let input1_x = witness_to_value(initial_witness, input1_x.witness)?;
-    let input1_y = witness_to_value(initial_witness, input1_y.witness)?;
-    let input2_x = witness_to_value(initial_witness, input2_x.witness)?;
-    let input2_y = witness_to_value(initial_witness, input2_y.witness)?;
-    let (res_x, res_y) = backend.ec_add(input1_x, input1_y, input2_x, input2_y)?;
+    let input1_x = witness_to_value(initial_witness, input1[0].witness)?;
+    let input1_y = witness_to_value(initial_witness, input1[1].witness)?;
+    let input1_infinite = witness_to_value(initial_witness, input1[2].witness)?;
+    let input2_x = witness_to_value(initial_witness, input2[0].witness)?;
+    let input2_y = witness_to_value(initial_witness, input2[1].witness)?;
+    let input2_infinite = witness_to_value(initial_witness, input2[2].witness)?;
+    let (res_x, res_y, res_infinite) =
+        backend.ec_add(input1_x, input1_y, input1_infinite, input2_x, input2_y, input2_infinite)?;
 
     insert_value(&outputs.0, res_x, initial_witness)?;
     insert_value(&outputs.1, res_y, initial_witness)?;
-
+    insert_value(&outputs.2, res_infinite, initial_witness)?;
     Ok(())
 }

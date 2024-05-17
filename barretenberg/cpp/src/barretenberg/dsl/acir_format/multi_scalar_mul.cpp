@@ -12,19 +12,20 @@ template <typename Builder> void create_multi_scalar_mul_constraint(Builder& bui
     using cycle_group_ct = bb::stdlib::cycle_group<Builder>;
     using cycle_scalar_ct = typename bb::stdlib::cycle_group<Builder>::cycle_scalar;
     using field_ct = bb::stdlib::field_t<Builder>;
+    using bool_ct = bb::stdlib::bool_t<Builder>;
 
     std::vector<cycle_group_ct> points;
     std::vector<cycle_scalar_ct> scalars;
 
-    for (size_t i = 0; i < input.points.size(); i += 2) {
+    for (size_t i = 0; i < input.points.size(); i += 3) {
         // Instantiate the input point/variable base as `cycle_group_ct`
         auto point_x = field_ct::from_witness_index(&builder, input.points[i]);
         auto point_y = field_ct::from_witness_index(&builder, input.points[i + 1]);
-        cycle_group_ct input_point(point_x, point_y, false);
-
+        auto infinite = bool_ct(field_ct::from_witness_index(&builder, input.points[i + 2]));
+        cycle_group_ct input_point(point_x, point_y, infinite);
         // Reconstruct the scalar from the low and high limbs
-        field_ct scalar_low_as_field = field_ct::from_witness_index(&builder, input.scalars[i]);
-        field_ct scalar_high_as_field = field_ct::from_witness_index(&builder, input.scalars[i + 1]);
+        field_ct scalar_low_as_field = field_ct::from_witness_index(&builder, input.scalars[2 * (i / 3)]);
+        field_ct scalar_high_as_field = field_ct::from_witness_index(&builder, input.scalars[2 * (i / 3) + 1]);
         cycle_scalar_ct scalar(scalar_low_as_field, scalar_high_as_field);
 
         // Add the point and scalar to the vectors
@@ -38,6 +39,7 @@ template <typename Builder> void create_multi_scalar_mul_constraint(Builder& bui
     // Add the constraints
     builder.assert_equal(output_point.x.get_witness_index(), input.out_point_x);
     builder.assert_equal(output_point.y.get_witness_index(), input.out_point_y);
+    builder.assert_equal(output_point.is_point_at_infinity().witness_index, input.out_point_is_infinite);
 }
 
 template void create_multi_scalar_mul_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,

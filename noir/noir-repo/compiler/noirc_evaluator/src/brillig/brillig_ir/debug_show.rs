@@ -334,7 +334,9 @@ impl DebugShow {
                     outputs
                 );
             }
-            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
+            BlackBoxOp::EmbeddedCurveAdd {
+                input1_x, input1_y, input2_x, input2_y, result, ..
+            } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
