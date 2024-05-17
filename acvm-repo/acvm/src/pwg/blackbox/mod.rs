@@ -164,16 +164,8 @@ pub(crate) fn solve(
         BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
             multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, outputs } => {
-            embedded_curve_add(
-                backend,
-                initial_witness,
-                *input1_x,
-                *input1_y,
-                *input2_x,
-                *input2_y,
-                *outputs,
-            )
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+            embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),

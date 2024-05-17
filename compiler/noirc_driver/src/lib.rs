@@ -54,7 +54,7 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
     pub expression_width: ExpressionWidth,
 
     /// Force a full recompilation.
@@ -84,10 +84,6 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Output ACIR gzipped bytecode instead of the JSON artefact
-    #[arg(long, hide = true)]
-    pub only_acir: bool,
-
     /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
@@ -103,6 +99,10 @@ pub struct CompileOptions {
     /// Force Brillig output (for step debugging)
     #[arg(long, hide = true)]
     pub force_brillig: bool,
+
+    /// Enable the experimental elaborator pass
+    #[arg(long, hide = true)]
+    pub use_elaborator: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -245,12 +245,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
+    use_elaborator: bool,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -282,8 +283,13 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) =
-        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
+    let (_, mut warnings) = check_crate(
+        context,
+        crate_id,
+        options.deny_warnings,
+        options.disable_macros,
+        options.use_elaborator,
+    )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -318,8 +324,13 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) =
-        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
+    let (_, warnings) = check_crate(
+        context,
+        crate_id,
+        options.deny_warnings,
+        options.disable_macros,
+        options.use_elaborator,
+    )?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);

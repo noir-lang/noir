@@ -565,7 +565,7 @@ impl ForRange {
         identifier: Ident,
         block: Expression,
         for_loop_span: Span,
-    ) -> StatementKind {
+    ) -> Statement {
         /// Counter used to generate unique names when desugaring
         /// code in the parser requires the creation of fresh variables.
         /// The parser is stateless so this is a static global instead.
@@ -662,7 +662,8 @@ impl ForRange {
                 let block = ExpressionKind::Block(BlockExpression {
                     statements: vec![let_array, for_loop],
                 });
-                StatementKind::Expression(Expression::new(block, for_loop_span))
+                let kind = StatementKind::Expression(Expression::new(block, for_loop_span));
+                Statement { kind, span: for_loop_span }
             }
         }
     }

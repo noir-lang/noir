@@ -1,0 +1,12 @@
+docs
+scripts
+
+# aztec_macros is explicitly considered OOS for Noir audit
+aztec_macros
+
+# config files
+*.toml
+*.md
+*.json
+*.txt
+*.config.mjs

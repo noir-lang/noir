@@ -9,6 +9,7 @@ use std::{
 };
 
 pub use super::debug_vars::{DebugVars, StackFrame};
+use super::{contract::ContractArtifact, program::ProgramArtifact};
 use fm::{FileId, FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
@@ -128,6 +129,16 @@ impl From<CompiledProgram> for DebugArtifact {
     }
 }
 
+impl From<ProgramArtifact> for DebugArtifact {
+    fn from(program_artifact: ProgramArtifact) -> Self {
+        DebugArtifact {
+            debug_symbols: program_artifact.debug_symbols.debug_infos,
+            file_map: program_artifact.file_map,
+            warnings: Vec::new(),
+        }
+    }
+}
+
 impl From<CompiledContract> for DebugArtifact {
     fn from(compiled_artifact: CompiledContract) -> Self {
         let all_functions_debug: Vec<DebugInfo> = compiled_artifact
@@ -140,6 +151,22 @@ impl From<CompiledContract> for DebugArtifact {
             debug_symbols: all_functions_debug,
             file_map: compiled_artifact.file_map,
             warnings: compiled_artifact.warnings,
+        }
+    }
+}
+
+impl From<ContractArtifact> for DebugArtifact {
+    fn from(compiled_artifact: ContractArtifact) -> Self {
+        let all_functions_debug: Vec<DebugInfo> = compiled_artifact
+            .functions
+            .into_iter()
+            .flat_map(|contract_function| contract_function.debug_symbols.debug_infos)
+            .collect();
+
+        DebugArtifact {
+            debug_symbols: all_functions_debug,
+            file_map: compiled_artifact.file_map,
+            warnings: Vec::new(),
         }
     }
 }
