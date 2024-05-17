@@ -288,10 +288,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         &self,
         debug_location: &DebugLocation,
     ) -> Vec<Location> {
-        // TODO: this assumes we're debugging a program (ie. the DebugArtifact
-        // will contain a single DebugInfo), but this assumption doesn't hold
-        // for contracts
-        self.debug_artifact.debug_symbols[0]
+        self.debug_artifact.debug_symbols[debug_location.circuit_id as usize]
             .opcode_location(&debug_location.opcode_location)
             .map(|source_locations| {
                 source_locations
@@ -404,7 +401,6 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not not handle multiple acir calls
                 ExecutionError::SolvingError(err, None),
             )),
         }
@@ -420,7 +416,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 } else {
                     self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 }
-                // TODO: should we retry executing the opcode somehow in this case?
+                // TODO: should we retry executing the opcode somehow in this
+                // case? Otherwise, executing a foreign call takes two debugging
+                // steps.
                 DebugCommandResult::Ok
             }
             Err(error) => DebugCommandResult::Error(error.into()),
@@ -790,7 +788,6 @@ fn build_acir_opcode_addresses(
     result
 }
 
-// TODO: update all debugger tests to use unconstrained brillig pointers
 #[cfg(test)]
 mod tests {
     use super::*;

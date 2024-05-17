@@ -68,7 +68,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     pub fn show_current_vm_status(&self) {
         let location = self.context.get_current_debug_location();
 
-        // TODO: show the circuit the frame belongs to
         match location {
             None => println!("Finished execution"),
             Some(location) => {
@@ -76,7 +75,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 let opcodes = self.context.get_opcodes_of_circuit(circuit_id);
                 match &location.opcode_location {
                     OpcodeLocation::Acir(ip) => {
-                        println!("At opcode {}: {}", ip, opcodes[*ip]);
+                        println!("At opcode {} :: {}", location, opcodes[*ip]);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
                         let brillig_bytecode =
@@ -86,8 +85,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                                 unreachable!("Brillig location does not contain Brillig opcodes");
                             };
                         println!(
-                            "At opcode {}.{}: {:?}",
-                            acir_index, brillig_index, brillig_bytecode[*brillig_index]
+                            "At opcode {} :: {:?}",
+                            location, brillig_bytecode[*brillig_index]
                         );
                     }
                 }
@@ -98,13 +97,12 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     fn show_stack_frame(&self, index: usize, debug_location: &DebugLocation) {
-        // TODO: show the circuit the frame belongs to
         let opcodes = self.context.get_opcodes();
         match &debug_location.opcode_location {
             OpcodeLocation::Acir(instruction_pointer) => {
                 println!(
-                    "Frame #{index}, opcode {}: {}",
-                    instruction_pointer, opcodes[*instruction_pointer]
+                    "Frame #{index}, opcode {} :: {}",
+                    debug_location, opcodes[*instruction_pointer]
                 )
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
@@ -115,8 +113,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                     unreachable!("Brillig location does not contain Brillig opcodes");
                 };
                 println!(
-                    "Frame #{index}, opcode {}.{}: {:?}",
-                    acir_index, brillig_index, brillig_bytecode[*brillig_index]
+                    "Frame #{index}, opcode {} :: {:?}",
+                    debug_location, brillig_bytecode[*brillig_index]
                 );
             }
         }
