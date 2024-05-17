@@ -349,7 +349,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 OpcodeLocation::Brillig { acir_index, brillig_index }
             }
         };
-        Some(DebugLocation { circuit_id: 0, opcode_location })
+        Some(DebugLocation { circuit_id: circuit_id as u32, opcode_location })
     }
 
     pub(super) fn render_opcode_at_location(&self, location: &DebugLocation) -> String {
