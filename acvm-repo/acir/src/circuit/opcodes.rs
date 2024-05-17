@@ -87,7 +87,7 @@ pub enum Opcode {
 
     /// Initialize an ACIR array from a vector of witnesses.
     /// - block_id: identifier of the array
-    /// - init: Vector of witnesses specifying the initial value of the arrays
+    /// - init: Vector of witnesses specifying the initial value of the array
     ///
     /// There must be only one MemoryInit per block_id, and MemoryOp opcodes must
     /// come after the MemoryInit.
