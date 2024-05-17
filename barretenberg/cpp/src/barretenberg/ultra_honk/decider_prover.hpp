@@ -30,8 +30,8 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
     BB_PROFILE void execute_relation_check_rounds();
     BB_PROFILE void execute_zeromorph_rounds();
 
-    HonkProof& export_proof();
-    HonkProof& construct_proof();
+    HonkProof export_proof();
+    HonkProof construct_proof();
 
     std::shared_ptr<Instance> accumulator;
 

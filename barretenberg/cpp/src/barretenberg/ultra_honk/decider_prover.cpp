@@ -17,7 +17,7 @@ DeciderProver_<Flavor>::DeciderProver_(const std::shared_ptr<Instance>& inst,
                                        const std::shared_ptr<Transcript>& transcript)
     : accumulator(std::move(inst))
     , transcript(transcript)
-    , commitment_key(inst->proving_key.commitment_key)
+    , commitment_key(accumulator->proving_key.commitment_key)
 {}
 
 /**
@@ -49,13 +49,13 @@ template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_zeromorph_r
                      transcript);
 }
 
-template <IsUltraFlavor Flavor> HonkProof& DeciderProver_<Flavor>::export_proof()
+template <IsUltraFlavor Flavor> HonkProof DeciderProver_<Flavor>::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-template <IsUltraFlavor Flavor> HonkProof& DeciderProver_<Flavor>::construct_proof()
+template <IsUltraFlavor Flavor> HonkProof DeciderProver_<Flavor>::construct_proof()
 {
     BB_OP_COUNT_TIME_NAME("Decider::construct_proof");
 

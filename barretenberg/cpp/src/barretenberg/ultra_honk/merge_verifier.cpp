@@ -17,7 +17,7 @@ MergeVerifier_<Flavor>::MergeVerifier_()
  * Schwartz-Zippel check. Evaluations are checked via batched KZG.
  *
  * @tparam Flavor
- * @return HonkProof&
+ * @return bool
  */
 template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {

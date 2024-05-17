@@ -43,16 +43,10 @@ template <IsUltraFlavor Flavor_> class UltraProver_ {
 
     explicit UltraProver_(Builder&);
 
-    BB_PROFILE void execute_preamble_round();
-    BB_PROFILE void execute_wire_commitments_round();
-    BB_PROFILE void execute_sorted_list_accumulator_round();
-    BB_PROFILE void execute_log_derivative_inverse_round();
-    BB_PROFILE void execute_grand_product_computation_round();
-    BB_PROFILE void execute_relation_check_rounds();
-    BB_PROFILE void execute_zeromorph_rounds();
+    BB_PROFILE void generate_gate_challenges();
 
-    HonkProof& export_proof();
-    HonkProof& construct_proof();
+    HonkProof export_proof();
+    HonkProof construct_proof();
 
   private:
     HonkProof proof;

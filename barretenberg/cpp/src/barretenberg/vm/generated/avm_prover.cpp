@@ -750,13 +750,13 @@ void AvmProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-HonkProof& AvmProver::export_proof()
+HonkProof AvmProver::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-HonkProof& AvmProver::construct_proof()
+HonkProof AvmProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

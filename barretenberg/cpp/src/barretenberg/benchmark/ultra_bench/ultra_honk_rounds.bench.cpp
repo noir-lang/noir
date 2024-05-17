@@ -3,6 +3,7 @@
 #include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
+#include "barretenberg/ultra_honk/decider_prover.hpp"
 #include "barretenberg/ultra_honk/oink_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
@@ -53,10 +54,13 @@ BB_PROFILE static void test_round_inner(State& state, GoblinUltraProver& prover,
     time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { oink_prover.execute_grand_product_computation_round(); });
     time_if_index(GENERATE_ALPHAS, [&] { prover.instance->alphas = oink_prover.generate_alphas_round(); });
     // we need to get the relation_parameters and prover_polynomials from the oink_prover
-    prover.instance->proving_key = std::move(oink_prover.proving_key);
     prover.instance->relation_parameters = oink_prover.relation_parameters;
-    time_if_index(RELATION_CHECK, [&] { prover.execute_relation_check_rounds(); });
-    time_if_index(ZEROMORPH, [&] { prover.execute_zeromorph_rounds(); });
+
+    prover.generate_gate_challenges();
+
+    DeciderProver_<GoblinUltraFlavor> decider_prover(prover.instance, prover.transcript);
+    time_if_index(RELATION_CHECK, [&] { decider_prover.execute_relation_check_rounds(); });
+    time_if_index(ZEROMORPH, [&] { decider_prover.execute_zeromorph_rounds(); });
 }
 BB_PROFILE static void test_round(State& state, size_t index) noexcept
 {

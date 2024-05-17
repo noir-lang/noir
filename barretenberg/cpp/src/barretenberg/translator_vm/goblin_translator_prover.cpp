@@ -185,13 +185,13 @@ void GoblinTranslatorProver::execute_zeromorph_rounds()
                      key->polynomials.get_concatenation_groups());
 }
 
-HonkProof& GoblinTranslatorProver::export_proof()
+HonkProof GoblinTranslatorProver::export_proof()
 {
     proof = transcript->export_proof();
     return proof;
 }
 
-HonkProof& GoblinTranslatorProver::construct_proof()
+HonkProof GoblinTranslatorProver::construct_proof()
 {
     BB_OP_COUNT_TIME_NAME("GoblinTranslatorProver::construct_proof");
 

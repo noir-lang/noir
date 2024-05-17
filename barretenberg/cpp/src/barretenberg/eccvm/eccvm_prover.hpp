@@ -37,8 +37,8 @@ class ECCVMProver {
     BB_PROFILE void execute_zeromorph_rounds();
     BB_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
-    HonkProof& export_proof();
-    HonkProof& construct_proof();
+    HonkProof export_proof();
+    HonkProof construct_proof();
 
     std::shared_ptr<Transcript> transcript;
 
