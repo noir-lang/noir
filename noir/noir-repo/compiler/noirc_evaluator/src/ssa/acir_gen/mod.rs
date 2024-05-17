@@ -1741,13 +1741,16 @@ impl<'a> Context<'a> {
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg)?;
         let mut warnings = Vec::new();
-        for acir_var in return_acir_vars {
+        for (acir_var, is_databus) in return_acir_vars {
             if self.acir_context.is_constant(&acir_var) {
                 warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
                     call_stack: call_stack.clone(),
                 }));
             }
-            self.acir_context.return_var(acir_var)?;
+            if !is_databus {
+                // We do not return value for the data bus.
+                self.acir_context.return_var(acir_var)?;
+            }
         }
         Ok(warnings)
     }
@@ -2671,12 +2674,22 @@ impl<'a> Context<'a> {
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> Result<Vec<AcirVar>, InternalError> {
+    ) -> Result<Vec<(AcirVar, bool)>, InternalError> {
         let mut acir_vars = Vec::with_capacity(arguments.len());
         for value_id in arguments {
+            let is_databus = if let Some(return_databus) = self.data_bus.return_data {
+                dfg[*value_id] == dfg[return_databus]
+            } else {
+                false
+            };
             let value = self.convert_value(*value_id, dfg);
             acir_vars.append(
-                &mut self.acir_context.flatten(value)?.iter().map(|(var, _)| *var).collect(),
+                &mut self
+                    .acir_context
+                    .flatten(value)?
+                    .iter()
+                    .map(|(var, _)| (*var, is_databus))
+                    .collect(),
             );
         }
         Ok(acir_vars)
