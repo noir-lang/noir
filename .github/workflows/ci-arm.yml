@@ -1,7 +1,7 @@
 name: CI (ARM)
 on:
   push:
-    branches: [master]
+    branches: [disabled]
   workflow_dispatch:
     inputs: {}
 concurrency:
