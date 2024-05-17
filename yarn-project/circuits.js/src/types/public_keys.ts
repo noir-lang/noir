@@ -1,6 +1,6 @@
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { type Fr, Point } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { GeneratorIndex } from '../constants.gen.js';
 import { type PublicKey } from './public_key.js';
@@ -106,5 +106,15 @@ export class PublicKeys {
       ...this.masterOutgoingViewingPublicKey.toFields(),
       ...this.masterTaggingPublicKey.toFields(),
     ];
+  }
+
+  static fromFields(fields: Fr[] | FieldReader): PublicKeys {
+    const reader = FieldReader.asReader(fields);
+    return new PublicKeys(
+      reader.readObject(Point),
+      reader.readObject(Point),
+      reader.readObject(Point),
+      reader.readObject(Point),
+    );
   }
 }

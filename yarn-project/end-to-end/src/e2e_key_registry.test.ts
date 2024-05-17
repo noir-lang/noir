@@ -56,12 +56,16 @@ describe('Key Registry', () => {
 
   describe('failure cases', () => {
     it('throws when address preimage check fails', async () => {
-      const publicKeysBuf = account.publicKeys.toBuffer();
-      // We randomly invalidate some of the keys by overwriting random byte
-      const byteIndex = Math.floor(Math.random() * publicKeysBuf.length);
-      publicKeysBuf[byteIndex] = (publicKeysBuf[byteIndex] + 2) % 256;
+      // First we get invalid keys by replacing any of the 8 fields of public keys with a random value
+      let invalidPublicKeys: PublicKeys;
+      {
+        // We call toBuffer and fromBuffer first to ensure that we get a deep copy
+        const publicKeysFields = PublicKeys.fromBuffer(account.publicKeys.toBuffer()).toFields();
+        const randomIndex = Math.floor(Math.random() * publicKeysFields.length);
+        publicKeysFields[randomIndex] = Fr.random();
 
-      const publicKeys = PublicKeys.fromBuffer(publicKeysBuf);
+        invalidPublicKeys = PublicKeys.fromFields(publicKeysFields);
+      }
 
       await expect(
         keyRegistry
@@ -69,8 +73,8 @@ describe('Key Registry', () => {
           .methods.register(
             account,
             account.partialAddress,
-            // TODO(#6337): Directly dump account.publicKeys here
-            publicKeys.toNoirStruct(),
+            // TODO(#6337): Make calling `toNoirStruct()` unnecessary
+            invalidPublicKeys.toNoirStruct(),
           )
           .send()
           .wait(),
@@ -120,7 +124,7 @@ describe('Key Registry', () => {
         .methods.register(
           account,
           account.partialAddress,
-          // TODO(#6337): Directly dump account.publicKeys here
+          // TODO(#6337): Make calling `toNoirStruct()` unnecessary
           account.publicKeys.toNoirStruct(),
         )
         .send()
