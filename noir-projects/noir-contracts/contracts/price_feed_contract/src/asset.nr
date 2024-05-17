@@ -4,17 +4,17 @@ struct Asset {
     price: U128,
 }
 
-global ASSET_SERIALIZED_LEN: Field = 1;
+global ASSET_SERIALIZED_LEN: Field = 2;
 
 impl Serialize<ASSET_SERIALIZED_LEN> for Asset {
     fn serialize(asset: Asset) -> [Field; ASSET_SERIALIZED_LEN] {
-        [asset.price.to_integer()]
+        [asset.price.lo, asset.price.hi]
     }
 }
 
 impl Deserialize<ASSET_SERIALIZED_LEN> for Asset {
     fn deserialize(fields: [Field; ASSET_SERIALIZED_LEN]) -> Asset {
-        let price = U128::from_integer(fields[0]);
+        let price = U128 { lo: fields[0], hi: fields[1] };
         Asset { price }
     }
 }
