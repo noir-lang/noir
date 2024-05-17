@@ -7,7 +7,7 @@ fn main(x: Field, y: pub Field) {
     pass_trait_by_value(a_mut_ref, y);
     assert(a_mut_ref.x == x);
 
-    pass_tarit_by_value_impl_param(a_mut_ref, y);
+    pass_trait_by_value_impl_param(a_mut_ref, y);
     assert(a_mut_ref.x == x);
 
     pass_trait_by_mut_ref(&mut a_mut_ref, y);
@@ -48,7 +48,7 @@ impl SomeTrait for AType {
     }
 }
 
-fn pass_tarit_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field) {
+fn pass_trait_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field) {
     // We auto add a mutable reference to the object type if the method call expects a mutable self
     a_mut_ref.set_value(value);
     assert(a_mut_ref.get_value() == value);
