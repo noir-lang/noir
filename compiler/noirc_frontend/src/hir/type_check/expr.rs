@@ -234,6 +234,8 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
+                        // Automatically add `&mut` if the method expects a mutable reference and
+                        // the object is not already one.
                         match &method_ref {
                             HirMethodReference::FuncId(func_id) => {
                                 if *func_id != FuncId::dummy_id() {
