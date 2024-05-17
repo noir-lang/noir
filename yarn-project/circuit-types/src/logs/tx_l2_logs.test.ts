@@ -28,6 +28,14 @@ function shouldBehaveLikeTxL2Logs(TxL2Logs: typeof EncryptedTxL2Logs | typeof Un
 
       expect(recovered.getSerializedLength()).toEqual(buffer.length);
     });
+
+    it('getKernelLength returns the correct length', () => {
+      const l2Logs = TxL2Logs.random(4, 2);
+
+      const expectedLength = l2Logs.functionLogs.map(l => l.getKernelLength()).reduce((a, b) => a + b, 0);
+
+      expect(l2Logs.getKernelLength()).toEqual(expectedLength);
+    });
   });
 }
 

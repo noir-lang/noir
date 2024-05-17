@@ -48,9 +48,6 @@ struct PrivateCircuitPublicInputsBuilder {
     encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
     unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
 
-    encrypted_log_preimages_length: Field,
-    unencrypted_log_preimages_length: Field,
-
     historical_header: Header,
 
     chain_id: Field,
@@ -156,13 +153,11 @@ impl PrivateCircuitPublicInputsBuilder {
     pub fn add_encrypted_log(&mut self, hash: Field, preimages_length: Field) {
         let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
         self.encrypted_logs_hashes.push(side_effect);
-        self.encrypted_log_preimages_length += preimages_length;
     }
 
     pub fn add_unencrypted_log(&mut self, hash: Field, preimages_length: Field) {
         let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.unencrypted_log_preimages_length += preimages_length;
     }
 
     pub fn generate_call_request(self, hash: Field, is_delegate_call: bool) -> CallRequest {
@@ -220,8 +215,6 @@ impl PrivateCircuitPublicInputsBuilder {
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            encrypted_log_preimages_length: self.encrypted_log_preimages_length,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
             tx_context: self.build_tx_context()
         }
@@ -256,8 +249,6 @@ impl Empty for PrivateCircuitPublicInputsBuilder {
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
-            encrypted_log_preimages_length: 0,
-            unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
             chain_id: 0,
             version: 0,

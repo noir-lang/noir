@@ -13,7 +13,7 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
     transient_nullifier_indexes_for_note_hashes: [u64; NUM_NOTE_HASHES],
     transient_note_hash_indexes_for_nullifiers: [u64; NUM_NULLIFIERS],
     transient_note_hash_indexes_for_logs: [u64; NUM_LOGS]
-) -> Field {
+) {
     let mut note_hashes_kept = 0;
     let mut note_hashes_removed = 0;
     for i in 0..NUM_NOTE_HASHES {
@@ -68,7 +68,6 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
 
     let mut note_logs_kept = 0;
     let mut note_logs_removed = 0;
-    let mut note_logs_length_removed = 0;
     for i in 0..NUM_LOGS {
         let log = note_logs[i];
         let index_hint = transient_note_hash_indexes_for_logs[i];
@@ -92,7 +91,6 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
             // );
 
             note_logs_removed += 1;
-            note_logs_length_removed += log.length;
 
             // For each log removed, an empty item is padded to the right.
             let padded_log = expected_note_logs[NUM_LOGS - note_logs_removed];
@@ -103,8 +101,6 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
     assert_eq(
         note_hashes_removed, nullifiers_removed, "Inconsistent number of note hashes and nullifiers removed"
     );
-
-    note_logs_length_removed
 }
 
 mod tests {
@@ -230,20 +226,6 @@ mod tests {
                 self.transient_note_hash_indexes_for_nullifiers,
                 self.transient_note_hash_indexes_for_logs
             );
-        }
-
-        pub fn verify_length(self) -> Field {
-            verify_squashed_transient_note_hashes_and_nullifiers(
-                self.note_hashes,
-                self.nullifiers,
-                self.note_logs,
-                self.expected_note_hashes,
-                self.expected_nullifiers,
-                self.expected_note_logs,
-                self.transient_nullifier_indexes_for_note_hashes,
-                self.transient_note_hash_indexes_for_nullifiers,
-                self.transient_note_hash_indexes_for_logs
-            )
         }
     }
 
@@ -441,16 +423,5 @@ mod tests {
         builder.transient_note_hash_indexes_for_logs[1] = 2;
 
         builder.verify();
-    }
-
-    #[test]
-    fn remove_correct_logs_len() {
-        let mut builder = TestDataBuilder::default();
-        let expected_len_removed = builder.note_logs[0].length;
-        assert_eq(builder.verify_length(), expected_len_removed);
-
-        let mut builder = TestDataBuilder::default_all_clear();
-        let expected_len_removed = builder.note_logs.fold(0, |a, b: NoteLogHash| a + b.length);
-        assert_eq(builder.verify_length(), expected_len_removed);
     }
 }

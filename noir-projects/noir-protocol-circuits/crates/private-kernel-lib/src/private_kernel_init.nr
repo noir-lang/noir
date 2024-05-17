@@ -60,7 +60,7 @@ mod tests {
         address::{AztecAddress, EthAddress}, constants::MAX_NEW_NOTE_HASHES_PER_CALL,
         grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message,
         tests::private_call_data_builder::PrivateCallDataBuilder, transaction::tx_request::TxRequest,
-        utils::arrays::array_length
+        utils::arrays::{array_length, array_eq}
     };
 
     struct PrivateKernelInitInputsBuilder {
@@ -113,23 +113,30 @@ mod tests {
             unencrypted_log_preimages_length[1]
         );
 
+        let expected_unencrypted_logs = [
+            builder.private_call.public_inputs.unencrypted_logs_hashes.storage[0], builder.private_call.public_inputs.unencrypted_logs_hashes.storage[1]
+        ];
+        let expected_encrypted_logs = [
+            builder.private_call.public_inputs.encrypted_logs_hashes.storage[0], builder.private_call.public_inputs.encrypted_logs_hashes.storage[1]
+        ];
+
         let public_inputs = builder.execute();
 
         // Check the first nullifier is hash of the signed tx request
         let tx_hash = builder.tx_request.hash();
         assert_eq(public_inputs.end.new_nullifiers[0].value(), tx_hash);
-
-        // Log preimages length should increase by `(un)encrypted_log_preimages_length` from private input
-        assert_eq(
-            public_inputs.end.encrypted_log_preimages_length, encrypted_log_preimages_length.reduce(|a, b| a + b)
+        assert(
+            array_eq(
+                public_inputs.end.encrypted_logs_hashes,
+                expected_encrypted_logs
+            )
         );
-        assert_eq(
-            public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length.reduce(|a, b| a + b)
+        assert(
+            array_eq(
+                public_inputs.end.unencrypted_logs_hashes,
+                expected_unencrypted_logs
+            )
         );
-        assert_eq(public_inputs.end.encrypted_logs_hashes[0].value, encrypted_logs_hashes[0]);
-        assert_eq(public_inputs.end.unencrypted_logs_hashes[0].value, unencrypted_logs_hashes[0]);
-        assert_eq(public_inputs.end.encrypted_logs_hashes[1].value, encrypted_logs_hashes[1]);
-        assert_eq(public_inputs.end.unencrypted_logs_hashes[1].value, unencrypted_logs_hashes[1]);
     }
 
     #[test]

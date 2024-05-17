@@ -52,14 +52,6 @@ export class PublicAccumulatedData {
      */
     public unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     /**
-     * Total accumulated length of the encrypted log preimages emitted in all the previous kernel iterations
-     */
-    public encryptedLogPreimagesLength: Fr,
-    /**
-     * Total accumulated length of the unencrypted log preimages emitted in all the previous kernel iterations
-     */
-    public unencryptedLogPreimagesLength: Fr,
-    /**
      * All the public data update requests made in this transaction.
      */
     public publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
@@ -80,8 +72,6 @@ export class PublicAccumulatedData {
       this.noteEncryptedLogsHashes,
       this.encryptedLogsHashes,
       this.unencryptedLogsHashes,
-      this.encryptedLogPreimagesLength,
-      this.unencryptedLogPreimagesLength,
       this.publicDataUpdateRequests,
       this.publicCallStack,
       this.gasUsed,
@@ -100,8 +90,6 @@ export class PublicAccumulatedData {
       this.noteEncryptedLogsHashes.every(x => x.isEmpty()) &&
       this.encryptedLogsHashes.every(x => x.isEmpty()) &&
       this.unencryptedLogsHashes.every(x => x.isEmpty()) &&
-      this.encryptedLogPreimagesLength.isZero() &&
-      this.unencryptedLogPreimagesLength.isZero() &&
       this.publicDataUpdateRequests.every(x => x.isEmpty()) &&
       this.publicCallStack.every(x => x.isEmpty()) &&
       this.gasUsed.isEmpty()
@@ -135,8 +123,6 @@ export class PublicAccumulatedData {
     .filter(x => !x.isEmpty())
     .map(h => inspect(h))
     .join(', ')}],
-  encryptedLogPreimagesLength: ${this.encryptedLogPreimagesLength}
-  unencryptedLogPreimagesLength: ${this.unencryptedLogPreimagesLength}
   publicDataUpdateRequests: [${this.publicDataUpdateRequests
     .filter(x => !x.isEmpty())
     .map(h => inspect(h))
@@ -163,8 +149,6 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
-      Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readObject(Gas),
@@ -188,8 +172,6 @@ export class PublicAccumulatedData {
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash.empty),
       makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash.empty),
-      Fr.zero(),
-      Fr.zero(),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       Gas.empty(),

@@ -130,16 +130,6 @@ export class PrivateCircuitPublicInputs {
      */
     public unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_CALL>,
     /**
-     * Length of the encrypted log preimages emitted in this function call.
-     * Note: Here so that the gas cost of this request can be measured by circuits, without actually needing to feed
-     *       in the variable-length data.
-     */
-    public encryptedLogPreimagesLength: Fr,
-    /**
-     * Length of the unencrypted log preimages emitted in this function call.
-     */
-    public unencryptedLogPreimagesLength: Fr,
-    /**
      * Header of a block whose state is used during private execution (not the block the transaction is included in).
      */
     public historicalHeader: Header,
@@ -190,8 +180,6 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, NoteLogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, LogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
-      reader.readObject(Fr),
-      reader.readObject(Fr),
       reader.readObject(Header),
       reader.readObject(TxContext),
     );
@@ -220,8 +208,6 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, NoteLogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, LogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
-      reader.readField(),
-      reader.readField(),
       reader.readObject(Header),
       reader.readObject(TxContext),
     );
@@ -253,8 +239,6 @@ export class PrivateCircuitPublicInputs {
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, NoteLogHash.empty),
       makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, LogHash.empty),
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash.empty),
-      Fr.ZERO,
-      Fr.ZERO,
       Header.empty(),
       TxContext.empty(),
     );
@@ -281,8 +265,6 @@ export class PrivateCircuitPublicInputs {
       isEmptyArray(this.noteEncryptedLogsHashes) &&
       isEmptyArray(this.encryptedLogsHashes) &&
       isEmptyArray(this.unencryptedLogsHashes) &&
-      this.encryptedLogPreimagesLength.isZero() &&
-      this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
       this.txContext.isEmpty()
     );
@@ -315,8 +297,6 @@ export class PrivateCircuitPublicInputs {
       fields.noteEncryptedLogsHashes,
       fields.encryptedLogsHashes,
       fields.unencryptedLogsHashes,
-      fields.encryptedLogPreimagesLength,
-      fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
       fields.txContext,
     ] as const;

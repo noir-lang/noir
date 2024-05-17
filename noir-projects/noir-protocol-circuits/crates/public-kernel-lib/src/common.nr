@@ -94,10 +94,8 @@ pub fn initialize_emitted_end_values(
         circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
         circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
         circuit_outputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
-        circuit_outputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
         circuit_outputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
         circuit_outputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
-        circuit_outputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
     }
 
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
@@ -106,10 +104,8 @@ pub fn initialize_emitted_end_values(
     circuit_outputs.end_non_revertible.new_l2_to_l1_msgs = array_to_bounded_vec(start_non_revertible.new_l2_to_l1_msgs);
     circuit_outputs.end_non_revertible.public_data_update_requests = array_to_bounded_vec(start_non_revertible.public_data_update_requests);
     circuit_outputs.end_non_revertible.unencrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.unencrypted_logs_hashes);
-    circuit_outputs.end_non_revertible.unencrypted_log_preimages_length = start_non_revertible.unencrypted_log_preimages_length;
     circuit_outputs.end_non_revertible.note_encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.note_encrypted_logs_hashes);
     circuit_outputs.end_non_revertible.encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.encrypted_logs_hashes);
-    circuit_outputs.end_non_revertible.encrypted_log_preimages_length = start_non_revertible.encrypted_log_preimages_length;
 
     let start = previous_kernel.public_inputs.validation_requests;
     circuit_outputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
@@ -162,9 +158,8 @@ fn perform_static_call_checks(public_call: PublicCallData) {
         let new_l2_to_l1_msgs_length = array_length(public_inputs.new_l2_to_l1_msgs);
         assert(new_l2_to_l1_msgs_length == 0, "new_l2_to_l1_msgs must be empty for static calls");
 
-        assert(
-            public_inputs.unencrypted_log_preimages_length == 0, "No unencrypted logs are allowed for static calls"
-        );
+        let new_unencrypted_logs_length = array_length(public_inputs.unencrypted_logs_hashes);
+        assert(new_unencrypted_logs_length == 0, "No unencrypted logs are allowed for static calls");
     }
 }
 
@@ -580,7 +575,6 @@ pub fn propagate_new_unencrypted_logs(public_call: PublicCallData, public_inputs
         }
     }
     public_inputs.end.unencrypted_logs_hashes.extend_from_bounded_vec(new_logs_to_insert);
-    public_inputs.end.unencrypted_log_preimages_length += public_call.call_stack_item.public_inputs.unencrypted_log_preimages_length;
 }
 
 pub fn propagate_new_unencrypted_logs_non_revertible(
@@ -599,7 +593,6 @@ pub fn propagate_new_unencrypted_logs_non_revertible(
         }
     }
     public_inputs.end_non_revertible.unencrypted_logs_hashes.extend_from_bounded_vec(new_logs_to_insert);
-    public_inputs.end_non_revertible.unencrypted_log_preimages_length += public_call.call_stack_item.public_inputs.unencrypted_log_preimages_length;
 }
 
 /**

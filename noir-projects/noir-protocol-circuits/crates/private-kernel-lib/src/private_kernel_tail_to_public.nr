@@ -361,16 +361,12 @@ mod tests {
                 0
             )
         );
-        assert_eq(public_inputs.end.encrypted_log_preimages_length as u32, revertible_logs_len);
         assert_eq(
             public_inputs.end_non_revertible.gas_used, Gas::new(
             (3 * DA_BYTES_PER_FIELD + non_revertible_logs_len) * DA_GAS_PER_BYTE,
             0
         )
             + Gas::tx_overhead()
-        );
-        assert_eq(
-            public_inputs.end_non_revertible.encrypted_log_preimages_length as u32, non_revertible_logs_len
         );
     }
 

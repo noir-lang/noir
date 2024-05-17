@@ -2,8 +2,8 @@ use crate::{
     hash::{compute_tx_logs_hash, compute_tx_note_logs_hash},
     abis::{
     accumulated_data::public_accumulated_data::PublicAccumulatedData, note_hash::NoteHash,
-    nullifier::Nullifier, public_data_update_request::PublicDataUpdateRequest, side_effect::SideEffect,
-    gas::Gas
+    nullifier::Nullifier, public_data_update_request::PublicDataUpdateRequest,
+    log_hash::{LogHash, NoteLogHash}, gas::Gas
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -52,6 +52,12 @@ impl CombinedAccumulatedData {
                 revertible.unencrypted_logs_hashes
             )
         );
+        let encrypted_log_preimages_length = non_revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
+            + revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
+            + non_revertible.note_encrypted_logs_hashes.fold(0, |a, b: NoteLogHash| a + b.length)
+            + revertible.note_encrypted_logs_hashes.fold(0, |a, b: NoteLogHash| a + b.length);
+        let unencrypted_log_preimages_length = non_revertible.unencrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
+            + revertible.unencrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
         CombinedAccumulatedData {
             new_note_hashes: array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes).map(|n: NoteHash| n.value),
             new_nullifiers: array_merge(non_revertible.new_nullifiers, revertible.new_nullifiers).map(|n: Nullifier| n.value),
@@ -62,10 +68,8 @@ impl CombinedAccumulatedData {
             note_encrypted_logs_hash,
             encrypted_logs_hash,
             unencrypted_logs_hash,
-            encrypted_log_preimages_length: non_revertible.encrypted_log_preimages_length
-                + revertible.encrypted_log_preimages_length,
-            unencrypted_log_preimages_length: non_revertible.unencrypted_log_preimages_length
-                + revertible.unencrypted_log_preimages_length,
+            encrypted_log_preimages_length,
+            unencrypted_log_preimages_length,
             public_data_update_requests: array_merge(
                 non_revertible.public_data_update_requests,
                 revertible.public_data_update_requests

@@ -32,11 +32,6 @@ struct PrivateAccumulatedDataBuilder {
     encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
     unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
 
-    // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
-    // variable-length data.
-    encrypted_log_preimages_length: Field,
-    unencrypted_log_preimages_length: Field,
-
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
@@ -51,8 +46,6 @@ impl PrivateAccumulatedDataBuilder {
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            encrypted_log_preimages_length: self.encrypted_log_preimages_length,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage
         }
@@ -64,6 +57,9 @@ impl PrivateAccumulatedDataBuilder {
         let encrypted_logs_hash = compute_tx_logs_hash(self.encrypted_logs_hashes.storage);
         let unencrypted_logs_hash = compute_tx_logs_hash(self.unencrypted_logs_hashes.storage);
         let gas_used = self.to_metered_gas_used() + Gas::tx_overhead() + teardown_gas;
+        let encrypted_log_preimages_length = self.encrypted_logs_hashes.storage.fold(0, |a, b: LogHash| a + b.length)
+            + self.note_encrypted_logs_hashes.storage.fold(0, |a, b: NoteLogHash| a + b.length);
+        let unencrypted_log_preimages_length = self.unencrypted_logs_hashes.storage.fold(0, |a, b: LogHash| a + b.length);
 
         CombinedAccumulatedData {
             new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value),
@@ -72,8 +68,8 @@ impl PrivateAccumulatedDataBuilder {
             note_encrypted_logs_hash,
             encrypted_logs_hash,
             unencrypted_logs_hash,
-            encrypted_log_preimages_length: self.encrypted_log_preimages_length,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
+            encrypted_log_preimages_length,
+            unencrypted_log_preimages_length,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
             gas_used
         }
@@ -103,11 +99,23 @@ impl PrivateAccumulatedDataBuilder {
             }
         }
 
+        // note_encrypted_logs_hash_gas
+        for i in 0..self.note_encrypted_logs_hashes.storage.len() {
+            let log = self.note_encrypted_logs_hashes.get_unchecked(i);
+            metered_bytes += log.length as u32;
+        }
+
         // encrypted_logs_hash_gas
-        metered_bytes += self.encrypted_log_preimages_length as u32;
+        for i in 0..self.encrypted_logs_hashes.storage.len() {
+            let log = self.encrypted_logs_hashes.get_unchecked(i);
+            metered_bytes += log.length as u32;
+        }
 
         // unencrypted_logs_hash_gas
-        metered_bytes += self.unencrypted_log_preimages_length as u32;
+        for i in 0..self.unencrypted_logs_hashes.storage.len() {
+            let log = self.unencrypted_logs_hashes.get_unchecked(i);
+            metered_bytes += log.length as u32;
+        }
 
         Gas::new(DA_GAS_PER_BYTE * metered_bytes, 0)
     }
@@ -181,11 +189,9 @@ impl PrivateAccumulatedDataBuilder {
             let note_encrypted_logs_hash = note_encrypted_logs_hash_private.expose_to_public();
             if note_encrypted_logs_hash_private.counter < min_revertible_side_effect_counter {
                 non_revertible_builder.note_encrypted_logs_hashes.push(note_encrypted_logs_hash);
-                non_revertible_builder.encrypted_log_preimages_length += note_encrypted_logs_hash.length;
                 non_revertible_da_gas_used += note_encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
             } else {
                 revertible_builder.note_encrypted_logs_hashes.push(note_encrypted_logs_hash);
-                revertible_builder.encrypted_log_preimages_length += note_encrypted_logs_hash.length;
                 revertible_da_gas_used += note_encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
             }
         }
@@ -194,11 +200,9 @@ impl PrivateAccumulatedDataBuilder {
             let encrypted_logs_hash = self.encrypted_logs_hashes.storage[i];
             if encrypted_logs_hash.counter < min_revertible_side_effect_counter {
                 non_revertible_builder.encrypted_logs_hashes.push(encrypted_logs_hash);
-                non_revertible_builder.encrypted_log_preimages_length += encrypted_logs_hash.length;
                 non_revertible_da_gas_used += encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
             } else {
                 revertible_builder.encrypted_logs_hashes.push(encrypted_logs_hash);
-                revertible_builder.encrypted_log_preimages_length += encrypted_logs_hash.length;
                 revertible_da_gas_used += encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
             }
         }
@@ -207,25 +211,12 @@ impl PrivateAccumulatedDataBuilder {
             let unencrypted_logs_hash = self.unencrypted_logs_hashes.storage[i];
             if unencrypted_logs_hash.counter < min_revertible_side_effect_counter {
                 non_revertible_builder.unencrypted_logs_hashes.push(unencrypted_logs_hash);
-                non_revertible_builder.unencrypted_log_preimages_length += unencrypted_logs_hash.length;
                 non_revertible_da_gas_used += unencrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
             } else {
                 revertible_builder.unencrypted_logs_hashes.push(unencrypted_logs_hash);
-                revertible_builder.unencrypted_log_preimages_length += unencrypted_logs_hash.length;
                 revertible_da_gas_used += unencrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
             }
         }
-
-        assert(
-            revertible_builder.encrypted_log_preimages_length
-            + non_revertible_builder.encrypted_log_preimages_length
-            == self.encrypted_log_preimages_length, "encrypted logs length mismatch"
-        );
-        assert(
-            revertible_builder.unencrypted_log_preimages_length
-            + non_revertible_builder.unencrypted_log_preimages_length
-            == self.unencrypted_log_preimages_length, "unencrypted logs length mismatch"
-        );
 
         revertible_builder.gas_used = Gas::new(revertible_da_gas_used, revertible_l2_gas_used);
         non_revertible_builder.gas_used = Gas::tx_overhead() + Gas::new(non_revertible_da_gas_used, non_revertible_l2_gas_used);
@@ -352,11 +343,9 @@ mod tests {
 
         builder.encrypted_logs_hashes.extend_from_array(non_revertible_enc_log_hashes);
         builder.encrypted_logs_hashes.extend_from_array(revertible_enc_log_hashes);
-        builder.encrypted_log_preimages_length = 12;
 
         builder.unencrypted_logs_hashes.extend_from_array(non_revertible_unenc_log_hashes);
         builder.unencrypted_logs_hashes.extend_from_array(revertible_unenc_log_hashes);
-        builder.unencrypted_log_preimages_length = 20;
 
         let public_non_revertible_note_logs = non_revertible_note_logs.map(|n: NoteLogHash| n.expose_to_public());
         let public_revertible_note_logs = revertible_note_logs.map(|n: NoteLogHash| n.expose_to_public());
@@ -439,8 +428,8 @@ mod tests {
         assert_eq(
             revertible.gas_used, Gas::new(
             (4 * DA_BYTES_PER_FIELD
-            + revertible.encrypted_log_preimages_length as u32
-            + revertible.unencrypted_log_preimages_length as u32)
+            + 6 // revertible encrypted logs len
+            + 10) // revertible unencrypted logs len
             * DA_GAS_PER_BYTE,
             0
         )
@@ -450,8 +439,8 @@ mod tests {
         assert_eq(
             non_revertible.gas_used, Gas::new(
             (4 * DA_BYTES_PER_FIELD
-            + non_revertible.encrypted_log_preimages_length as u32
-            + non_revertible.unencrypted_log_preimages_length as u32)
+            + 6 // non-revertible encrypted logs len
+            + 10) // non-revertible unencrypted logs len
             * DA_GAS_PER_BYTE,
             0
         )
@@ -469,8 +458,6 @@ impl Empty for PrivateAccumulatedDataBuilder {
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
-            encrypted_log_preimages_length: 0,
-            unencrypted_log_preimages_length: 0,
             private_call_stack: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
         }

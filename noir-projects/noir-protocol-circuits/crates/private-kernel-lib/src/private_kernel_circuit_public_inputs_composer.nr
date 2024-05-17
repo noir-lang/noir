@@ -69,8 +69,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         public_inputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
         public_inputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
         public_inputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
-        public_inputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
-        public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
         public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
         let _call_request = public_inputs.end.private_call_stack.pop();
         public_inputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
@@ -202,10 +200,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
                 self.public_inputs.end.note_encrypted_logs_hashes.push(note_logs[i]);
             }
         }
-
-        // Add log preimages lengths from current iteration to accumulated lengths.
-        self.public_inputs.end.encrypted_log_preimages_length += source.private_call_public_inputs.encrypted_log_preimages_length;
-        self.public_inputs.end.unencrypted_log_preimages_length += source.private_call_public_inputs.unencrypted_log_preimages_length;
     }
 
     unconstrained fn match_log_to_note(self, note_log: NoteLogHash) -> u64 {

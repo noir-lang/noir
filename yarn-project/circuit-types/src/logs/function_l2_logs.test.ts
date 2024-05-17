@@ -30,6 +30,14 @@ function shouldBehaveLikeFunctionL2Logs(
 
       expect(recovered.getSerializedLength()).toEqual(buffer.length);
     });
+
+    it('getKernelLength returns the correct length', () => {
+      const l2Logs = FunctionL2Logs.random(3);
+
+      const expectedLength = l2Logs.logs.map(l => l.length).reduce((a, b) => a + b + 4, 0);
+
+      expect(l2Logs.getKernelLength()).toEqual(expectedLength);
+    });
   });
 }
 

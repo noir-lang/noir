@@ -68,8 +68,6 @@ struct PrivateContext {
     note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL>,
     encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
     unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
-    encrypted_log_preimages_length: Field,
-    unencrypted_log_preimages_length: Field,
 
     last_nullifier_key_validation_request: Option<NullifierKeyValidationRequest>,
 }
@@ -131,8 +129,6 @@ impl PrivateContext {
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
-            encrypted_log_preimages_length: 0,
-            unencrypted_log_preimages_length: 0,
             last_nullifier_key_validation_request: Option::none()
         }
     }
@@ -176,8 +172,6 @@ impl PrivateContext {
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            encrypted_log_preimages_length: self.encrypted_log_preimages_length,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
             tx_context: self.inputs.tx_context
         }
@@ -266,7 +260,6 @@ impl PrivateContext {
         let len = 44 + log_slice.len().to_field();
         let side_effect = LogHash { value: log_hash, counter, length: len };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.unencrypted_log_preimages_length += len;
         // call oracle
         let _void = emit_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
     }
@@ -287,7 +280,6 @@ impl PrivateContext {
         let len = 44 + N * 32;
         let side_effect = LogHash { value: log_hash, counter, length: len };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.unencrypted_log_preimages_length += len;
     }
     // TODO(1139): Convert to generic input once we encrypt inside the circuit
     pub fn emit_encrypted_log<N, M, L>(
@@ -314,7 +306,6 @@ impl PrivateContext {
         let log_hash = compute_encrypted_log_hash(encrypted_log);
         let side_effect = LogHash { value: log_hash, counter, length: len };
         self.encrypted_logs_hashes.push(side_effect);
-        self.encrypted_log_preimages_length += len;
     }
 
     pub fn emit_note_encrypted_log<Note, N, M, L>(
@@ -351,7 +342,6 @@ impl PrivateContext {
         let log_hash = compute_encrypted_log_hash(encrypted_log);
         let side_effect = NoteLogHash { value: log_hash, counter, length: len, note_hash_counter };
         self.note_encrypted_logs_hashes.push(side_effect);
-        self.encrypted_log_preimages_length += len;
     }
 
     pub fn call_private_function<ARGS_COUNT>(
@@ -671,8 +661,6 @@ impl Empty for PrivateContext {
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
-            encrypted_log_preimages_length: 0,
-            unencrypted_log_preimages_length: 0,
             last_nullifier_key_validation_request: Option::none(),
         }
     }

@@ -108,10 +108,6 @@ export class PublicCircuitPublicInputs {
      */
     public unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_CALL>,
     /**
-     * Length of the unencrypted log preimages emitted in this function call.
-     */
-    public unencryptedLogPreimagesLength: Fr,
-    /**
      * Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
      * previous to the one in which the tx is included.
      */
@@ -167,7 +163,6 @@ export class PublicCircuitPublicInputs {
       Fr.ZERO,
       Fr.ZERO,
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash.empty),
-      Fr.ZERO,
       Header.empty(),
       GlobalVariables.empty(),
       AztecAddress.ZERO,
@@ -195,7 +190,6 @@ export class PublicCircuitPublicInputs {
       this.startSideEffectCounter.isZero() &&
       this.endSideEffectCounter.isZero() &&
       isEmptyArray(this.unencryptedLogsHashes) &&
-      this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
       this.globalVariables.isEmpty() &&
       this.proverAddress.isZero() &&
@@ -227,7 +221,6 @@ export class PublicCircuitPublicInputs {
       fields.startSideEffectCounter,
       fields.endSideEffectCounter,
       fields.unencryptedLogsHashes,
-      fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
       fields.globalVariables,
       fields.proverAddress,
@@ -278,7 +271,6 @@ export class PublicCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
-      reader.readObject(Fr),
       reader.readObject(Header),
       reader.readObject(GlobalVariables),
       reader.readObject(AztecAddress),
@@ -307,7 +299,6 @@ export class PublicCircuitPublicInputs {
       reader.readField(),
       reader.readField(),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
-      reader.readField(),
       Header.fromFields(reader),
       GlobalVariables.fromFields(reader),
       AztecAddress.fromFields(reader),

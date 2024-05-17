@@ -38,6 +38,16 @@ export abstract class FunctionL2Logs<TLog extends UnencryptedL2Log | EncryptedL2
   }
 
   /**
+   * Get the total length of all chargable data (raw log data + 4 for each log)
+   * TODO: Rename this? getChargableLength? getDALength?
+   * @returns Total length of data.
+   */
+  public getKernelLength(): number {
+    // Adding 4 to each log's length to account for the size stored in the serialized buffer
+    return this.logs.reduce((acc, log) => acc + log.length + 4, 0);
+  }
+
+  /**
    * Calculates hash of serialized logs.
    * @returns Buffer containing 248 bits of information of sha256 hash.
    */

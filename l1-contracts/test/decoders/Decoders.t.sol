@@ -174,9 +174,11 @@ contract DecodersTest is DecoderBase {
     bytes memory iterationLogsLength = hex"00000000"; // 4 empty bytes indicating that length of this iteration's logs is 0
     bytes memory encodedLogs = abi.encodePacked(kernelLogsLength, iterationLogsLength);
 
-    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced, uint256 logsLength) =
+      txsHelper.computeKernelLogsHash(encodedLogs);
 
     assertEq(bytesAdvanced, encodedLogs.length, "Advanced by an incorrect number of bytes");
+    assertEq(logsLength, 0, "Incorrect logs length");
     assertEq(logsHash, bytes32(0), "Incorrect logs hash");
   }
 
@@ -190,7 +192,8 @@ contract DecodersTest is DecoderBase {
     // Note: 00000004 is the length of 1 log within function logs
     bytes memory encodedLogs =
       abi.encodePacked(hex"0000000c00000008", hex"00000004", firstFunctionCallLogs);
-    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced, uint256 logsLength) =
+      txsHelper.computeKernelLogsHash(encodedLogs);
 
     bytes32 privateCircuitPublicInputsLogsHashFirstCall = Hash.sha256ToField(firstFunctionCallLogs);
 
@@ -202,6 +205,8 @@ contract DecodersTest is DecoderBase {
     );
 
     assertEq(bytesAdvanced, encodedLogs.length, "Advanced by an incorrect number of bytes");
+    // We take 8 as the user does not pay for the gas of the overall len (hex"0000002400000008")
+    assertEq(logsLength, encodedLogs.length - 8, "Incorrect logs length");
     assertEq(logsHash, referenceLogsHash, "Incorrect logs hash");
   }
 
@@ -222,7 +227,8 @@ contract DecodersTest is DecoderBase {
       hex"00000010",
       secondFunctionCallLogs
     );
-    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced, uint256 logsLength) =
+      txsHelper.computeKernelLogsHash(encodedLogs);
 
     bytes32 referenceLogsHashFromIteration1 = Hash.sha256ToField(firstFunctionCallLogs);
 
@@ -238,6 +244,8 @@ contract DecodersTest is DecoderBase {
     );
 
     assertEq(bytesAdvanced, encodedLogs.length, "Advanced by an incorrect number of bytes");
+    // We take 12 as the user does not pay for the gas of the function logs len bytes (hex"00000014") or overall len (hex"0000002400000008")
+    assertEq(logsLength, encodedLogs.length - 12, "Incorrect logs length");
     assertEq(logsHash, referenceLogsHashFromIteration2, "Incorrect logs hash");
   }
 
@@ -263,7 +271,8 @@ contract DecodersTest is DecoderBase {
       hex"00000010",
       thirdFunctionCallLogs
     );
-    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced, uint256 logsLength) =
+      txsHelper.computeKernelLogsHash(encodedLogs);
 
     bytes32 referenceLogsHashFromIteration1 = Hash.sha256ToField(firstFunctionCallLogs);
 
@@ -281,6 +290,9 @@ contract DecodersTest is DecoderBase {
     );
 
     assertEq(bytesAdvanced, encodedLogs.length, "Advanced by an incorrect number of bytes");
+    // We take 16 as the user does not pay for the gas of the function logs len bytes (hex"00000014"),
+    // empty logs len bytes (hex"00000000") or overall len (hex"0000002400000008")
+    assertEq(logsLength, encodedLogs.length - 16, "Incorrect logs length");
     assertEq(logsHash, referenceLogsHashFromIteration3, "Incorrect logs hash");
   }
 

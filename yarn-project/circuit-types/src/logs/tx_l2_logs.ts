@@ -40,6 +40,15 @@ export abstract class TxL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
     return this.functionLogs.reduce((acc, logs) => acc + logs.getSerializedLength(), 0) + 4;
   }
 
+  /**
+   * Get the total length of all chargable data (raw log data + 4 for each log)
+   * TODO: Rename this? getChargableLength? getDALength?
+   * @returns Total length of data.
+   */
+  public getKernelLength(): number {
+    return this.functionLogs.reduce((acc, logs) => acc + logs.getKernelLength(), 0);
+  }
+
   /** Gets the total number of logs. */
   public getTotalLogCount() {
     return this.functionLogs.reduce((acc, logs) => acc + logs.logs.length, 0);

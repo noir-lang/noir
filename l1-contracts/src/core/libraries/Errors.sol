@@ -51,6 +51,9 @@ library Errors {
   error Registry__RollupNotRegistered(address rollup); // 0xa1fee4cf
   error Registry__RollupAlreadyRegistered(address rollup); // 0x3c34eabf
 
+  //TxsDecoder
+  error TxsDecoder__InvalidLogsLength(uint256 expected, uint256 actual); // 0x829ca981
+
   // HeaderLib
   error HeaderLib__InvalidHeaderSize(uint256 expected, uint256 actual); // 0xf3ccb247
 

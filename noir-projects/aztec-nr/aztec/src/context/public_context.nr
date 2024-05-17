@@ -42,7 +42,6 @@ struct PublicContext {
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
     unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
-    unencrypted_log_preimages_length: Field,
 
     // Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
     // previous to the one in which the tx is included.
@@ -66,7 +65,6 @@ impl PublicContext {
             new_nullifiers: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
-            unencrypted_log_preimages_length: 0,
             historical_header: inputs.historical_header,
             prover_address: AztecAddress::zero()
         }
@@ -154,7 +152,6 @@ impl PublicContext {
             start_side_effect_counter: self.inputs.start_side_effect_counter,
             end_side_effect_counter: self.side_effect_counter,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.inputs.historical_header,
             global_variables: self.inputs.public_global_variables,
             prover_address: self.prover_address,
@@ -285,7 +282,6 @@ impl PublicContextInterface for PublicContext {
         let len = 44 + log_slice.len().to_field();
         let side_effect = LogHash { value: log_hash, counter: self.next_counter(), length: len };
         self.unencrypted_logs_hashes.push(side_effect);
-        self.unencrypted_log_preimages_length += len; 
         // Call oracle to broadcast log
         let _void = emit_unencrypted_log_oracle(contract_address, event_selector, log, side_effect.counter);
     }
@@ -342,7 +338,6 @@ impl Empty for PublicContext {
             new_nullifiers: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
-            unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
             prover_address: AztecAddress::zero(),
         }

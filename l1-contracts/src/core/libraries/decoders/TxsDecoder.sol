@@ -3,6 +3,7 @@
 pragma solidity >=0.8.18;
 
 // Libraries
+import {Errors} from "../Errors.sol";
 import {Constants} from "../ConstantsGen.sol";
 import {Hash} from "../Hash.sol";
 
@@ -53,6 +54,8 @@ library TxsDecoder {
     uint256 nullifier;
     uint256 l2ToL1Msgs;
     uint256 publicData;
+    uint256 encryptedLogsLength;
+    uint256 unencryptedLogsLength;
   }
 
   struct Counts {
@@ -66,6 +69,9 @@ library TxsDecoder {
   struct ConsumablesVars {
     bytes32[] baseLeaves;
     bytes baseLeaf;
+    uint256 kernelNoteEncryptedLogsLength;
+    uint256 kernelEncryptedLogsLength;
+    uint256 kernelUnencryptedLogsLength;
     bytes32 noteEncryptedLogsHash;
     bytes32 encryptedLogsHash;
     bytes32 unencryptedLogsHash;
@@ -148,9 +154,38 @@ library TxsDecoder {
          * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
          * Note: will advance offsets by the number of bytes processed.
          */
-        (vars.noteEncryptedLogsHash, offset) = computeKernelLogsHash(offset, _body, true);
-        (vars.encryptedLogsHash, offset) = computeKernelLogsHash(offset, _body, false);
-        (vars.unencryptedLogsHash, offset) = computeKernelLogsHash(offset, _body, false);
+        offsets.encryptedLogsLength = offset;
+        offset += 0x20;
+        offsets.unencryptedLogsLength = offset;
+        offset += 0x20;
+
+        (vars.noteEncryptedLogsHash, offset, vars.kernelNoteEncryptedLogsLength) =
+          computeKernelLogsHash(offset, _body, true);
+        (vars.encryptedLogsHash, offset, vars.kernelEncryptedLogsLength) =
+          computeKernelLogsHash(offset, _body, false);
+        (vars.unencryptedLogsHash, offset, vars.kernelUnencryptedLogsLength) =
+          computeKernelLogsHash(offset, _body, false);
+
+        // We throw to ensure that the byte len we charge for DA gas in the kernels matches the actual chargable log byte len
+        // Without this check, the user may provide the kernels with a lower log len than reality
+        if (
+          uint256(bytes32(slice(_body, offsets.encryptedLogsLength, 0x20)))
+            != vars.kernelNoteEncryptedLogsLength + vars.kernelEncryptedLogsLength
+        ) {
+          revert Errors.TxsDecoder__InvalidLogsLength(
+            uint256(bytes32(slice(_body, offsets.encryptedLogsLength, 0x20))),
+            vars.kernelNoteEncryptedLogsLength + vars.kernelEncryptedLogsLength
+          );
+        }
+        if (
+          uint256(bytes32(slice(_body, offsets.unencryptedLogsLength, 0x20)))
+            != vars.kernelUnencryptedLogsLength
+        ) {
+          revert Errors.TxsDecoder__InvalidLogsLength(
+            uint256(bytes32(slice(_body, offsets.unencryptedLogsLength, 0x20))),
+            vars.kernelUnencryptedLogsLength
+          );
+        }
 
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
@@ -185,6 +220,10 @@ library TxsDecoder {
               Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP
             )
           ),
+          bytes.concat(
+            slice(_body, offsets.encryptedLogsLength, 0x20),
+            slice(_body, offsets.unencryptedLogsLength, 0x20)
+          ),
           bytes.concat(vars.noteEncryptedLogsHash, vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
 
@@ -194,7 +233,7 @@ library TxsDecoder {
       // We pad base leaves with hashes of empty tx effect.
       for (uint256 i = numTxEffects; i < vars.baseLeaves.length; i++) {
         // Value taken from tx_effect.test.ts "hash of empty tx effect matches snapshot" test case
-        vars.baseLeaves[i] = hex"00543e0a6642ffeb8039296861765a53407bba62bd1c97ca43374de950bbe0a7";
+        vars.baseLeaves[i] = hex"009f12fb98ebbf4e5deef4cf51ade63094a795b891880217958b226707c95f43";
       }
     }
 
@@ -207,13 +246,12 @@ library TxsDecoder {
    * @param _body - The L2 block calldata.
    * @return The hash of the logs and offset in a block after processing the logs.
    * @dev We have logs preimages on the input and we need to perform the same hashing process as is done in the app
-   *      circuit (hashing the logs) and in the kernel circuit (accumulating the logs hashes). In each iteration of
-   *      kernel, the kernel computes a hash of the previous iteration's logs hash (the hash in the previous kernel's
-   *      public inputs) and the current iteration private circuit public inputs logs hash.
+   *      circuit (hashing the logs) and in the kernel circuit (accumulating the logs hashes). The tail kernel
+   *      circuit flat hashes all the app log hashes.
    *
    *      E.g. for resulting logs hash of a kernel with 3 iterations would be computed as:
    *
-   *        kernelPublicInputsLogsHash = sha256(sha256(sha256(I1_LOGS), sha256(I2_LOGS)), sha256(I3_LOGS))
+   *        kernelPublicInputsLogsHash = sha256((sha256(I1_LOGS), sha256(I2_LOGS)), sha256(I3_LOGS))
    *
    *      where I1_LOGS, I2_LOGS and I3_LOGS are logs emitted in the first, second and third function call.
    *
@@ -229,6 +267,10 @@ library TxsDecoder {
    *        I1_LOGS_LEN (i) is the length of the logs in the first iteration.
    *        I1_LOGS are all the logs emitted in the first iteration.
    *        I2_LOGS_LEN (j) ...
+   * @dev The circuit outputs a total logs len based on the byte length that the user pays DA gas for.
+   *      In terms of the encoding above, this is the raw log length (i, j, or k) + 4 for each log.
+   *      For the example above, kernelLogsLength = (i + 4) + (j + 4) + (k + 4). Since we already track
+   *      the total remainingLogsLength, we just remove the bytes holding function logs length.
    *
    * @dev Link to a relevant discussion:
    *      https://discourse.aztec.network/t/proposal-forcing-the-sequencer-to-actually-submit-data-to-l1/426/9
@@ -236,10 +278,11 @@ library TxsDecoder {
   function computeKernelLogsHash(uint256 _offsetInBlock, bytes calldata _body, bool noteLogs)
     internal
     pure
-    returns (bytes32, uint256)
+    returns (bytes32, uint256, uint256)
   {
     uint256 offset = _offsetInBlock;
     uint256 remainingLogsLength = read4(_body, offset);
+    uint256 kernelLogsLength = remainingLogsLength;
     offset += 0x4;
 
     bytes memory flattenedLogHashes; // The hash input
@@ -252,6 +295,8 @@ library TxsDecoder {
 
       // Decrease remaining logs length by this privateCircuitPublicInputsLogs's length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
       remainingLogsLength -= (privateCircuitPublicInputLogsLength + 0x4);
+
+      kernelLogsLength -= 0x4;
 
       while (privateCircuitPublicInputLogsLength > 0) {
         uint256 singleCallLogsLength = read4(_body, offset);
@@ -268,7 +313,7 @@ library TxsDecoder {
 
     // Not having a 0 value hash for empty logs causes issues with empty txs used for padding.
     if (flattenedLogHashes.length == 0) {
-      return (0, offset);
+      return (0, offset, 0);
     }
 
     // padded to MAX_LOGS * 32 bytes
@@ -284,7 +329,7 @@ library TxsDecoder {
 
     bytes32 kernelPublicInputsLogsHash = Hash.sha256ToField(flattenedLogHashes);
 
-    return (kernelPublicInputsLogsHash, offset);
+    return (kernelPublicInputsLogsHash, offset, kernelLogsLength);
   }
 
   /**

@@ -147,7 +147,6 @@ impl PublicCallDataBuilder {
         // Counter set as 0 for testing, like note read requests
         let side_effect = LogHash { value: hash, counter: 0, length: preimages_length };
         self.public_inputs.unencrypted_logs_hashes.push(side_effect);
-        self.public_inputs.unencrypted_log_preimages_length += preimages_length;
     }
 
     pub fn finish(self) -> PublicCallData {

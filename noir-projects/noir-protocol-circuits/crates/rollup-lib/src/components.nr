@@ -124,7 +124,7 @@ pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -
     )
 }
 
-global TX_EFFECTS_HASH_INPUT_FIELDS = 199;
+global TX_EFFECTS_HASH_INPUT_FIELDS = 201;
 
 // Computes the tx effects hash for a base rollup (a single transaction)
 // TODO(Alvaro): This is too slow for brillig without the array optimization
@@ -142,6 +142,8 @@ pub fn compute_tx_effects_hash(
     // 2 l2 -> l1 messages -> 2 fields
     // 32 public data update requests -> 64 fields
     // 1 contract deployments -> 3 fields
+    // 1 encrypted logs length --> 1 field | Includes length of note and generic encrypted logs
+    // 1 unencrypted logs length --> 1 field
     // 1 note encrypted logs hash --> 1 sha256 hash -> 31 bytes -> 1 fields | Beware when populating bytes that we fill (prepend) to 32! 
     // 1 encrypted logs hash --> 1 sha256 hash -> 31 bytes -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!  
     // 1 unencrypted logs hash --> 1 sha256 hash -> 31 bytes  -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!
@@ -151,6 +153,8 @@ pub fn compute_tx_effects_hash(
     let new_nullifiers = combined.new_nullifiers;
     let new_l2_to_l1_msgs = combined.new_l2_to_l1_msgs;
     let public_data_update_requests = combined.public_data_update_requests;
+    let encrypted_logs_length = combined.encrypted_log_preimages_length;
+    let unencrypted_logs_length = combined.unencrypted_log_preimages_length;
     let note_encrypted_logs_hash = combined.note_encrypted_logs_hash;
     let encrypted_logs_hash = combined.encrypted_logs_hash;
     let unencrypted_logs_hash = combined.unencrypted_logs_hash;
@@ -187,6 +191,14 @@ pub fn compute_tx_effects_hash(
     }
     offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
 
+    txs_effects_hash_input[offset] = encrypted_logs_length;
+
+    offset += 1;
+
+    txs_effects_hash_input[offset] = unencrypted_logs_length;
+
+    offset += 1;
+
     txs_effects_hash_input[offset] = note_encrypted_logs_hash;
 
     offset += NUM_ENCRYPTED_LOGS_HASHES_PER_TX;
@@ -216,12 +228,14 @@ pub fn compute_tx_effects_hash(
 fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
     // 1 for revert_code
     // 1 for transaction_fee
+    // 2 for logs lengths
     let expected_size = 1
         + 1
         + MAX_NEW_NOTE_HASHES_PER_TX
         + MAX_NEW_NULLIFIERS_PER_TX
         + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2
         + MAX_NEW_L2_TO_L1_MSGS_PER_TX
+        + 2
         + NUM_ENCRYPTED_LOGS_HASHES_PER_TX
         + NUM_ENCRYPTED_LOGS_HASHES_PER_TX
         + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX;

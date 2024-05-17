@@ -58,7 +58,7 @@ impl PrivateKernelResetCircuitPrivateInputs {
             master_nullifier_secret_keys: self.hints.master_nullifier_secret_keys
         }.validate();
 
-        let removed_logs_len = verify_squashed_transient_note_hashes_and_nullifiers(
+        verify_squashed_transient_note_hashes_and_nullifiers(
             previous_public_inputs.end.new_note_hashes,
             previous_public_inputs.end.new_nullifiers,
             previous_public_inputs.end.note_encrypted_logs_hashes,
@@ -73,7 +73,6 @@ impl PrivateKernelResetCircuitPrivateInputs {
         previous_public_inputs.end.new_note_hashes = self.outputs.note_hashes;
         previous_public_inputs.end.new_nullifiers = self.outputs.nullifiers;
         previous_public_inputs.end.note_encrypted_logs_hashes = self.outputs.note_encrypted_log_hashes;
-        previous_public_inputs.end.encrypted_log_preimages_length -= removed_logs_len;
 
         previous_public_inputs
     }

@@ -398,19 +398,25 @@ mod tests {
             prev_unencrypted_log_preimages_length
         );
 
+        let expected_unencrypted_logs = [
+            builder.previous_kernel.unencrypted_logs_hashes.storage[0], builder.public_call.public_inputs.unencrypted_logs_hashes.storage[0]
+        ];
+        let expected_encrypted_logs = [builder.previous_kernel.encrypted_logs_hashes.storage[0]];
+
         let public_inputs = builder.execute();
 
-        assert_eq(
-            public_inputs.end_non_revertible.encrypted_log_preimages_length, prev_encrypted_log_preimages_length
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.encrypted_logs_hashes,
+                expected_encrypted_logs
+            )
         );
-        assert_eq(
-            public_inputs.end_non_revertible.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.unencrypted_logs_hashes,
+                expected_unencrypted_logs
+            )
         );
-        assert_eq(public_inputs.end_non_revertible.encrypted_logs_hashes[0].value, prev_encrypted_logs_hash);
-        assert_eq(
-            public_inputs.end_non_revertible.unencrypted_logs_hashes[0].value, prev_unencrypted_logs_hash
-        );
-        assert_eq(public_inputs.end_non_revertible.unencrypted_logs_hashes[1].value, unencrypted_logs_hash);
     }
 
     #[test(should_fail_with="Public call cannot be reverted")]

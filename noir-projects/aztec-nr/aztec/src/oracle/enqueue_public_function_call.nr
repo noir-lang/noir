@@ -96,7 +96,6 @@ pub fn parse_public_call_stack_item_from_oracle(fields: [Field; ENQUEUE_PUBLIC_F
             start_side_effect_counter: 0,
             end_side_effect_counter: 0,
             unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
-            unencrypted_log_preimages_length: 0,
             historical_header: Header::empty(),
             global_variables: GlobalVariables::empty(),
             prover_address: AztecAddress::zero(),

@@ -41,8 +41,10 @@ export class TxEffect {
      */
     public publicDataWrites: PublicDataWrite[],
     /**
-     * The logs of the txEffect
+     * The logs and logs lengths of the txEffect
      */
+    public encryptedLogsLength: Fr,
+    public unencryptedLogsLength: Fr,
     public noteEncryptedLogs: EncryptedTxL2Logs,
     public encryptedLogs: EncryptedTxL2Logs,
     public unencryptedLogs: UnencryptedTxL2Logs,
@@ -96,6 +98,8 @@ export class TxEffect {
       serializeArrayOfBufferableToVector(this.nullifiers, 1),
       serializeArrayOfBufferableToVector(this.l2ToL1Msgs, 1),
       serializeArrayOfBufferableToVector(this.publicDataWrites, 1),
+      this.encryptedLogsLength,
+      this.unencryptedLogsLength,
       this.noteEncryptedLogs,
       this.encryptedLogs,
       this.unencryptedLogs,
@@ -117,6 +121,8 @@ export class TxEffect {
       reader.readVectorUint8Prefix(Fr),
       reader.readVectorUint8Prefix(Fr),
       reader.readVectorUint8Prefix(PublicDataWrite),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
       reader.readObject(EncryptedTxL2Logs),
       reader.readObject(EncryptedTxL2Logs),
       reader.readObject(UnencryptedTxL2Logs),
@@ -159,6 +165,8 @@ export class TxEffect {
       nullifiersBuffer,
       l2ToL1MsgsBuffer,
       publicDataWritesBuffer,
+      this.encryptedLogsLength.toBuffer(),
+      this.unencryptedLogsLength.toBuffer(),
       noteEncryptedLogsHashKernel0,
       encryptedLogsHashKernel0,
       unencryptedLogsHashKernel0,
@@ -173,6 +181,11 @@ export class TxEffect {
     numEncryptedLogsPerCall = 2,
     numUnencryptedLogsPerCall = 1,
   ): TxEffect {
+    const encryptedLogs = [
+      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
+      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
+    ];
+    const unencryptedLogs = UnencryptedTxL2Logs.random(numPublicCallsPerTx, numUnencryptedLogsPerCall);
     return new TxEffect(
       RevertCode.random(),
       Fr.random(),
@@ -180,9 +193,11 @@ export class TxEffect {
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.random),
-      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
-      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
-      UnencryptedTxL2Logs.random(numPublicCallsPerTx, numUnencryptedLogsPerCall),
+      new Fr(encryptedLogs[0].getKernelLength() + encryptedLogs[1].getKernelLength()),
+      new Fr(unencryptedLogs.getKernelLength()),
+      encryptedLogs[0],
+      encryptedLogs[1],
+      unencryptedLogs,
     );
   }
 
@@ -194,6 +209,8 @@ export class TxEffect {
       [],
       [],
       [],
+      Fr.ZERO,
+      Fr.ZERO,
       EncryptedTxL2Logs.empty(),
       EncryptedTxL2Logs.empty(),
       UnencryptedTxL2Logs.empty(),
@@ -221,6 +238,8 @@ export class TxEffect {
       nullifiers: [${this.nullifiers.map(h => h.toString()).join(', ')}],
       l2ToL1Msgs: [${this.l2ToL1Msgs.map(h => h.toString()).join(', ')}],
       publicDataWrites: [${this.publicDataWrites.map(h => h.toString()).join(', ')}],
+      encryptedLogsLength: ${this.encryptedLogsLength},
+      unencryptedLogsLength: ${this.unencryptedLogsLength},
       noteEncryptedLogs: ${JSON.stringify(this.noteEncryptedLogs.toJSON())},
       encryptedLogs: ${JSON.stringify(this.encryptedLogs.toJSON())},
       unencryptedLogs: ${JSON.stringify(this.unencryptedLogs.toJSON())}
