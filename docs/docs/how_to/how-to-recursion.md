@@ -101,10 +101,8 @@ const verified = await backend.verifyProof({ proof, publicInputs })
 This can be useful to make sure our intermediate proof was correctly generated. But the real goal is to do it within another circuit. For that, we need to generate  recursive proof artifacts that will be passed to the circuit that is verifying the proof we just generated. Instead of passing the proof and verification key as a byte array, we pass them as fields which makes it cheaper to verify in a circuit:
 
 ```js
-const { proofAsFields, vkAsFields, vkHash } = await backend.generateRecursiveProofArtifacts( { publicInputs, proof }, publicInputsCount)
+const { proofAsFields, vkAsFields, vkHash } = await backend.generateRecursiveProofArtifacts( { publicInputs, proof })
 ```
-
-This call takes the public inputs and the proof, but also the public inputs count. While this is easily retrievable by simply counting the `publicInputs` length, the backend interface doesn't currently abstract it away.
 
 :::info
 

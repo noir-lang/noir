@@ -48,10 +48,7 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   expect(await inner_backend.verifyProof(intermediate_proof)).to.be.true;
 
-  const { proofAsFields, vkAsFields, vkHash } = await inner_backend.generateRecursiveProofArtifacts(
-    intermediate_proof,
-    1, // 1 public input
-  );
+  const { proofAsFields, vkAsFields, vkHash } = await inner_backend.generateRecursiveProofArtifacts(intermediate_proof);
 
   // Final proof
 

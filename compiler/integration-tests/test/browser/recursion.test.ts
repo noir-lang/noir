@@ -55,11 +55,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     expect(main_verification).to.be.true;
 
-    const numPublicInputs = 1;
-    const { proofAsFields, vkAsFields, vkHash } = await main_backend.generateRecursiveProofArtifacts(
-      main_proof,
-      numPublicInputs,
-    );
+    const { proofAsFields, vkAsFields, vkHash } = await main_backend.generateRecursiveProofArtifacts(main_proof);
 
     const recursion_inputs: InputMap = {
       verification_key: vkAsFields,
@@ -81,11 +77,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     // Causes an "unreachable" error.
     // Due to the fact that it's a non-recursive proof?
     //
-    // const recursion_numPublicInputs = 1;
-    // const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateRecursiveProofArtifacts(
-    //   recursion_proof,
-    //   recursion_numPublicInputs,
-    // );
+    // const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateRecursiveProofArtifacts(recursion_proof);
     //
     // logger.debug('recursion_proofAsFields', recursion_proofAsFields);
 

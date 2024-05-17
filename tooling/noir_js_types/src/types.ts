@@ -63,10 +63,7 @@ export interface Backend extends VerifierBackend {
    *
    * @description Retrieves the artifacts from a proof in the Field format
    */
-  generateRecursiveProofArtifacts(
-    proofData: ProofData,
-    numOfPublicInputs: number,
-  ): Promise<{
+  generateRecursiveProofArtifacts(proofData: ProofData): Promise<{
     /** @description An array of Fields containing the proof */
     proofAsFields: string[];
     /** @description An array of Fields containing the verification key */

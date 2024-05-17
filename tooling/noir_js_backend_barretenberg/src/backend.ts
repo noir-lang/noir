@@ -110,22 +110,20 @@ export class BarretenbergBackend extends BarretenbergVerifierBackend implements 
    *
    * @example
    * ```typescript
-   * const artifacts = await backend.generateRecursiveProofArtifacts(proof, numOfPublicInputs);
+   * const artifacts = await backend.generateRecursiveProofArtifacts(proof);
    * ```
    */
-  async generateRecursiveProofArtifacts(
-    proofData: ProofData,
-    numOfPublicInputs = 0,
-  ): Promise<{
+  async generateRecursiveProofArtifacts(proofData: ProofData): Promise<{
     proofAsFields: string[];
     vkAsFields: string[];
     vkHash: string;
   }> {
     await this.instantiate();
+    const numPublicInputs = proofData.publicInputs.length;
     const proof = reconstructProofWithPublicInputs(proofData);
     const proofAsFields = (
-      await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs)
-    ).slice(numOfPublicInputs);
+      await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numPublicInputs)
+    ).slice(numPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
     // TODO how long it takes.
