@@ -2,8 +2,10 @@
 
 use acvm_blackbox_solver::blake3;
 
-use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
-use ark_ff::{Field, PrimeField};
+use ark_ff::{BigInteger, PrimeField};
+use ark_ec::{short_weierstrass::Affine, AffineRepr, CurveConfig};
+use ark_ff::Field;
+use grumpkin::GrumpkinParameters;
 
 /// Hash a seed buffer into a point
 ///
@@ -17,28 +19,26 @@ use ark_ff::{Field, PrimeField};
 ///  6. Compute Blake3 hash of buffer
 ///  7. Interpret the two hash outputs as the high / low 256 bits of a 512-bit integer (big-endian)
 ///  8. Derive x-coordinate of point by reducing the 512-bit integer modulo the curve's field modulus (Fq)
-///  9. Compute `y^2`` from the curve formula `y^2 = x^3 + ax + b` (`a``, `b`` are curve params. for BN254, `a = 0``, `b = 3``)
-///  10. IF `y^2`` IS NOT A QUADRATIC RESIDUE
-///      
-///     a. increment `attempt_count` by 1 and go to step 2
-///  
-/// 11. IF `y^2`` IS A QUADRATIC RESIDUE
-///      
-///     a. derive y coordinate via `y = sqrt(y)``
-///      
-///     b. Interpret most significant bit of 512-bit integer as a 'parity' bit
-///     
-///     In Barretenberg:
-///          11c. If parity bit is set AND `y`'s most significant bit is not set, invert `y`
-///          11d. If parity bit is not set AND `y`'s most significant bit is set, invert `y`
-///      In Noir we use arkworks https://github.com/arkworks-rs/algebra/blob/master/ec/src/models/short_weierstrass/affine.rs#L110:
-///          11c. If parity bit is set AND `y < -y` lexographically, invert `y`
-///          11d. If parity bit is not set AND `y >= -y` lexographically, invert `y`
-///      N.B. last 2 steps are because the `sqrt()` algorithm can return 2 values,
-///           we need to a way to canonically distinguish between these 2 values and select a "preferred" one
-///      11e. return (x, y)
+///  9. Compute `y^2` from the curve formula `y^2 = x^3 + ax + b` (`a`, `b` are curve params. for BN254, `a = 0`, `b = 3`)
+///  10. IF `y^2` IS NOT A QUADRATIC RESIDUE:
 ///
-pub(crate) fn hash_to_curve<E: SWCurveConfig>(seed: &[u8], attempt_count: u8) -> Affine<E> {
+///  a. increment `attempt_count` by 1 and go to step 2
+///  
+///  11. IF `y^2` IS A QUADRATIC RESIDUE:
+///
+///  a. derive y coordinate via `y = sqrt(y)`
+///
+///  b. Interpret most significant bit of 512-bit integer as a 'parity' bit
+///
+///  c. If parity bit is set AND `y`'s most significant bit is not set, invert `y`
+///
+///  d. If parity bit is not set AND `y`'s most significant bit is set, invert `y`
+/// 
+///  e. return (x, y)
+/// 
+///  N.B. steps c. and e. are because the `sqrt()` algorithm can return 2 values,
+///  we need to a way to canonically distinguish between these 2 values and select a "preferred" one
+pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine<GrumpkinParameters> {
     let seed_size = seed.len();
     // expand by 2 bytes to cover incremental hash attempts
     let mut target_seed = seed.to_vec();
@@ -54,55 +54,72 @@ pub(crate) fn hash_to_curve<E: SWCurveConfig>(seed: &[u8], attempt_count: u8) ->
     hash.extend_from_slice(&hash_lo);
 
     // Here we reduce the 512 bit number modulo the base field modulus to calculate `x`
-    let x = <E::BaseField as Field>::BasePrimeField::from_be_bytes_mod_order(&hash);
-    let x = E::BaseField::from_base_prime_field(x);
+    let x = <<GrumpkinParameters as CurveConfig>::BaseField as Field>::BasePrimeField::from_be_bytes_mod_order(&hash);
+    let x = <GrumpkinParameters as CurveConfig>::BaseField::from_base_prime_field(x);
 
-    let parity_bit = hash_hi[0] > 127;
-    Affine::get_point_from_x_unchecked(x, parity_bit)
-        .unwrap_or_else(|| hash_to_curve(seed, attempt_count + 1))
+    if let Some(point) = Affine::<GrumpkinParameters>::get_point_from_x_unchecked(x, false) {
+        let parity_bit = hash_hi[0] > 127;
+        let y_bit_set = point.y().unwrap().into_bigint().get_bit(0);
+        if (parity_bit && !y_bit_set) || (!parity_bit && y_bit_set) {
+            -point
+        } else {
+            point
+        }
+    } else {
+        hash_to_curve(seed, attempt_count + 1)
+    } 
 }
 
 #[cfg(test)]
 mod test {
-    use ark_ec::AffineRepr;
 
+    use ark_ff::{BigInteger, PrimeField};
+    use ark_ec::AffineRepr;
+    
     use super::hash_to_curve;
 
     #[test]
     fn smoke_test() {
-        // NOTE: test cases are generated from the code above. These need to be checked against barretenberg for consistency!
-        let test_cases: [(&[u8], u8, (&str, &str)); 3] = [
+        let test_cases: [(&[u8], u8, (&str, &str)); 4] = [
             (
                 &[],
                 0,
                 (
-                    "16630969835852596693293552682274346428810960863289591405364736021328503685422",
-                    "2898904879751428755315857271136646918777181217826622916610882064326950914862",
+                    "24c4cb9c1206ab5470592f237f1698abe684dadf0ab4d7a132c32b2134e2c12e",
+                    "0668b8d61a317fb34ccad55c930b3554f1828a0e5530479ecab4defe6bbc0b2e",
                 ),
             ),
             (
                 &[],
                 1,
                 (
-                    "16630969835852596693293552682274346428810960863289591405364736021328503685422",
-                    "2898904879751428755315857271136646918777181217826622916610882064326950914862",
+                    "24c4cb9c1206ab5470592f237f1698abe684dadf0ab4d7a132c32b2134e2c12e",
+                    "0668b8d61a317fb34ccad55c930b3554f1828a0e5530479ecab4defe6bbc0b2e",
                 ),
             ),
             (
-                &[42],
+                &[1],
                 0,
                 (
-                    "10062871819776274344541726704728265607389658727752533003234345551987599533646",
-                    "4336697243017116919088392067104139397869626428691238548002362745837171062453",
+                    "107f1b633c6113f3222f39f6256f0546b41a4880918c86864b06471afb410454",
+                    "050cd3823d0c01590b6a50adcc85d2ee4098668fd28805578aa05a423ea938c6",
+                ),
+            ),
+            (
+                &[0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64],
+                0,
+                (
+                    "037c5c229ae495f6e8d1b4bf7723fafb2b198b51e27602feb8a4d1053d685093",
+                    "10cf9596c5b2515692d930efa2cf3817607e4796856a79f6af40c949b066969f",
                 ),
             ),
         ];
 
         for (seed, attempt_count, expected_point) in test_cases {
-            let point = hash_to_curve::<grumpkin::GrumpkinParameters>(seed, attempt_count);
+            let point = hash_to_curve(seed, attempt_count);
             assert!(point.is_on_curve());
-            assert_eq!(point.x().unwrap().to_string(), expected_point.0);
-            assert_eq!(point.y().unwrap().to_string(), expected_point.1);
+            assert_eq!(hex::encode(point.x().unwrap().into_bigint().to_bytes_be()), expected_point.0, "Failed on x component with seed {seed:?}, attempt_count {attempt_count}");
+            assert_eq!(hex::encode(point.y().unwrap().into_bigint().to_bytes_be()), expected_point.1, "Failed on y component with seed {seed:?}, attempt_count {attempt_count}");
         }
     }
 }
