@@ -604,7 +604,6 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-std",
- "cfg-if 1.0.0",
  "criterion",
  "hex",
  "lazy_static",

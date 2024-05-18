@@ -127,7 +127,7 @@ pub(crate) fn execute_program(
     inputs_map: &InputMap,
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessStack, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
+    let blackbox_solver = Bn254BlackBoxSolver::default();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 

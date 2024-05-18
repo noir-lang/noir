@@ -25,7 +25,7 @@ pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliErro
 
     runtime.block_on(async {
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
-            let blackbox_solver = Bn254BlackBoxSolver::new();
+            let blackbox_solver = Bn254BlackBoxSolver::default();
             let router = NargoLspService::new(&client, blackbox_solver);
 
             ServiceBuilder::new()

@@ -15,7 +15,6 @@ repository.workspace = true
 [dependencies]
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
-cfg-if = "1.0.0"
 hex.workspace = true
 lazy_static = "1.4"
 

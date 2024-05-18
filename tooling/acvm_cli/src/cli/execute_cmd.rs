@@ -67,7 +67,7 @@ pub(crate) fn execute_program_from_witness(
     bytecode: &[u8],
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessStack, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
+    let blackbox_solver = Bn254BlackBoxSolver::default();
     let program: Program = Program::deserialize_program(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
     execute_program(

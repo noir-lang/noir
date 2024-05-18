@@ -15,34 +15,8 @@ use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use poseidon2::poseidon2_permutation;
 
+#[derive(Default)]
 pub struct Bn254BlackBoxSolver;
-
-impl Bn254BlackBoxSolver {
-    pub async fn initialize() -> Bn254BlackBoxSolver {
-        // We fallback to the sync initialization of barretenberg on non-wasm targets.
-        // This ensures that wasm packages consuming this still build on the default target (useful for linting, etc.)
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                let blackbox_vendor = Barretenberg::initialize().await;
-                Bn254BlackBoxSolver { blackbox_vendor }
-            } else {
-                Bn254BlackBoxSolver::new()
-            }
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new() -> Bn254BlackBoxSolver {
-        Bn254BlackBoxSolver
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Default for Bn254BlackBoxSolver {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     fn schnorr_verify(

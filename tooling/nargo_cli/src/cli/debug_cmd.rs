@@ -219,7 +219,7 @@ pub(crate) fn debug_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<Option<WitnessMap>, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
+    let blackbox_solver = Bn254BlackBoxSolver::default();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 

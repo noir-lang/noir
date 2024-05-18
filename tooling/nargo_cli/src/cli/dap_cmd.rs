@@ -193,7 +193,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
-                        let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver::new();
+                        let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver::default();
 
                         noir_debugger::run_dap_loop(
                             server,
