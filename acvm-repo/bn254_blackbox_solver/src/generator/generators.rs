@@ -93,7 +93,7 @@ mod test {
     #[test]
     fn derives_default_generators() {
         
-        const DEFAULT_GENERATORS: &'static [[&str; 2]] = &[[
+        const DEFAULT_GENERATORS: &[[&str; 2]] = &[[
             "083e7911d835097629f0067531fc15cafd79a89beecb39903f69572c636f4a5a",
             "1a7f5efaad7f315c25a918f30cc8d7333fccab7ad7c90f14de81bcc528f9935d",
           ],
