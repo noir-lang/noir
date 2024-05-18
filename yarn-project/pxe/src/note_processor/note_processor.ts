@@ -130,7 +130,8 @@ export class NoteProcessor {
         for (const functionLogs of txFunctionLogs) {
           for (const log of functionLogs.logs) {
             this.stats.seen++;
-            const taggedNote = TaggedNote.fromEncryptedBuffer(log.data, secretKey);
+            // @todo Issue(#6410) We should also try decrypting as outgoing if this fails.
+            const taggedNote = TaggedNote.decryptAsIncoming(log.data, secretKey);
             if (taggedNote?.notePayload) {
               const { notePayload: payload } = taggedNote;
               // We have successfully decrypted the data.

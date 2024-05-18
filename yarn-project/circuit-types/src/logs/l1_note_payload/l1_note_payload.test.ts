@@ -1,5 +1,6 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { GrumpkinScalar, Point } from '@aztec/foundation/fields';
+import { GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { L1NotePayload } from './l1_note_payload.js';
 
@@ -16,22 +17,36 @@ describe('L1 Note Payload', () => {
     expect(L1NotePayload.fromBuffer(buf)).toEqual(payload);
   });
 
-  it('convert to and from encrypted buffer', () => {
-    const payload = L1NotePayload.random();
-    const ownerPrivKey = GrumpkinScalar.random();
-    const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
-    const encrypted = payload.toEncryptedBuffer(ownerPubKey);
-    const decrypted = L1NotePayload.fromEncryptedBuffer(encrypted, ownerPrivKey);
-    expect(decrypted).not.toBeUndefined();
-    expect(decrypted).toEqual(payload);
-  });
+  describe('encrypt and decrypt a full log', () => {
+    let ovsk: GrumpkinScalar;
+    let ivsk: GrumpkinScalar;
 
-  it('return undefined if unable to decrypt the encrypted buffer', () => {
-    const payload = L1NotePayload.random();
-    const ownerPubKey = Point.random();
-    const encrypted = payload.toEncryptedBuffer(ownerPubKey);
-    const randomPrivKey = GrumpkinScalar.random();
-    const decrypted = L1NotePayload.fromEncryptedBuffer(encrypted, randomPrivKey);
-    expect(decrypted).toBeUndefined();
+    let payload: L1NotePayload;
+    let encrypted: Buffer;
+
+    beforeAll(() => {
+      ovsk = GrumpkinScalar.random();
+      ivsk = GrumpkinScalar.random();
+
+      const ephSk = GrumpkinScalar.random();
+
+      const recipientAddress = AztecAddress.random();
+      const ivpk = grumpkin.mul(Grumpkin.generator, ivsk);
+
+      payload = L1NotePayload.random();
+      encrypted = payload.encrypt(ephSk, recipientAddress, ivpk, ovsk);
+    });
+
+    it('decrypt a log as incoming', () => {
+      const recreated = L1NotePayload.decryptAsIncoming(encrypted, ivsk);
+
+      expect(recreated.toBuffer()).toEqual(payload.toBuffer());
+    });
+
+    it('decrypt a log as outgoing', () => {
+      const recreated = L1NotePayload.decryptAsOutgoing(encrypted, ovsk);
+
+      expect(recreated.toBuffer()).toEqual(payload.toBuffer());
+    });
   });
 });

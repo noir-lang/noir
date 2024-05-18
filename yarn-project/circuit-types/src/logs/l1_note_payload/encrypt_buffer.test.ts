@@ -3,7 +3,8 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
-import { decryptBuffer, deriveAESSecret, encryptBuffer } from './encrypt_buffer.js';
+import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
+import { deriveAESSecret } from './encryption_utils.js';
 
 describe('encrypt buffer', () => {
   let grumpkin: Grumpkin;

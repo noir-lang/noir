@@ -1,5 +1,6 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { GrumpkinScalar, Point } from '@aztec/foundation/fields';
+import { GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { L1NotePayload } from './l1_note_payload.js';
 import { TaggedNote } from './tagged_note.js';
@@ -18,24 +19,39 @@ describe('L1 Note Payload', () => {
     expect(TaggedNote.fromBuffer(buf).notePayload).toEqual(taggedNote.notePayload);
   });
 
-  it('convert to and from encrypted buffer', () => {
-    const payload = L1NotePayload.random();
-    const taggedNote = new TaggedNote(payload);
-    const ownerPrivKey = GrumpkinScalar.random();
-    const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
-    const encrypted = taggedNote.toEncryptedBuffer(ownerPubKey);
-    const decrypted = TaggedNote.fromEncryptedBuffer(encrypted, ownerPrivKey);
-    expect(decrypted).not.toBeUndefined();
-    expect(decrypted?.notePayload).toEqual(payload);
-  });
+  describe('encrypt and decrypt a full log', () => {
+    let ovsk: GrumpkinScalar;
+    let ivsk: GrumpkinScalar;
 
-  it('return undefined if unable to decrypt the encrypted buffer', () => {
-    const payload = L1NotePayload.random();
-    const taggedNote = new TaggedNote(payload);
-    const ownerPubKey = Point.random();
-    const encrypted = taggedNote.toEncryptedBuffer(ownerPubKey);
-    const randomPrivKey = GrumpkinScalar.random();
-    const decrypted = TaggedNote.fromEncryptedBuffer(encrypted, randomPrivKey);
-    expect(decrypted).toBeUndefined();
+    let taggedNote: TaggedNote;
+    let encrypted: Buffer;
+
+    beforeAll(() => {
+      ovsk = GrumpkinScalar.random();
+      ivsk = GrumpkinScalar.random();
+
+      const ephSk = GrumpkinScalar.random();
+
+      const recipientAddress = AztecAddress.random();
+      const ivpk = grumpkin.mul(Grumpkin.generator, ivsk);
+
+      const payload = L1NotePayload.random();
+
+      taggedNote = new TaggedNote(payload);
+
+      encrypted = taggedNote.encrypt(ephSk, recipientAddress, ivpk, ovsk);
+    });
+
+    it('decrypt a log as incoming', () => {
+      const recreated = TaggedNote.decryptAsIncoming(encrypted, ivsk);
+
+      expect(recreated?.toBuffer()).toEqual(taggedNote.toBuffer());
+    });
+
+    it('decrypt a log as outgoing', () => {
+      const recreated = TaggedNote.decryptAsOutgoing(encrypted, ovsk);
+
+      expect(recreated?.toBuffer()).toEqual(taggedNote.toBuffer());
+    });
   });
 });

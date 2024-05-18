@@ -51,7 +51,7 @@ impl NoteInterface<CARD_NOTE_LEN> for CardNote {
 
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field, ivpk_m: GrumpkinPoint) {
-        context.emit_note_encrypted_log(
+        context.encrypt_and_emit_note(
             (*context).this_address(),
             slot,
             Self::get_note_type_id(),

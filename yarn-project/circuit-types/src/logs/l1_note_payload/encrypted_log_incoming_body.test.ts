@@ -3,7 +3,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
 import { EncryptedLogIncomingBody } from './encrypted_log_incoming_body.js';
-import { Note } from './l1_note_payload/note.js';
+import { Note } from './note.js';
 
 describe('encrypt log incoming body', () => {
   let grumpkin: Grumpkin;

@@ -1,7 +1,7 @@
 import { AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
 import { Aes128 } from '@aztec/circuits.js/barretenberg';
 
-import { deriveAESSecret } from './l1_note_payload/encrypt_buffer.js';
+import { deriveAESSecret } from './encryption_utils.js';
 
 /**
  * An encrypted log header, containing the address of the log along with utility

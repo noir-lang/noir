@@ -1,4 +1,4 @@
-import { type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { type AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -11,7 +11,11 @@ const PLACEHOLDER_TAG = new Fr(33);
  * Encrypted note payload with a tag used for retrieval by clients.
  */
 export class TaggedNote {
-  constructor(public notePayload: L1NotePayload, public tag = PLACEHOLDER_TAG) {}
+  constructor(
+    public notePayload: L1NotePayload,
+    public incomingTag = PLACEHOLDER_TAG,
+    public outgoingTag = PLACEHOLDER_TAG,
+  ) {}
 
   /**
    * Deserializes the TaggedNote object from a Buffer.
@@ -20,9 +24,10 @@ export class TaggedNote {
    */
   static fromBuffer(buffer: Buffer | BufferReader): TaggedNote {
     const reader = BufferReader.asReader(buffer);
-    const tag = Fr.fromBuffer(reader);
+    const incomingTag = Fr.fromBuffer(reader);
+    const outgoingTag = Fr.fromBuffer(reader);
     const payload = L1NotePayload.fromBuffer(reader);
-    return new TaggedNote(payload, tag);
+    return new TaggedNote(payload, incomingTag, outgoingTag);
   }
 
   /**
@@ -30,39 +35,53 @@ export class TaggedNote {
    * @returns Buffer representation of the TaggedNote object (unencrypted).
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.tag, this.notePayload);
-  }
-
-  /**
-   * Encrypt the L1NotePayload object using the owner's public key and the ephemeral private key, then attach the tag.
-   * @param ownerPubKey - Public key of the owner of the TaggedNote object.
-   * @returns The encrypted TaggedNote object.
-   */
-  public toEncryptedBuffer(ownerPubKey: PublicKey): Buffer {
-    const encryptedL1NotePayload = this.notePayload.toEncryptedBuffer(ownerPubKey);
-    return serializeToBuffer(this.tag, encryptedL1NotePayload);
-  }
-
-  /**
-   * Decrypts the L1NotePayload object using the owner's private key.
-   * @param data - Encrypted TaggedNote object.
-   * @param ownerPrivKey - Private key of the owner of the TaggedNote object.
-   * @returns Instance of TaggedNote if the decryption was successful, undefined otherwise.
-   */
-  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: GrumpkinPrivateKey): TaggedNote | undefined {
-    const reader = BufferReader.asReader(data);
-    const tag = Fr.fromBuffer(reader);
-
-    const encryptedL1NotePayload = reader.readToEnd();
-
-    const payload = L1NotePayload.fromEncryptedBuffer(encryptedL1NotePayload, ownerPrivKey);
-    if (!payload) {
-      return;
-    }
-    return new TaggedNote(payload, tag);
+    return serializeToBuffer(this.incomingTag, this.outgoingTag, this.notePayload);
   }
 
   static random(): TaggedNote {
     return new TaggedNote(L1NotePayload.random());
+  }
+
+  public encrypt(
+    ephSk: GrumpkinPrivateKey,
+    recipient: AztecAddress,
+    ivpk: PublicKey,
+    ovsk: GrumpkinPrivateKey,
+  ): Buffer {
+    return serializeToBuffer(
+      this.incomingTag,
+      this.outgoingTag,
+      this.notePayload.encrypt(ephSk, recipient, ivpk, ovsk),
+    );
+  }
+
+  static decryptAsIncoming(data: Buffer | bigint[], ivsk: GrumpkinPrivateKey) {
+    // Right now heavily abusing that we will likely fail if bad decryption
+    // as some field will likely end up not being in the field etc.
+    try {
+      const input = Buffer.isBuffer(data) ? data : Buffer.from(data.map((x: bigint) => Number(x)));
+      const reader = BufferReader.asReader(input);
+      const incomingTag = Fr.fromBuffer(reader);
+      const outgoingTag = Fr.fromBuffer(reader);
+      const payload = L1NotePayload.decryptAsIncoming(reader.readToEnd(), ivsk);
+      return new TaggedNote(payload, incomingTag, outgoingTag);
+    } catch (e) {
+      return;
+    }
+  }
+
+  static decryptAsOutgoing(data: Buffer | bigint[], ovsk: GrumpkinPrivateKey) {
+    // Right now heavily abusing that we will likely fail if bad decryption
+    // as some field will likely end up not being in the field etc.
+    try {
+      const input = Buffer.isBuffer(data) ? data : Buffer.from(data.map((x: bigint) => Number(x)));
+      const reader = BufferReader.asReader(input);
+      const incomingTag = Fr.fromBuffer(reader);
+      const outgoingTag = Fr.fromBuffer(reader);
+      const payload = L1NotePayload.decryptAsOutgoing(reader.readToEnd(), ovsk);
+      return new TaggedNote(payload, incomingTag, outgoingTag);
+    } catch (e) {
+      return;
+    }
   }
 }

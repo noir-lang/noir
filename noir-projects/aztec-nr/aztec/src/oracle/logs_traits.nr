@@ -1,8 +1,7 @@
 use dep::protocol_types::address::AztecAddress;
 
-// TODO: this is awful but since we can't have a fn that maps [Field; N] -> [Field; N+7]
-// (where N is encrypted log preimage size and N+7 is encryption output size)
-// and can't return slices from oracles, this at least compiles and runs
+// TODO: this is awful but since we can't have a fn that maps [Field; N] -> [u8; 480 + N * 32]
+// (where N is the note pre-image size and 480 + N * 32 is the encryption output size)
 // The fns for LensForEncryptedLog are never used, it's just to tell the compiler what the lens are
 
 // The to_bytes fn for ToBytesForUnencryptedLog is used to allow us to hash some generic T
@@ -10,37 +9,38 @@ use dep::protocol_types::address::AztecAddress;
 // I could have omitted N from the trait, but wanted to keep it strictly for field arrs
 // TODO(1139): Once we enc inside the circuit, we will no longer need the oracle to return
 // anything, so we can remove this trait
-trait LensForEncryptedLog<N, M, L> {
+trait LensForEncryptedLog<N, M> {
     // N = note preimage input in fields
-    // M = encryption output len in fields (= N + 7 = N + 3 fields for addr, slot, type + 3.5 fields for AES data)
-    // L = encryption output len in bytes (= 32*M - 16)
-    fn output_fields(self: [Field; N]) -> [Field; M];
-    fn output_bytes(self: [Field; N]) -> [u8; L];
+    // M = encryption output len in bytes (= 480 + N * 32)
+    fn output_fields(self: [Field; N]) -> [Field; N];
+    fn output_bytes(self: [Field; N]) -> [u8; M];
 }
 
-impl LensForEncryptedLog<1, 8, 240> for [Field; 1] {
-    fn output_fields(self) -> [Field; 8] {[self[0]; 8]}
-    fn output_bytes(self) -> [u8; 240] {[self[0] as u8; 240]}
+impl LensForEncryptedLog<1, 512> for [Field; 1] {
+    fn output_fields(self) -> [Field; 1] {[self[0]; 1]}
+    fn output_bytes(self) -> [u8; 512] {[self[0] as u8; 512]}
 }
-impl LensForEncryptedLog<2, 9, 272> for [Field; 2] {
-    fn output_fields(self) -> [Field; 9] {[self[0]; 9]}
-    fn output_bytes(self) -> [u8; 272] {[self[0] as u8; 272]}
+impl LensForEncryptedLog<2, 544> for [Field; 2] {
+    fn output_fields(self) -> [Field; 2] {[self[0]; 2]}
+    fn output_bytes(self) -> [u8; 544] {[self[0] as u8; 544]}
 }
-impl LensForEncryptedLog<3, 10, 304> for [Field; 3] {
-    fn output_fields(self) -> [Field; 10] {[self[0]; 10]}
-    fn output_bytes(self) -> [u8; 304] {[self[0] as u8; 304]}
+impl LensForEncryptedLog<3, 576> for [Field; 3] {
+    fn output_fields(self) -> [Field; 3] {[self[0]; 3]}
+    fn output_bytes(self) -> [u8; 576] {[self[0] as u8; 576]}
 }
-impl LensForEncryptedLog<4, 11, 336> for [Field; 4] {
-    fn output_fields(self) -> [Field; 11] {[self[0]; 11]}
-    fn output_bytes(self) -> [u8; 336] {[self[0] as u8; 336]}
+impl LensForEncryptedLog<4, 608> for [Field; 4] {
+    fn output_fields(self) -> [Field; 4] {[self[0]; 4]}
+    fn output_bytes(self) -> [u8; 608] {[self[0] as u8; 608]}
+
 }
-impl LensForEncryptedLog<5, 12, 368> for [Field; 5] {
-    fn output_fields(self) -> [Field; 12] {[self[0]; 12]}
-    fn output_bytes(self) -> [u8; 368] {[self[0] as u8; 368]}
+impl LensForEncryptedLog<5, 640> for [Field; 5] {
+    fn output_fields(self) -> [Field; 5] {[self[0]; 5]}
+    fn output_bytes(self) -> [u8; 640] {[self[0] as u8; 640]}
 }
-impl LensForEncryptedLog<6, 13, 400> for [Field; 6] {
-    fn output_fields(self) -> [Field; 13] {[self[0]; 13]}
-    fn output_bytes(self) -> [u8; 400] {[self[0] as u8; 400]}
+impl LensForEncryptedLog<6, 672> for [Field; 6] {
+    fn output_fields(self) -> [Field; 6] {[self[0]; 6]}
+    fn output_bytes(self) -> [u8; 672] {[self[0] as u8; 672]}
+
 }
 
 // This trait defines the length of the inputs in bytes to

@@ -425,6 +425,7 @@ export class ProvingOrchestrator {
         .toBuffer()
         .equals(tx.processedTx.encryptedLogs.hash())
     ) {
+      // @todo This rejection messages is never seen. Never making it out to the logs
       provingState.reject(
         `Encrypted logs hash mismatch: ${
           tx.baseRollupInputs.kernelData.publicInputs.end.encryptedLogsHash

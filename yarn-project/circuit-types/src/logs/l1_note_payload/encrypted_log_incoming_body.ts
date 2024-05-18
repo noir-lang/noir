@@ -2,7 +2,8 @@ import { Fr, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js'
 import { Aes128 } from '@aztec/circuits.js/barretenberg';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { Note, deriveAESSecret } from './l1_note_payload/index.js';
+import { deriveAESSecret } from './encryption_utils.js';
+import { Note } from './note.js';
 
 export class EncryptedLogIncomingBody {
   constructor(public storageSlot: Fr, public noteTypeId: Fr, public note: Note) {}

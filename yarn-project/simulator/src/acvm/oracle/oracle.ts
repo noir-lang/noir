@@ -286,33 +286,39 @@ export class Oracle {
     return newValues.map(toACVMField);
   }
 
-  emitEncryptedLog(
+  emitEncryptedLog(encryptedLog: ACVMField[], [counter]: ACVMField[]): void {
+    // Convert each field to a number and then to a buffer (1 byte is stored in 1 field)
+    const processedInput = Buffer.from(encryptedLog.map(fromACVMField).map(f => f.toNumber()));
+    this.typedOracle.emitEncryptedLog(processedInput, +counter);
+  }
+
+  emitEncryptedNoteLog([noteHash]: ACVMField[], encryptedNote: ACVMField[], [counter]: ACVMField[]): void {
+    // Convert each field to a number and then to a buffer (1 byte is stored in 1 field)
+    const processedInput = Buffer.from(encryptedNote.map(fromACVMField).map(f => f.toNumber()));
+    this.typedOracle.emitEncryptedNoteLog(fromACVMField(noteHash), processedInput, +counter);
+  }
+
+  computeEncryptedLog(
     [contractAddress]: ACVMField[],
     [storageSlot]: ACVMField[],
     [noteTypeId]: ACVMField[],
     [publicKeyX]: ACVMField[],
     [publicKeyY]: ACVMField[],
-    log: ACVMField[],
-    [counter]: ACVMField[],
+    preimage: ACVMField[],
   ): ACVMField[] {
     const publicKey = new Point(fromACVMField(publicKeyX), fromACVMField(publicKeyY));
-    const encLog = this.typedOracle.emitEncryptedLog(
+    const encLog = this.typedOracle.computeEncryptedLog(
       AztecAddress.fromString(contractAddress),
       Fr.fromString(storageSlot),
       Fr.fromString(noteTypeId),
       publicKey,
-      log.map(fromACVMField),
-      +counter,
+      preimage.map(fromACVMField),
     );
-    // TODO(1139): We should encrypt in the circuit, but instead we inject here
-    // encryption output is 112 + 32 * (N + 3) bytes, for log len N
-    // so split into N + 7 fields (gross but avoids 300+ ACVMFields)
-    const encLogFields = [];
-    for (let i = 0; i < Math.ceil(encLog.length / 31); i++) {
-      encLogFields.push(toACVMField(encLog.subarray(31 * i, Math.min(31 * (i + 1), encLog.length))));
-    }
-
-    return encLogFields;
+    const bytes: ACVMField[] = [];
+    encLog.forEach(v => {
+      bytes.push(toACVMField(v));
+    });
+    return bytes;
   }
 
   emitUnencryptedLog(

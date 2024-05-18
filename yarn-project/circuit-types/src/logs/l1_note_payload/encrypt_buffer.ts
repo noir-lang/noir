@@ -1,30 +1,10 @@
-import { GeneratorIndex, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
-import { numToUInt8 } from '@aztec/foundation/serialize';
 
 import { createCipheriv, createDecipheriv } from 'browserify-cipher';
 
-/**
- * Derive an AES secret key using Elliptic Curve Diffie-Hellman (ECDH) and SHA-256.
- * The function takes in an ECDH public key, a private key, and a Grumpkin instance to compute
- * the shared secret. The shared secret is then hashed using SHA-256 to produce the final
- * AES secret key.
- *
- * @param secretKey - The secret key used to derive shared secret.
- * @param publicKey - The public key used to derive shared secret.
- * @returns A derived AES secret key.
- * TODO(#5726): This function is called point_to_symmetric_key in Noir. I don't like that name much since point is not
- * the only input of the function. Unify naming once we have a better name.
- */
-export function deriveAESSecret(secretKey: GrumpkinPrivateKey, publicKey: PublicKey): Buffer {
-  const curve = new Grumpkin();
-  const sharedSecret = curve.mul(publicKey, secretKey);
-  const secretBuffer = Buffer.concat([sharedSecret.toBuffer(), numToUInt8(GeneratorIndex.SYMMETRIC_KEY)]);
-  const hash = sha256(secretBuffer);
-  return hash;
-}
+import { deriveAESSecret } from './encryption_utils.js';
 
 /**
  * Encrypt a given data buffer using the owner's public key and an ephemeral private key.

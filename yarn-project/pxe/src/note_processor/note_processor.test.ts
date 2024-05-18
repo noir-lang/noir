@@ -10,6 +10,7 @@ import {
   TaggedNote,
 } from '@aztec/circuit-types';
 import {
+  AztecAddress,
   Fr,
   type GrumpkinPrivateKey,
   INITIAL_L2_BLOCK_NUM,
@@ -18,7 +19,7 @@ import {
   deriveKeys,
 } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { Point } from '@aztec/foundation/fields';
+import { GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type AcirSimulator } from '@aztec/simulator';
 
@@ -62,7 +63,7 @@ describe('Note Processor', () => {
       const logs: EncryptedFunctionL2Logs[] = [];
       for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
-        const publicKey = isOwner ? ownerMasterIncomingViewingPublicKey : Point.random();
+        const ivsk = isOwner ? ownerMasterIncomingViewingPublicKey : Point.random();
         const note = (isOwner && ownedNotes[usedOwnedNote]) || TaggedNote.random();
         usedOwnedNote += note === ownedNotes[usedOwnedNote] ? 1 : 0;
         newNotes.push(note);
@@ -70,7 +71,12 @@ describe('Note Processor', () => {
           ownedL1NotePayloads.push(note.notePayload);
         }
         // const encryptedNote =
-        const log = note.toEncryptedBuffer(publicKey);
+        //const log = note.toEncryptedBuffer(publicKey);
+
+        const ephSk = GrumpkinScalar.random();
+        const ovsk = GrumpkinScalar.random();
+        const recipient = AztecAddress.random();
+        const log = note.encrypt(ephSk, recipient, ivsk, ovsk);
         // 1 tx containing 1 function invocation containing 1 log
         logs.push(new EncryptedFunctionL2Logs([new EncryptedL2Log(log)]));
       }

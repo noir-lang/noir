@@ -273,7 +273,7 @@ describe('e2e_block_building', () => {
       expect(rct.status).toEqual('mined');
       const decryptedLogs = tx.noteEncryptedLogs
         .unrollLogs()
-        .map(l => TaggedNote.fromEncryptedBuffer(l.data, keys.masterIncomingViewingSecretKey));
+        .map(l => TaggedNote.decryptAsIncoming(l.data, keys.masterIncomingViewingSecretKey));
       const notevalues = decryptedLogs.map(l => l?.notePayload.note.items[0]);
       expect(notevalues[0]).toEqual(new Fr(10));
       expect(notevalues[1]).toEqual(new Fr(11));
