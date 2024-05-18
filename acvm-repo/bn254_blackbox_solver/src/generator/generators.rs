@@ -7,6 +7,9 @@ use grumpkin::GrumpkinParameters;
 
 use super::hash_to_curve::hash_to_curve;
 
+pub(crate) const DEFAULT_DOMAIN_SEPARATOR: &[u8] = "DEFAULT_DOMAIN_SEPARATOR".as_bytes();
+
+
 /// Derives generator points via [hash-to-curve][hash_to_curve].
 ///
 /// # ALGORITHM DESCRIPTION
@@ -89,7 +92,6 @@ mod test {
 
     #[test]
     fn derives_default_generators() {
-        let domain_separator = "DEFAULT_DOMAIN_SEPARATOR";
         
         const DEFAULT_GENERATORS: &'static [[&str; 2]] = &[[
             "083e7911d835097629f0067531fc15cafd79a89beecb39903f69572c636f4a5a",
@@ -125,7 +127,7 @@ mod test {
           ],
         ];
 
-        let generated_generators = derive_generators(domain_separator.as_bytes(), DEFAULT_GENERATORS.len() as u32, 0);
+        let generated_generators = derive_generators(DEFAULT_DOMAIN_SEPARATOR, DEFAULT_GENERATORS.len() as u32, 0);
         for (i, (generator, expected_generator)) in generated_generators.iter().zip(DEFAULT_GENERATORS).enumerate() {
             assert_eq!(hex::encode(generator.x().unwrap().into_bigint().to_bytes_be()), expected_generator[0], "Failed on x component of generator {i}");
             assert_eq!(hex::encode(generator.y().unwrap().into_bigint().to_bytes_be()), expected_generator[1], "Failed on y component of generator {i}");
