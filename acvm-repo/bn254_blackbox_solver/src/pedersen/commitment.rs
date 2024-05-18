@@ -18,9 +18,10 @@ use crate::generator::generators::{derive_generators, DEFAULT_DOMAIN_SEPARATOR};
 // NOTE: this could be generalized using SWCurveConfig but since we perform the operation over grumpkin its explicit
 pub(crate) fn commit_native_with_index(
     inputs: &[Fq],
-    starting_index: u32
+    starting_index: u32,
 ) -> Affine<GrumpkinParameters> {
-    let generators =  derive_generators(DEFAULT_DOMAIN_SEPARATOR, inputs.len() as u32, starting_index);
+    let generators =
+        derive_generators(DEFAULT_DOMAIN_SEPARATOR, inputs.len() as u32, starting_index);
 
     inputs.iter().enumerate().fold(Affine::zero(), |mut acc, (i, input)| {
         //TODO: this is a sketch conversion do better
@@ -32,7 +33,7 @@ pub(crate) fn commit_native_with_index(
 
 #[cfg(test)]
 mod test {
-   
+
     use ark_ec::short_weierstrass::Affine;
     use ark_ff::MontFp;
     use ark_std::{One, Zero};
@@ -60,11 +61,11 @@ mod test {
         let res = commit_native_with_index(&[Fq::zero(), Fq::one()], 0);
         let expected = Affine::new(
             // 054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402
-            MontFp!(
-                "2393473289045184898987089634332637236754766663897650125720167164137088869378"
-            ),
+            MontFp!("2393473289045184898987089634332637236754766663897650125720167164137088869378"),
             // 209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126
-            MontFp!("14752839959415467457196082350231122454649853219840744672802853620609001898278"),
+            MontFp!(
+                "14752839959415467457196082350231122454649853219840744672802853620609001898278"
+            ),
         );
 
         assert_eq!(res, expected);

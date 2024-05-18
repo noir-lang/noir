@@ -2,9 +2,9 @@
 
 use acvm_blackbox_solver::blake3;
 
-use ark_ff::{BigInteger, PrimeField};
 use ark_ec::{short_weierstrass::Affine, AffineRepr, CurveConfig};
 use ark_ff::Field;
+use ark_ff::{BigInteger, PrimeField};
 use grumpkin::GrumpkinParameters;
 
 /// Hash a seed buffer into a point
@@ -33,9 +33,9 @@ use grumpkin::GrumpkinParameters;
 ///  c. If parity bit is set AND `y`'s most significant bit is not set, invert `y`
 ///
 ///  d. If parity bit is not set AND `y`'s most significant bit is set, invert `y`
-/// 
+///
 ///  e. return (x, y)
-/// 
+///
 ///  N.B. steps c. and e. are because the `sqrt()` algorithm can return 2 values,
 ///  we need to a way to canonically distinguish between these 2 values and select a "preferred" one
 pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine<GrumpkinParameters> {
@@ -67,15 +67,15 @@ pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine<GrumpkinPa
         }
     } else {
         hash_to_curve(seed, attempt_count + 1)
-    } 
+    }
 }
 
 #[cfg(test)]
 mod test {
 
-    use ark_ff::{BigInteger, PrimeField};
     use ark_ec::AffineRepr;
-    
+    use ark_ff::{BigInteger, PrimeField};
+
     use super::hash_to_curve;
 
     #[test]
@@ -118,8 +118,16 @@ mod test {
         for (seed, attempt_count, expected_point) in test_cases {
             let point = hash_to_curve(seed, attempt_count);
             assert!(point.is_on_curve());
-            assert_eq!(hex::encode(point.x().unwrap().into_bigint().to_bytes_be()), expected_point.0, "Failed on x component with seed {seed:?}, attempt_count {attempt_count}");
-            assert_eq!(hex::encode(point.y().unwrap().into_bigint().to_bytes_be()), expected_point.1, "Failed on y component with seed {seed:?}, attempt_count {attempt_count}");
+            assert_eq!(
+                hex::encode(point.x().unwrap().into_bigint().to_bytes_be()),
+                expected_point.0,
+                "Failed on x component with seed {seed:?}, attempt_count {attempt_count}"
+            );
+            assert_eq!(
+                hex::encode(point.y().unwrap().into_bigint().to_bytes_be()),
+                expected_point.1,
+                "Failed on y component with seed {seed:?}, attempt_count {attempt_count}"
+            );
         }
     }
 }

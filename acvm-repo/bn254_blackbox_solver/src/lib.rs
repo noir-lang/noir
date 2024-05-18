@@ -7,9 +7,9 @@ use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
 mod generator;
+mod pedersen;
 mod poseidon2;
 mod wasm;
-mod pedersen;
 
 use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
@@ -77,8 +77,10 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
         let result = pedersen::commitment::commit_native_with_index(&inputs, domain_separator);
-        let res_x = FieldElement::from_repr(*result.x().expect("should not commit to point at infinity"));
-        let res_y = FieldElement::from_repr(*result.y().expect("should not commit to point at infinity"));
+        let res_x =
+            FieldElement::from_repr(*result.x().expect("should not commit to point at infinity"));
+        let res_y =
+            FieldElement::from_repr(*result.y().expect("should not commit to point at infinity"));
         Ok((res_x, res_y))
     }
 

@@ -1,9 +1,6 @@
 // Taken from: https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/crypto/pedersen/pederson_hash.rs
 
-use ark_ec::{
-    short_weierstrass::Affine,
-    CurveConfig, CurveGroup,
-};
+use ark_ec::{short_weierstrass::Affine, CurveConfig, CurveGroup};
 use grumpkin::GrumpkinParameters;
 
 use crate::generator::generators::derive_generators;
@@ -24,7 +21,8 @@ pub(crate) fn hash_with_index(
     inputs: &[grumpkin::Fq],
     starting_index: u32,
 ) -> <GrumpkinParameters as CurveConfig>::BaseField {
-    let length_as_scalar: <GrumpkinParameters as CurveConfig>::ScalarField = (inputs.len() as u64).into();
+    let length_as_scalar: <GrumpkinParameters as CurveConfig>::ScalarField =
+        (inputs.len() as u64).into();
     let length_prefix = length_generator(0) * length_as_scalar;
     let result = length_prefix + commit_native_with_index(inputs, starting_index);
     result.into_affine().x
@@ -62,7 +60,9 @@ pub(crate) mod test {
         // 1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6
         assert_eq!(
             res,
-            MontFp!("12785664284086914537273210116175139764153812914951498056047869066787449592486")
+            MontFp!(
+                "12785664284086914537273210116175139764153812914951498056047869066787449592486"
+            )
         );
     }
 }
