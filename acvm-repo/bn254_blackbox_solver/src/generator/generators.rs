@@ -1,5 +1,7 @@
 // Taken from https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/affine_element.rshttps://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/group.rs
 
+use std::sync::OnceLock;
+
 use ark_ec::short_weierstrass::Affine;
 
 use acvm_blackbox_solver::blake3;
@@ -8,6 +10,17 @@ use grumpkin::GrumpkinParameters;
 use super::hash_to_curve::hash_to_curve;
 
 pub(crate) const DEFAULT_DOMAIN_SEPARATOR: &[u8] = "DEFAULT_DOMAIN_SEPARATOR".as_bytes();
+const NUM_DEFAULT_GENERATORS: usize = 8;
+
+fn default_generators() -> &'static [Affine<GrumpkinParameters>; NUM_DEFAULT_GENERATORS] {
+    static INSTANCE: OnceLock<[Affine<GrumpkinParameters>; NUM_DEFAULT_GENERATORS]> =
+        OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        _derive_generators(DEFAULT_DOMAIN_SEPARATOR, NUM_DEFAULT_GENERATORS as u32, 0)
+            .try_into()
+            .expect("Should generate `NUM_DEFAULT_GENERATORS`")
+    })
+}
 
 /// Derives generator points via [hash-to-curve][hash_to_curve].
 ///
@@ -24,6 +37,21 @@ pub(crate) const DEFAULT_DOMAIN_SEPARATOR: &[u8] = "DEFAULT_DOMAIN_SEPARATOR".as
 ///
 /// [hash_to_curve]: super::hash_to_curve::hash_to_curve
 pub(crate) fn derive_generators(
+    domain_separator_bytes: &[u8],
+    num_generators: u32,
+    starting_index: u32,
+) -> Vec<Affine<GrumpkinParameters>> {
+    // We cache a small number of the default generators so we can reuse them without needing to repeatedly recalculate them.
+    if domain_separator_bytes == DEFAULT_DOMAIN_SEPARATOR && starting_index + num_generators <= NUM_DEFAULT_GENERATORS as u32 {
+        let start_index = starting_index as usize;
+        let end_index = (starting_index + num_generators) as usize;
+        default_generators()[start_index..end_index].to_vec()
+    } else {
+        _derive_generators(domain_separator_bytes, num_generators, starting_index)
+    }
+}
+
+fn _derive_generators(
     domain_separator_bytes: &[u8],
     num_generators: u32,
     starting_index: u32,

@@ -1,5 +1,7 @@
 // Taken from: https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/crypto/pedersen/pederson_hash.rs
 
+use std::sync::OnceLock;
+
 use ark_ec::{short_weierstrass::Affine, CurveConfig, CurveGroup};
 use grumpkin::GrumpkinParameters;
 
@@ -23,14 +25,14 @@ pub(crate) fn hash_with_index(
 ) -> <GrumpkinParameters as CurveConfig>::BaseField {
     let length_as_scalar: <GrumpkinParameters as CurveConfig>::ScalarField =
         (inputs.len() as u64).into();
-    let length_prefix = length_generator(0) * length_as_scalar;
+    let length_prefix = *length_generator() * length_as_scalar;
     let result = length_prefix + commit_native_with_index(inputs, starting_index);
     result.into_affine().x
 }
 
-//Note: this can be abstracted to a lazy_static!()
-fn length_generator(starting_index: u32) -> Affine<GrumpkinParameters> {
-    derive_generators("pedersen_hash_length".as_bytes(), 1, starting_index)[0]
+fn length_generator() -> &'static Affine<GrumpkinParameters> {
+    static INSTANCE: OnceLock<Affine<GrumpkinParameters>> = OnceLock::new();
+    INSTANCE.get_or_init(|| derive_generators("pedersen_hash_length".as_bytes(), 1, 0)[0])
 }
 
 #[cfg(test)]
