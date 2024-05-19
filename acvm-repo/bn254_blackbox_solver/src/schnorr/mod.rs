@@ -64,3 +64,76 @@ fn schnorr_generate_challenge(
 
     blake2s(&hash_input).unwrap()
 }
+
+#[cfg(test)]
+mod schnorr_tests {
+    use ark_ff::MontFp;
+
+    use super::verify_signature;
+
+    #[test]
+    fn verifies_valid_signature() {
+        // 0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a
+        let pub_key_x: grumpkin::Fq =
+            MontFp!("2124416763957513755957069320378814719427254224313784354193701269410464905578");
+        // 0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197
+        let pub_key_y: grumpkin::Fq = MontFp!(
+            "21635190314466406102464795369176917324283837527799356152433238205601767715223"
+        );
+        let sig_s_bytes: [u8; 32] = [
+            1, 13, 119, 112, 212, 39, 233, 41, 84, 235, 255, 93, 245, 172, 186, 83, 157, 253, 76,
+            77, 33, 128, 178, 15, 214, 67, 105, 107, 177, 234, 77, 48,
+        ];
+        let sig_e_bytes: [u8; 32] = [
+            27, 237, 155, 84, 39, 84, 247, 27, 22, 8, 176, 230, 24, 115, 145, 220, 254, 122, 135,
+            179, 171, 4, 214, 202, 64, 199, 19, 84, 239, 138, 124, 12,
+        ];
+        let message: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        assert_eq!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message), true)
+    }
+
+    #[test]
+    fn rejects_zero_e() {
+        // 0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a
+        let pub_key_x: grumpkin::Fq =
+            MontFp!("2124416763957513755957069320378814719427254224313784354193701269410464905578");
+        // 0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197
+        let pub_key_y: grumpkin::Fq = MontFp!(
+            "21635190314466406102464795369176917324283837527799356152433238205601767715223"
+        );
+        let sig_s_bytes: [u8; 32] = [
+            1, 13, 119, 112, 212, 39, 233, 41, 84, 235, 255, 93, 245, 172, 186, 83, 157, 253, 76,
+            77, 33, 128, 178, 15, 214, 67, 105, 107, 177, 234, 77, 48,
+        ];
+        let sig_e_bytes: [u8; 32] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ];
+        let message: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        assert_eq!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message), false)
+    }
+
+    #[test]
+    fn rejects_zero_s() {
+        // 0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a
+        let pub_key_x: grumpkin::Fq =
+            MontFp!("2124416763957513755957069320378814719427254224313784354193701269410464905578");
+        // 0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197
+        let pub_key_y: grumpkin::Fq = MontFp!(
+            "21635190314466406102464795369176917324283837527799356152433238205601767715223"
+        );
+        let sig_s_bytes: [u8; 32] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ];
+        let sig_e_bytes: [u8; 32] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ];
+        let message: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        assert_eq!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message), false)
+    }
+}
