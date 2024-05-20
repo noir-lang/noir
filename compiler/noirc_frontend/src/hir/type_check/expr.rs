@@ -248,16 +248,14 @@ impl<'interner> TypeChecker<'interner> {
                             }
                         };
 
-                        if *func_id != FuncId::dummy_id() {
+                        if func_id != FuncId::dummy_id() {
                             let function_type =
-                                self.interner.function_meta(func_id).typ.clone();
+                                self.interner.function_meta(&func_id).typ.clone();
                             self.try_add_mutable_reference_to_object(
                                 &mut method_call,
                                 &function_type,
                                 &mut object_type,
                             );
-                        }
-                            }
                         }
 
                         // Need to borrow `generics` here as `method_call` is moved when calling `into_function_call`
