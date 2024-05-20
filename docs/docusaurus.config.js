@@ -126,33 +126,40 @@ const config = {
     [
       "docusaurus-plugin-typedoc",
       {
-        id: "apis/pxe",
+        id: "aztecjs/pxe",
         entryPoints: ["../yarn-project/circuit-types/src/interfaces/pxe.ts"],
         tsconfig: "../yarn-project/circuit-types/tsconfig.json",
         entryPointStrategy: "expand",
-        out: "apis/pxe",
+        out: "reference/aztecjs/pxe",
+        readme: "none",
+        sidebar: {
+          categoryLabel: "Private Execution Environment (PXE)",
+        },
         disableSources: true,
-        frontmatter: { sidebar_label: "Private Execution Environment (PXE)" },
       },
     ],
     [
       "docusaurus-plugin-typedoc",
       {
-        id: "apis/aztec-js",
+        id: "aztecjs/aztec-js",
         entryPoints: [
           "../yarn-project/aztec.js/src/contract/index.ts",
           "../yarn-project/aztec.js/src/account/index.ts",
         ],
         tsconfig: "../yarn-project/aztec.js/tsconfig.json",
         entryPointStrategy: "resolve",
-        out: "apis/aztec-js",
+        out: "reference/aztecjs/aztec-js",
+        readme: "none",
+        sidebar: {
+          categoryLabel: "Aztec.js",
+        },
         disableSources: true,
       },
     ],
     [
       "docusaurus-plugin-typedoc",
       {
-        id: "apis/accounts",
+        id: "aztecjs/accounts",
         entryPoints: [
           "../yarn-project/accounts/src/defaults/index.ts",
           "../yarn-project/accounts/src/ecdsa/index.ts",
@@ -162,7 +169,11 @@ const config = {
         ],
         tsconfig: "../yarn-project/accounts/tsconfig.json",
         entryPointStrategy: "resolve",
-        out: "apis/accounts",
+        out: "reference/aztecjs/accounts",
+        readme: "none",
+        sidebar: {
+          categoryLabel: "Accounts",
+        },
         disableSources: true,
       },
     ],
@@ -231,7 +242,7 @@ const config = {
               },
               {
                 label: "Developer Quickstart",
-                to: "/getting_started/getting_started",
+                to: "/getting_started",
               },
               {
                 label: "Aztec.nr",

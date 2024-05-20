@@ -317,36 +317,13 @@ function processFiles(baseDir, outputBaseDir) {
 
     fs.mkdirSync(path.dirname(outputFilePath), { recursive: true });
     fs.writeFileSync(outputFilePath, markdown);
-
-    // Adjusted to populate docStructure for JSON
-    const docPathForJson = adjustedPath.replace(/\\/g, "/").replace(".md", "");
-    const parts = docPathForJson.split("/");
-    let current = docStructure;
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      current[parts[i]] = current[parts[i]] || {};
-      current = current[parts[i]];
-    }
-
-    current._docs = current._docs || [];
-    current._docs.push(parts[parts.length - 1]);
   });
-
-  // Write structured documentation paths to JSON
-  const outputPath = path.join(
-    __dirname,
-    "AztecnrReferenceAutogenStructure.json"
-  );
-  fs.writeFileSync(
-    outputPath,
-    JSON.stringify({ AztecNR: docStructure }, null, 2)
-  );
 }
 
 let baseDir = path.resolve(__dirname, "../../../noir-projects/aztec-nr");
 let outputBaseDir = path.resolve(
   __dirname,
-  "../../docs/reference/reference/smart_contract_reference/aztec-nr"
+  "../../docs/reference/smart_contract_reference/aztec-nr"
 );
 console.log(outputBaseDir);
 processFiles(baseDir, outputBaseDir);
