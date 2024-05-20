@@ -1,8 +1,8 @@
 // Taken from: https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/crypto/pedersen/pederson.rs
 
 use ark_ec::{short_weierstrass::Affine, AffineRepr, CurveGroup};
-use ark_ff::PrimeField;
-use grumpkin::{Fq, Fr, GrumpkinParameters};
+use ark_ff::{MontConfig, PrimeField};
+use grumpkin::{Fq, FqConfig, Fr, FrConfig, GrumpkinParameters};
 
 use crate::generator::generators::{derive_generators, DEFAULT_DOMAIN_SEPARATOR};
 
@@ -14,8 +14,10 @@ pub(crate) fn commit_native_with_index(
     let generators =
         derive_generators(DEFAULT_DOMAIN_SEPARATOR, inputs.len() as u32, starting_index);
 
+    // As |F_r| > |F_q|, we can safely convert any `F_q` into an `F_r` uniquely.
+    assert!(FrConfig::MODULUS > FqConfig::MODULUS);
+
     inputs.iter().enumerate().fold(Affine::zero(), |mut acc, (i, input)| {
-        //TODO: this is a sketch conversion do better
         acc = (acc + (generators[i] * Fr::from_bigint(input.into_bigint()).unwrap()).into_affine())
             .into_affine();
         acc
