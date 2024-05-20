@@ -18,6 +18,7 @@
         "Backpropagation",
         "barebones",
         "barretenberg",
+        "barustenberg",
         "bincode",
         "bindgen",
         "bitand",
