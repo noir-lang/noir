@@ -32,12 +32,6 @@ struct AType {
     x: Field
 }
 
-impl AType {
-    fn new(x: Field) -> Self {
-        AType { x }
-    }
-}
-
 impl SomeTrait for AType {
     fn set_value(&mut self, new_value: Field) -> () {
         self.x = new_value;
