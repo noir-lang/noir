@@ -385,8 +385,8 @@ mod tests {
         public_data_tree_leaf::PublicDataTreeLeaf,
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{
-        fixture_builder::FixtureBuilder, merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes},
-        sort::sort_high_to_low
+        fixtures, fixture_builder::FixtureBuilder,
+        merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}, sort::sort_high_to_low
     },
         utils::{field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256},
         traits::Empty
@@ -500,8 +500,8 @@ mod tests {
         fn new() -> Self {
             let mut inputs = BaseRollupInputsBuilder::empty();
             inputs.kernel_data = FixtureBuilder::new();
-            inputs.constants.global_variables.chain_id = 1;
-            inputs.constants.global_variables.version = 0;
+            inputs.constants.global_variables.chain_id = fixtures::CHAIN_ID;
+            inputs.constants.global_variables.version = fixtures::VERSION;
 
             inputs.pre_existing_blocks[0] = inputs.kernel_data.historical_header.hash();
 
@@ -983,7 +983,7 @@ mod tests {
     #[test(should_fail_with = "kernel version does not match the rollup version")]
     unconstrained fn constants_dont_match_kernels_version() {
         let mut builder = BaseRollupInputsBuilder::new();
-        builder.constants.global_variables.version = 3;
+        builder.constants.global_variables.version += 1;
         builder.fails();
     }
 

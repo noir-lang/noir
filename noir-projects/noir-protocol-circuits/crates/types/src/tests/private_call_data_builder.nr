@@ -2,7 +2,9 @@ use crate::{
     abis::{
     gas_settings::GasSettings, call_request::{CallerContext, CallRequest},
     private_call_stack_item::PrivateCallStackItem, function_data::FunctionData,
-    max_block_number::MaxBlockNumber, private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    max_block_number::MaxBlockNumber,
+    private_call_request::{PrivateCallRequest, ScopedPrivateCallRequest},
+    private_circuit_public_inputs::PrivateCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData, log_hash::LogHash
 },
     merkle_tree::membership::MembershipWitness,
@@ -20,7 +22,6 @@ struct PrivateCallDataBuilder {
     is_execution_request: bool,
     function_data: FunctionData,
     // The rest of the values of PrivateCallData.
-    private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     public_teardown_call_request: CallRequest,
     proof: RecursiveProof,
@@ -51,7 +52,6 @@ impl PrivateCallDataBuilder {
             public_inputs,
             is_execution_request: false,
             function_data,
-            private_call_stack: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
             public_teardown_call_request: CallRequest::empty(),
             proof: RecursiveProof::empty(),
@@ -86,36 +86,21 @@ impl PrivateCallDataBuilder {
         }
     }
 
-    pub fn build_call_request(self) -> CallRequest {
+    pub fn build_call_request(self) -> ScopedPrivateCallRequest {
         let hash = self.build_call_stack_item().hash();
         let is_delegate_call = self.public_inputs.call_context.is_delegate_call;
-        let caller_context = if is_delegate_call {
-            CallerContext {
-                msg_sender: fixtures::MSG_SENDER,
-                storage_contract_address: self.public_inputs.call_context.storage_contract_address
-            }
-        } else {
-            CallerContext::empty()
+        let mut caller_context = CallerContext::empty();
+        caller_context.is_static_call = self.public_inputs.call_context.is_static_call;
+        if is_delegate_call {
+            caller_context.msg_sender = fixtures::MSG_SENDER;
+            caller_context.storage_contract_address = self.public_inputs.call_context.storage_contract_address;
         };
-        CallRequest {
+        PrivateCallRequest {
             hash,
-            caller_contract_address: self.public_inputs.call_context.msg_sender,
             caller_context,
             start_side_effect_counter: self.public_inputs.counter_start,
             end_side_effect_counter: self.public_inputs.counter_end
-        }
-    }
-
-    pub fn append_private_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
-        let hash_offset = 7070 + self.private_call_stack.len();
-        for i in 0..self.private_call_stack.max_len() {
-            if i < num_requests {
-                let hash = (hash_offset + i) as Field;
-                let request = self.public_inputs.generate_call_request(hash, is_delegate_call);
-                self.private_call_stack.push(request);
-                self.public_inputs.add_private_call_request(hash);
-            }
-        }
+        }.scope(self.public_inputs.call_context.msg_sender)
     }
 
     pub fn append_public_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
@@ -151,7 +136,6 @@ impl PrivateCallDataBuilder {
     pub fn finish(self) -> PrivateCallData {
         PrivateCallData {
             call_stack_item: self.build_call_stack_item(),
-            private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
             public_teardown_call_request: self.public_teardown_call_request,
             proof: self.proof,

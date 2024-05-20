@@ -9,6 +9,7 @@ use crate::{
     private_kernel_data::PrivateKernelData, note_hash::{NoteHash, ScopedNoteHash},
     nullifier::{Nullifier, ScopedNullifier},
     nullifier_key_validation_request::{ScopedNullifierKeyValidationRequest, NullifierKeyValidationRequest},
+    private_call_request::{PrivateCallRequest, ScopedPrivateCallRequest},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::{ReadRequest, ScopedReadRequest}, log_hash::{LogHash, NoteLogHash},
     validation_requests::{ValidationRequests, ValidationRequestsBuilder}
@@ -54,7 +55,7 @@ struct FixtureBuilder {
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-    private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
+    private_call_requests: BoundedVec<ScopedPrivateCallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     gas_used: Gas,
     non_revertible_gas_used: Gas,
@@ -84,7 +85,7 @@ struct FixtureBuilder {
 
 impl FixtureBuilder {
     pub fn new() -> Self {
-        let tx_context = TxContext { chain_id: 1, version: 0, gas_settings: GasSettings::empty() };
+        let tx_context = TxContext { chain_id: fixtures::CHAIN_ID, version: fixtures::VERSION, gas_settings: GasSettings::empty() };
 
         FixtureBuilder {
             contract_address: fixtures::contracts::parent_contract.address,
@@ -104,7 +105,7 @@ impl FixtureBuilder {
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: BoundedVec::new(),
-            private_call_stack: BoundedVec::new(),
+            private_call_requests: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
             max_block_number: MaxBlockNumber::empty(),
             note_hash_read_requests: BoundedVec::new(),
@@ -143,7 +144,7 @@ impl FixtureBuilder {
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes,
             encrypted_logs_hashes: self.encrypted_logs_hashes,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes,
-            private_call_stack: self.private_call_stack,
+            private_call_stack: self.private_call_requests,
             public_call_stack: self.public_call_stack
         };
         public_inputs.finish()
@@ -446,8 +447,17 @@ impl FixtureBuilder {
     }
 
     pub fn push_private_call_request(&mut self, hash: Field, is_delegate_call: bool) {
-        let call_stack_item = self.generate_call_request(hash, is_delegate_call);
-        self.private_call_stack.push(call_stack_item);
+        let mut caller_context = CallerContext::empty();
+        if is_delegate_call {
+            caller_context.msg_sender = fixtures::MSG_SENDER;
+            caller_context.storage_contract_address = self.contract_address;
+        }
+        let start_counter = self.next_counter();
+        let end_counter = start_counter + 10;
+        self.counter = end_counter;
+        self.private_call_requests.push(
+            PrivateCallRequest { hash, caller_context, start_side_effect_counter: start_counter, end_side_effect_counter: end_counter }.scope(self.contract_address)
+        );
     }
 
     pub fn push_public_call_request(&mut self, hash: Field, is_delegate_call: bool) {
@@ -532,7 +542,7 @@ impl Empty for FixtureBuilder {
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: BoundedVec::new(),
-            private_call_stack: BoundedVec::new(),
+            private_call_requests: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
             max_block_number: MaxBlockNumber::empty(),
             note_hash_read_requests: BoundedVec::new(),

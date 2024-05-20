@@ -18,6 +18,10 @@ impl<N> Reader<N> {
         self.read() as u32
     }
 
+    pub fn read_bool(&mut self) -> bool {
+        self.read() as bool
+    }
+
     pub fn read_array<K>(&mut self, mut result: [Field; K]) -> [Field; K] {
         for i in 0..K {
             result[i] = self.data[self.offset + i];

@@ -516,7 +516,7 @@ describe('Private Execution test suite', () => {
 
       // check that Aztec.nr calculated the call stack item hash like cpp does
       const expectedCallStackItemHash = result.nestedExecutions[0].callStackItem.hash();
-      expect(result.callStackItem.publicInputs.privateCallStackHashes[0]).toEqual(expectedCallStackItemHash);
+      expect(result.callStackItem.publicInputs.privateCallRequests[0].hash).toEqual(expectedCallStackItemHash);
     });
   });
 

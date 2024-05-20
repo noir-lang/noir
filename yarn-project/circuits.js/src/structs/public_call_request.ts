@@ -7,7 +7,8 @@ import { inspect } from 'util';
 
 import { computeVarArgsHash } from '../hash/hash.js';
 import { CallContext } from './call_context.js';
-import { CallRequest, CallerContext } from './call_request.js';
+import { CallRequest } from './call_request.js';
+import { CallerContext } from './caller_context.js';
 import { FunctionData } from './function_data.js';
 import { PublicCallStackItem } from './public_call_stack_item.js';
 import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
@@ -116,7 +117,11 @@ export class PublicCallRequest {
   toCallRequest() {
     const item = this.toPublicCallStackItem();
     const callerContext = this.callContext.isDelegateCall
-      ? new CallerContext(this.parentCallContext.msgSender, this.parentCallContext.storageContractAddress)
+      ? new CallerContext(
+          this.parentCallContext.msgSender,
+          this.parentCallContext.storageContractAddress,
+          this.parentCallContext.isStaticCall,
+        )
       : CallerContext.empty();
     return new CallRequest(
       item.hash(),

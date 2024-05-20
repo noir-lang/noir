@@ -1,0 +1,152 @@
+use dep::std::cmp::Eq;
+use crate::{
+    abis::{caller_context::CallerContext, side_effect::{Ordered, RangeOrdered}}, address::AztecAddress,
+    constants::{PRIVATE_CALL_REQUEST_LENGTH, SCOPED_PRIVATE_CALL_REQUEST_LENGTH},
+    traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
+};
+
+struct PrivateCallRequest {
+    hash: Field,
+    caller_context: CallerContext,
+    start_side_effect_counter: u32,
+    end_side_effect_counter: u32,
+}
+
+impl Ordered for PrivateCallRequest {
+    fn counter(self) -> u32 {
+        self.start_side_effect_counter
+    }
+}
+
+impl RangeOrdered for PrivateCallRequest {
+    fn counter_start(self) -> u32 {
+        self.start_side_effect_counter
+    }
+    fn counter_end(self) -> u32 {
+        self.end_side_effect_counter
+    }
+}
+
+impl Eq for PrivateCallRequest {
+    fn eq(self, other: PrivateCallRequest) -> bool {
+        (self.hash == other.hash)
+            & (self.caller_context == other.caller_context)
+            & (self.start_side_effect_counter == other.start_side_effect_counter)
+            & (self.end_side_effect_counter == other.end_side_effect_counter)
+    }
+}
+
+impl Empty for PrivateCallRequest {
+    fn empty() -> Self {
+        PrivateCallRequest {
+            hash: 0,
+            caller_context: CallerContext::empty(),
+            start_side_effect_counter: 0,
+            end_side_effect_counter: 0,
+        }
+    }
+}
+
+impl Serialize<PRIVATE_CALL_REQUEST_LENGTH> for PrivateCallRequest {
+    fn serialize(self) -> [Field; PRIVATE_CALL_REQUEST_LENGTH] {
+        let mut fields: BoundedVec<Field, PRIVATE_CALL_REQUEST_LENGTH> = BoundedVec::new();
+
+        fields.push(self.hash);
+        fields.extend_from_array(self.caller_context.serialize());
+        fields.push(self.start_side_effect_counter as Field);
+        fields.push(self.end_side_effect_counter as Field);
+
+        assert_eq(fields.len(), PRIVATE_CALL_REQUEST_LENGTH);
+
+        fields.storage
+    }
+}
+
+impl Deserialize<PRIVATE_CALL_REQUEST_LENGTH> for PrivateCallRequest {
+    fn deserialize(fields: [Field; PRIVATE_CALL_REQUEST_LENGTH]) -> PrivateCallRequest {
+        let mut reader = Reader::new(fields);
+        let item = PrivateCallRequest {
+            hash: reader.read(),
+            caller_context: reader.read_struct(CallerContext::deserialize),
+            start_side_effect_counter: reader.read_u32(),
+            end_side_effect_counter: reader.read_u32(),
+        };
+        reader.finish();
+        item
+    }
+}
+
+impl PrivateCallRequest {
+    pub fn scope(self, contract_address: AztecAddress) -> ScopedPrivateCallRequest {
+        ScopedPrivateCallRequest { call_request: self, contract_address }
+    }
+}
+
+struct ScopedPrivateCallRequest {
+    call_request: PrivateCallRequest,
+    contract_address: AztecAddress,
+}
+
+impl Ordered for ScopedPrivateCallRequest {
+    fn counter(self) -> u32 {
+        self.call_request.counter_start()
+    }
+}
+
+impl RangeOrdered for ScopedPrivateCallRequest {
+    fn counter_start(self) -> u32 {
+        self.call_request.counter_start()
+    }
+    fn counter_end(self) -> u32 {
+        self.call_request.counter_end()
+    }
+}
+
+impl Eq for ScopedPrivateCallRequest {
+    fn eq(self, other: ScopedPrivateCallRequest) -> bool {
+        (self.call_request == other.call_request)
+            & (self.contract_address == other.contract_address)
+    }
+}
+
+impl Empty for ScopedPrivateCallRequest {
+    fn empty() -> Self {
+        ScopedPrivateCallRequest {
+            call_request: PrivateCallRequest::empty(),
+            contract_address: AztecAddress::zero(),
+        }
+    }
+}
+
+impl Serialize<SCOPED_PRIVATE_CALL_REQUEST_LENGTH> for ScopedPrivateCallRequest {
+    fn serialize(self) -> [Field; SCOPED_PRIVATE_CALL_REQUEST_LENGTH] {
+        let mut fields: BoundedVec<Field, SCOPED_PRIVATE_CALL_REQUEST_LENGTH> = BoundedVec::new();
+
+        fields.extend_from_array(self.call_request.serialize());
+        fields.extend_from_array(self.contract_address.serialize());
+
+        assert_eq(fields.len(), SCOPED_PRIVATE_CALL_REQUEST_LENGTH);
+
+        fields.storage
+    }
+}
+
+impl Deserialize<SCOPED_PRIVATE_CALL_REQUEST_LENGTH> for ScopedPrivateCallRequest {
+    fn deserialize(fields: [Field; SCOPED_PRIVATE_CALL_REQUEST_LENGTH]) -> ScopedPrivateCallRequest {
+        let mut reader = Reader::new(fields);
+        let item = ScopedPrivateCallRequest {
+            call_request: reader.read_struct(PrivateCallRequest::deserialize),
+            contract_address: reader.read_struct(AztecAddress::deserialize),
+        };
+        reader.finish();
+        item
+    }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let item = ScopedPrivateCallRequest::empty();
+    let serialized = item.serialize();
+    let deserialized = ScopedPrivateCallRequest::deserialize(serialized);
+    assert(item.eq(deserialized));
+}

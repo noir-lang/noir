@@ -35,6 +35,7 @@ import { MaxBlockNumber } from './max_block_number.js';
 import { NoteHash } from './note_hash.js';
 import { Nullifier } from './nullifier.js';
 import { NullifierKeyValidationRequest } from './nullifier_key_validation_request.js';
+import { PrivateCallRequest } from './private_call_request.js';
 import { ReadRequest } from './read_request.js';
 import { TxContext } from './tx_context.js';
 
@@ -91,9 +92,9 @@ export class PrivateCircuitPublicInputs {
      */
     public newNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_CALL>,
     /**
-     * Private call stack at the current kernel iteration.
+     * Private call requests made within the current kernel iteration.
      */
-    public privateCallStackHashes: Tuple<Fr, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
+    public privateCallRequests: Tuple<PrivateCallRequest, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * Public call stack at the current kernel iteration.
      */
@@ -171,7 +172,7 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, Nullifier),
-      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr),
+      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, PrivateCallRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr),
       reader.readObject(Fr),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
@@ -199,7 +200,7 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, Nullifier),
-      reader.readFieldArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL),
+      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, PrivateCallRequest),
       reader.readFieldArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL),
       reader.readField(),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
@@ -230,7 +231,7 @@ export class PrivateCircuitPublicInputs {
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest.empty),
       makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, NoteHash.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, Nullifier.empty),
-      makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr.zero),
+      makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, PrivateCallRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr.zero),
       Fr.ZERO,
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
@@ -258,7 +259,7 @@ export class PrivateCircuitPublicInputs {
       isEmptyArray(this.nullifierKeyValidationRequests) &&
       isEmptyArray(this.newNoteHashes) &&
       isEmptyArray(this.newNullifiers) &&
-      isZeroArray(this.privateCallStackHashes) &&
+      isEmptyArray(this.privateCallRequests) &&
       isZeroArray(this.publicCallStackHashes) &&
       this.publicTeardownFunctionHash.isZero() &&
       isEmptyArray(this.newL2ToL1Msgs) &&
@@ -288,7 +289,7 @@ export class PrivateCircuitPublicInputs {
       fields.nullifierKeyValidationRequests,
       fields.newNoteHashes,
       fields.newNullifiers,
-      fields.privateCallStackHashes,
+      fields.privateCallRequests,
       fields.publicCallStackHashes,
       fields.publicTeardownFunctionHash,
       fields.newL2ToL1Msgs,

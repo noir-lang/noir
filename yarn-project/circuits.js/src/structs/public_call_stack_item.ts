@@ -6,7 +6,8 @@ import { type FieldsOf } from '@aztec/foundation/types';
 
 import { GeneratorIndex } from '../constants.gen.js';
 import { type CallContext } from './call_context.js';
-import { CallRequest, CallerContext } from './call_request.js';
+import { CallRequest } from './call_request.js';
+import { CallerContext } from './caller_context.js';
 import { FunctionData } from './function_data.js';
 import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
 
@@ -113,7 +114,11 @@ export class PublicCallStackItem {
 
     const currentCallContext = this.publicInputs.callContext;
     const callerContext = currentCallContext.isDelegateCall
-      ? new CallerContext(parentCallContext.msgSender, parentCallContext.storageContractAddress)
+      ? new CallerContext(
+          parentCallContext.msgSender,
+          parentCallContext.storageContractAddress,
+          parentCallContext.isStaticCall,
+        )
       : CallerContext.empty();
     // todo: populate side effect counters correctly
     return new CallRequest(this.hash(), parentCallContext.storageContractAddress, callerContext, Fr.ZERO, Fr.ZERO);

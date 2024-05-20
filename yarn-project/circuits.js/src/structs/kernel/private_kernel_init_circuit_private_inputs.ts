@@ -8,7 +8,6 @@ export class PrivateKernelInitHints {
   constructor(
     public noteHashNullifierCounters: Tuple<number, typeof MAX_NEW_NOTE_HASHES_PER_CALL>,
     public firstRevertiblePrivateCallRequestIndex: number,
-    public firstRevertiblePublicCallRequestIndex: number,
   ) {}
 
   toBuffer() {
@@ -17,11 +16,7 @@ export class PrivateKernelInitHints {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PrivateKernelInitHints(
-      reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_CALL),
-      reader.readNumber(),
-      reader.readNumber(),
-    );
+    return new PrivateKernelInitHints(reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_CALL), reader.readNumber());
   }
 }
 

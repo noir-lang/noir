@@ -2,7 +2,8 @@ use crate::{
     abis::{
     call_context::CallContext, max_block_number::MaxBlockNumber, gas_settings::GasSettings,
     nullifier_key_validation_request::NullifierKeyValidationRequest, note_hash::NoteHash,
-    nullifier::Nullifier, read_request::ReadRequest, log_hash::{LogHash, NoteLogHash}
+    nullifier::Nullifier, private_call_request::PrivateCallRequest, read_request::ReadRequest,
+    log_hash::{LogHash, NoteLogHash}
 },
     constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
@@ -14,8 +15,40 @@ use crate::{
 },
     header::Header, hash::pedersen_hash, messaging::l2_to_l1_message::L2ToL1Message,
     traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader,
-    transaction::tx_context::TxContext
+    transaction::tx_context::TxContext, utils::arrays::validate_array
 };
+
+struct PrivateCircuitPublicInputsArrayLengths {
+    note_hash_read_requests: u64,
+    nullifier_read_requests: u64,
+    nullifier_key_validation_requests: u64,
+    new_note_hashes: u64,
+    new_nullifiers: u64,
+    new_l2_to_l1_msgs: u64,
+    private_call_requests: u64,
+    public_call_stack_hashes: u64,
+    note_encrypted_logs_hashes: u64,
+    encrypted_logs_hashes: u64,
+    unencrypted_logs_hashes: u64,
+}
+
+impl PrivateCircuitPublicInputsArrayLengths {
+    pub fn new(public_inputs: PrivateCircuitPublicInputs) -> Self {
+        PrivateCircuitPublicInputsArrayLengths {
+            note_hash_read_requests: validate_array(public_inputs.note_hash_read_requests),
+            nullifier_read_requests: validate_array(public_inputs.nullifier_read_requests),
+            nullifier_key_validation_requests: validate_array(public_inputs.nullifier_key_validation_requests),
+            new_note_hashes: validate_array(public_inputs.new_note_hashes),
+            new_nullifiers: validate_array(public_inputs.new_nullifiers),
+            new_l2_to_l1_msgs: validate_array(public_inputs.new_l2_to_l1_msgs),
+            private_call_requests: validate_array(public_inputs.private_call_requests),
+            public_call_stack_hashes: validate_array(public_inputs.public_call_stack_hashes),
+            note_encrypted_logs_hashes: validate_array(public_inputs.note_encrypted_logs_hashes),
+            encrypted_logs_hashes: validate_array(public_inputs.encrypted_logs_hashes),
+            unencrypted_logs_hashes: validate_array(public_inputs.unencrypted_logs_hashes)
+        }
+    }
+}
 
 struct PrivateCircuitPublicInputs {
     call_context: CallContext,
@@ -34,7 +67,7 @@ struct PrivateCircuitPublicInputs {
 
     new_note_hashes: [NoteHash; MAX_NEW_NOTE_HASHES_PER_CALL],
     new_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_CALL],
-    private_call_stack_hashes: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
+    private_call_requests: [PrivateCallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack_hashes: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     public_teardown_function_hash: Field,
     new_l2_to_l1_msgs: [L2ToL1Message; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
@@ -67,7 +100,7 @@ impl Eq for PrivateCircuitPublicInputs {
         (self.nullifier_key_validation_requests == other.nullifier_key_validation_requests) &
         (self.new_note_hashes == other.new_note_hashes) &
         (self.new_nullifiers == other.new_nullifiers) &
-        (self.private_call_stack_hashes == other.private_call_stack_hashes) &
+        (self.private_call_requests == other.private_call_requests) &
         (self.public_call_stack_hashes == other.public_call_stack_hashes) &
         (self.new_l2_to_l1_msgs == other.new_l2_to_l1_msgs) &
         (self.start_side_effect_counter == other.start_side_effect_counter) &
@@ -107,7 +140,9 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         for i in 0..self.new_nullifiers.len() {
             fields.extend_from_array(self.new_nullifiers[i].serialize());
         }
-        fields.extend_from_array(self.private_call_stack_hashes);
+        for i in 0..self.private_call_requests.len() {
+            fields.extend_from_array(self.private_call_requests[i].serialize());
+        }
         fields.extend_from_array(self.public_call_stack_hashes);
         fields.push(self.public_teardown_function_hash);
         for i in 0..self.new_l2_to_l1_msgs.len() {
@@ -149,7 +184,7 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             nullifier_key_validation_requests: reader.read_struct_array(NullifierKeyValidationRequest::deserialize, [NullifierKeyValidationRequest::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL]),
             new_note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_CALL]),
             new_nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_CALL]),
-            private_call_stack_hashes: reader.read_array([0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL]),
+            private_call_requests: reader.read_struct_array(PrivateCallRequest::deserialize, [PrivateCallRequest::empty(); MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL]),
             public_call_stack_hashes: reader.read_array([0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]),
             public_teardown_function_hash: reader.read(),
             new_l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
@@ -187,7 +222,7 @@ impl Empty for PrivateCircuitPublicInputs {
             nullifier_key_validation_requests: [NullifierKeyValidationRequest::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL],
             new_note_hashes: [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_CALL],
             new_nullifiers: [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_CALL],
-            private_call_stack_hashes: [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
+            private_call_requests: [PrivateCallRequest::empty(); MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
             public_call_stack_hashes: [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
             public_teardown_function_hash: 0,
             new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
@@ -215,6 +250,6 @@ fn empty_hash() {
     let inputs = PrivateCircuitPublicInputs::empty();
     let hash = inputs.hash();
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x0e8b75e4ecf8bed8e361ff2702a1c200d1f4d4394c8f06dc9003eee571982c6c;
+    let test_data_empty_hash = 0x24ea8c67b7902c1bdc827592303786ea3df7ada25a95e8682ed26b9b36fe2f9e;
     assert_eq(hash, test_data_empty_hash);
 }

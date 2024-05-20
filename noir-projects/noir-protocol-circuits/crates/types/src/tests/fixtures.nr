@@ -6,3 +6,7 @@ use crate::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 global MSG_SENDER = AztecAddress { inner: 27 };
 
 global PUBLIC_KEY = GrumpkinPoint { x: 123456789, y: 123456789 };
+
+global CHAIN_ID = 1;
+
+global VERSION = 3;

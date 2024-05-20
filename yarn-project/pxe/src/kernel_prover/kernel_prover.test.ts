@@ -186,7 +186,7 @@ describe('Kernel Prover', () => {
       };
       const executionResult = createExecutionResult('a');
       await prove(executionResult);
-      expectExecution(['a', 'd', 'b', 'c']);
+      expectExecution(['a', 'b', 'c', 'd']);
     }
 
     {
@@ -197,7 +197,7 @@ describe('Kernel Prover', () => {
       };
       const executionResult = createExecutionResult('k');
       await prove(executionResult);
-      expectExecution(['k', 'o', 'r', 'p', 'n', 'm', 'q']);
+      expectExecution(['k', 'm', 'q', 'o', 'n', 'p', 'r']);
     }
   });
 });

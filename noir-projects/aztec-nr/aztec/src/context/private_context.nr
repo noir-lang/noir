@@ -17,9 +17,9 @@ use crate::{
 use dep::protocol_types::{
     hash::sha256_to_field,
     abis::{
-    function_selector::FunctionSelector, max_block_number::MaxBlockNumber,
-    nullifier_key_validation_request::NullifierKeyValidationRequest,
-    private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    caller_context::CallerContext, function_selector::FunctionSelector,
+    max_block_number::MaxBlockNumber, nullifier_key_validation_request::NullifierKeyValidationRequest,
+    private_call_request::PrivateCallRequest, private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem, read_request::ReadRequest, note_hash::NoteHash,
     nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
 },
@@ -58,7 +58,7 @@ struct PrivateContext {
     new_note_hashes: BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL>,
     new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL>,
 
-    private_call_stack_hashes : BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
+    private_call_requests : BoundedVec<PrivateCallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack_hashes : BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     public_teardown_function_hash: Field,
     new_l2_to_l1_msgs : BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
@@ -124,7 +124,7 @@ impl PrivateContext {
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             historical_header: inputs.historical_header,
-            private_call_stack_hashes: BoundedVec::new(),
+            private_call_requests: BoundedVec::new(),
             public_call_stack_hashes: BoundedVec::new(),
             public_teardown_function_hash: 0,
             new_l2_to_l1_msgs: BoundedVec::new(),
@@ -165,7 +165,7 @@ impl PrivateContext {
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
-            private_call_stack_hashes: self.private_call_stack_hashes.storage,
+            private_call_requests: self.private_call_requests.storage,
             public_call_stack_hashes: self.public_call_stack_hashes.storage,
             public_teardown_function_hash: self.public_teardown_function_hash,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
@@ -409,18 +409,20 @@ impl PrivateContext {
         is_delegate_call: bool
     ) -> PackedReturns {
         let mut is_static_call = is_static_call | self.inputs.call_context.is_static_call;
+        let start_side_effect_counter = self.side_effect_counter;
         let item = call_private_function_internal(
             contract_address,
             function_selector,
             args_hash,
-            self.side_effect_counter,
+            start_side_effect_counter,
             is_static_call,
             is_delegate_call
         );
 
-        assert_eq(item.public_inputs.call_context.side_effect_counter, self.side_effect_counter);
-        assert_eq(item.public_inputs.start_side_effect_counter, self.side_effect_counter);
-        self.side_effect_counter = item.public_inputs.end_side_effect_counter + 1;
+        assert_eq(item.public_inputs.call_context.side_effect_counter, start_side_effect_counter);
+        assert_eq(item.public_inputs.start_side_effect_counter, start_side_effect_counter);
+        let end_side_effect_counter = item.public_inputs.end_side_effect_counter;
+        self.side_effect_counter = end_side_effect_counter + 1;
 
         // TODO (fees) figure out why this crashes the prover and enable it
         // we need this in order to pay fees inside child call contexts
@@ -458,7 +460,15 @@ impl PrivateContext {
             );
         }
 
-        self.private_call_stack_hashes.push(item.hash());
+        let mut caller_context = CallerContext::empty();
+        caller_context.is_static_call = self.inputs.call_context.is_static_call;
+        if is_delegate_call {
+            caller_context.msg_sender = self.inputs.call_context.msg_sender;
+            caller_context.storage_contract_address = self.inputs.call_context.storage_contract_address;
+        }
+        self.private_call_requests.push(
+            PrivateCallRequest { hash: item.hash(), caller_context, start_side_effect_counter, end_side_effect_counter }
+        );
 
         PackedReturns::new(item.public_inputs.returns_hash)
     }
@@ -652,10 +662,10 @@ impl Empty for PrivateContext {
             nullifier_key_validation_requests: BoundedVec::new(),
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
-            private_call_stack_hashes : BoundedVec::new(),
-            public_call_stack_hashes : BoundedVec::new(),
+            private_call_requests: BoundedVec::new(),
+            public_call_stack_hashes: BoundedVec::new(),
             public_teardown_function_hash: 0,
-            new_l2_to_l1_msgs : BoundedVec::new(),
+            new_l2_to_l1_msgs: BoundedVec::new(),
             historical_header: Header::empty(),
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),

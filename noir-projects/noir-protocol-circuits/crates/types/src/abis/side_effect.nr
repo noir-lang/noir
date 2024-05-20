@@ -9,6 +9,11 @@ trait Ordered {
     fn counter(self) -> u32;
 }
 
+trait RangeOrdered {
+    fn counter_start(self) -> u32;
+    fn counter_end(self) -> u32;
+}
+
 trait OrderedValue<T> where T: Eq {
     fn value(self) -> T;
     fn counter(self) -> u32;

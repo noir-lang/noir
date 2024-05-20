@@ -5,13 +5,12 @@ use crate::abis::{
     call_request::CallRequest, private_call_stack_item::PrivateCallStackItem,
     private_circuit_public_inputs::PrivateCircuitPublicInputs
 };
-use crate::constants::{MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, FUNCTION_TREE_HEIGHT};
+use crate::constants::{MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, FUNCTION_TREE_HEIGHT};
 use crate::merkle_tree::membership::MembershipWitness;
 
 struct PrivateCallData {
     call_stack_item: PrivateCallStackItem,
 
-    private_call_stack: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     public_teardown_call_request: CallRequest,
 

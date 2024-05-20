@@ -4,7 +4,6 @@ import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
   FUNCTION_TREE_HEIGHT,
-  MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   RECURSIVE_PROOF_LENGTH,
 } from '../../constants.gen.js';
@@ -23,10 +22,6 @@ export class PrivateCallData {
      * The call stack item currently being processed.
      */
     public callStackItem: PrivateCallStackItem,
-    /**
-     * Other private call stack items to be processed.
-     */
-    public privateCallStack: Tuple<CallRequest, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * Other public call stack items to be processed.
      */
@@ -77,7 +72,6 @@ export class PrivateCallData {
   static getFields(fields: FieldsOf<PrivateCallData>) {
     return [
       fields.callStackItem,
-      fields.privateCallStack,
       fields.publicCallStack,
       fields.publicTeardownCallRequest,
       fields.proof,
@@ -112,7 +106,6 @@ export class PrivateCallData {
     const reader = BufferReader.asReader(buffer);
     return new PrivateCallData(
       reader.readObject(PrivateCallStackItem),
-      reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, CallRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, CallRequest),
       reader.readObject(CallRequest),
       RecursiveProof.fromBuffer(reader, RECURSIVE_PROOF_LENGTH),

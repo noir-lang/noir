@@ -27,7 +27,6 @@ import {
   ConstantRollupData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
-  FUNCTION_TREE_HEIGHT,
   Fq,
   Fr,
   FunctionData,
@@ -91,7 +90,7 @@ import {
   PartialStateReference,
   Point,
   PreviousRollupData,
-  PrivateCallData,
+  PrivateCallRequest,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PrivateKernelTailCircuitPublicInputs,
@@ -616,7 +615,7 @@ export function makeProof(seed = 1) {
  * @returns A call stack item.
  */
 export function makeCallerContext(seed = 1): CallerContext {
-  return new CallerContext(makeAztecAddress(seed), makeAztecAddress(seed + 0x1));
+  return new CallerContext(makeAztecAddress(seed), makeAztecAddress(seed + 0x1), false);
 }
 
 /**
@@ -626,6 +625,10 @@ export function makeCallerContext(seed = 1): CallerContext {
  */
 export function makeCallRequest(seed = 1): CallRequest {
   return new CallRequest(fr(seed), makeAztecAddress(seed + 0x1), makeCallerContext(seed + 0x2), fr(0), fr(0));
+}
+
+function makePrivateCallRequest(seed = 1): PrivateCallRequest {
+  return new PrivateCallRequest(fr(seed), makeCallerContext(seed + 0x2), seed + 0x10, seed + 0x11);
 }
 
 /**
@@ -730,28 +733,6 @@ export function makeTxRequest(seed = 1): TxRequest {
 }
 
 /**
- * Makes arbitrary private call data.
- * @param seed - The seed to use for generating the private call data.
- * @returns A private call data.
- */
-export function makePrivateCallData(seed = 1): PrivateCallData {
-  return PrivateCallData.from({
-    callStackItem: makePrivateCallStackItem(seed),
-    privateCallStack: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, makeCallRequest, seed + 0x10),
-    publicCallStack: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, makeCallRequest, seed + 0x20),
-    publicTeardownCallRequest: makeCallRequest(seed + 0x30),
-    proof: makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH, seed + 0x50),
-    vk: makeVerificationKeyAsFields(),
-    contractClassArtifactHash: fr(seed + 0x70),
-    contractClassPublicBytecodeCommitment: fr(seed + 0x71),
-    publicKeysHash: fr(seed + 0x72),
-    saltedInitializationHash: fr(seed + 0x73),
-    functionLeafMembershipWitness: makeMembershipWitness(FUNCTION_TREE_HEIGHT, seed + 0x30),
-    acirHash: fr(seed + 0x60),
-  });
-}
-
-/**
  * Makes arbitrary private call stack item.
  * @param seed - The seed to use for generating the private call stack item.
  * @returns A private call stack item.
@@ -785,7 +766,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     ),
     newNoteHashes: makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x400),
     newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x500),
-    privateCallStackHashes: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),
+    privateCallRequests: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, makePrivateCallRequest, seed + 0x600),
     publicCallStackHashes: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x700),
     publicTeardownFunctionHash: fr(seed + 0x800),
     newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
