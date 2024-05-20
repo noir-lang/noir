@@ -19,16 +19,7 @@ pub struct Bn254BlackBoxSolver;
 
 impl Bn254BlackBoxSolver {
     pub async fn initialize() -> Bn254BlackBoxSolver {
-        // We fallback to the sync initialization of barretenberg on non-wasm targets.
-        // This ensures that wasm packages consuming this still build on the default target (useful for linting, etc.)
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                let blackbox_vendor = Barretenberg::initialize().await;
-                Bn254BlackBoxSolver { blackbox_vendor }
-            } else {
-                Bn254BlackBoxSolver::new()
-            }
-        }
+        Bn254BlackBoxSolver
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -54,7 +45,6 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     ) -> Result<bool, BlackBoxResolutionError> {
         let sig_s: [u8; 32] = signature[0..32].try_into().unwrap();
         let sig_e: [u8; 32] = signature[32..64].try_into().unwrap();
-
         Ok(schnorr::verify_signature(
             public_key_x.into_repr(),
             public_key_y.into_repr(),
