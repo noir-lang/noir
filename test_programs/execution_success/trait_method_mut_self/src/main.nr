@@ -2,7 +2,7 @@ use dep::std::hash::Hasher;
 use dep::std::hash::poseidon2::Poseidon2Hasher;
 
 fn main(x: Field, y: pub Field) {
-    let mut a_mut_ref = AType::new(x);
+    let mut a_mut_ref = AType { x };
 
     pass_trait_by_value(a_mut_ref, y);
     assert(a_mut_ref.x == x);
@@ -22,12 +22,6 @@ trait SomeTrait {
 
 struct AType {
     x: Field
-}
-
-impl AType {
-    fn new(x: Field) -> Self {
-        AType { x }
-    }
 }
 
 impl SomeTrait for AType {
