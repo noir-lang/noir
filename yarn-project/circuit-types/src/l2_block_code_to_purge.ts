@@ -11,6 +11,7 @@ import {
   PartialStateReference,
   StateReference,
 } from '@aztec/circuits.js';
+import { fr } from '@aztec/circuits.js/testing';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 /**
@@ -27,6 +28,7 @@ export function makeHeader(
     makeContentCommitment(seed + 0x200, txsEffectsHash, inHash),
     makeStateReference(seed + 0x600),
     makeGlobalVariables((seed += 0x700), blockNumber),
+    fr(seed + 0x800),
   );
 }
 

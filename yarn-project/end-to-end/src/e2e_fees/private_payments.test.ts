@@ -118,27 +118,27 @@ describe('e2e_fees private_payment', () => {
 
     const tx = await interaction.send().wait();
 
-    await expect(t.getCoinbaseBalance()).resolves.toEqual(InitialSequencerL1Gas + 1n);
-
     /**
      * at present the user is paying DA gas for:
      * 3 nullifiers = 3 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE = 3 * 32 * 16 = 1536 DA gas
      * 2 note hashes =  2 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE = 2 * 32 * 16 = 1024 DA gas
-     * 964 bytes of logs = 964 * DA_GAS_PER_BYTE = 964 * 16 = 15424 DA gas
+     * 1160 bytes of logs = 1160 * DA_GAS_PER_BYTE = 1160 * 16 = 5568 DA gas
      * tx overhead of 512 DA gas
-     * for a total of 18496 DA gas.
+     * for a total of 21632 DA gas.
      *
      * The default teardown gas allocation at present is
      * 100_000_000 for both DA and L2 gas.
      *
-     * That produces a grand total of 200018496n.
+     * That produces a grand total of 200021632n.
      *
      * This will change because:
      * 1. Gas use during public execution is not currently incorporated
-     * 2. We are presently squashing notes/nullifiers across non/revertible during private exeuction,
+     * 2. We are presently squashing notes/nullifiers across non/revertible during private execution,
      *    but we shouldn't.
      */
-    expect(tx.transactionFee).toEqual(200018496n);
+
+    expect(tx.transactionFee).toEqual(200021632n);
+    await expect(t.getCoinbaseBalance()).resolves.toEqual(InitialSequencerL1Gas + tx.transactionFee!);
     const [feeAmount, refundAmount] = getFeeAndRefund(tx);
 
     await expectMapping(

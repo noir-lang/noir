@@ -1,6 +1,7 @@
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { type Fr } from '@aztec/foundation/fields';
-import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { GeneratorIndex, HEADER_LENGTH } from '../constants.gen.js';
 import { ContentCommitment } from './content_commitment.js';
@@ -19,21 +20,27 @@ export class Header {
     public state: StateReference,
     /** Global variables of an L2 block. */
     public globalVariables: GlobalVariables,
+    /** Total fees in the block, computed by the root rollup circuit */
+    public totalFees: Fr,
   ) {}
 
-  toBuffer() {
+  static getFields(fields: FieldsOf<Header>) {
     // Note: The order here must match the order in the HeaderLib solidity library.
-    return serializeToBuffer(this.lastArchive, this.contentCommitment, this.state, this.globalVariables);
+    return [
+      fields.lastArchive,
+      fields.contentCommitment,
+      fields.state,
+      fields.globalVariables,
+      fields.totalFees,
+    ] as const;
+  }
+
+  toBuffer() {
+    return serializeToBuffer(...Header.getFields(this));
   }
 
   toFields(): Fr[] {
-    // Note: The order here must match the order in header.nr
-    const fields = [
-      ...this.lastArchive.toFields(),
-      ...this.contentCommitment.toFields(),
-      ...this.state.toFields(),
-      ...this.globalVariables.toFields(),
-    ];
+    const fields = serializeToFields(...Header.getFields(this));
     if (fields.length !== HEADER_LENGTH) {
       throw new Error(`Invalid number of fields for Header. Expected ${HEADER_LENGTH}, got ${fields.length}`);
     }
@@ -52,18 +59,20 @@ export class Header {
       reader.readObject(ContentCommitment),
       reader.readObject(StateReference),
       reader.readObject(GlobalVariables),
+      reader.readObject(Fr),
     );
   }
 
   static fromFields(fields: Fr[] | FieldReader): Header {
     const reader = FieldReader.asReader(fields);
 
-    const lastArchive = new AppendOnlyTreeSnapshot(reader.readField(), Number(reader.readField().toBigInt()));
-    const contentCommitment = ContentCommitment.fromFields(reader);
-    const state = StateReference.fromFields(reader);
-    const globalVariables = GlobalVariables.fromFields(reader);
-
-    return new Header(lastArchive, contentCommitment, state, globalVariables);
+    return new Header(
+      AppendOnlyTreeSnapshot.fromFields(reader),
+      ContentCommitment.fromFields(reader),
+      StateReference.fromFields(reader),
+      GlobalVariables.fromFields(reader),
+      reader.readField(),
+    );
   }
 
   static empty(): Header {
@@ -72,6 +81,7 @@ export class Header {
       ContentCommitment.empty(),
       StateReference.empty(),
       GlobalVariables.empty(),
+      Fr.ZERO,
     );
   }
 

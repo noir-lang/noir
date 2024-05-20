@@ -77,6 +77,7 @@ class Header {
     body_hash: Fr[2]
     state: StateReference
     global_variables: GlobalVariables
+    total_fees: Fr
 }
 Header *.. Body : body_hash
 Header *-- StateReference : state

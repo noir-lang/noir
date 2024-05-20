@@ -900,6 +900,7 @@ export function makeBaseOrMergeRollupPublicInputs(
     makePartialStateReference(seed + 0x400),
     fr(seed + 0x901),
     fr(seed + 0x902),
+    fr(seed + 0x903),
   );
 }
 
@@ -1011,6 +1012,7 @@ export function makeHeader(
     makeContentCommitment(seed + 0x200, txsEffectsHash),
     makeStateReference(seed + 0x600),
     makeGlobalVariables((seed += 0x700), blockNumber),
+    fr(seed + 0x800),
   );
 }
 

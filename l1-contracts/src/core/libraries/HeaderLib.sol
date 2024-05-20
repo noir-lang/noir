@@ -52,6 +52,7 @@ import {Hash} from "./Hash.sol";
  *  | 0x0208                                                                           | 0x20         |     gasFees.feePerL2Gas
  *  |                                                                                  |              |   }
  *  |                                                                                  |              | }
+ *  | 0x0228                                                                           | 0x20         | total_fees
  *  | ---                                                                              | ---          | ---
  */
 library HeaderLib {
@@ -100,9 +101,10 @@ library HeaderLib {
     ContentCommitment contentCommitment;
     StateReference stateReference;
     GlobalVariables globalVariables;
+    uint256 totalFees;
   }
 
-  uint256 private constant HEADER_LENGTH = 0x228; // Header byte length
+  uint256 private constant HEADER_LENGTH = 0x248; // Header byte length
 
   /**
    * @notice Validates the header
@@ -189,6 +191,9 @@ library HeaderLib {
     header.globalVariables.feeRecipient = bytes32(_header[0x01c8:0x01e8]);
     header.globalVariables.gasFees.feePerDaGas = uint256(bytes32(_header[0x01e8:0x0208]));
     header.globalVariables.gasFees.feePerL2Gas = uint256(bytes32(_header[0x0208:0x0228]));
+
+    // Reading totalFees
+    header.totalFees = uint256(bytes32(_header[0x0228:0x0248]));
 
     return header;
   }

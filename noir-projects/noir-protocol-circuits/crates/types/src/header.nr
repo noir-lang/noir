@@ -14,6 +14,7 @@ struct Header {
     content_commitment: ContentCommitment,
     state: StateReference,
     global_variables: GlobalVariables,
+    total_fees: Field
 }
 // docs:end:header
 
@@ -22,7 +23,8 @@ impl Eq for Header {
         self.last_archive.eq(other.last_archive) &
         self.content_commitment.eq(other.content_commitment) &
         self.state.eq(other.state) &
-        self.global_variables.eq(other.global_variables)
+        self.global_variables.eq(other.global_variables) &
+        self.total_fees.eq(other.total_fees)
     }
 }
 
@@ -34,6 +36,7 @@ impl Serialize<HEADER_LENGTH> for Header {
         fields.extend_from_array(self.content_commitment.serialize());
         fields.extend_from_array(self.state.serialize());
         fields.extend_from_array(self.global_variables.serialize());
+        fields.push(self.total_fees);
 
         fields.storage
     }
@@ -53,12 +56,16 @@ impl Deserialize<HEADER_LENGTH> for Header {
         offset = offset + STATE_REFERENCE_LENGTH;
 
         let global_variables_fields = arr_copy_slice(serialized, [0; GLOBAL_VARIABLES_LENGTH], offset);
+        offset = offset + GLOBAL_VARIABLES_LENGTH;
+
+        let total_fees = serialized[offset];
 
         Header {
             last_archive: AppendOnlyTreeSnapshot::deserialize(last_archive_fields),
             content_commitment: ContentCommitment::deserialize(content_commitment_fields),
             state: StateReference::deserialize(state_fields),
             global_variables: GlobalVariables::deserialize(global_variables_fields),
+            total_fees
         }
     }
 }
@@ -70,6 +77,7 @@ impl Empty for Header {
             content_commitment: ContentCommitment::empty(),
             state: StateReference::empty(),
             global_variables: GlobalVariables::empty(),
+            total_fees: 0
         }
     }
 }
@@ -100,6 +108,6 @@ fn empty_hash_is_zero() {
     let hash = header.hash();
 
     // Value from new_contract_data.test.ts "computes empty hash" test
-    let test_data_empty_hash = 0x2b2525fb1ae91c903827b8055b9ffaf8444ddf4c2b4dce4a79a3cba426bfbd73;
+    let test_data_empty_hash = 0x124e8c40a6eca2e3ad10c04050b01a3fad00df3cea47b13592c7571b6914c7a7;
     assert_eq(hash, test_data_empty_hash);
 }

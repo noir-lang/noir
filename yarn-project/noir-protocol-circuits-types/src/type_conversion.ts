@@ -1754,6 +1754,7 @@ export function mapBaseOrMergeRollupPublicInputsToNoir(
     end: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.end),
     txs_effects_hash: mapFieldToNoir(baseOrMergeRollupPublicInputs.txsEffectsHash),
     out_hash: mapFieldToNoir(baseOrMergeRollupPublicInputs.outHash),
+    accumulated_fees: mapFieldToNoir(baseOrMergeRollupPublicInputs.accumulatedFees),
   };
 }
 
@@ -1801,6 +1802,7 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.end),
     mapFieldFromNoir(baseOrMergeRollupPublicInputs.txs_effects_hash),
     mapFieldFromNoir(baseOrMergeRollupPublicInputs.out_hash),
+    mapFieldFromNoir(baseOrMergeRollupPublicInputs.accumulated_fees),
   );
 }
 
@@ -1941,6 +1943,7 @@ export function mapHeaderToNoir(header: Header): HeaderNoir {
     content_commitment: mapContentCommitmentToNoir(header.contentCommitment),
     state: mapStateReferenceToNoir(header.state),
     global_variables: mapGlobalVariablesToNoir(header.globalVariables),
+    total_fees: mapFieldToNoir(header.totalFees),
   };
 }
 
@@ -1955,6 +1958,7 @@ export function mapHeaderFromNoir(header: HeaderNoir): Header {
     mapContentCommitmentFromNoir(header.content_commitment),
     mapStateReferenceFromNoir(header.state),
     mapGlobalVariablesFromNoir(header.global_variables),
+    mapFieldFromNoir(header.total_fees),
   );
 }
 

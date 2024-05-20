@@ -8,22 +8,22 @@ namespace constants(256);
     pol PORTAL_SELECTOR = 2;
 
     // NOTE: constant expression evaluation does not seem to be supported yet in pil
-    // pol START_GLOBAL_VARIABLES = CALL_CONTEXT_LENGTH + HEADER_LENGTH = 6 + 22 = 28
+    // pol START_GLOBAL_VARIABLES = CALL_CONTEXT_LENGTH + HEADER_LENGTH = 6 + 23 = 29
 
     // Global Variables
-    pol CHAIN_ID_SELECTOR = 28;
-    pol VERSION_SELECTOR = 29;
-    pol BLOCK_NUMBER_SELECTOR = 30; 
-    pol TIMESTAMP_SELECTOR = 31; 
-    pol COINBASE_SELECTOR = 32; 
+    pol CHAIN_ID_SELECTOR = 29;
+    pol VERSION_SELECTOR = 30;
+    pol BLOCK_NUMBER_SELECTOR = 31; 
+    pol TIMESTAMP_SELECTOR = 32; 
+    pol COINBASE_SELECTOR = 33; 
 
-    pol END_GLOBAL_VARIABLES = 28 + 8; // We only use the first 5 of 8 global variables for now
+    pol END_GLOBAL_VARIABLES = 29 + 8; // We only use the first 5 of 8 global variables for now
     
-    pol START_SIDE_EFFECT_COUNTER = 36;
+    pol START_SIDE_EFFECT_COUNTER = 37;
 
     // Gas
-    pol FEE_PER_DA_GAS_SELECTOR = 37;
-    pol FEE_PER_L2_GAS_SELECTOR = 38;
+    pol FEE_PER_DA_GAS_SELECTOR = 38;
+    pol FEE_PER_L2_GAS_SELECTOR = 39;
 
-    pol TRANSACTION_FEE_SELECTOR = 39;
+    pol TRANSACTION_FEE_SELECTOR = 40;
 

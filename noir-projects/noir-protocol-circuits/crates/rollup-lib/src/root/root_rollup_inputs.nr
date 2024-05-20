@@ -65,11 +65,14 @@ impl RootRollupInputs {
             out_hash: components::compute_out_hash(self.previous_rollup_data)
         };
 
+        let total_fees = components::accumulate_fees(left, right);
+
         let header = Header {
             last_archive: left.constants.last_archive,
             content_commitment,
             state,
-            global_variables: left.constants.global_variables
+            global_variables: left.constants.global_variables,
+            total_fees
         };
 
         // Build the block hash for this by hashing the header and then insert the new leaf to archive tree.

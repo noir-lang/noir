@@ -95,9 +95,9 @@ contract Rollup is IRollup {
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeHeight
     );
 
-    // pay the coinbase 1 gas token if it is not empty
-    if (header.globalVariables.coinbase != address(0)) {
-      GAS_TOKEN.transfer(address(header.globalVariables.coinbase), 1);
+    // pay the coinbase 1 gas token if it is not empty and header.totalFees is not zero
+    if (header.globalVariables.coinbase != address(0) && header.totalFees > 0) {
+      GAS_TOKEN.transfer(address(header.globalVariables.coinbase), header.totalFees);
     }
 
     emit L2BlockProcessed(header.globalVariables.blockNumber);

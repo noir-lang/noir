@@ -78,6 +78,7 @@ CombinedConstantData --> TxContext
 
 class Header {
     +GlobalVariables global_variables
+    +Fr total_fees
 }
 Header --> GlobalVariables
 
@@ -538,10 +539,12 @@ The interplay between these two `revert_code`s is as follows:
 | 1                    | 1                         | 3                              |
 | 2 or 3               | (any)                     | (unchanged)                    |
 
-## Base Rollup Kernel Circuit
+## Rollup Kernel Circuits
 
 The base rollup kernel circuit takes in a `KernelData`, which contains a `KernelCircuitPublicInputs`, which it uses to compute the `transaction_fee`.
 
 Additionally, it verifies that the max fees per gas specified by the user are greater than the current block's fees per gas. It also verifies the `constant_data.global_variables.gas_fees` are correct.
 
 After the public data writes specific to this transaction have been processed, and a new tree root is produced, the kernel circuit injects an additional public data write based upon that root which deducts the transaction fee from the `fee_payer`'s balance.
+
+The calculated trasaction fee is set as output on the base rollup as `accumulated_fees`. Each subsequent merge rollup circuit sums this value from both of its inputs. The root rollup circuit then uses this value to set the `total_fees` in the `Header`.

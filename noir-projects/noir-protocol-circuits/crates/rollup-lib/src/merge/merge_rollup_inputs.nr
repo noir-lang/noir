@@ -37,6 +37,8 @@ impl MergeRollupInputs {
         let txs_effects_hash = components::compute_txs_effects_hash(self.previous_rollup_data);
         let out_hash = components::compute_out_hash(self.previous_rollup_data);
 
+        let accumulated_fees = components::accumulate_fees(left, right);
+
         let public_inputs = BaseOrMergeRollupPublicInputs {
             rollup_type: MERGE_ROLLUP_TYPE,
             height_in_block_tree: current_height + 1,
@@ -45,7 +47,8 @@ impl MergeRollupInputs {
             start: left.start,
             end: right.end,
             txs_effects_hash,
-            out_hash
+            out_hash,
+            accumulated_fees
         };
 
         public_inputs

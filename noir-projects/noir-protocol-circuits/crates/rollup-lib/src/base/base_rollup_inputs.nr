@@ -103,11 +103,13 @@ impl BaseRollupInputs {
         // Validate public public data reads and public data update requests, and update public data tree
         let end_public_data_tree_snapshot = self.validate_and_process_public_state();
 
+        let transaction_fee = self.kernel_data.public_inputs.compute_transaction_fee();
+
         // Calculate the tx effects hash of the transaction
         let tx_effects_hash = compute_tx_effects_hash(
             self.kernel_data.public_inputs.end,
             self.kernel_data.public_inputs.revert_code,
-            self.kernel_data.public_inputs.compute_transaction_fee()
+            transaction_fee
         );
         let out_hash = compute_kernel_out_hash(self.kernel_data.public_inputs.end);
 
@@ -128,7 +130,8 @@ impl BaseRollupInputs {
                 public_data_tree: end_public_data_tree_snapshot
             },
             txs_effects_hash: tx_effects_hash,
-            out_hash
+            out_hash,
+            accumulated_fees: transaction_fee
         }
     }
 

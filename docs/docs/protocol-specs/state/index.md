@@ -122,6 +122,7 @@ class Header {
     content_commitment: ContentCommitment
     state: StateReference
     global_variables: GlobalVariables
+    total_fees: Fr
 }
 Header *.. Body : txs_hash
 Header *-- ContentCommitment: content_commitment

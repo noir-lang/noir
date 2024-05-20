@@ -78,10 +78,12 @@ These are held in the L2 blocks `Header`
 classDiagram
 class Header {
   +GlobalVariables globalVariables
+  +Fr totalFees
 }
 
 class GlobalVariables {
   +GasFees gasFees
+  +EthAddress coinbase
 }
 
 class GasFees {
@@ -96,6 +98,10 @@ GlobalVariables --> GasFees
 A transaction cannot be executed if the `maxFeesPerGas` is less than the `feePerGas` for any dimension.
 
 The `feePerGas` is presently held constant at `1` for both dimensions, but may be updated in future protocol versions.
+
+`totalFees` is the total fees collected in the block in FPA.
+
+`coinbase` is the L1 address that receives the fees.
 
 ## Transaction Fee
 

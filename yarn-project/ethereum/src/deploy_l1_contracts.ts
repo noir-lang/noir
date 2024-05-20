@@ -230,7 +230,8 @@ export const deployL1Contracts = async (
     abi: contractsToDeploy.gasToken.contractAbi,
     client: walletClient,
   });
-  await gasToken.write.mint([rollupAddress.toString(), 100000000000000000000n], {} as any);
+  const receipt = await gasToken.write.mint([rollupAddress.toString(), 100000000000000000000n], {} as any);
+  await publicClient.waitForTransactionReceipt({ hash: receipt });
   logger.info(`Funded rollup contract with gas tokens`);
 
   const l1Contracts: L1ContractAddresses = {
