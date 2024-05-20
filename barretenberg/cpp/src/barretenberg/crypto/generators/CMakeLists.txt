@@ -1,0 +1,1 @@
+barretenberg_module(crypto_generator_data ecc)
