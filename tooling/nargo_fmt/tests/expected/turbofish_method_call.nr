@@ -1,5 +1,5 @@
 fn foo() {
-    my_object.some_method::<Field>(10, var_value, inner_method:: <u32>(20, 30));
+    my_object.some_method::<Field>(10, var_value, inner_method::<u32>(20, 30));
 
     assert(
         p4_affine.eq::<Field>(
