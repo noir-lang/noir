@@ -55,7 +55,7 @@ fn bench_schnorr_verify(c: &mut Criterion) {
                 black_box(&pub_key_x),
                 black_box(&pub_key_y),
                 black_box(&sig_bytes),
-                black_box(&message),
+                black_box(message),
             )
         })
     });
