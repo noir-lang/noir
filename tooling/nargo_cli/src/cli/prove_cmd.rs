@@ -146,7 +146,7 @@ pub(crate) fn prove_package(
     let proof = if !use_plonky2_backend_experimental {
         backend.prove(&compiled_program.program, witness_stack)?
     } else {
-        match compiled_program.plonky2_circuit.unwrap().prove(&inputs_map) {
+        match compiled_program.plonky2_circuit.as_ref().unwrap().prove(&inputs_map) {
             Ok(proof) => proof,
             Err(error) => {
                 let error_message = format!("{:?}", error);
@@ -160,9 +160,13 @@ pub(crate) fn prove_package(
         let valid_proof = if !use_plonky2_backend_experimental {
             backend.verify(&proof, public_inputs, &compiled_program.program)?
         } else {
-            return Err(CliError::BackendError(BackendError::UnfitBackend(
-                "verify operation".into(),
-            )));
+            match compiled_program.plonky2_circuit.as_ref().unwrap().verify(&proof, public_inputs) {
+                Ok(valid_proof) => valid_proof,
+                Err(error) => {
+                    let error_message = format!("{:?}", error);
+                    return Err(CliError::BackendError(BackendError::UnfitBackend(error_message)));
+                }
+            }
         };
 
         if !valid_proof {

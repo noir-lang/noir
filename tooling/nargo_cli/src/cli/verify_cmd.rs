@@ -1,5 +1,6 @@
 use super::fs::{inputs::read_inputs_from_file, load_hex_data};
 use super::NargoConfig;
+use crate::errors::BackendError;
 use crate::{backends::Backend, errors::CliError};
 
 use clap::Args;
@@ -74,7 +75,7 @@ pub(crate) fn run(
         let compiled_program =
             nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
 
-        verify_package(backend, &workspace, package, compiled_program, &args.verifier_name)?;
+        verify_package(backend, &workspace, package, compiled_program, &args.verifier_name, args.compile_options.use_plonky2_backend_experimental)?;
     }
 
     Ok(())
@@ -86,6 +87,7 @@ fn verify_package(
     package: &Package,
     compiled_program: CompiledProgram,
     verifier_name: &str,
+    use_plonky2_backend_experimental: bool,
 ) -> Result<(), CliError> {
     // Load public inputs (if any) from `verifier_name`.
     let public_abi = compiled_program.abi.public_abi();
@@ -99,7 +101,17 @@ fn verify_package(
 
     let proof = load_hex_data(&proof_path)?;
 
-    let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
+    let valid_proof = if !use_plonky2_backend_experimental {
+        backend.verify(&proof, public_inputs, &compiled_program.program)?
+    } else {
+        match compiled_program.plonky2_circuit.as_ref().unwrap().verify(&proof, public_inputs) {
+            Ok(valid_proof) => valid_proof,
+            Err(error) => {
+                let error_message = format!("{:?}", error);
+                return Err(CliError::BackendError(BackendError::UnfitBackend(error_message)));
+            }
+        }
+    };
 
     if valid_proof {
         Ok(())
