@@ -42,7 +42,9 @@ pub(crate) fn derive_generators(
     starting_index: u32,
 ) -> Vec<Affine<GrumpkinParameters>> {
     // We cache a small number of the default generators so we can reuse them without needing to repeatedly recalculate them.
-    if domain_separator_bytes == DEFAULT_DOMAIN_SEPARATOR && starting_index + num_generators <= NUM_DEFAULT_GENERATORS as u32 {
+    if domain_separator_bytes == DEFAULT_DOMAIN_SEPARATOR
+        && starting_index + num_generators <= NUM_DEFAULT_GENERATORS as u32
+    {
         let start_index = starting_index as usize;
         let end_index = (starting_index + num_generators) as usize;
         default_generators()[start_index..end_index].to_vec()
