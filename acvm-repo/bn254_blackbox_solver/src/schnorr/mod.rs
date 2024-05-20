@@ -90,7 +90,7 @@ mod schnorr_tests {
         ];
         let message: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-        assert_eq!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message), true)
+        assert!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message));
     }
 
     #[test]
@@ -112,7 +112,7 @@ mod schnorr_tests {
         ];
         let message: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-        assert_eq!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message), false)
+        assert!(!verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message));
     }
 
     #[test]
@@ -134,6 +134,6 @@ mod schnorr_tests {
         ];
         let message: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-        assert_eq!(verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message), false)
+        assert!(!verify_signature(pub_key_x, pub_key_y, sig_s_bytes, sig_e_bytes, message));
     }
 }
