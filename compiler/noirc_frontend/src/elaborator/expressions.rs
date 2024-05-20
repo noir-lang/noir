@@ -328,8 +328,12 @@ impl<'context> Elaborator<'context> {
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
-                let ((function_id, function_name), function_call) = method_call
-                    .into_function_call(&method_ref, object_type, location, self.interner);
+                let ((function_id, function_name), function_call) = method_call.into_function_call(
+                    &method_ref,
+                    object_type,
+                    location,
+                    self.interner,
+                );
 
                 let func_type = self.type_check_variable(function_name, function_id);
 

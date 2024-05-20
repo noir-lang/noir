@@ -250,8 +250,12 @@ impl<'interner> TypeChecker<'interner> {
                         }
 
                         // TODO: update object_type here?
-                        let (_, function_call) = method_call
-                            .into_function_call(&method_ref, object_type, location, self.interner);
+                        let (_, function_call) = method_call.into_function_call(
+                            &method_ref,
+                            object_type,
+                            location,
+                            self.interner,
+                        );
 
                         self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
 
@@ -386,15 +390,13 @@ impl<'interner> TypeChecker<'interner> {
         });
 
         // Fetch the count of any implicit generics on the function
-        // This includes generics 
+        // This includes generics
         let implicit_generic_count = if generics.is_some() {
             let definition_type = self.interner.definition_type(ident.id);
             match &definition_type {
-                Type::Forall(generics, _) => {
-                    generics.len() - function_generic_count
-                }
+                Type::Forall(generics, _) => generics.len() - function_generic_count,
                 _ => 0,
-            }   
+            }
         } else {
             0
         };
