@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
+use std::rc::Rc;
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -149,6 +150,8 @@ pub struct NodeInterner {
     globals: Vec<GlobalInfo>,
     global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
+    arithmetic_expressions: HashMap<ArithId, ArithExpr>,
+
     next_type_variable_id: std::cell::Cell<usize>,
 
     /// A map from a struct type and method name to a function id for the method.
@@ -172,6 +175,70 @@ pub struct NodeInterner {
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
 }
+
+// TODO: relocate
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ArithId {
+    Dummy,
+    ModuleId(ModuleId),
+}
+
+// TODO: relocate
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum ArithExpr {
+    Op {
+        kind: ArithExprKind,
+        lhs: Box<ArithExpr>,
+        rhs: Box<ArithExpr>,
+    },
+    Variable(Rc<String>),
+    Constant(u64),
+}
+
+impl ArithExpr {
+    // TODO: resolve variables given function
+    pub fn resolve<F: FnMut(String) -> Option<u64>>(&mut self, _f: F) {
+        unimplemented!();
+    }
+
+    pub fn try_constant(&self) -> Option<u64> {
+        match self {
+            Self::Constant(x) => Some(*x),
+            _ => None,
+        }
+    }
+}
+
+// TODO: relocate
+impl std::fmt::Display for ArithExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArithExpr::Op { kind, lhs, rhs } => write!(f, "{lhs} {kind} {rhs}"),
+            ArithExpr::Variable(name) => write!(f, "{name}"),
+            ArithExpr::Constant(x) => x.fmt(f),
+        }
+    }
+}
+
+// TODO: relocate
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum ArithExprKind {
+    Mul,
+    Add,
+    Sub,
+}
+
+// TODO: relocate
+impl std::fmt::Display for ArithExprKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArithExprKind::Mul => write!(f, "*"),
+            ArithExprKind::Add => write!(f, "+"),
+            ArithExprKind::Sub => write!(f, "-"),
+        }
+    }
+}
+
 
 /// A dependency in the dependency graph may be a type or a definition.
 /// Types can depend on definitions too. E.g. `Foo` depends on `COUNT` in:
@@ -492,6 +559,7 @@ impl Default for NodeInterner {
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
             global_attributes: HashMap::new(),
+            arithmetic_expressions: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -1779,6 +1847,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
+        | Type::GenericArith(..)
         | Type::Constant(_)
         | Type::Error
         | Type::Struct(_, _)

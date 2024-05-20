@@ -8,7 +8,7 @@ use std::{
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
-    node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
+    node_interner::{ArithId, ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -100,6 +100,8 @@ pub enum Type {
     /// will be and thus needs the full TypeVariable link.
     Forall(Generics, Box<Type>),
 
+    GenericArith(ArithId, /*generics:*/ Vec<Type>),
+
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
     Constant(u64),
@@ -149,6 +151,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
+            | Type::GenericArith(..)
             | Type::Constant(_)
             | Type::Code
             | Type::Slice(_)
@@ -676,6 +679,9 @@ impl Type {
                     generic.contains_numeric_typevar(target_id)
                 }
             }),
+            Type::GenericArith(_, generics) => {
+                generics.iter().any(|generic| named_generic_id_matches_target(generic))
+            }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
             Type::FmtString(length, elements) => {
@@ -709,6 +715,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
+            | Type::GenericArith(..)
             | Type::Code
             | Type::Slice(_)
             | Type::TraitAsType(..) => false,
@@ -757,6 +764,7 @@ impl Type {
             | Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
+            | Type::GenericArith(..)
             // TODO: probably can allow code as it is all compile time
             | Type::Code
             | Type::TraitAsType(..) => false,
@@ -907,6 +915,10 @@ impl std::fmt::Display for Type {
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
+            }
+            Type::GenericArith(arith_id, generics) => {
+                let generics = vecmap(generics, ToString::to_string);
+                write!(f, "arith {}. {:?}", generics.join(" "), arith_id)
             }
             Type::Function(args, ret, env) => {
                 let closure_env_text = match **env {
@@ -1581,6 +1593,12 @@ impl Type {
                 let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
             }
+            Type::GenericArith(arith_id, generics) => {
+                let generics = vecmap(generics, |generic| {
+                    generic.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                Type::GenericArith(*arith_id, generics)
+            }
             Type::Function(args, ret, env) => {
                 let args = vecmap(args, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
@@ -1636,6 +1654,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
+            Type::GenericArith(_, generics) => generics.iter().any(|generic| generic.occurs(target_id)),
             Type::Function(args, ret, env) => {
                 args.iter().any(|arg| arg.occurs(target_id))
                     || ret.occurs(target_id)
@@ -1696,6 +1715,7 @@ impl Type {
                 Function(args, ret, env)
             }
 
+            GenericArith(arith_id, generics) => GenericArith(*arith_id, vecmap(generics, |generic| generic.follow_bindings())),
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             TraitAsType(s, name, args) => {
@@ -1832,6 +1852,7 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
+            Type::GenericArith(..) => unreachable!(),
             Type::Function(arguments, return_type, env) => PrintableType::Function {
                 arguments: arguments.iter().map(|arg| arg.into()).collect(),
                 return_type: Box::new(return_type.as_ref().into()),
@@ -1911,6 +1932,10 @@ impl std::fmt::Debug for Type {
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
+            }
+            Type::GenericArith(arith_id, generics) => {
+                let generics = vecmap(generics, |generic| format!("{:?}", generic));
+                write!(f, "arith {}. {:?}", generics.join(" "), arith_id)
             }
             Type::Function(args, ret, env) => {
                 let closure_env_text = match **env {

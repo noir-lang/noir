@@ -744,6 +744,11 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             }
+            Type::GenericArith(_, generics) => {
+                for generic in generics {
+                    Self::find_numeric_generics_in_type(generic, found);
+                }
+            }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {

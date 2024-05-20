@@ -1233,6 +1233,13 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
+            Type::GenericArith(_, generics) => {
+                for generic in generics {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        found.insert(name.to_string(), type_variable.clone());
+                    }
+                }
+            }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {

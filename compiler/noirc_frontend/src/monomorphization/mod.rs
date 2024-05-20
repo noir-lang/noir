@@ -980,6 +980,11 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
+            HirType::GenericArith(_, generics) => {
+                try_vecmap(generics, |generic| Self::convert_type(generic, location))?;
+                ast::Type::Field
+            }
+
             HirType::MutableReference(element) => {
                 let element = Self::convert_type(element, location)?;
                 ast::Type::MutableReference(Box::new(element))

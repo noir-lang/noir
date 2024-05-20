@@ -289,6 +289,7 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_ast(),
+            Type::GenericArith(..) => unimplemented!(),
             Type::Constant(_) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Code => UnresolvedTypeData::Code,
             Type::Error => UnresolvedTypeData::Error,
