@@ -60,7 +60,7 @@ fn pass_trait_by_mut_ref<T>(a_mut_ref: &mut T, value: Field) where T: SomeTrait 
 }
 
 fn hash_simple_array<H>(input: [Field; 2]) -> Field where H: Hasher + Default {
-    // Check that we can a trait method to instead a trait implementation
+    // Check that we can call a trait method instead of a trait implementation
     // TODO: Need to remove the need for this type annotation
     // TODO: Curently, without the annotation we will get `Expression type is ambiguous` when trying to use the `hasher`
     let mut hasher: H = H::default();
