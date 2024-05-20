@@ -67,19 +67,22 @@ fn schnorr_generate_challenge(
 
 #[cfg(test)]
 mod schnorr_tests {
-    use ark_ff::MontFp;
+    use acir::FieldElement;
 
     use super::verify_signature;
 
     #[test]
     fn verifies_valid_signature() {
-        // 0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a
-        let pub_key_x: grumpkin::Fq =
-            MontFp!("2124416763957513755957069320378814719427254224313784354193701269410464905578");
-        // 0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197
-        let pub_key_y: grumpkin::Fq = MontFp!(
-            "21635190314466406102464795369176917324283837527799356152433238205601767715223"
-        );
+        let pub_key_x: grumpkin::Fq = FieldElement::from_hex(
+            "0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a",
+        )
+        .unwrap()
+        .into_repr();
+        let pub_key_y: grumpkin::Fq = FieldElement::from_hex(
+            "0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197",
+        )
+        .unwrap()
+        .into_repr();
         let sig_s_bytes: [u8; 32] = [
             1, 13, 119, 112, 212, 39, 233, 41, 84, 235, 255, 93, 245, 172, 186, 83, 157, 253, 76,
             77, 33, 128, 178, 15, 214, 67, 105, 107, 177, 234, 77, 48,
@@ -95,13 +98,16 @@ mod schnorr_tests {
 
     #[test]
     fn rejects_zero_e() {
-        // 0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a
-        let pub_key_x: grumpkin::Fq =
-            MontFp!("2124416763957513755957069320378814719427254224313784354193701269410464905578");
-        // 0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197
-        let pub_key_y: grumpkin::Fq = MontFp!(
-            "21635190314466406102464795369176917324283837527799356152433238205601767715223"
-        );
+        let pub_key_x: grumpkin::Fq = FieldElement::from_hex(
+            "0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a",
+        )
+        .unwrap()
+        .into_repr();
+        let pub_key_y: grumpkin::Fq = FieldElement::from_hex(
+            "0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197",
+        )
+        .unwrap()
+        .into_repr();
         let sig_s_bytes: [u8; 32] = [
             1, 13, 119, 112, 212, 39, 233, 41, 84, 235, 255, 93, 245, 172, 186, 83, 157, 253, 76,
             77, 33, 128, 178, 15, 214, 67, 105, 107, 177, 234, 77, 48,
@@ -117,13 +123,16 @@ mod schnorr_tests {
 
     #[test]
     fn rejects_zero_s() {
-        // 0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a
-        let pub_key_x: grumpkin::Fq =
-            MontFp!("2124416763957513755957069320378814719427254224313784354193701269410464905578");
-        // 0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197
-        let pub_key_y: grumpkin::Fq = MontFp!(
-            "21635190314466406102464795369176917324283837527799356152433238205601767715223"
-        );
+        let pub_key_x: grumpkin::Fq = FieldElement::from_hex(
+            "0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a",
+        )
+        .unwrap()
+        .into_repr();
+        let pub_key_y: grumpkin::Fq = FieldElement::from_hex(
+            "0x2fd51571db6c08666b0edfbfbc57d432068bccd0110a39b166ab243da0037197",
+        )
+        .unwrap()
+        .into_repr();
         let sig_s_bytes: [u8; 32] = [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0,
