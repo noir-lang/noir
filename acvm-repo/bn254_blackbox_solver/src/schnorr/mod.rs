@@ -42,22 +42,21 @@ pub(crate) fn verify_signature(
 
     // compare the _hashes_ rather than field elements modulo r
     // e = H(pedersen(r, pk.x, pk.y), m), where r = x(R)
-    let target_e_bytes = schnorr_generate_challenge(message, pub_key, r.into_affine());
+    let target_e_bytes = schnorr_generate_challenge(message, pub_key_x, pub_key_y, r.into_affine());
 
     sig_e_bytes == target_e_bytes
 }
 
 fn schnorr_generate_challenge(
     message: &[u8],
-    pubkey: Affine<GrumpkinParameters>,
+    pub_key_x: Fq,
+    pub_key_y: Fq,
     r: Affine<GrumpkinParameters>,
 ) -> [u8; 32] {
     // create challenge message pedersen_commitment(R.x, pubkey)
 
-    let pedersen_hash = crate::pedersen::hash::hash_with_index(
-        &[*r.x().unwrap(), *pubkey.x().unwrap(), *pubkey.y().unwrap()],
-        0,
-    );
+    let r_x = *r.x().expect("r has been checked to be non-zero");
+    let pedersen_hash = crate::pedersen::hash::hash_with_index(&[r_x, pub_key_x, pub_key_y], 0);
 
     let mut hash_input: Vec<u8> = pedersen_hash.into_bigint().to_bytes_be();
     hash_input.extend(message);
