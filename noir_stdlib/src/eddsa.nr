@@ -14,7 +14,7 @@ pub fn eddsa_poseidon_verify(
     signature_r8_y: Field,
     message: Field
 ) -> bool {
-    eddsa_verify_with_hasher::<PoseidonHasher>(
+    eddsa_verify::<PoseidonHasher>(
         pub_key_x,
         pub_key_y,
         signature_s,
@@ -24,7 +24,7 @@ pub fn eddsa_poseidon_verify(
     )
 }
 
-pub fn eddsa_verify_with_hasher<H>(
+pub fn eddsa_verify<H>(
     pub_key_x: Field,
     pub_key_y: Field,
     signature_s: Field,
