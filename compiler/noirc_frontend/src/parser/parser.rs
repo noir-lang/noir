@@ -1044,6 +1044,7 @@ where
             expr_no_constructors,
             statement,
             allow_constructors,
+            parse_type(),
         ))
     })
 }
@@ -1064,6 +1065,7 @@ fn atom_or_right_unary<'a, P, P2, S>(
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
@@ -1088,12 +1090,12 @@ where
 
     // `as Type` in `atom as Type`
     let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type())
+        .ignore_then(type_parser.clone())
         .map(UnaryRhs::Cast)
         .labelled(ParsingRuleLabel::Cast);
 
     // A turbofish operator is optional in a method call to specify generic types
-    let turbofish = primitives::turbofish(parse_type());
+    let turbofish = primitives::turbofish(type_parser);
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
@@ -1384,11 +1386,12 @@ mod test {
                 expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
+                parse_type(),
             ),
             vec!["x as u8", "x as u16", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
-            atom_or_right_unary(expression(), expression_nc, fresh_statement(), true),
+            atom_or_right_unary(expression(), expression_nc, fresh_statement(), true, parse_type()),
             vec!["x as pub u8"],
         );
     }
@@ -1408,6 +1411,7 @@ mod test {
                 expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
+                parse_type(),
             ),
             valid,
         );
