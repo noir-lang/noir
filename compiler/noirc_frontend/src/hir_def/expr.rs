@@ -215,8 +215,7 @@ impl HirMethodCallExpression {
     ) -> ((ExprId, HirIdent), HirCallExpression, usize) {
         // Attach any generics which may not be a part of the function call's explicit generics
         // This includes types such as implicit generics if the function is part of an impl
-        let (generics, generics_count) = if let Some(mut function_generics) = self.generics
-        {
+        let (generics, generics_count) = if let Some(mut function_generics) = self.generics {
             let mut generics = Vec::new();
             match object_type.clone() {
                 Type::Struct(_, mut struct_generics) => {
