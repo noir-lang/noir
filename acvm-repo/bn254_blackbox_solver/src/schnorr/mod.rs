@@ -15,7 +15,6 @@ pub(crate) fn verify_signature(
 ) -> bool {
     let pub_key = Affine::<GrumpkinParameters>::new_unchecked(pub_key_x, pub_key_y);
 
-    // TODO: Check for correct subgroup isn't done in Barretenberg, is it necessary?
     if !pub_key.is_on_curve()
         || !pub_key.is_in_correct_subgroup_assuming_on_curve()
         || pub_key.is_zero()
