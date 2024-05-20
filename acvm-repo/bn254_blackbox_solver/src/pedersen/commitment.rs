@@ -6,16 +6,7 @@ use grumpkin::{Fq, Fr, GrumpkinParameters};
 
 use crate::generator::generators::{derive_generators, DEFAULT_DOMAIN_SEPARATOR};
 
-/**
- * @brief Given a vector of fields, generate a pedersen commitment using the indexed generators.
- *
- * @details This method uses `Curve::BaseField` members as inputs. This aligns with what we expect when creating
- * grumpkin commitments to field elements inside a BN254 SNARK circuit.
- * @param inputs
- * @param context
- * @return Curve::AffineElement
- */
-// NOTE: this could be generalized using SWCurveConfig but since we perform the operation over grumpkin its explicit
+/// Given a vector of fields, generate a pedersen commitment using the indexed generators.
 pub(crate) fn commit_native_with_index(
     inputs: &[Fq],
     starting_index: u32,

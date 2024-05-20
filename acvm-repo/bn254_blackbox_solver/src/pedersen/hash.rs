@@ -9,16 +9,7 @@ use crate::generator::generators::derive_generators;
 
 use super::commitment::commit_native_with_index;
 
-/**
- * @brief Given a vector of fields, generate a pedersen commitment using the indexed generators.
- *
- * @details This method uses `Curve::BaseField` members as inputs. This aligns with what we expect when creating
- * grumpkin commitments to field elements inside a BN254 SNARK circuit.
- * @param inputs
- * @param context
- * @return Curve::AffineElement
- */
-//TODO: confirm we can do this with scalar field
+/// Given a vector of fields, generate a pedersen hash using the indexed generators.
 pub(crate) fn hash_with_index(
     inputs: &[grumpkin::Fq],
     starting_index: u32,
