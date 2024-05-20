@@ -18,6 +18,7 @@ contract PriceFeed {
     }
 
     #[aztec(public)]
+    #[aztec(view)]
     fn get_price(asset_id: Field) -> Asset {
         storage.assets.at(asset_id).read()
     }

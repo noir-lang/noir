@@ -27,7 +27,7 @@ import { type ContractInstanceWithAddress, SerializableContractInstance } from '
 import { EncryptedL2Log } from './logs/encrypted_l2_log.js';
 import { EncryptedFunctionL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';
 import { ExtendedNote } from './notes/index.js';
-import { type ProcessReturnValues, PublicSimulationOutput, SimulatedTx, Tx, TxHash } from './tx/index.js';
+import { NestedProcessReturnValues, PublicSimulationOutput, SimulatedTx, Tx, TxHash } from './tx/index.js';
 
 /**
  * Testing utility to create empty logs composed from a single empty log.
@@ -145,7 +145,7 @@ export const mockTxForRollup = (seed = 1, { hasLogs = false }: { hasLogs?: boole
 
 export const mockSimulatedTx = (seed = 1, hasLogs = true) => {
   const tx = mockTx(seed, { hasLogs });
-  const dec: ProcessReturnValues = [new Fr(1n), new Fr(2n), new Fr(3n), new Fr(4n)];
+  const dec = new NestedProcessReturnValues([new Fr(1n), new Fr(2n), new Fr(3n), new Fr(4n)]);
   const output = new PublicSimulationOutput(
     tx.encryptedLogs,
     tx.unencryptedLogs,

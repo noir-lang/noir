@@ -117,7 +117,7 @@ contract DocsExample {
         // and returns the response.
         // Used to test that we can retrieve values through calls and 
         // correctly return them in the simulation
-        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_private().static_call(&mut context);
+        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_private().view(&mut context);
         leader.points += 1;
         leader
     }
@@ -128,12 +128,13 @@ contract DocsExample {
         // and returns the response.
         // Used to test that we can retrieve values through calls and 
         // correctly return them in the simulation
-        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_public().static_call(&mut context);
+        let mut leader = DocsExample::at(context.this_address()).get_shared_immutable_constrained_public().view(&mut context);
         leader.points += 1;
         leader
     }
 
     #[aztec(public)]
+    #[aztec(view)]
     fn get_shared_immutable_constrained_public() -> pub Leader {
         storage.shared_immutable.read_public()
     }
@@ -145,6 +146,7 @@ contract DocsExample {
     }
 
     #[aztec(private)]
+    #[aztec(view)]
     fn get_shared_immutable_constrained_private() -> pub Leader {
         storage.shared_immutable.read_private()
     }

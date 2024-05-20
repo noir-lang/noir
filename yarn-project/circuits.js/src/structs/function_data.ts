@@ -13,12 +13,15 @@ export class FunctionData {
     public selector: FunctionSelector,
     /** Indicates whether the function is private or public. */
     public isPrivate: boolean,
+    /** Indicates whether the function can alter state or not. */
+    public isStatic: boolean,
   ) {}
 
   static fromAbi(abi: FunctionAbi | ContractFunctionDao): FunctionData {
     return new FunctionData(
       FunctionSelector.fromNameAndParameters(abi.name, abi.parameters),
       abi.functionType === FunctionType.SECRET,
+      abi.isStatic,
     );
   }
 
@@ -27,11 +30,11 @@ export class FunctionData {
    * @returns The buffer.
    */
   toBuffer(): Buffer {
-    return serializeToBuffer(this.selector, this.isPrivate);
+    return serializeToBuffer(this.selector, this.isPrivate, this.isStatic);
   }
 
   toFields(): Fr[] {
-    const fields = [this.selector.toField(), new Fr(this.isPrivate)];
+    const fields = [this.selector.toField(), new Fr(this.isPrivate), new Fr(this.isStatic)];
     if (fields.length !== FUNCTION_DATA_LENGTH) {
       throw new Error(
         `Invalid number of fields for FunctionData. Expected ${FUNCTION_DATA_LENGTH}, got ${fields.length}`,
@@ -56,8 +59,10 @@ export class FunctionData {
   public static empty(args?: {
     /** Indicates whether the function is private or public. */
     isPrivate?: boolean;
+    /** Indicates whether the function can alter state or not. */
+    isStatic?: boolean;
   }): FunctionData {
-    return new FunctionData(FunctionSelector.empty(), args?.isPrivate ?? false);
+    return new FunctionData(FunctionSelector.empty(), args?.isPrivate ?? false, args?.isStatic ?? false);
   }
 
   /**
@@ -67,7 +72,11 @@ export class FunctionData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): FunctionData {
     const reader = BufferReader.asReader(buffer);
-    return new FunctionData(reader.readObject(FunctionSelector), reader.readBoolean());
+    return new FunctionData(
+      reader.readObject(FunctionSelector),
+      /*isPrivate=*/ reader.readBoolean(),
+      /*isStatic=*/ reader.readBoolean(),
+    );
   }
 
   static fromFields(fields: Fr[] | FieldReader): FunctionData {
@@ -75,8 +84,9 @@ export class FunctionData {
 
     const selector = FunctionSelector.fromFields(reader);
     const isPrivate = reader.readBoolean();
+    const isStatic = reader.readBoolean();
 
-    return new FunctionData(selector, isPrivate);
+    return new FunctionData(selector, isPrivate, isStatic);
   }
 
   hash(): Fr {

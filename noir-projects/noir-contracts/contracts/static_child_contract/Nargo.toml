@@ -1,0 +1,9 @@
+[package]
+name = "static_child_contract"
+type = "contract"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }
+value_note = { path = "../../../aztec-nr/value-note" }

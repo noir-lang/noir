@@ -33,6 +33,8 @@ type EncodedFunctionCall = {
   target_address: Fr;
   /** Whether the function is public or private */
   is_public: boolean;
+  /** Whether the function can alter state */
+  is_static: boolean;
 };
 /* eslint-enable camelcase */
 
@@ -54,6 +56,7 @@ export class EntrypointPayload {
       function_selector: call.functionData.selector.toField(),
       target_address: call.to.toField(),
       is_public: !call.functionData.isPrivate,
+      is_static: call.functionData.isStatic,
     }));
     /* eslint-enable camelcase */
 
@@ -96,6 +99,7 @@ export class EntrypointPayload {
         call.function_selector,
         call.target_address,
         new Fr(call.is_public),
+        new Fr(call.is_static),
       ]),
       this.#nonce,
     ];

@@ -439,7 +439,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       childExecutionResult.callStackItem.publicInputs.encryptedLogsHashes.some(item => !item.isEmpty()) ||
       childExecutionResult.callStackItem.publicInputs.unencryptedLogsHashes.some(item => !item.isEmpty())
     ) {
-      throw new Error(`Static call cannot create new notes, emit L2->L1 messages or generate logs`);
+      throw new Error(`Static call cannot update the state, emit L2->L1 messages or generate logs`);
     }
   }
 
@@ -450,7 +450,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param argsHash - The packed arguments to pass to the function.
    * @param sideEffectCounter - The side effect counter at the start of the call.
    * @param isStaticCall - Whether the call is a static call.
-   * @param isStaticCall - Whether the call is a delegate call.
+   * @param isDelegateCall - Whether the call is a delegate call.
    * @returns The execution result.
    */
   override async callPrivateFunction(

@@ -1,0 +1,9 @@
+[package]
+name = "static_parent_contract"
+type = "contract"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }
+static_child_contract = { path = "../static_child_contract"}

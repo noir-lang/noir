@@ -143,7 +143,7 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
       );
     });
 
-    // Note: Not testing a successful run of `proveTx`, `sendTx`, `getTxReceipt` and `viewTx` here as it requires
+    // Note: Not testing a successful run of `proveTx`, `sendTx`, `getTxReceipt` and `simulateUnconstrained` here as it requires
     //       a larger setup and it's sufficiently tested in the e2e tests.
 
     it('throws when getting public storage for non-existent contract', async () => {

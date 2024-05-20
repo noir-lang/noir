@@ -232,7 +232,7 @@ export interface PXE {
   getBlock(number: number): Promise<L2Block | undefined>;
 
   /**
-   * Simulate the execution of a view (read-only) function on a deployed contract without actually modifying state.
+   * Simulate the execution of an unconstrained function on a deployed contract without actually modifying state.
    * This is useful to inspect contract state, for example fetching a variable value or calling a getter function.
    * The function takes function name and arguments as parameters, along with the contract address
    * and optionally the sender's address.
@@ -243,7 +243,7 @@ export interface PXE {
    * @param from - (Optional) The msg sender to set for the call.
    * @returns The result of the view function call, structured based on the function ABI.
    */
-  viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<any>;
+  simulateUnconstrained(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<any>;
 
   /**
    * Gets unencrypted logs based on the provided filter.

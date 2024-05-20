@@ -8,6 +8,31 @@ import { type PublicKernelType } from './processed_tx.js';
 /** Return values of simulating a circuit. */
 export type ProcessReturnValues = Fr[] | undefined;
 
+/** Return values of simulating complete callstack. */
+export class NestedProcessReturnValues {
+  values: ProcessReturnValues;
+  nested: NestedProcessReturnValues[];
+
+  constructor(values: ProcessReturnValues, nested?: NestedProcessReturnValues[]) {
+    this.values = values;
+    this.nested = nested ?? [];
+  }
+
+  toJSON(): any {
+    return {
+      values: this.values?.map(fr => fr.toString()),
+      nested: this.nested.map(n => n.toJSON()),
+    };
+  }
+
+  static fromJSON(json: any): NestedProcessReturnValues {
+    return new NestedProcessReturnValues(
+      json.values?.map(Fr.fromString),
+      json.nested?.map((n: any) => NestedProcessReturnValues.fromJSON(n)),
+    );
+  }
+}
+
 /**
  * Outputs of processing the public component of a transaction.
  */
@@ -18,7 +43,7 @@ export class PublicSimulationOutput {
     public revertReason: SimulationError | undefined,
     public constants: CombinedConstantData,
     public end: CombinedAccumulatedData,
-    public publicReturnValues: ProcessReturnValues,
+    public publicReturnValues: NestedProcessReturnValues,
     public gasUsed: Partial<Record<PublicKernelType, Gas>>,
   ) {}
 
@@ -29,7 +54,7 @@ export class PublicSimulationOutput {
       revertReason: this.revertReason,
       constants: this.constants.toBuffer().toString('hex'),
       end: this.end.toBuffer().toString('hex'),
-      publicReturnValues: this.publicReturnValues?.map(fr => fr.toString()),
+      publicReturnValues: this.publicReturnValues?.toJSON(),
       gasUsed: mapValues(this.gasUsed, gas => gas?.toJSON()),
     };
   }
@@ -41,7 +66,7 @@ export class PublicSimulationOutput {
       json.revertReason,
       CombinedConstantData.fromBuffer(Buffer.from(json.constants, 'hex')),
       CombinedAccumulatedData.fromBuffer(Buffer.from(json.end, 'hex')),
-      json.publicReturnValues?.map(Fr.fromString),
+      NestedProcessReturnValues.fromJSON(json.publicReturnValues),
       mapValues(json.gasUsed, gas => (gas ? Gas.fromJSON(gas) : undefined)),
     );
   }

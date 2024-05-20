@@ -3,12 +3,11 @@ use dep::aztec::protocol_types::{constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD, 
 
 use dep::authwit::entrypoint::function_call::{FunctionCall, FUNCTION_CALL_SIZE_IN_BYTES};
 
-// FUNCTION_CALL_SIZE * DAPP_MAX_CALLS + 1
-global DAPP_PAYLOAD_SIZE: u64 = 5;
-// FUNCTION_CALL_SIZE_IN_BYTES * DAPP_MAX_CALLS + 32
-global DAPP_PAYLOAD_SIZE_IN_BYTES: u64 = 129;
-
 global DAPP_MAX_CALLS: u64 = 1;
+// FUNCTION_CALL_SIZE * DAPP_MAX_CALLS + 1
+global DAPP_PAYLOAD_SIZE: u64 = 6;
+// FUNCTION_CALL_SIZE_IN_BYTES * DAPP_MAX_CALLS + 32
+global DAPP_PAYLOAD_SIZE_IN_BYTES: u64 = 130;
 
 // Note: If you change the following struct you have to update default_entrypoint.ts
 // docs:start:app-payload-struct
@@ -55,7 +54,8 @@ impl DAppPayload {
     // Executes all private and public calls
     // docs:start:entrypoint-execute-calls
     fn execute_calls(self, context: &mut PrivateContext, target_address: AztecAddress) {
-        for call in self.function_calls {
+        for i in 0..DAPP_MAX_CALLS {
+            let call = self.function_calls[i];
             // whitelist the calls that the user can do only go to the expected Dapp contract
             assert(call.target_address == target_address);
             if call.is_public {
@@ -63,7 +63,7 @@ impl DAppPayload {
                     call.target_address,
                     call.function_selector,
                     call.args_hash,
-                    false,
+                    call.is_static,
                     false
                 );
             } else {
@@ -71,7 +71,7 @@ impl DAppPayload {
                     call.target_address,
                     call.function_selector,
                     call.args_hash,
-                    false,
+                    call.is_static,
                     false
                 );
             }

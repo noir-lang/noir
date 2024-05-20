@@ -20,6 +20,7 @@ import {
   AZTEC_PRIVATE_ATTRIBUTE,
   AZTEC_PUBLIC_ATTRIBUTE,
   AZTEC_PUBLIC_VM_ATTRIBUTE,
+  AZTEC_VIEW_ATTRIBUTE,
   type NoirCompiledContract,
 } from '../noir/index.js';
 import { mockVerificationKey } from './mocked_keys.js';
@@ -138,6 +139,7 @@ function generateFunctionArtifact(fn: NoirCompiledContractFunction, contract: No
   }
   const functionType = getFunctionType(fn);
   const isInternal = fn.custom_attributes.includes(AZTEC_INTERNAL_ATTRIBUTE);
+  const isStatic = fn.custom_attributes.includes(AZTEC_VIEW_ATTRIBUTE);
 
   // If the function is not unconstrained, the first item is inputs or CallContext which we should omit
   let parameters = fn.abi.parameters.map(generateFunctionParameter);
@@ -170,6 +172,7 @@ function generateFunctionArtifact(fn: NoirCompiledContractFunction, contract: No
     name: fn.name,
     functionType,
     isInternal,
+    isStatic,
     isInitializer: fn.custom_attributes.includes(AZTEC_INITIALIZER_ATTRIBUTE),
     parameters,
     returnTypes,

@@ -10,6 +10,7 @@ use noirc_frontend::ast::{
 
 use noirc_frontend::{macros_api::FieldElement, parse_program};
 
+use crate::utils::ast_utils::member_access;
 use crate::{
     chained_dep, chained_path,
     utils::{
@@ -33,12 +34,19 @@ pub fn transform_function(
     is_initializer: bool,
     insert_init_check: bool,
     is_internal: bool,
+    is_static: bool,
 ) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
     let is_avm = ty == "Avm";
     let is_private = ty == "Private";
+
+    // Force a static context if the function is static
+    if is_static {
+        let is_static_check = create_static_check(func.name(), is_avm);
+        func.def.body.statements.insert(0, is_static_check);
+    }
 
     // Add check that msg sender equals this address and flag function as internal
     if is_internal {
@@ -272,6 +280,31 @@ fn create_mark_as_initialized(ty: &str) -> Statement {
     make_statement(StatementKind::Expression(call(
         variable_path(chained_dep!("aztec", "initializer", &fname)),
         vec![mutable_reference("context")],
+    )))
+}
+
+/// Forces a static context for a function, ensuring that no state modifications are allowed
+///
+/// ```noir
+/// assert(context.inputs.call_context.is_static_call == true,  "Function can only be called statically")
+/// ```
+fn create_static_check(fname: &str, is_avm: bool) -> Statement {
+    let is_static_call_expr = if !is_avm {
+        ["inputs", "call_context", "is_static_call"]
+            .iter()
+            .fold(variable("context"), |acc, member| member_access(acc, member))
+    } else {
+        ["inputs", "is_static_call"]
+            .iter()
+            .fold(variable("context"), |acc, member| member_access(acc, member))
+    };
+    make_statement(StatementKind::Constrain(ConstrainStatement(
+        make_eq(is_static_call_expr, expression(ExpressionKind::Literal(Literal::Bool(true)))),
+        Some(expression(ExpressionKind::Literal(Literal::Str(format!(
+            "Function {} can only be called statically",
+            fname
+        ))))),
+        ConstrainKind::Assert,
     )))
 }
 

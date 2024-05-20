@@ -6,20 +6,56 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## 0.X.X
+
+### [Aztec.nr] View functions and interface navigation
+
+It is now possible to explicitly state a function doesn't perform any state alterations (including storage, logs, nullifiers and/or messages from L2 to L1) with the `#[aztec(view)]` attribute, similarly to solidity's `view` function modifier.
+
+```diff
+    #[aztec(public)]
++   #[aztec(view)]
+    fn get_price(asset_id: Field) -> Asset {
+        storage.assets.at(asset_id).read()
+    }
+```
+
+View functions only generate a `StaticCallInterface` that doesn't include `.call` or `.enqueue` methods. Also, the denomination `static` has been completely removed from the interfaces, in favor of the more familiar `view`
+
+```diff
++ let price = PriceFeed::at(asset.oracle).get_price(0).view(&mut context).price;
+- let price = PriceFeed::at(asset.oracle).get_price(0).static_call(&mut context).price;
+```
+
+```diff
+#[aztec(private)]
+fn enqueue_public_get_value_from_child(target_contract: AztecAddress, value: Field) {
++   StaticChild::at(target_contract).pub_get_value(value).enqueue_view(&mut context);
+-   StaticChild::at(target_contract).pub_get_value(value).static_enqueue(&mut context);
+}
+```
+
+Additionally, the Noir LSP will now honor "go to definitions" requests for contract interfaces (Ctrl+click), taking the user to the original function implementation.
+
+### [Aztec.js] Simulate changes
+
+* `.simulate()` now tracks closer the process performed by `.send().wait()`, specifically going through the account contract entrypoint instead of directly calling the intended function.
+* `wallet.viewTx(...)` has been renamed to `wallet.simulateUnconstrained(...)` to better clarify what it does.
+
 ## 0.41.0
 
 ### [Aztec.nr] Keys: Token note now stores an owner master nullifying public key hash instead of an owner address
 
 i.e.
 
-struct TokenNote \{
+```diff
+struct TokenNote {
     amount: U128,
-    ```diff
-    - owner: AztecAddress,
-    + npk_m_hash: Field,
-    ```
+-   owner: AztecAddress,
++   npk_m_hash: Field,
     randomness: Field,
-\}
+}
+```
 
 Computing the nullifier similarly changes to use this master nullifying public key hash.
 

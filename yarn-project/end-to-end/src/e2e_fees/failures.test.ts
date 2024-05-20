@@ -229,7 +229,8 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
         args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-          false,
+          /*isPrivate=*/ false,
+          /*isStatic=*/ false,
         ),
         to: this.asset,
       },
@@ -243,7 +244,8 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
-          true,
+          /*isPrivate=*/ true,
+          /*isStatic=*/ false,
         ),
         args: [tooMuchFee, this.asset, nonce],
       },
@@ -264,7 +266,8 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-          false,
+          /*isPrivate=*/ false,
+          /*isStatic=*/ false,
         ),
         to: this.asset,
       },
@@ -280,7 +283,8 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
-          true,
+          /*isPrivate=*/ true,
+          /*isStatic=*/ false,
         ),
         args: [maxFee, this.asset, nonce],
       },
@@ -289,7 +293,8 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         to: this.asset,
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-          false,
+          /*isPrivate=*/ false,
+          /*isStatic=*/ false,
         ),
         args: [this.wallet.getAddress(), this.paymentContract, new Fr(1), Fr.random()],
       },

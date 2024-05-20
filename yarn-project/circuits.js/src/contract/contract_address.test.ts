@@ -36,6 +36,7 @@ describe('ContractAddress', () => {
       functionType: FunctionType.SECRET,
       isInitializer: false,
       isInternal: false,
+      isStatic: false,
       name: 'fun',
       parameters: [{ name: 'param1', type: { kind: 'boolean' }, visibility: ABIParameterVisibility.SECRET }],
       returnTypes: [],

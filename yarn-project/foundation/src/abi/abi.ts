@@ -166,6 +166,10 @@ export interface FunctionAbi {
    */
   isInternal: boolean;
   /**
+   * Whether the function can alter state or not
+   */
+  isStatic: boolean;
+  /**
    * Function parameters.
    */
   parameters: ABIParameter[];

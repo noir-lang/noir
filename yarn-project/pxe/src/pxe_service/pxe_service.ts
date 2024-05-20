@@ -45,6 +45,7 @@ import { Timer } from '@aztec/foundation/timer';
 import {
   type AcirSimulator,
   type ExecutionResult,
+  accumulateReturnValues,
   collectEnqueuedPublicFunctionCalls,
   collectPublicTeardownFunctionCall,
   collectSortedEncryptedLogs,
@@ -465,7 +466,7 @@ export class PXEService implements PXE {
     return txHash;
   }
 
-  public async viewTx(
+  public async simulateUnconstrained(
     functionName: string,
     args: any[],
     to: AztecAddress,
@@ -681,7 +682,8 @@ export class PXEService implements PXE {
       enqueuedPublicFunctions,
       teardownPublicFunction,
     );
-    return new SimulatedTx(tx, executionResult.returnValues);
+
+    return new SimulatedTx(tx, accumulateReturnValues(executionResult));
   }
 
   /**

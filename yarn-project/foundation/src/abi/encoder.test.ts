@@ -11,6 +11,7 @@ describe('abi/encoder', () => {
       functionType: FunctionType.SECRET,
       isInternal: false,
       isInitializer: true,
+      isStatic: false,
       parameters: [
         {
           name: 'owner',
@@ -33,6 +34,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'owner',
@@ -57,6 +59,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'owner',
@@ -82,6 +85,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'owner',
@@ -117,6 +121,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'contract_class',
@@ -148,6 +153,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'owner',
@@ -170,6 +176,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'isOwner',
@@ -195,6 +202,7 @@ describe('abi/encoder', () => {
       isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
+      isStatic: false,
       parameters: [
         {
           name: 'owner',

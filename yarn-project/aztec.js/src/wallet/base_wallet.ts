@@ -130,8 +130,13 @@ export abstract class BaseWallet implements Wallet {
   getBlock(number: number): Promise<L2Block | undefined> {
     return this.pxe.getBlock(number);
   }
-  viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress | undefined): Promise<any> {
-    return this.pxe.viewTx(functionName, args, to, from);
+  simulateUnconstrained(
+    functionName: string,
+    args: any[],
+    to: AztecAddress,
+    from?: AztecAddress | undefined,
+  ): Promise<any> {
+    return this.pxe.simulateUnconstrained(functionName, args, to, from);
   }
   getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse> {
     return this.pxe.getUnencryptedLogs(filter);

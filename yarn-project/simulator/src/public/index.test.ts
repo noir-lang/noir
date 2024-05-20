@@ -184,7 +184,7 @@ describe('ACIR public execution simulator', () => {
 
       beforeEach(() => {
         transferArtifact = TokenContractArtifact.functions.find(f => f.name === 'transfer_public')!;
-        functionData = new FunctionData(FunctionSelector.empty(), false);
+        functionData = new FunctionData(FunctionSelector.empty(), /*isPrivate=*/ false, /*isStatic=*/ false);
         sender = AztecAddress.random();
         args = encodeArguments(transferArtifact, [sender, recipient, 140n, 0n]);
 
@@ -265,7 +265,7 @@ describe('ACIR public execution simulator', () => {
         parentEntryPointFn.name,
         parentEntryPointFn.parameters,
       );
-      functionData = new FunctionData(parentEntryPointFnSelector, false);
+      functionData = new FunctionData(parentEntryPointFnSelector, /*isPrivate=*/ false, /*isStatic=*/ false);
       childContractAddress = AztecAddress.random();
       callContext = makeCallContext(parentContractAddress);
     }, 10000);
@@ -354,7 +354,7 @@ describe('ACIR public execution simulator', () => {
     beforeEach(async () => {
       contractAddress = AztecAddress.random();
       await mockInitializationNullifierCallback(contractAddress);
-      functionData = new FunctionData(FunctionSelector.empty(), false);
+      functionData = new FunctionData(FunctionSelector.empty(), /*isPrivate=*/ false, /*isStatic=*/ false);
       amount = new Fr(1);
       params = [amount, new Fr(1)];
     });

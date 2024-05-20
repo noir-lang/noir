@@ -12,6 +12,7 @@ export const AZTEC_PUBLIC_ATTRIBUTE = 'aztec(public)';
 export const AZTEC_PUBLIC_VM_ATTRIBUTE = 'aztec(public-vm)';
 export const AZTEC_INTERNAL_ATTRIBUTE = 'aztec(internal)';
 export const AZTEC_INITIALIZER_ATTRIBUTE = 'aztec(initializer)';
+export const AZTEC_VIEW_ATTRIBUTE = 'aztec(view)';
 
 /** The witness indices of the parameters. */
 type ParamWitnessIndices = { /** Start */ start: number; /** End */ end: number };

@@ -70,7 +70,7 @@ export class TailPhaseManager extends AbstractPhaseManager {
       finalKernelOutput,
       publicKernelProof: makeEmptyProof(),
       revertReason: undefined,
-      returnValues: undefined,
+      returnValues: [],
       gasUsed: undefined,
     };
   }

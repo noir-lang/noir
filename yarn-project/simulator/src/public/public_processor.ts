@@ -1,7 +1,7 @@
 import {
   type BlockProver,
   type FailedTx,
-  type ProcessReturnValues,
+  NestedProcessReturnValues,
   type ProcessedTx,
   type PublicKernelRequest,
   type SimulationError,
@@ -96,12 +96,12 @@ export class PublicProcessor {
     maxTransactions = txs.length,
     blockProver?: BlockProver,
     txValidator?: TxValidator<ProcessedTx>,
-  ): Promise<[ProcessedTx[], FailedTx[], ProcessReturnValues[]]> {
+  ): Promise<[ProcessedTx[], FailedTx[], NestedProcessReturnValues[]]> {
     // The processor modifies the tx objects in place, so we need to clone them.
     txs = txs.map(tx => Tx.clone(tx));
     const result: ProcessedTx[] = [];
     const failed: FailedTx[] = [];
-    const returns: ProcessReturnValues[] = [];
+    const returns: NestedProcessReturnValues[] = [];
 
     for (const tx of txs) {
       // only process up to the limit of the block
@@ -129,7 +129,7 @@ export class PublicProcessor {
           await blockProver.addNewTx(processedTx);
         }
         result.push(processedTx);
-        returns.push(returnValues);
+        returns.push(returnValues?.[0] ?? new NestedProcessReturnValues([]));
       } catch (err: any) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         this.log.warn(`Failed to process tx ${tx.getTxHash()}: ${errorMessage}`);
@@ -138,7 +138,7 @@ export class PublicProcessor {
           tx,
           error: err instanceof Error ? err : new Error(errorMessage),
         });
-        returns.push([]);
+        returns.push(new NestedProcessReturnValues([]));
       }
     }
 
@@ -154,8 +154,8 @@ export class PublicProcessor {
     return makeEmptyProcessedTx(this.historicalHeader.clone(), chainId, version);
   }
 
-  private async processTxWithPublicCalls(tx: Tx): Promise<[ProcessedTx, ProcessReturnValues | undefined]> {
-    let returnValues: ProcessReturnValues = undefined;
+  private async processTxWithPublicCalls(tx: Tx): Promise<[ProcessedTx, NestedProcessReturnValues[]]> {
+    let returnValues: NestedProcessReturnValues[] = [];
     const publicRequests: PublicKernelRequest[] = [];
     let phase: AbstractPhaseManager | undefined = PhaseManagerFactory.phaseFromTx(
       tx,
