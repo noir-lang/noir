@@ -1,4 +1,5 @@
 use acvm::acir::native_types::WitnessStackError;
+use hex::FromHexError;
 use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
@@ -10,6 +11,9 @@ use thiserror::Error;
 pub(crate) enum FilesystemError {
     #[error("Error: {} is not a valid path\nRun either `nargo compile` to generate missing build artifacts or `nargo prove` to construct a proof", .0.display())]
     PathNotValid(PathBuf),
+
+    #[error("Error: could not parse hex build artifact (proof, proving and/or verification keys, ACIR checksum) ({0})")]
+    HexArtifactNotValid(FromHexError),
 
     #[error(
         " Error: cannot find {0}.toml file.\n Expected location: {1:?} \n Please generate this file at the expected location."

@@ -1,6 +1,7 @@
-use super::config::{P2CircuitData, P2Field};
+use super::config::{P2CircuitData, P2Field, P2ProofWithPublicInputs};
 use super::noir_to_plonky2_field;
 use crate::errors::Plonky2GenError;
+use acvm::acir::native_types::WitnessMap;
 use acvm::FieldElement;
 use noirc_abi::{input_parser::InputValue, InputMap};
 use plonky2::iop::{
@@ -87,6 +88,23 @@ impl Plonky2Circuit {
             }
         };
         Ok(proof_serialized)
+    }
+
+    pub fn verify(&self, proof: &[u8], public_inputs: WitnessMap) -> Result<bool, Plonky2GenError> {
+        let deserialized_proof: P2ProofWithPublicInputs = match serde_json::from_slice(proof) {
+            Ok(deserialized_proof) => deserialized_proof,
+            Err(error) => {
+                let error_message = format!("Unexpected deserialization error: {:?}", error);
+                return Err(Plonky2GenError::ICE { message: error_message });
+            }
+        };
+        match self.data.verify(deserialized_proof) {
+            Ok(_) => Ok(true),
+            Err(error) => {
+                let error_message = format!("Unexpected proof verification failure: {:?}", error);
+                Err(Plonky2GenError::ICE { message: error_message })
+            }
+        }
     }
 
     fn set_parameter(&self, j: &mut usize, field: FieldElement, pw: &mut PartialWitness<P2Field>) {

@@ -21,6 +21,7 @@ mod lsp_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
+mod verify_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -67,6 +68,7 @@ enum NargoCommand {
     #[command(hide = true)] // Hidden while the feature is being built out
     Debug(debug_cmd::DebugCommand),
     Prove(prove_cmd::ProveCommand),
+    Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
@@ -100,6 +102,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Execute(args) => execute_cmd::run(args, config),
         NargoCommand::Export(args) => export_cmd::run(args, config),
         NargoCommand::Prove(args) => prove_cmd::run(args, config),
+        NargoCommand::Verify(args) => verify_cmd::run(args, config),
         NargoCommand::Test(args) => test_cmd::run(args, config),
         NargoCommand::Info(args) => info_cmd::run(args, config),
         NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
