@@ -24,7 +24,6 @@ use crate::{
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
     Type, TypeBindings,
 };
-use fxhash::FxHashMap as HashMap;
 
 pub use self::errors::Source;
 
@@ -43,10 +42,6 @@ pub struct TypeChecker<'interner> {
     /// This map is used to default any integer type variables at the end of
     /// a function (before checking trait constraints) if a type wasn't already chosen.
     type_variables: Vec<Type>,
-
-    /// Method calls can have implicit generics from generic impls.
-    /// These need to be tracked separately for accurate type checking.
-    method_call_implicit_generic_counts: HashMap<ExprId, usize>,
 }
 
 /// Type checks a function and assigns the
@@ -366,7 +361,6 @@ impl<'interner> TypeChecker<'interner> {
             trait_constraints: Vec::new(),
             type_variables: Vec::new(),
             current_function: None,
-            method_call_implicit_generic_counts: HashMap::default(),
         }
     }
 
@@ -384,7 +378,6 @@ impl<'interner> TypeChecker<'interner> {
             trait_constraints: Vec::new(),
             type_variables: Vec::new(),
             current_function: None,
-            method_call_implicit_generic_counts: HashMap::default(),
         };
         let statement = this.interner.get_global(id).let_statement;
         this.check_statement(&statement);

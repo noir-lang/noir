@@ -259,18 +259,13 @@ impl<'interner> TypeChecker<'interner> {
                             );
                         }
 
-                        // Need to borrow `generics` here as `method_call` is moved when calling `into_function_call`
-                        // We don't save the expected generic count just yet though as `into_function_call` also accounts
-                        // for any implicit generics such as from a generic impl.
-                        let has_turbofish_generics = method_call.generics.is_some();
                         // TODO: update object_type here?
-                        let (_, function_call, implicit_generics_count) = method_call
-                            .into_function_call(&method_ref, object_type, location, self.interner);
-
-                        if has_turbofish_generics {
-                            self.method_call_implicit_generic_counts
-                                .insert(function_call.func, implicit_generics_count);
-                        }
+                        let (_, function_call) = method_call.into_function_call(
+                            &method_ref,
+                            object_type,
+                            location,
+                            self.interner,
+                        );
 
                         self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
 
@@ -403,8 +398,17 @@ impl<'interner> TypeChecker<'interner> {
             _ => 0,
         });
 
-        let implicit_generic_count =
-            self.method_call_implicit_generic_counts.get(expr_id).copied().unwrap_or_default();
+        // Fetch the count of any implicit generics on the function
+        // This includes generics
+        let implicit_generic_count = if generics.is_some() {
+            let definition_type = self.interner.definition_type(ident.id);
+            match &definition_type {
+                Type::Forall(generics, _) => generics.len() - function_generic_count,
+                _ => 0,
+            }
+        } else {
+            0
+        };
 
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
@@ -462,19 +466,15 @@ impl<'interner> TypeChecker<'interner> {
     ) -> (Type, TypeBindings) {
         match generics {
             Some(generics) => {
-                if generics.len() != (function_generic_count + implicit_generic_count) {
-                    // The list of `generics` represents the total number of generics on a function, including implicit generics.
-                    // We calculate any implicit generics earlier when type checking a method call,
-                    // In a user facing error we want to display only the number of function generics
-                    // as this is what the user will actually be specifying.
+                if generics.len() != function_generic_count {
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: function_generic_count,
-                        actual_count: generics.len() - implicit_generic_count,
+                        actual_count: generics.len(),
                         span,
                     });
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
-                    typ.instantiate_with(generics)
+                    typ.instantiate_with(generics, self.interner, implicit_generic_count)
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
