@@ -13,13 +13,13 @@ use strum_macros::EnumIter;
 pub enum BlackBoxFunc {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.
-    /// - inputs: byte array [u8; N]
-    /// - iv: initialization vector [u8; 16]
-    /// - key: user key [u8; 16]
-    /// - outputs: byte vector [u8] of length `input.len() + (16 - input.len() % 16)``
+    /// - inputs: byte array `[u8; N]`
+    /// - iv: initialization vector `[u8; 16]`
+    /// - key: user key `[u8; 16]`
+    /// - outputs: byte vector `[u8]` of length `input.len() + (16 - input.len() % 16)`
     AES128Encrypt,
 
-    /// Performs the bitwise AND of lhs and rhs. bit_size must be the same for
+    /// Performs the bitwise AND of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
     /// - lhs: (witness, bit_size)
     /// - rhs: (witness, bit_size)
@@ -27,7 +27,7 @@ pub enum BlackBoxFunc {
     ///   bit_size bit integers
     AND,
 
-    /// Performs the bitwise XOR of lhs and rhs. bit_size must be the same for
+    /// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
     /// - lhs: (witness, bit_size)
     /// - rhs: (witness, bit_size)
@@ -35,28 +35,27 @@ pub enum BlackBoxFunc {
     ///   bit_size bit integers
     XOR,
 
-    /// Range constraint to ensure that a
-    /// [`FieldElement`][acir_field::FieldElement] can be represented in the
-    /// specified number of bits.
-    /// input: (witness, bit_size)
+    /// Range constraint to ensure that a [`FieldElement`][acir_field::FieldElement]
+    /// can be represented in the specified number of bits.
+    /// - input: (witness, bit_size)
     RANGE,
 
     /// Computes SHA256 of the inputs
     /// - inputs are a byte array, i.e a vector of (FieldElement, 8)
-    /// - output is a byte array of len 32, i.e a vector of 32 (FieldElement, 8),
+    /// - output is a byte array of len 32, i.e an array of 32 (FieldElement, 8),
     ///   constrained to be the sha256 of the inputs.
     SHA256,
 
     /// Computes the Blake2s hash of the inputs, as specified in
     /// https://tools.ietf.org/html/rfc7693
     /// - inputs are a byte array, i.e a vector of (FieldElement, 8)
-    /// - output is a byte array of length 32, i.e a vector of 32
+    /// - output is a byte array of length 32, i.e. an array of 32
     /// (FieldElement, 8), constrained to be the blake2s of the inputs.
     Blake2s,
 
     /// Computes the Blake3 hash of the inputs
     /// - inputs are a byte array, i.e a vector of (FieldElement, 8)
-    /// - output is a byte array of length 32, i.e a vector of 32
+    /// - output is a byte array of length 32, i.e an array of 32
     /// (FieldElement, 8), constrained to be the blake3 of the inputs.
     Blake3,
 
@@ -139,12 +138,12 @@ pub enum BlackBoxFunc {
     /// Multiple scalar multiplication with a variable base/input point (P) of the embedded curve
     /// - input:
     ///     points (FieldElement, N) a vector of x and y coordinates of input
-    ///     points [x1, y1, x2, y2,...].
+    ///     points `[x1, y1, x2, y2,...]`.
     ///     scalars (FieldElement, N) a vector of low and high limbs of input
-    ///     scalars [s1_low, s1_high, s2_low, s2_high, ...]. (FieldElement, N)
+    ///     scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (FieldElement, N)
     ///     For Barretenberg, they must both be less than 128 bits.
     /// - output: (FieldElement, N) a vector of x and y coordinates of output
-    ///   points [op1_x, op1_y, op2_x, op2_y, ...]. Points computed as
+    ///   points `[op1_x, op1_y, op2_x, op2_y, ...]``. Points computed as
     ///   `s_low*P+s_high*2^{128}*P`
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
@@ -154,7 +153,7 @@ pub enum BlackBoxFunc {
 
     /// Computes the Keccak-256 (Ethereum version) of the inputs.
     /// - inputs: Vector of bytes (FieldElement, 8)
-    /// - outputs: Vector of 32 bytes (FieldElement, 8)
+    /// - outputs: Array of 32 bytes (FieldElement, 8)
     Keccak256,
 
     /// Keccak Permutation function of width 1600
