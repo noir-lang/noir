@@ -242,15 +242,16 @@ impl<'interner> TypeChecker<'interner> {
                                 let id = self.interner.trait_method_id(*method_id);
                                 let definition = self.interner.definition(id);
                                 let DefinitionKind::Function(func_id) = definition.kind else {
-                                    unreachable!("Expected trait function to be a DefinitionKind::Function")
+                                    unreachable!(
+                                        "Expected trait function to be a DefinitionKind::Function"
+                                    )
                                 };
                                 func_id
                             }
                         };
 
                         if func_id != FuncId::dummy_id() {
-                            let function_type =
-                                self.interner.function_meta(&func_id).typ.clone();
+                            let function_type = self.interner.function_meta(&func_id).typ.clone();
                             self.try_add_mutable_reference_to_object(
                                 &mut method_call,
                                 &function_type,
