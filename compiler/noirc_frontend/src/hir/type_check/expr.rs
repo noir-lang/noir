@@ -236,30 +236,27 @@ impl<'interner> TypeChecker<'interner> {
 
                         // Automatically add `&mut` if the method expects a mutable reference and
                         // the object is not already one.
-                        match &method_ref {
-                            HirMethodReference::FuncId(func_id) => {
-                                if *func_id != FuncId::dummy_id() {
-                                    let function_type =
-                                        self.interner.function_meta(func_id).typ.clone();
-                                    self.try_add_mutable_reference_to_object(
-                                        &mut method_call,
-                                        &function_type,
-                                        &mut object_type,
-                                    );
-                                }
-                            }
+                        let func_id = match &method_ref {
+                            HirMethodReference::FuncId(func_id) => *func_id,
                             HirMethodReference::TraitMethodId(method_id, _) => {
                                 let id = self.interner.trait_method_id(*method_id);
                                 let definition = self.interner.definition(id);
-                                if let DefinitionKind::Function(func_id) = definition.kind {
-                                    let function_type =
-                                        self.interner.function_meta(&func_id).typ.clone();
-                                    self.try_add_mutable_reference_to_object(
-                                        &mut method_call,
-                                        &function_type,
-                                        &mut object_type,
-                                    );
-                                }
+                                let DefinitionKind::Function(func_id) = definition.kind else {
+                                    unreachable!("Expected trait function to be a DefinitionKind::Function")
+                                };
+                                func_id
+                            }
+                        };
+
+                        if *func_id != FuncId::dummy_id() {
+                            let function_type =
+                                self.interner.function_meta(func_id).typ.clone();
+                            self.try_add_mutable_reference_to_object(
+                                &mut method_call,
+                                &function_type,
+                                &mut object_type,
+                            );
+                        }
                             }
                         }
 
