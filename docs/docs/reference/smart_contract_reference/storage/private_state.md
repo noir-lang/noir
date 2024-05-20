@@ -326,9 +326,9 @@ The first value of `.select` and `.sort` is the index of a field in a note type.
 
 #include_code state_vars-CardNote /noir-projects/noir-contracts/contracts/docs_example_contract/src/types/card_note.nr rust
 
-The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
+The indices are: 0 for `points`, 1 for `randomness`, and 2 for `npk_m_hash`.
 
-In the example, `.select(2, account_address, Option::none())` matches the 2nd field of `CardNote`, which is `owner`, and returns the cards whose `owner` field equals `account_address`, equality is the comparator used because because including no comparator (the third argument) defaults to using the equality comparator. The current possible values of Comparator are specified in the Note Getter Options implementation linked above.
+In the example, `.select(2, account_address, Option::none())` matches the 2nd field of `CardNote`, which is `npk_m_hash`, and returns the cards whose `npk_m_hash` field equals `account_npk_m_hash`, equality is the comparator used because because including no comparator (the third argument) defaults to using the equality comparator. The current possible values of Comparator are specified in the Note Getter Options implementation linked above.
 
 `.sort(0, SortOrder.DESC)` sorts the 0th field of `CardNote`, which is `points`, in descending order.
 

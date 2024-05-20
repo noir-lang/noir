@@ -44,7 +44,7 @@ Your file structure should look something like this:
 
 The file `main.nr` will soon turn into our smart contract!
 
-We will need the Aztec library to create this contract. In your `Nargo.toml` you should see `[dependencies]` - paste this bellow it.
+We will need the Aztec library to create this contract. In your `Nargo.toml` you should see `[dependencies]` - paste this below it.
 
 ```toml
 [dependencies]
@@ -125,6 +125,10 @@ The first thing we do here is assert that the vote has not ended.
 `assert()` takes two arguments: the assertion, in this case that `storage.vote_ended` is not false, and the error thrown if the assertion fails.
 
 The code after the assertion will only run if the assertion is true. In this snippet, we read the current vote tally at the voteId, add 1 to it, and write this new number to the voteId. The `Field` element allows us to use `+` to add to an integer.
+
+:::danger
+Note that due to [key rotation](../../aztec/concepts/accounts/keys.md#key-rotation), it would be possible for a user to rotate their nullifier secret key and be able to vote again. Refer to [common patterns](../../guides/smart_contracts/writing_contracts/common_patterns/key_rotation.md) for more information
+:::
 
 ## Getting the number of votes
 

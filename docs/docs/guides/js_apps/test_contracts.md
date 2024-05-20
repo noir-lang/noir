@@ -152,7 +152,7 @@ Private state in the Aztec Network is represented via sets of [private notes](/a
 
 #include_code value-note-def noir-projects/aztec-nr/value-note/src/value_note.nr rust
 
-We can query the Private eXecution Environment (PXE) for all notes encrypted for a given user in a contract slot. For this example, we'll get all notes encrypted for the `owner` user that are stored on the token contract address and on the slot we calculated earlier. To calculate the actual balance, we extract the `value` of each note, which is the first element, and sum them up.
+We can query the Private eXecution Environment (PXE) for all notes encrypted to a given owner in a contract slot. For this example, we'll get all notes encrypted for the `owner` user that are stored on the token contract address and on the slot we calculated earlier. To calculate the actual balance, we extract the `value` of each note, which is the first element, and sum them up.
 
 #include_code private-storage /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 

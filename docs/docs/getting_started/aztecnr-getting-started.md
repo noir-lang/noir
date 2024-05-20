@@ -92,7 +92,7 @@ Map is a private state variable that functions like a dictionary, relating Field
 
 `value_note`
 
-Notes are fundamental to how Aztec manages privacy. A note is a privacy-preserving representation of an amount of tokens associated with an address, while encrypting the amount and owner. In this contract, we are using the `value_note` library. This is a type of note interface for storing a single Field, eg a balance - or, in our case, a counter.
+Notes are fundamental to how Aztec manages privacy. A note is a privacy-preserving representation of an amount of tokens associated with a nullifier key (that can be owned by an owner), while encrypting the amount. In this contract, we are using the `value_note` library. This is a type of note interface for storing a single Field, eg a balance - or, in our case, a counter.
 
 We are also using `balance_utils` from this import, a useful library that allows us to utilize value notes as if they are simple balances.
 
@@ -128,7 +128,7 @@ The `increment` function works very similarly to the `constructor`, but instead 
 
 ## Prevent double spending
 
-Because our counters are private, the network can't directly verify if a note was spent or not, which could lead to double-spending. To solve this, we use a nullifier - a unique identifier generated from each spent note and its owner. Although this isn't really an issue in this simple smart contract, Aztec injects a special function called `compute_note_hash_and_nullifier` to determine these values for any given note produced by this contract.
+Because our counters are private, the network can't directly verify if a note was spent or not, which could lead to double-spending. To solve this, we use a nullifier - a unique identifier generated from each spent note and its nullifier key. Although this isn't really an issue in this simple smart contract, Aztec injects a special function called `compute_note_hash_and_nullifier` to determine these values for any given note produced by this contract.
 
 ## Getting a counter
 

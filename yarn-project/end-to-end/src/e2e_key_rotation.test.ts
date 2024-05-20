@@ -13,8 +13,11 @@ import {
   computeSecretHash,
   retryUntil,
 } from '@aztec/aztec.js';
+// docs:start:imports
 import { type PublicKey, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
-import { KeyRegistryContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
+import { KeyRegistryContract } from '@aztec/noir-contracts.js';
+// docs:end:imports
+import { TestContract, TokenContract } from '@aztec/noir-contracts.js';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 
 import { jest } from '@jest/globals';
@@ -56,10 +59,10 @@ describe('e2e_key_rotation', () => {
     } = await setup(1));
 
     ({ pxe: pxeB, teardown: teardownB } = await setupPXEService(aztecNode, {}, undefined, true));
-
+    // docs:start:keyRegistryWithB
     [walletB] = await createAccounts(pxeB, 1);
     keyRegistryWithB = await KeyRegistryContract.at(getCanonicalKeyRegistryAddress(), walletB);
-
+    // docs:end:keyRegistryWithB
     // We deploy test and token contracts
     testContract = await TestContract.deploy(walletA).send().deployed();
     const tokenInstance = await deployTokenContract(initialBalance, walletA.getAddress(), pxeA);
@@ -174,11 +177,16 @@ describe('e2e_key_rotation', () => {
     // 3. Rotates B key
     let newNpkM: PublicKey;
     {
+      // docs:start:create_keys
       const newNskM = Fq.random();
       newNpkM = derivePublicKeyFromSecretKey(newNskM);
+      // docs:end:create_keys
+      // docs:start:rotateMasterNullifierKey
       await pxeB.rotateMasterNullifierKey(walletB.getAddress(), newNskM);
-
+      // docs:end:rotateMasterNullifierKey
+      // docs:start:rotate_npk_m
       await keyRegistryWithB.methods.rotate_npk_m(walletB.getAddress(), newNpkM, 0).send().wait();
+      // docs:end:rotate_npk_m
       await crossDelay();
     }
 

@@ -21,7 +21,7 @@ Encrypted events can only be emitted by private functions and are encrypted usin
 For this reason it is necessary to register a recipient in the Private Execution Environment (PXE) before encrypting the events for them.
 
 First we need to get a hold of recipient's [complete address](#complete-address).
-Bellow are some ways how we could instantiate it after getting the information in a string form from a recipient:
+Below are some ways how we could instantiate it after getting the information in a string form from a recipient:
 
 #include_code instantiate-complete-address /yarn-project/circuits.js/src/structs/complete_address.test.ts rust
 

@@ -106,7 +106,7 @@ As a convenience, the outer [note/utils.nr](https://github.com/AztecProtocol/azt
 Serialization/deserialization of content is used to convert between the Note's variables and a generic array of Field elements. The Field type is understood and used by lower level crypographic libraries.
 This is analogous to the encoding/decoding between variables and bytes in solidity.
 
-For example in ValueNote, the `serialize_content` function simply returns: the value, owner address (as a field) and the note randomness; as an array of Field elements.
+For example in ValueNote, the `serialize_content` function simply returns: the value, nullifying public key hash (as a field) and the note randomness; as an array of Field elements.
 
 ### Value as a sum of Notes
 We recall that multiple notes are associated with a "slot" (or ID), and so the value of a numerical note (like ValueNote) is the sum of each note's value.

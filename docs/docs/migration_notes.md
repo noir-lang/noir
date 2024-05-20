@@ -57,7 +57,19 @@ struct TokenNote {
 }
 ```
 
+Creating a token note and adding it to storage now looks like this:
+
+```diff
+- let mut note = ValueNote::new(new_value, owner);
+- storage.a_private_value.insert(&mut note, true);
++ let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
++ let owner_ivpk_m = get_ivpk_m(&mut context, owner);
++ let mut note = ValueNote::new(new_value, owner_npk_m_hash);
++ storage.a_private_value.insert(&mut note, true, owner_ivpk_m);
+```
+
 Computing the nullifier similarly changes to use this master nullifying public key hash.
+
 
 ## 0.40.0
 
