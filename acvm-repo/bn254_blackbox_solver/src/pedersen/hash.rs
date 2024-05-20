@@ -31,31 +31,38 @@ pub(crate) mod test {
 
     use super::*;
 
-    use ark_ff::MontFp;
+    use acir::FieldElement;
     use ark_std::One;
     use grumpkin::Fq;
 
     //reference: https://github.com/AztecProtocol/barretenberg/blob/master/cpp/src/barretenberg/crypto/pedersen_hash/pedersen.test.cpp
     #[test]
     fn hash_one() {
+        // https://github.com/AztecProtocol/aztec-packages/blob/72931bdb8202c34042cdfb8cee2ef44b75939879/barretenberg/cpp/src/barretenberg/crypto/pedersen_hash/pedersen.test.cpp#L21-L26
         let res = hash_with_index(&[Fq::one(), Fq::one()], 0);
 
-        // 07ebfbf4df29888c6cd6dca13d4bb9d1a923013ddbbcbdc3378ab8845463297b
         assert_eq!(
             res,
-            MontFp!("3583137940367543141169889198758850326673923325182598243450662697654714313083")
+            FieldElement::from_hex(
+                "0x07ebfbf4df29888c6cd6dca13d4bb9d1a923013ddbbcbdc3378ab8845463297b",
+            )
+            .unwrap()
+            .into_repr(),
         );
     }
 
     #[test]
     fn test_hash_with_index() {
+        // https://github.com/AztecProtocol/aztec-packages/blob/72931bdb8202c34042cdfb8cee2ef44b75939879/barretenberg/cpp/src/barretenberg/crypto/pedersen_hash/pedersen.test.cpp#L28-L33
         let res = hash_with_index(&[Fq::one(), Fq::one()], 5);
-        // 1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6
+
         assert_eq!(
             res,
-            MontFp!(
-                "12785664284086914537273210116175139764153812914951498056047869066787449592486"
+            FieldElement::from_hex(
+                "0x1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6",
             )
+            .unwrap()
+            .into_repr(),
         );
     }
 }
