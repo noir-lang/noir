@@ -1,6 +1,18 @@
 use dep::private_kernel_lib::PrivateKernelResetCircuitPrivateInputs;
-use dep::types::PrivateKernelCircuitPublicInputs;
+use dep::types::{
+    PrivateKernelCircuitPublicInputs,
+    constants::{
+    MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
+}
+};
 
-unconstrained fn main(input: PrivateKernelResetCircuitPrivateInputs) -> pub PrivateKernelCircuitPublicInputs {
+global NOTE_HASH_PENDING_AMOUNT = MAX_NOTE_HASH_READ_REQUESTS_PER_TX; // 128
+global NOTE_HASH_SETTLED_AMOUNT = MAX_NOTE_HASH_READ_REQUESTS_PER_TX;
+global NULLIFIER_PENDING_AMOUNT = MAX_NULLIFIER_READ_REQUESTS_PER_TX; // 8
+global NULLIFIER_SETTLED_AMOUNT = MAX_NULLIFIER_READ_REQUESTS_PER_TX;
+global NULLIFIER_KEYS = MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX; // 4
+
+unconstrained fn main(input: PrivateKernelResetCircuitPrivateInputs<NOTE_HASH_PENDING_AMOUNT, NOTE_HASH_SETTLED_AMOUNT, NULLIFIER_PENDING_AMOUNT, NULLIFIER_SETTLED_AMOUNT, NULLIFIER_KEYS>) -> pub PrivateKernelCircuitPublicInputs {
     input.execute()
 }

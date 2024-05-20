@@ -1,0 +1,8 @@
+{
+  "name": "noir-protocol-circuits-generator",
+  "version": "0.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@iarna/toml": "^2.2.5"
+  }
+}

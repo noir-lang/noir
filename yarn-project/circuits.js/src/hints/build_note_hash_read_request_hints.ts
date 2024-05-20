@@ -22,15 +22,17 @@ function isValidNoteHashReadRequest(readRequest: ScopedReadRequest, noteHash: Sc
   );
 }
 
-export async function buildNoteHashReadRequestHints(
+export async function buildNoteHashReadRequestHints<PENDING extends number, SETTLED extends number>(
   oracle: {
     getNoteHashMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
   },
   noteHashReadRequests: Tuple<ScopedReadRequest, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
   noteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
   noteHashLeafIndexMap: Map<bigint, bigint>,
+  sizePending: PENDING,
+  sizeSettled: SETTLED,
 ) {
-  const builder = new NoteHashReadRequestHintsBuilder();
+  const builder = new NoteHashReadRequestHintsBuilder(sizePending, sizeSettled);
 
   const numReadRequests = countAccumulatedItems(noteHashReadRequests);
 

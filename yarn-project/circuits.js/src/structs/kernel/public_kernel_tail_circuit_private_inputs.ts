@@ -1,6 +1,6 @@
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { MAX_PUBLIC_DATA_HINTS } from '../../constants.gen.js';
+import { MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_HINTS } from '../../constants.gen.js';
 import {
   type NullifierNonExistentReadRequestHints,
   nullifierNonExistentReadRequestHintsFromBuffer,
@@ -20,7 +20,10 @@ export class PublicKernelTailCircuitPrivateInputs {
     /**
      * Contains hints for the nullifier read requests to locate corresponding pending or settled nullifiers.
      */
-    public readonly nullifierReadRequestHints: NullifierReadRequestHints,
+    public readonly nullifierReadRequestHints: NullifierReadRequestHints<
+      typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+      typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX
+    >,
     /**
      * Contains hints for the nullifier non existent read requests.
      */
@@ -53,7 +56,11 @@ export class PublicKernelTailCircuitPrivateInputs {
     const reader = BufferReader.asReader(buffer);
     return new PublicKernelTailCircuitPrivateInputs(
       reader.readObject(PublicKernelData),
-      nullifierReadRequestHintsFromBuffer(reader),
+      nullifierReadRequestHintsFromBuffer(
+        reader,
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+      ),
       nullifierNonExistentReadRequestHintsFromBuffer(reader),
       reader.readArray(MAX_PUBLIC_DATA_HINTS, PublicDataHint),
       reader.readObject(PublicDataReadRequestHints),

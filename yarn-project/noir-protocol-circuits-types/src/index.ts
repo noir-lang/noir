@@ -9,7 +9,8 @@ import {
   type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
   type PrivateKernelInnerCircuitPrivateInputs,
-  type PrivateKernelResetCircuitPrivateInputs,
+  type PrivateKernelResetCircuitPrivateInputsVariants,
+  type PrivateKernelResetTags,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
   type PublicKernelCircuitPrivateInputs,
@@ -23,7 +24,7 @@ import { applyStringFormatting, createDebugLogger } from '@aztec/foundation/log'
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import { type ForeignCallInput, type ForeignCallOutput } from '@noir-lang/acvm_js';
-import { type CompiledCircuit } from '@noir-lang/noir_js';
+import { type CompiledCircuit, type InputMap, Noir } from '@noir-lang/noir_js';
 import { type Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
 import { type WitnessMap } from '@noir-lang/types';
 import { strict as assert } from 'assert';
@@ -35,7 +36,13 @@ import PrivateKernelInitSimulatedJson from './target/private_kernel_init_simulat
 import PrivateKernelInnerJson from './target/private_kernel_inner.json' assert { type: 'json' };
 import PrivateKernelInnerSimulatedJson from './target/private_kernel_inner_simulated.json' assert { type: 'json' };
 import PrivateKernelResetJson from './target/private_kernel_reset.json' assert { type: 'json' };
+import PrivateKernelResetBigJson from './target/private_kernel_reset_big.json' assert { type: 'json' };
+import PrivateKernelResetMediumJson from './target/private_kernel_reset_medium.json' assert { type: 'json' };
 import PrivateKernelResetSimulatedJson from './target/private_kernel_reset_simulated.json' assert { type: 'json' };
+import PrivateKernelResetBigSimulatedJson from './target/private_kernel_reset_simulated_big.json' assert { type: 'json' };
+import PrivateKernelResetMediumSimulatedJson from './target/private_kernel_reset_simulated_medium.json' assert { type: 'json' };
+import PrivateKernelResetSmallSimulatedJson from './target/private_kernel_reset_simulated_small.json' assert { type: 'json' };
+import PrivateKernelResetSmallJson from './target/private_kernel_reset_small.json' assert { type: 'json' };
 import PrivateKernelTailJson from './target/private_kernel_tail.json' assert { type: 'json' };
 import PrivateKernelTailSimulatedJson from './target/private_kernel_tail_simulated.json' assert { type: 'json' };
 import PrivateKernelTailToPublicJson from './target/private_kernel_tail_to_public.json' assert { type: 'json' };
@@ -84,7 +91,6 @@ import {
   type PrivateKernelTailReturnType as TailReturnType,
   PrivateKernelInit as executePrivateKernelInitWithACVM,
   PrivateKernelInner as executePrivateKernelInnerWithACVM,
-  PrivateKernelReset as executePrivateKernelResetWithACVM,
   PrivateKernelTailToPublic as executePrivateKernelTailToPublicWithACVM,
   PrivateKernelTail as executePrivateKernelTailWithACVM,
 } from './types/index.js';
@@ -142,6 +148,19 @@ export const MergeRollupArtifact = MergeRollupJson as NoirCompiledCircuit;
 
 export const RootRollupArtifact = RootRollupJson as NoirCompiledCircuit;
 
+export type PrivateResetArtifacts =
+  | 'PrivateKernelResetFullArtifact'
+  | 'PrivateKernelResetBigArtifact'
+  | 'PrivateKernelResetMediumArtifact'
+  | 'PrivateKernelResetSmallArtifact';
+
+export const PrivateResetTagToArtifactName: Record<PrivateKernelResetTags, PrivateResetArtifacts> = {
+  full: 'PrivateKernelResetFullArtifact',
+  big: 'PrivateKernelResetBigArtifact',
+  medium: 'PrivateKernelResetMediumArtifact',
+  small: 'PrivateKernelResetSmallArtifact',
+};
+
 export type ServerProtocolArtifact =
   | 'PublicKernelSetupArtifact'
   | 'PublicKernelAppLogicArtifact'
@@ -156,9 +175,9 @@ export type ServerProtocolArtifact =
 export type ClientProtocolArtifact =
   | 'PrivateKernelInitArtifact'
   | 'PrivateKernelInnerArtifact'
-  | 'PrivateKernelResetArtifact'
   | 'PrivateKernelTailArtifact'
-  | 'PrivateKernelTailToPublicArtifact';
+  | 'PrivateKernelTailToPublicArtifact'
+  | PrivateResetArtifacts;
 
 export type ProtocolArtifact = ServerProtocolArtifact | ClientProtocolArtifact;
 
@@ -177,26 +196,17 @@ export const ServerCircuitArtifacts: Record<ServerProtocolArtifact, NoirCompiled
 export const ClientCircuitArtifacts: Record<ClientProtocolArtifact, NoirCompiledCircuit> = {
   PrivateKernelInitArtifact: PrivateKernelInitArtifact,
   PrivateKernelInnerArtifact: PrivateKernelInnerArtifact,
-  PrivateKernelResetArtifact: PrivateKernelResetArtifact,
+  PrivateKernelResetFullArtifact: PrivateKernelResetArtifact,
+  PrivateKernelResetBigArtifact: PrivateKernelResetBigJson as NoirCompiledCircuit,
+  PrivateKernelResetMediumArtifact: PrivateKernelResetMediumJson as NoirCompiledCircuit,
+  PrivateKernelResetSmallArtifact: PrivateKernelResetSmallJson as NoirCompiledCircuit,
   PrivateKernelTailArtifact: PrivateKernelTailArtifact,
   PrivateKernelTailToPublicArtifact: PrivateKernelTailToPublicArtifact,
 };
 
 export const ProtocolCircuitArtifacts: Record<ProtocolArtifact, NoirCompiledCircuit> = {
-  PrivateKernelInitArtifact: PrivateKernelInitArtifact,
-  PrivateKernelInnerArtifact: PrivateKernelInnerArtifact,
-  PrivateKernelResetArtifact: PrivateKernelResetArtifact,
-  PrivateKernelTailArtifact: PrivateKernelTailArtifact,
-  PrivateKernelTailToPublicArtifact: PrivateKernelTailToPublicArtifact,
-  PublicKernelSetupArtifact: PublicKernelSetupArtifact,
-  PublicKernelAppLogicArtifact: PublicKernelAppLogicArtifact,
-  PublicKernelTeardownArtifact: PublicKernelTeardownArtifact,
-  PublicKernelTailArtifact: PublicKernelTailArtifact,
-  BaseParityArtifact: BaseParityArtifact,
-  RootParityArtifact: RootParityArtifact,
-  BaseRollupArtifact: BaseRollupArtifact,
-  MergeRollupArtifact: MergeRollupArtifact,
-  RootRollupArtifact: RootRollupArtifact,
+  ...ClientCircuitArtifacts,
+  ...ServerCircuitArtifacts,
 };
 
 /**
@@ -233,21 +243,29 @@ export async function executeInner(
   return mapPrivateKernelCircuitPublicInputsFromNoir(returnType);
 }
 
+const ResetSimulatedArtifacts: Record<PrivateResetArtifacts, CompiledCircuit> = {
+  PrivateKernelResetFullArtifact: PrivateKernelResetSimulatedJson as CompiledCircuit,
+  PrivateKernelResetBigArtifact: PrivateKernelResetBigSimulatedJson as CompiledCircuit,
+  PrivateKernelResetMediumArtifact: PrivateKernelResetMediumSimulatedJson as CompiledCircuit,
+  PrivateKernelResetSmallArtifact: PrivateKernelResetSmallSimulatedJson as CompiledCircuit,
+};
+
 /**
  * Executes the inner private kernel.
  * @param privateKernelResetCircuitPrivateInputs - The private inputs to the reset private kernel.
  * @returns The public inputs.
  */
 export async function executeReset(
-  privateKernelResetCircuitPrivateInputs: PrivateKernelResetCircuitPrivateInputs,
+  privateKernelResetCircuitPrivateInputs: PrivateKernelResetCircuitPrivateInputsVariants,
 ): Promise<PrivateKernelCircuitPublicInputs> {
-  const returnType = await executePrivateKernelResetWithACVM(
-    mapPrivateKernelResetCircuitPrivateInputsToNoir(privateKernelResetCircuitPrivateInputs),
-    PrivateKernelResetSimulatedJson as CompiledCircuit,
-    foreignCallHandler,
-  );
-
-  return mapPrivateKernelCircuitPublicInputsFromNoir(returnType);
+  const artifact =
+    ResetSimulatedArtifacts[PrivateResetTagToArtifactName[privateKernelResetCircuitPrivateInputs.sizeTag]];
+  const program = new Noir(artifact);
+  const args: InputMap = {
+    input: mapPrivateKernelResetCircuitPrivateInputsToNoir(privateKernelResetCircuitPrivateInputs as any),
+  };
+  const { returnValue } = await program.execute(args, foreignCallHandler);
+  return mapPrivateKernelCircuitPublicInputsFromNoir(returnValue as any);
 }
 
 /**
@@ -316,10 +334,12 @@ export function convertPrivateKernelInnerInputsToWitnessMap(
  * @returns The witness map
  */
 export function convertPrivateKernelResetInputsToWitnessMap(
-  privateKernelResetCircuitPrivateInputs: PrivateKernelResetCircuitPrivateInputs,
+  privateKernelResetCircuitPrivateInputs: PrivateKernelResetCircuitPrivateInputsVariants,
 ): WitnessMap {
-  const mapped = mapPrivateKernelResetCircuitPrivateInputsToNoir(privateKernelResetCircuitPrivateInputs);
-  const initialWitnessMap = abiEncode(PrivateKernelResetArtifact.abi as Abi, { input: mapped as any });
+  const mapped = mapPrivateKernelResetCircuitPrivateInputsToNoir(privateKernelResetCircuitPrivateInputs as any);
+  const artifact =
+    ClientCircuitArtifacts[PrivateResetTagToArtifactName[privateKernelResetCircuitPrivateInputs.sizeTag]];
+  const initialWitnessMap = abiEncode(artifact.abi as Abi, { input: mapped as any });
   return initialWitnessMap;
 }
 
@@ -384,9 +404,13 @@ export function convertPrivateKernelInnerOutputsFromWitnessMap(outputs: WitnessM
  * @param outputs - The private kernel outputs as a witness map.
  * @returns The public inputs.
  */
-export function convertPrivateKernelResetOutputsFromWitnessMap(outputs: WitnessMap): PrivateKernelCircuitPublicInputs {
+export function convertPrivateKernelResetOutputsFromWitnessMap(
+  outputs: WitnessMap,
+  sizeTag: PrivateKernelResetTags,
+): PrivateKernelCircuitPublicInputs {
   // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(PrivateKernelResetArtifact.abi as Abi, outputs);
+  const artifact = ClientCircuitArtifacts[PrivateResetTagToArtifactName[sizeTag]];
+  const decodedInputs: DecodedInputs = abiDecode(artifact.abi as Abi, outputs);
 
   // Cast the inputs as the return type
   const returnType = decodedInputs.return_value as ResetReturnType;

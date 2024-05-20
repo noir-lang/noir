@@ -14,42 +14,46 @@ import {
 
 type NoteHashLeafValue = Fr;
 
-export type NoteHashReadRequestHints = ReadRequestResetHints<
+export type NoteHashReadRequestHints<PENDING extends number, SETTLED extends number> = ReadRequestResetHints<
   typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-  typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-  typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+  PENDING,
+  SETTLED,
   typeof NOTE_HASH_TREE_HEIGHT,
   NoteHashLeafValue
 >;
 
-export function noteHashReadRequestHintsFromBuffer(buffer: Buffer | BufferReader): NoteHashReadRequestHints {
+export function noteHashReadRequestHintsFromBuffer<PENDING extends number, SETTLED extends number>(
+  buffer: Buffer | BufferReader,
+  numPending: PENDING,
+  numSettled: SETTLED,
+): NoteHashReadRequestHints<PENDING, SETTLED> {
   return ReadRequestResetHints.fromBuffer(
     buffer,
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+    numPending,
+    numSettled,
     NOTE_HASH_TREE_HEIGHT,
     Fr,
   );
 }
 
-export class NoteHashReadRequestHintsBuilder {
-  private hints: NoteHashReadRequestHints;
-  private numPendingReadHints = 0;
-  private numSettledReadHints = 0;
+export class NoteHashReadRequestHintsBuilder<PENDING extends number, SETTLED extends number> {
+  private hints: NoteHashReadRequestHints<PENDING, SETTLED>;
+  public numPendingReadHints = 0;
+  public numSettledReadHints = 0;
 
-  constructor() {
+  constructor(numPending: PENDING, numSettled: SETTLED) {
     this.hints = new ReadRequestResetHints(
       makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, ReadRequestStatus.nada),
-      makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, () => PendingReadHint.nada(MAX_NOTE_HASH_READ_REQUESTS_PER_TX)),
-      makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, () =>
+      makeTuple(numPending, () => PendingReadHint.nada(MAX_NOTE_HASH_READ_REQUESTS_PER_TX)),
+      makeTuple(numSettled, () =>
         SettledReadHint.nada(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, NOTE_HASH_TREE_HEIGHT, Fr.zero),
       ),
     );
   }
 
-  static empty() {
-    return new NoteHashReadRequestHintsBuilder().toHints();
+  static empty<PENDING extends number, SETTLED extends number>(numPending: PENDING, numSettled: SETTLED) {
+    return new NoteHashReadRequestHintsBuilder(numPending, numSettled).toHints().hints;
   }
 
   addPendingReadRequest(readRequestIndex: number, noteHashIndex: number) {
@@ -79,6 +83,10 @@ export class NoteHashReadRequestHintsBuilder {
   }
 
   toHints() {
-    return this.hints;
+    return {
+      numPendingReadHints: this.numPendingReadHints,
+      numSettledReadHints: this.numSettledReadHints,
+      hints: this.hints,
+    };
   }
 }

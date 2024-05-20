@@ -1,0 +1,35 @@
+[
+  {
+    "tag": "big",
+    "priority": 98,
+    "replacements": {
+      "NOTE_HASH_PENDING_AMOUNT": 64,
+      "NOTE_HASH_SETTLED_AMOUNT": 64,
+      "NULLIFIER_PENDING_AMOUNT": 64,
+      "NULLIFIER_SETTLED_AMOUNT": 64,
+      "NULLIFIER_KEYS": 4
+    }
+  },
+  {
+    "tag": "medium",
+    "priority": 99,
+    "replacements": {
+      "NOTE_HASH_PENDING_AMOUNT": 32,
+      "NOTE_HASH_SETTLED_AMOUNT": 32,
+      "NULLIFIER_PENDING_AMOUNT": 32,
+      "NULLIFIER_SETTLED_AMOUNT": 32,
+      "NULLIFIER_KEYS": 4
+    }
+  },
+  {
+    "tag": "small",
+    "priority": 100,
+    "replacements": {
+      "NOTE_HASH_PENDING_AMOUNT": 16,
+      "NOTE_HASH_SETTLED_AMOUNT": 16,
+      "NULLIFIER_PENDING_AMOUNT": 16,
+      "NULLIFIER_SETTLED_AMOUNT": 16,
+      "NULLIFIER_KEYS": 2
+    }
+  }
+]

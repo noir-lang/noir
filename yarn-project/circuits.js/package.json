@@ -30,7 +30,8 @@
   },
   "scripts": {
     "build": "yarn clean && yarn generate && tsc -b",
-    "generate": "./scripts/copy-contracts.sh",
+    "generate": "./scripts/copy-contracts.sh && yarn generate:reset-variants",
+    "generate:reset-variants": "node --no-warnings --loader ts-node/esm src/scripts/generate_reset_variants.ts && prettier -w src/structs/kernel/private_kernel_reset_circuit_private_inputs_variants.ts",
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",

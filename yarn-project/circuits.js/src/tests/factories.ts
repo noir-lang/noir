@@ -681,7 +681,7 @@ export function makePublicKernelCircuitPrivateInputs(seed = 1): PublicKernelCirc
 export function makePublicKernelTailCircuitPrivateInputs(seed = 1): PublicKernelTailCircuitPrivateInputs {
   return new PublicKernelTailCircuitPrivateInputs(
     makePublicKernelData(seed),
-    NullifierReadRequestHintsBuilder.empty(),
+    NullifierReadRequestHintsBuilder.empty(MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX),
     NullifierNonExistentReadRequestHintsBuilder.empty(),
     makeTuple(MAX_PUBLIC_DATA_HINTS, PublicDataHint.empty, seed + 0x100),
     PublicDataReadRequestHintsBuilder.empty(),

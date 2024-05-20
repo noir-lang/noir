@@ -9,7 +9,6 @@ import {
   PrivateKernelData,
   PrivateKernelInitCircuitPrivateInputs,
   PrivateKernelInnerCircuitPrivateInputs,
-  PrivateKernelResetCircuitPrivateInputs,
   PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
@@ -28,8 +27,7 @@ import { type ExecutionResult, collectNoteHashLeafIndexMap, collectNullifiedNote
 import {
   buildPrivateKernelInitHints,
   buildPrivateKernelInnerHints,
-  buildPrivateKernelResetHints,
-  buildPrivateKernelResetOutputs,
+  buildPrivateKernelResetInputs,
   buildPrivateKernelTailHints,
 } from './private_inputs_builders/index.js';
 import { type ProvingDataOracle } from './proving_data_oracle.js';
@@ -137,18 +135,8 @@ export class KernelProver {
       assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
     );
 
-    const expectedOutputs = buildPrivateKernelResetOutputs(
-      output.publicInputs.end.newNoteHashes,
-      output.publicInputs.end.newNullifiers,
-      output.publicInputs.end.noteEncryptedLogsHashes,
-    );
-
     output = await this.proofCreator.createProofReset(
-      new PrivateKernelResetCircuitPrivateInputs(
-        previousKernelData,
-        expectedOutputs,
-        await buildPrivateKernelResetHints(output.publicInputs, noteHashLeafIndexMap, this.oracle),
-      ),
+      await buildPrivateKernelResetInputs(previousKernelData, noteHashLeafIndexMap, this.oracle),
     );
 
     previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);

@@ -22,7 +22,7 @@ impl NoteHashReadRequestHintsBuilder {
         }
     }
 
-    pub fn to_hints(self) -> NoteHashReadRequestHints {
+    pub fn to_hints(self) -> NoteHashReadRequestHints<MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX> {
         NoteHashReadRequestHints {
             read_request_statuses: self.read_request_statuses,
             pending_read_hints: self.pending_read_hints.storage,

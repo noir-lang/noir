@@ -1,19 +1,17 @@
-import { GrumpkinScalar } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
-  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
-import { type GrumpkinPrivateKey } from '../../types/grumpkin_private_key.js';
 import { countAccumulatedItems } from '../../utils/index.js';
 import { NoteLogHash } from '../log_hash.js';
 import { ScopedNoteHash } from '../note_hash.js';
 import { ScopedNullifier } from '../nullifier.js';
 import {
   type NoteHashReadRequestHints,
+  NullifierKeyHint,
   type NullifierReadRequestHints,
   noteHashReadRequestHintsFromBuffer,
   nullifierReadRequestHintsFromBuffer,
@@ -41,7 +39,13 @@ export class PrivateKernelResetOutputs {
   }
 }
 
-export class PrivateKernelResetHints {
+export class PrivateKernelResetHints<
+  NH_RR_PENDING extends number,
+  NH_RR_SETTLED extends number,
+  NLL_RR_PENDING extends number,
+  NLL_RR_SETTLED extends number,
+  NLL_KEYS extends number,
+> {
   constructor(
     /**
      * Contains hints for the transient note hashes to locate corresponding nullifiers.
@@ -58,16 +62,16 @@ export class PrivateKernelResetHints {
     /**
      * Contains hints for the transient read requests to localize corresponding commitments.
      */
-    public noteHashReadRequestHints: NoteHashReadRequestHints,
+    public noteHashReadRequestHints: NoteHashReadRequestHints<NH_RR_PENDING, NH_RR_SETTLED>,
     /**
      * Contains hints for the nullifier read requests to locate corresponding pending or settled nullifiers.
      */
-    public nullifierReadRequestHints: NullifierReadRequestHints,
+    public nullifierReadRequestHints: NullifierReadRequestHints<NLL_RR_PENDING, NLL_RR_SETTLED>,
 
     /**
      * The master nullifier secret keys for the nullifier key validation requests.
      */
-    public masterNullifierSecretKeys: Tuple<GrumpkinPrivateKey, typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
+    public masterNullifierSecretKeys: Tuple<NullifierKeyHint, NLL_KEYS>,
   ) {}
 
   toBuffer() {
@@ -81,20 +85,67 @@ export class PrivateKernelResetHints {
     );
   }
 
+  trimToSizes<
+    NEW_NH_RR_PENDING extends number,
+    NEW_NH_RR_SETTLED extends number,
+    NEW_NLL_RR_PENDING extends number,
+    NEW_NLL_RR_SETTLED extends number,
+    NEW_NLL_KEYS extends number,
+  >(
+    numNoteHashReadRequestPending: NEW_NH_RR_PENDING,
+    numNoteHashReadRequestSettled: NEW_NH_RR_SETTLED,
+    numNullifierReadRequestPending: NEW_NLL_RR_PENDING,
+    numNullifierReadRequestSettled: NEW_NLL_RR_SETTLED,
+    numNullifierKeys: NEW_NLL_KEYS,
+  ): PrivateKernelResetHints<
+    NEW_NH_RR_PENDING,
+    NEW_NH_RR_SETTLED,
+    NEW_NLL_RR_PENDING,
+    NEW_NLL_RR_SETTLED,
+    NEW_NLL_KEYS
+  > {
+    return new PrivateKernelResetHints(
+      this.transientNullifierIndexesForNoteHashes,
+      this.transientNoteHashIndexesForNullifiers,
+      this.transientNoteHashIndexesForLogs,
+      this.noteHashReadRequestHints.trimToSizes(numNoteHashReadRequestPending, numNoteHashReadRequestSettled),
+      this.nullifierReadRequestHints.trimToSizes(numNullifierReadRequestPending, numNullifierReadRequestSettled),
+      this.masterNullifierSecretKeys.slice(0, numNullifierKeys) as Tuple<NullifierKeyHint, NEW_NLL_KEYS>,
+    );
+  }
   /**
    * Deserializes from a buffer or reader.
    * @param buffer - Buffer or reader to read from.
    * @returns The deserialized instance.
    */
-  static fromBuffer(buffer: Buffer | BufferReader) {
+  static fromBuffer<
+    NH_RR_PENDING extends number,
+    NH_RR_SETTLED extends number,
+    NLL_RR_PENDING extends number,
+    NLL_RR_SETTLED extends number,
+    NLL_KEYS extends number,
+  >(
+    buffer: Buffer | BufferReader,
+    numNoteHashReadRequestPending: NH_RR_PENDING,
+    numNoteHashReadRequestSettled: NH_RR_SETTLED,
+    numNullifierReadRequestPending: NLL_RR_PENDING,
+    numNullifierReadRequestSettled: NLL_RR_SETTLED,
+    numNullifierKeys: NLL_KEYS,
+  ): PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelResetHints(
       reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
       reader.readNumbers(MAX_NEW_NULLIFIERS_PER_TX),
       reader.readNumbers(MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
-      reader.readObject({ fromBuffer: noteHashReadRequestHintsFromBuffer }),
-      reader.readObject({ fromBuffer: nullifierReadRequestHintsFromBuffer }),
-      reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GrumpkinScalar),
+      reader.readObject({
+        fromBuffer: buf =>
+          noteHashReadRequestHintsFromBuffer(buf, numNoteHashReadRequestPending, numNoteHashReadRequestSettled),
+      }),
+      reader.readObject({
+        fromBuffer: buf =>
+          nullifierReadRequestHintsFromBuffer(buf, numNullifierReadRequestPending, numNullifierReadRequestSettled),
+      }),
+      reader.readArray(numNullifierKeys, NullifierKeyHint),
     );
   }
 }
@@ -102,14 +153,22 @@ export class PrivateKernelResetHints {
 /**
  * Input to the private kernel circuit - reset call.
  */
-export class PrivateKernelResetCircuitPrivateInputs {
+export class PrivateKernelResetCircuitPrivateInputs<
+  NH_RR_PENDING extends number,
+  NH_RR_SETTLED extends number,
+  NLL_RR_PENDING extends number,
+  NLL_RR_SETTLED extends number,
+  NLL_KEYS extends number,
+  TAG extends string,
+> {
   constructor(
     /**
      * The previous kernel data
      */
     public previousKernel: PrivateKernelData,
     public outputs: PrivateKernelResetOutputs,
-    public hints: PrivateKernelResetHints,
+    public hints: PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS>,
+    public sizeTag: TAG,
   ) {}
 
   isForPublic() {
@@ -129,12 +188,45 @@ export class PrivateKernelResetCircuitPrivateInputs {
    * @param buffer - Buffer or reader to read from.
    * @returns The deserialized instance.
    */
-  static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelResetCircuitPrivateInputs {
+  static fromBuffer<
+    NH_RR_PENDING extends number,
+    NH_RR_SETTLED extends number,
+    NLL_RR_PENDING extends number,
+    NLL_RR_SETTLED extends number,
+    NLL_KEYS extends number,
+    TAG extends string,
+  >(
+    buffer: Buffer | BufferReader,
+    numNoteHashReadRequestPending: NH_RR_PENDING,
+    numNoteHashReadRequestSettled: NH_RR_SETTLED,
+    numNullifierReadRequestPending: NLL_RR_PENDING,
+    numNullifierReadRequestSettled: NLL_RR_SETTLED,
+    numNullifierKeys: NLL_KEYS,
+    sizeTag: TAG,
+  ): PrivateKernelResetCircuitPrivateInputs<
+    NH_RR_PENDING,
+    NH_RR_SETTLED,
+    NLL_RR_PENDING,
+    NLL_RR_SETTLED,
+    NLL_KEYS,
+    TAG
+  > {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelResetCircuitPrivateInputs(
       reader.readObject(PrivateKernelData),
       reader.readObject(PrivateKernelResetOutputs),
-      reader.readObject(PrivateKernelResetHints),
+      reader.readObject({
+        fromBuffer: buf =>
+          PrivateKernelResetHints.fromBuffer(
+            buf,
+            numNoteHashReadRequestPending,
+            numNoteHashReadRequestSettled,
+            numNullifierReadRequestPending,
+            numNullifierReadRequestSettled,
+            numNullifierKeys,
+          ),
+      }),
+      sizeTag,
     );
   }
 }

@@ -92,11 +92,6 @@ mod tests {
     // TODO: Reduce the duplicated code/tests for PrivateKernelTailInputs and PrivateKernelTailToPublicInputs.
     struct PrivateKernelTailInputsBuilder {
         previous_kernel: FixtureBuilder,
-        transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
-        transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
-        transient_note_hash_indexes_for_logs: [u64; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
-        note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder,
-        nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder,
     }
 
     impl PrivateKernelTailInputsBuilder {
@@ -106,14 +101,7 @@ mod tests {
 
             previous_kernel.append_new_nullifiers(1);
 
-            PrivateKernelTailInputsBuilder {
-                previous_kernel,
-                transient_nullifier_indexes_for_note_hashes: [MAX_NEW_NULLIFIERS_PER_TX; MAX_NEW_NOTE_HASHES_PER_TX],
-                transient_note_hash_indexes_for_nullifiers: [MAX_NEW_NOTE_HASHES_PER_TX; MAX_NEW_NULLIFIERS_PER_TX],
-                transient_note_hash_indexes_for_logs: [MAX_NEW_NOTE_HASHES_PER_TX; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
-                note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder::new(MAX_NOTE_HASH_READ_REQUESTS_PER_TX),
-                nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(MAX_NULLIFIER_READ_REQUESTS_PER_TX)
-            }
+            PrivateKernelTailInputsBuilder { previous_kernel }
         }
 
         // A helper function that uses the first nullifer in the previous kernel to compute the unique siloed
@@ -176,24 +164,6 @@ mod tests {
             );
             let sorted_unencrypted_log_hashes = sorted.sorted_array;
             let sorted_unencrypted_log_hashes_indexes = sorted.sorted_index_hints;
-
-            let mut sorted_transient_nullifier_indexes_for_note_hashes = [MAX_NEW_NULLIFIERS_PER_TX; MAX_NEW_NOTE_HASHES_PER_TX];
-            for i in 0..self.transient_nullifier_indexes_for_note_hashes.len() {
-                let old_index = self.transient_nullifier_indexes_for_note_hashes[i];
-                if old_index != MAX_NEW_NULLIFIERS_PER_TX {
-                    let new_note_hash_index = sorted_new_note_hashes_indexes[i];
-                    sorted_transient_nullifier_indexes_for_note_hashes[new_note_hash_index] = sorted_new_nullifiers_indexes[old_index];
-                }
-            }
-
-            let mut sorted_transient_note_hash_indexes_for_nullifiers = [MAX_NEW_NOTE_HASHES_PER_TX; MAX_NEW_NULLIFIERS_PER_TX];
-            for i in 0..self.transient_note_hash_indexes_for_nullifiers.len() {
-                let old_index = self.transient_note_hash_indexes_for_nullifiers[i];
-                if old_index != MAX_NEW_NOTE_HASHES_PER_TX {
-                    let new_nullifier_index = sorted_new_nullifiers_indexes[i];
-                    sorted_transient_note_hash_indexes_for_nullifiers[new_nullifier_index] = sorted_new_note_hashes_indexes[old_index];
-                }
-            }
 
             let hints = PrivateKernelTailHints {
                 sorted_new_note_hashes,

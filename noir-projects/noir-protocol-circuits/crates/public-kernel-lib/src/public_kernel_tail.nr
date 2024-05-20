@@ -8,14 +8,14 @@ use dep::types::{
     accumulated_data::CombinedAccumulatedData, kernel_circuit_public_inputs::KernelCircuitPublicInputs,
     public_kernel_data::PublicKernelData
 },
-    constants::MAX_PUBLIC_DATA_HINTS,
+    constants::{MAX_PUBLIC_DATA_HINTS, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
     merkle_tree::{conditionally_assert_check_membership, MembershipWitness},
     partial_state_reference::PartialStateReference, utils::{arrays::array_length}
 };
 
 struct PublicKernelTailCircuitPrivateInputs {
     previous_kernel: PublicKernelData,
-    nullifier_read_request_hints: NullifierReadRequestHints,
+    nullifier_read_request_hints: NullifierReadRequestHints<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_non_existent_read_request_hints: NullifierNonExistentReadRequestHints,
     public_data_hints: [PublicDataHint; MAX_PUBLIC_DATA_HINTS],
     public_data_read_request_hints: PublicDataReadRequestHints,

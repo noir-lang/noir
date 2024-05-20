@@ -7,12 +7,14 @@ import fs from 'fs/promises';
 
 const log = createConsoleLogger('aztec:noir-contracts');
 
+const resetCircuit = 'private_kernel_reset';
+
 const circuits = [
   'parity_base',
   'parity_root',
   'private_kernel_init',
   'private_kernel_inner',
-  'private_kernel_reset',
+  resetCircuit,
   'private_kernel_tail',
   'private_kernel_tail_to_public',
   'public_kernel_setup',
@@ -25,6 +27,14 @@ const circuits = [
 ];
 
 const main = async () => {
+  const resetVariants = JSON.parse(
+    await fs.readFile('../../noir-projects/noir-protocol-circuits/reset_variants.json', 'utf8'),
+  );
+
+  for (const variant of resetVariants) {
+    circuits.push(`${resetCircuit}_${variant.tag}`);
+  }
+
   try {
     await fs.access('./src/types/');
   } catch (error) {

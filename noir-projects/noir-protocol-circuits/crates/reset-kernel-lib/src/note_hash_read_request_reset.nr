@@ -36,10 +36,10 @@ impl SettledReadHint<NOTE_HASH_TREE_HEIGHT, NoteHashLeafPreimage> for NoteHashSe
     }
 }
 
-struct NoteHashReadRequestHints {
+struct NoteHashReadRequestHints<PENDING, SETTLED> {
     read_request_statuses: [ReadRequestStatus; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
-    pending_read_hints: [PendingReadHint; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
-    settled_read_hints: [NoteHashSettledReadHint; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
+    pending_read_hints: [PendingReadHint; PENDING],
+    settled_read_hints: [NoteHashSettledReadHint; SETTLED],
 }
 
 mod tests {

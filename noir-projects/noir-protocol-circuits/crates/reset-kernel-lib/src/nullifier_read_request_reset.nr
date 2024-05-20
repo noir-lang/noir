@@ -36,10 +36,10 @@ impl SettledReadHint<NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage> for Nullifier
     }
 }
 
-struct NullifierReadRequestHints {
+struct NullifierReadRequestHints<PENDING, SETTLED> {
     read_request_statuses: [ReadRequestStatus; MAX_NULLIFIER_READ_REQUESTS_PER_TX],
-    pending_read_hints: [PendingReadHint; MAX_NULLIFIER_READ_REQUESTS_PER_TX],
-    settled_read_hints: [NullifierSettledReadHint; MAX_NULLIFIER_READ_REQUESTS_PER_TX],
+    pending_read_hints: [PendingReadHint; PENDING],
+    settled_read_hints: [NullifierSettledReadHint; SETTLED],
 }
 
 mod tests {

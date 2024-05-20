@@ -25,15 +25,17 @@ interface NullifierMembershipWitnessWithPreimage {
   leafPreimage: IndexedTreeLeafPreimage;
 }
 
-export async function buildNullifierReadRequestHints(
+export async function buildNullifierReadRequestHints<PENDING extends number, SETTLED extends number>(
   oracle: {
     getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
   nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
   nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  sizePending: PENDING,
+  sizeSettled: SETTLED,
   siloed = false,
 ) {
-  const builder = new NullifierReadRequestHintsBuilder();
+  const builder = new NullifierReadRequestHintsBuilder(sizePending, sizeSettled);
 
   const numReadRequests = countAccumulatedItems(nullifierReadRequests);
 
@@ -69,12 +71,14 @@ export async function buildNullifierReadRequestHints(
   return builder.toHints();
 }
 
-export function buildSiloedNullifierReadRequestHints(
+export function buildSiloedNullifierReadRequestHints<PENDING extends number, SETTLED extends number>(
   oracle: {
     getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
   nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
   nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  sizePending: PENDING,
+  sizeSettled: SETTLED,
 ) {
   // Nullifiers outputted from public kernels are already siloed while read requests are not.
   // Siloing the read request values and set the contract addresses to zero to find the matching nullifier contexts.
@@ -90,5 +94,5 @@ export function buildSiloedNullifierReadRequestHints(
     new Nullifier(n.value, n.counter, n.noteHash).scope(AztecAddress.ZERO),
   ) as Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
 
-  return buildNullifierReadRequestHints(oracle, siloedReadRequests, scopedNullifiers, true);
+  return buildNullifierReadRequestHints(oracle, siloedReadRequests, scopedNullifiers, sizePending, sizeSettled, true);
 }

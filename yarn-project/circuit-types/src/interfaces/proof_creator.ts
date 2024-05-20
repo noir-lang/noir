@@ -4,7 +4,7 @@ import {
   type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
   type PrivateKernelInnerCircuitPrivateInputs,
-  type PrivateKernelResetCircuitPrivateInputs,
+  type PrivateKernelResetCircuitPrivateInputsVariants,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
@@ -85,7 +85,7 @@ export interface ProofCreator {
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
   createProofReset(
-    privateKernelInputsReset: PrivateKernelResetCircuitPrivateInputs,
+    privateKernelInputsReset: PrivateKernelResetCircuitPrivateInputsVariants,
   ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>>;
 
   /**

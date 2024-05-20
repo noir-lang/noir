@@ -15,6 +15,9 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
+yarn
+node ./index.js
+
 echo "Compiling protocol circuits..."
 NARGO=${NARGO:-../../noir/noir-repo/target/release/nargo}
 $NARGO compile --silence-warnings

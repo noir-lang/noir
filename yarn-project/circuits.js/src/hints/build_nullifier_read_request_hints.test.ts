@@ -26,7 +26,10 @@ describe('buildNullifierReadRequestHints', () => {
   };
   let nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>;
   let nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
-  let expectedHints: NullifierReadRequestHints;
+  let expectedHints: NullifierReadRequestHints<
+    typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+    typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX
+  >;
   let numReadRequests = 0;
   let numPendingReads = 0;
   let numSettledReads = 0;
@@ -69,12 +72,24 @@ describe('buildNullifierReadRequestHints', () => {
     numSettledReads++;
   };
 
-  const buildHints = () => buildNullifierReadRequestHints(oracle, nullifierReadRequests, nullifiers);
+  const buildHints = async () =>
+    (
+      await buildNullifierReadRequestHints(
+        oracle,
+        nullifierReadRequests,
+        nullifiers,
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+      )
+    ).hints;
 
   beforeEach(() => {
     nullifierReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
     nullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => makeNullifier(innerNullifier(i)));
-    expectedHints = NullifierReadRequestHintsBuilder.empty();
+    expectedHints = NullifierReadRequestHintsBuilder.empty(
+      MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+      MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+    );
     numReadRequests = 0;
     numPendingReads = 0;
     numSettledReads = 0;

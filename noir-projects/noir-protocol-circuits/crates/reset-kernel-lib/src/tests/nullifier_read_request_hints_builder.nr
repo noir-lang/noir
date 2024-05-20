@@ -22,7 +22,7 @@ impl NullifierReadRequestHintsBuilder {
         }
     }
 
-    pub fn to_hints(self) -> NullifierReadRequestHints {
+    pub fn to_hints(self) -> NullifierReadRequestHints<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX> {
         NullifierReadRequestHints {
             read_request_statuses: self.read_request_statuses,
             pending_read_hints: self.pending_read_hints.storage,

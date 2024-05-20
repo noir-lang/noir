@@ -12,7 +12,7 @@ use dep::types::{
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, nullifier::Nullifier,
     public_data_update_request::PublicDataUpdateRequest, validation_requests::ValidationRequests
 },
-    constants::{MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX},
+    constants::{MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
     hash::silo_nullifier, traits::is_empty,
     utils::arrays::{array_merge, array_to_bounded_vec, assert_sorted_array}
 };
@@ -21,7 +21,7 @@ struct PublicValidationRequestProcessor<N> {
     validation_requests: ValidationRequests,
     pending_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
     pending_public_data_writes: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    nullifier_read_request_hints: NullifierReadRequestHints,
+    nullifier_read_request_hints: NullifierReadRequestHints<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_non_existent_read_request_hints: NullifierNonExistentReadRequestHints,
     nullifier_tree_root: Field,
     public_data_read_request_hints: PublicDataReadRequestHints,
@@ -31,7 +31,7 @@ struct PublicValidationRequestProcessor<N> {
 impl<N> PublicValidationRequestProcessor<N> {
     pub fn new(
         public_inputs: PublicKernelCircuitPublicInputs,
-        nullifier_read_request_hints: NullifierReadRequestHints,
+        nullifier_read_request_hints: NullifierReadRequestHints<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
         nullifier_non_existent_read_request_hints: NullifierNonExistentReadRequestHints,
         nullifier_tree_root: Field,
         public_data_read_request_hints: PublicDataReadRequestHints,

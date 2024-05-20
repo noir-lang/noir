@@ -30,7 +30,10 @@ describe('buildNoteHashReadRequestHints', () => {
   let noteHashReadRequests: Tuple<ScopedReadRequest, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>;
   let noteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>;
   let noteHashLeafIndexMap: Map<bigint, bigint> = new Map();
-  let expectedHints: NoteHashReadRequestHints;
+  let expectedHints: NoteHashReadRequestHints<
+    typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+    typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX
+  >;
   let numReadRequests = 0;
   let numPendingReads = 0;
   let numSettledReads = 0;
@@ -64,14 +67,26 @@ describe('buildNoteHashReadRequestHints', () => {
     numSettledReads++;
   };
 
-  const buildHints = () =>
-    buildNoteHashReadRequestHints(oracle, noteHashReadRequests, noteHashes, noteHashLeafIndexMap);
+  const buildHints = async () =>
+    (
+      await buildNoteHashReadRequestHints(
+        oracle,
+        noteHashReadRequests,
+        noteHashes,
+        noteHashLeafIndexMap,
+        MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+        MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+      )
+    ).hints;
 
   beforeEach(() => {
     noteHashReadRequests = makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
     noteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, i => makeNoteHash(innerNoteHash(i)));
     noteHashLeafIndexMap = new Map();
-    expectedHints = NoteHashReadRequestHintsBuilder.empty();
+    expectedHints = NoteHashReadRequestHintsBuilder.empty(
+      MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+      MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+    );
     numReadRequests = 0;
     numPendingReads = 0;
     numSettledReads = 0;

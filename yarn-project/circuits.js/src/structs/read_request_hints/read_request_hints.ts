@@ -105,6 +105,20 @@ export class ReadRequestResetHints<
     public settledReadHints: Tuple<SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE>, NUM_SETTLED_READS>,
   ) {}
 
+  trimToSizes<NEW_NUM_PENDING_READS extends number, NEW_NUM_SETTLED_READS extends number>(
+    numPendingReads: NEW_NUM_PENDING_READS,
+    numSettledReads: NEW_NUM_SETTLED_READS,
+  ): ReadRequestResetHints<READ_REQUEST_LEN, NEW_NUM_PENDING_READS, NEW_NUM_SETTLED_READS, TREE_HEIGHT, LEAF_PREIMAGE> {
+    return new ReadRequestResetHints(
+      this.readRequestStatuses,
+      this.pendingReadHints.slice(0, numPendingReads) as Tuple<PendingReadHint, NEW_NUM_PENDING_READS>,
+      this.settledReadHints.slice(0, numSettledReads) as Tuple<
+        SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE>,
+        NEW_NUM_SETTLED_READS
+      >,
+    );
+  }
+
   /**
    * Deserializes from a buffer or reader.
    * @param buffer - Buffer or reader to read from.

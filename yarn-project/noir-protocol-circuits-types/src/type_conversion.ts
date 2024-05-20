@@ -165,6 +165,7 @@ import type {
   NoteHashReadRequestHints as NoteHashReadRequestHintsNoir,
   NoteHashSettledReadHint as NoteHashSettledReadHintNoir,
   NoteLogHash as NoteLogHashNoir,
+  NullifierKeyHint as NullifierKeyHintNoir,
   NullifierKeyValidationRequest as NullifierKeyValidationRequestNoir,
   NullifierLeafPreimage as NullifierLeafPreimageNoir,
   Nullifier as NullifierNoir,
@@ -303,6 +304,21 @@ export function mapGrumpkinPrivateKeyToNoir(privateKey: GrumpkinPrivateKey): Gru
   return {
     high: mapFieldToNoir(privateKey.high),
     low: mapFieldToNoir(privateKey.low),
+  };
+}
+
+/**
+ * Maps a NullifierKeyHint to noir.
+ * @param hint - The nullifier key hint.
+ * @returns The nullifier key hint mapped to noir types.
+ */
+export function mapNullifierKeyHintToNoir(hint: {
+  privateKey: GrumpkinPrivateKey;
+  requestIndex: number;
+}): NullifierKeyHintNoir {
+  return {
+    private_key: mapGrumpkinPrivateKeyToNoir(hint.privateKey),
+    request_index: mapNumberToNoir(hint.requestIndex),
   };
 }
 
@@ -1016,19 +1032,36 @@ function mapNullifierSettledReadHintToNoir(
   };
 }
 
-function mapNoteHashReadRequestHintsToNoir(hints: NoteHashReadRequestHints): NoteHashReadRequestHintsNoir {
+function mapNoteHashReadRequestHintsToNoir<PENDING extends number, SETTLED extends number>(
+  hints: NoteHashReadRequestHints<PENDING, SETTLED>,
+): NoteHashReadRequestHintsNoir<PENDING, SETTLED> {
   return {
     read_request_statuses: mapTuple(hints.readRequestStatuses, mapReadRequestStatusToNoir),
-    pending_read_hints: mapTuple(hints.pendingReadHints, mapPendingReadHintToNoir),
-    settled_read_hints: mapTuple(hints.settledReadHints, mapNoteHashSettledReadHintToNoir),
+    pending_read_hints: hints.pendingReadHints.map(mapPendingReadHintToNoir) as FixedLengthArray<
+      PendingReadHintNoir,
+      PENDING
+    >,
+    settled_read_hints: hints.settledReadHints.map(mapNoteHashSettledReadHintToNoir) as FixedLengthArray<
+      NoteHashSettledReadHintNoir,
+      SETTLED
+    >,
   };
 }
 
-function mapNullifierReadRequestHintsToNoir(hints: NullifierReadRequestHints): NullifierReadRequestHintsNoir {
+function mapNullifierReadRequestHintsToNoir<PENDING extends number, SETTLED extends number>(
+  hints: NullifierReadRequestHints<PENDING, SETTLED>,
+): NullifierReadRequestHintsNoir<PENDING, SETTLED> {
   return {
     read_request_statuses: mapTuple(hints.readRequestStatuses, mapReadRequestStatusToNoir),
-    pending_read_hints: mapTuple(hints.pendingReadHints, mapPendingReadHintToNoir),
-    settled_read_hints: mapTuple(hints.settledReadHints, mapNullifierSettledReadHintToNoir),
+    pending_read_hints: hints.pendingReadHints.map(mapPendingReadHintToNoir) as FixedLengthArray<
+      PendingReadHintNoir,
+      PENDING
+    >,
+    settled_read_hints: hints.settledReadHints.map(settledHint =>
+      mapNullifierSettledReadHintToNoir(
+        settledHint as SettledReadHint<typeof NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage>,
+      ),
+    ) as FixedLengthArray<NullifierSettledReadHintNoir, SETTLED>,
   };
 }
 
@@ -1520,7 +1553,15 @@ function mapPrivateKernelTailHintsToNoir(inputs: PrivateKernelTailHints): Privat
   };
 }
 
-function mapPrivateKernelResetHintsToNoir(inputs: PrivateKernelResetHints): PrivateKernelResetHintsNoir {
+function mapPrivateKernelResetHintsToNoir<
+  NH_RR_PENDING extends number,
+  NH_RR_SETTLED extends number,
+  NLL_RR_PENDING extends number,
+  NLL_RR_SETTLED extends number,
+  NLL_KEYS extends number,
+>(
+  inputs: PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS>,
+): PrivateKernelResetHintsNoir<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
   return {
     transient_nullifier_indexes_for_note_hashes: mapTuple(
       inputs.transientNullifierIndexesForNoteHashes,
@@ -1530,13 +1571,30 @@ function mapPrivateKernelResetHintsToNoir(inputs: PrivateKernelResetHints): Priv
     transient_note_hash_indexes_for_logs: mapTuple(inputs.transientNoteHashIndexesForLogs, mapNumberToNoir),
     note_hash_read_request_hints: mapNoteHashReadRequestHintsToNoir(inputs.noteHashReadRequestHints),
     nullifier_read_request_hints: mapNullifierReadRequestHintsToNoir(inputs.nullifierReadRequestHints),
-    master_nullifier_secret_keys: mapTuple(inputs.masterNullifierSecretKeys, mapGrumpkinPrivateKeyToNoir),
+    master_nullifier_secret_keys: inputs.masterNullifierSecretKeys.map(mapNullifierKeyHintToNoir) as FixedLengthArray<
+      NullifierKeyHintNoir,
+      NLL_KEYS
+    >,
   };
 }
 
-export function mapPrivateKernelResetCircuitPrivateInputsToNoir(
-  inputs: PrivateKernelResetCircuitPrivateInputs,
-): PrivateKernelResetCircuitPrivateInputsNoir {
+export function mapPrivateKernelResetCircuitPrivateInputsToNoir<
+  NH_RR_PENDING extends number,
+  NH_RR_SETTLED extends number,
+  NLL_RR_PENDING extends number,
+  NLL_RR_SETTLED extends number,
+  NLL_KEYS extends number,
+  TAG extends string,
+>(
+  inputs: PrivateKernelResetCircuitPrivateInputs<
+    NH_RR_PENDING,
+    NH_RR_SETTLED,
+    NLL_RR_PENDING,
+    NLL_RR_SETTLED,
+    NLL_KEYS,
+    TAG
+  >,
+): PrivateKernelResetCircuitPrivateInputsNoir<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
   return {
     previous_kernel: mapPrivateKernelDataToNoir(inputs.previousKernel),
     outputs: mapPrivateKernelResetOutputsToNoir(inputs.outputs),
