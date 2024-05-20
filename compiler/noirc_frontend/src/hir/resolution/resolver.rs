@@ -37,7 +37,7 @@ use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
+    ArithExpr, ArithOpKind, DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
@@ -792,6 +792,40 @@ impl<'a> Resolver<'a> {
         }
     }
 
+
+    // TODO: relocate
+    fn prepare_arithmetic_expression(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
+
+        match typ {
+            Type::Constant(value) => {
+                (ArithExpr::Constant(value), vec![])
+            }
+            Type::NamedGeneric(typevar, name) => {
+                (ArithExpr::Variable(name.clone()), vec![Type::NamedGeneric(typevar, name)])
+            }
+            Type::GenericArith(arith_id, generics) => {
+
+                let arith_expr = self.interner.get_arithmetic_expression(arith_id)
+                    .expect("ICE: unknown ArithId was inserted without using the node interner");
+
+                (arith_expr.clone(), generics)
+            }
+
+            _ => {
+
+                // // TODO: revert before PR
+                // let span =
+                //     if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                // self.push_err(ResolverError::InvalidArrayLengthExpr { span: span });
+                self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                (ArithExpr::Constant(0), vec![])
+            }
+
+
+        }
+
+    }
+
     fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
@@ -801,21 +835,122 @@ impl<'a> Resolver<'a> {
                 })
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
-                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, op_span) => {
+
+                // TODO: fix these spans
+                // let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
+                let (lhs, lhs_generics) = self.prepare_arithmetic_expression(lhs, op_span);
+                let (rhs, rhs_generics) = self.prepare_arithmetic_expression(rhs, op_span);
+
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+
+                    (ArithExpr::Constant(lhs), ArithExpr::Constant(rhs)) => {
                         Type::Constant(op.function()(lhs, rhs))
                     }
-                    (lhs, _) => {
-                        let span =
-                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        Type::Constant(0)
+
+                    (lhs, rhs) => {
+
+                        let kind = ArithOpKind::from_binary_type_operator(op).unwrap_or_else(|| {
+                            self.push_err(ResolverError::InvalidGenericArithOp { span: op_span });
+                            // return a valid ArithOpKind when erroring
+                            ArithOpKind::Add
+                        });
+
+                        let arith_expr = ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+                        let new_id = self.interner.push_arithmetic_expression(arith_expr);
+                        let new_generics = lhs_generics
+                            .into_iter()
+                            .chain(rhs_generics.into_iter())
+                            .collect::<HashSet<_>>()
+                            .into_iter()
+                            .collect::<Vec<_>>();
+
+                        Type::GenericArith(new_id, new_generics)
                     }
+
+                    // (Type::GenericArith(lhs_id, lhs_generics), Type::Constant(rhs)) => {
+                    //     // TODO: check op, etc
+                    //
+                    //     Type::GenericArith(new_id, lhs_generics)
+                    // }
+                    //
+                    // (Type::NamedGeneric(lhs), Type::GenericArith(rhs_id, rhs_generics)) => {
+                    //
+                    //     // TODO: check op, etc
+                    //
+                    //     Type::GenericArith(new_id, new_generics)
+                    // }
+                    //
+                    // (Type::GenericArith(lhs_id, lhs_generics), Type::NamedGeneric(rhs)) => {
+                    //     // TODO: check op, etc
+                    //
+                    //     Type::GenericArith(new_id, new_generics)
+                    // }
+                    //
+                    // (Type::GenericArith(lhs_id, lhs_generics), Type::GenericArith(rhs_id, rhs_generics)) => {
+                    //     // TODO: check op, etc
+                    //
+                    //     Type::GenericArith(new_id, new_generics)
+                    // }
+
+                    // (Type::GenericArith(rhs, _), Type::GenericArith(lhs, _)) => {
+                    //     match (lhs, rhs) {
+                    //         (GenericArith::Constant(lhs), GenericArith::Constant(rhs)) => {
+                    //             Type::GenericArith(GenericArith::Constant(op.function()(lhs, rhs)), vec![].into())
+                    //         }
+                    //         (lhs, rhs) => {
+                    //             match op {
+                    //                 BinaryTypeOperator::Addition => {
+                    //                     Type::GenericArith(GenericArith::Op {
+                    //                         kind: GenericArithOpKind::Add,
+                    //                         lhs: Box::new(lhs),
+                    //                         rhs: Box::new(rhs),
+                    //                     }, vec![].into())
+                    //                 }
+                    //                 BinaryTypeOperator::Multiplication => {
+                    //                     Type::GenericArith(GenericArith::Op {
+                    //                         kind: GenericArithOpKind::Mul,
+                    //                         lhs: Box::new(lhs),
+                    //                         rhs: Box::new(rhs),
+                    //                     }, vec![].into())
+                    //                 }
+                    //                 BinaryTypeOperator::Subtraction => {
+                    //                     Type::GenericArith(GenericArith::Op {
+                    //                         kind: GenericArithOpKind::Sub,
+                    //                         lhs: Box::new(lhs),
+                    //                         rhs: Box::new(rhs),
+                    //                     }, vec![].into())
+                    //                 }
+                    //                 _ => {
+                    //                     self.push_err(ResolverError::InvalidGenericArithOp { span: op_span });
+                    //                     Type::GenericArith(GenericArith::Constant(0), vec![].into())
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
+
+                    // // TODO cleanup
+                    // (lhs, rhs) => {
+                    //
+                    //     // let span =
+                    //     //     if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                    //     // // TODO: revert before PR
+                    //     // dbg!("convert_expression_type", &lhs, &rhs);
+                    //     self.push_err(ResolverError::InvalidArrayLengthExpr { span: op_span });
+                    //     Type::Constant(0)
+                    // }
+                    // // (lhs, _) => {
+                    // //     let span =
+                    // //         if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                    // //     self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                    // //     Type::Constant(0)
+                    // // }
+
                 }
             }
         }

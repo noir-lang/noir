@@ -46,6 +46,8 @@ pub enum ResolverError {
     MissingRhsExpr { name: String, span: Span },
     #[error("Expression invalid in an array length context")]
     InvalidArrayLengthExpr { span: Span },
+    #[error("Expression invalid for generic arithmetic: only '+', '-', and '*' are allowed.")]
+    InvalidGenericArithOp { span: Span },
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { span: Span },
     #[error("No global or generic type parameter found with the given name")]
@@ -236,6 +238,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Array-length expressions can only have simple integer operations and any variables used must be global constants".into(),
                 *span,
             ),
+            ResolverError::InvalidGenericArithOp { span } => Diagnostic::simple_error(
+                "Expression invalid for generic arithmetic with variables: only '+', '-', and '*' are allowed.".into(),
+                "Generic expressions can only have constants, variables, and simple integer operations: '+', '-', and '*'".into(),
+                *span,
+            ),
+
             ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
                 "Integer too large to be evaluated to an array-length".into(),
                 "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),

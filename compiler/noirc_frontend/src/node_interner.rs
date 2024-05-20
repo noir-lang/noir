@@ -31,7 +31,7 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    BinaryTypeOperator, Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -180,14 +180,14 @@ pub struct NodeInterner {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ArithId {
     Dummy,
-    ModuleId(ModuleId),
+    Incremental(usize),
 }
 
 // TODO: relocate
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ArithExpr {
     Op {
-        kind: ArithExprKind,
+        kind: ArithOpKind,
         lhs: Box<ArithExpr>,
         rhs: Box<ArithExpr>,
     },
@@ -222,19 +222,30 @@ impl std::fmt::Display for ArithExpr {
 
 // TODO: relocate
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum ArithExprKind {
+pub enum ArithOpKind {
     Mul,
     Add,
     Sub,
 }
 
+impl ArithOpKind {
+    pub fn from_binary_type_operator(value: BinaryTypeOperator) -> Option<Self> {
+        match value {
+            BinaryTypeOperator::Addition => Some(ArithOpKind::Add),
+            BinaryTypeOperator::Multiplication => Some(ArithOpKind::Mul),
+            BinaryTypeOperator::Subtraction => Some(ArithOpKind::Sub),
+            _ => None,
+        }
+    }
+}
+
 // TODO: relocate
-impl std::fmt::Display for ArithExprKind {
+impl std::fmt::Display for ArithOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ArithExprKind::Mul => write!(f, "*"),
-            ArithExprKind::Add => write!(f, "+"),
-            ArithExprKind::Sub => write!(f, "-"),
+            ArithOpKind::Mul => write!(f, "*"),
+            ArithOpKind::Add => write!(f, "+"),
+            ArithOpKind::Sub => write!(f, "-"),
         }
     }
 }
@@ -766,6 +777,20 @@ impl NodeInterner {
         let id = self.push_global(name, local_id, statement, file, attributes, mutable);
         self.push_stmt_location(statement, span, file);
         id
+    }
+
+    pub fn push_arithmetic_expression(&mut self, expr: ArithExpr) -> ArithId {
+        let next_arith_id = self.next_arith_id();
+        self.arithmetic_expressions.insert(next_arith_id, expr); 
+        next_arith_id
+    }
+
+    pub fn get_arithmetic_expression(&self, arith_id: ArithId) -> Option<&ArithExpr> {
+        self.arithmetic_expressions.get(&arith_id)
+    }
+
+    pub fn next_arith_id(&self) -> ArithId {
+        ArithId::Incremental(self.arithmetic_expressions.len())
     }
 
     /// Intern an empty function.
