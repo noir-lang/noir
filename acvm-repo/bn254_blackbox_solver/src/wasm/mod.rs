@@ -4,13 +4,8 @@
 //!
 //! As [`acvm`] includes rust implementations for these opcodes, this module can be removed.
 
-mod barretenberg_structures;
-mod pedersen;
 mod schnorr;
 
-use barretenberg_structures::Assignments;
-
-pub(crate) use pedersen::Pedersen;
 pub(crate) use schnorr::SchnorrSig;
 
 /// The number of bytes necessary to store a `FieldElement`.
@@ -208,10 +203,6 @@ impl Barretenberg {
         buf
     }
 
-    pub(crate) fn call(&self, name: &str, param: &WASMValue) -> Result<WASMValue, Error> {
-        self.call_multiple(name, vec![param])
-    }
-
     pub(crate) fn call_multiple(
         &self,
         name: &str,
@@ -235,17 +226,6 @@ impl Barretenberg {
         let option_value = boxed_value.first().cloned();
 
         Ok(WASMValue(option_value))
-    }
-
-    /// Creates a pointer and allocates the bytes that the pointer references to, to the heap
-    pub(crate) fn allocate(&self, bytes: &[u8]) -> Result<WASMValue, Error> {
-        let ptr: i32 = self.call("bbmalloc", &bytes.len().into())?.try_into()?;
-
-        let i32_bytes = ptr.to_be_bytes();
-        let u32_bytes = u32::from_be_bytes(i32_bytes);
-
-        self.transfer_to_heap(bytes, u32_bytes as usize);
-        Ok(ptr.into())
     }
 }
 
