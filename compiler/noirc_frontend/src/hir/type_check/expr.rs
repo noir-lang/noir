@@ -398,6 +398,16 @@ impl<'interner> TypeChecker<'interner> {
             _ => 0,
         });
 
+        let span = self.interner.expr_span(expr_id);
+
+        let definition = self.interner.try_definition(ident.id);
+        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
+            DefinitionKind::Function(function) => {
+                self.interner.function_modifiers(function).generic_count
+            }
+            _ => 0,
+        });
+
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
