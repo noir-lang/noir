@@ -12,6 +12,10 @@ runs:
     - name: Run On Builder
       env:
         # avoid double shell interpolation
-        RUN_SCRIPT: export GITHUB_REF_NAME=${{ github.ref_name }} ; cd ~/run-${{ env.RUN_ID }} ; ${{ inputs.run }}
+        RUN_SCRIPT: |
+          sudo shutdown -P 40
+          export GITHUB_REF_NAME=${{ github.ref_name }}
+          cd ~/run-${{ env.RUN_ID }}
+          ${{ inputs.run }}
       shell: bash
       run: scripts/run_on_builder "$RUN_SCRIPT"
