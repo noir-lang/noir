@@ -135,10 +135,7 @@ impl FuncMeta {
     /// So this method tells the type checker to ignore the return
     /// of the empty function, which is unit
     pub fn can_ignore_return_type(&self) -> bool {
-        match self.kind {
-            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal | FunctionKind::Recursive => false,
-        }
+        self.kind.can_ignore_return_type()
     }
 
     pub fn function_signature(&self) -> FunctionSignature {

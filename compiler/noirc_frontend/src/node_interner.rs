@@ -244,6 +244,8 @@ pub struct FunctionModifiers {
 
     pub is_unconstrained: bool,
 
+    pub generic_count: usize,
+
     pub is_comptime: bool,
 }
 
@@ -257,6 +259,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            generic_count: 0,
             is_comptime: false,
         }
     }
@@ -532,7 +535,7 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    /// Store the type for an interned expression
+    /// Store the type for a definition
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.definition_to_type.insert(definition_id, typ);
     }
@@ -696,7 +699,7 @@ impl NodeInterner {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
         let id = self.push_global(name, local_id, statement, file, attributes, mutable);
-        self.push_statement_location(statement, span, file);
+        self.push_stmt_location(statement, span, file);
         id
     }
 
@@ -775,6 +778,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
@@ -942,7 +946,7 @@ impl NodeInterner {
         self.id_location(stmt_id)
     }
 
-    pub fn push_statement_location(&mut self, id: StmtId, span: Span, file: FileId) {
+    pub fn push_stmt_location(&mut self, id: StmtId, span: Span, file: FileId) {
         self.id_to_location.insert(id.into(), Location::new(span, file));
     }
 

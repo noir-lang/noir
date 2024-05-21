@@ -10,6 +10,7 @@ use noirc_frontend::ast::{
 
 use noirc_frontend::{macros_api::FieldElement, parse_program};
 
+use crate::utils::ast_utils::member_access;
 use crate::{
     chained_dep, chained_path,
     utils::{
@@ -33,12 +34,19 @@ pub fn transform_function(
     is_initializer: bool,
     insert_init_check: bool,
     is_internal: bool,
+    is_static: bool,
 ) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
     let is_avm = ty == "Avm";
     let is_private = ty == "Private";
+
+    // Force a static context if the function is static
+    if is_static {
+        let is_static_check = create_static_check(func.name(), is_avm);
+        func.def.body.statements.insert(0, is_static_check);
+    }
 
     // Add check that msg sender equals this address and flag function as internal
     if is_internal {
@@ -59,7 +67,7 @@ pub fn transform_function(
 
     // Add access to the storage struct
     if let Some(storage_struct_name) = storage_struct_name {
-        let storage_def = abstract_storage(storage_struct_name, &ty.to_lowercase(), false);
+        let storage_def = abstract_storage(storage_struct_name, false);
         func.def.body.statements.insert(0, storage_def);
     }
 
@@ -213,10 +221,7 @@ pub fn export_fn_abi(
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 pub fn transform_unconstrained(func: &mut NoirFunction, storage_struct_name: String) {
-    func.def
-        .body
-        .statements
-        .insert(0, abstract_storage(storage_struct_name, "Unconstrained", true));
+    func.def.body.statements.insert(0, abstract_storage(storage_struct_name, true));
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -272,6 +277,31 @@ fn create_mark_as_initialized(ty: &str) -> Statement {
     make_statement(StatementKind::Expression(call(
         variable_path(chained_dep!("aztec", "initializer", &fname)),
         vec![mutable_reference("context")],
+    )))
+}
+
+/// Forces a static context for a function, ensuring that no state modifications are allowed
+///
+/// ```noir
+/// assert(context.inputs.call_context.is_static_call == true,  "Function can only be called statically")
+/// ```
+fn create_static_check(fname: &str, is_avm: bool) -> Statement {
+    let is_static_call_expr = if !is_avm {
+        ["inputs", "call_context", "is_static_call"]
+            .iter()
+            .fold(variable("context"), |acc, member| member_access(acc, member))
+    } else {
+        ["inputs", "is_static_call"]
+            .iter()
+            .fold(variable("context"), |acc, member| member_access(acc, member))
+    };
+    make_statement(StatementKind::Constrain(ConstrainStatement(
+        make_eq(is_static_call_expr, expression(ExpressionKind::Literal(Literal::Bool(true)))),
+        Some(expression(ExpressionKind::Literal(Literal::Str(format!(
+            "Function {} can only be called statically",
+            fname
+        ))))),
+        ConstrainKind::Assert,
     )))
 }
 
@@ -564,7 +594,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(private)]
 /// fn lol() {
-///     let storage = Storage::init(Context::private(context));
+///     let storage = Storage::init(context);
 /// }
 /// ```
 ///
@@ -572,33 +602,28 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(public)]
 /// fn lol() {
-///    let storage = Storage::init(Context::public(context));
+///    let storage = Storage::init(context);
 /// }
 /// ```
 ///
 /// For unconstrained functions:
 /// ```noir
 /// unconstrained fn lol() {
-///   let storage = Storage::init(Context::none());
+///   let storage = Storage::init(());
 /// }
-fn abstract_storage(storage_struct_name: String, typ: &str, unconstrained: bool) -> Statement {
-    let init_context_call = if unconstrained {
-        call(
-            variable_path(chained_dep!("aztec", "context", "Context", "none")), // Path
-            vec![],                                                             // args
-        )
+fn abstract_storage(storage_struct_name: String, unconstrained: bool) -> Statement {
+    let context_expr = if unconstrained {
+        // Note that the literal unit type (i.e. '()') is not the same as a tuple with zero elements
+        expression(ExpressionKind::Literal(Literal::Unit))
     } else {
-        call(
-            variable_path(chained_dep!("aztec", "context", "Context", typ)), // Path
-            vec![mutable_reference("context")],                              // args
-        )
+        mutable_reference("context")
     };
 
     assignment(
         "storage", // Assigned to
         call(
             variable_path(chained_path!(storage_struct_name.as_str(), "init")), // Path
-            vec![init_context_call],                                            // args
+            vec![context_expr],                                                 // args
         ),
     )
 }
@@ -680,7 +705,7 @@ fn add_struct_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
 fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
     // let identifier_as_bytes = identifier.as_bytes();
     let var = variable_ident(identifier.clone());
-    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+    let contents = if let ExpressionKind::Variable(p, _) = &var.kind {
         p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
     } else {
         panic!("Unexpected identifier type")
@@ -791,4 +816,19 @@ fn add_cast_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
         "add",                 // method name
         vec![cast_operation],  // args
     )))
+}
+
+/**
+ * Takes a vector of functions and checks for the presence of arguments with Public visibility
+ * Returns AztecMAcroError::PublicArgsDisallowed if found
+ */
+pub fn check_for_public_args(functions: &[&NoirFunction]) -> Result<(), AztecMacroError> {
+    for func in functions {
+        for param in &func.def.parameters {
+            if param.visibility == Visibility::Public {
+                return Err(AztecMacroError::PublicArgsDisallowed { span: func.span() });
+            }
+        }
+    }
+    Ok(())
 }

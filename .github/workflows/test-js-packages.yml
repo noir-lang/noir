@@ -399,6 +399,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download bb binary
+        run: |
+          # Adds `bb` to PATH
+          ./scripts/install_bb.sh
+
       - name: Download nargo binary
         uses: actions/download-artifact@v4
         with:

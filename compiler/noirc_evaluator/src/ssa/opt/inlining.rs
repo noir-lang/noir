@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::{CallStack, InsertInstructionResult},
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -392,10 +392,12 @@ impl<'function> PerFunctionContext<'function> {
                     Some(func_id) => {
                         let function = &ssa.functions[&func_id];
                         // If we have not already finished the flattening pass, functions marked
-                        // to not have predicates should be marked as entry points.
+                        // to not have predicates should be marked as entry points unless we are inlining into brillig.
+                        let entry_point = &ssa.functions[&self.context.entry_point];
                         let no_predicates_is_entry_point =
                             self.context.no_predicates_is_entry_point
-                                && function.is_no_predicates();
+                                && function.is_no_predicates()
+                                && !matches!(entry_point.runtime(), RuntimeType::Brillig);
                         if function.runtime().is_entry_point() || no_predicates_is_entry_point {
                             self.push_instruction(*id);
                         } else {

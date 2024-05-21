@@ -8,7 +8,7 @@ use noirc_driver::DebugFile;
 use noirc_errors::debug_info::ProgramDebugInfo;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ProgramArtifact {
     pub noir_version: String,
 

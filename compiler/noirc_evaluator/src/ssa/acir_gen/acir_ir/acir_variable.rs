@@ -8,7 +8,7 @@ use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
-use acvm::acir::circuit::opcodes::{BlockId, MemOp};
+use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, Opcode};
 use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
@@ -236,7 +236,10 @@ impl AcirContext {
         self.acir_ir.call_stack = call_stack;
     }
 
-    fn get_or_create_witness_var(&mut self, var: AcirVar) -> Result<AcirVar, InternalError> {
+    pub(crate) fn get_or_create_witness_var(
+        &mut self,
+        var: AcirVar,
+    ) -> Result<AcirVar, InternalError> {
         if self.var_to_expression(var)?.to_witness().is_some() {
             // If called with a variable which is already a witness then return the same variable.
             return Ok(var);
@@ -1773,6 +1776,7 @@ impl AcirContext {
         block_id: BlockId,
         len: usize,
         optional_value: Option<AcirValue>,
+        databus: BlockType,
     ) -> Result<(), InternalError> {
         let initialized_values = match optional_value {
             None => {
@@ -1787,7 +1791,11 @@ impl AcirContext {
             }
         };
 
-        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+        self.acir_ir.push_opcode(Opcode::MemoryInit {
+            block_id,
+            init: initialized_values,
+            block_type: databus,
+        });
 
         Ok(())
     }

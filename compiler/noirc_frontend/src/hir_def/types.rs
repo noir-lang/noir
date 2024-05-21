@@ -1423,14 +1423,14 @@ impl Type {
 
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
-    pub fn get_field_type(&self, field_name: &str) -> Type {
+    pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
         match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap().0,
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).map(|(typ, _)| typ),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
+                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ).cloned()
             }
-            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
+            _ => None,
         }
     }
 
@@ -1472,6 +1472,43 @@ impl Type {
                     .collect();
 
                 let instantiated = typ.force_substitute(&replacements);
+                (instantiated, replacements)
+            }
+            other => (other.clone(), HashMap::new()),
+        }
+    }
+
+    /// Instantiates a type with the given types.
+    /// This differs from substitute in that only the quantified type variables
+    /// are matched against the type list and are eligible for substitution - similar
+    /// to normal instantiation. This function is used when the turbofish operator
+    /// is used and generic substitutions are provided manually by users.
+    ///
+    /// Expects the given type vector to be the same length as the Forall type variables.
+    pub fn instantiate_with(
+        &self,
+        types: Vec<Type>,
+        interner: &NodeInterner,
+        implicit_generic_count: usize,
+    ) -> (Type, TypeBindings) {
+        match self {
+            Type::Forall(typevars, typ) => {
+                assert_eq!(types.len() + implicit_generic_count, typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
+
+                let replacements = typevars
+                    .iter()
+                    .enumerate()
+                    .map(|(i, var)| {
+                        let binding = if i < implicit_generic_count {
+                            interner.next_type_variable()
+                        } else {
+                            types[i - implicit_generic_count].clone()
+                        };
+                        (var.id(), (var.clone(), binding))
+                    })
+                    .collect();
+
+                let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
@@ -1727,7 +1764,7 @@ fn convert_array_expression_to_slice(
 
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
+    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), None);
     let func = interner.push_expr(as_slice);
 
     // Copy the expression and give it a new ExprId. The old one
