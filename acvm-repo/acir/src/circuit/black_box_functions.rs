@@ -85,7 +85,7 @@ pub enum BlackBoxFunc {
 
     /// Calculates a Pedersen commitment to the inputs.
     ///
-    /// Computes a Pedersen commitments of the inputs using generators of the
+    /// Computes a Pedersen commitment of the inputs using generators of the
     /// embedded curve
     /// - input: vector of (FieldElement, 254)
     /// - output: 2 witnesses representing the x,y coordinates of the resulting
