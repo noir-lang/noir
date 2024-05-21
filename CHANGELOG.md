@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.30.0](https://github.com/noir-lang/noir/compare/v0.29.0...v0.30.0) (2024-05-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove `Opcode::Brillig` from ACIR (https://github.com/AztecProtocol/aztec-packages/pull/5995)
+* AES blackbox (https://github.com/AztecProtocol/aztec-packages/pull/6016)
+
+### Features
+
+* `multi_scalar_mul` blackbox func (https://github.com/AztecProtocol/aztec-packages/pull/6097) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* `variable_base_scalar_mul` blackbox func (https://github.com/AztecProtocol/aztec-packages/pull/6039) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Add `Not` trait to stdlib ([#4999](https://github.com/noir-lang/noir/issues/4999)) ([95d4d13](https://github.com/noir-lang/noir/commit/95d4d133d1eb5e0eb44cd928d8183d890e970a13))
+* Add `std::ops::Neg` trait to stdlib ([07930d4](https://github.com/noir-lang/noir/commit/07930d4373a393146210efae69e6ec40171f047b))
+* Add native rust implementations of pedersen functions ([#4871](https://github.com/noir-lang/noir/issues/4871)) ([fb039f7](https://github.com/noir-lang/noir/commit/fb039f74df23aea39bc0593a5d538d82b4efadf0))
+* Add support for u16/i16 ([#4985](https://github.com/noir-lang/noir/issues/4985)) ([e43661d](https://github.com/noir-lang/noir/commit/e43661d16c1cd07e2af2392b88d29c689889ff9a))
+* AES blackbox (https://github.com/AztecProtocol/aztec-packages/pull/6016) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Do not return databus returndata, keep it private. ([#5023](https://github.com/noir-lang/noir/issues/5023)) ([a5b7df1](https://github.com/noir-lang/noir/commit/a5b7df12faf9d71ff24f8c5cde5e78da44558caf))
+* Dynamic assertion payloads v2 (https://github.com/AztecProtocol/aztec-packages/pull/5949) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Implement `From` array trait for `BoundedVec` ([#4927](https://github.com/noir-lang/noir/issues/4927)) ([bf491dc](https://github.com/noir-lang/noir/commit/bf491dce9595d0e37057ae6d6721eb7a83cec0e2))
+* Implement `ops` traits on `u16`/`i16` ([#4996](https://github.com/noir-lang/noir/issues/4996)) ([8b65663](https://github.com/noir-lang/noir/commit/8b65663f9e836c11a87e458bd7c6a52920448d5c))
+* Implement `std::ops::Sub` on `EmbeddedCurvePoint` ([07930d4](https://github.com/noir-lang/noir/commit/07930d4373a393146210efae69e6ec40171f047b))
+* Increase default expression width to 4 ([#4995](https://github.com/noir-lang/noir/issues/4995)) ([f01d309](https://github.com/noir-lang/noir/commit/f01d3090759a5ff0f1f83c5616d22890c6bd76be))
+* Parsing non-string assertion payloads in noir js (https://github.com/AztecProtocol/aztec-packages/pull/6079) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Remove query to backend to get expression width ([#4975](https://github.com/noir-lang/noir/issues/4975)) ([e5f356b](https://github.com/noir-lang/noir/commit/e5f356b063fe4facbd14320b7eafed664d0bb027))
+* Set aztec private functions to be recursive (https://github.com/AztecProtocol/aztec-packages/pull/6192) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+
+
+### Bug Fixes
+
+* Compute the correct slice length when coercing from a literal array of complex types ([#4986](https://github.com/noir-lang/noir/issues/4986)) ([f3f1150](https://github.com/noir-lang/noir/commit/f3f11507983009771656811f9570bdbe6849c7ef))
+* Defer overflow checks for unsigned integers to acir-gen ([#4832](https://github.com/noir-lang/noir/issues/4832)) ([b577761](https://github.com/noir-lang/noir/commit/b5777613c51f26fb4f580b9168c4190b1f4bd8f7))
+* Fix no predicates for brillig with intermediate functions ([#5015](https://github.com/noir-lang/noir/issues/5015)) ([9c6de4b](https://github.com/noir-lang/noir/commit/9c6de4b25d318c6d211361dd62a112a9d2432c56))
+* Fixed several vulnerabilities in U128, added some tests ([#5024](https://github.com/noir-lang/noir/issues/5024)) ([e5ab24d](https://github.com/noir-lang/noir/commit/e5ab24d6a4154d11b3c8ae08f4431b7b93c76f23))
+* Ignore no_predicates in brillig functions ([#5012](https://github.com/noir-lang/noir/issues/5012)) ([b541e79](https://github.com/noir-lang/noir/commit/b541e793e20fa3c991e0328ec2ff7926bdcdfd45))
+* Set index and value to 0 for array_get with predicate ([#4971](https://github.com/noir-lang/noir/issues/4971)) ([c49d3a9](https://github.com/noir-lang/noir/commit/c49d3a9ded819b828cffdfc031e86614da21e329))
+
+
+### Miscellaneous Chores
+
+* Remove `Opcode::Brillig` from ACIR (https://github.com/AztecProtocol/aztec-packages/pull/5995) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+
 ## [0.29.0](https://github.com/noir-lang/noir/compare/v0.28.0...v0.29.0) (2024-05-03)
 
 
