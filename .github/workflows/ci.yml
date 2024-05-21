@@ -32,38 +32,6 @@ jobs:
       username: ${{ github.event.pull_request.user.login || github.actor }}
       runner_type: builder-x86
     secrets: inherit
-  # job just to alert that you *might* hit missing CI files, but if not you can continue
-
-  ci-consistency:
-    runs-on: ubuntu-latest
-    # Only check PRs for consistency (not master)
-    if: ${{ github.event.pull_request.head.sha != '' }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Checkout Merge Pipeline Files
-        uses: actions/checkout@v4
-        with:
-          path: merge-commit-pipeline-files
-          sparse-checkout: |
-            .github/workflows/ci.yml
-            .github/workflows/setup-runner.yml
-
-      - name: Ensure CI Consistency
-        if: ${{ github.event.pull_request.head.sha != '' }}
-        run: |
-          # Compare the checked-out CI configuration files with the reference files
-          if ! git diff --no-index .github/workflows/ci.yml merge-commit-pipeline-files/.github/workflows/ci.yml; then
-            echo "Error: ci.yml changes in master (or PR base). *Usually* you can continue just fine. If you hit trouble with missing files, please merge these changes. This is to alert about potential surprises from Github Action's merge behavior."
-            exit 1
-          fi
-          if ! git diff --no-index .github/workflows/setup-runner.yml merge-commit-pipeline-files/.github/workflows/setup-runner.yml; then
-            echo "Error: setup-runner.yml changes in master (or PR base). *Usually* you can continue just fine. If you hit trouble with missing files, please merge these changes. This is to alert about potential surprises from Github Action's merge behavior."
-            exit 1
-          fi
 
   build:
     needs: setup
