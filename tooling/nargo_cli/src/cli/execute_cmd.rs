@@ -127,7 +127,6 @@ pub(crate) fn execute_program(
     inputs_map: &InputMap,
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessStack, CliError> {
-    
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let solved_witness_stack_err = nargo::ops::execute_program(

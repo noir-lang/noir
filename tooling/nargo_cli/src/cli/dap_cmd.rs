@@ -194,7 +194,6 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
-
                         noir_debugger::run_dap_loop(
                             server,
                             &Bn254BlackBoxSolver,
