@@ -157,7 +157,8 @@ pub enum BlackBoxFunc {
     Keccak256,
 
     /// Keccak Permutation function of width 1600
-    /// - TODO: inputs/outputs??
+    /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
+    /// - outputs: The result of a keccak f1600 permutation on the input state. Also an array of 25 Keccak lanes.
     Keccakf1600,
 
     /// Compute a recursive aggregation object when verifying a proof inside
