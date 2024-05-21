@@ -7,9 +7,7 @@ on:
   workflow_dispatch:
     inputs: {}
 concurrency:
-  # force parallelism in master, cancelling in branches (only relevant to workflow_dispatch)
-  group: ci-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}
-  cancel-in-progress: true
+  group: ci-master-arm
 env:
   DOCKERHUB_PASSWORD: "${{ secrets.DOCKERHUB_PASSWORD }}"
   RUN_ID: ${{ github.run_id }}
