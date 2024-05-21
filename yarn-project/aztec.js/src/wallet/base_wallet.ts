@@ -54,6 +54,8 @@ export abstract class BaseWallet implements Wallet {
         },
   ): Promise<AuthWitness>;
 
+  abstract rotateNullifierKeys(newNskM: Fq): Promise<void>;
+
   getAddress() {
     return this.getCompleteAddress().address;
   }
@@ -69,8 +71,8 @@ export abstract class BaseWallet implements Wallet {
   registerAccount(secretKey: Fr, partialAddress: PartialAddress): Promise<CompleteAddress> {
     return this.pxe.registerAccount(secretKey, partialAddress);
   }
-  rotateMasterNullifierKey(account: AztecAddress, secretKey: Fq): Promise<void> {
-    return this.pxe.rotateMasterNullifierKey(account, secretKey);
+  rotateNskM(address: AztecAddress, secretKey: Fq) {
+    return this.pxe.rotateNskM(address, secretKey);
   }
   registerRecipient(account: CompleteAddress): Promise<void> {
     return this.pxe.registerRecipient(account);

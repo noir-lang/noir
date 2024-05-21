@@ -193,27 +193,25 @@ describe('Private Execution test suite', () => {
   beforeEach(async () => {
     trees = {};
     oracle = mock<DBOracle>();
-    oracle.getKeyValidationRequest.mockImplementation(
-      (masterNullifierPublicKeyHash: Fr, contractAddress: AztecAddress) => {
-        if (masterNullifierPublicKeyHash.equals(ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
-          return Promise.resolve(
-            new KeyValidationRequest(
-              ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
-              computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
-            ),
-          );
-        }
-        if (masterNullifierPublicKeyHash.equals(recipientCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
-          return Promise.resolve(
-            new KeyValidationRequest(
-              recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
-              computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
-            ),
-          );
-        }
-        throw new Error(`Unknown master nullifier public key hash: ${masterNullifierPublicKeyHash}`);
-      },
-    );
+    oracle.getKeyValidationRequest.mockImplementation((npkMHash: Fr, contractAddress: AztecAddress) => {
+      if (npkMHash.equals(ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
+        return Promise.resolve(
+          new KeyValidationRequest(
+            ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
+            computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
+          ),
+        );
+      }
+      if (npkMHash.equals(recipientCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
+        return Promise.resolve(
+          new KeyValidationRequest(
+            recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
+            computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
+          ),
+        );
+      }
+      throw new Error(`Unknown master nullifier public key hash: ${npkMHash}`);
+    });
 
     // We call insertLeaves here with no leaves to populate empty public data tree root --> this is necessary to be
     // able to get ivpk_m during execution

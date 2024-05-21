@@ -64,6 +64,7 @@ contract Child {
     fn private_get_value(amount: Field, owner: AztecAddress) -> Field {
         let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
 
+        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
         let mut options = NoteGetterOptions::new();
         options = options.select(ValueNote::properties().value, amount, Option::none()).select(
             ValueNote::properties().npk_m_hash,

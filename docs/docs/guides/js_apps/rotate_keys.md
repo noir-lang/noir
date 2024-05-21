@@ -26,16 +26,6 @@ You will need to import these from Aztec.js:
 
 ## Rotate nullifier secret and public key
 
-Call `rotateMasterNullifierKey` on the PXE to rotate the secret key. 
+Call `rotateNullifierKeys` on the AccountWallet to rotate the secret key in the PXE and call the key registry with the new derived public key.
 
-#include_code rotateMasterNullifierKey yarn-project/end-to-end/src/e2e_key_rotation.test.ts typescript
-
-## Rotate public key 
-
-Connect to the key registry contract with your wallet. 
-
-#include_code keyRegistryWithB yarn-project/end-to-end/src/e2e_key_rotation.test.ts typescript
-
-Then `rotate_npk_m` on the key registry contract to rotate the public key:
-
-#include_code rotate_npk_m yarn-project/end-to-end/src/e2e_key_rotation.test.ts typescript
+#include_code rotateNullifierKeys yarn-project/end-to-end/src/e2e_key_rotation.test.ts typescript

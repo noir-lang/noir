@@ -124,7 +124,7 @@ export class KeyStore {
       }
 
       // Now we iterate over the public keys in the buffer to find the one that matches the hash
-      const numKeys = pkMsBuffer.byteLength / Point.SIZE_IN_BYTES;
+      const numKeys = this.#calculateNumKeys(pkMsBuffer, Point);
       for (; keyIndexInBuffer < numKeys; keyIndexInBuffer++) {
         const foundPkM = Point.fromBuffer(
           pkMsBuffer.subarray(keyIndexInBuffer * Point.SIZE_IN_BYTES, (keyIndexInBuffer + 1) * Point.SIZE_IN_BYTES),
@@ -289,7 +289,7 @@ export class KeyStore {
         );
       }
 
-      const numKeys = secretKeysBuffer.byteLength / GrumpkinScalar.SIZE_IN_BYTES;
+      const numKeys = this.#calculateNumKeys(secretKeysBuffer, GrumpkinScalar);
       for (let i = 0; i < numKeys; i++) {
         const foundSk = GrumpkinScalar.fromBuffer(
           secretKeysBuffer.subarray(i * GrumpkinScalar.SIZE_IN_BYTES, (i + 1) * GrumpkinScalar.SIZE_IN_BYTES),
@@ -395,5 +395,9 @@ export class KeyStore {
     }
 
     await this.#keys.set(key, serializeToBuffer([currentValue, value]));
+  }
+
+  #calculateNumKeys(buf: Buffer, T: typeof Point | typeof Fq) {
+    return buf.byteLength / T.SIZE_IN_BYTES;
   }
 }

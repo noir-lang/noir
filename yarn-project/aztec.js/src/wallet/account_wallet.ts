@@ -1,5 +1,5 @@
 import { type AuthWitness, type FunctionCall, type PXE, type TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, CANONICAL_KEY_REGISTRY_ADDRESS, Fq, Fr, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
 import { type ABIParameterVisibility, type FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 
 import { type AccountInterface } from '../account/interface.js';
@@ -166,6 +166,30 @@ export class AccountWallet extends BaseWallet {
   }
 
   /**
+   * Rotates the account master nullifier key pair.
+   * @param newNskM - The new master nullifier secret key we want to use.
+   * @remarks - This function also calls the canonical key registry with the account's new derived master nullifier public key.
+   * We are doing it this way to avoid user error, in the case that a user rotates their keys in the key registry,
+   * but fails to do so in the key store. This leads to unspendable notes.
+   *
+   * This does not hinder our ability to spend notes tied to a previous master nullifier public key, provided we have the master nullifier secret key for it.
+   */
+  public async rotateNullifierKeys(newNskM: Fq = Fq.random()): Promise<void> {
+    // We rotate our secret key in the keystore first, because if the subsequent interaction fails, there are no bad side-effects.
+    // If vice versa (the key registry is called first), but the call to the PXE fails, we will end up in a situation with unspendable notes, as we have not committed our
+    // nullifier secret key to our wallet.
+    await this.pxe.rotateNskM(this.getAddress(), newNskM);
+    const interaction = new ContractFunctionInteraction(
+      this,
+      AztecAddress.fromBigInt(CANONICAL_KEY_REGISTRY_ADDRESS),
+      this.getRotateNpkMAbi(),
+      [this.getAddress(), derivePublicKeyFromSecretKey(newNskM), Fr.ZERO],
+    );
+
+    await interaction.send().wait();
+  }
+
+  /**
    * Returns a function interaction to cancel a message hash as authorized in this account.
    * @param messageHashOrIntent - The message or the caller and action to authorize/revoke
    * @returns - A function interaction.
@@ -266,6 +290,41 @@ export class AccountWallet extends BaseWallet {
         { name: 'message_hash', type: { kind: 'field' }, visibility: 'private' as ABIParameterVisibility },
       ],
       returnTypes: [{ kind: 'array', length: 2, type: { kind: 'boolean' } }],
+    };
+  }
+
+  private getRotateNpkMAbi(): FunctionAbi {
+    return {
+      name: 'rotate_npk_m',
+      isInitializer: false,
+      functionType: FunctionType.PUBLIC,
+      isInternal: false,
+      isStatic: false,
+      parameters: [
+        {
+          name: 'address',
+          type: {
+            fields: [{ name: 'inner', type: { kind: 'field' } }],
+            kind: 'struct',
+            path: 'authwit::aztec::protocol_types::address::aztec_address::AztecAddress',
+          },
+          visibility: 'private' as ABIParameterVisibility,
+        },
+        {
+          name: 'new_npk_m',
+          type: {
+            fields: [
+              { name: 'x', type: { kind: 'field' } },
+              { name: 'y', type: { kind: 'field' } },
+            ],
+            kind: 'struct',
+            path: 'authwit::aztec::protocol_types::grumpkin_point::GrumpkinPoint',
+          },
+          visibility: 'private' as ABIParameterVisibility,
+        },
+        { name: 'nonce', type: { kind: 'field' }, visibility: 'private' as ABIParameterVisibility },
+      ],
+      returnTypes: [],
     };
   }
 }
