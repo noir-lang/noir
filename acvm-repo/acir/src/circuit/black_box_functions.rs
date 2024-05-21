@@ -191,11 +191,6 @@ pub enum BlackBoxFunc {
     /// to be done by the final verifier. This is why this black box function
     /// does not say if verification is passing or not.
     ///
-    /// If you have several proofs to verify in one ACIR program, you would call
-    /// RecursiveAggregation() multiple times and passing the
-    /// output_aggregation_object as input_aggregation_object to the next
-    /// RecursiveAggregation() call, except for the first call where you do not
-    /// have any input_aggregation_object.
     ///
     /// If one of the proof you verify with the black box function does not
     /// verify, then the verification of the proof of the main ACIR program will
