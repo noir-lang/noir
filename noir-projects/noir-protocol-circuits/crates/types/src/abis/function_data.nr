@@ -7,14 +7,12 @@ use crate::{
 struct FunctionData {
     selector : FunctionSelector,
     is_private : bool,
-    is_static : bool,
 }
 
 impl Eq for FunctionData {
     fn eq(self, other: Self) -> bool {
         self.selector.eq(other.selector) &
-        (self.is_private == other.is_private) &
-        (self.is_static == other.is_static)
+        (self.is_private == other.is_private)
     }
 }
 
@@ -26,7 +24,6 @@ impl Serialize<FUNCTION_DATA_LENGTH> for FunctionData {
         [
             self.selector.to_field(),
             self.is_private as Field,
-            self.is_static as Field
         ]
     }
 }
@@ -36,7 +33,6 @@ impl Deserialize<FUNCTION_DATA_LENGTH> for FunctionData {
         Self {
             selector: FunctionSelector::from_field(serialized[0]),
             is_private: serialized[1] as bool,
-            is_static: serialized[2] as bool
         }
     }
 }
@@ -51,8 +47,7 @@ impl Empty for FunctionData {
     fn empty() -> Self {
         FunctionData {
             selector: FunctionSelector::empty(),
-            is_private: false,
-            is_static: false
+            is_private: false
         }
     }
 
@@ -72,6 +67,6 @@ fn empty_hash() {
     let hash = data.hash();
 
     // Value from function_data.test.ts "computes empty function data hash" test
-    let test_data_empty_hash = 0x066e6cdc4a6ba5e4781deda650b0be6c12f975f064fc38df72c1060716759b17;
+    let test_data_empty_hash = 0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed;
     assert_eq(hash, test_data_empty_hash);
 }

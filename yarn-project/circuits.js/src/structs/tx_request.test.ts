@@ -37,7 +37,7 @@ describe('TxRequest', () => {
     const gasSettings = new GasSettings(new Gas(2, 2), new Gas(1, 1), new GasFees(3, 3), new Fr(10));
     const txRequest = TxRequest.from({
       origin: AztecAddress.fromBigInt(1n),
-      functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), /*isPrivate=*/ true, /*isStatic=*/ false),
+      functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), /*isPrivate=*/ true),
       argsHash: new Fr(3),
       txContext: new TxContext(Fr.ZERO, Fr.ZERO, gasSettings),
     });

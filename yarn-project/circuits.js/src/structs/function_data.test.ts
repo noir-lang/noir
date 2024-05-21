@@ -9,7 +9,7 @@ describe('FunctionData', () => {
 
   beforeAll(() => {
     setupCustomSnapshotSerializers(expect);
-    functionData = new FunctionData(new FunctionSelector(123), /*isPrivate=*/ true, /*isStatic=*/ false);
+    functionData = new FunctionData(new FunctionSelector(123), /*isPrivate=*/ true);
   });
 
   it(`serializes to buffer and deserializes it back`, () => {

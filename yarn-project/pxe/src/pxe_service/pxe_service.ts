@@ -521,6 +521,7 @@ export class PXEService implements PXE {
       args: encodeArguments(functionDao, args),
       functionData: FunctionData.fromAbi(functionDao),
       to,
+      isStatic: functionDao.isStatic,
     };
   }
 

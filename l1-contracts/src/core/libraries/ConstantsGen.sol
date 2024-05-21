@@ -111,7 +111,7 @@ library Constants {
   uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 2;
   uint256 internal constant CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH = 2;
   uint256 internal constant ETH_ADDRESS_LENGTH = 1;
-  uint256 internal constant FUNCTION_DATA_LENGTH = 3;
+  uint256 internal constant FUNCTION_DATA_LENGTH = 2;
   uint256 internal constant FUNCTION_LEAF_PREIMAGE_LENGTH = 5;
   uint256 internal constant GLOBAL_VARIABLES_LENGTH = 6 + GAS_FEES_LENGTH;
   uint256 internal constant APPEND_ONLY_TREE_SNAPSHOT_LENGTH = 2;

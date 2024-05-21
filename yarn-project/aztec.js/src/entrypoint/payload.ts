@@ -56,7 +56,7 @@ export class EntrypointPayload {
       function_selector: call.functionData.selector.toField(),
       target_address: call.to.toField(),
       is_public: !call.functionData.isPrivate,
-      is_static: call.functionData.isStatic,
+      is_static: call.isStatic,
     }));
     /* eslint-enable camelcase */
 

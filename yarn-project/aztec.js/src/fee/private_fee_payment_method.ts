@@ -68,8 +68,8 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'),
           /*isPrivate=*/ true,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         to: this.asset,
       },
     );
@@ -83,8 +83,8 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field,Field)'),
           /*isPrivate=*/ true,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         args: [maxFee, this.asset, secretHashForRebate, nonce],
       },
     ];

@@ -57,6 +57,7 @@ export class DeployAccountMethod extends DeployMethod {
         to: address,
         args: encodeArguments(this.#feePaymentArtifact, [emptyAppPayload, feePayload]),
         functionData: FunctionData.fromAbi(this.#feePaymentArtifact),
+        isStatic: this.#feePaymentArtifact.isStatic,
       });
 
       exec.authWitnesses ??= [];

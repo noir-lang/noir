@@ -230,8 +230,8 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
           /*isPrivate=*/ false,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         to: this.asset,
       },
     );
@@ -245,8 +245,8 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
           /*isPrivate=*/ true,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         args: [tooMuchFee, this.asset, nonce],
       },
     ]);
@@ -267,8 +267,8 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
           /*isPrivate=*/ false,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         to: this.asset,
       },
     );
@@ -284,8 +284,8 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
           /*isPrivate=*/ true,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         args: [maxFee, this.asset, nonce],
       },
       // and trying to take a little extra in teardown, but specify a bad nonce
@@ -294,8 +294,8 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
           /*isPrivate=*/ false,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         args: [this.wallet.getAddress(), this.paymentContract, new Fr(1), Fr.random()],
       },
     ]);

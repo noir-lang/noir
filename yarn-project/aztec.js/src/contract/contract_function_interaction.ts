@@ -62,7 +62,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
   public request(): FunctionCall {
     const args = encodeArguments(this.functionDao, this.args);
     const functionData = FunctionData.fromAbi(this.functionDao);
-    return { args, functionData, to: this.contractAddress };
+    return { args, functionData, to: this.contractAddress, isStatic: this.functionDao.isStatic };
   }
 
   /**

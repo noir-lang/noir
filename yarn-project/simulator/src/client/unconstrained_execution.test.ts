@@ -63,7 +63,8 @@ describe('Unconstrained Execution test suite', () => {
 
       const execRequest: FunctionCall = {
         to: contractAddress,
-        functionData: new FunctionData(FunctionSelector.empty(), /*isPrivate=*/ true, /*isStatic=*/ false),
+        functionData: new FunctionData(FunctionSelector.empty(), /*isPrivate=*/ true),
+        isStatic: false,
         args: encodeArguments(artifact, [owner]),
       };
 

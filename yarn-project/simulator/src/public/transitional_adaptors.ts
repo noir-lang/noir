@@ -65,11 +65,7 @@ export function createPublicExecution(
     isStaticCall: avmEnvironment.isStaticCall,
     sideEffectCounter: startSideEffectCounter,
   });
-  const functionData = new FunctionData(
-    avmEnvironment.temporaryFunctionSelector,
-    /*isPrivate=*/ false,
-    /*isStatic=*/ false,
-  );
+  const functionData = new FunctionData(avmEnvironment.temporaryFunctionSelector, /*isPrivate=*/ false);
   const execution: PublicExecution = {
     contractAddress: avmEnvironment.address,
     callContext,

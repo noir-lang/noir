@@ -133,7 +133,8 @@ export const makeFunctionCall = (
   to = makeAztecAddress(30),
   selector = makeSelector(5),
   args = new Array(ARGS_LENGTH).fill(Fr.ZERO),
-) => ({ to, functionData: new FunctionData(selector, /*isPrivate=*/ false, /*isStatic=*/ false), args });
+  isStatic = false,
+) => ({ to, functionData: new FunctionData(selector, /*isPrivate=*/ false), args, isStatic });
 
 export function addKernelPublicCallStack(
   kernelOutput: PrivateKernelTailCircuitPublicInputs,

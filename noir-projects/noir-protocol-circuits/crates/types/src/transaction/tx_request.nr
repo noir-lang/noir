@@ -95,10 +95,10 @@ mod tests {
             origin: AztecAddress::from_field(1),
             args_hash: 3,
             tx_context: TxContext { chain_id: 0, version: 0, gas_settings },
-            function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_private: true, is_static: false }
+            function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_private: true }
         };
         // Value from tx_request.test.ts "compute hash" test
-        let test_data_tx_request_hash = 0x249ca45ef4045007021de437e14bf865445f63af6ab5dcc8d78d2b3aa7c58c74;
+        let test_data_tx_request_hash = 0x0d982a1c7a65919b2bcacbf5660f5b861132072a8190d97c82b1591da402f5ea;
         assert(tx_request.hash() == test_data_tx_request_hash);
     }
 }

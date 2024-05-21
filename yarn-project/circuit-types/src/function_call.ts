@@ -6,6 +6,8 @@ export type FunctionCall = {
   to: AztecAddress;
   /** The function being called */
   functionData: FunctionData;
+  /** Whether this call can make modifications to state or not */
+  isStatic: boolean;
   /** The encoded args */
   args: Fr[];
 };
@@ -18,6 +20,7 @@ export function emptyFunctionCall() {
   return {
     to: AztecAddress.ZERO,
     functionData: FunctionData.empty(),
+    isStatic: false,
     args: [],
   };
 }

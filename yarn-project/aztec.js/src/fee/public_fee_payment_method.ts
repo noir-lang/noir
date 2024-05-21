@@ -61,8 +61,8 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
           /*isPrivate=*/ false,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         to: this.asset,
       },
     );
@@ -74,8 +74,8 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
           /*isPrivate=*/ true,
-          /*isStatic=*/ false,
         ),
+        isStatic: false,
         args: [maxFee, this.asset, nonce],
       },
     ]);
