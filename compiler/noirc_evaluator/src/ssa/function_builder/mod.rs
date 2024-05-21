@@ -1,9 +1,10 @@
 pub(crate) mod data_bus;
 
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -18,7 +19,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, InstructionId, Intrinsic},
+        instruction::{ConstrainError, ErrorType, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -35,6 +36,7 @@ pub(crate) struct FunctionBuilder {
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
     call_stack: CallStack,
+    error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
 impl FunctionBuilder {
@@ -42,20 +44,25 @@ impl FunctionBuilder {
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    pub(crate) fn new(
-        function_name: String,
-        function_id: FunctionId,
-        runtime: RuntimeType,
-    ) -> Self {
-        let mut new_function = Function::new(function_name, function_id);
-        new_function.set_runtime(runtime);
+    pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
+        let new_function = Function::new(function_name, function_id);
 
         Self {
             current_block: new_function.entry_block(),
             current_function: new_function,
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
+            error_types: BTreeMap::default(),
         }
+    }
+
+    /// Set the runtime of the initial function that is created internally after constructing
+    /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
+    /// This should only be used immediately following construction of a FunctionBuilder
+    /// and will panic if there are any already finished functions.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        self.current_function.set_runtime(runtime);
     }
 
     /// Finish the current function and create a new function.
@@ -78,8 +85,13 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new ACIR function.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir);
+    pub(crate) fn new_function(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        inline_type: InlineType,
+    ) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
     /// Finish the current function and create a new unconstrained function.
@@ -90,7 +102,7 @@ impl FunctionBuilder {
     /// Consume the FunctionBuilder returning all the functions it has generated.
     pub(crate) fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
-        Ssa::new(self.finished_functions)
+        Ssa::new(self.finished_functions, self.error_types)
     }
 
     /// Add a parameter to the current function with the given parameter type.
@@ -220,7 +232,12 @@ impl FunctionBuilder {
     ) -> ValueId {
         let lhs_type = self.type_of_value(lhs);
         let rhs_type = self.type_of_value(rhs);
-        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
+        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
+            assert_eq!(
+                lhs_type, rhs_type,
+                "ICE - Binary instruction operands must have the same type"
+            );
+        }
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
@@ -254,7 +271,7 @@ impl FunctionBuilder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        assert_message: Option<Box<ConstrainError>>,
+        assert_message: Option<ConstrainError>,
     ) {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
@@ -301,7 +318,8 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
+            .first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect
@@ -314,6 +332,12 @@ impl FunctionBuilder {
     /// in unconstrained code where arrays are reference counted and copy on write.
     pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
+    }
+
+    /// Insert an enable_side_effects_if instruction. These are normally only automatically
+    /// inserted during the flattening pass when branching is removed.
+    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
+        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -458,6 +482,10 @@ impl FunctionBuilder {
             }
         }
     }
+
+    pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: ErrorType) {
+        self.error_types.insert(selector, typ);
+    }
 }
 
 impl std::ops::Index<ValueId> for FunctionBuilder {
@@ -491,7 +519,6 @@ mod tests {
     use acvm::FieldElement;
 
     use crate::ssa::ir::{
-        function::RuntimeType,
         instruction::{Endian, Intrinsic},
         map::Id,
         types::Type,
@@ -506,7 +533,7 @@ mod tests {
         // let x = 7;
         // let bits = x.to_le_bits(8);
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let one = builder.numeric_constant(FieldElement::one(), Type::bool());
         let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
 

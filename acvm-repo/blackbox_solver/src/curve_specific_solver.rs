@@ -11,7 +11,7 @@ pub trait BlackBoxFunctionSolver {
         &self,
         public_key_x: &FieldElement,
         public_key_y: &FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError>;
     fn pedersen_commitment(
@@ -24,10 +24,10 @@ pub trait BlackBoxFunctionSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<FieldElement, BlackBoxResolutionError>;
-    fn fixed_base_scalar_mul(
+    fn multi_scalar_mul(
         &self,
-        low: &FieldElement,
-        high: &FieldElement,
+        points: &[FieldElement],
+        scalars: &[FieldElement],
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
     fn ec_add(
         &self,
@@ -59,7 +59,7 @@ impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
         &self,
         _public_key_x: &FieldElement,
         _public_key_y: &FieldElement,
-        _signature: &[u8],
+        _signature: &[u8; 64],
         _message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::SchnorrVerify))
@@ -78,12 +78,12 @@ impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
     ) -> Result<FieldElement, BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::PedersenHash))
     }
-    fn fixed_base_scalar_mul(
+    fn multi_scalar_mul(
         &self,
-        _low: &FieldElement,
-        _high: &FieldElement,
+        _points: &[FieldElement],
+        _scalars: &[FieldElement],
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::FixedBaseScalarMul))
+        Err(Self::fail(BlackBoxFunc::MultiScalarMul))
     }
     fn ec_add(
         &self,

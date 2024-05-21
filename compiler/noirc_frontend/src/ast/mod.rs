@@ -32,6 +32,7 @@ use iter_extended::vecmap;
 pub enum IntegerBitSize {
     One,
     Eight,
+    Sixteen,
     ThirtyTwo,
     SixtyFour,
 }
@@ -48,6 +49,7 @@ impl From<IntegerBitSize> for u32 {
         match size {
             One => 1,
             Eight => 8,
+            Sixteen => 16,
             ThirtyTwo => 32,
             SixtyFour => 64,
         }
@@ -64,6 +66,7 @@ impl TryFrom<u32> for IntegerBitSize {
         match value {
             1 => Ok(One),
             8 => Ok(Eight),
+            16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
             64 => Ok(SixtyFour),
             _ => Err(InvalidIntegerBitSizeError(value)),
@@ -111,6 +114,9 @@ pub enum UnresolvedTypeData {
         /*ret:*/ Box<UnresolvedType>,
         /*env:*/ Box<UnresolvedType>,
     ),
+
+    // The type of quoted code for metaprogramming
+    Code,
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -200,6 +206,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
+            Code => write!(f, "Code"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

@@ -6,15 +6,18 @@ use std::{
 };
 
 use crate::{
+    ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
-    IntegerBitSize,
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use noirc_printable_type::PrintableType;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{
+    ast::{Ident, Signedness},
+    node_interner::StructId,
+};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -543,11 +546,11 @@ impl TypeBinding {
 pub struct TypeVariableId(pub usize);
 
 impl Type {
-    pub fn default_int_type() -> Type {
+    pub fn default_int_or_field_type() -> Type {
         Type::FieldElement
     }
 
-    pub fn default_range_loop_type() -> Type {
+    pub fn default_int_type() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)
     }
 
@@ -589,6 +592,7 @@ impl Type {
                 TypeBinding::Bound(binding) => binding.is_bindable(),
                 TypeBinding::Unbound(_) => true,
             },
+            Type::Alias(alias, args) => alias.borrow().get_type(args).is_bindable(),
             _ => false,
         }
     }
@@ -603,6 +607,15 @@ impl Type {
 
     pub fn is_unsigned(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        use Type::*;
+        use TypeVariableKind as K;
+        matches!(
+            self.follow_bindings(),
+            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
+        )
     }
 
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
@@ -630,9 +643,11 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
-            | Type::Code
-            | Type::TraitAsType(..) => false,
+            | Type::Code => false,
 
+            Type::TraitAsType(_, _, args) => {
+                args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+            }
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
@@ -716,6 +731,54 @@ impl Type {
         }
     }
 
+    /// True if this type can be used as a parameter to an ACIR function that is not `main` or a contract function.
+    /// This encapsulates functions for which we may not want to inline during compilation.
+    ///
+    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
+    /// certain types which through compilation we know what their size should be.
+    /// This includes types such as numeric generics.
+    pub(crate) fn is_valid_non_inlined_function_input(&self) -> bool {
+        match self {
+            // Type::Error is allowed as usual since it indicates an error was already issued and
+            // we don't need to issue further errors about this likely unresolved type
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Error => true,
+
+            Type::FmtString(_, _)
+            // To enable this we would need to determine the size of the closure outputs at compile-time.
+            // This is possible as long as the output size is not dependent upon a witness condition.
+            | Type::Function(_, _, _)
+            | Type::Slice(_)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            // TODO: probably can allow code as it is all compile time
+            | Type::Code
+            | Type::TraitAsType(..) => false,
+
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_non_inlined_function_input()
+            }
+
+            Type::Array(length, element) => {
+                length.is_valid_non_inlined_function_input() && element.is_valid_non_inlined_function_input()
+            }
+            Type::String(length) => length.is_valid_non_inlined_function_input(),
+            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_non_inlined_function_input()),
+        }
+    }
+
     /// Returns the number of `Forall`-quantified type variables on this type.
     /// Returns 0 if this is not a Type::Forall
     pub fn generic_count(&self) -> usize {
@@ -777,7 +840,7 @@ impl std::fmt::Display for Type {
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "{}", TypeVariableKind::Integer.default_type())
+                    write!(f, "{}", Type::default_int_type())
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
@@ -1360,14 +1423,14 @@ impl Type {
 
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
-    pub fn get_field_type(&self, field_name: &str) -> Type {
+    pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
         match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap().0,
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).map(|(typ, _)| typ),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
+                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ).cloned()
             }
-            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
+            _ => None,
         }
     }
 
@@ -1530,11 +1593,17 @@ impl Type {
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
             )),
 
+            Type::TraitAsType(s, name, args) => {
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                Type::TraitAsType(*s, name.clone(), args)
+            }
+
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
-            | Type::TraitAsType(..)
             | Type::Error
             | Type::Code
             | Type::Unit => self.clone(),
@@ -1552,7 +1621,9 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
+            Type::Struct(_, generic_args)
+            | Type::Alias(_, generic_args)
+            | Type::TraitAsType(_, _, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
@@ -1576,7 +1647,6 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
-            | Type::TraitAsType(..)
             | Type::Error
             | Type::Code
             | Type::Unit => false,
@@ -1628,16 +1698,14 @@ impl Type {
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
+            TraitAsType(s, name, args) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                TraitAsType(*s, name.clone(), args)
+            }
+
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(..)
-            | FieldElement
-            | Integer(_, _)
-            | Bool
-            | Constant(_)
-            | Unit
-            | Code
-            | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => self.clone(),
         }
     }
 
@@ -1662,14 +1730,19 @@ fn convert_array_expression_to_slice(
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
     let func = interner.push_expr(as_slice);
 
-    let arguments = vec![expression];
+    // Copy the expression and give it a new ExprId. The old one
+    // will be mutated in place into a Call expression.
+    let argument = interner.expression(&expression);
+    let argument = interner.push_expr(argument);
+    interner.push_expr_type(argument, array_type.clone());
+    interner.push_expr_location(argument, location.span, location.file);
+
+    let arguments = vec![argument];
     let call = HirExpression::Call(HirCallExpression { func, arguments, location });
-    let call = interner.push_expr(call);
+    interner.replace_expr(&expression, call);
 
-    interner.push_expr_location(call, location.span, location.file);
     interner.push_expr_location(func, location.span, location.file);
-
-    interner.push_expr_type(call, target_type.clone());
+    interner.push_expr_type(expression, target_type.clone());
 
     let func_type = Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit));
     interner.push_expr_type(func, func_type);
@@ -1691,11 +1764,12 @@ impl BinaryTypeOperator {
 impl TypeVariableKind {
     /// Returns the default type this type variable should be bound to if it is still unbound
     /// during monomorphization.
-    pub(crate) fn default_type(&self) -> Type {
+    pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
-            TypeVariableKind::Integer => Type::default_range_loop_type(),
-            TypeVariableKind::Constant(length) => Type::Constant(*length),
+            TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
+            TypeVariableKind::Integer => Some(Type::default_int_type()),
+            TypeVariableKind::Constant(length) => Some(Type::Constant(*length)),
+            TypeVariableKind::Normal => None,
         }
     }
 }
@@ -1713,7 +1787,7 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u64();
+                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -1729,12 +1803,12 @@ impl From<&Type> for PrintableType {
             },
             Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.into(),
-                TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
+                TypeBinding::Unbound(_) => Type::default_int_type().into(),
             },
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.into(),
-                    TypeBinding::Unbound(_) => Type::default_int_type().into(),
+                    TypeBinding::Unbound(_) => Type::default_int_or_field_type().into(),
                 }
             }
             Type::Bool => PrintableType::Boolean,

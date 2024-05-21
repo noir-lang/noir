@@ -1,6 +1,7 @@
 use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, Zero};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
+use thiserror::Error;
 
 use acvm::FieldElement;
 use serde::Serialize;
@@ -22,62 +23,164 @@ pub enum InputValue {
     Struct(BTreeMap<String, InputValue>),
 }
 
+#[derive(Debug, Error)]
+pub enum InputTypecheckingError {
+    #[error("Value {value:?} does not fall within range of allowable values for a {typ:?}")]
+    OutsideOfValidRange { path: String, typ: AbiType, value: InputValue },
+    #[error("Type {typ:?} is expected to have length {expected_length} but value {value:?} has length {actual_length}")]
+    LengthMismatch {
+        path: String,
+        typ: AbiType,
+        value: InputValue,
+        expected_length: usize,
+        actual_length: usize,
+    },
+    #[error("Could not find value for required field `{expected_field}`. Found values for fields {found_fields:?}")]
+    MissingField { path: String, expected_field: String, found_fields: Vec<String> },
+    #[error("Additional unexpected field was provided for type {typ:?}. Found field named `{extra_field}`")]
+    UnexpectedField { path: String, typ: AbiType, extra_field: String },
+    #[error("Type {typ:?} and value {value:?} do not match")]
+    IncompatibleTypes { path: String, typ: AbiType, value: InputValue },
+}
+
+impl InputTypecheckingError {
+    pub(crate) fn path(&self) -> &str {
+        match self {
+            InputTypecheckingError::OutsideOfValidRange { path, .. }
+            | InputTypecheckingError::LengthMismatch { path, .. }
+            | InputTypecheckingError::MissingField { path, .. }
+            | InputTypecheckingError::UnexpectedField { path, .. }
+            | InputTypecheckingError::IncompatibleTypes { path, .. } => path,
+        }
+    }
+}
+
 impl InputValue {
     /// Checks whether the ABI type matches the InputValue type
-    /// and also their arity
-    pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
+    pub(crate) fn find_type_mismatch(
+        &self,
+        abi_param: &AbiType,
+        path: String,
+    ) -> Result<(), InputTypecheckingError> {
         match (self, abi_param) {
-            (InputValue::Field(_), AbiType::Field) => true,
+            (InputValue::Field(_), AbiType::Field) => Ok(()),
             (InputValue::Field(field_element), AbiType::Integer { width, .. }) => {
-                field_element.num_bits() <= *width
+                if field_element.num_bits() <= *width {
+                    Ok(())
+                } else {
+                    Err(InputTypecheckingError::OutsideOfValidRange {
+                        path,
+                        typ: abi_param.clone(),
+                        value: self.clone(),
+                    })
+                }
             }
             (InputValue::Field(field_element), AbiType::Boolean) => {
-                field_element.is_one() || field_element.is_zero()
+                if field_element.is_one() || field_element.is_zero() {
+                    Ok(())
+                } else {
+                    Err(InputTypecheckingError::OutsideOfValidRange {
+                        path,
+                        typ: abi_param.clone(),
+                        value: self.clone(),
+                    })
+                }
             }
 
             (InputValue::Vec(array_elements), AbiType::Array { length, typ, .. }) => {
                 if array_elements.len() != *length as usize {
-                    return false;
+                    return Err(InputTypecheckingError::LengthMismatch {
+                        path,
+                        typ: abi_param.clone(),
+                        value: self.clone(),
+                        expected_length: *length as usize,
+                        actual_length: array_elements.len(),
+                    });
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                array_elements.iter().all(|input_value| input_value.matches_abi(typ))
+                for (i, element) in array_elements.iter().enumerate() {
+                    let mut path = path.clone();
+                    path.push_str(&format!("[{i}]"));
+
+                    element.find_type_mismatch(typ, path)?;
+                }
+                Ok(())
             }
 
             (InputValue::String(string), AbiType::String { length }) => {
-                string.len() == *length as usize
+                if string.len() == *length as usize {
+                    Ok(())
+                } else {
+                    Err(InputTypecheckingError::LengthMismatch {
+                        path,
+                        typ: abi_param.clone(),
+                        value: self.clone(),
+                        actual_length: string.len(),
+                        expected_length: *length as usize,
+                    })
+                }
             }
 
             (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
-                if map.len() != fields.len() {
-                    return false;
+                for (field_name, field_type) in fields {
+                    if let Some(value) = map.get(field_name) {
+                        let mut path = path.clone();
+                        path.push_str(&format!(".{field_name}"));
+                        value.find_type_mismatch(field_type, path)?;
+                    } else {
+                        return Err(InputTypecheckingError::MissingField {
+                            path,
+                            expected_field: field_name.to_string(),
+                            found_fields: map.keys().cloned().collect(),
+                        });
+                    }
                 }
 
-                let field_types = BTreeMap::from_iter(fields.iter().cloned());
+                if map.len() > fields.len() {
+                    let expected_fields: HashSet<String> =
+                        fields.iter().map(|(field, _)| field.to_string()).collect();
+                    let extra_field = map.keys().find(|&key| !expected_fields.contains(key)).cloned().expect("`map` is larger than the expected type's `fields` so it must contain an unexpected field");
+                    return Err(InputTypecheckingError::UnexpectedField {
+                        path,
+                        typ: abi_param.clone(),
+                        extra_field: extra_field.to_string(),
+                    });
+                }
 
-                // Check that all of the struct's fields' values match the ABI as well.
-                map.iter().all(|(field_name, field_value)| {
-                    if let Some(field_type) = field_types.get(field_name) {
-                        field_value.matches_abi(field_type)
-                    } else {
-                        false
-                    }
-                })
+                Ok(())
             }
 
             (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
                 if vec_elements.len() != fields.len() {
-                    return false;
+                    return Err(InputTypecheckingError::LengthMismatch {
+                        path,
+                        typ: abi_param.clone(),
+                        value: self.clone(),
+                        actual_length: vec_elements.len(),
+                        expected_length: fields.len(),
+                    });
                 }
-
-                vec_elements
-                    .iter()
-                    .zip(fields)
-                    .all(|(input_value, abi_param)| input_value.matches_abi(abi_param))
+                // Check that all of the array's elements' values match the ABI as well.
+                for (i, (element, expected_typ)) in vec_elements.iter().zip(fields).enumerate() {
+                    let mut path = path.clone();
+                    path.push_str(&format!(".{i}"));
+                    element.find_type_mismatch(expected_typ, path)?;
+                }
+                Ok(())
             }
 
             // All other InputValue-AbiType combinations are fundamentally incompatible.
-            _ => false,
+            _ => Err(InputTypecheckingError::IncompatibleTypes {
+                path,
+                typ: abi_param.clone(),
+                value: self.clone(),
+            }),
         }
+    }
+
+    /// Checks whether the ABI type matches the InputValue type.
+    pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
+        self.find_type_mismatch(abi_param, String::new()).is_ok()
     }
 }
 
@@ -167,6 +270,7 @@ mod serialization_tests {
             // These two fields are unused when serializing/deserializing to file.
             param_witnesses: BTreeMap::new(),
             return_witnesses: Vec::new(),
+            error_types: Default::default(),
         };
 
         let input_map: BTreeMap<String, InputValue> = BTreeMap::from([

@@ -10,7 +10,7 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         &self,
         public_key_x: &acvm::FieldElement,
         public_key_y: &acvm::FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, acvm::BlackBoxResolutionError> {
         self.0.schnorr_verify(public_key_x, public_key_y, signature, message)
@@ -24,12 +24,12 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         self.0.pedersen_commitment(inputs, domain_separator)
     }
 
-    fn fixed_base_scalar_mul(
+    fn multi_scalar_mul(
         &self,
-        low: &acvm::FieldElement,
-        high: &acvm::FieldElement,
+        points: &[acvm::FieldElement],
+        scalars: &[acvm::FieldElement],
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        self.0.fixed_base_scalar_mul(low, high)
+        self.0.multi_scalar_mul(points, scalars)
     }
 
     fn pedersen_hash(

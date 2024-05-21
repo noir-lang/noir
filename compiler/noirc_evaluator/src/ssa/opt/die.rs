@@ -108,12 +108,12 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.has_side_effects(&function.dfg) {
-            // If the instruction has side effects we should never remove it.
-            false
-        } else {
+        if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
+        } else {
+            // If the instruction has side effects we should never remove it.
+            false
         }
     }
 
@@ -169,7 +169,6 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            function::RuntimeType,
             instruction::{BinaryOp, Intrinsic},
             map::Id,
             types::Type,
@@ -199,7 +198,7 @@ mod test {
         let main_id = Id::test_new(0);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
         let b1 = builder.insert_block();
 

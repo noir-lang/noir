@@ -21,11 +21,23 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
     (low, high)
 }
 
+// Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
+fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
+    let (alo, ahi) = a;
+    let (blo, bhi) = b;
+    let borrow = lte_unsafe(alo, blo, 16);
+
+    let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
+    let rhi = ahi - bhi - (borrow as Field);
+
+    rlo.assert_max_bit_size(128);
+    rhi.assert_max_bit_size(128);
+}
+
 /// Decompose a single field into two 16 byte fields.
 pub fn decompose(x: Field) -> (Field, Field) {
     // Take hints of the decomposition
     let (xlo, xhi) = decompose_unsafe(x);
-    let borrow = lt_unsafe(PLO, xlo, 16);
 
     // Range check the limbs
     xlo.assert_max_bit_size(128);
@@ -34,13 +46,8 @@ pub fn decompose(x: Field) -> (Field, Field) {
     // Check that the decomposition is correct
     assert_eq(x, xlo + TWO_POW_128 * xhi);
 
-    // Check that (xlo < plo && xhi <= phi) || (xlo >= plo && xhi < phi)
-    let rlo = PLO - xlo + (borrow as Field) * TWO_POW_128;
-    let rhi = PHI - xhi - (borrow as Field);
-
-    rlo.assert_max_bit_size(128);
-    rhi.assert_max_bit_size(128);
-
+    // Assert that the decomposition of P is greater than the decomposition of x
+    assert_gt_limbs((PLO, PHI), (xlo, xhi));
     (xlo, xhi)
 }
 
@@ -69,17 +76,11 @@ unconstrained fn lte_unsafe(x: Field, y: Field, num_bytes: u32) -> bool {
 
 pub fn assert_gt(a: Field, b: Field) {
     // Decompose a and b
-    let (alo, ahi) = decompose(a);
-    let (blo, bhi) = decompose(b);
+    let a_limbs = decompose(a);
+    let b_limbs = decompose(b);
 
-    let borrow = lte_unsafe(alo, blo, 16);
-
-    // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
-    let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
-    let rhi = ahi - bhi - (borrow as Field);
-
-    rlo.assert_max_bit_size(128);
-    rhi.assert_max_bit_size(128);
+    // Assert that a_limbs is greater than b_limbs
+    assert_gt_limbs(a_limbs, b_limbs)
 }
 
 pub fn assert_lt(a: Field, b: Field) {

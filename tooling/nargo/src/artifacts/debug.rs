@@ -121,7 +121,7 @@ impl DebugArtifact {
 impl From<CompiledProgram> for DebugArtifact {
     fn from(compiled_program: CompiledProgram) -> Self {
         DebugArtifact {
-            debug_symbols: vec![compiled_program.debug],
+            debug_symbols: compiled_program.debug,
             file_map: compiled_program.file_map,
             warnings: compiled_program.warnings,
         }
@@ -133,7 +133,7 @@ impl From<CompiledContract> for DebugArtifact {
         let all_functions_debug: Vec<DebugInfo> = compiled_artifact
             .functions
             .into_iter()
-            .map(|contract_function| contract_function.debug)
+            .flat_map(|contract_function| contract_function.debug)
             .collect();
 
         DebugArtifact {

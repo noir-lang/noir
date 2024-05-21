@@ -1,4 +1,3 @@
-use acvm::acir::native_types::WitnessStack;
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{compile_program, report_errors};
@@ -70,10 +69,6 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = args
-        .compile_options
-        .expression_width
-        .unwrap_or_else(|| backend.get_backend_info_or_default());
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let compilation_result = compile_program(
@@ -91,7 +86,8 @@ pub(crate) fn run(
             args.compile_options.silence_warnings,
         )?;
 
-        let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+        let compiled_program =
+            nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
 
         prove_package(
             backend,
@@ -123,12 +119,14 @@ pub(crate) fn prove_package(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)?;
 
-    let solved_witness =
-        execute_program(&compiled_program, &inputs_map, foreign_call_resolver_url)?;
+    let witness_stack = execute_program(&compiled_program, &inputs_map, foreign_call_resolver_url)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.public_abi();
-    let (public_inputs, return_value) = public_abi.decode(&solved_witness)?;
+    // Get the entry point witness for the ABI
+    let main_witness =
+        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
+    let (public_inputs, return_value) = public_abi.decode(main_witness)?;
 
     write_inputs_to_file(
         &public_inputs,
@@ -139,7 +137,7 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.program, WitnessStack::from(solved_witness))?;
+    let proof = backend.prove(&compiled_program.program, witness_stack)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;

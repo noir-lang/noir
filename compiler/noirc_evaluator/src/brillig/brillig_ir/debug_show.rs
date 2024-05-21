@@ -2,7 +2,10 @@
 
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::ReservedRegisters;
-use acvm::acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, Value, ValueOrArray};
+use acvm::{
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
+    FieldElement,
+};
 
 /// Trait for converting values into debug-friendly strings.
 trait DebugToString {
@@ -66,9 +69,9 @@ impl DebugToString for BrilligBinaryOp {
     }
 }
 
-impl DebugToString for Value {
+impl DebugToString for FieldElement {
     fn debug_to_string(&self) -> String {
-        self.to_usize().to_string()
+        self.to_string()
     }
 }
 
@@ -110,10 +113,9 @@ impl DebugShow {
         DebugShow { enable_debug_trace }
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false.
-    pub(crate) fn constrain_instruction(&self, condition: MemoryAddress) {
-        debug_println!(self.enable_debug_trace, "  ASSERT {} != 0", condition);
+    /// Emits a `trap` instruction.
+    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+        debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 
     /// Emits a `mov` instruction.
@@ -167,7 +169,7 @@ impl DebugShow {
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: Value) {
+    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: FieldElement) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
@@ -264,6 +266,16 @@ impl DebugShow {
     /// Debug function for black_box_op
     pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
+            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  AES128 ENCRYPT {} {} {}  -> {}",
+                    inputs,
+                    iv,
+                    key,
+                    outputs
+                );
+            }
             BlackBoxOp::Sha256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
             }
@@ -313,13 +325,13 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
+            BlackBoxOp::MultiScalarMul { points, scalars, outputs } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  FIXED_BASE_SCALAR_MUL {} {} -> {}",
-                    low,
-                    high,
-                    result
+                    "  MULTI_SCALAR_MUL {} {} -> {}",
+                    points,
+                    scalars,
+                    outputs
                 );
             }
             BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {

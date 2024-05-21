@@ -4,6 +4,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::ast::{ItemVisibility, Path, TraitItem};
 use crate::{
     graph::CrateId,
     hir::{
@@ -16,11 +17,12 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Generics, ItemVisibility, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
+    Generics, Shared, Type, TypeVariable, TypeVariableKind,
 };
 
 use super::{
     functions, get_module_mut, get_struct_type,
+    import::{PathResolution, PathResolutionError},
     path_resolver::{PathResolver, StandardPathResolver},
     resolver::Resolver,
     take_errors,
@@ -122,6 +124,7 @@ fn resolve_trait_methods(
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(generics);
+
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
             resolver.add_existing_generic("Self", name_span, self_typevar);
             resolver.set_self_type(Some(self_type.clone()));
@@ -205,16 +208,16 @@ fn collect_trait_impl_methods(
 
         if overrides.is_empty() {
             if let Some(default_impl) = &method.default_impl {
+                // copy 'where' clause from unresolved trait impl
+                let mut default_impl_clone = default_impl.clone();
+                default_impl_clone.def.where_clause.extend(trait_impl.where_clause.clone());
+
                 let func_id = interner.push_empty_fn();
                 let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
                 let location = Location::new(default_impl.def.span, trait_impl.file_id);
                 interner.push_function(func_id, &default_impl.def, module, location);
                 func_ids_in_trait.insert(func_id);
-                ordered_methods.push((
-                    method.default_impl_module_id,
-                    func_id,
-                    *default_impl.clone(),
-                ));
+                ordered_methods.push((method.default_impl_module_id, func_id, *default_impl_clone));
             } else {
                 let error = DefCollectorErrorKind::TraitMissingMethod {
                     trait_name: interner.get_trait(trait_id).name.clone(),
@@ -274,7 +277,15 @@ fn collect_trait_impl(
     let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
     trait_impl.trait_id =
         match resolve_trait_by_path(def_maps, module, trait_impl.trait_path.clone()) {
-            Ok(trait_id) => Some(trait_id),
+            Ok((trait_id, warning)) => {
+                if let Some(warning) = warning {
+                    errors.push((
+                        DefCollectorErrorKind::PathResolutionError(warning).into(),
+                        trait_impl.file_id,
+                    ));
+                }
+                Some(trait_id)
+            }
             Err(error) => {
                 errors.push((error.into(), trait_impl.file_id));
                 None
@@ -362,11 +373,13 @@ pub(crate) fn resolve_trait_by_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module: ModuleId,
     path: Path,
-) -> Result<TraitId, DefCollectorErrorKind> {
+) -> Result<(TraitId, Option<PathResolutionError>), DefCollectorErrorKind> {
     let path_resolver = StandardPathResolver::new(module);
 
     match path_resolver.resolve(def_maps, path.clone()) {
-        Ok(ModuleDefId::TraitId(trait_id)) => Ok(trait_id),
+        Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
+            Ok((trait_id, error))
+        }
         Ok(_) => Err(DefCollectorErrorKind::NotATrait { not_a_trait_name: path }),
         Err(_) => Err(DefCollectorErrorKind::TraitNotFound { trait_path: path }),
     }

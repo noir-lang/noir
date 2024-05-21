@@ -1,6 +1,6 @@
 fn main() {
-    let _xs = Vec::new();
-    let _option = Option::none();
+    let _xs: Vec<Field> = Vec::new();
+    let _option: Option<Field> = Option::none();
 
     print("42\n");
     println("42");

@@ -1,7 +1,7 @@
 use crate::hash::Hasher;
 use crate::default::Default;
 
-global RATE = 3;
+global RATE: u32 = 3;
 
 struct Poseidon2 {
     cache: [Field;3],
@@ -117,30 +117,27 @@ impl Poseidon2 {
 
 struct Poseidon2Hasher{
     _state: [Field],
-    _len: u64,
 }
 
 impl Hasher for Poseidon2Hasher {
     fn finish(self) -> Field {
         let iv : Field = (self._state.len() as Field)*18446744073709551616;    // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
-        for i in 0..self._len {
+        for i in 0..self._state.len() {
             sponge.absorb(self._state[i]);
         }
         sponge.squeeze()
     }
 
-    fn write(&mut self, input: [Field]){
-        self._state = self._state.append(input);
-        self._len += input.len();
+    fn write(&mut self, input: Field){
+        self._state = self._state.push_back(input);
     }
 }
 
-impl Default for Poseidon2Hasher{
-    fn default() -> Self{
-        Poseidon2Hasher{
+impl Default for Poseidon2Hasher {
+    fn default() -> Self {
+        Poseidon2Hasher {
             _state: &[],
-            _len: 0,
         }
     }
 }

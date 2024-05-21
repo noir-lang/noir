@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.73.0
+        uses: dtolnay/rust-toolchain@1.74.1
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.73.0
+        uses: dtolnay/rust-toolchain@1.74.1
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -66,9 +66,6 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
-
       - name: Build noirc_abi
         run: ./.github/scripts/noirc-abi-build.sh
 
@@ -76,7 +73,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          path: | 
+            ./tooling/noirc_abi_wasm/nodejs
+            ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
 
@@ -89,7 +88,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.73.0
+        uses: dtolnay/rust-toolchain@1.74.1
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -99,9 +98,6 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
-
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
 
       - name: Build noir_js_types
         run: yarn workspace @noir-lang/types build
@@ -127,7 +123,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.73.0
+        uses: dtolnay/rust-toolchain@1.74.1
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -138,9 +134,6 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
-
       - name: Build acvm_js
         run: ./.github/scripts/acvm_js-build.sh
 
@@ -148,7 +141,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ./acvm-repo/acvm_js/outputs/out/acvm_js
+          path: |
+            ./acvm-repo/acvm_js/nodejs
+            ./acvm-repo/acvm_js/web
           retention-days: 3
 
   test-acvm_js-node:
@@ -193,7 +188,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Playwright
-        run: ./.github/scripts/playwright-install.sh
+        uses: ./.github/actions/install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser

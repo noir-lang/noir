@@ -1,4 +1,4 @@
-use acvm::brillig_vm::brillig::Value;
+use acvm::FieldElement;
 use noirc_errors::debug_info::{
     DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
 };
@@ -36,9 +36,7 @@ impl DebugVars {
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
         self.variables.get(&var_id).and_then(|debug_var| {
-            let Some(ptype) = self.types.get(&debug_var.debug_type_id) else {
-                return None;
-            };
+            let ptype = self.types.get(&debug_var.debug_type_id)?;
             Some((debug_var.name.as_str(), ptype))
         })
     }
@@ -66,7 +64,7 @@ impl DebugVars {
         }
     }
 
-    pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {
+    pub fn assign_var(&mut self, var_id: DebugVarId, values: &[FieldElement]) {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
         let ptype = self.types.get(type_id).unwrap();
 
@@ -74,10 +72,10 @@ impl DebugVars {
             .last_mut()
             .expect("unexpected empty stack frames")
             .1
-            .insert(var_id, decode_value(&mut values.iter().map(|v| v.to_field()), ptype));
+            .insert(var_id, decode_value(&mut values.iter().copied(), ptype));
     }
 
-    pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[Value]) {
+    pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[FieldElement]) {
         let current_frame = &mut self.frames.last_mut().expect("unexpected empty stack frames").1;
         let mut cursor: &mut PrintableValue = current_frame
             .get_mut(&var_id)
@@ -98,13 +96,11 @@ impl DebugVars {
                     PrintableType::Array { length, typ },
                 ) => {
                     assert!(!*is_slice, "slice has array type");
-                    if let Some(len) = length {
-                        if *index as u64 >= *len {
-                            panic!("unexpected field index past array length")
-                        }
-                        if *len != array_elements.len() as u64 {
-                            panic!("type/array length mismatch")
-                        }
+                    if *index as u64 >= *length {
+                        panic!("unexpected field index past array length")
+                    }
+                    if *length != array_elements.len() as u64 {
+                        panic!("type/array length mismatch")
                     }
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
@@ -112,7 +108,7 @@ impl DebugVars {
                     PrintableValue::Vec { array_elements, is_slice },
                     PrintableType::Slice { typ },
                 ) => {
-                    assert!(*is_slice, "array has slice type");
+                    assert!(*is_slice, "slice doesn't have slice type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
                 (
@@ -147,10 +143,10 @@ impl DebugVars {
                 }
             };
         }
-        *cursor = decode_value(&mut values.iter().map(|v| v.to_field()), cursor_type);
+        *cursor = decode_value(&mut values.iter().copied(), cursor_type);
     }
 
-    pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[Value]) {
+    pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[FieldElement]) {
         unimplemented![]
     }
 

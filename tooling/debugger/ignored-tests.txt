@@ -12,3 +12,16 @@ references
 scalar_mul
 signed_comparison
 to_bytes_integration
+fold_basic
+fold_basic_nested_call
+fold_call_witness_condition
+fold_after_inlined_calls
+fold_numeric_generic_poseidon
+no_predicates_basic
+no_predicates_numeric_generic_poseidon
+regression_4709
+fold_distinct_return
+fold_fibonacci
+fold_complex_outputs
+slice_init_with_complex_type
+hashmap

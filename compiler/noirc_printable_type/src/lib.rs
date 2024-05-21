@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum PrintableType {
     Field,
     Array {
-        length: Option<u64>,
+        length: u64,
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
@@ -88,7 +88,7 @@ impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
-        if is_fmt_str.unwrap_value().to_field().is_one() {
+        if is_fmt_str.unwrap_field().is_one() {
             convert_fmt_string_inputs(foreign_call_inputs)
         } else {
             convert_string_inputs(foreign_call_inputs)
@@ -106,8 +106,7 @@ fn convert_string_inputs(
     let printable_type = fetch_printable_type(printable_type_as_values)?;
 
     // We must use a flat map here as each value in a struct will be in a separate input value
-    let mut input_values_as_fields =
-        input_values.iter().flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+    let mut input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
 
     let value = decode_value(&mut input_values_as_fields, &printable_type);
 
@@ -120,7 +119,7 @@ fn convert_fmt_string_inputs(
     let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
-    let message_as_fields = vecmap(message.values(), |value| value.to_field());
+    let message_as_fields = message.fields();
     let message_as_string = decode_string_value(&message_as_fields);
 
     let (num_values, input_and_printable_types) = input_and_printable_types
@@ -128,12 +127,11 @@ fn convert_fmt_string_inputs(
         .ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
-    let num_values = num_values.unwrap_value().to_field().to_u128() as usize;
+    let num_values = num_values.unwrap_field().to_u128() as usize;
 
     let types_start_at = input_and_printable_types.len() - num_values;
-    let mut input_iter = input_and_printable_types[0..types_start_at]
-        .iter()
-        .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+    let mut input_iter =
+        input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
         let value = decode_value(&mut input_iter, &printable_type);
@@ -147,7 +145,7 @@ fn convert_fmt_string_inputs(
 fn fetch_printable_type(
     printable_type: &ForeignCallParam,
 ) -> Result<PrintableType, ForeignCallError> {
-    let printable_type_as_fields = vecmap(printable_type.values(), |value| value.to_field());
+    let printable_type_as_fields = printable_type.fields();
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
     let printable_type: PrintableType = serde_json::from_str(&printable_type_as_string)?;
 
@@ -188,7 +186,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
         }
-        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. }) => {
+        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
+        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
             if *is_slice {
                 output.push('&')
             }
@@ -319,19 +318,7 @@ pub fn decode_value(
 
             PrintableValue::Field(field_element)
         }
-        PrintableType::Array { length: None, typ } => {
-            let length = field_iterator
-                .next()
-                .expect("not enough data to decode variable array length")
-                .to_u128() as usize;
-            let mut array_elements = Vec::with_capacity(length);
-            for _ in 0..length {
-                array_elements.push(decode_value(field_iterator, typ));
-            }
-
-            PrintableValue::Vec { array_elements, is_slice: false }
-        }
-        PrintableType::Array { length: Some(length), typ } => {
+        PrintableType::Array { length, typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {

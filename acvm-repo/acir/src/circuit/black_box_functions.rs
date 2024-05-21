@@ -9,6 +9,8 @@ use strum_macros::EnumIter;
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(EnumIter))]
 pub enum BlackBoxFunc {
+    /// Encrypts the input using AES128.
+    AES128Encrypt,
     /// Bitwise AND.
     AND,
     /// Bitwise XOR.
@@ -36,8 +38,8 @@ pub enum BlackBoxFunc {
     EcdsaSecp256k1,
     /// Verifies a ECDSA signature over the secp256r1 curve.
     EcdsaSecp256r1,
-    /// Performs scalar multiplication over the embedded curve on which [`FieldElement`][acir_field::FieldElement] is defined.
-    FixedBaseScalarMul,
+    /// Performs multi scalar multiplication over the embedded curve.
+    MultiScalarMul,
     /// Calculates the Keccak256 hash of the inputs.
     Keccak256,
     /// Keccak Permutation function of 1600 width
@@ -74,6 +76,7 @@ impl std::fmt::Display for BlackBoxFunc {
 impl BlackBoxFunc {
     pub fn name(&self) -> &'static str {
         match self {
+            BlackBoxFunc::AES128Encrypt => "aes128_encrypt",
             BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
@@ -81,7 +84,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::PedersenCommitment => "pedersen_commitment",
             BlackBoxFunc::PedersenHash => "pedersen_hash",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
-            BlackBoxFunc::FixedBaseScalarMul => "fixed_base_scalar_mul",
+            BlackBoxFunc::MultiScalarMul => "multi_scalar_mul",
             BlackBoxFunc::EmbeddedCurveAdd => "embedded_curve_add",
             BlackBoxFunc::AND => "and",
             BlackBoxFunc::XOR => "xor",
@@ -103,6 +106,7 @@ impl BlackBoxFunc {
 
     pub fn lookup(op_name: &str) -> Option<BlackBoxFunc> {
         match op_name {
+            "aes128_encrypt" => Some(BlackBoxFunc::AES128Encrypt),
             "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
@@ -111,7 +115,7 @@ impl BlackBoxFunc {
             "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
-            "fixed_base_scalar_mul" => Some(BlackBoxFunc::FixedBaseScalarMul),
+            "multi_scalar_mul" => Some(BlackBoxFunc::MultiScalarMul),
             "embedded_curve_add" => Some(BlackBoxFunc::EmbeddedCurveAdd),
             "and" => Some(BlackBoxFunc::AND),
             "xor" => Some(BlackBoxFunc::XOR),

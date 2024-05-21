@@ -1,4 +1,5 @@
-use crate::{black_box::BlackBoxOp, Value};
+use crate::black_box::BlackBoxOp;
+use acir_field::FieldElement;
 use serde::{Deserialize, Serialize};
 
 pub type Label = usize;
@@ -22,8 +23,8 @@ impl From<usize> for MemoryAddress {
 /// Describes the memory layout for an array/vector element
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HeapValueType {
-    // A single field element is enough to represent the value
-    Simple,
+    // A single field element is enough to represent the value with a given bit size
+    Simple(u32),
     // The value read should be interpreted as a pointer to a heap array, which
     // consists of a pointer to a slice of memory of size elements, and a
     // reference count
@@ -36,7 +37,11 @@ pub enum HeapValueType {
 
 impl HeapValueType {
     pub fn all_simple(types: &[HeapValueType]) -> bool {
-        types.iter().all(|typ| matches!(typ, HeapValueType::Simple))
+        types.iter().all(|typ| matches!(typ, HeapValueType::Simple(_)))
+    }
+
+    pub fn field() -> HeapValueType {
+        HeapValueType::Simple(FieldElement::max_num_bits())
     }
 }
 
@@ -45,6 +50,12 @@ impl HeapValueType {
 pub struct HeapArray {
     pub pointer: MemoryAddress,
     pub size: usize,
+}
+
+impl Default for HeapArray {
+    fn default() -> Self {
+        Self { pointer: MemoryAddress(0), size: 0 }
+    }
 }
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
@@ -131,7 +142,7 @@ pub enum BrilligOpcode {
     Const {
         destination: MemoryAddress,
         bit_size: u32,
-        value: Value,
+        value: FieldElement,
     },
     Return,
     /// Used to get data from an outside source.
@@ -172,8 +183,10 @@ pub enum BrilligOpcode {
         source: MemoryAddress,
     },
     BlackBox(BlackBoxOp),
-    /// Used to denote execution failure
-    Trap,
+    /// Used to denote execution failure, returning data after the offset
+    Trap {
+        revert_data: HeapArray,
+    },
     /// Stop execution, returning data after the offset
     Stop {
         return_data_offset: usize,

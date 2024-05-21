@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
 use acir::{
-    brillig::{ForeignCallParam, ForeignCallResult, Value},
+    brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
-        brillig::{Brillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        OpcodeLocation,
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        STRING_ERROR_SELECTOR,
     },
     native_types::WitnessMap,
     FieldElement,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{VMStatus, VM};
+use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};
 
 use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 
@@ -30,25 +31,12 @@ pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
-    /// Evaluates if the Brillig block should be skipped entirely
-    pub(super) fn should_skip(
-        witness: &WitnessMap,
-        brillig: &Brillig,
-    ) -> Result<bool, OpcodeResolutionError> {
-        // If the predicate is `None`, the block should never be skipped
-        // If the predicate is `Some` but we cannot find a value, then we return stalled
-        match &brillig.predicate {
-            Some(pred) => Ok(get_value(pred, witness)?.is_zero()),
-            None => Ok(false),
-        }
-    }
-
     /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap,
-        brillig: &Brillig,
+        outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError> {
-        for output in &brillig.outputs {
+        for output in outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
                     insert_value(witness, FieldElement::zero(), initial_witness)?;
@@ -65,23 +53,36 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 
     /// Constructs a solver for a Brillig block given the bytecode and initial
     /// witness.
-    pub(crate) fn new(
+    pub(crate) fn new_call(
         initial_witness: &WitnessMap,
         memory: &HashMap<BlockId, MemoryOpSolver>,
-        brillig: &'b Brillig,
+        inputs: &'b [BrilligInputs],
+        brillig_bytecode: &'b [BrilligOpcode],
         bb_solver: &'b B,
         acir_index: usize,
     ) -> Result<Self, OpcodeResolutionError> {
+        let vm =
+            Self::setup_brillig_vm(initial_witness, memory, inputs, brillig_bytecode, bb_solver)?;
+        Ok(Self { vm, acir_index })
+    }
+
+    fn setup_brillig_vm(
+        initial_witness: &WitnessMap,
+        memory: &HashMap<BlockId, MemoryOpSolver>,
+        inputs: &[BrilligInputs],
+        brillig_bytecode: &'b [BrilligOpcode],
+        bb_solver: &'b B,
+    ) -> Result<VM<'b, B>, OpcodeResolutionError> {
         // Set input values
-        let mut calldata: Vec<Value> = Vec::new();
+        let mut calldata: Vec<FieldElement> = Vec::new();
         // Each input represents an expression or array of expressions to evaluate.
         // Iterate over each input and evaluate the expression(s) associated with it.
         // Push the results into memory.
         // If a certain expression is not solvable, we stall the ACVM and do not proceed with Brillig VM execution.
-        for input in &brillig.inputs {
+        for input in inputs {
             match input {
                 BrilligInputs::Single(expr) => match get_value(expr, initial_witness) {
-                    Ok(value) => calldata.push(value.into()),
+                    Ok(value) => calldata.push(value),
                     Err(_) => {
                         return Err(OpcodeResolutionError::OpcodeNotSolvable(
                             OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
@@ -92,7 +93,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                     // Attempt to fetch all array input values
                     for expr in expr_arr.iter() {
                         match get_value(expr, initial_witness) {
-                            Ok(value) => calldata.push(value.into()),
+                            Ok(value) => calldata.push(value),
                             Err(_) => {
                                 return Err(OpcodeResolutionError::OpcodeNotSolvable(
                                     OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
@@ -110,7 +111,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                             .block_value
                             .get(&memory_index)
                             .expect("All memory is initialized on creation");
-                        calldata.push((*memory_value).into());
+                        calldata.push(*memory_value);
                     }
                 }
             }
@@ -118,15 +119,15 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 
         // Instantiate a Brillig VM given the solved calldata
         // along with the Brillig bytecode.
-        let vm = VM::new(calldata, &brillig.bytecode, vec![], bb_solver);
-        Ok(Self { vm, acir_index })
+        let vm = VM::new(calldata, brillig_bytecode, vec![], bb_solver);
+        Ok(vm)
     }
 
-    pub fn get_memory(&self) -> &[Value] {
+    pub fn get_memory(&self) -> &[MemoryValue] {
         self.vm.get_memory()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: Value) {
+    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue) {
         self.vm.write_memory_at(ptr, value);
     }
 
@@ -159,9 +160,56 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         match vm_status {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
-            VMStatus::Failure { message, call_stack } => {
+            VMStatus::Failure { reason, call_stack } => {
+                let payload = match reason {
+                    FailureReason::RuntimeError { message } => {
+                        Some(ResolvedAssertionPayload::String(message))
+                    }
+                    FailureReason::Trap { revert_data_offset, revert_data_size } => {
+                        // Since noir can only revert with strings currently, we can parse return data as a string
+                        if revert_data_size == 0 {
+                            None
+                        } else {
+                            let memory = self.vm.get_memory();
+                            let mut revert_values_iter = memory
+                                [revert_data_offset..(revert_data_offset + revert_data_size)]
+                                .iter();
+                            let error_selector = ErrorSelector::new(
+                                revert_values_iter
+                                    .next()
+                                    .expect("Incorrect revert data size")
+                                    .try_into()
+                                    .expect("Error selector is not u64"),
+                            );
+
+                            match error_selector {
+                                STRING_ERROR_SELECTOR => {
+                                    // If the error selector is 0, it means the error is a string
+                                    let string = revert_values_iter
+                                        .map(|memory_value| {
+                                            let as_u8: u8 = memory_value
+                                                .try_into()
+                                                .expect("String item is not u8");
+                                            as_u8 as char
+                                        })
+                                        .collect();
+                                    Some(ResolvedAssertionPayload::String(string))
+                                }
+                                _ => {
+                                    // If the error selector is not 0, it means the error is a custom error
+                                    Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                                        selector: error_selector,
+                                        data: revert_values_iter
+                                            .map(|value| value.to_field())
+                                            .collect(),
+                                    }))
+                                }
+                            }
+                        }
+                    }
+                };
                 Err(OpcodeResolutionError::BrilligFunctionFailed {
-                    message,
+                    payload,
                     call_stack: call_stack
                         .iter()
                         .map(|brillig_index| OpcodeLocation::Brillig {
@@ -180,13 +228,13 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     pub(crate) fn finalize(
         self,
         witness: &mut WitnessMap,
-        brillig: &Brillig,
+        outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError> {
         // Finish the Brillig execution by writing the outputs to the witness map
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
-                self.write_brillig_outputs(witness, return_data_offset, return_data_size, brillig)?;
+                self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
                 Ok(())
             }
             _ => panic!("Brillig VM has not completed execution"),
@@ -198,12 +246,12 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         witness_map: &mut WitnessMap,
         return_data_offset: usize,
         return_data_size: usize,
-        brillig: &Brillig,
+        outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError> {
         // Write VM execution results into the witness map
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
-        for output in brillig.outputs.iter() {
+        for output in outputs.iter() {
             match output {
                 BrilligOutputs::Simple(witness) => {
                     insert_value(witness, memory[current_ret_data_idx].to_field(), witness_map)?;
@@ -211,13 +259,14 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     for witness in witness_arr.iter() {
-                        let value = memory[current_ret_data_idx];
+                        let value = &memory[current_ret_data_idx];
                         insert_value(witness, value.to_field(), witness_map)?;
                         current_ret_data_idx += 1;
                     }
                 }
             }
         }
+
         assert!(
             current_ret_data_idx == return_data_offset + return_data_size,
             "Brillig VM did not write the expected number of return values"

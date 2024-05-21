@@ -4,6 +4,7 @@ examples/**/target/
 examples/9
 node_modules
 pkg/
+.idea
 
 # Yarn
 .pnp.*
@@ -16,12 +17,6 @@ pkg/
 
 # Noir.js
 tooling/noir_js/lib
-
-# Nix stuff
-**/outputs
-result
-.envrc.local
-.direnv/
 
 # Nargo output
 *.proof

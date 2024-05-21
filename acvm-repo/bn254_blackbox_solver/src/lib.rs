@@ -5,25 +5,35 @@
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
-mod fixed_base_scalar_mul;
+mod embedded_curve_ops;
+mod generator;
+mod pedersen;
 mod poseidon2;
 mod wasm;
 
-pub use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
-use poseidon2::Poseidon2;
+use ark_ec::AffineRepr;
+pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
+pub use poseidon2::poseidon2_permutation;
 use wasm::Barretenberg;
 
-use self::wasm::{Pedersen, SchnorrSig};
+use self::wasm::SchnorrSig;
 
 pub struct Bn254BlackBoxSolver {
     blackbox_vendor: Barretenberg,
 }
 
 impl Bn254BlackBoxSolver {
-    #[cfg(target_arch = "wasm32")]
     pub async fn initialize() -> Bn254BlackBoxSolver {
-        let blackbox_vendor = Barretenberg::initialize().await;
-        Bn254BlackBoxSolver { blackbox_vendor }
+        // We fallback to the sync initialization of barretenberg on non-wasm targets.
+        // This ensures that wasm packages consuming this still build on the default target (useful for linting, etc.)
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let blackbox_vendor = Barretenberg::initialize().await;
+                Bn254BlackBoxSolver { blackbox_vendor }
+            } else {
+                Bn254BlackBoxSolver::new()
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -45,7 +55,7 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         &self,
         public_key_x: &FieldElement,
         public_key_y: &FieldElement,
-        signature: &[u8],
+        signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError> {
         let pub_key_bytes: Vec<u8> =
@@ -65,10 +75,13 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        #[allow(deprecated)]
-        self.blackbox_vendor.encrypt(inputs.to_vec(), domain_separator).map_err(|err| {
-            BlackBoxResolutionError::Failed(BlackBoxFunc::PedersenCommitment, err.to_string())
-        })
+        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
+        let result = pedersen::commitment::commit_native_with_index(&inputs, domain_separator);
+        let res_x =
+            FieldElement::from_repr(*result.x().expect("should not commit to point at infinity"));
+        let res_y =
+            FieldElement::from_repr(*result.y().expect("should not commit to point at infinity"));
+        Ok((res_x, res_y))
     }
 
     fn pedersen_hash(
@@ -76,18 +89,18 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<FieldElement, BlackBoxResolutionError> {
-        #[allow(deprecated)]
-        self.blackbox_vendor.hash(inputs.to_vec(), domain_separator).map_err(|err| {
-            BlackBoxResolutionError::Failed(BlackBoxFunc::PedersenCommitment, err.to_string())
-        })
+        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
+        let result = pedersen::hash::hash_with_index(&inputs, domain_separator);
+        let result = FieldElement::from_repr(result);
+        Ok(result)
     }
 
-    fn fixed_base_scalar_mul(
+    fn multi_scalar_mul(
         &self,
-        low: &FieldElement,
-        high: &FieldElement,
+        points: &[FieldElement],
+        scalars: &[FieldElement],
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        fixed_base_scalar_mul(low, high)
+        multi_scalar_mul(points, scalars)
     }
 
     fn ec_add(
@@ -105,7 +118,6 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         inputs: &[FieldElement],
         len: u32,
     ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
-        let poseidon = Poseidon2::new();
-        poseidon.permutation(inputs, len)
+        poseidon2_permutation(inputs, len)
     }
 }

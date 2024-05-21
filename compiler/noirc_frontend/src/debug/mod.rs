@@ -145,6 +145,8 @@ impl DebugInstrumenter {
                         pattern: ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
                         r#type: ast::UnresolvedType::unspecified(),
                         expression: ret_expr.clone(),
+                        comptime: false,
+                        attributes: vec![],
                     }),
                     span: ret_expr.span,
                 };
@@ -242,12 +244,14 @@ impl DebugInstrumenter {
             kind: ast::StatementKind::Let(ast::LetStatement {
                 pattern: ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
                 r#type: ast::UnresolvedType::unspecified(),
+                comptime: false,
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
                     }),
                     span: let_stmt.expression.span,
                 },
+                attributes: vec![],
             }),
             span: *span,
         }
@@ -273,6 +277,8 @@ impl DebugInstrumenter {
             pattern: ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
             r#type: ast::UnresolvedType::unspecified(),
             expression: assign_stmt.expression.clone(),
+            comptime: false,
+            attributes: vec![],
         });
         let expression_span = assign_stmt.expression.span;
         let new_assign_stmt = match &assign_stmt.lvalue {
@@ -282,7 +288,7 @@ impl DebugInstrumenter {
                     .unwrap_or_else(|| panic!("var lookup failed for var_name={}", &id.0.contents));
                 build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.span())))
             }
-            ast::LValue::Dereference(_lv) => {
+            ast::LValue::Dereference(_lv, span) => {
                 // TODO: this is a dummy statement for now, but we should
                 // somehow track the derefence and update the pointed to
                 // variable
@@ -303,16 +309,16 @@ impl DebugInstrumenter {
                             });
                             break;
                         }
-                        ast::LValue::MemberAccess { object, field_name } => {
+                        ast::LValue::MemberAccess { object, field_name, span } => {
                             cursor = object;
                             let field_name_id = self.insert_field_name(&field_name.0.contents);
-                            indexes.push(sint_expr(-(field_name_id.0 as i128), expression_span));
+                            indexes.push(sint_expr(-(field_name_id.0 as i128), *span));
                         }
-                        ast::LValue::Index { index, array } => {
+                        ast::LValue::Index { index, array, span: _ } => {
                             cursor = array;
                             indexes.push(index.clone());
                         }
-                        ast::LValue::Dereference(_ref) => {
+                        ast::LValue::Dereference(_ref, _span) => {
                             unimplemented![]
                         }
                     }

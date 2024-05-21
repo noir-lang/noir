@@ -2,6 +2,7 @@ use chumsky::Parser;
 use noirc_errors::Span;
 
 use crate::{
+    macros_api::SecondaryAttribute,
     parser::{NoirParser, ParserError, ParserErrorReason},
     token::{Attribute, Attributes, Token, TokenKind},
 };
@@ -43,4 +44,26 @@ pub(super) fn validate_attributes(
     }
 
     Attributes { function: primary, secondary }
+}
+
+pub(super) fn validate_secondary_attributes(
+    attributes: Vec<Attribute>,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> Vec<SecondaryAttribute> {
+    let mut struct_attributes = vec![];
+
+    for attribute in attributes {
+        match attribute {
+            Attribute::Function(..) => {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
+                    span,
+                ));
+            }
+            Attribute::Secondary(attr) => struct_attributes.push(attr),
+        }
+    }
+
+    struct_attributes
 }

@@ -1,0 +1,7 @@
+[package]
+name = "fold_call_witness_condition"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

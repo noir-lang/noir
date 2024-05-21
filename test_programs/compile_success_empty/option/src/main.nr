@@ -39,9 +39,9 @@ fn main() {
 
     let add1_u64 = |value: Field| Option::some(value as u64 + 1);
 
-    assert(none.and_then(|_value| Option::none()).is_none());
+    assert(none.and_then(|_value| none).is_none());
     assert(none.and_then(add1_u64).is_none());
-    assert(some.and_then(|_value| Option::none()).is_none());
+    assert(some.and_then(|_value| none).is_none());
     assert(some.and_then(add1_u64).unwrap() == 4);
     assert(some.and_then(|x| Option::some(x + ten)).unwrap() == 13);
 
