@@ -13,9 +13,7 @@ download-logs:
   ARG BRANCH
   FROM +build
   LET LOG_FOLDER=/usr/var/logs
-  LET BENCH_FOLDER=/usr/var/bench
   ENV LOG_FOLDER=$LOG_FOLDER
-  ENV BENCH_FOLDER=$BENCH_FOLDER
   ENV COMMIT_HASH=$COMMIT_HASH
   ENV PULL_REQUEST=$PULL_REQUEST
   ENV BRANCH=$BRANCH
@@ -44,11 +42,8 @@ bench-aggregate:
   SAVE ARTIFACT $BENCH_FOLDER bench
 
 bench-comment:
-  # Use the scripts image to run bench comment after loading the benchmark from bench-aggregate.
-  # Requires base-benchmark to be downloaded outside of this target. Note we cannot run it within
-  # an Earthly container because it needs access to the .git folder, and we cannot run it with a
-  # LOCALLY statement because Earthly does not support secrets when running locally (and we need)
-  # the AWS access keys to access S3. This step is then manually run in the ci.yml.
+  # Use the scripts image to run bench comment after loading the benchmark from bench-aggregate
+  # and the base benchmark (ie the benches from master to compare to) from pack-base-benchmark.
   ARG COMMIT_HASH
   ARG PULL_REQUEST
   ARG BRANCH
@@ -59,8 +54,8 @@ bench-comment:
   ENV PULL_REQUEST=$PULL_REQUEST
   ENV PR_NUMBER=$PULL_REQUEST
   ENV BRANCH=$BRANCH
-  COPY ./bench $BENCH_FOLDER/
-  COPY +bench-aggregate/bench $BENCH_FOLDER
+  COPY ../../scripts/logs+pack-base-benchmark/bench $BENCH_FOLDER/
+  COPY +bench-aggregate/bench $BENCH_FOLDER/
   RUN echo "Bench folder contents $(ls $BENCH_FOLDER)"
   RUN --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN \
     [ -f $BENCH_FOLDER/benchmark.json ] \
