@@ -15,15 +15,15 @@
 #include "barretenberg/relations/translator_vm/translator_extra_relations.hpp"
 #include "barretenberg/relations/translator_vm/translator_non_native_field_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_permutation_relation.hpp"
-#include "barretenberg/translator_vm/goblin_translator_circuit_builder.hpp"
+#include "barretenberg/translator_vm/translator_circuit_builder.hpp"
 
 namespace bb {
 
-class GoblinTranslatorFlavor {
+class TranslatorFlavor {
 
   public:
     static constexpr size_t mini_circuit_size = 2048;
-    using CircuitBuilder = GoblinTranslatorCircuitBuilder;
+    using CircuitBuilder = TranslatorCircuitBuilder;
     using Curve = curve::BN254;
     using PCS = KZG<Curve>;
     using GroupElement = Curve::Element;
@@ -79,14 +79,16 @@ class GoblinTranslatorFlavor {
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 91;
 
-    using GrandProductRelations = std::tuple<GoblinTranslatorPermutationRelation<FF>>;
+    using GrandProductRelations = std::tuple<TranslatorPermutationRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<GoblinTranslatorPermutationRelation<FF>,
-                                 GoblinTranslatorDeltaRangeConstraintRelation<FF>,
-                                 GoblinTranslatorOpcodeConstraintRelation<FF>,
-                                 GoblinTranslatorAccumulatorTransferRelation<FF>,
-                                 GoblinTranslatorDecompositionRelation<FF>,
-                                 GoblinTranslatorNonNativeFieldRelation<FF>>;
+    template <typename FF>
+    using Relations_ = std::tuple<TranslatorPermutationRelation<FF>,
+                                  TranslatorDeltaRangeConstraintRelation<FF>,
+                                  TranslatorOpcodeConstraintRelation<FF>,
+                                  TranslatorAccumulatorTransferRelation<FF>,
+                                  TranslatorDecompositionRelation<FF>,
+                                  TranslatorNonNativeFieldRelation<FF>>;
+    using Relations = Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
@@ -99,16 +101,15 @@ class GoblinTranslatorFlavor {
     static constexpr size_t NUM_RELATIONS = std::tuple_size_v<Relations>;
 
     // define the containers for storing the contributions from each relation in Sumcheck
-    using SumcheckTupleOfTuplesOfUnivariates = std::tuple<
-        typename GoblinTranslatorPermutationRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-        typename GoblinTranslatorDeltaRangeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-        typename GoblinTranslatorOpcodeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-        typename GoblinTranslatorAccumulatorTransferRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-        typename GoblinTranslatorDecompositionRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-        typename GoblinTranslatorNonNativeFieldRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations>;
+    using SumcheckTupleOfTuplesOfUnivariates =
+        std::tuple<typename TranslatorPermutationRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename TranslatorDeltaRangeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename TranslatorOpcodeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename TranslatorAccumulatorTransferRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename TranslatorDecompositionRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+                   typename TranslatorNonNativeFieldRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations>;
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
-  private:
     /**
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
      * @details Used to build the proving key and verification key.
@@ -117,14 +118,15 @@ class GoblinTranslatorFlavor {
       public:
         using DataType = DataType_;
         DEFINE_FLAVOR_MEMBERS(DataType,
-                              lagrange_first, // column 0
-                              lagrange_last,  // column 1
+
+                              ordered_extra_range_constraints_numerator, // column 0
+                              lagrange_first,                            // column 1
+                              lagrange_last,                             // column 2
                               // TODO(#758): Check if one of these can be replaced by shifts
-                              lagrange_odd_in_minicircuit,                // column 2
-                              lagrange_even_in_minicircuit,               // column 3
-                              lagrange_second,                            // column 4
-                              lagrange_second_to_last_in_minicircuit,     // column 5
-                              ordered_extra_range_constraints_numerator); // column 6
+                              lagrange_odd_in_minicircuit,             // column 3
+                              lagrange_even_in_minicircuit,            // column 4
+                              lagrange_second,                         // column 5
+                              lagrange_second_to_last_in_minicircuit); // column 6
         auto get_selectors() { return RefArray<DataType, 0>{}; };
         auto get_sigma_polynomials() { return RefArray<DataType, 0>{}; };
         auto get_id_polynomials() { return RefArray<DataType, 0>{}; };
@@ -145,9 +147,9 @@ class GoblinTranslatorFlavor {
          * @brief Compute the extra numerator for Goblin range constraint argument
          *
          * @details Goblin proves that several polynomials contain only values in a certain range through 2 relations:
-         * 1) A grand product which ignores positions of elements (GoblinTranslatorPermutationRelation)
+         * 1) A grand product which ignores positions of elements (TranslatorPermutationRelation)
          * 2) A relation enforcing a certain ordering on the elements of the given polynomial
-         * (GoblinTranslatorDeltaRangeConstraintRelation)
+         * (TranslatorDeltaRangeConstraintRelation)
          *
          * We take the values from 4 polynomials, and spread them into 5 polynomials + add all the steps from MAX_VALUE
          * to 0. We order these polynomials and use them in the denominator of the grand product, at the same time
@@ -552,6 +554,8 @@ class GoblinTranslatorFlavor {
                               ordered_range_constraints_4_shift,                  // column 84
                               z_perm_shift)                                       // column 85
     };
+
+  public:
     /**
      * @brief A base class labelling all entities (for instance, all of the polynomials used by the prover during
      * sumcheck) in this Honk variant along with particular subsets of interest
@@ -692,6 +696,11 @@ class GoblinTranslatorFlavor {
         }
         // get_to_be_shifted is inherited
         auto get_shifted() { return ShiftedEntities<DataType>::get_all(); };
+
+        auto get_wires_and_ordered_range_constraints()
+        {
+            return WitnessEntities<DataType>::get_wires_and_ordered_range_constraints();
+        };
 
         /**
          * @brief Polynomials/commitments, that can be constructed only after the r challenge has been received from
@@ -845,13 +854,10 @@ class GoblinTranslatorFlavor {
      */
     class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
-        std::vector<FF> public_inputs;
-
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
             : VerificationKey_(circuit_size, num_public_inputs)
         {}
         VerificationKey(const std::shared_ptr<ProvingKey>& proving_key)
-            : public_inputs(proving_key->public_inputs)
         {
             this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
             this->circuit_size = proving_key->circuit_size;
@@ -1010,9 +1016,10 @@ class GoblinTranslatorFlavor {
         };
     };
 
-    class VerifierCommitments : public AllEntities<Commitment> {
+    template <typename Commitment, typename VerificationKey>
+    class VerifierCommitments_ : public AllEntities<Commitment> {
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
+        VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key)
         {
             this->lagrange_first = verification_key->lagrange_first;
             this->lagrange_last = verification_key->lagrange_last;
@@ -1024,6 +1031,7 @@ class GoblinTranslatorFlavor {
                 verification_key->ordered_extra_range_constraints_numerator;
         }
     };
+    using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
 
     using Transcript = NativeTranscript;
 };

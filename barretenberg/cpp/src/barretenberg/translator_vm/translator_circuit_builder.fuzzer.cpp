@@ -1,4 +1,4 @@
-#include "barretenberg/translator_vm/goblin_translator.fuzzer.hpp"
+#include "barretenberg/translator_vm/translator.fuzzer.hpp"
 /**
  * @brief A very primitive fuzzing harness, no interesting mutations, just parse and throw at the circuit builder
  *
@@ -14,7 +14,7 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
     }
     auto [batching_challenge, x, op_queue] = parsing_result.value();
     // Construct the circuit
-    auto circuit_builder = GoblinTranslatorCircuitBuilder(batching_challenge, x, op_queue);
+    auto circuit_builder = TranslatorCircuitBuilder(batching_challenge, x, op_queue);
 
     Fq x_inv = x.invert();
     auto op_accumulator = Fq(0);

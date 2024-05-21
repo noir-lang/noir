@@ -2,7 +2,7 @@
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
-#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
+#include "barretenberg/translator_vm/translator_flavor.hpp"
 #include <benchmark/benchmark.h>
 
 namespace {
@@ -103,12 +103,12 @@ BENCHMARK(execute_relation_for_values<GoblinUltraFlavor, Poseidon2ExternalRelati
 BENCHMARK(execute_relation_for_values<GoblinUltraFlavor, Poseidon2InternalRelation<Fr>>);
 
 // Translator VM
-BENCHMARK(execute_relation_for_values<GoblinTranslatorFlavor, GoblinTranslatorDecompositionRelation<Fr>>);
-BENCHMARK(execute_relation_for_values<GoblinTranslatorFlavor, GoblinTranslatorOpcodeConstraintRelation<Fr>>);
-BENCHMARK(execute_relation_for_values<GoblinTranslatorFlavor, GoblinTranslatorAccumulatorTransferRelation<Fr>>);
-BENCHMARK(execute_relation_for_values<GoblinTranslatorFlavor, GoblinTranslatorDeltaRangeConstraintRelation<Fr>>);
-BENCHMARK(execute_relation_for_values<GoblinTranslatorFlavor, GoblinTranslatorNonNativeFieldRelation<Fr>>);
-BENCHMARK(execute_relation_for_values<GoblinTranslatorFlavor, GoblinTranslatorPermutationRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<TranslatorFlavor, TranslatorDecompositionRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<TranslatorFlavor, TranslatorOpcodeConstraintRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<TranslatorFlavor, TranslatorAccumulatorTransferRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<TranslatorFlavor, TranslatorDeltaRangeConstraintRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<TranslatorFlavor, TranslatorNonNativeFieldRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<TranslatorFlavor, TranslatorPermutationRelation<Fr>>);
 
 // ECCVM
 BENCHMARK(execute_relation_for_values<ECCVMFlavor, ECCVMLookupRelation<Fq>>);

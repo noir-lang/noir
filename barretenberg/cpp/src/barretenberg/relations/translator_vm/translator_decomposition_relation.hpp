@@ -4,7 +4,7 @@
 
 namespace bb {
 
-template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
+template <typename FF_> class TranslatorDecompositionRelationImpl {
   public:
     using FF = FF_;
 
@@ -96,7 +96,6 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
                            const FF& scaling_factor);
 };
 
-template <typename FF>
-using GoblinTranslatorDecompositionRelation = Relation<GoblinTranslatorDecompositionRelationImpl<FF>>;
+template <typename FF> using TranslatorDecompositionRelation = Relation<TranslatorDecompositionRelationImpl<FF>>;
 
 } // namespace bb

@@ -27,7 +27,8 @@ class ECCVMFlavor {
     using Curve = curve::Grumpkin;
     using G1 = typename Curve::Group;
     using PCS = IPA<Curve>;
-    using FF = typename G1::subgroup_field;
+    using FF = typename Curve::ScalarField;
+    using BF = typename Curve::BaseField;
     using Polynomial = bb::Polynomial<FF>;
     using GroupElement = typename G1::element;
     using Commitment = typename G1::affine_element;

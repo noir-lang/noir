@@ -1,6 +1,6 @@
 #pragma once
 /**
- * @file goblin_translator_builder.hpp
+ * @file translator_builder.hpp
  * @author @Rumata888
  * @brief Circuit Logic generation for Goblin Plonk translator (checks equivalence of Queues/Transcripts for ECCVM and
  * Recursive Circuits)
@@ -17,10 +17,10 @@
 
 namespace bb {
 /**
- * @brief GoblinTranslatorCircuitBuilder creates a circuit that evaluates the correctness of the evaluation of
+ * @brief TranslatorCircuitBuilder creates a circuit that evaluates the correctness of the evaluation of
  * EccOpQueue in Fq while operating in the Fr scalar field (r is the modulus of Fr and p is the modulus of Fp)
  *
- * @details Goblin Translator Circuit Builder builds a circuit the purpose of which is to calculate the batched
+ * @details Translator Circuit Builder builds a circuit the purpose of which is to calculate the batched
  * evaluation of 5 polynomials in non-native field represented through coefficients in 4 native polynomials (op,
  * x_lo_y_hi, x_hi_z_1, y_lo_z_2):
  *
@@ -31,7 +31,7 @@ namespace bb {
  *  X_* and Y_* are supposed to be the decompositions of bn254 base fields elements P.x and P.y and are split into two
  * chunks each because the scalar field we are operating on can't fit them
  *
- * Goblin Translator calculates the result of evaluation of a polynomial op + P.x⋅v +P.y⋅v² + z1 ⋅ v³ + z2⋅v⁴ at the
+ * Translator calculates the result of evaluation of a polynomial op + P.x⋅v +P.y⋅v² + z1 ⋅ v³ + z2⋅v⁴ at the
  * given challenge x (evaluation_input_x). For this it uses logic similar to the stdlib bigfield class. We operate in Fr
  * while trying to calculate values in Fq. To show that a⋅b=c mod p, we:
  * 1) Compute a⋅b in integers
@@ -41,7 +41,7 @@ namespace bb {
  * This ensures that the logic is sound modulo 2²⁷²⋅r, which means it's correct in integers, if all the values are
  * sufficiently constrained (there is no way to undeflow or overflow)
  *
- * Concretely, Goblin Translator computes one accumulation every two gates:
+ * Concretely, Translator computes one accumulation every two gates:
  * previous_accumulator⋅x + op + P.x⋅v +P.y⋅v² + z1⋅v³ + z2⋅v⁴ = current_accumulator mod p. Because of the nature of
  * polynomial commitment, previous_accumulator is located at higher index than the current_accumulator. Values of x
  * (evaluation_input_x) and v (batching_challenge_v) are precomputed and considered inputs to the relations.
@@ -58,7 +58,7 @@ namespace bb {
  * dividing the result by 2¹³⁶ and range constraining it). Then we use the overlow and higher limbs to prove the same
  * modulo 2¹³⁶ again and as a result we get correctness modulo 2²⁷².
  *
- * One big issue are range constraints. In Goblin Translator we check ranges by decomposing LIMBS into special other
+ * One big issue are range constraints. In Translator we check ranges by decomposing LIMBS into special other
  * range constrained MICROLIMBS (have "_CONSTRAINT_" in the name of their wires). These wires always have the range of
  * 14 bits, so when we need to constrain something further we use two wires at once and scale the values (for example,
  * 68 bits are decomposed into 5 14-bit limbs + 1 shifted limb, which is equal to the highest microlimb multiplied by
@@ -69,11 +69,11 @@ namespace bb {
  * microlimb.
  *
  */
-class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
+class TranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     // We don't need templating for Goblin
     using Fr = bb::fr;
     using Fq = bb::fq;
-    using Arithmetization = GoblinTranslatorArith;
+    using Arithmetization = TranslatorArith;
 
   public:
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
@@ -314,7 +314,7 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
         std::array<Fr, NUM_BINARY_LIMBS> v_cubed_limbs = { 0 };
         std::array<Fr, NUM_BINARY_LIMBS> v_quarted_limbs = { 0 };
     };
-    static constexpr std::string_view NAME_STRING = "GoblinTranslatorArithmetization";
+    static constexpr std::string_view NAME_STRING = "TranslatorArithmetization";
 
     // The challenge that is used for batching together evaluations of several polynomials
     Fq batching_challenge_v;
@@ -325,15 +325,15 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
 
     /**
-     * @brief Construct a new Goblin Translator Circuit Builder object
+     * @brief Construct a new Translator Circuit Builder object
      *
-     * @details Goblin Translator Circuit builder has to be initializaed with evaluation input and batching challenge
+     * @details Translator Circuit builder has to be initializaed with evaluation input and batching challenge
      * (they are used to compute witness and to store the value for the prover)
      *
      * @param batching_challenge_v_
      * @param evaluation_input_x_
      */
-    GoblinTranslatorCircuitBuilder(Fq batching_challenge_v_, Fq evaluation_input_x_)
+    TranslatorCircuitBuilder(Fq batching_challenge_v_, Fq evaluation_input_x_)
         : CircuitBuilderBase(DEFAULT_TRANSLATOR_VM_LENGTH)
         , batching_challenge_v(batching_challenge_v_)
         , evaluation_input_x(evaluation_input_x_)
@@ -346,35 +346,33 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     };
 
     /**
-     * @brief Construct a new Goblin Translator Circuit Builder object and feed op_queue inside
+     * @brief Construct a new Translator Circuit Builder object and feed op_queue inside
      *
-     * @details Goblin Translator Circuit builder has to be initialized with evaluation input and batching challenge
+     * @details Translator Circuit builder has to be initialized with evaluation input and batching challenge
      * (they are used to compute witness and to store the value for the prover)
      *
      * @param batching_challenge_v_
      * @param evaluation_input_x_
      * @param op_queue
      */
-    GoblinTranslatorCircuitBuilder(Fq batching_challenge_v_,
-                                   Fq evaluation_input_x_,
-                                   std::shared_ptr<ECCOpQueue> op_queue)
-        : GoblinTranslatorCircuitBuilder(batching_challenge_v_, evaluation_input_x_)
+    TranslatorCircuitBuilder(Fq batching_challenge_v_, Fq evaluation_input_x_, std::shared_ptr<ECCOpQueue> op_queue)
+        : TranslatorCircuitBuilder(batching_challenge_v_, evaluation_input_x_)
     {
-        BB_OP_COUNT_TIME_NAME("GoblinTranslatorCircuitBuilder::constructor");
+        BB_OP_COUNT_TIME_NAME("TranslatorCircuitBuilder::constructor");
         feed_ecc_op_queue_into_circuit(op_queue);
     }
 
-    GoblinTranslatorCircuitBuilder() = default;
-    GoblinTranslatorCircuitBuilder(const GoblinTranslatorCircuitBuilder& other) = delete;
-    GoblinTranslatorCircuitBuilder(GoblinTranslatorCircuitBuilder&& other) noexcept
+    TranslatorCircuitBuilder() = default;
+    TranslatorCircuitBuilder(const TranslatorCircuitBuilder& other) = delete;
+    TranslatorCircuitBuilder(TranslatorCircuitBuilder&& other) noexcept
         : CircuitBuilderBase(std::move(other)){};
-    GoblinTranslatorCircuitBuilder& operator=(const GoblinTranslatorCircuitBuilder& other) = delete;
-    GoblinTranslatorCircuitBuilder& operator=(GoblinTranslatorCircuitBuilder&& other) noexcept
+    TranslatorCircuitBuilder& operator=(const TranslatorCircuitBuilder& other) = delete;
+    TranslatorCircuitBuilder& operator=(TranslatorCircuitBuilder&& other) noexcept
     {
         CircuitBuilderBase::operator=(std::move(other));
         return *this;
     };
-    ~GoblinTranslatorCircuitBuilder() override = default;
+    ~TranslatorCircuitBuilder() override = default;
 
     /**
      * @brief Create limb representations of x and powers of v that are needed to compute the witness or check
@@ -459,14 +457,14 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     bool check_circuit();
 };
 template <typename Fq, typename Fr>
-GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_code,
-                                                                          Fr p_x_lo,
-                                                                          Fr p_x_hi,
-                                                                          Fr p_y_lo,
-                                                                          Fr p_y_hi,
-                                                                          Fr z1,
-                                                                          Fr z2,
-                                                                          Fq previous_accumulator,
-                                                                          Fq batching_challenge_v,
-                                                                          Fq evaluation_input_x);
+TranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_code,
+                                                                    Fr p_x_lo,
+                                                                    Fr p_x_hi,
+                                                                    Fr p_y_lo,
+                                                                    Fr p_y_hi,
+                                                                    Fr z1,
+                                                                    Fr z2,
+                                                                    Fq previous_accumulator,
+                                                                    Fq batching_challenge_v,
+                                                                    Fq evaluation_input_x);
 } // namespace bb

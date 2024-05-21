@@ -1,12 +1,12 @@
 /**
- * @file goblin_translator.fuzzer.hpp
+ * @file translator.fuzzer.hpp
  * @author Rumata888
  * @brief Contains common procedures used by the circuit builder fuzzer and the composer fuzzer
  * @date 2024-02-25
  *
  */
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "goblin_translator_circuit_builder.hpp"
+#include "translator_circuit_builder.hpp"
 
 using namespace bb;
 

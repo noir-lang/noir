@@ -2,16 +2,16 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_round.hpp"
-#include "barretenberg/translator_vm/goblin_translator_circuit_builder.hpp"
-#include "barretenberg/translator_vm/goblin_translator_prover.hpp"
-#include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
+#include "barretenberg/translator_vm/translator_circuit_builder.hpp"
+#include "barretenberg/translator_vm/translator_prover.hpp"
+#include "barretenberg/translator_vm/translator_verifier.hpp"
 
 #include <gtest/gtest.h>
 using namespace bb;
 
 namespace {
-using CircuitBuilder = GoblinTranslatorFlavor::CircuitBuilder;
-using Transcript = GoblinTranslatorFlavor::Transcript;
+using CircuitBuilder = TranslatorFlavor::CircuitBuilder;
+using Transcript = TranslatorFlavor::Transcript;
 using OpQueue = ECCOpQueue;
 auto& engine = numeric::get_debug_randomness();
 
@@ -33,7 +33,7 @@ void ensure_non_zero(auto& polynomial)
     ASSERT_TRUE(has_non_zero_coefficient);
 }
 
-class GoblinTranslatorComposerTests : public ::testing::Test {
+class TranslatorTests : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
@@ -43,7 +43,7 @@ class GoblinTranslatorComposerTests : public ::testing::Test {
  * @brief Test simple circuit with public inputs
  *
  */
-TEST_F(GoblinTranslatorComposerTests, Basic)
+TEST_F(TranslatorTests, Basic)
 {
     using G1 = g1::affine_element;
     using Fr = fr;
@@ -71,12 +71,12 @@ TEST_F(GoblinTranslatorComposerTests, Basic)
     auto circuit_builder = CircuitBuilder(translation_batching_challenge, translation_evaluation_challenge, op_queue);
     EXPECT_TRUE(circuit_builder.check_circuit());
 
-    GoblinTranslatorProver prover{ circuit_builder, prover_transcript };
+    TranslatorProver prover{ circuit_builder, prover_transcript };
     auto proof = prover.construct_proof();
 
     auto verifier_transcript = std::make_shared<Transcript>(prover_transcript->proof_data);
     verifier_transcript->template receive_from_prover<Fq>("init");
-    GoblinTranslatorVerifier verifier(prover.key, verifier_transcript);
+    TranslatorVerifier verifier(prover.key, verifier_transcript);
     bool verified = verifier.verify_proof(proof);
     EXPECT_TRUE(verified);
 }

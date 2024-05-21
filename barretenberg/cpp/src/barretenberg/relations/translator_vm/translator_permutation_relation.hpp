@@ -3,7 +3,7 @@
 
 namespace bb {
 
-template <typename FF_> class GoblinTranslatorPermutationRelationImpl {
+template <typename FF_> class TranslatorPermutationRelationImpl {
   public:
     using FF = FF_;
     // 1 + polynomial degree of this relation
@@ -80,7 +80,6 @@ template <typename FF_> class GoblinTranslatorPermutationRelationImpl {
                            const FF& scaling_factor);
 };
 
-template <typename FF>
-using GoblinTranslatorPermutationRelation = Relation<GoblinTranslatorPermutationRelationImpl<FF>>;
+template <typename FF> using TranslatorPermutationRelation = Relation<TranslatorPermutationRelationImpl<FF>>;
 
 } // namespace bb

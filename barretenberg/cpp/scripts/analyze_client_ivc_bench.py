@@ -13,7 +13,7 @@ to_keep = [
     "Decider::construct_proof(t)",
     "ECCVMProver(CircuitBuilder&)(t)",
     "ECCVMProver::construct_proof(t)",
-    "GoblinTranslatorProver::construct_proof(t)",
+    "TranslatorProver::construct_proof(t)",
     "Goblin::merge(t)"
 ]
 with open(PREFIX/IVC_BENCH_JSON, "r") as read_file:

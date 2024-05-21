@@ -1,5 +1,5 @@
 /**
- * @file goblin_translator_circuit_builder.cpp
+ * @file translator_circuit_builder.cpp
  * @author @Rumata888
  * @brief Circuit Logic generation for Goblin Plonk translator (checks equivalence of Queues/Transcripts for ECCVM and
  * Recursive Circuits)
@@ -7,7 +7,7 @@
  * @copyright Copyright (c) 2023
  *
  */
-#include "goblin_translator_circuit_builder.hpp"
+#include "translator_circuit_builder.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
@@ -32,34 +32,34 @@ using ECCVMOperation = ECCOpQueue::ECCVMOperation;
  * @param previous_accumulator The value of the previous accumulator (we assume standard decomposition into limbs)
  * @param batching_challenge_v The value of the challenge for batching polynomial evaluations
  * @param evaluation_input_x The value at which we evaluate the polynomials
- * @return GoblinTranslatorCircuitBuilder::AccumulationInput
+ * @return TranslatorCircuitBuilder::AccumulationInput
  */
 template <typename Fq, typename Fr>
-GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_code,
-                                                                          Fr p_x_lo,
-                                                                          Fr p_x_hi,
-                                                                          Fr p_y_lo,
-                                                                          Fr p_y_hi,
-                                                                          Fr z1,
-                                                                          Fr z2,
-                                                                          Fq previous_accumulator,
-                                                                          Fq batching_challenge_v,
-                                                                          Fq evaluation_input_x)
+TranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_code,
+                                                                    Fr p_x_lo,
+                                                                    Fr p_x_hi,
+                                                                    Fr p_y_lo,
+                                                                    Fr p_y_hi,
+                                                                    Fr z1,
+                                                                    Fr z2,
+                                                                    Fq previous_accumulator,
+                                                                    Fq batching_challenge_v,
+                                                                    Fq evaluation_input_x)
 {
     // All parameters are well-described in the header, this is just for convenience
-    constexpr size_t NUM_LIMB_BITS = GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS;
-    constexpr size_t NUM_BINARY_LIMBS = GoblinTranslatorCircuitBuilder::NUM_BINARY_LIMBS;
-    constexpr size_t NUM_MICRO_LIMBS = GoblinTranslatorCircuitBuilder::NUM_MICRO_LIMBS;
-    constexpr size_t NUM_LAST_LIMB_BITS = GoblinTranslatorCircuitBuilder::NUM_LAST_LIMB_BITS;
-    constexpr size_t MICRO_LIMB_BITS = GoblinTranslatorCircuitBuilder::MICRO_LIMB_BITS;
+    constexpr size_t NUM_LIMB_BITS = TranslatorCircuitBuilder::NUM_LIMB_BITS;
+    constexpr size_t NUM_BINARY_LIMBS = TranslatorCircuitBuilder::NUM_BINARY_LIMBS;
+    constexpr size_t NUM_MICRO_LIMBS = TranslatorCircuitBuilder::NUM_MICRO_LIMBS;
+    constexpr size_t NUM_LAST_LIMB_BITS = TranslatorCircuitBuilder::NUM_LAST_LIMB_BITS;
+    constexpr size_t MICRO_LIMB_BITS = TranslatorCircuitBuilder::MICRO_LIMB_BITS;
     constexpr size_t TOP_STANDARD_MICROLIMB_BITS = NUM_LAST_LIMB_BITS % MICRO_LIMB_BITS;
-    constexpr size_t NUM_Z_BITS = GoblinTranslatorCircuitBuilder::NUM_Z_BITS;
+    constexpr size_t NUM_Z_BITS = TranslatorCircuitBuilder::NUM_Z_BITS;
     constexpr size_t TOP_Z_MICROLIMB_BITS = (NUM_Z_BITS % NUM_LIMB_BITS) % MICRO_LIMB_BITS;
     constexpr size_t TOP_QUOTIENT_MICROLIMB_BITS =
-        (GoblinTranslatorCircuitBuilder::NUM_QUOTIENT_BITS % NUM_LIMB_BITS) % MICRO_LIMB_BITS;
-    constexpr auto shift_1 = GoblinTranslatorCircuitBuilder::SHIFT_1;
-    constexpr auto neg_modulus_limbs = GoblinTranslatorCircuitBuilder::NEGATIVE_MODULUS_LIMBS;
-    constexpr auto shift_2_inverse = GoblinTranslatorCircuitBuilder::SHIFT_2_INVERSE;
+        (TranslatorCircuitBuilder::NUM_QUOTIENT_BITS % NUM_LIMB_BITS) % MICRO_LIMB_BITS;
+    constexpr auto shift_1 = TranslatorCircuitBuilder::SHIFT_1;
+    constexpr auto neg_modulus_limbs = TranslatorCircuitBuilder::NEGATIVE_MODULUS_LIMBS;
+    constexpr auto shift_2_inverse = TranslatorCircuitBuilder::SHIFT_2_INVERSE;
 
     /**
      * @brief A small function to transform a native element Fq into its bigfield representation in Fr scalars
@@ -95,10 +95,9 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
      *
      */
     auto split_wide_limb_into_2_limbs = [](Fr& wide_limb) {
-        return std::array<Fr, GoblinTranslatorCircuitBuilder::NUM_Z_LIMBS>{
-            Fr(uint256_t(wide_limb).slice(0, NUM_LIMB_BITS)),
-            Fr(uint256_t(wide_limb).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS))
-        };
+        return std::array<Fr, TranslatorCircuitBuilder::NUM_Z_LIMBS>{ Fr(uint256_t(wide_limb).slice(0, NUM_LIMB_BITS)),
+                                                                      Fr(uint256_t(wide_limb).slice(
+                                                                          NUM_LIMB_BITS, 2 * NUM_LIMB_BITS)) };
     };
     /**
      * @brief A method to split a full 68-bit limb into 5 14-bit limb and 1 shifted limb for a more secure constraint
@@ -285,9 +284,9 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
     // Get divided version
     auto high_wide_relation_limb_divided = high_wide_relation_limb * shift_2_inverse;
 
-    const auto last_limb_index = GoblinTranslatorCircuitBuilder::NUM_BINARY_LIMBS - 1;
+    const auto last_limb_index = TranslatorCircuitBuilder::NUM_BINARY_LIMBS - 1;
 
-    const auto NUM_Z_LIMBS = GoblinTranslatorCircuitBuilder::NUM_Z_LIMBS;
+    const auto NUM_Z_LIMBS = TranslatorCircuitBuilder::NUM_Z_LIMBS;
     std::array<std::array<Fr, NUM_MICRO_LIMBS>, NUM_BINARY_LIMBS> P_x_microlimbs;
     std::array<std::array<Fr, NUM_MICRO_LIMBS>, NUM_BINARY_LIMBS> P_y_microlimbs;
     std::array<std::array<Fr, NUM_MICRO_LIMBS>, NUM_Z_LIMBS> z_1_microlimbs;
@@ -313,10 +312,10 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
         z_1_microlimbs[i] = split_standard_limb_into_micro_limbs(z_1_limbs[i]);
         z_2_microlimbs[i] = split_standard_limb_into_micro_limbs(z_2_limbs[i]);
     }
-    z_1_microlimbs[GoblinTranslatorCircuitBuilder::NUM_Z_LIMBS - 1] = split_top_z_limb_into_micro_limbs(
-        z_1_limbs[GoblinTranslatorCircuitBuilder::NUM_Z_LIMBS - 1], TOP_Z_MICROLIMB_BITS);
-    z_2_microlimbs[GoblinTranslatorCircuitBuilder::NUM_Z_LIMBS - 1] = split_top_z_limb_into_micro_limbs(
-        z_2_limbs[GoblinTranslatorCircuitBuilder::NUM_Z_LIMBS - 1], TOP_Z_MICROLIMB_BITS);
+    z_1_microlimbs[TranslatorCircuitBuilder::NUM_Z_LIMBS - 1] =
+        split_top_z_limb_into_micro_limbs(z_1_limbs[TranslatorCircuitBuilder::NUM_Z_LIMBS - 1], TOP_Z_MICROLIMB_BITS);
+    z_2_microlimbs[TranslatorCircuitBuilder::NUM_Z_LIMBS - 1] =
+        split_top_z_limb_into_micro_limbs(z_2_limbs[TranslatorCircuitBuilder::NUM_Z_LIMBS - 1], TOP_Z_MICROLIMB_BITS);
 
     // Split current accumulator into microlimbs for range constraining
     for (size_t i = 0; i < last_limb_index; i++) {
@@ -333,7 +332,7 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
         split_top_limb_into_micro_limbs(quotient_limbs[last_limb_index], TOP_QUOTIENT_MICROLIMB_BITS);
 
     // Start filling the witness container
-    GoblinTranslatorCircuitBuilder::AccumulationInput input{
+    TranslatorCircuitBuilder::AccumulationInput input{
         .op_code = op_code,
         .P_x_lo = p_x_lo,
         .P_x_hi = p_x_hi,
@@ -372,7 +371,7 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
  *
  * @param acc_step
  */
-void GoblinTranslatorCircuitBuilder::create_accumulation_gate(const AccumulationInput acc_step)
+void TranslatorCircuitBuilder::create_accumulation_gate(const AccumulationInput acc_step)
 {
     // The first wires OpQueue/Transcript wires
     // Opcode should be {0,1,2,3,4,8}
@@ -560,13 +559,13 @@ void GoblinTranslatorCircuitBuilder::create_accumulation_gate(const Accumulation
  * accumulation
  *
  * @tparam Fq
- * @return GoblinTranslatorCircuitBuilder::AccumulationInput
+ * @return TranslatorCircuitBuilder::AccumulationInput
  */
 template <typename Fq>
-GoblinTranslatorCircuitBuilder::AccumulationInput compute_witness_values_for_one_ecc_op(const ECCVMOperation& ecc_op,
-                                                                                        Fq previous_accumulator,
-                                                                                        Fq batching_challenge_v,
-                                                                                        Fq evaluation_input_x)
+TranslatorCircuitBuilder::AccumulationInput compute_witness_values_for_one_ecc_op(const ECCVMOperation& ecc_op,
+                                                                                  Fq previous_accumulator,
+                                                                                  Fq batching_challenge_v,
+                                                                                  Fq evaluation_input_x)
 {
     using Fr = bb::fr;
 
@@ -578,14 +577,12 @@ GoblinTranslatorCircuitBuilder::AccumulationInput compute_witness_values_for_one
     Fr p_y_hi(0);
 
     // Split P.x and P.y into their representations in bn254 transcript
-    p_x_lo = Fr(uint256_t(ecc_op.base_point.x).slice(0, 2 * GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS));
+    p_x_lo = Fr(uint256_t(ecc_op.base_point.x).slice(0, 2 * TranslatorCircuitBuilder::NUM_LIMB_BITS));
     p_x_hi = Fr(uint256_t(ecc_op.base_point.x)
-                    .slice(2 * GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS,
-                           4 * GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS));
-    p_y_lo = Fr(uint256_t(ecc_op.base_point.y).slice(0, 2 * GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS));
+                    .slice(2 * TranslatorCircuitBuilder::NUM_LIMB_BITS, 4 * TranslatorCircuitBuilder::NUM_LIMB_BITS));
+    p_y_lo = Fr(uint256_t(ecc_op.base_point.y).slice(0, 2 * TranslatorCircuitBuilder::NUM_LIMB_BITS));
     p_y_hi = Fr(uint256_t(ecc_op.base_point.y)
-                    .slice(2 * GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS,
-                           4 * GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS));
+                    .slice(2 * TranslatorCircuitBuilder::NUM_LIMB_BITS, 4 * TranslatorCircuitBuilder::NUM_LIMB_BITS));
 
     // Generate the full witness values
     return generate_witness_values(op,
@@ -599,7 +596,7 @@ GoblinTranslatorCircuitBuilder::AccumulationInput compute_witness_values_for_one
                                    batching_challenge_v,
                                    evaluation_input_x);
 }
-void GoblinTranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(std::shared_ptr<ECCOpQueue> ecc_op_queue)
+void TranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(std::shared_ptr<ECCOpQueue> ecc_op_queue)
 {
     using Fq = bb::fq;
     const auto& raw_ops = ecc_op_queue->get_raw_ops();
@@ -640,7 +637,7 @@ void GoblinTranslatorCircuitBuilder::feed_ecc_op_queue_into_circuit(std::shared_
         create_accumulation_gate(one_accumulation_step);
     }
 }
-bool GoblinTranslatorCircuitBuilder::check_circuit()
+bool TranslatorCircuitBuilder::check_circuit()
 {
     // Compute the limbs of evaluation_input_x and powers of batching_challenge_v (these go into the relation)
     RelationInputs relation_inputs = compute_relation_inputs_limbs(batching_challenge_v, evaluation_input_x);
@@ -1066,6 +1063,6 @@ bool GoblinTranslatorCircuitBuilder::check_circuit()
     }
     return true;
 };
-template GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(
+template TranslatorCircuitBuilder::AccumulationInput generate_witness_values(
     bb::fr, bb::fr, bb::fr, bb::fr, bb::fr, bb::fr, bb::fr, bb::fq, bb::fq, bb::fq);
 } // namespace bb

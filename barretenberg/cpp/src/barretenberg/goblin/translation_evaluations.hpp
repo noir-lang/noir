@@ -3,16 +3,22 @@
 #include "barretenberg/ecc/fields/field_conversion.hpp"
 
 namespace bb {
-struct TranslationEvaluations {
-    fq op, Px, Py, z1, z2;
+/**
+ * @brief Stores the evaluations from ECCVM, checked against the translator evaluations as a final step of translator.
+ *
+ * @tparam BF The base field of the curve, translation evaluations are represented in the base field.
+ * @tparam FF The scalar field of the curve, used in Goblin to help convert the proof into a buffer for ACIR.
+ */
+template <typename BF, typename FF> struct TranslationEvaluations_ {
+    BF op, Px, Py, z1, z2;
     static constexpr uint32_t NUM_EVALUATIONS = 5;
-    static size_t size() { return field_conversion::calc_num_bn254_frs<fq>() * NUM_EVALUATIONS; }
-    std::vector<fr> to_buffer() const
+    static size_t size() { return field_conversion::calc_num_bn254_frs<BF>() * NUM_EVALUATIONS; }
+    std::vector<FF> to_buffer() const
     {
-        std::vector<fr> result;
+        std::vector<FF> result;
         result.reserve(size());
-        const auto insert = [&result](const fq& elt) {
-            std::vector<fr> buf = field_conversion::convert_to_bn254_frs(elt);
+        const auto insert = [&result](const BF& elt) {
+            std::vector<FF> buf = field_conversion::convert_to_bn254_frs(elt);
             result.insert(result.end(), buf.begin(), buf.end());
         };
         insert(op);

@@ -3,7 +3,7 @@
 
 namespace bb {
 
-template <typename FF_> class GoblinTranslatorOpcodeConstraintRelationImpl {
+template <typename FF_> class TranslatorOpcodeConstraintRelationImpl {
   public:
     using FF = FF_;
 
@@ -36,7 +36,7 @@ template <typename FF_> class GoblinTranslatorOpcodeConstraintRelationImpl {
                            const FF& scaling_factor);
 };
 
-template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
+template <typename FF_> class TranslatorAccumulatorTransferRelationImpl {
   public:
     using FF = FF_;
 
@@ -91,10 +91,9 @@ template <typename FF_> class GoblinTranslatorAccumulatorTransferRelationImpl {
                            const FF& scaling_factor);
 };
 
-template <typename FF>
-using GoblinTranslatorOpcodeConstraintRelation = Relation<GoblinTranslatorOpcodeConstraintRelationImpl<FF>>;
+template <typename FF> using TranslatorOpcodeConstraintRelation = Relation<TranslatorOpcodeConstraintRelationImpl<FF>>;
 
 template <typename FF>
-using GoblinTranslatorAccumulatorTransferRelation = Relation<GoblinTranslatorAccumulatorTransferRelationImpl<FF>>;
+using TranslatorAccumulatorTransferRelation = Relation<TranslatorAccumulatorTransferRelationImpl<FF>>;
 
 } // namespace bb

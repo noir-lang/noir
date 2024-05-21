@@ -13,19 +13,20 @@ namespace bb {
 // We won't compile this class with Standard, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
 class ECCVMProver {
+  public:
     using Flavor = ECCVMFlavor;
     using FF = typename Flavor::FF;
+    using BF = typename Flavor::BF;
     using PCS = typename Flavor::PCS;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using ProvingKey = typename Flavor::ProvingKey;
     using Polynomial = typename Flavor::Polynomial;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Transcript = typename Flavor::Transcript;
-    using TranslationEvaluations = bb::TranslationEvaluations;
+    using TranslationEvaluations = bb::TranslationEvaluations_<FF, BF>;
     using ZeroMorph = ZeroMorphProver_<PCS>;
     using CircuitBuilder = typename Flavor::CircuitBuilder;
 
-  public:
     explicit ECCVMProver(CircuitBuilder& builder,
                          const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 

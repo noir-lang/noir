@@ -23,13 +23,14 @@
     RelationImpl<Flavor::FF>::MethodName<bb::Relation<RelationImpl<Flavor::FF>>::AccumulatorType, EdgeType(Flavor)>(   \
         EdgeType(Flavor) const&, RelationParameters<Flavor::FF> const&);
 
-#define SUMCHECK_RELATION_CLASS(...) _SUMCHECK_RELATION_CLASS(__VA_ARGS__)
 #define DEFINE_SUMCHECK_RELATION_CLASS(RelationImpl, Flavor)                                                           \
     ACCUMULATE(RelationImpl, Flavor, SumcheckTupleOfUnivariatesOverSubrelations, ExtendedEdge)                         \
     ACCUMULATE(RelationImpl, Flavor, SumcheckArrayOfValuesOverSubrelations, EvaluationEdge)                            \
     ACCUMULATE(RelationImpl, Flavor, SumcheckArrayOfValuesOverSubrelations, EntityEdge)
 
-#define SUMCHECK_PERMUTATION_CLASS(...) _SUMCHECK_PERMUTATION_CLASS(__VA_ARGS__)
+#define DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(RelationImpl, Flavor)                                                  \
+    ACCUMULATE(RelationImpl, Flavor, SumcheckArrayOfValuesOverSubrelations, EvaluationEdge)
+
 #define DEFINE_SUMCHECK_PERMUTATION_CLASS(RelationImpl, Flavor)                                                        \
     PERMUTATION_METHOD(compute_grand_product_numerator, RelationImpl, Flavor, UnivariateAccumulator0, ExtendedEdge)    \
     PERMUTATION_METHOD(compute_grand_product_numerator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)       \

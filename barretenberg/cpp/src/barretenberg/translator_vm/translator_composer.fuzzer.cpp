@@ -1,6 +1,6 @@
-#include "barretenberg/translator_vm/goblin_translator.fuzzer.hpp"
-#include "barretenberg/translator_vm/goblin_translator_prover.hpp"
-#include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
+#include "barretenberg/translator_vm/translator.fuzzer.hpp"
+#include "barretenberg/translator_vm/translator_prover.hpp"
+#include "barretenberg/translator_vm/translator_verifier.hpp"
 extern "C" void LLVMFuzzerInitialize(int*, char***)
 {
     srs::init_crs_factory("../srs_db/ignition");
@@ -20,25 +20,25 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
         return 0;
     }
     auto [batching_challenge_init, x, op_queue] = parsing_result.value();
-    auto prover_transcript = std::make_shared<bb::GoblinTranslatorFlavor::Transcript>();
+    auto prover_transcript = std::make_shared<bb::TranslatorFlavor::Transcript>();
     prover_transcript->send_to_verifier("init", batching_challenge_init);
     prover_transcript->export_proof();
     Fq translation_batching_challenge = prover_transcript->template get_challenge<Fq>("Translation:batching_challenge");
 
     // Construct circuit
-    auto circuit_builder = GoblinTranslatorCircuitBuilder(translation_batching_challenge, x, op_queue);
+    auto circuit_builder = TranslatorCircuitBuilder(translation_batching_challenge, x, op_queue);
 
     // Check that the circuit passes
     bool checked = circuit_builder.check_circuit();
 
     // Construct proof
-    GoblinTranslatorProver prover(circuit_builder, prover_transcript);
+    TranslatorProver prover(circuit_builder, prover_transcript);
     auto proof = prover.construct_proof();
 
     // Verify proof
-    auto verifier_transcript = std::make_shared<bb::GoblinTranslatorFlavor::Transcript>(prover_transcript->proof_data);
+    auto verifier_transcript = std::make_shared<bb::TranslatorFlavor::Transcript>(prover_transcript->proof_data);
     verifier_transcript->template receive_from_prover<Fq>("init");
-    GoblinTranslatorVerifier verifier(prover.key, verifier_transcript);
+    TranslatorVerifier verifier(prover.key, verifier_transcript);
     bool verified = verifier.verify_proof(proof);
     (void)checked;
     (void)verified;

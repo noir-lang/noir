@@ -1,4 +1,4 @@
-#include "goblin_translator_prover.hpp"
+#include "translator_prover.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
@@ -8,8 +8,7 @@
 
 namespace bb {
 
-GoblinTranslatorProver::GoblinTranslatorProver(CircuitBuilder& circuit_builder,
-                                               const std::shared_ptr<Transcript>& transcript)
+TranslatorProver::TranslatorProver(CircuitBuilder& circuit_builder, const std::shared_ptr<Transcript>& transcript)
     : dyadic_circuit_size(Flavor::compute_dyadic_circuit_size(circuit_builder))
     , mini_circuit_dyadic_size(Flavor::compute_mini_circuit_dyadic_size(circuit_builder))
     , transcript(transcript)
@@ -26,7 +25,7 @@ GoblinTranslatorProver::GoblinTranslatorProver(CircuitBuilder& circuit_builder,
  * @brief Compute witness polynomials
  *
  */
-void GoblinTranslatorProver::compute_witness(CircuitBuilder& circuit_builder)
+void TranslatorProver::compute_witness(CircuitBuilder& circuit_builder)
 {
     if (computed_witness) {
         return;
@@ -48,14 +47,12 @@ void GoblinTranslatorProver::compute_witness(CircuitBuilder& circuit_builder)
 
     // We also contruct ordered polynomials, which have the same values as concatenated ones + enough values to bridge
     // the range from 0 to maximum range defined by the range constraint.
-    bb::compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(key->polynomials,
-                                                                               mini_circuit_dyadic_size);
+    bb::compute_translator_range_constraint_ordered_polynomials<Flavor>(key->polynomials, mini_circuit_dyadic_size);
 
     computed_witness = true;
 }
 
-std::shared_ptr<GoblinTranslatorProver::CommitmentKey> GoblinTranslatorProver::compute_commitment_key(
-    size_t circuit_size)
+std::shared_ptr<TranslatorProver::CommitmentKey> TranslatorProver::compute_commitment_key(size_t circuit_size)
 {
     if (commitment_key) {
         return commitment_key;
@@ -69,7 +66,7 @@ std::shared_ptr<GoblinTranslatorProver::CommitmentKey> GoblinTranslatorProver::c
  * @brief Add circuit size and values used in the relations to the transcript
  *
  */
-void GoblinTranslatorProver::execute_preamble_round()
+void TranslatorProver::execute_preamble_round()
 {
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
     const auto SHIFT = uint256_t(1) << Flavor::NUM_LIMB_BITS;
@@ -88,7 +85,7 @@ void GoblinTranslatorProver::execute_preamble_round()
  * @brief Compute commitments to the first three wires
  *
  */
-void GoblinTranslatorProver::execute_wire_and_sorted_constraints_commitments_round()
+void TranslatorProver::execute_wire_and_sorted_constraints_commitments_round()
 {
     // Commit to all wire polynomials and ordered range constraint polynomials
     auto wire_polys = key->polynomials.get_wires_and_ordered_range_constraints();
@@ -102,7 +99,7 @@ void GoblinTranslatorProver::execute_wire_and_sorted_constraints_commitments_rou
  * @brief Compute permutation product polynomial and commitments
  *
  */
-void GoblinTranslatorProver::execute_grand_product_computation_round()
+void TranslatorProver::execute_grand_product_computation_round()
 {
     // Compute and store parameters required by relations in Sumcheck
     FF gamma = transcript->template get_challenge<FF>("gamma");
@@ -152,7 +149,7 @@ void GoblinTranslatorProver::execute_grand_product_computation_round()
  * @brief Run Sumcheck resulting in u = (u_1,...,u_d) challenges and all evaluations at u being calculated.
  *
  */
-void GoblinTranslatorProver::execute_relation_check_rounds()
+void TranslatorProver::execute_relation_check_rounds()
 {
     using Sumcheck = SumcheckProver<Flavor>;
 
@@ -170,7 +167,7 @@ void GoblinTranslatorProver::execute_relation_check_rounds()
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-void GoblinTranslatorProver::execute_zeromorph_rounds()
+void TranslatorProver::execute_zeromorph_rounds()
 {
     using ZeroMorph = ZeroMorphProver_<PCS>;
     ZeroMorph::prove(key->polynomials.get_unshifted_without_concatenated(),
@@ -185,15 +182,15 @@ void GoblinTranslatorProver::execute_zeromorph_rounds()
                      key->polynomials.get_concatenation_groups());
 }
 
-HonkProof GoblinTranslatorProver::export_proof()
+HonkProof TranslatorProver::export_proof()
 {
     proof = transcript->export_proof();
     return proof;
 }
 
-HonkProof GoblinTranslatorProver::construct_proof()
+HonkProof TranslatorProver::construct_proof()
 {
-    BB_OP_COUNT_TIME_NAME("GoblinTranslatorProver::construct_proof");
+    BB_OP_COUNT_TIME_NAME("TranslatorProver::construct_proof");
 
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

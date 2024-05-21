@@ -1,5 +1,5 @@
 /**
- * @file goblin_translator_relation_consistency.test.cpp
+ * @file translator_relation_consistency.test.cpp
  * @brief Show that relation arithmetic has a simple form.
  * @details The purpose of this test suite is to show that the identity arithmetic implemented in the Relations is
  * equivalent to a simpler unoptimized version implemented in the tests themselves. This is useful 1) as documentation
@@ -11,12 +11,12 @@
  * satisfied in general by random inputs) only that the two implementations are equivalent.
  *
  */
-#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
+#include "barretenberg/translator_vm/translator_flavor.hpp"
 #include <gtest/gtest.h>
 
 using namespace bb;
 
-using Flavor = GoblinTranslatorFlavor;
+using Flavor = TranslatorFlavor;
 using FF = typename Flavor::FF;
 using InputElements = typename Flavor::AllValues;
 
@@ -40,7 +40,7 @@ InputElements get_special_input() // use non-random values
     return result;
 }
 
-class GoblinTranslatorRelationConsistency : public testing::Test {
+class TranslatorRelationConsistency : public testing::Test {
   public:
     template <typename Relation>
     static void validate_relation_execution(const auto& expected_values,
@@ -54,10 +54,10 @@ class GoblinTranslatorRelationConsistency : public testing::Test {
     };
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, PermutationRelation)
+TEST_F(TranslatorRelationConsistency, PermutationRelation)
 {
     const auto run_test = [](bool random_inputs) {
-        using Relation = GoblinTranslatorPermutationRelation<FF>;
+        using Relation = TranslatorPermutationRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();
@@ -102,10 +102,10 @@ TEST_F(GoblinTranslatorRelationConsistency, PermutationRelation)
     run_test(/*random_inputs=*/true);
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, DeltaRangeConstraintRelation)
+TEST_F(TranslatorRelationConsistency, DeltaRangeConstraintRelation)
 {
     const auto run_test = [](bool random_inputs) {
-        using Relation = GoblinTranslatorDeltaRangeConstraintRelation<FF>;
+        using Relation = TranslatorDeltaRangeConstraintRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();
@@ -166,10 +166,10 @@ TEST_F(GoblinTranslatorRelationConsistency, DeltaRangeConstraintRelation)
     run_test(/*random_inputs=*/true);
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, DecompositionRelation)
+TEST_F(TranslatorRelationConsistency, DecompositionRelation)
 {
     const auto run_test = [](bool random_inputs) {
-        using Relation = GoblinTranslatorDecompositionRelation<FF>;
+        using Relation = TranslatorDecompositionRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();
@@ -715,10 +715,10 @@ TEST_F(GoblinTranslatorRelationConsistency, DecompositionRelation)
     run_test(/*random_inputs=*/true);
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, OpcodeConstraintRelation)
+TEST_F(TranslatorRelationConsistency, OpcodeConstraintRelation)
 {
     const auto run_test = [](bool random_inputs) {
-        using Relation = GoblinTranslatorOpcodeConstraintRelation<FF>;
+        using Relation = TranslatorOpcodeConstraintRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();
@@ -738,10 +738,10 @@ TEST_F(GoblinTranslatorRelationConsistency, OpcodeConstraintRelation)
     run_test(/*random_inputs=*/true);
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, AccumulatorTransferRelation)
+TEST_F(TranslatorRelationConsistency, AccumulatorTransferRelation)
 {
     const auto run_test = [](bool random_inputs) {
-        using Relation = GoblinTranslatorAccumulatorTransferRelation<FF>;
+        using Relation = TranslatorAccumulatorTransferRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();
@@ -792,7 +792,7 @@ TEST_F(GoblinTranslatorRelationConsistency, AccumulatorTransferRelation)
     run_test(/*random_inputs=*/true);
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, NonNativeFieldRelation)
+TEST_F(TranslatorRelationConsistency, NonNativeFieldRelation)
 {
     const auto run_test = [](bool random_inputs) {
         constexpr size_t NUM_LIMB_BITS = 68;
@@ -810,7 +810,7 @@ TEST_F(GoblinTranslatorRelationConsistency, NonNativeFieldRelation)
             -FF(curve::BN254::BaseField::modulus)
         };
 
-        using Relation = GoblinTranslatorNonNativeFieldRelation<FF>;
+        using Relation = TranslatorNonNativeFieldRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();

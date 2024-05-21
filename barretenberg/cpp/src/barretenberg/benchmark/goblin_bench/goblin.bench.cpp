@@ -109,7 +109,7 @@ BENCHMARK_DEFINE_F(GoblinBench, GoblinECCVMProve)(benchmark::State& state)
  * @brief Benchmark only the Translator component
  *
  */
-BENCHMARK_DEFINE_F(GoblinBench, GoblinTranslatorProve)(benchmark::State& state)
+BENCHMARK_DEFINE_F(GoblinBench, TranslatorProve)(benchmark::State& state)
 {
     Goblin goblin;
 
@@ -136,7 +136,7 @@ BENCHMARK_DEFINE_F(GoblinBench, GoblinTranslatorProve)(benchmark::State& state)
 BENCHMARK_REGISTER_F(GoblinBench, GoblinFull)->Unit(benchmark::kMillisecond)->ARGS;
 BENCHMARK_REGISTER_F(GoblinBench, GoblinAccumulate)->Unit(benchmark::kMillisecond)->ARGS;
 BENCHMARK_REGISTER_F(GoblinBench, GoblinECCVMProve)->Unit(benchmark::kMillisecond)->ARGS;
-BENCHMARK_REGISTER_F(GoblinBench, GoblinTranslatorProve)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(GoblinBench, TranslatorProve)->Unit(benchmark::kMillisecond)->ARGS;
 
 } // namespace
 

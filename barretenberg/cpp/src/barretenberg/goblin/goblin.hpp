@@ -8,9 +8,9 @@
 #include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
 #include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
-#include "barretenberg/translator_vm/goblin_translator_circuit_builder.hpp"
-#include "barretenberg/translator_vm/goblin_translator_prover.hpp"
-#include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
+#include "barretenberg/translator_vm/translator_circuit_builder.hpp"
+#include "barretenberg/translator_vm/translator_prover.hpp"
+#include "barretenberg/translator_vm/translator_verifier.hpp"
 #include "barretenberg/ultra_honk/merge_prover.hpp"
 #include "barretenberg/ultra_honk/merge_verifier.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
@@ -32,8 +32,9 @@ class Goblin {
     using ECCVMFlavor = bb::ECCVMFlavor;
     using ECCVMBuilder = bb::ECCVMCircuitBuilder;
     using ECCVMProver = bb::ECCVMProver;
-    using TranslatorBuilder = bb::GoblinTranslatorCircuitBuilder;
-    using TranslatorProver = bb::GoblinTranslatorProver;
+    using TranslationEvaluations = ECCVMProver::TranslationEvaluations;
+    using TranslatorBuilder = bb::TranslatorCircuitBuilder;
+    using TranslatorProver = bb::TranslatorProver;
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
     using MergeProver = bb::MergeProver_<GoblinUltraFlavor>;
     using MergeVerifier = bb::MergeVerifier_<GoblinUltraFlavor>;
@@ -175,7 +176,7 @@ class Goblin {
     {
         translator_builder = std::make_unique<TranslatorBuilder>(
             eccvm_prover->translation_batching_challenge_v, eccvm_prover->evaluation_challenge_x, op_queue);
-        translator_prover = std::make_unique<GoblinTranslatorProver>(*translator_builder, eccvm_prover->transcript);
+        translator_prover = std::make_unique<TranslatorProver>(*translator_builder, eccvm_prover->transcript);
         goblin_proof.translator_proof = translator_prover->construct_proof();
     };
 
@@ -209,7 +210,7 @@ class Goblin {
         ECCVMVerifier eccvm_verifier(eccvm_prover->key);
         bool eccvm_verified = eccvm_verifier.verify_proof(proof.eccvm_proof);
 
-        GoblinTranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
+        TranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
 
         bool accumulator_construction_verified = translator_verifier.verify_proof(proof.translator_proof);
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/799): Ensure translation_evaluations are passed
@@ -296,7 +297,7 @@ class Goblin {
         ECCVMVerifier eccvm_verifier(eccvm_prover->key);
         bool eccvm_verified = eccvm_verifier.verify_proof(goblin_proof.eccvm_proof);
 
-        GoblinTranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
+        TranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
 
         bool translation_accumulator_construction_verified =
             translator_verifier.verify_proof(goblin_proof.translator_proof);

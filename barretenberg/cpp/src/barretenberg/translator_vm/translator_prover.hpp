@@ -2,15 +2,15 @@
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
-#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
+#include "barretenberg/translator_vm/translator_flavor.hpp"
 
 namespace bb {
 
 // We won't compile this class with Standard, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
-class GoblinTranslatorProver {
+class TranslatorProver {
   public:
-    using Flavor = GoblinTranslatorFlavor;
+    using Flavor = TranslatorFlavor;
     using CircuitBuilder = typename Flavor::CircuitBuilder;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
@@ -27,7 +27,7 @@ class GoblinTranslatorProver {
     size_t dyadic_circuit_size = 0;      // final power-of-2 circuit size
     size_t mini_circuit_dyadic_size = 0; // The size of the small circuit that contains non-range constraint relations
 
-    explicit GoblinTranslatorProver(CircuitBuilder& circuit_builder, const std::shared_ptr<Transcript>& transcript);
+    explicit TranslatorProver(CircuitBuilder& circuit_builder, const std::shared_ptr<Transcript>& transcript);
 
     void compute_witness(CircuitBuilder& circuit_builder);
     std::shared_ptr<CommitmentKey> compute_commitment_key(size_t circuit_size);
@@ -40,7 +40,7 @@ class GoblinTranslatorProver {
     HonkProof export_proof();
     HonkProof construct_proof();
 
-    std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
+    std::shared_ptr<Transcript> transcript;
 
     bb::RelationParameters<FF> relation_parameters;
 

@@ -1,5 +1,5 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "goblin_translator_circuit_builder.hpp"
+#include "translator_circuit_builder.hpp"
 
 using namespace bb;
 
@@ -8,7 +8,7 @@ using Fq = curve::BN254::BaseField;
 
 extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
 {
-    constexpr size_t NUM_LIMB_BITS = bb::GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS;
+    constexpr size_t NUM_LIMB_BITS = bb::TranslatorCircuitBuilder::NUM_LIMB_BITS;
     constexpr size_t WIDE_LIMB_BYTES = 2 * NUM_LIMB_BITS / 8;
     constexpr size_t TOTAL_SIZE = 1 + 5 * sizeof(numeric::uint256_t) + 2 * WIDE_LIMB_BYTES;
     char buffer[32] = { 0 };
@@ -35,10 +35,10 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
     memcpy(buffer, data + 1 + 5 * sizeof(uint256_t) + WIDE_LIMB_BYTES, WIDE_LIMB_BYTES);
     Fr z_2 = Fr(*(uint256_t*)(buffer));
 
-    bb::GoblinTranslatorCircuitBuilder::AccumulationInput single_accumulation_step =
+    bb::TranslatorCircuitBuilder::AccumulationInput single_accumulation_step =
         bb::generate_witness_values(op, p_x_lo, p_x_hi, p_y_lo, p_y_hi, z_1, z_2, previous_accumulator, v, x);
 
-    auto circuit_builder = bb::GoblinTranslatorCircuitBuilder(v, x);
+    auto circuit_builder = bb::TranslatorCircuitBuilder(v, x);
     circuit_builder.create_accumulation_gate(single_accumulation_step);
     if (!circuit_builder.check_circuit()) {
         return 1;

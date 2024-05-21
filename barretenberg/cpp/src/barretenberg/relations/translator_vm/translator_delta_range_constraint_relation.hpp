@@ -3,7 +3,7 @@
 
 namespace bb {
 
-template <typename FF_> class GoblinTranslatorDeltaRangeConstraintRelationImpl {
+template <typename FF_> class TranslatorDeltaRangeConstraintRelationImpl {
   public:
     using FF = FF_;
 
@@ -44,6 +44,6 @@ template <typename FF_> class GoblinTranslatorDeltaRangeConstraintRelationImpl {
 };
 
 template <typename FF>
-using GoblinTranslatorDeltaRangeConstraintRelation = Relation<GoblinTranslatorDeltaRangeConstraintRelationImpl<FF>>;
+using TranslatorDeltaRangeConstraintRelation = Relation<TranslatorDeltaRangeConstraintRelationImpl<FF>>;
 
 } // namespace bb

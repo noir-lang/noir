@@ -1,6 +1,6 @@
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
-#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
+#include "barretenberg/translator_vm/translator_flavor.hpp"
 
 #include <gtest/gtest.h>
 using namespace bb;
@@ -29,7 +29,7 @@ template <typename Flavor, typename Relation> void check_relation(auto circuit_s
     }
 }
 
-class GoblinTranslatorRelationCorrectnessTests : public ::testing::Test {
+class TranslatorRelationCorrectnessTests : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
@@ -38,9 +38,9 @@ class GoblinTranslatorRelationCorrectnessTests : public ::testing::Test {
  * @brief Test the correctness of GolbinTranslator's Permutation Relation
  *
  */
-TEST_F(GoblinTranslatorRelationCorrectnessTests, Permutation)
+TEST_F(TranslatorRelationCorrectnessTests, Permutation)
 {
-    using Flavor = GoblinTranslatorFlavor;
+    using Flavor = TranslatorFlavor;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = bb::Polynomial<FF>;
@@ -137,7 +137,7 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, Permutation)
     fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_3);
 
     // Compute ordered range constraint polynomials that go in the denominator of the grand product polynomial
-    compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(prover_polynomials, mini_circuit_size);
+    compute_translator_range_constraint_ordered_polynomials<Flavor>(prover_polynomials, mini_circuit_size);
 
     // Compute the fixed numerator (part of verification key)
     prover_polynomials.compute_extra_range_constraint_numerator();
@@ -146,7 +146,7 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, Permutation)
     compute_concatenated_polynomials<Flavor>(prover_polynomials);
 
     // Compute the grand product polynomial
-    compute_grand_product<Flavor, bb::GoblinTranslatorPermutationRelation<FF>>(prover_polynomials, params);
+    compute_grand_product<Flavor, bb::TranslatorPermutationRelation<FF>>(prover_polynomials, params);
     prover_polynomials.z_perm_shift = prover_polynomials.z_perm.shifted();
 
     using Relations = typename Flavor::Relations;
@@ -155,9 +155,9 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, Permutation)
     check_relation<Flavor, std::tuple_element_t<0, Relations>>(full_circuit_size, prover_polynomials, params);
 }
 
-TEST_F(GoblinTranslatorRelationCorrectnessTests, DeltaRangeConstraint)
+TEST_F(TranslatorRelationCorrectnessTests, DeltaRangeConstraint)
 {
-    using Flavor = GoblinTranslatorFlavor;
+    using Flavor = TranslatorFlavor;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = bb::Polynomial<FF>;
@@ -176,7 +176,7 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, DeltaRangeConstraint)
         polynomial = Polynomial{ circuit_size };
     }
 
-    // Construct lagrange polynomials that are needed for Goblin Translator's DeltaRangeConstraint Relation
+    // Construct lagrange polynomials that are needed for Translator's DeltaRangeConstraint Relation
     prover_polynomials.lagrange_first[0] = 1;
     prover_polynomials.lagrange_last[circuit_size - 1] = 1;
 
@@ -231,13 +231,13 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, DeltaRangeConstraint)
 }
 
 /**
- * @brief Test the correctness of GoblinTranslatorFlavor's  extra relations (GoblinTranslatorOpcodeConstraintRelation
- * and GoblinTranslatorAccumulatorTransferRelation)
+ * @brief Test the correctness of TranslatorFlavor's  extra relations (TranslatorOpcodeConstraintRelation
+ * and TranslatorAccumulatorTransferRelation)
  *
  */
-TEST_F(GoblinTranslatorRelationCorrectnessTests, GoblinTranslatorExtraRelationsCorrectness)
+TEST_F(TranslatorRelationCorrectnessTests, TranslatorExtraRelationsCorrectness)
 {
-    using Flavor = GoblinTranslatorFlavor;
+    using Flavor = TranslatorFlavor;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using ProverPolynomialIds = typename Flavor::ProverPolynomialIds;
@@ -334,12 +334,12 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, GoblinTranslatorExtraRelationsC
     check_relation<Flavor, std::tuple_element_t<3, Relations>>(circuit_size, prover_polynomials, params);
 }
 /**
- * @brief Test the correctness of GoblinTranslatorFlavor's Decomposition Relation
+ * @brief Test the correctness of TranslatorFlavor's Decomposition Relation
  *
  */
-TEST_F(GoblinTranslatorRelationCorrectnessTests, Decomposition)
+TEST_F(TranslatorRelationCorrectnessTests, Decomposition)
 {
-    using Flavor = GoblinTranslatorFlavor;
+    using Flavor = TranslatorFlavor;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
@@ -708,12 +708,12 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, Decomposition)
 }
 
 /**
- * @brief Test the correctness of GoblinTranslatorFlavor's  NonNativeField Relation
+ * @brief Test the correctness of TranslatorFlavor's  NonNativeField Relation
  *
  */
-TEST_F(GoblinTranslatorRelationCorrectnessTests, NonNative)
+TEST_F(TranslatorRelationCorrectnessTests, NonNative)
 {
-    using Flavor = GoblinTranslatorFlavor;
+    using Flavor = TranslatorFlavor;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
@@ -750,7 +750,7 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, NonNative)
     const auto evaluation_input_x = BF::random_element(&engine);
 
     // Generating all the values is pretty tedious, so just use CircuitBuilder
-    auto circuit_builder = GoblinTranslatorCircuitBuilder(batching_challenge_v, evaluation_input_x, op_queue);
+    auto circuit_builder = TranslatorCircuitBuilder(batching_challenge_v, evaluation_input_x, op_queue);
 
     // The non-native field relation uses limbs of evaluation_input_x and powers of batching_challenge_v as inputs
     RelationParameters<FF> params;

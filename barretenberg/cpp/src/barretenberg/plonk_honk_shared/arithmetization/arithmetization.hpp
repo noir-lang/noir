@@ -389,7 +389,7 @@ template <typename FF_> class UltraHonkArith {
     inline static const std::vector<std::string> selector_names = {};
 };
 
-class GoblinTranslatorArith {
+class TranslatorArith {
   public:
     static constexpr size_t NUM_WIRES = 81;
     static constexpr size_t NUM_SELECTORS = 0;

@@ -14,7 +14,7 @@ namespace bb {
  * commitments. This method creates concatenated version of polynomials we won't need to commit to. Used in Goblin
  * Translator
  *
- * Concatenation in Goblin Translator mean the action of constructing a new Polynomial from existing ones by writing
+ * Concatenation in Translator mean the action of constructing a new Polynomial from existing ones by writing
  * their multilinear representations sequentially. For example, if we have f(x₁,x₂)={0, 1, 0, 1} and
  * g(x₁,x₂)={1, 0, 0, 1} then h(x₁ ,x₂ ,x₃ )=concatenation(f(x₁,x₂),g(x₁,x₂))={0, 1, 0, 1, 1, 0, 0, 1}
  *
@@ -37,7 +37,7 @@ template <typename Flavor> void compute_concatenated_polynomials(typename Flavor
     ASSERT(MINI_CIRCUIT_SIZE * Flavor::CONCATENATION_GROUP_SIZE == targets[0].size());
     // A function that produces 1 concatenated polynomial
 
-    // Goblin Translator uses concatenated polynomials in the permutation argument. These polynomials contain the same
+    // Translator uses concatenated polynomials in the permutation argument. These polynomials contain the same
     // coefficients as other shorter polynomials, but we don't have to commit to them due to reusing commitments of
     // shorter polynomials and updating our PCS to open using them. But the prover still needs the concatenated
     // polynomials. This function constructs a chunk of the polynomial.
@@ -60,13 +60,13 @@ template <typename Flavor> void compute_concatenated_polynomials(typename Flavor
 }
 
 /**
- * @brief Compute denominator polynomials for Goblin Translator's range constraint permutation
+ * @brief Compute denominator polynomials for Translator's range constraint permutation
  *
  * @details  We need to prove that all the range constraint wires indeed have values within the given range (unless
  * changed ∈  [0 , 2¹⁴ - 1]. To do this, we use several virtual concatenated wires, each of which represents a subset
  * or original wires (concatenated_range_constraints_<i>). We also generate several new polynomials of the same length
  * as concatenated ones. These polynomials have values within range, but they are also constrained by the
- * GoblinTranslatorFlavor's DeltaRangeConstraint relation, which ensures that sequential values differ by not more than
+ * TranslatorFlavor's DeltaRangeConstraint relation, which ensures that sequential values differ by not more than
  * 3, the last value is the maximum and the first value is zero (zero at the start allows us not to dance around
  * shifts).
  *
@@ -82,8 +82,8 @@ template <typename Flavor> void compute_concatenated_polynomials(typename Flavor
  * @param proving_key
  */
 template <typename Flavor>
-void compute_goblin_translator_range_constraint_ordered_polynomials(typename Flavor::ProverPolynomials& polynomials,
-                                                                    size_t mini_circuit_dyadic_size)
+void compute_translator_range_constraint_ordered_polynomials(typename Flavor::ProverPolynomials& polynomials,
+                                                             size_t mini_circuit_dyadic_size)
 {
 
     using FF = typename Flavor::FF;

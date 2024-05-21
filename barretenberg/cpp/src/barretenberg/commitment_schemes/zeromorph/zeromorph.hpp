@@ -198,7 +198,7 @@ template <typename PCS> class ZeroMorphProver_ {
      *
      * and concatenation_term = \sum_{i=0}^{num_chunks_per_group}(x^{i * min_N + 1}concatenation_groups_batched_{i})
      *
-     * @note The concatenation term arises from an implementation detail in the Goblin Translator and is not part of the
+     * @note The concatenation term arises from an implementation detail in the Translator and is not part of the
      * conventional ZM protocol
      * @param input_polynomial
      * @param quotients
@@ -250,7 +250,7 @@ template <typename PCS> class ZeroMorphProver_ {
         // If necessary, add to Z_x the contribution related to concatenated polynomials:
         // \sum_{i=0}^{num_chunks_per_group}(x^{i * min_n + 1}concatenation_groups_batched_{i}).
         // We are effectively reconstructing concatenated polynomials from their chunks now that we know x
-        // Note: this is an implementation detail related to Goblin Translator and is not part of the standard protocol.
+        // Note: this is an implementation detail related to Translator and is not part of the standard protocol.
         if (!concatenation_groups_batched.empty()) {
             size_t MINICIRCUIT_N = N / concatenation_groups_batched.size();
             auto x_to_minicircuit_N =
@@ -507,7 +507,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
      *  concatenation_term = \sum{i=0}^{o-1}\sum_{j=0}^{num_chunks_per_group}(rho^{m+l+i} * x^{j * min_N + 1}
      *                       * concatenation_groups_commitments_{i}_{j})
      *
-     * @note The concatenation term arises from an implementation detail in the Goblin Translator and is not part of the
+     * @note The concatenation term arises from an implementation detail in the Translator and is not part of the
      * conventional ZM protocol
      * @param first_g1 first element in the SRS
      * @param f_commitments Commitments to unshifted polynomials [f_i]
@@ -565,7 +565,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
         }
 
         // If applicable, add contribution from concatenated polynomial commitments
-        // Note: this is an implementation detail related to Goblin Translator and is not part of the standard protocol.
+        // Note: this is an implementation detail related to Translator and is not part of the standard protocol.
         if (!concatenation_groups_commitments.empty()) {
             size_t CONCATENATION_GROUP_SIZE = concatenation_groups_commitments[0].size();
             size_t MINICIRCUIT_N = N / CONCATENATION_GROUP_SIZE;

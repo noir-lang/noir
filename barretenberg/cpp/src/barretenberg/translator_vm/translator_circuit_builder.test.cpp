@@ -1,4 +1,4 @@
-#include "goblin_translator_circuit_builder.hpp"
+#include "translator_circuit_builder.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/stdlib_circuit_builders/op_queue/ecc_op_queue.hpp"
 #include <array>
@@ -13,13 +13,13 @@ auto& engine = numeric::get_debug_randomness();
  * @brief Check that a single accumulation gate is created correctly
  *
  */
-TEST(GoblinTranslatorCircuitBuilder, CircuitBuilderBaseCase)
+TEST(TranslatorCircuitBuilder, CircuitBuilderBaseCase)
 {
     using Fr = ::curve::BN254::ScalarField;
     using Fq = ::curve::BN254::BaseField;
 
-    constexpr size_t NUM_LIMB_BITS = GoblinTranslatorCircuitBuilder::NUM_LIMB_BITS;
-    constexpr size_t NUM_Z_BITS = GoblinTranslatorCircuitBuilder::NUM_Z_BITS;
+    constexpr size_t NUM_LIMB_BITS = TranslatorCircuitBuilder::NUM_LIMB_BITS;
+    constexpr size_t NUM_Z_BITS = TranslatorCircuitBuilder::NUM_Z_BITS;
 
     // Generate random EccOpQueue transcript values
     Fr op;
@@ -59,11 +59,11 @@ TEST(GoblinTranslatorCircuitBuilder, CircuitBuilderBaseCase)
     Fq previous_accumulator = Fq::random_element();
 
     // Generate the witness for a single step
-    GoblinTranslatorCircuitBuilder::AccumulationInput single_accumulation_step =
+    TranslatorCircuitBuilder::AccumulationInput single_accumulation_step =
         generate_witness_values(op, p_x_lo, p_x_hi, p_y_lo, p_y_hi, z_1, z_2, previous_accumulator, v, x);
 
     // Create a circuit builder
-    auto circuit_builder = GoblinTranslatorCircuitBuilder(v, x);
+    auto circuit_builder = TranslatorCircuitBuilder(v, x);
     // Submit one accumulation step in the builder
     circuit_builder.create_accumulation_gate(single_accumulation_step);
     // Check if the circuit fails
@@ -74,7 +74,7 @@ TEST(GoblinTranslatorCircuitBuilder, CircuitBuilderBaseCase)
  * @brief Check that the circuit can handle several accumulations
  *
  */
-TEST(GoblinTranslatorCircuitBuilder, SeveralOperationCorrectness)
+TEST(TranslatorCircuitBuilder, SeveralOperationCorrectness)
 {
     using point = g1::affine_element;
     using scalar = fr;
@@ -122,7 +122,7 @@ TEST(GoblinTranslatorCircuitBuilder, SeveralOperationCorrectness)
                 x_pow;
 
     // Create circuit builder and feed the queue inside
-    auto circuit_builder = GoblinTranslatorCircuitBuilder(batching_challenge, x, op_queue);
+    auto circuit_builder = TranslatorCircuitBuilder(batching_challenge, x, op_queue);
     // Check that the circuit passes
     EXPECT_TRUE(circuit_builder.check_circuit());
     // Check the computation result is in line with what we've computed
