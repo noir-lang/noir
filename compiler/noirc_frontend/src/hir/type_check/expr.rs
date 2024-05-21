@@ -431,16 +431,16 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         typ: Type,
         bindings: TypeBindings,
-        generics: Option<Vec<Type>>,
+        turbofish_generics: Option<Vec<Type>>,
         function_generic_count: usize,
         span: Span,
     ) -> (Type, TypeBindings) {
-        match generics {
-            Some(generics) => {
-                if generics.len() != function_generic_count {
+        match turbofish_generics {
+            Some(turbofish_generics) => {
+                if turbofish_generics.len() != function_generic_count {
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: function_generic_count,
-                        actual_count: generics.len(),
+                        actual_count: turbofish_generics.len(),
                         span,
                     });
                     typ.instantiate_with_bindings(bindings, self.interner)
@@ -451,7 +451,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Forall(generics, _) => generics.len() - function_generic_count,
                         _ => 0,
                     };
-                    typ.instantiate_with(generics, self.interner, implicit_generic_count)
+                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
