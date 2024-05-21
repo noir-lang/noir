@@ -28,7 +28,7 @@ use crate::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
-        StatementKind, StructId,
+        StatementKind, StructId, NoirStruct,
     },
     node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
     Shared, StructType, Type, TypeVariable,
@@ -1103,10 +1103,14 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn define_type_alias(&self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
+    fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.file = alias.file_id;
         self.local_module = alias.module_id;
-        let (typ, generics, resolver_errors) = self.resolve_type_alias(alias.type_alias_def, alias_id);
+
+        let generics = self.add_generics(&alias.type_alias_def.generics);
+        self.resolve_local_globals();
+        self.current_item = Some(DependencyId::Alias(alias_id));
+        let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
     }
 
@@ -1119,7 +1123,8 @@ impl<'context> Elaborator<'context> {
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
             self.file = typ.file_id;
-            let (generics, fields) = self.resolve_struct_fields(type_id, typ);
+            self.local_module = typ.module_id;
+            let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
 
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
@@ -1145,5 +1150,24 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
+    }
+
+    pub fn resolve_struct_fields(
+        &mut self,
+        unresolved: NoirStruct,
+        struct_id: StructId,
+    ) -> (Generics, Vec<(Ident, Type)>) {
+        let generics = self.add_generics(&unresolved.generics);
+
+        // Check whether the struct definition has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
+        self.current_item = Some(DependencyId::Struct(struct_id));
+
+        self.resolving_ids.insert(struct_id);
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        self.resolving_ids.remove(&struct_id);
+
+        (generics, fields)
     }
 }
