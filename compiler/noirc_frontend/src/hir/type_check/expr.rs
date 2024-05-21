@@ -388,15 +388,6 @@ impl<'interner> TypeChecker<'interner> {
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-        let span = self.interner.expr_span(expr_id);
-
-        let definition = self.interner.try_definition(ident.id);
-        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
-            DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(function).generic_count
-            }
-            _ => 0,
-        });
 
         let span = self.interner.expr_span(expr_id);
 
