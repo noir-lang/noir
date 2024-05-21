@@ -1,7 +1,7 @@
 use crate::private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer;
 use dep::reset_kernel_lib::{
     NoteHashReadRequestHints, NullifierReadRequestHints, PrivateValidationRequestProcessor,
-    verify_squashed_transient_note_hashes_and_nullifiers, reset::nullifier_key::NullifierKeyHint
+    verify_squashed_transient_note_hashes_and_nullifiers, reset::key_validation_hint::KeyValidationHint
 };
 use dep::types::{
     abis::{
@@ -11,8 +11,8 @@ use dep::types::{
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
-    MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
+    MAX_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
+    MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length, traits::is_empty,
     PrivateKernelCircuitPublicInputs
@@ -25,22 +25,22 @@ struct PrivateKernelResetOutputs {
     note_encrypted_log_hashes: [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
 }
 
-struct PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
+struct PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
     transient_nullifier_indexes_for_note_hashes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
     transient_note_hash_indexes_for_nullifiers: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     transient_note_hash_indexes_for_logs: [u64; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
     note_hash_read_request_hints: NoteHashReadRequestHints<NH_RR_PENDING, NH_RR_SETTLED>,
     nullifier_read_request_hints: NullifierReadRequestHints<NLL_RR_PENDING, NLL_RR_SETTLED>,
-    master_nullifier_secret_keys: [NullifierKeyHint; NLL_KEYS],
+    key_validation_hints: [KeyValidationHint; KEY_VALIDATION_REQUESTS],
 }
 
-struct PrivateKernelResetCircuitPrivateInputs<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
+struct PrivateKernelResetCircuitPrivateInputs<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
     previous_kernel: PrivateKernelData,
     outputs: PrivateKernelResetOutputs,
-    hints: PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS>,
+    hints: PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS>,
 }
 
-impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> PrivateKernelResetCircuitPrivateInputs<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
+impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> PrivateKernelResetCircuitPrivateInputs<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
     pub fn execute(self) -> PrivateKernelCircuitPublicInputs {
         let mut previous_public_inputs = self.previous_kernel.public_inputs;
 
@@ -55,7 +55,7 @@ impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> Pri
             nullifier_read_request_hints: self.hints.nullifier_read_request_hints,
             pending_nullifiers: previous_public_inputs.end.new_nullifiers,
             nullifier_tree_root: previous_public_inputs.constants.historical_header.state.partial.nullifier_tree.root,
-            master_nullifier_secret_keys: self.hints.master_nullifier_secret_keys
+            key_validation_hints: self.hints.key_validation_hints,
         }.validate();
 
         verify_squashed_transient_note_hashes_and_nullifiers(
@@ -87,11 +87,11 @@ mod tests {
         squash_transient_data::{squash_transient_note_hashes, squash_transient_nullifiers, squash_transient_logs}
     },
         reset::read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus},
-        reset::nullifier_key::NullifierKeyHint
+        reset::key_validation_hint::KeyValidationHint
     };
     use dep::types::constants::{
         MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
-        MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX,
         MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
         DA_BYTES_PER_FIELD
     };
@@ -179,7 +179,7 @@ mod tests {
                 transient_note_hash_indexes_for_logs: self.transient_note_hash_indexes_for_logs,
                 note_hash_read_request_hints: self.note_hash_read_request_hints_builder.to_hints(),
                 nullifier_read_request_hints: self.nullifier_read_request_hints_builder.to_hints(),
-                master_nullifier_secret_keys: [NullifierKeyHint::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX]
+                key_validation_hints: [KeyValidationHint::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_TX]
             };
 
             let kernel = PrivateKernelResetCircuitPrivateInputs { previous_kernel: self.previous_kernel.to_private_kernel_data(), outputs, hints };
@@ -300,15 +300,15 @@ mod tests {
         let remaining_nullifier_rr_index = builder.previous_kernel.add_read_request_for_pending_nullifier(1);
         let nullifier_rr = builder.previous_kernel.nullifier_read_requests.storage[remaining_nullifier_rr_index];
 
-        let nk_validation_index = builder.previous_kernel.add_request_for_nullifier_key_validation(GrumpkinPoint::new(1, 2), 27);
-        let nk_validation = builder.previous_kernel.nullifier_key_validation_requests.storage[nk_validation_index];
+        let key_validation_index = builder.previous_kernel.add_request_for_key_validation(GrumpkinPoint::new(1, 2), 27);
+        let key_validation = builder.previous_kernel.key_validation_requests.storage[key_validation_index];
 
         // Check that they have been propagated to the next kernel
         let result = builder.execute();
 
         assert_eq(result.validation_requests.note_hash_read_requests[0], note_hash_rr);
         assert_eq(result.validation_requests.nullifier_read_requests[0], nullifier_rr);
-        assert_eq(result.validation_requests.nullifier_key_validation_requests[0], nk_validation);
+        assert_eq(result.validation_requests.key_validation_requests[0], key_validation);
     }
 
     #[test]

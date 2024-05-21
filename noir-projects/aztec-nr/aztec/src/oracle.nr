@@ -11,7 +11,7 @@ mod get_nullifier_membership_witness;
 mod get_public_data_witness;
 mod get_membership_witness;
 mod keys;
-mod nullifier_keys;
+mod key_validation_request;
 mod get_sibling_path;
 mod unsafe_rand;
 mod enqueue_public_function_call;

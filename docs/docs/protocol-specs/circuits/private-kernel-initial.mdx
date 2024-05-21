@@ -221,7 +221,7 @@ This circuit verifies that the values in [`private_inputs`](#private-inputs)[`.p
   - `value`, `contract_address`, `counter`
 - `nullifier_read_requests`
   - `value`, `contract_address`, `counter`
-- `nullifier_key_validation_request_contexts`
+- `key_validation_request_contexts`
   - `parent_public_key`, `hardened_child_secret_key`
 - `unencrypted_log_hash_contexts`
   - `hash`, `length`, `counter`
@@ -254,7 +254,7 @@ This circuit verifies that the values in [`private_inputs`](#private-inputs)[`.p
    - `note_hash_contexts`
    - `nullifier_contexts`
    - `l2_to_l1_message_contexts`
-   - `nullifier_key_validation_request_contexts`
+   - `key_validation_request_contexts`
    - `unencrypted_log_hash_contexts`
    - `encrypted_log_hash_contexts`
    - `encrypted_note_preimage_hash_contexts`
@@ -452,7 +452,7 @@ class PrivateFunctionPublicInputs {
     l2_to_l1_messages: List~field~
     note_hash_read_requests: List~ReadRequest~
     nullifier_read_requests: List~ReadRequest~
-    nullifier_key_validation_requests: List~ParentSecretKeyValidationRequest~
+    key_validation_requests: List~ParentSecretKeyValidationRequest~
     unencrypted_log_hashes: List~UnencryptedLogHash~
     encrypted_log_hashes: List~EncryptedLogHash~
     encrypted_note_preimage_hashes: List~EncryptedNotePreimageHash~
@@ -470,7 +470,7 @@ PrivateFunctionPublicInputs *-- NoteHash: note_hashes
 PrivateFunctionPublicInputs *-- Nullifier: nullifiers
 PrivateFunctionPublicInputs *-- ReadRequest: note_hash_read_requests
 PrivateFunctionPublicInputs *-- ReadRequest: nullifier_read_requests
-PrivateFunctionPublicInputs *-- ParentSecretKeyValidationRequest: nullifier_key_validation_requests
+PrivateFunctionPublicInputs *-- ParentSecretKeyValidationRequest: key_validation_requests
 PrivateFunctionPublicInputs *-- UnencryptedLogHash: unencrypted_log_hashes
 PrivateFunctionPublicInputs *-- EncryptedLogHash: encrypted_log_hashes
 PrivateFunctionPublicInputs *-- EncryptedNotePreimageHash: encrypted_note_preimage_hashes
@@ -529,7 +529,7 @@ class ParentSecretKeyValidationRequest {
     parent_public_key: GrumpkinPoint
     hardened_child_secret_key: fq
 }
-ParentSecretKeyValidationRequest ..> ParentSecretKeyValidationRequestContext: nullifier_key_validation_requests\n->nullifier_key_validation_request_contexts
+ParentSecretKeyValidationRequest ..> ParentSecretKeyValidationRequestContext: key_validation_requests\n->key_validation_request_contexts
 
 class UnencryptedLogHash {
     hash: field
@@ -661,7 +661,7 @@ class TransientAccumulatedData {
   note_hash_contexts: List~NoteHashContext~
   nullifier_contexts: List~NullifierContext~
   l2_to_l1_message_contexts: List~L2ToL1MessageContext~
-  nullifier_key_validation_request_contexts: List~ParentSecretKeyValidationRequestContext~
+  key_validation_request_contexts: List~ParentSecretKeyValidationRequestContext~
   unencrypted_log_hash_contexts: List~UnencryptedLogHashContext~
   encrypted_log_hash_contexts: List~EncryptedLogHashContext~
   encrypted_note_preimage_hash_contexts: List~EncryptedNotePreimageHashContext~
@@ -675,7 +675,7 @@ NullifierContext --* TransientAccumulatedData: nullifier_contexts
 L2ToL1MessageContext --* TransientAccumulatedData: l2_to_l1_message_contexts
 ReadRequest --* TransientAccumulatedData: note_hash_read_requests
 ReadRequest --* TransientAccumulatedData: nullifier_read_requests
-ParentSecretKeyValidationRequestContext --* TransientAccumulatedData: nullifier_key_validation_request_contexts
+ParentSecretKeyValidationRequestContext --* TransientAccumulatedData: key_validation_request_contexts
 UnencryptedLogHashContext --* TransientAccumulatedData: unencrypted_log_hash_contexts
 EncryptedLogHashContext --* TransientAccumulatedData: encrypted_log_hash_contexts
 EncryptedNotePreimageHashContext --* TransientAccumulatedData: encrypted_note_preimage_hash_contexts
@@ -776,7 +776,7 @@ Would it be accurate to describe this as `AccumulatedTransientSideEffects`, perh
 | `encrypted_note_preimage_hash_contexts`     | [[`EncryptedNotePreimageHashContext`](#encryptednotepreimagehash); [`MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_TX`](../constants.md#circuit-constants)]                         | Hashes of the encrypted note preimages with extra data aiding verification.                                                    |
 | `note_hash_read_requests`                   | [[`ReadRequest`](./private-function#readrequest); [`MAX_NOTE_HASH_READ_REQUESTS_PER_TX`](../constants.md#circuit-constants)]                                                 | Requests to prove the note hashes being read exist.                                                                            |
 | `nullifier_read_requests`                   | [[`ReadRequest`](./private-function#readrequest); [`MAX_NULLIFIER_READ_REQUESTS_PER_TX`](../constants.md#circuit-constants)]                                                 | Requests to prove the nullifiers being read exist.                                                                             |
-| `nullifier_key_validation_request_contexts` | [[`ParentSecretKeyValidationRequestContext`](#parentsecretkeyvalidationrequestcontext); [`MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX`](../constants.md#circuit-constants)] | Requests to validate nullifier keys.                                                                                           |
+| `key_validation_request_contexts` | [[`ParentSecretKeyValidationRequestContext`](#parentsecretkeyvalidationrequestcontext); [`MAX_KEY_VALIDATION_REQUESTS_PER_TX`](../constants.md#circuit-constants)] | Requests to validate nullifier keys.                                                                                           |
 | `public_call_request_contexts`              | [[`PublicCallRequestContext`](./public-kernel-tail.md#publiccallrequestcontext); [`MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX`](../constants.md#circuit-constants)]                 | Requests to call publics functions.                                                                                            |
 | `private_call_request_stack`                | [[`PrivateCallRequestContext`](#privatecallrequestcontext); [`MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX`](../constants.md#circuit-constants)]                                     | Requests to call private functions. Pushed to the stack in reverse order so that they will be executed in chronological order. |
 

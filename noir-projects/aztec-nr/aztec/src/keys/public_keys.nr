@@ -2,15 +2,7 @@ use dep::protocol_types::{
     address::PublicKeysHash, constants::GENERATOR_INDEX__PUBLIC_KEYS_HASH, hash::poseidon2_hash,
     grumpkin_point::GrumpkinPoint, traits::{Deserialize, Serialize}
 };
-
-// Note: In fetch_key_from_registry we expect that the shared mutable slot is index * 2 + 1 for the x coordinate and
-// index * 2 + 2 for the y coordinate. For example, the npk_m x coordinates will be stored in a map at storage slot
-// 0 * 2 + 1 = 1, and the npk_m y coordinates at 2 * 2 + 2 = 6. If this changes the function will need to be
-// refactored.
-global NULLIFIER_INDEX = 0;
-global INCOMING_INDEX = 1;
-global OUTGOING_INDEX = 2;
-global TAGGING_INDEX = 3;
+use crate::keys::constants::{NUM_KEY_TYPES, NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX};
 
 global PUBLIC_KEYS_LENGTH = 8;
 
@@ -41,7 +33,7 @@ impl PublicKeys {
     }
 
     pub fn get_key_by_index(self, index: Field) -> GrumpkinPoint {
-        assert(index as u8 < 4, "Invalid key index");
+        assert(index as u8 < NUM_KEY_TYPES, "Invalid key index");
         if index == NULLIFIER_INDEX {
             self.npk_m
         } else if index == INCOMING_INDEX {

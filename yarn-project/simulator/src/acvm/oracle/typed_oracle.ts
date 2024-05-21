@@ -11,6 +11,7 @@ import {
 } from '@aztec/circuit-types';
 import {
   type Header,
+  type KeyValidationRequest,
   type L1_TO_L2_MSG_TREE_HEIGHT,
   type PrivateCallStackItem,
   type PublicCallRequest,
@@ -19,14 +20,6 @@ import { type FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
-
-/** Nullifier keys which both correspond to the same master nullifier secret key. */
-export interface NullifierKeys {
-  /** Master nullifier public key. */
-  masterNullifierPublicKey: PublicKey;
-  /** App nullifier secret key. */
-  appNullifierSecretKey: Fr;
-}
 
 /**
  * Information about a note needed during execution.
@@ -89,8 +82,8 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('unpackReturns');
   }
 
-  getNullifierKeys(_npkMHash: Fr): Promise<NullifierKeys> {
-    throw new OracleMethodNotAvailableError('getNullifierKeys');
+  getKeyValidationRequest(_pkMHash: Fr): Promise<KeyValidationRequest> {
+    throw new OracleMethodNotAvailableError('getKeyValidationRequest');
   }
 
   getContractInstance(_address: AztecAddress): Promise<ContractInstance> {

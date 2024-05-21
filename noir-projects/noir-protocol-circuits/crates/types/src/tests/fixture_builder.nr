@@ -8,7 +8,7 @@ use crate::{
     kernel_data::KernelData, public_kernel_data::PublicKernelData, max_block_number::MaxBlockNumber,
     private_kernel_data::PrivateKernelData, note_hash::{NoteHash, ScopedNoteHash},
     nullifier::{Nullifier, ScopedNullifier},
-    nullifier_key_validation_request::{ScopedNullifierKeyValidationRequest, NullifierKeyValidationRequest},
+    key_validation_request::{ScopedKeyValidationRequest, KeyValidationRequest},
     private_call_request::{PrivateCallRequest, ScopedPrivateCallRequest},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::{ReadRequest, ScopedReadRequest}, log_hash::{LogHash, NoteLogHash},
@@ -20,9 +20,8 @@ use crate::{
     MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-    VK_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
-    MAX_NOTE_ENCRYPTED_LOGS_PER_TX
+    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX, VK_TREE_HEIGHT,
+    MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
     hash::silo_nullifier, header::Header,
     messaging::l2_to_l1_message::{L2ToL1Message, ScopedL2ToL1Message},
@@ -65,7 +64,7 @@ struct FixtureBuilder {
     note_hash_read_requests: BoundedVec<ScopedReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
     nullifier_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_non_existent_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    nullifier_key_validation_requests: BoundedVec<ScopedNullifierKeyValidationRequest, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
+    key_validation_requests: BoundedVec<ScopedKeyValidationRequest, MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
     public_data_reads: BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_TX>,
 
     // Proof.
@@ -111,7 +110,7 @@ impl FixtureBuilder {
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             nullifier_non_existent_read_requests: BoundedVec::new(),
-            nullifier_key_validation_requests: BoundedVec::new(),
+            key_validation_requests: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
             proof: NestedRecursiveProof::empty(),
             vk: VerificationKey::empty(),
@@ -185,7 +184,7 @@ impl FixtureBuilder {
             note_hash_read_requests: self.note_hash_read_requests,
             nullifier_read_requests: self.nullifier_read_requests,
             nullifier_non_existent_read_requests: self.nullifier_non_existent_read_requests,
-            nullifier_key_validation_requests: self.nullifier_key_validation_requests,
+            key_validation_requests: self.key_validation_requests,
             public_data_reads: self.public_data_reads
         };
         validation_requests.finish()
@@ -412,14 +411,10 @@ impl FixtureBuilder {
         new_read_request_index
     }
 
-    pub fn add_request_for_nullifier_key_validation(
-        &mut self,
-        master_nullifier_public_key: GrumpkinPoint,
-        app_nullifier_secret_key: Field
-    ) -> u64 {
-        let new_request_index = self.nullifier_key_validation_requests.len();
-        let request = NullifierKeyValidationRequest { master_nullifier_public_key, app_nullifier_secret_key };
-        self.nullifier_key_validation_requests.push(request.scope(self.storage_contract_address));
+    pub fn add_request_for_key_validation(&mut self, pk_m: GrumpkinPoint, sk_app: Field) -> u64 {
+        let new_request_index = self.key_validation_requests.len();
+        let request = KeyValidationRequest { pk_m, sk_app };
+        self.key_validation_requests.push(request.scope(self.storage_contract_address));
 
         new_request_index
     }
@@ -548,7 +543,7 @@ impl Empty for FixtureBuilder {
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             nullifier_non_existent_read_requests: BoundedVec::new(),
-            nullifier_key_validation_requests: BoundedVec::new(),
+            key_validation_requests: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
             proof: NestedRecursiveProof::empty(),
             vk: VerificationKey::empty(),

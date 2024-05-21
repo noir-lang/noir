@@ -27,16 +27,18 @@ import {
   Header,
   KernelCircuitPublicInputs,
   type KernelData,
+  type KeyValidationHint,
+  KeyValidationRequest,
   L2ToL1Message,
   type LeafDataReadHint,
   LogHash,
   MAX_ENCRYPTED_LOGS_PER_TX,
+  MAX_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
@@ -56,7 +58,6 @@ import {
   type NoteHashReadRequestHints,
   NoteLogHash,
   Nullifier,
-  NullifierKeyValidationRequest,
   type NullifierLeafPreimage,
   type NullifierNonExistentReadRequestHints,
   type NullifierReadRequestHints,
@@ -109,10 +110,10 @@ import {
   type RootParityInputs,
   type RootRollupInputs,
   RootRollupPublicInputs,
+  ScopedKeyValidationRequest,
   ScopedL2ToL1Message,
   ScopedNoteHash,
   ScopedNullifier,
-  ScopedNullifierKeyValidationRequest,
   ScopedPrivateCallRequest,
   ScopedReadRequest,
   type SettledReadHint,
@@ -150,6 +151,8 @@ import type {
   Header as HeaderNoir,
   KernelCircuitPublicInputs as KernelCircuitPublicInputsNoir,
   KernelData as KernelDataNoir,
+  KeyValidationHint as KeyValidationHintNoir,
+  KeyValidationRequest as KeyValidationRequestsNoir,
   L2ToL1Message as L2ToL1MessageNoir,
   LeafDataReadHint as LeafDataReadHintNoir,
   LogHash as LogHashNoir,
@@ -165,8 +168,6 @@ import type {
   NoteHashReadRequestHints as NoteHashReadRequestHintsNoir,
   NoteHashSettledReadHint as NoteHashSettledReadHintNoir,
   NoteLogHash as NoteLogHashNoir,
-  NullifierKeyHint as NullifierKeyHintNoir,
-  NullifierKeyValidationRequest as NullifierKeyValidationRequestNoir,
   NullifierLeafPreimage as NullifierLeafPreimageNoir,
   Nullifier as NullifierNoir,
   NullifierNonExistentReadRequestHints as NullifierNonExistentReadRequestHintsNoir,
@@ -216,9 +217,9 @@ import type {
   RootRollupInputs as RootRollupInputsNoir,
   RootRollupParityInput as RootRollupParityInputNoir,
   RootRollupPublicInputs as RootRollupPublicInputsNoir,
+  ScopedKeyValidationRequest as ScopedKeyValidationRequestsNoir,
   ScopedL2ToL1Message as ScopedL2ToL1MessageNoir,
   ScopedNoteHash as ScopedNoteHashNoir,
-  ScopedNullifierKeyValidationRequest as ScopedNullifierKeyValidationRequestNoir,
   ScopedNullifier as ScopedNullifierNoir,
   ScopedPrivateCallRequest as ScopedPrivateCallRequestNoir,
   ScopedReadRequest as ScopedReadRequestNoir,
@@ -308,16 +309,14 @@ export function mapGrumpkinPrivateKeyToNoir(privateKey: GrumpkinPrivateKey): Gru
 }
 
 /**
- * Maps a NullifierKeyHint to noir.
- * @param hint - The nullifier key hint.
- * @returns The nullifier key hint mapped to noir types.
+ * Maps a KeyValidationHint to noir.
+ * @param hint - The key validation hint.
+ * @returns The key validation hint mapped to noir types.
  */
-export function mapNullifierKeyHintToNoir(hint: {
-  privateKey: GrumpkinPrivateKey;
-  requestIndex: number;
-}): NullifierKeyHintNoir {
+export function mapKeyValidationHintToNoir(hint: KeyValidationHint): KeyValidationHintNoir {
   return {
-    private_key: mapGrumpkinPrivateKeyToNoir(hint.privateKey),
+    sk_m: mapGrumpkinPrivateKeyToNoir(hint.skM),
+    sk_app_generator_index: mapFieldToNoir(new Fr(hint.skAppGeneratorIndex)),
     request_index: mapNumberToNoir(hint.requestIndex),
   };
 }
@@ -747,47 +746,36 @@ export function mapScopedReadRequestFromNoir(scoped: ScopedReadRequestNoir): Sco
 }
 
 /**
- * Maps a NullifierKeyValidationRequest to a noir NullifierKeyValidationRequest.
- * @param request - The NullifierKeyValidationRequest.
- * @returns The noir NullifierKeyValidationRequest.
+ * Maps a KeyValidationRequest to a noir KeyValidationRequest.
+ * @param request - The KeyValidationRequest.
+ * @returns The noir KeyValidationRequest.
  */
-export function mapNullifierKeyValidationRequestToNoir(
-  request: NullifierKeyValidationRequest,
-): NullifierKeyValidationRequestNoir {
+export function mapKeyValidationRequestsToNoir(request: KeyValidationRequest): KeyValidationRequestsNoir {
   return {
-    master_nullifier_public_key: mapPointToNoir(request.masterNullifierPublicKey),
-    app_nullifier_secret_key: mapFieldToNoir(request.appNullifierSecretKey),
+    pk_m: mapPointToNoir(request.masterPublicKey),
+    sk_app: mapFieldToNoir(request.appSecretKey),
   };
 }
 
 /**
- * Maps a noir NullifierKeyValidationRequest to NullifierKeyValidationRequest.
- * @param request - The noir NullifierKeyValidationRequest.
- * @returns The TS NullifierKeyValidationRequest.
+ * Maps a noir KeyValidationRequest to KeyValidationRequest.
+ * @param request - The noir KeyValidationRequest.
+ * @returns The TS KeyValidationRequest.
  */
-export function mapNullifierKeyValidationRequestFromNoir(
-  request: NullifierKeyValidationRequestNoir,
-): NullifierKeyValidationRequest {
-  return new NullifierKeyValidationRequest(
-    mapPointFromNoir(request.master_nullifier_public_key),
-    mapFieldFromNoir(request.app_nullifier_secret_key),
-  );
+export function mapKeyValidationRequestsFromNoir(request: KeyValidationRequestsNoir): KeyValidationRequest {
+  return new KeyValidationRequest(mapPointFromNoir(request.pk_m), mapFieldFromNoir(request.sk_app));
 }
 
-function mapScopedNullifierKeyValidationRequestToNoir(
-  request: ScopedNullifierKeyValidationRequest,
-): ScopedNullifierKeyValidationRequestNoir {
+function mapScopedKeyValidationRequestsToNoir(request: ScopedKeyValidationRequest): ScopedKeyValidationRequestsNoir {
   return {
-    request: mapNullifierKeyValidationRequestToNoir(request.request),
+    request: mapKeyValidationRequestsToNoir(request.request),
     contract_address: mapAztecAddressToNoir(request.contractAddress),
   };
 }
 
-function mapScopedNullifierKeyValidationRequestFromNoir(
-  request: ScopedNullifierKeyValidationRequestNoir,
-): ScopedNullifierKeyValidationRequest {
-  return new ScopedNullifierKeyValidationRequest(
-    mapNullifierKeyValidationRequestFromNoir(request.request),
+function mapScopedKeyValidationRequestsFromNoir(request: ScopedKeyValidationRequestsNoir): ScopedKeyValidationRequest {
+  return new ScopedKeyValidationRequest(
+    mapKeyValidationRequestsFromNoir(request.request),
     mapAztecAddressFromNoir(request.contract_address),
   );
 }
@@ -842,10 +830,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
     returns_hash: mapFieldToNoir(privateCircuitPublicInputs.returnsHash),
     note_hash_read_requests: mapTuple(privateCircuitPublicInputs.noteHashReadRequests, mapReadRequestToNoir),
     nullifier_read_requests: mapTuple(privateCircuitPublicInputs.nullifierReadRequests, mapReadRequestToNoir),
-    nullifier_key_validation_requests: mapTuple(
-      privateCircuitPublicInputs.nullifierKeyValidationRequests,
-      mapNullifierKeyValidationRequestToNoir,
-    ),
+    key_validation_requests: mapTuple(privateCircuitPublicInputs.keyValidationRequests, mapKeyValidationRequestsToNoir),
     new_note_hashes: mapTuple(privateCircuitPublicInputs.newNoteHashes, mapNoteHashToNoir),
     new_nullifiers: mapTuple(privateCircuitPublicInputs.newNullifiers, mapNullifierToNoir),
     private_call_requests: mapTuple(privateCircuitPublicInputs.privateCallRequests, mapPrivateCallRequestToNoir),
@@ -1112,10 +1097,7 @@ function mapValidationRequestsToNoir(requests: ValidationRequests): ValidationRe
       requests.nullifierNonExistentReadRequests,
       mapScopedReadRequestToNoir,
     ),
-    nullifier_key_validation_requests: mapTuple(
-      requests.nullifierKeyValidationRequests,
-      mapScopedNullifierKeyValidationRequestToNoir,
-    ),
+    key_validation_requests: mapTuple(requests.keyValidationRequests, mapScopedKeyValidationRequestsToNoir),
     public_data_reads: mapTuple(requests.publicDataReads, mapPublicDataReadToNoir),
   };
 }
@@ -1139,9 +1121,9 @@ function mapValidationRequestsFromNoir(requests: ValidationRequestsNoir): Valida
       mapScopedReadRequestFromNoir,
     ),
     mapTupleFromNoir(
-      requests.nullifier_key_validation_requests,
-      MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-      mapScopedNullifierKeyValidationRequestFromNoir,
+      requests.key_validation_requests,
+      MAX_KEY_VALIDATION_REQUESTS_PER_TX,
+      mapScopedKeyValidationRequestsFromNoir,
     ),
     mapTupleFromNoir(requests.public_data_reads, MAX_PUBLIC_DATA_READS_PER_TX, mapPublicDataReadFromNoir),
   );
@@ -1558,10 +1540,16 @@ function mapPrivateKernelResetHintsToNoir<
   NH_RR_SETTLED extends number,
   NLL_RR_PENDING extends number,
   NLL_RR_SETTLED extends number,
-  NLL_KEYS extends number,
+  KEY_VALIDATION_REQUESTS extends number,
 >(
-  inputs: PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS>,
-): PrivateKernelResetHintsNoir<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
+  inputs: PrivateKernelResetHints<
+    NH_RR_PENDING,
+    NH_RR_SETTLED,
+    NLL_RR_PENDING,
+    NLL_RR_SETTLED,
+    KEY_VALIDATION_REQUESTS
+  >,
+): PrivateKernelResetHintsNoir<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
   return {
     transient_nullifier_indexes_for_note_hashes: mapTuple(
       inputs.transientNullifierIndexesForNoteHashes,
@@ -1571,9 +1559,9 @@ function mapPrivateKernelResetHintsToNoir<
     transient_note_hash_indexes_for_logs: mapTuple(inputs.transientNoteHashIndexesForLogs, mapNumberToNoir),
     note_hash_read_request_hints: mapNoteHashReadRequestHintsToNoir(inputs.noteHashReadRequestHints),
     nullifier_read_request_hints: mapNullifierReadRequestHintsToNoir(inputs.nullifierReadRequestHints),
-    master_nullifier_secret_keys: inputs.masterNullifierSecretKeys.map(mapNullifierKeyHintToNoir) as FixedLengthArray<
-      NullifierKeyHintNoir,
-      NLL_KEYS
+    key_validation_hints: inputs.keyValidationHints.map(mapKeyValidationHintToNoir) as FixedLengthArray<
+      KeyValidationHintNoir,
+      KEY_VALIDATION_REQUESTS
     >,
   };
 }
@@ -1583,7 +1571,7 @@ export function mapPrivateKernelResetCircuitPrivateInputsToNoir<
   NH_RR_SETTLED extends number,
   NLL_RR_PENDING extends number,
   NLL_RR_SETTLED extends number,
-  NLL_KEYS extends number,
+  KEY_VALIDATION_REQUESTS extends number,
   TAG extends string,
 >(
   inputs: PrivateKernelResetCircuitPrivateInputs<
@@ -1591,10 +1579,16 @@ export function mapPrivateKernelResetCircuitPrivateInputsToNoir<
     NH_RR_SETTLED,
     NLL_RR_PENDING,
     NLL_RR_SETTLED,
-    NLL_KEYS,
+    KEY_VALIDATION_REQUESTS,
     TAG
   >,
-): PrivateKernelResetCircuitPrivateInputsNoir<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
+): PrivateKernelResetCircuitPrivateInputsNoir<
+  NH_RR_PENDING,
+  NH_RR_SETTLED,
+  NLL_RR_PENDING,
+  NLL_RR_SETTLED,
+  KEY_VALIDATION_REQUESTS
+> {
   return {
     previous_kernel: mapPrivateKernelDataToNoir(inputs.previousKernel),
     outputs: mapPrivateKernelResetOutputsToNoir(inputs.outputs),

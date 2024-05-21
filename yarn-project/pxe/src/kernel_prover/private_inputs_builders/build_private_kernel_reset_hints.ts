@@ -1,21 +1,21 @@
 import {
-  type Fr,
+  Fr,
+  KeyValidationHint,
+  MAX_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
-  NullifierKeyHint,
   PRIVATE_RESET_VARIANTS,
   type PrivateKernelData,
   PrivateKernelResetCircuitPrivateInputs,
   type PrivateKernelResetCircuitPrivateInputsVariants,
   PrivateKernelResetHints,
+  type ScopedKeyValidationRequest,
   type ScopedNullifier,
-  type ScopedNullifierKeyValidationRequest,
   type ScopedReadRequest,
   buildNoteHashReadRequestHints,
   buildNullifierReadRequestHints,
@@ -60,30 +60,25 @@ function getNullifierReadRequestHints<PENDING extends number, SETTLED extends nu
   );
 }
 
-async function getMasterNullifierSecretKeys(
-  nullifierKeyValidationRequests: Tuple<
-    ScopedNullifierKeyValidationRequest,
-    typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
-  >,
+async function getMasterSecretKeysAndAppKeyGenerators(
+  keyValidationRequests: Tuple<ScopedKeyValidationRequest, typeof MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
   oracle: ProvingDataOracle,
 ) {
-  const keys = makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyHint.empty);
+  const keysHints = makeTuple(MAX_KEY_VALIDATION_REQUESTS_PER_TX, KeyValidationHint.empty);
 
   let keyIndex = 0;
-  for (let i = 0; i < nullifierKeyValidationRequests.length; ++i) {
-    const request = nullifierKeyValidationRequests[i].request;
+  for (let i = 0; i < keyValidationRequests.length; ++i) {
+    const request = keyValidationRequests[i].request;
     if (request.isEmpty()) {
       break;
     }
-    keys[keyIndex] = new NullifierKeyHint(
-      await oracle.getMasterNullifierSecretKey(request.masterNullifierPublicKey),
-      i,
-    );
+    const [secretKeys, appKeyGenerator] = await oracle.getMasterSecretKeyAndAppKeyGenerator(request.masterPublicKey);
+    keysHints[keyIndex] = new KeyValidationHint(secretKeys, new Fr(appKeyGenerator), i);
     keyIndex++;
   }
   return {
     keysCount: keyIndex,
-    keys,
+    keysHints,
   };
 }
 
@@ -119,8 +114,8 @@ export async function buildPrivateKernelResetInputs(
     MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   );
 
-  const { keysCount: nullifierKeysCount, keys: masterNullifierSecretKeys } = await getMasterNullifierSecretKeys(
-    publicInputs.validationRequests.nullifierKeyValidationRequests,
+  const { keysCount, keysHints } = await getMasterSecretKeysAndAppKeyGenerators(
+    publicInputs.validationRequests.keyValidationRequests,
     oracle,
   );
 
@@ -151,7 +146,7 @@ export async function buildPrivateKernelResetInputs(
       hintSizes.NOTE_HASH_SETTLED_AMOUNT >= noteHashSettledReadHints &&
       hintSizes.NULLIFIER_PENDING_AMOUNT >= nullifierPendingReadHints &&
       hintSizes.NULLIFIER_SETTLED_AMOUNT >= nullifierSettledReadHints &&
-      hintSizes.NULLIFIER_KEYS >= nullifierKeysCount
+      hintSizes.NULLIFIER_KEYS >= keysCount
     ) {
       privateInputs = new PrivateKernelResetCircuitPrivateInputs(
         previousKernelData,
@@ -162,7 +157,7 @@ export async function buildPrivateKernelResetInputs(
           transientNoteHashIndexesForLogs,
           noteHashReadRequestHints,
           nullifierReadRequestHints,
-          masterNullifierSecretKeys,
+          keysHints,
         ).trimToSizes(
           hintSizes.NOTE_HASH_PENDING_AMOUNT,
           hintSizes.NOTE_HASH_SETTLED_AMOUNT,

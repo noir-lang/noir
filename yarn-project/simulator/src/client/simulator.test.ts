@@ -1,5 +1,5 @@
 import { type AztecNode, CompleteAddress, Note } from '@aztec/circuit-types';
-import { GeneratorIndex, computeAppNullifierSecretKey, deriveKeys } from '@aztec/circuits.js';
+import { GeneratorIndex, KeyValidationRequest, computeAppNullifierSecretKey, deriveKeys } from '@aztec/circuits.js';
 import {
   computeInnerNoteHash,
   computeNoteContentHash,
@@ -42,10 +42,9 @@ describe('Simulator', () => {
 
     oracle = mock<DBOracle>();
     node = mock<AztecNode>();
-    oracle.getNullifierKeys.mockResolvedValue({
-      masterNullifierPublicKey: ownerMasterNullifierPublicKey,
-      appNullifierSecretKey,
-    });
+    oracle.getKeyValidationRequest.mockResolvedValue(
+      new KeyValidationRequest(ownerMasterNullifierPublicKey, appNullifierSecretKey),
+    );
     oracle.getCompleteAddress.mockResolvedValue(ownerCompleteAddress);
 
     simulator = new AcirSimulator(oracle, node);

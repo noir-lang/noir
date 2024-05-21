@@ -2,7 +2,7 @@ use dep::aztec::prelude::{AztecAddress, PrivateContext, NoteHeader, NoteInterfac
 use dep::aztec::{
     keys::getters::get_ivpk_m,
     protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash},
-    note::utils::compute_note_hash_for_consumption, oracle::nullifier_keys::get_nsk_app
+    note::utils::compute_note_hash_for_consumption, keys::getters::get_nsk_app
 };
 
 global SUBSCRIPTION_NOTE_LEN: Field = 3;

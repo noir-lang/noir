@@ -5,13 +5,13 @@ import {
   type NullifierMembershipWitness,
   type PublicDataWitness,
 } from '@aztec/circuit-types';
-import { type CompleteAddress, type Header } from '@aztec/circuits.js';
+import { type CompleteAddress, type Header, type KeyValidationRequest } from '@aztec/circuits.js';
 import { type FunctionArtifact, type FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
-import { type NoteData, type NullifierKeys } from '../acvm/index.js';
+import { type NoteData } from '../acvm/index.js';
 import { type CommitmentsDB } from '../public/db.js';
 
 /**
@@ -66,12 +66,12 @@ export interface DBOracle extends CommitmentsDB {
   popCapsule(): Promise<Fr[]>;
 
   /**
-   * Retrieve nullifier keys associated with a specific master nullifier public key and app address.
-   * @param npkMHash - The master nullifier public key hash.
+   * Retrieve keys associated with a specific master public key and app address.
+   * @param pkMHash - The master public key hash.
    * @returns A Promise that resolves to nullifier keys.
-   * @throws If the nullifier keys are not registered in the key store.
+   * @throws If the keys are not registered in the key store.
    */
-  getNullifierKeys(npkMHash: Fr, contractAddress: AztecAddress): Promise<NullifierKeys>;
+  getKeyValidationRequest(pkMHash: Fr, contractAddress: AztecAddress): Promise<KeyValidationRequest>;
 
   /**
    * Retrieves a set of notes stored in the database for a given contract address and storage slot.

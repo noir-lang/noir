@@ -2,7 +2,7 @@ use crate::{
     abis::{
     call_context::CallContext, call_request::CallRequest, caller_context::CallerContext,
     gas_settings::GasSettings, gas::Gas, max_block_number::MaxBlockNumber, note_hash::NoteHash,
-    nullifier::Nullifier, nullifier_key_validation_request::NullifierKeyValidationRequest,
+    nullifier::Nullifier, key_validation_request::KeyValidationRequest,
     private_call_request::PrivateCallRequest, private_circuit_public_inputs::PrivateCircuitPublicInputs,
     read_request::ReadRequest, log_hash::{LogHash, NoteLogHash}
 },
@@ -12,10 +12,10 @@ use crate::{
 use crate::{
     constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
-    MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_ENCRYPTED_LOGS_PER_CALL,
-    MAX_UNENCRYPTED_LOGS_PER_CALL, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
+    MAX_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+    MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_ENCRYPTED_LOGS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL,
+    MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
 },
     traits::Empty
 };
@@ -34,7 +34,7 @@ struct PrivateCircuitPublicInputsBuilder {
 
     note_hash_read_requests: BoundedVec<ReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
-    nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequest, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL>,
+    key_validation_requests: BoundedVec<KeyValidationRequest, MAX_KEY_VALIDATION_REQUESTS_PER_CALL>,
 
     new_note_hashes: BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL>,
     new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL>,
@@ -224,7 +224,7 @@ impl PrivateCircuitPublicInputsBuilder {
             max_block_number: self.max_block_number,
             note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
-            nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
+            key_validation_requests: self.key_validation_requests.storage,
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
             private_call_requests: self.private_call_requests.storage,
@@ -260,7 +260,7 @@ impl Empty for PrivateCircuitPublicInputsBuilder {
             max_block_number: MaxBlockNumber::empty(),
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
-            nullifier_key_validation_requests: BoundedVec::new(),
+            key_validation_requests: BoundedVec::new(),
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             private_call_requests: BoundedVec::new(),

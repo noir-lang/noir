@@ -251,7 +251,7 @@ class PrivateFunctionPublicInputs {
     encrypted_note_preimage_hashes: List~EncryptedNotePreimageHash~
     note_hash_read_requests: List~ReadRequest~
     nullifier_read_requests: List~ReadRequest~
-    nullifier_key_validation_requests: List~ParentSecretKeyValidationRequest~
+    key_validation_requests: List~ParentSecretKeyValidationRequest~
     public_call_requests: List~PublicCallRequest~
     private_call_requests: List~PrivateCallRequest~
     counter_start: u32
@@ -266,7 +266,7 @@ PrivateFunctionPublicInputs *-- NoteHash: note_hashes
 PrivateFunctionPublicInputs *-- Nullifier: nullifiers
 PrivateFunctionPublicInputs *-- ReadRequest: note_hash_read_requests
 PrivateFunctionPublicInputs *-- ReadRequest: nullifier_read_requests
-PrivateFunctionPublicInputs *-- ParentSecretKeyValidationRequest: nullifier_key_validation_requests
+PrivateFunctionPublicInputs *-- ParentSecretKeyValidationRequest: key_validation_requests
 PrivateFunctionPublicInputs *-- UnencryptedLogHash: unencrypted_log_hashes
 PrivateFunctionPublicInputs *-- EncryptedLogHash: encrypted_log_hashes
 PrivateFunctionPublicInputs *-- EncryptedNotePreimageHash: encrypted_note_preimage_hashes
@@ -338,7 +338,7 @@ class ParentSecretKeyValidationRequest {
     parent_public_key: GrumpkinPoint
     hardened_child_secret_key: fq
 }
-ParentSecretKeyValidationRequest ..> ParentSecretKeyValidationRequestContext: nullifier_key_validation_requests\n->nullifier_key_validation_request_contexts
+ParentSecretKeyValidationRequest ..> ParentSecretKeyValidationRequestContext: key_validation_requests\n->key_validation_request_contexts
 
 class UnencryptedLogHash {
     hash: field
@@ -475,7 +475,7 @@ class TransientAccumulatedData {
   encrypted_note_preimage_hash_contexts: List~EncryptedNotePreimageHashContext~
   note_hash_read_requests: List~ReadRequest~
   nullifier_read_requests: List~ReadRequest~
-  nullifier_key_validation_request_contexts: List~ParentSecretKeyValidationRequestContext~
+  key_validation_request_contexts: List~ParentSecretKeyValidationRequestContext~
   public_call_request_contexts: List~PublicCallRequestContext~
   private_call_request_stack: List~PrivateCallRequestContext~
 }
@@ -484,7 +484,7 @@ NullifierContext --* TransientAccumulatedData: nullifier_contexts
 L2ToL1MessageContext --* TransientAccumulatedData: l2_to_l1_message_contexts
 ReadRequest --* TransientAccumulatedData: note_hash_read_requests
 ReadRequest --* TransientAccumulatedData: nullifier_read_requests
-ParentSecretKeyValidationRequestContext --* TransientAccumulatedData: nullifier_key_validation_request_contexts
+ParentSecretKeyValidationRequestContext --* TransientAccumulatedData: key_validation_request_contexts
 UnencryptedLogHashContext --* TransientAccumulatedData: unencrypted_log_hash_contexts
 EncryptedLogHashContext --* TransientAccumulatedData: encrypted_log_hash_contexts
 EncryptedNotePreimageHashContext --* TransientAccumulatedData: encrypted_note_preimage_hash_contexts

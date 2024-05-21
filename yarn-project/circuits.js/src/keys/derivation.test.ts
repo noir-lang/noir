@@ -2,7 +2,7 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
 import { PublicKeys } from '../types/public_keys.js';
-import { computeAddress } from './index.js';
+import { computeAddress } from './derivation.js';
 
 describe('🔑', () => {
   it('computing public keys hash matches Noir', () => {

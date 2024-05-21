@@ -94,6 +94,9 @@ e2e-escrow-contract:
 e2e-key-registry:
   DO +E2E_TEST --test=./src/e2e_key_registry.test.ts
 
+e2e-keys:
+  DO +E2E_TEST --test=./src/e2e_keys.test.ts
+
 e2e-lending-contract:
   DO +E2E_TEST --test=./src/e2e_lending_contract.test.ts
 

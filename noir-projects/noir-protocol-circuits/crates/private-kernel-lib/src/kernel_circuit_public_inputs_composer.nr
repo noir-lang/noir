@@ -257,7 +257,7 @@ impl KernelCircuitPublicInputsComposer {
         );
 
         assert_eq(
-            array_length(self.previous_kernel.public_inputs.validation_requests.nullifier_key_validation_requests), 0, "Non empty nullifier key validation requests"
+            array_length(self.previous_kernel.public_inputs.validation_requests.key_validation_requests), 0, "Non empty key validation requests"
         );
     }
 }

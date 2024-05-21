@@ -51,6 +51,11 @@ contract Test {
     }
 
     #[aztec(private)]
+    fn get_ovsk_app(ovpk_m_hash: Field) -> Field {
+        context.request_ovsk_app(ovpk_m_hash)
+    }
+
+    #[aztec(private)]
     fn get_master_incoming_viewing_public_key(address: AztecAddress) -> [Field; 2] {
         let pub_key = get_ivpk_m(&mut context, address);
 

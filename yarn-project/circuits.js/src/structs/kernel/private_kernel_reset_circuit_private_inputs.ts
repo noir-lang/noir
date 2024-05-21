@@ -10,8 +10,8 @@ import { NoteLogHash } from '../log_hash.js';
 import { ScopedNoteHash } from '../note_hash.js';
 import { ScopedNullifier } from '../nullifier.js';
 import {
+  KeyValidationHint,
   type NoteHashReadRequestHints,
-  NullifierKeyHint,
   type NullifierReadRequestHints,
   noteHashReadRequestHintsFromBuffer,
   nullifierReadRequestHintsFromBuffer,
@@ -44,7 +44,7 @@ export class PrivateKernelResetHints<
   NH_RR_SETTLED extends number,
   NLL_RR_PENDING extends number,
   NLL_RR_SETTLED extends number,
-  NLL_KEYS extends number,
+  KEY_VALIDATION_REQUESTS extends number,
 > {
   constructor(
     /**
@@ -67,11 +67,10 @@ export class PrivateKernelResetHints<
      * Contains hints for the nullifier read requests to locate corresponding pending or settled nullifiers.
      */
     public nullifierReadRequestHints: NullifierReadRequestHints<NLL_RR_PENDING, NLL_RR_SETTLED>,
-
     /**
-     * The master nullifier secret keys for the nullifier key validation requests.
+     * Contains hints for key validation request.
      */
-    public masterNullifierSecretKeys: Tuple<NullifierKeyHint, NLL_KEYS>,
+    public keyValidationHints: Tuple<KeyValidationHint, KEY_VALIDATION_REQUESTS>,
   ) {}
 
   toBuffer() {
@@ -81,7 +80,7 @@ export class PrivateKernelResetHints<
       this.transientNoteHashIndexesForLogs,
       this.noteHashReadRequestHints,
       this.nullifierReadRequestHints,
-      this.masterNullifierSecretKeys,
+      this.keyValidationHints,
     );
   }
 
@@ -90,19 +89,19 @@ export class PrivateKernelResetHints<
     NEW_NH_RR_SETTLED extends number,
     NEW_NLL_RR_PENDING extends number,
     NEW_NLL_RR_SETTLED extends number,
-    NEW_NLL_KEYS extends number,
+    NEW_KEY_VALIDATION_REQUESTS extends number,
   >(
     numNoteHashReadRequestPending: NEW_NH_RR_PENDING,
     numNoteHashReadRequestSettled: NEW_NH_RR_SETTLED,
     numNullifierReadRequestPending: NEW_NLL_RR_PENDING,
     numNullifierReadRequestSettled: NEW_NLL_RR_SETTLED,
-    numNullifierKeys: NEW_NLL_KEYS,
+    numKeyValidationRequests: NEW_KEY_VALIDATION_REQUESTS,
   ): PrivateKernelResetHints<
     NEW_NH_RR_PENDING,
     NEW_NH_RR_SETTLED,
     NEW_NLL_RR_PENDING,
     NEW_NLL_RR_SETTLED,
-    NEW_NLL_KEYS
+    NEW_KEY_VALIDATION_REQUESTS
   > {
     return new PrivateKernelResetHints(
       this.transientNullifierIndexesForNoteHashes,
@@ -110,7 +109,10 @@ export class PrivateKernelResetHints<
       this.transientNoteHashIndexesForLogs,
       this.noteHashReadRequestHints.trimToSizes(numNoteHashReadRequestPending, numNoteHashReadRequestSettled),
       this.nullifierReadRequestHints.trimToSizes(numNullifierReadRequestPending, numNullifierReadRequestSettled),
-      this.masterNullifierSecretKeys.slice(0, numNullifierKeys) as Tuple<NullifierKeyHint, NEW_NLL_KEYS>,
+      this.keyValidationHints.slice(0, numKeyValidationRequests) as Tuple<
+        KeyValidationHint,
+        NEW_KEY_VALIDATION_REQUESTS
+      >,
     );
   }
   /**
@@ -123,15 +125,15 @@ export class PrivateKernelResetHints<
     NH_RR_SETTLED extends number,
     NLL_RR_PENDING extends number,
     NLL_RR_SETTLED extends number,
-    NLL_KEYS extends number,
+    KEY_VALIDATION_REQUESTS extends number,
   >(
     buffer: Buffer | BufferReader,
     numNoteHashReadRequestPending: NH_RR_PENDING,
     numNoteHashReadRequestSettled: NH_RR_SETTLED,
     numNullifierReadRequestPending: NLL_RR_PENDING,
     numNullifierReadRequestSettled: NLL_RR_SETTLED,
-    numNullifierKeys: NLL_KEYS,
-  ): PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS> {
+    numNullifierKeys: KEY_VALIDATION_REQUESTS,
+  ): PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelResetHints(
       reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
@@ -145,7 +147,7 @@ export class PrivateKernelResetHints<
         fromBuffer: buf =>
           nullifierReadRequestHintsFromBuffer(buf, numNullifierReadRequestPending, numNullifierReadRequestSettled),
       }),
-      reader.readArray(numNullifierKeys, NullifierKeyHint),
+      reader.readArray(numNullifierKeys, KeyValidationHint),
     );
   }
 }
@@ -158,7 +160,7 @@ export class PrivateKernelResetCircuitPrivateInputs<
   NH_RR_SETTLED extends number,
   NLL_RR_PENDING extends number,
   NLL_RR_SETTLED extends number,
-  NLL_KEYS extends number,
+  KEY_VALIDATION_REQUESTS extends number,
   TAG extends string,
 > {
   constructor(
@@ -167,7 +169,13 @@ export class PrivateKernelResetCircuitPrivateInputs<
      */
     public previousKernel: PrivateKernelData,
     public outputs: PrivateKernelResetOutputs,
-    public hints: PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, NLL_KEYS>,
+    public hints: PrivateKernelResetHints<
+      NH_RR_PENDING,
+      NH_RR_SETTLED,
+      NLL_RR_PENDING,
+      NLL_RR_SETTLED,
+      KEY_VALIDATION_REQUESTS
+    >,
     public sizeTag: TAG,
   ) {}
 
@@ -193,7 +201,7 @@ export class PrivateKernelResetCircuitPrivateInputs<
     NH_RR_SETTLED extends number,
     NLL_RR_PENDING extends number,
     NLL_RR_SETTLED extends number,
-    NLL_KEYS extends number,
+    KEY_VALIDATION_REQUESTS extends number,
     TAG extends string,
   >(
     buffer: Buffer | BufferReader,
@@ -201,14 +209,14 @@ export class PrivateKernelResetCircuitPrivateInputs<
     numNoteHashReadRequestSettled: NH_RR_SETTLED,
     numNullifierReadRequestPending: NLL_RR_PENDING,
     numNullifierReadRequestSettled: NLL_RR_SETTLED,
-    numNullifierKeys: NLL_KEYS,
+    numNullifierKeys: KEY_VALIDATION_REQUESTS,
     sizeTag: TAG,
   ): PrivateKernelResetCircuitPrivateInputs<
     NH_RR_PENDING,
     NH_RR_SETTLED,
     NLL_RR_PENDING,
     NLL_RR_SETTLED,
-    NLL_KEYS,
+    KEY_VALIDATION_REQUESTS,
     TAG
   > {
     const reader = BufferReader.asReader(buffer);

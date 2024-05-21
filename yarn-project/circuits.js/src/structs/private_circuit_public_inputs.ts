@@ -14,12 +14,12 @@ import { type FieldsOf } from '@aztec/foundation/types';
 import {
   GeneratorIndex,
   MAX_ENCRYPTED_LOGS_PER_CALL,
+  MAX_KEY_VALIDATION_REQUESTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NOTE_ENCRYPTED_LOGS_PER_CALL,
   MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
-  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -29,12 +29,12 @@ import {
 import { Header } from '../structs/header.js';
 import { isEmptyArray } from '../utils/index.js';
 import { CallContext } from './call_context.js';
+import { KeyValidationRequest } from './key_validation_request.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
 import { LogHash, NoteLogHash } from './log_hash.js';
 import { MaxBlockNumber } from './max_block_number.js';
 import { NoteHash } from './note_hash.js';
 import { Nullifier } from './nullifier.js';
-import { NullifierKeyValidationRequest } from './nullifier_key_validation_request.js';
 import { PrivateCallRequest } from './private_call_request.js';
 import { ReadRequest } from './read_request.js';
 import { TxContext } from './tx_context.js';
@@ -77,12 +77,9 @@ export class PrivateCircuitPublicInputs {
      */
     public nullifierReadRequests: Tuple<ReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
     /**
-     * Nullifier key validation requests created by the corresponding function call.
+     * Key validation requests created by the corresponding function call.
      */
-    public nullifierKeyValidationRequests: Tuple<
-      NullifierKeyValidationRequest,
-      typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
-    >,
+    public keyValidationRequests: Tuple<KeyValidationRequest, typeof MAX_KEY_VALIDATION_REQUESTS_PER_CALL>,
     /**
      * New note hashes created by the corresponding function call.
      */
@@ -169,7 +166,7 @@ export class PrivateCircuitPublicInputs {
       reader.readObject(MaxBlockNumber),
       reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, ReadRequest),
       reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, ReadRequest),
-      reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
+      reader.readArray(MAX_KEY_VALIDATION_REQUESTS_PER_CALL, KeyValidationRequest),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, Nullifier),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, PrivateCallRequest),
@@ -197,7 +194,7 @@ export class PrivateCircuitPublicInputs {
       reader.readObject(MaxBlockNumber),
       reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, ReadRequest),
       reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, ReadRequest),
-      reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
+      reader.readArray(MAX_KEY_VALIDATION_REQUESTS_PER_CALL, KeyValidationRequest),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, Nullifier),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, PrivateCallRequest),
@@ -228,7 +225,7 @@ export class PrivateCircuitPublicInputs {
       MaxBlockNumber.empty(),
       makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, ReadRequest.empty),
       makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, ReadRequest.empty),
-      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest.empty),
+      makeTuple(MAX_KEY_VALIDATION_REQUESTS_PER_CALL, KeyValidationRequest.empty),
       makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, NoteHash.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, Nullifier.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, PrivateCallRequest.empty),
@@ -256,7 +253,7 @@ export class PrivateCircuitPublicInputs {
       this.maxBlockNumber.isEmpty() &&
       isEmptyArray(this.noteHashReadRequests) &&
       isEmptyArray(this.nullifierReadRequests) &&
-      isEmptyArray(this.nullifierKeyValidationRequests) &&
+      isEmptyArray(this.keyValidationRequests) &&
       isEmptyArray(this.newNoteHashes) &&
       isEmptyArray(this.newNullifiers) &&
       isEmptyArray(this.privateCallRequests) &&
@@ -286,7 +283,7 @@ export class PrivateCircuitPublicInputs {
       fields.maxBlockNumber,
       fields.noteHashReadRequests,
       fields.nullifierReadRequests,
-      fields.nullifierKeyValidationRequests,
+      fields.keyValidationRequests,
       fields.newNoteHashes,
       fields.newNullifiers,
       fields.privateCallRequests,

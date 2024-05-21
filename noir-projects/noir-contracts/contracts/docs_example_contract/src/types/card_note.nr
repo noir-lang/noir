@@ -1,7 +1,7 @@
 use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContext};
 use dep::aztec::{
     keys::getters::get_ivpk_m, note::{utils::compute_note_hash_for_consumption},
-    oracle::nullifier_keys::get_nsk_app,
+    keys::getters::get_nsk_app,
     protocol_types::{
     traits::Empty, grumpkin_point::GrumpkinPoint, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
     hash::poseidon2_hash

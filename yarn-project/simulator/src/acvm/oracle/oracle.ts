@@ -40,16 +40,12 @@ export class Oracle {
     return unpacked.map(toACVMField);
   }
 
-  async getNullifierKeys([masterNullifierPublicKeyHash]: ACVMField[]): Promise<ACVMField[]> {
-    const { masterNullifierPublicKey, appNullifierSecretKey } = await this.typedOracle.getNullifierKeys(
-      fromACVMField(masterNullifierPublicKeyHash),
+  async getKeyValidationRequest([masterPublicKeyHash]: ACVMField[]): Promise<ACVMField[]> {
+    const { masterPublicKey, appSecretKey } = await this.typedOracle.getKeyValidationRequest(
+      fromACVMField(masterPublicKeyHash),
     );
 
-    return [
-      toACVMField(masterNullifierPublicKey.x),
-      toACVMField(masterNullifierPublicKey.y),
-      toACVMField(appNullifierSecretKey),
-    ];
+    return [toACVMField(masterPublicKey.x), toACVMField(masterPublicKey.y), toACVMField(appSecretKey)];
   }
 
   async getContractInstance([address]: ACVMField[]) {

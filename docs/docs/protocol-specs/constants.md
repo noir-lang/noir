@@ -52,7 +52,7 @@ The statically-sized nature the kernel & rollup circuits will restrict the quant
 | `MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_CALL` | 128 |
 | `MAX_NOTE_HASH_READ_REQUESTS_PER_CALL` | 128 |
 | `MAX_NULLIFIER_READ_REQUESTS_PER_CALL` | 128 |
-| `MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL` | 1 | TODO: we shouldn't need this, given the reset circuit. |
+| `MAX_KEY_VALIDATION_REQUESTS_PER_CALL | 16 | TODO: we shouldn't need this, given the reset circuit. |
 | `MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL` | 32 |
 | `MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL` | 32 |
 
@@ -71,7 +71,7 @@ The statically-sized nature the kernel & rollup circuits will restrict the quant
 | `MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_TX` | 128 |
 | `MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX` | 4 |
 | `MAX_NOTE_HASH_READ_REQUESTS_PER_TX` | 128 | TODO: we shouldn't need this, given the reset circuit. |
-| `MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX` | 4 | TODO: we shouldn't need this, given the reset circuit. |
+| `MAX_KEY_VALIDATION_REQUESTS_PER_TX` | 64 | TODO: we shouldn't need this, given the reset circuit. |
 | `MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX` | 32 |
 | `MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX` | 32 |
 
