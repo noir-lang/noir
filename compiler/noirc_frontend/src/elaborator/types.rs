@@ -4,7 +4,10 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, UnresolvedTraitConstraint, UnresolvedTypeExpression, NoirTypeAlias, UnresolvedGenerics},
+    ast::{
+        BinaryOpKind, IntegerBitSize, NoirTypeAlias, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedTypeExpression,
+    },
     hir::{
         def_map::ModuleDefId,
         resolution::{
@@ -26,7 +29,10 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId, TypeAliasId, DependencyId},
+    node_interner::{
+        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
+        TypeAliasId,
+    },
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
 };
 

@@ -10,7 +10,10 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedTypeExpression,
     },
     hir::{
-        def_collector::{dc_crate::{CompilationError, UnresolvedTypeAlias, UnresolvedTrait, UnresolvedStruct}, errors::DuplicateType},
+        def_collector::{
+            dc_crate::{CompilationError, UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias},
+            errors::DuplicateType,
+        },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
@@ -27,8 +30,8 @@ use crate::{
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
-        StatementKind, StructId, NoirStruct,
+        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, PrefixExpression, Statement,
+        StatementKind, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
     Shared, StructType, Type, TypeVariable,
