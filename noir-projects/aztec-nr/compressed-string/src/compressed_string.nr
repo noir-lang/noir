@@ -1,4 +1,4 @@
-use dep::aztec::protocol_types::{utils::field::field_from_bytes, traits::{Serialize, Deserialize}};
+use dep::aztec::protocol_types::{utils::field::field_from_bytes, traits::{Eq, Serialize, Deserialize}};
 
 // The general Compressed String.
 // Compresses M bytes into N fields.
@@ -44,12 +44,23 @@ impl<N, M> CompressedString<N, M> {
         }
         result
     }
+}
 
-    pub fn serialize(self) -> [Field; N] {
-        self.value
+impl<N, M> Eq for CompressedString<N, M> {
+    fn eq(self, other: CompressedString<N, M>) -> bool {
+        self.value == other.value
     }
+}
 
-    pub fn deserialize(input: [Field; N]) -> Self {
+impl<N, M> Serialize<N> for CompressedString<N, M> {
+    fn serialize(self) -> [Field; N] {
+        self.value
+    
+    }
+}
+
+impl<N, M> Deserialize<N> for CompressedString<N, M> {
+    fn deserialize(input: [Field; N]) -> Self {
         Self { value: input }
     }
 }
@@ -79,6 +90,14 @@ fn test_long_string_work_with_too_many_fields() {
     let name: CompressedString<5,118> = CompressedString::from_string(i);
     let p = b == name.to_bytes();
     assert(p, "invalid recover");
+}
+
+#[test]
+fn test_serde() {
+    let i = "Hello world. I'm setting up a very long text of blibbablubb such that we can see if works as planned for longer names.";
+    let name: CompressedString<5,118> = CompressedString::from_string(i);
+
+    assert_eq(name, CompressedString::deserialize(name.serialize()));
 }
 
 #[test(should_fail)]
