@@ -24,6 +24,7 @@ export class UnencryptedL2Log {
   ) {}
 
   get length(): number {
+    // TODO(6578): explain magic number 4 here
     return EventSelector.SIZE + this.data.length + AztecAddress.SIZE_IN_BYTES + 4;
   }
 

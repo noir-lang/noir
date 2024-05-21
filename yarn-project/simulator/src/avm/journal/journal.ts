@@ -308,7 +308,8 @@ export class AvmPersistableStateManager {
     this.transitionalExecutionResult.allUnencryptedLogs.push(ulog);
     // this duplicates exactly what happens in the trace just for the purpose of transitional integration with the kernel
     this.transitionalExecutionResult.unencryptedLogsHashes.push(
-      new LogHash(logHash, this.trace.accessCounter, new Fr(ulog.length)),
+      // TODO(6578): explain magic number 4 here
+      new LogHash(logHash, this.trace.accessCounter, new Fr(ulog.length + 4)),
     );
     // TODO(6206): likely need to track this here and not just in the transitional logic.
 
