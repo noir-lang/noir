@@ -28,7 +28,6 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     ) -> Result<bool, BlackBoxResolutionError> {
         let sig_s: [u8; 32] = signature[0..32].try_into().unwrap();
         let sig_e: [u8; 32] = signature[32..64].try_into().unwrap();
-
         Ok(schnorr::verify_signature(
             public_key_x.into_repr(),
             public_key_y.into_repr(),

@@ -32,7 +32,7 @@ pub(crate) fn verify_signature(
     }
 
     // R = g^{sig.s} • pub^{sig.e}
-    let r = pub_key * sig_e + GrumpkinParameters::GENERATOR * sig_s;
+    let r = GrumpkinParameters::GENERATOR * sig_s + pub_key * sig_e;
     if r.is_zero() {
         // this result implies k == 0, which would be catastrophic for the prover.
         // it is a cheap check that ensures this doesn't happen.
@@ -40,7 +40,7 @@ pub(crate) fn verify_signature(
     }
 
     // compare the _hashes_ rather than field elements modulo r
-    // e = H(pedersen(r, pk.x, pk.y), m), where r = x(R)
+    // e = H(pedersen(r, pk.x, pk.y), m), where r = R.x
     let target_e_bytes = schnorr_generate_challenge(message, pub_key_x, pub_key_y, r.into_affine());
 
     sig_e_bytes == target_e_bytes
