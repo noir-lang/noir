@@ -103,7 +103,7 @@ pub enum BlackBoxFunc {
 
     /// Calculates a Pedersen hash to the inputs.
     ///
-    /// Computes a Pedersen commitments of the inputs and their number, using
+    /// Computes a Pedersen hash of the inputs and their number, using
     /// generators of the embedded curve
     /// - input: vector of (FieldElement, 254)
     /// - output: the x-coordinate of the pedersen commitment of the
