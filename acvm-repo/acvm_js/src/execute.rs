@@ -20,11 +20,11 @@ use crate::{
 };
 
 #[wasm_bindgen]
-pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
+pub struct WasmBlackBoxFunctionSolver;
 
 impl WasmBlackBoxFunctionSolver {
     async fn initialize() -> WasmBlackBoxFunctionSolver {
-        WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver)
+        WasmBlackBoxFunctionSolver
     }
 }
 
