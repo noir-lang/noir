@@ -231,6 +231,7 @@ fn slice_capacity_change(
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::FromField
-        | Intrinsic::AsField => SizeChange::None,
+        | Intrinsic::AsField
+        | Intrinsic::AsWitness => SizeChange::None,
     }
 }

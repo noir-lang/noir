@@ -48,7 +48,12 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
-            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
+            ExpressionKind::Variable(variable, generics) => {
+                let generics = generics.map(|option_inner| {
+                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                });
+                return self.elaborate_variable(variable, generics);
+            }
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
@@ -185,7 +190,7 @@ impl<'context> Elaborator<'context> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let ident = HirExpression::Ident(old_value.ident.clone());
+                let ident = HirExpression::Ident(old_value.ident.clone(), None);
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 let ident = old_value.ident.clone();
@@ -314,11 +319,11 @@ impl<'context> Elaborator<'context> {
 
                 let location = Location::new(span, self.file);
                 let method = method_call.method_name;
-                let method_call = HirMethodCallExpression { method, object, arguments, location };
-
-                // Desugar the method call into a normal, resolved function call
-                // so that the backend doesn't need to worry about methods
-                // TODO: update object_type here?
+                let generics = method_call.generics.map(|option_inner| {
+                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                });
+                let method_call =
+                    HirMethodCallExpression { method, object, arguments, location, generics };
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
                     &method_ref,
                     object_type,

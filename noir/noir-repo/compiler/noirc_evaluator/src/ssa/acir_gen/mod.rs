@@ -2617,6 +2617,15 @@ impl<'a> Context<'a> {
 
                 Ok(result)
             }
+
+            Intrinsic::AsWitness => {
+                let arg = arguments[0];
+                let input = self.convert_value(arg, dfg).into_var()?;
+                Ok(self
+                    .acir_context
+                    .get_or_create_witness_var(input)
+                    .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
+            }
             _ => todo!("expected a black box function"),
         }
     }

@@ -27,15 +27,15 @@ pub fn expression(kind: ExpressionKind) -> Expression {
 }
 
 pub fn variable(name: &str) -> Expression {
-    expression(ExpressionKind::Variable(ident_path(name)))
+    expression(ExpressionKind::Variable(ident_path(name), None))
 }
 
 pub fn variable_ident(identifier: Ident) -> Expression {
-    expression(ExpressionKind::Variable(path(identifier)))
+    expression(ExpressionKind::Variable(path(identifier), None))
 }
 
 pub fn variable_path(path: Path) -> Expression {
-    expression(ExpressionKind::Variable(path))
+    expression(ExpressionKind::Variable(path, None))
 }
 
 pub fn method_call(
@@ -47,6 +47,7 @@ pub fn method_call(
         object,
         method_name: ident(method_name),
         arguments,
+        generics: None,
     })))
 }
 

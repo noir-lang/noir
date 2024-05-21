@@ -2,6 +2,9 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+// See Cargo.toml for explanation.
+use getrandom as _;
+
 mod black_box_solvers;
 mod build_info;
 mod compression;

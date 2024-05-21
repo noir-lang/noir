@@ -2,44 +2,29 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-use acir::{BlackBoxFunc, FieldElement};
+use acir::FieldElement;
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
 mod generator;
 mod pedersen;
 mod poseidon2;
-mod wasm;
+mod schnorr;
 
 use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use poseidon2::poseidon2_permutation;
-use wasm::Barretenberg;
 
-use self::wasm::SchnorrSig;
-
-pub struct Bn254BlackBoxSolver {
-    blackbox_vendor: Barretenberg,
-}
+pub struct Bn254BlackBoxSolver;
 
 impl Bn254BlackBoxSolver {
     pub async fn initialize() -> Bn254BlackBoxSolver {
-        // We fallback to the sync initialization of barretenberg on non-wasm targets.
-        // This ensures that wasm packages consuming this still build on the default target (useful for linting, etc.)
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                let blackbox_vendor = Barretenberg::initialize().await;
-                Bn254BlackBoxSolver { blackbox_vendor }
-            } else {
-                Bn254BlackBoxSolver::new()
-            }
-        }
+        Bn254BlackBoxSolver
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Bn254BlackBoxSolver {
-        let blackbox_vendor = Barretenberg::new();
-        Bn254BlackBoxSolver { blackbox_vendor }
+        Bn254BlackBoxSolver
     }
 }
 
@@ -58,16 +43,15 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         signature: &[u8; 64],
         message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError> {
-        let pub_key_bytes: Vec<u8> =
-            public_key_x.to_be_bytes().iter().copied().chain(public_key_y.to_be_bytes()).collect();
-
-        let pub_key: [u8; 64] = pub_key_bytes.try_into().unwrap();
         let sig_s: [u8; 32] = signature[0..32].try_into().unwrap();
         let sig_e: [u8; 32] = signature[32..64].try_into().unwrap();
-
-        self.blackbox_vendor.verify_signature(pub_key, sig_s, sig_e, message).map_err(|err| {
-            BlackBoxResolutionError::Failed(BlackBoxFunc::SchnorrVerify, err.to_string())
-        })
+        Ok(schnorr::verify_signature(
+            public_key_x.into_repr(),
+            public_key_y.into_repr(),
+            sig_s,
+            sig_e,
+            message,
+        ))
     }
 
     fn pedersen_commitment(

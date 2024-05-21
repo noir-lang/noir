@@ -244,6 +244,8 @@ pub struct FunctionModifiers {
 
     pub is_unconstrained: bool,
 
+    pub generic_count: usize,
+
     pub is_comptime: bool,
 }
 
@@ -257,6 +259,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            generic_count: 0,
             is_comptime: false,
         }
     }
@@ -775,6 +778,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
