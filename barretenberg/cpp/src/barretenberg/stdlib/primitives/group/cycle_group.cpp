@@ -7,8 +7,8 @@
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/types.hpp"
 namespace bb::stdlib {
 
-template <typename Composer>
-cycle_group<Composer>::cycle_group(Composer* _context)
+template <typename Builder>
+cycle_group<Builder>::cycle_group(Builder* _context)
     : x(0)
     , y(0)
     , _is_infinity(true)
@@ -17,14 +17,14 @@ cycle_group<Composer>::cycle_group(Composer* _context)
 {}
 
 /**
- * @brief Construct a new cycle group<Composer>::cycle group object
+ * @brief Construct a new cycle group<Builder>::cycle group object
  *
  * @param _x
  * @param _y
  * @param is_infinity
  */
-template <typename Composer>
-cycle_group<Composer>::cycle_group(field_t _x, field_t _y, bool_t is_infinity)
+template <typename Builder>
+cycle_group<Builder>::cycle_group(field_t _x, field_t _y, bool_t is_infinity)
     : x(_x.normalize())
     , y(_y.normalize())
     , _is_infinity(is_infinity)
@@ -40,20 +40,20 @@ cycle_group<Composer>::cycle_group(field_t _x, field_t _y, bool_t is_infinity)
 }
 
 /**
- * @brief Construct a new cycle group<Composer>::cycle group object
+ * @brief Construct a new cycle group<Builder>::cycle group object
  *
  * @details is_infinity is a circuit constant. We EXPLICITLY require that whether this point is infinity/not infinity is
  * known at circuit-construction time *and* we know this point is on the curve. These checks are not constrained.
  * Use from_witness if these conditions are not met.
  * Examples of when conditions are met: point is a derived from a point that is on the curve + not at infinity.
  * e.g. output of a doubling operation
- * @tparam Composer
+ * @tparam Builder
  * @param _x
  * @param _y
  * @param is_infinity
  */
-template <typename Composer>
-cycle_group<Composer>::cycle_group(const FF& _x, const FF& _y, bool is_infinity)
+template <typename Builder>
+cycle_group<Builder>::cycle_group(const FF& _x, const FF& _y, bool is_infinity)
     : x(_x)
     , y(_y)
     , _is_infinity(is_infinity)
@@ -69,11 +69,11 @@ cycle_group<Composer>::cycle_group(const FF& _x, const FF& _y, bool is_infinity)
  * @note This produces a circuit-constant object i.e. known at compile-time, no constraints.
  *       If `_in` is not fixed for a given circuit, use `from_witness` instead
  *
- * @tparam Composer
+ * @tparam Builder
  * @param _in
  */
-template <typename Composer>
-cycle_group<Composer>::cycle_group(const AffineElement& _in)
+template <typename Builder>
+cycle_group<Builder>::cycle_group(const AffineElement& _in)
     : x(_in.x)
     , y(_in.y)
     , _is_infinity(_in.is_point_at_infinity())
@@ -88,13 +88,13 @@ cycle_group<Composer>::cycle_group(const AffineElement& _in)
  *          If an element is being converted where it is known the element is on the curve and/or cannot be point at
  *          infinity, it is best to use other methods (e.g. direct conversion of field_t coordinates)
  *
- * @tparam Composer
+ * @tparam Builder
  * @param _context
  * @param _in
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::from_witness(Composer* _context, const AffineElement& _in)
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::from_witness(Builder* _context, const AffineElement& _in)
 {
     cycle_group result(_context);
     result.x = field_t(witness_t(_context, _in.x));
@@ -112,13 +112,13 @@ cycle_group<Composer> cycle_group<Composer>::from_witness(Composer* _context, co
  * it can be more efficient to convert the constant element into a witness. This is because we have custom gates
  * that evaluate additions in one constraint, but only if both operands are witnesses.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param _context
  * @param _in
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::from_constant_witness(Composer* _context, const AffineElement& _in)
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::from_constant_witness(Builder* _context, const AffineElement& _in)
 {
     cycle_group result(_context);
     result.x = field_t(witness_t(_context, _in.x));
@@ -131,7 +131,7 @@ cycle_group<Composer> cycle_group<Composer>::from_constant_witness(Composer* _co
     return result;
 }
 
-template <typename Composer> Composer* cycle_group<Composer>::get_context(const cycle_group& other) const
+template <typename Builder> Builder* cycle_group<Builder>::get_context(const cycle_group& other) const
 {
     if (get_context() != nullptr) {
         return get_context();
@@ -139,7 +139,7 @@ template <typename Composer> Composer* cycle_group<Composer>::get_context(const 
     return other.get_context();
 }
 
-template <typename Composer> typename cycle_group<Composer>::AffineElement cycle_group<Composer>::get_value() const
+template <typename Builder> typename cycle_group<Builder>::AffineElement cycle_group<Builder>::get_value() const
 {
     AffineElement result(x.get_value(), y.get_value());
     if (is_point_at_infinity().get_value()) {
@@ -151,9 +151,9 @@ template <typename Composer> typename cycle_group<Composer>::AffineElement cycle
 /**
  * @brief On-curve check.
  *
- * @tparam Composer
+ * @tparam Builder
  */
-template <typename Composer> void cycle_group<Composer>::validate_is_on_curve() const
+template <typename Builder> void cycle_group<Builder>::validate_is_on_curve() const
 {
     // This class is for short Weierstrass curves only!
     static_assert(Group::curve_a == 0);
@@ -169,12 +169,12 @@ template <typename Composer> void cycle_group<Composer>::validate_is_on_curve() 
 /**
  * @brief Evaluates a doubling. Does not use Ultra double gate
  *
- * @tparam Composer
- * @return cycle_group<Composer>
+ * @tparam Builder
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::dbl() const
-    requires IsNotUltraArithmetic<Composer>
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::dbl() const
+    requires IsNotUltraArithmetic<Builder>
 {
     auto modified_y = field_t::conditional_assign(is_point_at_infinity(), 1, y);
     auto lambda = (x * x * 3) / (modified_y + modified_y);
@@ -186,12 +186,12 @@ cycle_group<Composer> cycle_group<Composer>::dbl() const
 /**
  * @brief Evaluates a doubling. Uses Ultra double gate
  *
- * @tparam Composer
- * @return cycle_group<Composer>
+ * @tparam Builder
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::dbl() const
-    requires IsUltraArithmetic<Composer>
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::dbl() const
+    requires IsUltraArithmetic<Builder>
 {
     // ensure we use a value of y that is not zero. (only happens if point at infinity)
     // this costs 0 gates if `is_infinity` is a circuit constant
@@ -228,13 +228,13 @@ cycle_group<Composer> cycle_group<Composer>::dbl() const
  *        Only use this method if you know the x-coordinates of the operands cannot collide
  *        Standard version that does not use ecc group gate
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::unconditional_add(const cycle_group& other) const
-    requires IsNotUltraArithmetic<Composer>
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::unconditional_add(const cycle_group& other) const
+    requires IsNotUltraArithmetic<Builder>
 {
     auto x_diff = other.x - x;
     auto y_diff = other.y - y;
@@ -253,13 +253,13 @@ cycle_group<Composer> cycle_group<Composer>::unconditional_add(const cycle_group
  *        Only use this method if you know the x-coordinates of the operands cannot collide
  *        Ultra version that uses ecc group gate
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::unconditional_add(const cycle_group& other) const
-    requires IsUltraArithmetic<Composer>
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::unconditional_add(const cycle_group& other) const
+    requires IsUltraArithmetic<Builder>
 {
     auto context = get_context(other);
 
@@ -303,12 +303,12 @@ cycle_group<Composer> cycle_group<Composer>::unconditional_add(const cycle_group
  *        Incomplete addition formula edge cases are *NOT* checked!
  *        Only use this method if you know the x-coordinates of the operands cannot collide
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::unconditional_subtract(const cycle_group& other) const
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::unconditional_subtract(const cycle_group& other) const
 {
     if constexpr (!IS_ULTRA) {
         return unconditional_add(-other);
@@ -319,11 +319,11 @@ cycle_group<Composer> cycle_group<Composer>::unconditional_subtract(const cycle_
         const bool rhs_constant = other.is_constant();
 
         if (lhs_constant && !rhs_constant) {
-            auto lhs = cycle_group<Composer>::from_constant_witness(context, get_value());
+            auto lhs = cycle_group<Builder>::from_constant_witness(context, get_value());
             return lhs.unconditional_subtract(other);
         }
         if (!lhs_constant && rhs_constant) {
-            auto rhs = cycle_group<Composer>::from_constant_witness(context, other.get_value());
+            auto rhs = cycle_group<Builder>::from_constant_witness(context, other.get_value());
             return unconditional_subtract(rhs);
         }
         auto p1 = get_value();
@@ -359,12 +359,12 @@ cycle_group<Composer> cycle_group<Composer>::unconditional_subtract(const cycle_
  *        Useful when an honest prover will not produce a point collision with overwhelming probability,
  *        but a cheating prover will be able to.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::checked_unconditional_add(const cycle_group& other) const
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::checked_unconditional_add(const cycle_group& other) const
 {
     field_t x_delta = x - other.x;
     x_delta.assert_is_not_zero("cycle_group::checked_unconditional_add, x-coordinate collision");
@@ -379,12 +379,12 @@ cycle_group<Composer> cycle_group<Composer>::checked_unconditional_add(const cyc
  *        Useful when an honest prover will not produce a point collision with overwhelming probability,
  *        but a cheating prover will be able to.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::checked_unconditional_subtract(const cycle_group& other) const
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::checked_unconditional_subtract(const cycle_group& other) const
 {
     field_t x_delta = x - other.x;
     x_delta.assert_is_not_zero("cycle_group::checked_unconditional_subtract, x-coordinate collision");
@@ -397,13 +397,14 @@ cycle_group<Composer> cycle_group<Composer>::checked_unconditional_subtract(cons
  *        Method is expensive due to needing to evaluate both an addition, a doubling,
  *        plus conditional logic to handle points at infinity.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operator+(const cycle_group& other) const
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator+(const cycle_group& other) const
 {
-    Composer* context = get_context(other);
+
+    Builder* context = get_context(other);
     const bool_t x_coordinates_match = (x == other.x);
     const bool_t y_coordinates_match = (y == other.y);
     const bool_t double_predicate = (x_coordinates_match && y_coordinates_match);
@@ -455,13 +456,13 @@ template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operat
  *        Method is expensive due to needing to evaluate both an addition, a doubling,
  *        plus conditional logic to handle points at infinity.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operator-(const cycle_group& other) const
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator-(const cycle_group& other) const
 {
-    Composer* context = get_context(other);
+    Builder* context = get_context(other);
     const bool_t x_coordinates_match = (x == other.x);
     const bool_t y_coordinates_match = (y == other.y);
     const bool_t double_predicate = (x_coordinates_match && !y_coordinates_match).normalize();
@@ -509,36 +510,36 @@ template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operat
 /**
  * @brief Negates a point
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operator-() const
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator-() const
 {
     cycle_group result(*this);
     result.y = -y;
     return result;
 }
 
-template <typename Composer> cycle_group<Composer>& cycle_group<Composer>::operator+=(const cycle_group& other)
+template <typename Builder> cycle_group<Builder>& cycle_group<Builder>::operator+=(const cycle_group& other)
 {
     *this = *this + other;
     return *this;
 }
 
-template <typename Composer> cycle_group<Composer>& cycle_group<Composer>::operator-=(const cycle_group& other)
+template <typename Builder> cycle_group<Builder>& cycle_group<Builder>::operator-=(const cycle_group& other)
 {
     *this = *this - other;
     return *this;
 }
 
-template <typename Composer>
-cycle_group<Composer>::cycle_scalar::cycle_scalar(const field_t& _lo, const field_t& _hi)
+template <typename Builder>
+cycle_group<Builder>::cycle_scalar::cycle_scalar(const field_t& _lo, const field_t& _hi)
     : lo(_lo)
     , hi(_hi)
 {}
 
-template <typename Composer> cycle_group<Composer>::cycle_scalar::cycle_scalar(const field_t& _in)
+template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(const field_t& _in)
 {
     const uint256_t value(_in.get_value());
     const uint256_t lo_v = value.slice(0, LO_BITS);
@@ -554,7 +555,7 @@ template <typename Composer> cycle_group<Composer>::cycle_scalar::cycle_scalar(c
     }
 }
 
-template <typename Composer> cycle_group<Composer>::cycle_scalar::cycle_scalar(const ScalarField& _in)
+template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(const ScalarField& _in)
 {
     const uint256_t value(_in);
     const uint256_t lo_v = value.slice(0, LO_BITS);
@@ -563,9 +564,9 @@ template <typename Composer> cycle_group<Composer>::cycle_scalar::cycle_scalar(c
     hi = hi_v;
 }
 
-template <typename Composer>
-typename cycle_group<Composer>::cycle_scalar cycle_group<Composer>::cycle_scalar::from_witness(Composer* context,
-                                                                                               const ScalarField& value)
+template <typename Builder>
+typename cycle_group<Builder>::cycle_scalar cycle_group<Builder>::cycle_scalar::from_witness(Builder* context,
+                                                                                             const ScalarField& value)
 {
     const uint256_t value_u256(value);
     const uint256_t lo_v = value_u256.slice(0, LO_BITS);
@@ -579,15 +580,15 @@ typename cycle_group<Composer>::cycle_scalar cycle_group<Composer>::cycle_scalar
  * @brief Use when we want to multiply a group element by a string of bits of known size.
  *        N.B. using this constructor method will make our scalar multiplication methods not perform primality tests.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param context
  * @param value
  * @param num_bits
- * @return cycle_group<Composer>::cycle_scalar
+ * @return cycle_group<Builder>::cycle_scalar
  */
-template <typename Composer>
-typename cycle_group<Composer>::cycle_scalar cycle_group<Composer>::cycle_scalar::from_witness_bitstring(
-    Composer* context, const uint256_t& bitstring, const size_t num_bits)
+template <typename Builder>
+typename cycle_group<Builder>::cycle_scalar cycle_group<Builder>::cycle_scalar::from_witness_bitstring(
+    Builder* context, const uint256_t& bitstring, const size_t num_bits)
 {
     ASSERT(bitstring.get_msb() < num_bits);
     const uint256_t lo_v = bitstring.slice(0, LO_BITS);
@@ -602,14 +603,14 @@ typename cycle_group<Composer>::cycle_scalar cycle_group<Composer>::cycle_scalar
  * @brief Use when we want to multiply a group element by a string of bits of known size.
  *        N.B. using this constructor method will make our scalar multiplication methods not perform primality tests.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param context
  * @param value
  * @param num_bits
- * @return cycle_group<Composer>::cycle_scalar
+ * @return cycle_group<Builder>::cycle_scalar
  */
-template <typename Composer>
-typename cycle_group<Composer>::cycle_scalar cycle_group<Composer>::cycle_scalar::create_from_bn254_scalar(
+template <typename Builder>
+typename cycle_group<Builder>::cycle_scalar cycle_group<Builder>::cycle_scalar::create_from_bn254_scalar(
     const field_t& in, const bool skip_primality_test)
 {
     const uint256_t value_u256(in.get_value());
@@ -626,7 +627,7 @@ typename cycle_group<Composer>::cycle_scalar cycle_group<Composer>::cycle_scalar
     return result;
 }
 
-template <typename Composer> bool cycle_group<Composer>::cycle_scalar::is_constant() const
+template <typename Builder> bool cycle_group<Builder>::cycle_scalar::is_constant() const
 {
     return (lo.is_constant() && hi.is_constant());
 }
@@ -642,9 +643,9 @@ template <typename Composer> bool cycle_group<Composer>::cycle_scalar::is_consta
  * BN254::ScalarField values *NOT* Grumpkin::ScalarFIeld values.
  * TLDR: whether the input scalar has to be < BN254::ScalarField or < Grumpkin::ScalarField is context-dependent.
  *
- * @tparam Composer
+ * @tparam Builder
  */
-template <typename Composer> void cycle_group<Composer>::cycle_scalar::validate_scalar_is_in_field() const
+template <typename Builder> void cycle_group<Builder>::cycle_scalar::validate_scalar_is_in_field() const
 {
     if (!is_constant() && !skip_primality_test()) {
         // Check that scalar.hi * 2^LO_BITS + scalar.lo < cycle_group_modulus when evaluated over the integers
@@ -674,8 +675,8 @@ template <typename Composer> void cycle_group<Composer>::cycle_scalar::validate_
     }
 }
 
-template <typename Composer>
-typename cycle_group<Composer>::ScalarField cycle_group<Composer>::cycle_scalar::get_value() const
+template <typename Builder>
+typename cycle_group<Builder>::ScalarField cycle_group<Builder>::cycle_scalar::get_value() const
 {
     uint256_t lo_v(lo.get_value());
     uint256_t hi_v(hi.get_value());
@@ -683,22 +684,22 @@ typename cycle_group<Composer>::ScalarField cycle_group<Composer>::cycle_scalar:
 }
 
 /**
- * @brief Construct a new cycle group<Composer>::straus scalar slice::straus scalar slice object
+ * @brief Construct a new cycle group<Builder>::straus scalar slice::straus scalar slice object
  *
  * @details As part of slicing algoirthm, we also perform a primality test on the inut scalar.
  *
  * TODO(@zac-williamson) make the primality test configurable.
  * We may want to validate the input < BN254::Fr OR input < Grumpkin::Fr depending on context!
  *
- * @tparam Composer
+ * @tparam Builder
  * @param context
  * @param scalar
  * @param table_bits
  */
-template <typename Composer>
-cycle_group<Composer>::straus_scalar_slice::straus_scalar_slice(Composer* context,
-                                                                const cycle_scalar& scalar,
-                                                                const size_t table_bits)
+template <typename Builder>
+cycle_group<Builder>::straus_scalar_slice::straus_scalar_slice(Builder* context,
+                                                               const cycle_scalar& scalar,
+                                                               const size_t table_bits)
     : _table_bits(table_bits)
 {
     // convert an input cycle_scalar object into a vector of slices, each containing `table_bits` bits.
@@ -767,12 +768,12 @@ cycle_group<Composer>::straus_scalar_slice::straus_scalar_slice(Composer* contex
  *
  * @details In Straus algorithm, `index` is a known parameter, so no need for expensive lookup tables
  *
- * @tparam Composer
+ * @tparam Builder
  * @param index
- * @return field_t<Composer>
+ * @return field_t<Builder>
  */
-template <typename Composer>
-std::optional<field_t<Composer>> cycle_group<Composer>::straus_scalar_slice::read(size_t index)
+template <typename Builder>
+std::optional<field_t<Builder>> cycle_group<Builder>::straus_scalar_slice::read(size_t index)
 {
     if (index >= slices.size()) {
         return std::nullopt;
@@ -781,24 +782,24 @@ std::optional<field_t<Composer>> cycle_group<Composer>::straus_scalar_slice::rea
 }
 
 /**
- * @brief Construct a new cycle group<Composer>::straus lookup table::straus lookup table object
+ * @brief Construct a new cycle group<Builder>::straus lookup table::straus lookup table object
  *
  * @details Constructs a `table_bits` lookup table.
  *
- * If Composer is not ULTRA, `table_bits = 1`
- * If Composer is ULTRA, ROM table is used as lookup table
+ * If Builder is not ULTRA, `table_bits = 1`
+ * If Builder is ULTRA, ROM table is used as lookup table
  *
- * @tparam Composer
+ * @tparam Builder
  * @param context
  * @param base_point
  * @param offset_generator
  * @param table_bits
  */
-template <typename Composer>
-cycle_group<Composer>::straus_lookup_table::straus_lookup_table(Composer* context,
-                                                                const cycle_group& base_point,
-                                                                const cycle_group& offset_generator,
-                                                                size_t table_bits)
+template <typename Builder>
+cycle_group<Builder>::straus_lookup_table::straus_lookup_table(Builder* context,
+                                                               const cycle_group& base_point,
+                                                               const cycle_group& offset_generator,
+                                                               size_t table_bits)
     : _table_bits(table_bits)
     , _context(context)
 {
@@ -846,12 +847,11 @@ cycle_group<Composer>::straus_lookup_table::straus_lookup_table(Composer* contex
 /**
  * @brief Given an `_index` witness, return `straus_lookup_table[index]`
  *
- * @tparam Composer
+ * @tparam Builder
  * @param _index
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::straus_lookup_table::read(const field_t& _index)
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::straus_lookup_table::read(const field_t& _index)
 {
     if constexpr (IS_ULTRA) {
         field_t index(_index);
@@ -877,33 +877,34 @@ cycle_group<Composer> cycle_group<Composer>::straus_lookup_table::read(const fie
  *
  * @details batch mul performed via the Straus multiscalar multiplication algorithm
  *          (optimal for MSMs where num points <128-ish).
- *          If Composer is not ULTRA, number of bits per Straus round = 1,
+ *          If Builder is not ULTRA, number of bits per Straus round = 1,
  *          which reduces to the basic double-and-add algorithm
  *
  * @details If `unconditional_add = true`, we use `::unconditional_add` instead of `::checked_unconditional_add`.
  *          Use with caution! Only should be `true` if we're doing an ULTRA fixed-base MSM so we know the points cannot
  *          collide with the offset generators.
  *
- * @note ULTRA Composer will call `_variable_base_batch_mul_internal` to evaluate fixed-base MSMs over points that do
+ * @note ULTRA Builder will call `_variable_base_batch_mul_internal` to evaluate fixed-base MSMs over points that do
  *       not exist in our precomputed plookup tables. This is a comprimise between maximising circuit efficiency and
  *       minimizing the blowup size of our precomputed table polynomials. variable-base mul uses small ROM lookup tables
  *       which are witness-defined and not part of the plookup protocol.
- * @tparam Composer
+ * @tparam Builder
  * @param scalars
  * @param base_points
  * @param offset_generators
  * @param unconditional_add
- * @return cycle_group<Composer>::batch_mul_internal_output
+ * @return cycle_group<Builder>::batch_mul_internal_output
  */
-template <typename Composer>
-typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>::_variable_base_batch_mul_internal(
+template <typename Builder>
+typename cycle_group<Builder>::batch_mul_internal_output cycle_group<Builder>::_variable_base_batch_mul_internal(
     const std::span<cycle_scalar> scalars,
     const std::span<cycle_group> base_points,
     const std::span<AffineElement const> offset_generators,
     const bool unconditional_add)
 {
     ASSERT(scalars.size() == base_points.size());
-    Composer* context = nullptr;
+
+    Builder* context = nullptr;
     for (auto& scalar : scalars) {
         if (scalar.lo.get_context() != nullptr) {
             context = scalar.get_context();
@@ -990,23 +991,23 @@ typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>:
 }
 
 /**
- * @brief Internal algorithm to perform a fixed-base batch mul for ULTRA Composer
+ * @brief Internal algorithm to perform a fixed-base batch mul for ULTRA Builder
  *
  * @details Uses plookup tables which contain lookups for precomputed multiples of the input base points.
  *          Means we can avoid all point doublings and reduce one scalar mul to ~29 lookups + 29 ecc addition gates
  *
- * @tparam Composer
+ * @tparam Builder
  * @param scalars
  * @param base_points
  * @param
- * @return cycle_group<Composer>::batch_mul_internal_output
+ * @return cycle_group<Builder>::batch_mul_internal_output
  */
-template <typename Composer>
-typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>::_fixed_base_batch_mul_internal(
+template <typename Builder>
+typename cycle_group<Builder>::batch_mul_internal_output cycle_group<Builder>::_fixed_base_batch_mul_internal(
     const std::span<cycle_scalar> scalars,
     const std::span<AffineElement> base_points,
     const std::span<AffineElement const> /*unused*/)
-    requires IsUltraArithmetic<Composer>
+    requires IsUltraArithmetic<Builder>
 {
     ASSERT(scalars.size() == base_points.size());
 
@@ -1034,7 +1035,7 @@ typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>:
     Element offset_generator_accumulator = Group::point_at_infinity;
     for (size_t i = 0; i < plookup_scalars.size(); ++i) {
         plookup::ReadData<field_t> lookup_data =
-            plookup_read<Composer>::get_lookup_accumulators(plookup_table_ids[i], plookup_scalars[i]);
+            plookup_read<Builder>::get_lookup_accumulators(plookup_table_ids[i], plookup_scalars[i]);
         for (size_t j = 0; j < lookup_data[ColumnIdx::C2].size(); ++j) {
             const auto x = lookup_data[ColumnIdx::C2][j];
             const auto y = lookup_data[ColumnIdx::C3][j];
@@ -1063,29 +1064,29 @@ typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>:
 }
 
 /**
- * @brief Internal algorithm to perform a fixed-base batch mul for Non-ULTRA Composers
+ * @brief Internal algorithm to perform a fixed-base batch mul for Non-ULTRA Builders
  *
  * @details Multiples of the base point are precomputed, which avoids us having to add ecc doubling gates.
  *          More efficient than variable-base version.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param scalars
  * @param base_points
  * @param off
- * @return cycle_group<Composer>::batch_mul_internal_output
+ * @return cycle_group<Builder>::batch_mul_internal_output
  */
-template <typename Composer>
-typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>::_fixed_base_batch_mul_internal(
+template <typename Builder>
+typename cycle_group<Builder>::batch_mul_internal_output cycle_group<Builder>::_fixed_base_batch_mul_internal(
     const std::span<cycle_scalar> scalars,
     const std::span<AffineElement> base_points,
     const std::span<AffineElement const> offset_generators)
-    requires IsNotUltraArithmetic<Composer>
+    requires IsNotUltraArithmetic<Builder>
 
 {
     ASSERT(scalars.size() == base_points.size());
     static_assert(TABLE_BITS == 1);
 
-    Composer* context = nullptr;
+    Builder* context = nullptr;
     for (auto& scalar : scalars) {
         if (scalar.get_context() != nullptr) {
             context = scalar.get_context();
@@ -1177,16 +1178,16 @@ typename cycle_group<Composer>::batch_mul_internal_output cycle_group<Composer>:
  *        depends on if one or both of _fixed_base_batch_mul_internal, _variable_base_batch_mul_internal are called)
  *       If you're calling this function repeatedly and you KNOW you need >32 offset generators,
  *       it's faster to create a `generator_data` object with the required size and pass it in as a parameter.
- * @tparam Composer
+ * @tparam Builder
  * @param scalars
  * @param base_points
  * @param offset_generator_data
- * @return cycle_group<Composer>
+ * @return cycle_group<Builder>
  */
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::batch_mul(const std::vector<cycle_scalar>& scalars,
-                                                       const std::vector<cycle_group>& base_points,
-                                                       const GeneratorContext context)
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::batch_mul(const std::vector<cycle_scalar>& scalars,
+                                                     const std::vector<cycle_group>& base_points,
+                                                     const GeneratorContext context)
 {
     ASSERT(scalars.size() == base_points.size());
 
@@ -1210,7 +1211,7 @@ cycle_group<Composer> cycle_group<Composer>::batch_mul(const std::vector<cycle_s
 
     // When calling `_variable_base_batch_mul_internal`, we can unconditionally add iff all of the input points
     // are fixed-base points
-    // (i.e. we are ULTRA Composer and we are doing fixed-base mul over points not present in our plookup tables)
+    // (i.e. we are ULTRA Builder and we are doing fixed-base mul over points not present in our plookup tables)
     bool can_unconditional_add = true;
     bool has_non_constant_component = false;
     Element constant_acc = Group::point_at_infinity;
@@ -1319,18 +1320,18 @@ cycle_group<Composer> cycle_group<Composer>::batch_mul(const std::vector<cycle_s
     return result;
 }
 
-template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operator*(const cycle_scalar& scalar) const
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator*(const cycle_scalar& scalar) const
 {
     return batch_mul({ scalar }, { *this });
 }
 
-template <typename Composer> cycle_group<Composer>& cycle_group<Composer>::operator*=(const cycle_scalar& scalar)
+template <typename Builder> cycle_group<Builder>& cycle_group<Builder>::operator*=(const cycle_scalar& scalar)
 {
     *this = operator*(scalar);
     return *this;
 }
 
-template <typename Composer> bool_t<Composer> cycle_group<Composer>::operator==(const cycle_group& other) const
+template <typename Builder> bool_t<Builder> cycle_group<Builder>::operator==(const cycle_group& other) const
 {
     const auto equal_and_not_infinity =
         (x == other.x) && (y == other.y) && !is_point_at_infinity() && !other.is_point_at_infinity();
@@ -1338,23 +1339,23 @@ template <typename Composer> bool_t<Composer> cycle_group<Composer>::operator==(
     return equal_and_not_infinity || both_infinity;
 }
 
-template <typename Composer>
-void cycle_group<Composer>::assert_equal(const cycle_group& other, std::string const& msg) const
+template <typename Builder>
+void cycle_group<Builder>::assert_equal(const cycle_group& other, std::string const& msg) const
 {
     x.assert_equal(other.x, msg);
     y.assert_equal(other.y, msg);
 }
 
-template <typename Composer>
-cycle_group<Composer> cycle_group<Composer>::conditional_assign(const bool_t& predicate,
-                                                                const cycle_group& lhs,
-                                                                const cycle_group& rhs)
+template <typename Builder>
+cycle_group<Builder> cycle_group<Builder>::conditional_assign(const bool_t& predicate,
+                                                              const cycle_group& lhs,
+                                                              const cycle_group& rhs)
 {
     return { field_t::conditional_assign(predicate, lhs.x, rhs.x),
              field_t::conditional_assign(predicate, lhs.y, rhs.y),
              bool_t::conditional_assign(predicate, lhs.is_point_at_infinity(), rhs.is_point_at_infinity()) };
 };
-template <typename Composer> cycle_group<Composer> cycle_group<Composer>::operator/(const cycle_group& /*unused*/) const
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator/(const cycle_group& /*unused*/) const
 {
     // TODO(@kevaundray solve the discrete logarithm problem)
     throw_or_abort("Implementation under construction...");
