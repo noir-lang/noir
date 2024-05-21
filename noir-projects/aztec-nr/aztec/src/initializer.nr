@@ -4,17 +4,13 @@ use dep::protocol_types::{
 };
 
 use crate::{
-    context::{PrivateContext, PublicContext, AvmContext, ContextInterface},
+    context::{PrivateContext, PublicContext, ContextInterface},
     oracle::get_contract_instance::get_contract_instance,
     oracle::get_contract_instance::get_contract_instance_avm,
     history::nullifier_inclusion::prove_nullifier_inclusion
 };
 
 pub fn mark_as_initialized_public(context: &mut PublicContext) {
-    mark_as_initialized(context);
-}
-
-pub fn mark_as_initialized_avm(context: &mut AvmContext) {
     mark_as_initialized(context);
 }
 
@@ -28,11 +24,6 @@ fn mark_as_initialized<TContext>(context: &mut TContext) where TContext: Context
 }
 
 pub fn assert_is_initialized_public(context: &mut PublicContext) {
-    let init_nullifier = compute_unsiloed_contract_initialization_nullifier(context.this_address());
-    assert(context.nullifier_exists(init_nullifier, context.this_address()), "Not initialized");
-}
-
-pub fn assert_is_initialized_avm(context: &mut AvmContext) {
     let init_nullifier = compute_unsiloed_contract_initialization_nullifier(context.this_address());
     assert(context.nullifier_exists(init_nullifier, context.this_address()), "Not initialized");
 }
@@ -54,10 +45,6 @@ fn compute_unsiloed_contract_initialization_nullifier(address: AztecAddress) -> 
 }
 
 pub fn assert_initialization_matches_address_preimage_public(context: PublicContext) {
-    assert_initialization_matches_address_preimage(context);
-}
-
-pub fn assert_initialization_matches_address_preimage_avm(context: AvmContext) {
     let address = context.this_address();
     let instance = get_contract_instance_avm(address).unwrap();
     let expected_init = compute_initialization_hash(context.selector(), context.get_args_hash());

@@ -1,6 +1,7 @@
 import { DelegateCallsTest } from './delegate_calls_test.js';
 
-describe('e2e_delegate_calls', () => {
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/6423): delegate call not implemented.
+describe.skip('e2e_delegate_calls', () => {
   const t = new DelegateCallsTest('delegate_calls');
   let { delegatorContract, delegatedOnContract, wallet } = t;
 

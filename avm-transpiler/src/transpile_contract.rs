@@ -89,7 +89,7 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
             // TODO(4269): once functions are tagged for transpilation to AVM, check tag
             if function
                 .custom_attributes
-                .contains(&"aztec(public-vm)".to_string())
+                .contains(&"aztec(public)".to_string())
             {
                 info!(
                     "Transpiling AVM function {} on contract {}",

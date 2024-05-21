@@ -6,9 +6,30 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## 0.42.0
+
+## Public execution migrated to the Aztec Virtual Machine
+
+**What does this mean for me?**
+
+It should be mostly transparent, with a few caveats:
+
+- Not all Noir blackbox functions are supported by the AVM. Only `Sha256`, `PedersenHash`, `Poseidon2Permutation`, `Keccak256`, and `ToRadix` are supported.
+- For public functions, `context.nullifier_exists(...)` will now also consider pending nullifiers.
+- The following methods of `PublicContext` are not supported anymore: `fee_recipient`, `fee_per_da_gas`, `fee_per_l2_gas`, `call_public_function_no_args`, `static_call_public_function_no_args`, `delegate_call_public_function_no_args`, `call_public_function_with_packed_args`, `set_return_hash`, `finish`. However, in terms of functionality, the new context's interface should be equivalent (unless otherwise specified in this list).
+- Delegate calls are not yet supported in the AVM.
+- If you have types with custom serialization that you use across external contracts calls, you might need to modify its serialization to match how Noir would serialize it. This is a known problem unrelated to the AVM, but triggered more often when using it.
+- A few error messages might change format, so you might need to change your test assertions.
+
+**Internal details**
+
+Before this change, public bytecode was executed using the same simulator as in private: the ACIR simulator (and internally, the Brillig VM). On the Aztec.nr side, public functions accessed the context through `PublicContext`.
+
+After this change, public bytecode will be run using the AVM simulator (the simulator for our upcoming zkVM). This bytecode is generated from Noir contracts in two steps: First, `nargo compile` produces an artifact which has Brillig bytecode for public functions, just as it did before. Second: the `avm-transpiler` takes that artifact, and it transpiles Brillig bytecode to AVM bytecode. This final artifact can now be deployed and used with the new public runtime.
+
+On the Aztec.nr side, public functions keep accessing the context using `PublicContext` but the underlying implementation is switch with what formerly was the `AvmContext`.
+
 ## 0.41.0
-
-
 
 ### [Aztec.nr] State variable rework
 
@@ -27,7 +48,8 @@ fn get_decimals() -> pub u8 {
 }
 ```
 
-The compiler will now error out with 
+The compiler will now error out with
+
 ```
 Expected type SharedImmutable<_, &mut PrivateContext>, found type SharedImmutable<u8, &mut PublicContext>
 ```
@@ -44,7 +66,7 @@ This means that, without any additional features, we'd end up with some extra bo
 #[aztec(storage)]
 - struct Storage {
 + struct Storage<Context> {
--   nonce_for_burn_approval: PublicMutable<Field>,    
+-   nonce_for_burn_approval: PublicMutable<Field>,
 +   nonce_for_burn_approval: PublicMutable<Field, Context>,
 -   portal_address: SharedImmutable<EthAddress>,
 +   portal_address: SharedImmutable<EthAddress, Context>,
@@ -90,8 +112,8 @@ Additionally, the Noir LSP will now honor "go to definitions" requests for contr
 
 ### [Aztec.js] Simulate changes
 
-* `.simulate()` now tracks closer the process performed by `.send().wait()`, specifically going through the account contract entrypoint instead of directly calling the intended function.
-* `wallet.viewTx(...)` has been renamed to `wallet.simulateUnconstrained(...)` to better clarify what it does.
+- `.simulate()` now tracks closer the process performed by `.send().wait()`, specifically going through the account contract entrypoint instead of directly calling the intended function.
+- `wallet.viewTx(...)` has been renamed to `wallet.simulateUnconstrained(...)` to better clarify what it does.
 
 ### [Aztec.nr] Keys: Token note now stores an owner master nullifying public key hash instead of an owner address
 
@@ -118,7 +140,6 @@ Creating a token note and adding it to storage now looks like this:
 ```
 
 Computing the nullifier similarly changes to use this master nullifying public key hash.
-
 
 ## 0.40.0
 

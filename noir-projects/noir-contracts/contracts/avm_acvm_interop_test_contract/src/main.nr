@@ -9,7 +9,7 @@ contract AvmAcvmInteropTest {
     use dep::authwit::{auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public}};
 
     // Use the standard context interface to emit a new nullifier
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn new_nullifier(nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
     }
@@ -22,7 +22,7 @@ contract AvmAcvmInteropTest {
         123456
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn constant_field_avm() -> pub Field {
         123456
     }
@@ -37,7 +37,7 @@ contract AvmAcvmInteropTest {
         assert(context.nullifier_exists(unsiloed_nullifier, context.this_address()));
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn call_acvm_from_avm() -> pub Field {
         context.call_public_function(
             context.this_address(),
@@ -57,7 +57,7 @@ contract AvmAcvmInteropTest {
         ).deserialize_into()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn avm_to_acvm_call(selector: FunctionSelector, args: Field) {
         context.call_public_function(
             context.this_address(),
@@ -70,7 +70,7 @@ contract AvmAcvmInteropTest {
     /************************************************************************
      * Authwit functions
      ************************************************************************/
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn test_authwit_send_money(from: AztecAddress, _to: AztecAddress, _amount: Field) {
         assert_current_call_valid_authwit_public(&mut context, from);
     }

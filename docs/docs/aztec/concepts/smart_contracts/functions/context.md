@@ -130,13 +130,7 @@ New L2 to L1 messages contains messages that are delivered to the [l1 outbox](/p
 
 ## Public Context
 
-The Public Context includes all of the information passed from the `Public VM` into the execution environment. It is very similar to the [Private Context](#the-private-context), however it has some minor differences (detailed below).
-
-### Public Context Inputs
-
-In the current version of the system, the public context is almost a clone of the private execution context.
-
-#include_code public-context-inputs /noir-projects/aztec-nr/aztec/src/context/inputs/public_context_inputs.nr rust
+The Public Context includes all of the information passed from the `Public VM` into the execution environment. Its interface is very similar to the [Private Context](#the-private-context), however it has some minor differences (detailed below).
 
 ### Public Global Variables
 

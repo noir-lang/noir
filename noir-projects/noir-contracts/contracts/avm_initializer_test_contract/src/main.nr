@@ -11,13 +11,13 @@ contract AvmInitializerTest {
     /************************************************************************
      * Storage
      ************************************************************************/
-    #[aztec(public-vm)]
+    #[aztec(public)]
     #[aztec(initializer)]
     fn constructor() {
         storage.immutable.initialize(42);
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn read_storage_immutable() -> pub Field {
         storage.immutable.read()
     }

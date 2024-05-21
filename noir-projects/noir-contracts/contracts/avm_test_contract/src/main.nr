@@ -54,42 +54,42 @@ contract AvmTest {
         storage.map.at(address).read()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_storage_single(a: Field) {
         storage.single.write(a);
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn read_storage_single() -> Field {
         storage.single.read()
     }
 
     // should still be able to use ` -> pub *` for return type even though macro forces `pub`
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_read_storage_single(a: Field) -> pub Field {
         storage.single.write(a);
         storage.single.read()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_storage_list(a: Field, b: Field) {
         storage.list.write(Note { a, b });
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn read_storage_list() -> [Field; 2] {
         let note: Note = storage.list.read();
         note.serialize()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_storage_map(to: AztecAddress, amount: u32) -> Field {
         storage.map.at(to).write(amount);
         // returns storage slot for key
         dep::std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn add_storage_map(to: AztecAddress, amount: u32) -> Field {
         let new_balance = storage.map.at(to).read().add(amount);
         storage.map.at(to).write(new_balance);
@@ -97,12 +97,12 @@ contract AvmTest {
         dep::std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn read_storage_map(address: AztecAddress) -> u32 {
         storage.map.at(address).read()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn add_args_return(arg_a: Field, arg_b: Field) -> Field {
         arg_a + arg_b
     }
@@ -110,37 +110,37 @@ contract AvmTest {
     /************************************************************************
      * General Opcodes
      ************************************************************************/
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_opcode_u8() -> u8 {
         8 as u8
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_opcode_u32() -> u32 {
         1 << 30 as u8
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_opcode_u64() -> u64 {
         1 << 60 as u8
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_opcode_small_field() -> Field {
         big_field_128_bits
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn set_opcode_big_field() -> Field {
         big_field_136_bits
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn add_u128(a: U128, b: U128) -> U128 {
         a + b
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn modulo2(a: u64) -> u64 {
         a % 2
     }
@@ -149,20 +149,20 @@ contract AvmTest {
      * Misc 
      ************************************************************************/
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn u128_addition_overflow() -> U128 {
         let max_u128: U128 = U128::from_hex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
         let one: U128 = U128::from_integer(1);
         max_u128 + one
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn u128_from_integer_overflow() -> U128 {
         let should_overflow: Field = 2.pow_32(128); // U128::max() + 1;
         U128::from_integer(should_overflow)
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn to_radix_le(input: Field) -> [u8; 10] {
         let result: [u8] = input.to_le_radix(/*base=*/ 2, /*limbs=*/ 10);
         result.as_array()
@@ -177,12 +177,12 @@ contract AvmTest {
         inner_helper_with_failed_assertion();
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn assertion_failure() {
         helper_with_failed_assertion()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn debug_logging() {
         dep::aztec::oracle::debug_log::debug_log("just text");
         dep::aztec::oracle::debug_log::debug_log_format("second: {1}", [1, 2, 3, 4]);
@@ -193,27 +193,27 @@ contract AvmTest {
     /************************************************************************
      * Hashing functions
      ************************************************************************/
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn keccak_hash(data: [u8; 10]) -> [u8; 32] {
         dep::std::hash::keccak256(data, data.len() as u32)
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn poseidon2_hash(data: [Field; 10]) -> Field {
         dep::std::hash::poseidon2::Poseidon2::hash(data, data.len())
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn sha256_hash(data: [u8; 10]) -> [u8; 32] {
         dep::std::hash::sha256(data)
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn pedersen_hash(data: [Field; 10]) -> Field {
         dep::std::hash::pedersen_hash(data)
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn pedersen_hash_with_index(data: [Field; 10]) -> Field {
         dep::std::hash::pedersen_hash_with_separator(data, /*index=*/ 20)
     }
@@ -221,7 +221,7 @@ contract AvmTest {
     /************************************************************************
      * Contract instance
      ************************************************************************/
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn test_get_contract_instance_raw() {
         let fields = get_contract_instance_internal_avm(context.this_address());
         // The values here should match those in `avm_simulator.test.ts>Contract>GETCONTRACTINSTANCE deserializes correctly`
@@ -234,7 +234,7 @@ contract AvmTest {
         assert(fields[5] == 0x161718);
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn test_get_contract_instance() {
         let ci = get_contract_instance_avm(context.this_address());
         assert(ci.is_some(), "Contract instance not found!");
@@ -243,74 +243,74 @@ contract AvmTest {
     /************************************************************************
      * AvmContext functions
      ************************************************************************/
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_address() -> AztecAddress {
         context.this_address()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_storage_address() -> AztecAddress {
         context.storage_address()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_sender() -> AztecAddress {
         context.msg_sender()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_fee_per_l2_gas() -> Field {
         context.fee_per_l2_gas()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_fee_per_da_gas() -> Field {
         context.fee_per_da_gas()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_transaction_fee() -> Field {
         context.transaction_fee()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_chain_id() -> Field {
         context.chain_id()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_version() -> Field {
         context.version()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_block_number() -> Field {
         context.block_number()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_timestamp() -> u64 {
         context.timestamp()
     }
 
-    // #[aztec(public-vm)]
+    // #[aztec(public)]
     // fn get_contract_call_depth() -> Field {
     //     context.contract_call_depth()
     // }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn check_selector() {
         assert(
             context.selector() == FunctionSelector::from_signature("check_selector()"), "Unexpected selector!"
         );
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn get_args_hash(_a: u8, _fields: [Field; 3]) -> Field {
         context.get_args_hash()
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn emit_unencrypted_log() {
         context.emit_unencrypted_log_with_selector(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
         context.emit_unencrypted_log_with_selector(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
@@ -318,36 +318,36 @@ contract AvmTest {
         context.emit_unencrypted_log_with_selector(/*event_selector=*/ 10, /*message=*/ s);
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn note_hash_exists(note_hash: Field, leaf_index: Field) -> bool {
         context.note_hash_exists(note_hash, leaf_index)
     }
 
     // Use the standard context interface to emit a new note hash
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn new_note_hash(note_hash: Field) {
         context.push_new_note_hash(note_hash);
     }
 
     // Use the standard context interface to emit a new nullifier
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn new_nullifier(nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
     }
 
     // Use the standard context interface to check for a nullifier
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn nullifier_exists(nullifier: Field) -> bool {
         context.nullifier_exists(nullifier, context.this_address())
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn assert_nullifier_exists(nullifier: Field) {
         assert(context.nullifier_exists(nullifier, context.this_address()), "Nullifier doesn't exist!");
     }
 
     // Use the standard context interface to emit a new nullifier
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn emit_nullifier_and_check(nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
         let exists = context.nullifier_exists(nullifier, context.this_address());
@@ -355,19 +355,19 @@ contract AvmTest {
     }
 
     // Create the same nullifier twice (shouldn't work!)
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn nullifier_collision(nullifier: Field) {
         context.push_new_nullifier(nullifier, 0);
         // Can't do this twice!
         context.push_new_nullifier(nullifier, 0);
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> bool {
         context.l1_to_l2_msg_exists(msg_hash, msg_leaf_index)
     }
 
-    #[aztec(public-vm)]
+    #[aztec(public)]
     fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
         context.message_portal(recipient, content)
     }

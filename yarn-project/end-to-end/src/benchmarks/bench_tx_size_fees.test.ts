@@ -70,7 +70,7 @@ describe('benchmarks/tx_size_fees', () => {
       // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 1168 B enc note logs, 0 B enc logs, 0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200021120n,
+      200289690n,
     ],
     [
       'public fee',
@@ -79,7 +79,7 @@ describe('benchmarks/tx_size_fees', () => {
       // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 1168 B enc note logs, 0 B enc logs,0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200021120n,
+      200799060n,
     ],
     [
       'private fee',
@@ -88,7 +88,7 @@ describe('benchmarks/tx_size_fees', () => {
       // non-rev: 3 nullifiers, overhead; rev: 2 note hashes, 1168 B enc note logs, 0 B enc logs, 0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200021632n,
+      200243972n,
     ],
   ] as const)(
     'sends a tx with a fee with %s payment method',

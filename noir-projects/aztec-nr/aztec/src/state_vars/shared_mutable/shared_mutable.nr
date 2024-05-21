@@ -205,7 +205,7 @@ mod test {
 
     fn create_context(block_number: Field) -> &mut PublicContext {
         let mut public_context = PublicContext::empty();
-        public_context.inputs.public_global_variables.block_number = block_number;
+        let _ = OracleMock::mock("avmOpcodeBlockNumber").returns(block_number);
         &mut public_context
     }
 

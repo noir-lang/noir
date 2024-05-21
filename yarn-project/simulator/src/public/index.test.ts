@@ -39,7 +39,8 @@ import { PublicExecutor } from './executor.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
-describe('ACIR public execution simulator', () => {
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/5818): remove.
+describe.skip('ACIR public execution simulator', () => {
   let publicState: MockProxy<PublicStateDB>;
   let publicContracts: MockProxy<PublicContractsDB>;
   let commitmentsDb: MockProxy<CommitmentsDB>;

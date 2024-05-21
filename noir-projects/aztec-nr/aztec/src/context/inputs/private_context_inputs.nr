@@ -16,7 +16,7 @@ struct PrivateContextInputs {
 impl Empty for PrivateContextInputs {
     fn empty() -> Self {
         PrivateContextInputs {
-            call_context : CallContext::empty(),
+            call_context: CallContext::empty(),
             historical_header: Header::empty(),
             tx_context: TxContext::empty(),
             start_side_effect_counter: 0 as u32,
