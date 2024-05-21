@@ -178,7 +178,7 @@ For the transfer, this could be done simply by appending a nonce to the argument
 action = H(defi, token, transfer_selector, H(alice_account, defi, 1000, nonce));
 ```
 
-Beware that the account contract will be unable to emit the nullifier since it is checked with a static call, so the calling contract must do it. This is similar to nonces in ERC20 tokens today. We provide a small library that handles this which we will see in the [developer documentation](guides/smart_contracts/writing_contracts/common_patterns/authwit.md).
+Beware that the account contract will be unable to emit the nullifier since it is checked with a static call, so the calling contract must do it. This is similar to nonces in ERC20 tokens today. We provide a small library that handles this which we will see in the [developer documentation](../../../guides/smart_contracts/writing_contracts/authwit.md).
 
 ### Differences to approval
 
@@ -192,4 +192,4 @@ We don't need to limit ourselves to the `transfer` function, we can use the same
 
 ### Next Steps
 
-Check out the [developer documentation](guides/smart_contracts/writing_contracts/common_patterns/authwit.md) to see how to implement this in your own contracts.
+Check out the [developer documentation](../../../guides/smart_contracts/writing_contracts/authwit.md) to see how to implement this in your own contracts.

@@ -3,15 +3,19 @@ title: Authentication Witness
 description: Developer Documentation to use Authentication Witness for authentication actions on Aztec.
 ---
 
+This page introduces the authwit library and how you can use it in your Aztec.nr smart contracts. [Skip to the usage](#usage).
+
+For a guide on using authwit in Aztec.js, [read this](../../js_apps/authwit.md).
+
 ## Prerequisite reading
 
-- [Authwit](guides/smart_contracts/writing_contracts/common_patterns/authwit.md)
+- [Authwit](../../../aztec/concepts/accounts/authwit.md)
 
 ## Introduction
 
 Authentication Witness is a scheme for authentication actions on Aztec, so users can allow third-parties (eg protocols or other users) to execute an action on their behalf.
 
-How it works logically is explained in the [concepts](guides/smart_contracts/writing_contracts/common_patterns/authwit.md) but we will do a short recap here.
+How it works logically is explained in the [concepts](../../../aztec/concepts/accounts/authwit.md) but we will do a short recap here.
 
 An authentication witness is defined for a specific action, such as allowing a Defi protocol to transfer funds on behalf of the user. An action is here something that could be explained as `A is allowed to perform X operation on behalf of B` and we define it as a hash computed as such:
 
@@ -117,7 +121,7 @@ Very similar to the above, we have variations that work in the public domain. Th
 
 ## Usage
 
-Ok, enough talking, how the hell do we use this?
+Ok, enough talking, how do we use this?
 
 ### Importing it
 
@@ -151,6 +155,8 @@ Cool, so we have a function that checks if the current call is authenticated, bu
 
 #include_code authwit_transfer_example /yarn-project/end-to-end/src/e2e_token_contract/transfer_private.test.ts typescript
 
+Learn more about authwits in Aztec.js by [following this guide](../../js_apps/authwit.md).
+
 ### Public Functions
 
 With private functions covered, how can we use this in a public function? Well, the answer is that we simply change one name of a function and then we are good to go :eyes: (almost).
@@ -163,7 +169,7 @@ With private functions covered, how can we use this in a public function? Well, 
 
 Authenticating an action in the public domain is quite similar to the private domain, with the difference that we are executing a function on the account contract to add the witness, if you recall, this is because we don't have access to the oracle in the public domain.
 
-In the snippet below, this is done as a separate contract call, but can also be done as part of a batch as mentioned in the [Accounts concepts](guides/smart_contracts/writing_contracts/common_patterns/authwit.md#what-about-public).
+In the snippet below, this is done as a separate contract call, but can also be done as part of a batch as mentioned in the [Accounts concepts](../../../aztec/concepts/accounts/authwit.md#what-about-public).
 
 #include_code authwit_public_transfer_example /yarn-project/end-to-end/src/e2e_token_contract/transfer_public.test.ts typescript
 

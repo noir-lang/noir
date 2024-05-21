@@ -112,8 +112,9 @@ describe('e2e_blacklist_token_contract transfer public', () => {
         .methods.transfer_public(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce);
 
       // We need to compute the message we want to sign and add it to the wallet as approved
+      // docs:start:set_public_authwit
       await wallets[0].setPublicAuthWit({ caller: wallets[1].getAddress(), action }, true).send().wait();
-
+      // docs:end:set_public_authwit
       // Perform the transfer
       await expect(action.prove()).rejects.toThrow(U128_UNDERFLOW_ERROR);
 
@@ -154,7 +155,6 @@ describe('e2e_blacklist_token_contract transfer public', () => {
         .withWallet(wallets[1])
         .methods.transfer_public(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce);
       await wallets[0].setPublicAuthWit({ caller: wallets[0].getAddress(), action }, true).send().wait();
-
       // Perform the transfer
       await expect(action.prove()).rejects.toThrow('Assertion failed: Message not authorized by account');
 

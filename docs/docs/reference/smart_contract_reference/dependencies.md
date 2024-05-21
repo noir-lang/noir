@@ -19,7 +19,7 @@ This is the core Aztec library that is required for every Aztec.nr smart contrac
 authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/authwit"}
 ```
 
-This allows you to use authentication witnesses in your contract. Find more about its usage [here](guides/smart_contracts/writing_contracts/common_patterns/authwit.md).
+This allows you to use authentication witnesses in your contract. Find more about its usage [here](../../guides/smart_contracts/writing_contracts/authwit.md).
 
 ## Address note
 

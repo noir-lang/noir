@@ -443,6 +443,8 @@ export async function setup(
  * @param sender - Wallet to send the deployment tx.
  * @param accountsToDeploy - Which accounts to publicly deploy.
  */
+
+// docs:start:public_deploy_accounts
 export async function publicDeployAccounts(sender: Wallet, accountsToDeploy: Wallet[]) {
   const accountAddressesToDeploy = accountsToDeploy.map(a => a.getAddress());
   const instances = await Promise.all(accountAddressesToDeploy.map(account => sender.getContractInstance(account)));
@@ -452,6 +454,7 @@ export async function publicDeployAccounts(sender: Wallet, accountsToDeploy: Wal
   ]);
   await batch.send().wait();
 }
+// docs:end:public_deploy_accounts
 
 /**
  * Sets the timestamp of the next block.
