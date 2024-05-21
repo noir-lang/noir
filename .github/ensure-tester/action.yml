@@ -61,7 +61,7 @@ runs:
         ec2_subnet_id: subnet-4cfabd25
         ec2_security_group_id: sg-0ccd4e5df0dcca0c9
         ec2_key_name: "build-instance"
-        ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
+        ec2_instance_tags: '[]'
 
     # Set up a context for this run
     - name: Copy Repo to Tester

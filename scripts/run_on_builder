@@ -4,4 +4,4 @@ set -eu
 # Enter the repo root
 cd "$(dirname "$0")/.."
 
-ssh -o ControlMaster=auto -o ControlPath=~/.ssh_mux_%h_%p_%r -o ControlPersist=10m -o TCPKeepAlive=no -o ServerAliveCountMax=20 -o ServerAliveInterval=30 -o StrictHostKeyChecking=no -i "$BUILDER_SPOT_KEY" ubuntu@"$BUILDER_SPOT_IP" "$@"
+ssh -o ControlMaster=auto -o ControlPath=~/.ssh_mux_%h_%p_%r -o ControlPersist=30s -o TCPKeepAlive=no -o ServerAliveCountMax=5 -o ServerAliveInterval=30 -o StrictHostKeyChecking=no -i "$BUILDER_SPOT_KEY" ubuntu@"$BUILDER_SPOT_IP" "$@"
