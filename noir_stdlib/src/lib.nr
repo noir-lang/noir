@@ -67,3 +67,6 @@ pub fn wrapping_sub<T>(x: T, y: T) -> T {
 pub fn wrapping_mul<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
+
+#[builtin(as_witness)]
+pub fn as_witness(x: Field) {}

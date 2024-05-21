@@ -293,6 +293,7 @@ pub(super) fn simplify_call(
             let instruction = Instruction::Cast(truncated_value, target_type);
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
+        Intrinsic::AsWitness => SimplifyResult::None,
     }
 }
 
