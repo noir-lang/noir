@@ -15,7 +15,7 @@ fn bench_poseidon2(c: &mut Criterion) {
 
 fn bench_pedersen_commitment(c: &mut Criterion) {
     let inputs = [FieldElement::one(); 2];
-    let solver = Bn254BlackBoxSolver::new();
+    let solver = Bn254BlackBoxSolver::default();
 
     c.bench_function("pedersen_commitment", |b| {
         b.iter(|| solver.pedersen_commitment(black_box(&inputs), 0))
@@ -24,13 +24,13 @@ fn bench_pedersen_commitment(c: &mut Criterion) {
 
 fn bench_pedersen_hash(c: &mut Criterion) {
     let inputs = [FieldElement::one(); 2];
-    let solver = Bn254BlackBoxSolver::new();
+    let solver = Bn254BlackBoxSolver::default();
 
     c.bench_function("pedersen_hash", |b| b.iter(|| solver.pedersen_hash(black_box(&inputs), 0)));
 }
 
 fn bench_schnorr_verify(c: &mut Criterion) {
-    let solver = Bn254BlackBoxSolver::new();
+    let solver = Bn254BlackBoxSolver::default();
 
     let pub_key_x = FieldElement::from_hex(
         "0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a",
