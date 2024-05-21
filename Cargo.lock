@@ -614,6 +614,7 @@ dependencies = [
  "acvm_blackbox_solver",
  "ark-ec",
  "ark-ff",
+ "ark-std",
  "cfg-if 1.0.0",
  "criterion",
  "getrandom 0.2.10",

@@ -1495,18 +1495,18 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 assert_eq!(types.len() + implicit_generic_count, typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
 
-                let mut replacements = typevars[..implicit_generic_count]
+                let replacements = typevars
                     .iter()
-                    .map(|var| {
-                        let new = interner.next_type_variable();
-                        (var.id(), (var.clone(), new))
+                    .enumerate()
+                    .map(|(i, var)| {
+                        let binding = if i < implicit_generic_count {
+                            interner.next_type_variable()
+                        } else {
+                            types[i - implicit_generic_count].clone()
+                        };
+                        (var.id(), (var.clone(), binding))
                     })
-                    .collect::<HashMap<_, _>>();
-
-                // `zip` ends at the shorter iterator so we skip any implicit generics included in the `Forall` type
-                for (var, binding) in typevars.iter().skip(implicit_generic_count).zip(types) {
-                    replacements.insert(var.id(), (var.clone(), binding));
-                }
+                    .collect();
 
                 let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)

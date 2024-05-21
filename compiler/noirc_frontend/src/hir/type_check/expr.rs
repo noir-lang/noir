@@ -398,29 +398,10 @@ impl<'interner> TypeChecker<'interner> {
             _ => 0,
         });
 
-        // Fetch the count of any implicit generics on the function
-        // This includes generics
-        let implicit_generic_count = if generics.is_some() {
-            let definition_type = self.interner.definition_type(ident.id);
-            match &definition_type {
-                Type::Forall(generics, _) => generics.len() - function_generic_count,
-                _ => 0,
-            }
-        } else {
-            0
-        };
-
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = self.instantiate(
-            t,
-            bindings,
-            generics,
-            function_generic_count,
-            implicit_generic_count,
-            span,
-        );
+        let (typ, bindings) = self.instantiate(t, bindings, generics, function_generic_count, span);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
@@ -459,22 +440,27 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         typ: Type,
         bindings: TypeBindings,
-        generics: Option<Vec<Type>>,
+        turbofish_generics: Option<Vec<Type>>,
         function_generic_count: usize,
-        implicit_generic_count: usize,
         span: Span,
     ) -> (Type, TypeBindings) {
-        match generics {
-            Some(generics) => {
-                if generics.len() != function_generic_count {
+        match turbofish_generics {
+            Some(turbofish_generics) => {
+                if turbofish_generics.len() != function_generic_count {
                     self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: function_generic_count,
-                        actual_count: generics.len(),
+                        actual_count: turbofish_generics.len(),
                         span,
                     });
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
-                    typ.instantiate_with(generics, self.interner, implicit_generic_count)
+                    // Fetch the count of any implicit generics on the function, such as
+                    // for a method within a generic impl.
+                    let implicit_generic_count = match &typ {
+                        Type::Forall(generics, _) => generics.len() - function_generic_count,
+                        _ => 0,
+                    };
+                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
