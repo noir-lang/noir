@@ -127,14 +127,13 @@ pub(crate) fn execute_program(
     inputs_map: &InputMap,
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessStack, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::default();
-
+    
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let solved_witness_stack_err = nargo::ops::execute_program(
         &compiled_program.program,
         initial_witness,
-        &blackbox_solver,
+        &Bn254BlackBoxSolver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     );
     match solved_witness_stack_err {

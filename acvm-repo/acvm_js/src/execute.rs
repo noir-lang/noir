@@ -24,7 +24,7 @@ pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
 
 impl WasmBlackBoxFunctionSolver {
     async fn initialize() -> WasmBlackBoxFunctionSolver {
-        WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver::default())
+        WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver)
     }
 }
 
@@ -164,7 +164,7 @@ async fn execute_program_with_native_program_and_return(
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
 ) -> Result<WitnessStack, Error> {
-    let blackbox_solver = Bn254BlackBoxSolver::default();
+    let blackbox_solver = Bn254BlackBoxSolver;
     let executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
