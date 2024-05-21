@@ -6,6 +6,8 @@
     "eamodio.gitlens",
     "ms-vsliveshare.vsliveshare",
     "juanblanco.solidity",
+    "noir-lang.vscode-noir",
+    "rust-lang.rust-analyzer",
     // Generate nicer Doxygen comments
     "cschlosser.doxdocgen",
     ///////////////////////////////////////
