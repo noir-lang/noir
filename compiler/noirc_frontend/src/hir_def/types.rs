@@ -1478,6 +1478,43 @@ impl Type {
         }
     }
 
+    /// Instantiates a type with the given types.
+    /// This differs from substitute in that only the quantified type variables
+    /// are matched against the type list and are eligible for substitution - similar
+    /// to normal instantiation. This function is used when the turbofish operator
+    /// is used and generic substitutions are provided manually by users.
+    ///
+    /// Expects the given type vector to be the same length as the Forall type variables.
+    pub fn instantiate_with(
+        &self,
+        types: Vec<Type>,
+        interner: &NodeInterner,
+        implicit_generic_count: usize,
+    ) -> (Type, TypeBindings) {
+        match self {
+            Type::Forall(typevars, typ) => {
+                assert_eq!(types.len() + implicit_generic_count, typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
+
+                let replacements = typevars
+                    .iter()
+                    .enumerate()
+                    .map(|(i, var)| {
+                        let binding = if i < implicit_generic_count {
+                            interner.next_type_variable()
+                        } else {
+                            types[i - implicit_generic_count].clone()
+                        };
+                        (var.id(), (var.clone(), binding))
+                    })
+                    .collect();
+
+                let instantiated = typ.substitute(&replacements);
+                (instantiated, replacements)
+            }
+            other => (other.clone(), HashMap::new()),
+        }
+    }
+
     /// Substitute any type variables found within this type with the
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
@@ -1727,7 +1764,7 @@ fn convert_array_expression_to_slice(
 
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
+    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), None);
     let func = interner.push_expr(as_slice);
 
     // Copy the expression and give it a new ExprId. The old one

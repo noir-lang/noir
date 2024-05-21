@@ -180,6 +180,7 @@
         "termcolor",
         "thiserror",
         "tslog",
+        "turbofish",
         "typecheck",
         "typechecked",
         "typevar",

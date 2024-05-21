@@ -494,7 +494,7 @@ impl<'context> Elaborator<'context> {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
                 match definition.kind {
                     DefinitionKind::Global(global_id) => {
@@ -1249,7 +1249,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_if_deprecated(&mut self, expr: ExprId) {
-        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }) =
+        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
             self.interner.expression(&expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -1268,7 +1268,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let HirExpression::Ident(HirIdent { id, .. }) = self.interner.expression(&expr) {
+        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.interner.expression(&expr) {
             if let Some(DefinitionKind::Function(func_id)) =
                 self.interner.try_definition(id).map(|def| &def.kind)
             {

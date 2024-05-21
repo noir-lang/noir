@@ -31,6 +31,13 @@ impl Bar<Field> {
     }
 }
 
+impl<T> Bar<T> {
+    // This is to test that we can use turbofish on methods as well
+    fn zeroed<A>(_self: Self) -> A {
+        dep::std::unsafe::zeroed()
+    }
+}
+
 fn main(x: Field, y: Field) {
     let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };
     let bar2 = Bar { one: x, two: y, other: [0] };
@@ -50,6 +57,14 @@ fn main(x: Field, y: Field) {
     let two = y;
     let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
     assert(nested_generics.other.other == bar1.get_other());
+
+    // Test turbofish operator
+    foo::<Field>(bar1);
+
+    // Test that turbofish works on methods and that it uses the generics on the methods
+    // While still handling the generic on the impl (T in this case) that is implicitly added
+    // to the method.
+    assert(bar1.zeroed::<u32>() == 0);
 
     let _ = regression_2055([1, 2, 3]);
 }

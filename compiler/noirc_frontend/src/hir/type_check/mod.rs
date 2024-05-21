@@ -89,7 +89,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     let function_last_type = type_checker.check_function_body(function_body_id);
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
@@ -486,8 +485,8 @@ pub mod test {
         let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone()));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone(), None));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone(), None));
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
