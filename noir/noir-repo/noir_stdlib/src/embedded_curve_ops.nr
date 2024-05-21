@@ -1,5 +1,6 @@
 use crate::ops::arith::{Add, Sub, Neg};
 use crate::cmp::Eq;
+
 // TODO(https://github.com/noir-lang/noir/issues/4931)
 struct EmbeddedCurvePoint {
     x: Field,
