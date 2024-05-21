@@ -912,6 +912,13 @@ impl NodeInterner {
         &self.definitions[id.0]
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
+    pub fn definition_mut(&mut self, id: DefinitionId) -> &mut DefinitionInfo {
+        &mut self.definitions[id.0]
+    }
+
     /// Tries to retrieve the given id's definition.
     /// This function should be used during name resolution or type checking when we cannot be sure
     /// all variables have corresponding definitions (in case of an error in the user's code).
@@ -991,6 +998,11 @@ impl NodeInterner {
     pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
         let global = self.get_global(global_id);
         self.definition(global.definition_id)
+    }
+
+    pub fn get_global_definition_mut(&mut self, global_id: GlobalId) -> &mut DefinitionInfo {
+        let global = self.get_global(global_id);
+        self.definition_mut(global.definition_id)
     }
 
     pub fn get_all_globals(&self) -> &[GlobalInfo] {

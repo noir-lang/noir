@@ -3,10 +3,26 @@ use std::collections::BTreeMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::{node_interner::{TraitId, FuncId}, hir::{def_collector::dc_crate::UnresolvedTrait, resolution::path_resolver::StandardPathResolver, def_map::ModuleId}, TypeVariable, hir_def::{traits::{TraitType, TraitConstant, TraitFunction}, function::{HirFunction, FuncMeta}}, Generics, ast::{TraitItem, UnresolvedGenerics, UnresolvedTraitConstraint, FunctionKind}, Type, TypeVariableKind, macros_api::{Ident, UnresolvedType, FunctionReturnType, FunctionDefinition, ItemVisibility, Visibility, Pattern, BlockExpression, NoirFunction, Param}, token::Attributes};
+use crate::{
+    ast::{FunctionKind, TraitItem, UnresolvedGenerics, UnresolvedTraitConstraint},
+    hir::{
+        def_collector::dc_crate::UnresolvedTrait, def_map::ModuleId,
+        resolution::path_resolver::StandardPathResolver,
+    },
+    hir_def::{
+        function::{FuncMeta, HirFunction},
+        traits::{TraitConstant, TraitFunction, TraitType},
+    },
+    macros_api::{
+        BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
+        NoirFunction, Param, Pattern, UnresolvedType, Visibility,
+    },
+    node_interner::{FuncId, TraitId},
+    token::Attributes,
+    Generics, Type, TypeVariable, TypeVariableKind,
+};
 
 use super::Elaborator;
-
 
 impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
@@ -25,8 +41,7 @@ impl<'context> Elaborator<'context> {
             // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
             let _ = self.resolve_trait_constants(&unresolved_trait);
             // 3. Trait Methods
-            let methods =
-                self.resolve_trait_methods(trait_id, &unresolved_trait, &generics);
+            let methods = self.resolve_trait_methods(trait_id, &unresolved_trait, &generics);
 
             self.interner.update_trait(trait_id, |trait_def| {
                 trait_def.set_methods(methods);
@@ -42,10 +57,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_types(
-        &mut self,
-        _unresolved_trait: &UnresolvedTrait,
-    ) -> Vec<TraitType> {
+    fn resolve_trait_types(&mut self, _unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
         // TODO
         vec![]
     }
@@ -120,7 +132,8 @@ impl<'context> Elaborator<'context> {
                 };
 
                 let no_environment = Box::new(Type::Unit);
-                let function_type = Type::Function(arguments, Box::new(return_type), no_environment);
+                let function_type =
+                    Type::Function(arguments, Box::new(return_type), no_environment);
 
                 functions.push(TraitFunction {
                     name: name.clone(),

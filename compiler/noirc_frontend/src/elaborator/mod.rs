@@ -10,7 +10,13 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedTypeExpression,
     },
     hir::{
-        def_collector::{dc_crate::{CompilationError, UnresolvedTypeAlias, UnresolvedTrait, UnresolvedStruct}, errors::DuplicateType},
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CompilationError, UnresolvedGlobal, UnresolvedStruct,
+                UnresolvedTrait, UnresolvedTypeAlias,
+            },
+            errors::DuplicateType,
+        },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
@@ -22,13 +28,14 @@ use crate::{
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
+        stmt::HirLetStatement,
         traits::TraitConstraint,
     },
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
-        StatementKind, StructId, NoirStruct,
+        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, Pattern, PrefixExpression,
+        SecondaryAttribute, Statement, StatementKind, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
     Shared, StructType, Type, TypeVariable,
@@ -204,8 +211,12 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id);
 
+        let (literal_globals, other_globals) = filter_literal_globals(items.globals);
+
         // the resolver filters literal globals first
-        for global in items.globals {}
+        for global in literal_globals {
+            this.elaborate_global(global);
+        }
 
         for (alias_id, alias) in items.type_aliases {
             this.define_type_alias(alias_id, alias);
@@ -222,7 +233,9 @@ impl<'context> Elaborator<'context> {
             this.collect_impls(typ, *module, impls);
         }
 
-        // resolver resolves non-literal globals here
+        for global in other_globals {
+            this.elaborate_global(global);
+        }
 
         for functions in items.functions {
             this.elaborate_functions(functions);
@@ -1169,5 +1182,34 @@ impl<'context> Elaborator<'context> {
         self.resolving_ids.remove(&struct_id);
 
         (generics, fields)
+    }
+
+    fn elaborate_global(&mut self, global: UnresolvedGlobal) {
+        self.local_module = global.module_id;
+        self.file = global.file_id;
+
+        let global_id = global.global_id;
+        self.current_item = Some(DependencyId::Global(global_id));
+
+        let definition_kind = DefinitionKind::Global(global_id);
+        let let_stmt = global.stmt_def;
+
+        if !self.in_contract
+            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+        {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
+        }
+
+        if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::MutableGlobal { span });
+        }
+
+        let (let_statement, _typ) = self.elaborate_let(let_stmt);
+
+        let statement_id = self.interner.get_global(global_id).let_statement;
+        self.interner.get_global_definition_mut(global_id).kind = definition_kind;
+        self.interner.replace_statement(statement_id, let_statement);
     }
 }
