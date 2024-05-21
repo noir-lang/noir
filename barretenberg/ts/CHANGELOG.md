@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.41.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.40.1...barretenberg.js-v0.41.0) (2024-05-21)
+
+
+### Features
+
+* Vk_as_fields, proof_as_fields flows for honk ([#6406](https://github.com/AztecProtocol/aztec-packages/issues/6406)) ([a6100ad](https://github.com/AztecProtocol/aztec-packages/commit/a6100ad3d5126321d457b5c336ab4a3521ff1fb2))
+
+
+### Miscellaneous
+
+* Remove acvmInfo from bb.js CLI ([#6507](https://github.com/AztecProtocol/aztec-packages/issues/6507)) ([e298c76](https://github.com/AztecProtocol/aztec-packages/commit/e298c766d17029a9dbfce694b48327c5e76dfddb))
+
 ## [0.40.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.40.0...barretenberg.js-v0.40.1) (2024-05-14)
 
 

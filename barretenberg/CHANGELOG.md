@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.41.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.40.1...barretenberg-v0.41.0) (2024-05-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* add is_infinite to curve addition opcode ([#6384](https://github.com/AztecProtocol/aztec-packages/issues/6384))
+
+### Features
+
+* Add is_infinite to curve addition opcode ([#6384](https://github.com/AztecProtocol/aztec-packages/issues/6384)) ([75d81c5](https://github.com/AztecProtocol/aztec-packages/commit/75d81c5fccf52d270239261bab79dd1fde41c19a))
+* **avm-simulator:** Cap gas for external calls ([#6479](https://github.com/AztecProtocol/aztec-packages/issues/6479)) ([c8771ba](https://github.com/AztecProtocol/aztec-packages/commit/c8771ba7c75fc2395ed0b12a117a2d3eb5ab6983))
+* **avm:** Gzip avm bytecode ([#6475](https://github.com/AztecProtocol/aztec-packages/issues/6475)) ([29559bd](https://github.com/AztecProtocol/aztec-packages/commit/29559bd3ef28d7f208ebd7052fd85a8a4cd23436))
+* **avm:** To_radix gadget ([#6368](https://github.com/AztecProtocol/aztec-packages/issues/6368)) ([89dd25f](https://github.com/AztecProtocol/aztec-packages/commit/89dd25f2b25f720def6cac003ce204e92de66c47))
+* Full encryption and decryption of log in ts ([#6348](https://github.com/AztecProtocol/aztec-packages/issues/6348)) ([0ac83dc](https://github.com/AztecProtocol/aztec-packages/commit/0ac83dc8e65b87652a4bc3f4f931bfc23c7f41aa))
+* Improved ClientIvc ([#6429](https://github.com/AztecProtocol/aztec-packages/issues/6429)) ([f360b3f](https://github.com/AztecProtocol/aztec-packages/commit/f360b3fd30b9dd1e80e5f1a3d42c325c0f54f8ed))
+* Laying out a new recursion constraint for honk ([#6489](https://github.com/AztecProtocol/aztec-packages/issues/6489)) ([af9fea4](https://github.com/AztecProtocol/aztec-packages/commit/af9fea4bbafe1a41b09d9351a34a896db2c8ab7d))
+* Remove total logs len from pre tail kernels + add to L1 ([#6466](https://github.com/AztecProtocol/aztec-packages/issues/6466)) ([66a2d43](https://github.com/AztecProtocol/aztec-packages/commit/66a2d43432607ec43eaac5b0ee7ac69f44d18d92))
+* Run benchmarks for ACIR proving ([#6155](https://github.com/AztecProtocol/aztec-packages/issues/6155)) ([ebf6fc2](https://github.com/AztecProtocol/aztec-packages/commit/ebf6fc2313c82b97d9ccd8c36caee42fb7a1c901))
+* Squash transient note logs ([#6268](https://github.com/AztecProtocol/aztec-packages/issues/6268)) ([4574877](https://github.com/AztecProtocol/aztec-packages/commit/457487795c6bce1db336b2ba80060ad016dd1265))
+* Sum transaction fees and pay on l1 ([#6522](https://github.com/AztecProtocol/aztec-packages/issues/6522)) ([bf441da](https://github.com/AztecProtocol/aztec-packages/commit/bf441da243405744caa9d5422e1b8a2676efba8b))
+* Translator recursive verifier ([#6327](https://github.com/AztecProtocol/aztec-packages/issues/6327)) ([9321aef](https://github.com/AztecProtocol/aztec-packages/commit/9321aef1a49eb33ea388838ba7b0c00dddd9c898))
+* View functions with static context enforcing ([#6338](https://github.com/AztecProtocol/aztec-packages/issues/6338)) ([22ad5a5](https://github.com/AztecProtocol/aztec-packages/commit/22ad5a5728afce5dcf32c8e6d8025691081e0de1))
+* Vk_as_fields, proof_as_fields flows for honk ([#6406](https://github.com/AztecProtocol/aztec-packages/issues/6406)) ([a6100ad](https://github.com/AztecProtocol/aztec-packages/commit/a6100ad3d5126321d457b5c336ab4a3521ff1fb2))
+
+
+### Bug Fixes
+
+* Disable buggy ClientIVC tests ([#6546](https://github.com/AztecProtocol/aztec-packages/issues/6546)) ([b61dea3](https://github.com/AztecProtocol/aztec-packages/commit/b61dea36947a203457b6f9fe0943f3d28e8aab01))
+* Increase N_max in Zeromorph ([#6415](https://github.com/AztecProtocol/aztec-packages/issues/6415)) ([9e643b4](https://github.com/AztecProtocol/aztec-packages/commit/9e643b429b22a1b8905ede07ab2e9561f42a1a89))
+
+
+### Miscellaneous
+
+* Add c++ tests for generator derivation ([#6528](https://github.com/AztecProtocol/aztec-packages/issues/6528)) ([72931bd](https://github.com/AztecProtocol/aztec-packages/commit/72931bdb8202c34042cdfb8cee2ef44b75939879))
+* Bump maximum nullifier read requests (necessary for e2e tests in AVM) ([#6462](https://github.com/AztecProtocol/aztec-packages/issues/6462)) ([26eac62](https://github.com/AztecProtocol/aztec-packages/commit/26eac620b22e3e4b19491884fe46ea3950ff5802))
+* Bump maximum nullifier read requests (necessary for e2e tests in AVM) ([#6495](https://github.com/AztecProtocol/aztec-packages/issues/6495)) ([90d8092](https://github.com/AztecProtocol/aztec-packages/commit/90d80926cb6f8f7ae3c5f791e0386f4f313c7d90))
+* Copy subset of constants to cpp ([#6544](https://github.com/AztecProtocol/aztec-packages/issues/6544)) ([21dc72a](https://github.com/AztecProtocol/aztec-packages/commit/21dc72aaf29ada2c1a12682d3763370c76eff524))
+* Lower max public bytecode to 20k ([#6477](https://github.com/AztecProtocol/aztec-packages/issues/6477)) ([ce192f0](https://github.com/AztecProtocol/aztec-packages/commit/ce192f0804d1d00ecf800198a4a5fda5a364a502))
+* Parameterise cycle_group by `Builder` rather than `Composer` ([#6565](https://github.com/AztecProtocol/aztec-packages/issues/6565)) ([ea36bf9](https://github.com/AztecProtocol/aztec-packages/commit/ea36bf9bbd5e22ba4c566b08a4c8410e46175c70))
+* Private call validation ([#6510](https://github.com/AztecProtocol/aztec-packages/issues/6510)) ([07dc072](https://github.com/AztecProtocol/aztec-packages/commit/07dc0726501bc78d691e1d2360dda84d1a93b9c5))
+* Share decider with ultra_prover ([#5467](https://github.com/AztecProtocol/aztec-packages/issues/5467)) ([b3b7376](https://github.com/AztecProtocol/aztec-packages/commit/b3b7376161f353a273bf26d42e435667b41cc5e2))
+
+
+### Documentation
+
+* Sumcheck documentation ([#5841](https://github.com/AztecProtocol/aztec-packages/issues/5841)) ([116eef0](https://github.com/AztecProtocol/aztec-packages/commit/116eef06be3991fa03482425780715e6f78791ea))
+
 ## [0.40.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.40.0...barretenberg-v0.40.1) (2024-05-14)
 
 
