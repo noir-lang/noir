@@ -54,6 +54,10 @@ impl UnresolvedFunctions {
         self.functions.push((mod_id, func_id, func));
     }
 
+    pub fn function_ids(&self) -> Vec<FuncId> {
+        vecmap(&self.functions, |(_, id, _)| *id)
+    }
+
     pub fn resolve_trait_bounds_trait_ids(
         &mut self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
