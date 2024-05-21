@@ -14,7 +14,7 @@ use transforms::{
     note_interface::{generate_note_interface_impl, inject_note_exports},
     storage::{
         assign_storage_slots, check_for_storage_definition, check_for_storage_implementation,
-        generate_storage_implementation, generate_storage_layout,
+        generate_storage_implementation, generate_storage_layout, inject_context_in_storage,
     },
 };
 
@@ -102,6 +102,7 @@ fn transform_module(
     let storage_defined = maybe_storage_struct_name.is_some();
 
     if let Some(ref storage_struct_name) = maybe_storage_struct_name {
+        inject_context_in_storage(module)?;
         if !check_for_storage_implementation(module, storage_struct_name) {
             generate_storage_implementation(module, storage_struct_name)?;
         }

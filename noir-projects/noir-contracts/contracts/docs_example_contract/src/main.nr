@@ -18,10 +18,7 @@ contract DocsExample {
         PrivateContext, Map, PublicMutable, PublicImmutable, PrivateMutable, PrivateImmutable,
         PrivateSet, SharedImmutable, Deserialize
     };
-    use dep::aztec::{
-        note::note_getter_options::Comparator, context::{PublicContext, Context},
-        keys::getters::{get_npk_m_hash, get_ivpk_m}
-    };
+    use dep::aztec::{note::note_getter_options::Comparator, keys::getters::{get_npk_m_hash, get_ivpk_m}};
     use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
     // how to import methods from other files/folders within your workspace
     use crate::options::create_account_card_getter_options;
@@ -57,7 +54,7 @@ contract DocsExample {
 
     // Note: The following is no longer necessary to implement manually as our macros do this for us. It is left here
     // for documentation purposes only.
-    impl Storage {
+    impl<Context> Storage<Context> {
         fn init(context: Context) -> Self {
             Storage {
                 // docs:start:storage-leader-init
@@ -290,7 +287,8 @@ contract DocsExample {
     // docs:end:private_mutable_is_initialized
 
     // docs:start:get_note-private-immutable
-    unconstrained fn get_imm_card() -> pub CardNote {
+    #[aztec(private)]
+    fn get_imm_card() -> CardNote {
         storage.private_immutable.get_note()
     }
     // docs:end:get_note-private-immutable
@@ -346,7 +344,7 @@ contract DocsExample {
         // docs:end:context-example-context
 
         // docs:start:storage-example-context
-        let mut storage = Storage::init(Context::private(&mut context));
+        let mut storage = Storage::init(&mut context);
         // docs:end:storage-example-context
         // ************************************************************
 

@@ -1,18 +1,18 @@
 use crate::{
-    context::Context, history::public_storage::public_storage_historical_read,
+    context::{PrivateContext, PublicContext}, history::public_storage::public_storage_historical_read,
     oracle::{storage::{storage_read, storage_write}}, state_vars::storage::Storage
 };
 use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
 
 // Just like PublicImmutable but with the ability to read from private functions.
-struct SharedImmutable<T>{
+struct SharedImmutable<T, Context>{
     context: Context,
     storage_slot: Field,
 }
 
-impl<T> Storage<T> for SharedImmutable<T> {}
+impl<T, Context> Storage<T> for SharedImmutable<T, Context> {}
 
-impl<T> SharedImmutable<T> {
+impl<T, Context> SharedImmutable<T, Context> {
     pub fn new(
         // Note: Passing the contexts to new(...) just to have an interface compatible with a Map.
         context: Context,
@@ -21,12 +21,11 @@ impl<T> SharedImmutable<T> {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Self { context, storage_slot }
     }
+}
 
+impl<T> SharedImmutable<T, &mut PublicContext> {
     // Intended to be only called once. 
     pub fn initialize<T_SERIALIZED_LEN>(self, value: T) where T: Serialize<T_SERIALIZED_LEN> {
-        assert(
-            self.context.private.is_none(), "SharedImmutable can only be initialized from public functions"
-        );
         // TODO(#4738): Uncomment the following assert
         // assert(
         //     self.context.public.unwrap_unchecked().is_deployment(), "SharedImmutable can only be initialized during contract deployment"
@@ -45,23 +44,28 @@ impl<T> SharedImmutable<T> {
     }
 
     pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
-        assert(self.context.private.is_none(), "Public read only supported in public functions");
         let fields = storage_read(self.storage_slot);
         T::deserialize(fields)
     }
+}
 
+impl<T> SharedImmutable<T, ()> {
+    pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
+        let fields = storage_read(self.storage_slot);
+        T::deserialize(fields)
+    }
+}
+
+impl<T> SharedImmutable<T, &mut PrivateContext> {
     pub fn read_private<T_SERIALIZED_LEN>(self) -> T  where T: Deserialize<T_SERIALIZED_LEN> {
-        assert(self.context.public.is_none(), "Private read only supported in private functions");
-        let private_context = self.context.private.unwrap();
-
         let mut fields = [0; T_SERIALIZED_LEN];
 
         for i in 0..fields.len() {
             fields[i] =
                 public_storage_historical_read(
-                    (*private_context),
+                    (*self.context),
                     self.storage_slot + i as Field,
-                    (*private_context).this_address()
+                    (*self.context).this_address()
                 );
         }
         T::deserialize(fields)

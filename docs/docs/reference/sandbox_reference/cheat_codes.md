@@ -528,7 +528,7 @@ Note: One Field element occupies a storage slot. Hence, structs with multiple fi
 #[aztec(storage)]
 struct Storage {
     ...
-    pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
+    pending_shields: PrivateSet<TransparentNote, TRANSPARENT_NOTE_LEN>,
 }
 
 contract Token {

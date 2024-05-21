@@ -76,6 +76,10 @@ contract Token {
     }
     // docs:end:set_admin
 
+    unconstrained fn un_get_name() -> pub [u8; 31] {
+        storage.name.read_public().to_bytes()
+    }
+
     #[aztec(public)]
     fn public_get_name() -> pub FieldCompressedString {
         storage.name.read_public()
@@ -86,8 +90,8 @@ contract Token {
         storage.name.read_private()
     }
 
-    unconstrained fn un_get_name() -> pub [u8; 31] {
-        storage.name.read_public().to_bytes()
+    unconstrained fn un_get_symbol() -> pub [u8; 31] {
+        storage.symbol.read_public().to_bytes()
     }
 
     #[aztec(public)]
@@ -100,8 +104,8 @@ contract Token {
         storage.symbol.read_private()
     }
 
-    unconstrained fn un_get_symbol() -> pub [u8; 31] {
-        storage.symbol.read_public().to_bytes()
+    unconstrained fn un_get_decimals() -> pub u8 {
+        storage.decimals.read_public()
     }
 
     #[aztec(public)]
@@ -116,10 +120,6 @@ contract Token {
         // docs:start:read_decimals_private
         storage.decimals.read_private()
         // docs:end:read_decimals_private
-    }
-
-    unconstrained fn un_get_decimals() -> pub u8 {
-        storage.decimals.read_public()
     }
 
     // docs:start:set_minter

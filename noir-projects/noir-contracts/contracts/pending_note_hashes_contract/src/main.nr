@@ -6,7 +6,6 @@ contract PendingNoteHashes {
     // Libs
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet};
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
-    use dep::aztec::context::{PublicContext, Context};
     use dep::aztec::keys::getters::{get_npk_m_hash, get_ivpk_m};
     use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
 

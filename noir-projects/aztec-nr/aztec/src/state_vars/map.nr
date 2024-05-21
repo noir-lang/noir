@@ -1,18 +1,17 @@
-use crate::context::{PrivateContext, PublicContext, Context};
 use dep::protocol_types::{hash::pedersen_hash, traits::ToField};
 use crate::state_vars::storage::Storage;
 
 // docs:start:map
-struct Map<K, V> {
+struct Map<K, V, Context> {
     context: Context,
     storage_slot: Field,
     state_var_constructor: fn(Context, Field) -> V,
 }
 // docs:end:map
 
-impl<K, T> Storage<T> for Map<K, T> {}
+impl<K, T, Context> Storage<T> for Map<K, T, Context> {}
 
-impl<K, V> Map<K, V> {
+impl<K, V, Context> Map<K, V, Context> {
     // docs:start:new
     pub fn new(
         context: Context,

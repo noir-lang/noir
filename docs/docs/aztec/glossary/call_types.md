@@ -140,9 +140,11 @@ This is the same function that was called by privately enqueuing a call to it! P
 
 ### Top-level Unconstrained
 
-Contract functions with the `unconstrained` Noir keyword are a special type of function still under development, and their semantics will likely change in the near future. They are used to perform state queries from an off-chain client, and are never included in any transaction. No guarantees are made on the correctness of the result since they rely exclusively on unconstrained oracle calls.
+Contract functions with the `unconstrained` Noir keyword are a special type of function still under development, and their semantics will likely change in the near future. They are used to perform state queries from an off-chain client (from both private and public state!), and are never included in any transaction. No guarantees are made on the correctness of the result since the entire execution is unconstrained and heavily reliant on oracle calls.
 
-A reasonable mental model for them is that of a `view` Solidity function that is never called in any transaction, and is only ever invoked via `eth_call`. Note that in these the caller assumes that the node is acting honestly by exectuing the true contract bytecode with correct blockchain state, the same way the Aztec version assumes the oracles are returning legitimate data.
+Any programming language could be used to construct these queries, since all they do is perform arbitrary computation on data that is either publicly available from any node, or locally available from the PXE. Top-level unconstrained functions exist because they let developers utilize the rest of the contract code directly by being part of the same Noir contract, and e.g. use the same libraries, structs, etc. instead of having to rely on manual computation of storage slots, struct layout and padding, and so on.
+
+A reasonable mental model for them is that of a Solidity `view` function that can never be called in any transaction, and is only ever invoked via `eth_call`. Note that in these the caller assumes that the node is acting honestly by executing the true contract bytecode with correct blockchain state, the same way the Aztec version assumes the oracles are returning legitimate data.
 
 ### aztec.js
 

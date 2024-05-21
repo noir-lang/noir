@@ -9,7 +9,7 @@ To learn more about storage slots, read [this explainer](/guides/smart_contracts
 
 You control this storage in Aztec using a struct annotated with `#[aztec(storage)]`. This struct serves as the housing unit for all your smart contract's state variables - the data it needs to keep track of and maintain.
 
-These state variables come in two forms: public and private. Public variables are visible to anyone, and private variables remain hidden within the contract.
+These state variables come in two forms: [public](./public_state.md) and [private](./private_state.md). Public variables are visible to anyone, and private variables remain hidden within the contract. A state variable with both public and private components is said to be [shared](./shared_state.md).
 
 Aztec.nr has a few abstractions to help define the type of data your contract holds. These include PrivateMutable, PrivateImmutable, PublicMutable, PrivateSet, and SharedImmutable.
 
@@ -22,21 +22,31 @@ On this and the following pages in this section, you’ll learn:
 - Practical implications of Storage in real smart contracts
   In an Aztec.nr contract, storage is to be defined as a single struct, that contains both public and private state variables.
 
-## Public and private state variables
+## The `Context` parameter
 
-Public state variables can be read by anyone, while private state variables can only be read by their owner (or people whom the owner has shared the decrypted data or note viewing key with).
+Aztec contracts have three different modes of execution: [private](../../../aztec/glossary/call_types.md#private-execution), [public](../../../aztec/glossary/call_types.md#public-execution) and [top-level unconstrained](../../../aztec/glossary/call_types.md#top-level-unconstrained). How storage is accessed depends on the execution mode: for example, `PublicImmutable` can be read in all execution modes but only initialized in public, while `PrivateMutable` is entirely unavailable in public.
 
-Public state follows the Ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (/aztec/aztec/concepts/state_model/index.md) and [private/public execution](/aztec/concepts/smart_contracts/communication/public_private_calls.md)) for more background.
+Aztec.nr prevents developers from calling functions unavailable in the current execution mode via the `context` variable that is injected into all contract functions. Its type indicates the current execution mode:
+ - `&mut PrivateContext` for private execution
+ - `&mut PublicContext` for public execution
+ - `()` for unconstrained
 
-## Storage struct
+All state variables are generic over this `Context` type, and expose different methods in each execution mode. In the example above, `PublicImmutable`'s `initialize` function is only available with a public execution context, and so the following code results in a compilation error:
 
 ```rust
 #[aztec(storage)]
 struct Storage {
-  // public state variables
-  // private state variables
+  variable: PublicImmutable<Field>,
+}
+
+#[aztec(private)]
+fn some_private_function() {
+  storage.variable.initialize(0);
+  // ^ ERROR: Expected type PublicImmutable<_, &mut PublicContext>, found type PublicImmutable<Field, &mut PrivateContext>
 }
 ```
+
+The `Context` generic type parameter is not visible in the code above as it is automatically injected by the `#[aztec(storage)]` macro, in order to reduce boilerplate. Similarly, all state variables in that struct (e.g. `PublicImmutable`) similarly have that same type parameter automatically passed to them.
 
 ## Map
 

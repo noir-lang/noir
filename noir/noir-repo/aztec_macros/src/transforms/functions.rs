@@ -67,7 +67,7 @@ pub fn transform_function(
 
     // Add access to the storage struct
     if let Some(storage_struct_name) = storage_struct_name {
-        let storage_def = abstract_storage(storage_struct_name, &ty.to_lowercase(), false);
+        let storage_def = abstract_storage(storage_struct_name, false);
         func.def.body.statements.insert(0, storage_def);
     }
 
@@ -221,10 +221,7 @@ pub fn export_fn_abi(
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 pub fn transform_unconstrained(func: &mut NoirFunction, storage_struct_name: String) {
-    func.def
-        .body
-        .statements
-        .insert(0, abstract_storage(storage_struct_name, "Unconstrained", true));
+    func.def.body.statements.insert(0, abstract_storage(storage_struct_name, true));
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -597,7 +594,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(private)]
 /// fn lol() {
-///     let storage = Storage::init(Context::private(context));
+///     let storage = Storage::init(context);
 /// }
 /// ```
 ///
@@ -605,33 +602,28 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(public)]
 /// fn lol() {
-///    let storage = Storage::init(Context::public(context));
+///    let storage = Storage::init(context);
 /// }
 /// ```
 ///
 /// For unconstrained functions:
 /// ```noir
 /// unconstrained fn lol() {
-///   let storage = Storage::init(Context::none());
+///   let storage = Storage::init(());
 /// }
-fn abstract_storage(storage_struct_name: String, typ: &str, unconstrained: bool) -> Statement {
-    let init_context_call = if unconstrained {
-        call(
-            variable_path(chained_dep!("aztec", "context", "Context", "none")), // Path
-            vec![],                                                             // args
-        )
+fn abstract_storage(storage_struct_name: String, unconstrained: bool) -> Statement {
+    let context_expr = if unconstrained {
+        // Note that the literal unit type (i.e. '()') is not the same as a tuple with zero elements
+        expression(ExpressionKind::Literal(Literal::Unit))
     } else {
-        call(
-            variable_path(chained_dep!("aztec", "context", "Context", typ)), // Path
-            vec![mutable_reference("context")],                              // args
-        )
+        mutable_reference("context")
     };
 
     assignment(
         "storage", // Assigned to
         call(
             variable_path(chained_path!(storage_struct_name.as_str(), "init")), // Path
-            vec![init_context_call],                                            // args
+            vec![context_expr],                                                 // args
         ),
     )
 }

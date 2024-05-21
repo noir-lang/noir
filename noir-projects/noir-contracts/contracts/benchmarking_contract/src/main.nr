@@ -7,7 +7,7 @@ contract Benchmarking {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, Map, PublicMutable, PrivateSet};
     use dep::value_note::{utils::{increment, decrement}, value_note::ValueNote};
 
-    use dep::aztec::{context::{Context, gas::GasOpts}};
+    use dep::aztec::context::gas::GasOpts;
 
     #[aztec(storage)]
     struct Storage {

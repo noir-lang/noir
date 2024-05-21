@@ -1,31 +1,30 @@
 use dep::aztec::{
-    protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint}, context::Context,
+    context::PrivateContext, protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint},
     note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet,
     keys::getters::{get_npk_m_hash, get_ivpk_m}
 };
 use dep::value_note::{filter::filter_notes_min_sum, value_note::ValueNote};
 
-struct EasyPrivateUint {
+struct EasyPrivateUint<Context> {
     context: Context,
-    set: PrivateSet<ValueNote>,
+    set: PrivateSet<ValueNote, Context>,
     storage_slot: Field,
 }
 
 // Holds a note that can act similarly to an int.
-impl EasyPrivateUint {
+impl<Context> EasyPrivateUint<Context> {
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        let set = PrivateSet { context, storage_slot };
+        let set = PrivateSet::new(context, storage_slot);
         EasyPrivateUint { context, set, storage_slot }
     }
+}
 
+impl<Context> EasyPrivateUint<&mut PrivateContext> {
     // Very similar to `value_note::utils::increment`.
     pub fn add(self, addend: u64, owner: AztecAddress) {
-        assert(self.context.public.is_none(), "EasyPrivateUint::add can be called from private only.");
-        let context = self.context.private.unwrap();
-
-        let owner_npk_m_hash = get_npk_m_hash(context, owner);
-        let owner_ivpk_m = get_ivpk_m(context, owner);
+        let owner_npk_m_hash = get_npk_m_hash(self.context, owner);
+        let owner_ivpk_m = get_ivpk_m(self.context, owner);
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner_npk_m_hash);
 
@@ -37,11 +36,8 @@ impl EasyPrivateUint {
 
     // Very similar to `value_note::utils::decrement`.
     pub fn sub(self, subtrahend: u64, owner: AztecAddress) {
-        assert(self.context.public.is_none(), "EasyPrivateUint::sub can be called from private only.");
-        let context = self.context.private.unwrap();
-
-        let owner_npk_m_hash = get_npk_m_hash(context, owner);
-        let owner_ivpk_m = get_ivpk_m(context, owner);
+        let owner_npk_m_hash = get_npk_m_hash(self.context, owner);
+        let owner_ivpk_m = get_ivpk_m(self.context, owner);
 
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);

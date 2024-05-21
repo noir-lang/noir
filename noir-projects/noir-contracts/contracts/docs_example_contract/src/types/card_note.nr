@@ -3,8 +3,8 @@ use dep::aztec::{
     keys::getters::get_ivpk_m, note::{utils::compute_note_hash_for_consumption},
     keys::getters::get_nsk_app,
     protocol_types::{
-    traits::Empty, grumpkin_point::GrumpkinPoint, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
-    hash::poseidon2_hash
+    traits::{Empty, Serialize}, grumpkin_point::GrumpkinPoint,
+    constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash
 }
 };
 
@@ -58,5 +58,11 @@ impl NoteInterface<CARD_NOTE_LEN> for CardNote {
             ivpk_m,
             self,
         );
+    }
+}
+
+impl Serialize<3> for CardNote {
+    fn serialize(self) -> [Field; 3] {
+        [ self.points.to_field(), self.randomness, self.npk_m_hash.to_field() ]
     }
 }

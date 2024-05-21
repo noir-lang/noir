@@ -3,8 +3,7 @@ contract StaticChild {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, Deserialize};
 
     use dep::aztec::{
-        context::{PublicContext, Context, gas::GasOpts},
-        protocol_types::{abis::{call_context::CallContext}},
+        context::{PublicContext, gas::GasOpts}, protocol_types::{abis::{call_context::CallContext}},
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         keys::getters::{get_npk_m_hash, get_ivpk_m}
     };

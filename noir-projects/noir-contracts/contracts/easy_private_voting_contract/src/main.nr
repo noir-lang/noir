@@ -4,7 +4,7 @@ contract EasyPrivateVoting {
         AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext,
         Map, PublicMutable
     };
-    use dep::aztec::{context::Context, keys::getters::get_npk_m_hash};
+    use dep::aztec::keys::getters::get_npk_m_hash;
     // docs:end:imports
     // docs:start:storage_struct
     #[aztec(storage)]

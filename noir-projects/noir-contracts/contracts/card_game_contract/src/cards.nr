@@ -5,8 +5,8 @@ use dep::aztec::{
     traits::{ToField, Serialize, FromField}, grumpkin_point::GrumpkinPoint,
     constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
 },
-    keys::getters::{get_npk_m_hash, get_ivpk_m}, context::{PublicContext, Context},
-    note::note_getter::view_notes, state_vars::PrivateSet, note::constants::MAX_NOTES_PER_PAGE
+    keys::getters::{get_npk_m_hash, get_ivpk_m}, note::note_getter::view_notes, state_vars::PrivateSet,
+    note::constants::MAX_NOTES_PER_PAGE
 };
 use dep::std;
 use dep::std::{option::Option};
@@ -66,8 +66,8 @@ impl CardNote {
     }
 }
 
-struct Deck {
-    set: PrivateSet<ValueNote>,
+struct Deck<Context> {
+    set: PrivateSet<ValueNote, Context>,
 }
 
 pub fn filter_cards<N>(
@@ -96,17 +96,17 @@ pub fn filter_cards<N>(
     selected
 }
 
-impl Deck {
+impl<Context> Deck<Context> {
     pub fn new(context: Context, storage_slot: Field) -> Self {
         let set = PrivateSet { context, storage_slot };
         Deck { set }
     }
+}
 
+impl Deck<&mut PrivateContext> {
     pub fn add_cards<N>(&mut self, cards: [Card; N], owner: AztecAddress) -> [CardNote] {
-        let context = self.set.context.private.unwrap();
-
-        let owner_npk_m_hash = get_npk_m_hash(context, owner);
-        let owner_ivpk_m = get_ivpk_m(context, owner);
+        let owner_npk_m_hash = get_npk_m_hash(self.set.context, owner);
+        let owner_ivpk_m = get_ivpk_m(self.set.context, owner);
 
         let mut inserted_cards = &[];
         for card in cards {
@@ -119,7 +119,7 @@ impl Deck {
     }
 
     pub fn get_cards<N>(&mut self, cards: [Card; N], owner: AztecAddress) -> [CardNote; N] {
-        let owner_npk_m_hash = get_npk_m_hash(self.set.context.private.unwrap(), owner);
+        let owner_npk_m_hash = get_npk_m_hash(self.set.context, owner);
 
         let options = NoteGetterOptions::with_filter(filter_cards, cards);
         let maybe_notes = self.set.get_notes(options);
@@ -156,7 +156,9 @@ impl Deck {
             self.set.remove(card_note.note);
         }
     }
+}
 
+impl Deck<()> {
     unconstrained pub fn view_cards(self, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
         let mut options = NoteViewerOptions::new();
         let opt_notes = self.set.view_notes(options.set_offset(offset));

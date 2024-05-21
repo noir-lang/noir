@@ -6,7 +6,7 @@ contract InclusionProofs {
     };
 
     use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId};
-    use dep::aztec::{context::Context, note::note_getter_options::NoteStatus, keys::getters::{get_npk_m_hash, get_ivpk_m}};
+    use dep::aztec::{note::note_getter_options::NoteStatus, keys::getters::{get_npk_m_hash, get_ivpk_m}};
     // docs:start:imports
     use dep::aztec::history::{
         contract_inclusion::{

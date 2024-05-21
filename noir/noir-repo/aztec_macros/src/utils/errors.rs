@@ -16,6 +16,7 @@ pub enum AztecMacroError {
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },
     MultipleStorageDefinitions { span: Option<Span> },
     CouldNotExportStorageLayout { span: Option<Span>, secondary_message: Option<String> },
+    CouldNotInjectContextGenericInStorage { secondary_message: Option<String> },
     CouldNotExportFunctionAbi { span: Option<Span>, secondary_message: Option<String> },
     CouldNotGenerateContractInterface { secondary_message: Option<String> },
     EventError { span: Span, message: String },
@@ -75,6 +76,11 @@ impl From<AztecMacroError> for MacroError {
                 primary_message: "Could not generate and export storage layout".to_string(),
                 secondary_message,
                 span,
+            },
+            AztecMacroError::CouldNotInjectContextGenericInStorage { secondary_message } => MacroError {
+                primary_message: "Could not inject context generic in storage".to_string(),
+                secondary_message,
+                span: None
             },
             AztecMacroError::CouldNotExportFunctionAbi { secondary_message, span } => MacroError {
                 primary_message: "Could not generate and export function abi".to_string(),

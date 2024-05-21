@@ -1,6 +1,6 @@
 use dep::protocol_types::{hash::pedersen_hash, traits::FromField, address::AztecAddress};
 
-use crate::context::{PrivateContext, Context};
+use crate::context::PrivateContext;
 use crate::history::public_storage::public_storage_historical_read;
 use crate::public_storage;
 use crate::state_vars::{

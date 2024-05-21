@@ -7,7 +7,6 @@ contract SchnorrAccount {
 
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
     use dep::aztec::state_vars::{Map, PublicMutable};
-    use dep::aztec::context::Context;
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
         auth_witness::get_auth_witness
@@ -44,7 +43,7 @@ contract SchnorrAccount {
     #[aztec(private)]
     #[aztec(noinitcheck)]
     fn entrypoint(app_payload: AppPayload, fee_payload: FeePayload) {
-        let actions = AccountActions::private(
+        let actions = AccountActions::init(
             &mut context,
             storage.approved_actions.storage_slot,
             is_valid_impl
@@ -55,7 +54,7 @@ contract SchnorrAccount {
     #[aztec(private)]
     #[aztec(noinitcheck)]
     fn spend_private_authwit(inner_hash: Field) -> Field {
-        let actions = AccountActions::private(
+        let actions = AccountActions::init(
             &mut context,
             storage.approved_actions.storage_slot,
             is_valid_impl
@@ -66,7 +65,7 @@ contract SchnorrAccount {
     #[aztec(public)]
     #[aztec(noinitcheck)]
     fn spend_public_authwit(inner_hash: Field) -> Field {
-        let actions = AccountActions::public(
+        let actions = AccountActions::init(
             &mut context,
             storage.approved_actions.storage_slot,
             is_valid_impl
@@ -84,7 +83,7 @@ contract SchnorrAccount {
     #[aztec(internal)]
     #[aztec(noinitcheck)]
     fn approve_public_authwit(outer_hash: Field) {
-        let actions = AccountActions::public(
+        let actions = AccountActions::init(
             &mut context,
             storage.approved_actions.storage_slot,
             is_valid_impl
@@ -96,7 +95,7 @@ contract SchnorrAccount {
     fn is_valid_impl(context: &mut PrivateContext, outer_hash: Field) -> bool {
         // docs:start:entrypoint
         // Load public key from storage
-        let storage = Storage::init(Context::private(context));
+        let storage = Storage::init(context);
         // docs:start:get_note
         let public_key = storage.signing_public_key.get_note();
         // docs:end:get_note

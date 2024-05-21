@@ -2,7 +2,7 @@ use dep::protocol_types::{
     constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, abis::read_request::ReadRequest,
     grumpkin_point::GrumpkinPoint
 };
-use crate::context::{PrivateContext, PublicContext, Context};
+use crate::context::{PrivateContext, PublicContext};
 use crate::note::{
     constants::MAX_NOTES_PER_PAGE, lifecycle::{create_note, create_note_hash_from_public, destroy_note},
     note_getter::{get_notes, view_notes}, note_getter_options::NoteGetterOptions,
@@ -12,21 +12,32 @@ use crate::note::{
 use crate::state_vars::storage::Storage;
 
 // docs:start:struct
-struct PrivateSet<Note> {
+struct PrivateSet<Note, Context> {
     context: Context,
     storage_slot: Field,
 }
 // docs:end:struct
 
-impl<T> Storage<T> for PrivateSet<T> {}
+impl<T, Context> Storage<T> for PrivateSet<T, Context> {}
 
-impl<Note> PrivateSet<Note> {
+impl<Note, Context> PrivateSet<Note, Context> {
     // docs:start:new
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         PrivateSet { context, storage_slot }
     }
     // docs:end:new
+}
+
+impl<Note> PrivateSet<Note, &mut PublicContext> {
+    // docs:start:insert_from_public
+    pub fn insert_from_public<N>(self, note: &mut Note) where Note: NoteInterface<N> {
+        create_note_hash_from_public(self.context, self.storage_slot, note);
+    }
+    // docs:end:insert_from_public
+}
+
+impl<Note> PrivateSet<Note, &mut PrivateContext> {
     // docs:start:insert
     pub fn insert<N>(
         self,
@@ -34,21 +45,9 @@ impl<Note> PrivateSet<Note> {
         broadcast: bool,
         ivpk_m: GrumpkinPoint
     ) where Note: NoteInterface<N> {
-        create_note(
-            self.context.private.unwrap(),
-            self.storage_slot,
-            note,
-            broadcast,
-            ivpk_m
-        );
+        create_note(self.context, self.storage_slot, note, broadcast, ivpk_m);
     }
     // docs:end:insert
-
-    // docs:start:insert_from_public
-    pub fn insert_from_public<N>(self, note: &mut Note) where Note: NoteInterface<N> {
-        create_note_hash_from_public(self.context.public.unwrap(), self.storage_slot, note);
-    }
-    // docs:end:insert_from_public
 
     // DEPRECATED
     fn assert_contains_and_remove(_self: Self, _note: &mut Note, _nonce: Field) {
@@ -66,12 +65,11 @@ impl<Note> PrivateSet<Note> {
 
     // docs:start:remove
     pub fn remove<N>(self, note: Note) where Note: NoteInterface<N> {
-        let context = self.context.private.unwrap();
         let note_hash = compute_note_hash_for_read_request(note);
-        let has_been_read = context.note_hash_read_requests.any(|r: ReadRequest| r.value == note_hash);
+        let has_been_read = self.context.note_hash_read_requests.any(|r: ReadRequest| r.value == note_hash);
         assert(has_been_read, "Can only remove a note that has been read from the set.");
 
-        destroy_note(context, note);
+        destroy_note(self.context, note);
     }
     // docs:end:remove
 
@@ -81,11 +79,13 @@ impl<Note> PrivateSet<Note> {
         options: NoteGetterOptions<Note, N, FILTER_ARGS>
     ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
         let storage_slot = self.storage_slot;
-        let opt_notes = get_notes(self.context.private.unwrap(), storage_slot, options);
+        let opt_notes = get_notes(self.context, storage_slot, options);
         opt_notes
     }
     // docs:end:get_notes
+}
 
+impl<Note> PrivateSet<Note, ()> {
     // docs:start:view_notes
     unconstrained pub fn view_notes<N>(
         self,

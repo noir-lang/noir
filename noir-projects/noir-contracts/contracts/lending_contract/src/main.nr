@@ -11,7 +11,7 @@ mod helpers;
 // - Liquidations
 contract Lending {
     use dep::aztec::prelude::{FunctionSelector, AztecAddress, PrivateContext, Map, PublicMutable};
-    use dep::aztec::context::{PublicContext, Context, gas::GasOpts};
+    use dep::aztec::context::{PublicContext, gas::GasOpts};
 
     use crate::asset::Asset;
     use crate::interest_math::compute_multiplier;

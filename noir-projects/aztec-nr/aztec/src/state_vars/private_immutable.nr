@@ -3,7 +3,7 @@ use dep::protocol_types::{
     constants::GENERATOR_INDEX__INITIALIZATION_NULLIFIER, hash::pedersen_hash
 };
 
-use crate::context::{PrivateContext, Context};
+use crate::context::PrivateContext;
 use crate::note::{
     lifecycle::create_note, note_getter::{get_note, view_notes}, note_interface::NoteInterface,
     note_viewer_options::NoteViewerOptions
@@ -12,19 +12,19 @@ use crate::oracle::notes::check_nullifier_exists;
 use crate::state_vars::storage::Storage;
 
 // docs:start:struct
-struct PrivateImmutable<Note> {
-    context: Option<&mut PrivateContext>,
+struct PrivateImmutable<Note, Context> {
+    context: Context,
     storage_slot: Field,
 }
 // docs:end:struct
 
-impl<T> Storage<T> for PrivateImmutable<T> {}
+impl<T, Context> Storage<T> for PrivateImmutable<T, Context> {}
 
-impl<Note> PrivateImmutable<Note> {
+impl<Note, Context> PrivateImmutable<Note, Context> {
     // docs:start:new
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Self { context: context.private, storage_slot }
+        Self { context, storage_slot }
     }
     // docs:end:new
 
@@ -40,14 +40,9 @@ impl<Note> PrivateImmutable<Note> {
             GENERATOR_INDEX__INITIALIZATION_NULLIFIER
         )
     }
+}
 
-    // docs:start:is_initialized
-    unconstrained pub fn is_initialized(self) -> bool {
-        let nullifier = self.compute_initialization_nullifier();
-        check_nullifier_exists(nullifier)
-    }
-    // docs:end:is_initialized
-
+impl<Note> PrivateImmutable<Note, &mut PrivateContext> {
     // docs:start:initialize
     pub fn initialize<N>(
         self,
@@ -55,24 +50,31 @@ impl<Note> PrivateImmutable<Note> {
         broadcast: bool,
         ivpk_m: GrumpkinPoint
     ) where Note: NoteInterface<N> {
-        let context = self.context.unwrap();
-
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
-        context.push_new_nullifier(nullifier, 0);
+        self.context.push_new_nullifier(nullifier, 0);
 
-        create_note(context, self.storage_slot, note, broadcast, ivpk_m);
+        create_note(self.context, self.storage_slot, note, broadcast, ivpk_m);
     }
     // docs:end:initialize
 
     // docs:start:get_note
     pub fn get_note<N>(self) -> Note where Note: NoteInterface<N> {
-        let context = self.context.unwrap();
         let storage_slot = self.storage_slot;
-        get_note(context, storage_slot)
+        get_note(self.context, storage_slot)
     }
     // docs:end:get_note
+}
 
+impl<Note> PrivateImmutable<Note, ()> {
+    // docs:start:is_initialized
+    unconstrained pub fn is_initialized(self) -> bool {
+        let nullifier = self.compute_initialization_nullifier();
+        check_nullifier_exists(nullifier)
+    }
+    // docs:end:is_initialized
+
+    // view_note does not actually use the context, but it calls oracles that are only available in private
     // docs:start:view_note
     unconstrained pub fn view_note<N>(self) -> Note  where Note: NoteInterface<N> {
         let mut options = NoteViewerOptions::new();

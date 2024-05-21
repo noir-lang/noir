@@ -2,11 +2,11 @@ use dep::aztec::note::{note_getter::view_notes, note_viewer_options::NoteViewerO
 use dep::aztec::state_vars::PrivateSet;
 use crate::value_note::ValueNote;
 
-unconstrained pub fn get_balance(set: PrivateSet<ValueNote>) -> Field {
+unconstrained pub fn get_balance(set: PrivateSet<ValueNote, ()>) -> Field {
     get_balance_with_offset(set, 0)
 }
 
-unconstrained pub fn get_balance_with_offset(set: PrivateSet<ValueNote>, offset: u32) -> Field {
+unconstrained pub fn get_balance_with_offset(set: PrivateSet<ValueNote, ()>, offset: u32) -> Field {
     let mut balance = 0;
     // docs:start:view_notes
     let mut options = NoteViewerOptions::new();

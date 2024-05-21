@@ -25,7 +25,7 @@ contract Test {
 
     use dep::aztec::{
         keys::getters::{get_npk_m, get_ivpk_m, get_npk_m_hash},
-        context::{Context, inputs::private_context_inputs::PrivateContextInputs},
+        context::inputs::private_context_inputs::PrivateContextInputs,
         hash::{pedersen_hash, compute_secret_hash, ArgsHasher},
         note::{
         lifecycle::{create_note, destroy_note}, note_getter::{get_notes, view_notes},

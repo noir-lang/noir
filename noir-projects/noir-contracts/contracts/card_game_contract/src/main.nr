@@ -3,7 +3,7 @@ mod game;
 
 contract CardGame {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-    use dep::aztec::{context::Context, hash::pedersen_hash, state_vars::{Map, PublicMutable}};
+    use dep::aztec::{hash::pedersen_hash, state_vars::{Map, PublicMutable}};
 
     use dep::value_note::{balance_utils, value_note::{ValueNote, VALUE_NOTE_LEN}};
 

@@ -45,6 +45,7 @@ You can't read public storage in private domain. But nevertheless reading public
 1. You pass the data as a parameter to your private method and later assert in public that the data is correct. E.g.:
 
 ```rust
+#[aztec(storage)]
 struct Storage {
    token: PublicMutable<Field>,
 }
