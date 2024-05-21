@@ -4,7 +4,6 @@ import {
   EncryptedL2BlockL2Logs,
   EncryptedL2Log,
   EncryptedTxL2Logs,
-  type KeyStore,
   type L1NotePayload,
   L2Block,
   TaggedNote,
@@ -20,6 +19,7 @@ import {
 } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { GrumpkinScalar, Point } from '@aztec/foundation/fields';
+import { type KeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type AcirSimulator } from '@aztec/simulator';
 

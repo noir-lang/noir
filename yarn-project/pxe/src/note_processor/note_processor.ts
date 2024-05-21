@@ -1,7 +1,6 @@
 import {
   type AztecNode,
   type EncryptedL2BlockL2Logs,
-  type KeyStore,
   L1NotePayload,
   type L2Block,
   TaggedNote,
@@ -11,6 +10,7 @@ import { INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX, type PublicKey } from
 import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
+import { type KeyStore } from '@aztec/key-store';
 import { ContractNotFoundError } from '@aztec/simulator';
 
 import { DeferredNoteDao } from '../database/deferred_note_dao.js';

@@ -9,11 +9,11 @@ import {
 } from '@aztec/circuits.js';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
-import { TestKeyStore } from './test_key_store.js';
+import { KeyStore } from './key_store.js';
 
-describe('TestKeyStore', () => {
+describe('KeyStore', () => {
   it('Adds account and returns keys', async () => {
-    const keyStore = new TestKeyStore(openTmpStore());
+    const keyStore = new KeyStore(openTmpStore());
 
     // Arbitrary fixed values
     const sk = new Fr(8923n);
@@ -97,7 +97,7 @@ describe('TestKeyStore', () => {
   });
 
   it('nullifier key rotation tests', async () => {
-    const keyStore = new TestKeyStore(openTmpStore());
+    const keyStore = new KeyStore(openTmpStore());
 
     // Arbitrary fixed values
     const sk = new Fr(8923n);

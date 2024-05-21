@@ -1,4 +1,4 @@
-import { type KeyStore, type PublicKey } from '@aztec/circuit-types';
+import { type PublicKey } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CompleteAddress,
@@ -24,10 +24,9 @@ import { type Bufferable, serializeToBuffer } from '@aztec/foundation/serialize'
 import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
 
 /**
- * TestKeyStore is an implementation of the KeyStore interface, used for managing key pairs in a testing environment.
- * It should be utilized in testing scenarios where secure key management is not required, and ease-of-use is prioritized.
+ * Used for managing keys. Can hold keys of multiple accounts and allows for key rotation.
  */
-export class TestKeyStore implements KeyStore {
+export class KeyStore {
   #keys: AztecMap<string, Buffer>;
 
   constructor(database: AztecKVStore) {

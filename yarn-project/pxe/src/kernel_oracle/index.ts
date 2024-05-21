@@ -1,4 +1,4 @@
-import { type AztecNode, type KeyStore } from '@aztec/circuit-types';
+import { type AztecNode } from '@aztec/circuit-types';
 import {
   type AztecAddress,
   type Fr,
@@ -13,6 +13,7 @@ import {
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type Tuple } from '@aztec/foundation/serialize';
+import { type KeyStore } from '@aztec/key-store';
 
 import { type ContractDataOracle } from '../contract_data_oracle/index.js';
 import { type ProvingDataOracle } from './../kernel_prover/proving_data_oracle.js';

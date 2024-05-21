@@ -1,5 +1,4 @@
 export * from './function_call.js';
-export * from './keys/index.js';
 export * from './notes/index.js';
 export * from './messaging/index.js';
 export * from './l2_block.js';

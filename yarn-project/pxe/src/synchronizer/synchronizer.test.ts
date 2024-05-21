@@ -3,7 +3,7 @@ import { Fr, type Header, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
 import { SerialQueue } from '@aztec/foundation/fifo';
-import { TestKeyStore } from '@aztec/key-store';
+import { KeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
@@ -126,7 +126,7 @@ describe('Synchronizer', () => {
     expect(await synchronizer.isGlobalStateSynchronized()).toBe(true);
 
     // Manually adding account to database so that we can call synchronizer.isAccountStateSynchronized
-    const keyStore = new TestKeyStore(openTmpStore());
+    const keyStore = new KeyStore(openTmpStore());
     const addAddress = async (startingBlockNum: number) => {
       const secretKey = Fr.random();
       const partialAddress = Fr.random();

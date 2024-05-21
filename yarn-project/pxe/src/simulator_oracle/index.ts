@@ -1,6 +1,5 @@
 import {
   type AztecNode,
-  type KeyStore,
   type L2Block,
   MerkleTreeId,
   type NoteStatus,
@@ -20,6 +19,7 @@ import {
 import { computeL1ToL2MessageNullifier } from '@aztec/circuits.js/hash';
 import { type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { type KeyStore } from '@aztec/key-store';
 import { type DBOracle, MessageLoadOracleInputs } from '@aztec/simulator';
 import { type ContractInstance } from '@aztec/types/contracts';
 

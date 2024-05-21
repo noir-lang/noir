@@ -1,1 +1,1 @@
-export * from './test_key_store.js';
+export * from './key_store.js';
