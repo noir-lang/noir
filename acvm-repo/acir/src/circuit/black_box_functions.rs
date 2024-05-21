@@ -192,7 +192,7 @@ pub enum BlackBoxFunc {
     /// does not say if verification is passing or not.
     ///
     ///
-    /// If one of the proof you verify with the black box function does not
+    /// If one of the recursive proofs you verify with the black box function does not
     /// verify, then the verification of the proof of the main ACIR program will
     /// ultimately fail.
     RecursiveAggregation,
