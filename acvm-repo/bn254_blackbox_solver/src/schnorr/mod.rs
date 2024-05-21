@@ -32,7 +32,7 @@ pub(crate) fn verify_signature(
     }
 
     // R = g^{sig.s} • pub^{sig.e}
-    let r = pub_key * sig_e + GrumpkinParameters::GENERATOR * sig_s;
+    let r = GrumpkinParameters::GENERATOR * sig_s + pub_key * sig_e;
     if r.is_zero() {
         // this result implies k == 0, which would be catastrophic for the prover.
         // it is a cheap check that ensures this doesn't happen.
