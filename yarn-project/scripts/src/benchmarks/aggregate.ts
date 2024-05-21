@@ -24,6 +24,7 @@ import {
   type MetricName,
   type NodeSyncedChainHistoryStats,
   type NoteProcessorCaughtUpStats,
+  type ProofConstructed,
   type Stats,
   type TreeInsertionStats,
   type TxAddedToPoolStats,
@@ -64,6 +65,13 @@ function append(
     results[metric]![bucket] = [];
   }
   results[metric]![bucket].push(numeric);
+}
+
+/** Processes an entry with event name 'acir-proof-generated' and updates results */
+function processAcirProofGenerated(entry: ProofConstructed, results: BenchmarkCollectedResults) {
+  if (entry.acir_test === 'sha256') {
+    append(results, `proof_construction_time_sha256`, entry.threads, entry.value);
+  }
 }
 
 /** Processes an entry with event name 'rollup-published-to-l1' and updates results */
@@ -240,6 +248,8 @@ function processTreeInsertion(entry: TreeInsertionStats, results: BenchmarkColle
 /** Processes a parsed entry from a log-file and updates results */
 function processEntry(entry: Stats, results: BenchmarkCollectedResults, fileName: string) {
   switch (entry.eventName) {
+    case 'proof_construction_time':
+      return processAcirProofGenerated(entry, results);
     case 'rollup-published-to-l1':
       return processRollupPublished(entry, results);
     case 'l2-block-handled':

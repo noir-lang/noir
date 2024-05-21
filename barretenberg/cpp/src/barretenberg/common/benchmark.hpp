@@ -94,7 +94,7 @@ template <typename T, typename... Args> void write_benchmark(const std::string& 
     }
     std::ostringstream oss;
     oss << "{\"timestamp\": \"" << getCurrentTimestamp() << "\", "
-        << "\"name\": \"" << name << "\", "
+        << "\"eventName\": \"" << name << "\", "
         << "\"type\": \"" << TypeTraits<T>::type << "\", "
         << "\"value\": " << value << ", "
         << "\"threads\": " << env_hardware_concurrency();

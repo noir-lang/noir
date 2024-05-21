@@ -2,6 +2,7 @@ import { type StatsEventName } from './stats.js';
 
 /** How a metric is grouped in benchmarks: by block size, by length of chain processed, or by circuit name. */
 export type MetricGroupBy =
+  | 'threads'
   | 'block-size'
   | 'chain-length'
   | 'protocol-circuit-name'
@@ -25,6 +26,12 @@ export interface Metric {
 
 /** Metric definitions to track from benchmarks. */
 export const Metrics = [
+  {
+    name: 'proof_construction_time_sha256',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
   {
     name: 'l1_rollup_calldata_size_in_bytes',
     groupBy: 'block-size',

@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 
+cd "$(dirname "$0")"
+
 TEST_NAMES=("$@")
 THREADS=(1 4 16 32 64)
-BENCHMARKS=$(mktemp)
+BENCHMARKS=$LOG_FILE
+
+if [[ -z "${LOG_FILE}" ]]; then
+    BENCHMARKS=$(mktemp)
+fi
 
 if [ "${#TEST_NAMES[@]}" -eq 0 ]; then
     TEST_NAMES=(sha256 ecdsa_secp256k1 ecdsa_secp256r1 schnorr double_verify_proof)
@@ -64,4 +70,6 @@ function genthreadheaders(t, len,   res) {
 }
 '
 
-rm $BENCHMARKS
+if [[ -z "${LOG_FILE}" ]]; then
+    rm $BENCHMARKS
+fi

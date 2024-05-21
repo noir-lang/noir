@@ -153,8 +153,39 @@ jobs:
               --no-output \
               +${{ matrix.test }}
 
+  acir-bench:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+      - name: Setup and Test
+        uses: ./.github/ensure-tester-with-images
+        timeout-minutes: 40
+        with:
+          runner_type: 16core-tester-x86
+          builder_type: builder-x86
+          # these are copied to the tester and expected by the earthly command below
+          # if they fail to copy, it will try to build them on the tester and fail
+          builder_images_to_copy: aztecprotocol/barretenberg-acir-benches:${{ env.GIT_COMMIT }}
+          # command to produce the images in case they don't exist
+          builder_command: cd noir && ../scripts/earthly-ci +export-bench-acir-bb
+          run: |
+            set -eux
+            cd ./noir/
+            export FORCE_COLOR=1
+            export EARTHLY_BUILD_ARGS="${{ env.EARTHLY_BUILD_ARGS }}"
+            ../scripts/earthly-ci -P \
+              --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              --no-output \
+              +bench-publish-acir-bb         
+
   bench-summary:
-    needs: bench-e2e
+    needs: 
+      - acir-bench
+      - bench-e2e
     runs-on: ${{ inputs.username || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
@@ -180,24 +211,6 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         working-directory: ./yarn-project/scripts
         run: earthly-ci -P --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} +bench-comment
-
-  noir-format:
-    needs: setup
-    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
-      - uses: ./.github/ci-setup-action
-        with:
-          concurrency_key: noir-format-x86
-      - name: "Format Noir"
-        working-directory: ./noir/
-        timeout-minutes: 40
-        run: earthly-ci --no-output ./+format
-      - name: "Format noir-projects"
-        working-directory: ./noir-projects/
-        timeout-minutes: 40
-        run: earthly-ci --no-output ./+format
 
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
@@ -231,6 +244,24 @@ jobs:
         working-directory: ./barretenberg/ts/
         timeout-minutes: 40
         run: earthly-ci --no-output ./+test
+
+  noir-format:
+    needs: setup
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: noir-format-x86
+      - name: "Format Noir"
+        working-directory: ./noir/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+format
+      - name: "Format noir-projects"
+        working-directory: ./noir-projects/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+format
 
   noir-test:
     needs: setup
@@ -468,6 +499,7 @@ jobs:
       - setup
       - e2e
       - bb-native-tests
+      - acir-bench
       - bb-bench
       - yarn-project-formatting
       - yarn-project-test

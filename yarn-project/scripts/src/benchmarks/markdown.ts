@@ -183,6 +183,7 @@ export function getMarkdown(prNumber: number) {
   const benchmark = JSON.parse(fs.readFileSync(inputFile, 'utf-8'));
   const baseBenchmark = getBaseBenchmark();
 
+  const metricsByThreads = Metrics.filter(m => m.groupBy === 'threads').map(m => m.name);
   const metricsByBlockSize = Metrics.filter(m => m.groupBy === 'block-size').map(m => m.name);
   const metricsByChainLength = Metrics.filter(m => m.groupBy === 'chain-length').map(m => m.name);
   const kernelCircuitMetrics = Metrics.filter(m => m.groupBy === 'protocol-circuit-name').map(m => m.name);
@@ -217,6 +218,11 @@ ${getWarningsSummary(benchmark, baseBenchmark)}
 All benchmarks are run on txs on the \`Benchmarking\` contract on the repository. Each tx consists of a batch call  to \`create_note\` and \`increment_balance\`, which guarantees that each tx has a private call, a nested private call, a public call, and a nested public call, as well as an emitted private note, an unencrypted log, and public storage read and write.
 ${prSourceDataText}
 ${baseCommitText}
+
+### Proof generation
+
+Each column represents the number of threads used in proof generation.
+${getTableContent(pick(benchmark, metricsByThreads), baseBenchmark, 'threads')}
 
 ### L2 block published to L1
 

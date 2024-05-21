@@ -66,4 +66,3 @@ bench-comment:
     [ -f $BENCH_FOLDER/benchmark.json ] \
       && (cd /usr/src/yarn-project/scripts && AZTEC_BOT_COMMENTER_GITHUB_TOKEN=$AZTEC_BOT_COMMENTER_GITHUB_TOKEN yarn bench-comment) \
       || echo "No benchmark file found in $BENCH_FOLDER"
-  
