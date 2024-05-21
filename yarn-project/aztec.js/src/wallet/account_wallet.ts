@@ -204,7 +204,7 @@ export class AccountWallet extends BaseWallet {
     return {
       name: 'approve_public_authwit',
       isInitializer: false,
-      functionType: FunctionType.OPEN,
+      functionType: FunctionType.PUBLIC,
       isInternal: true,
       isStatic: false,
       parameters: [
@@ -222,7 +222,7 @@ export class AccountWallet extends BaseWallet {
     return {
       name: 'cancel_authwit',
       isInitializer: false,
-      functionType: FunctionType.SECRET,
+      functionType: FunctionType.PRIVATE,
       isInternal: true,
       isStatic: false,
       parameters: [

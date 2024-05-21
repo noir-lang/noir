@@ -15,7 +15,7 @@ The structure of a contract artifact is as follows:
   "functions": [
     {
       "name": "constructor",
-      "functionType": "secret",
+      "functionType": "private",
       "isInternal": false,
       "parameters": [],
       "returnTypes": [],
@@ -24,7 +24,7 @@ The structure of a contract artifact is as follows:
     },
     {
       "name": "on_card_played",
-      "functionType": "open",
+      "functionType": "public",
       "isInternal": true,
       "parameters": [
         {
@@ -75,8 +75,8 @@ A simple string that matches the name that the contract developer used for this 
 #### `function.functionType`
 The function type can have one of the following values:
 
-- Secret: The function is ran and proved locally by the clients, and its bytecode not published to the network.
-- Open: The function is ran and proved by the sequencer, and its bytecode is published to the network.
+- Private: The function is ran and proved locally by the clients, and its bytecode not published to the network.
+- Public: The function is ran and proved by the sequencer, and its bytecode is published to the network.
 - Unconstrained: The function is ran locally by the clients to generate digested information useful for the user. It's not meant to be transacted against.
 
 #### `function.isInternal`

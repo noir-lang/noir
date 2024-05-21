@@ -41,18 +41,18 @@ contract ImportTest {
     }
 
     // Calls the emit_nullifier_public on the Test contract at the target address
-    // Used for testing calling an open function
+    // Used for testing calling a public function
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(private)]
-    fn call_open_fn(target: AztecAddress) {
+    fn call_public_fn(target: AztecAddress) {
         Test::at(target).emit_nullifier_public(1).enqueue(&mut context);
     }
 
     // Calls the emit_nullifier_public on the Test contract at the target address
-    // Used for testing calling an open function from another open function
+    // Used for testing calling a public function from another public function
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(public)]
-    fn pub_call_open_fn(target: AztecAddress) {
+    fn pub_call_public_fn(target: AztecAddress) {
         Test::at(target).emit_nullifier_public(1).call(&mut context);
     }
 }

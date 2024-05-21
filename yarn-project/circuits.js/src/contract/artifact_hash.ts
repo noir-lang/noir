@@ -52,7 +52,7 @@ export function computeArtifactHash(
 }
 
 export function computeArtifactHashPreimage(artifact: ContractArtifact) {
-  const privateFunctionRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.SECRET);
+  const privateFunctionRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.PRIVATE);
   const unconstrainedFunctionRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.UNCONSTRAINED);
   const metadataHash = computeArtifactMetadataHash(artifact);
   return { privateFunctionRoot, unconstrainedFunctionRoot, metadataHash };

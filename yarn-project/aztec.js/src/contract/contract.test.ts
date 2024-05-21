@@ -43,7 +43,7 @@ describe('Contract Class', () => {
       {
         name: 'bar',
         isInitializer: false,
-        functionType: FunctionType.SECRET,
+        functionType: FunctionType.PRIVATE,
         isInternal: false,
         isStatic: false,
         debugSymbols: '',
@@ -70,7 +70,7 @@ describe('Contract Class', () => {
         name: 'baz',
         isInitializer: false,
         isStatic: false,
-        functionType: FunctionType.OPEN,
+        functionType: FunctionType.PUBLIC,
         isInternal: false,
         parameters: [],
         returnTypes: [],

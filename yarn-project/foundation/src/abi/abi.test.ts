@@ -46,8 +46,8 @@ describe('abi', () => {
     it('prefers functions based on type', () => {
       const contract = {
         functions: [
-          { name: 'foo', isInitializer: true, functionType: FunctionType.OPEN },
-          { name: 'bar', isInitializer: true, functionType: FunctionType.SECRET },
+          { name: 'foo', isInitializer: true, functionType: FunctionType.PUBLIC },
+          { name: 'bar', isInitializer: true, functionType: FunctionType.PRIVATE },
         ],
       } as ContractArtifact;
       expect(getDefaultInitializer(contract)?.name).toEqual('bar');

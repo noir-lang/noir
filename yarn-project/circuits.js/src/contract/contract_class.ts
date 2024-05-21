@@ -18,7 +18,7 @@ export function getContractClassFromArtifact(
 ): ContractClassWithId & ContractClassIdPreimage {
   const artifactHash = 'artifactHash' in artifact ? artifact.artifactHash : computeArtifactHash(artifact);
   const publicFunctions: ContractClass['publicFunctions'] = artifact.functions
-    .filter(f => f.functionType === FunctionType.OPEN)
+    .filter(f => f.functionType === FunctionType.PUBLIC)
     .map(f => ({
       selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
       bytecode: f.bytecode,
@@ -28,7 +28,7 @@ export function getContractClassFromArtifact(
   const packedBytecode = packBytecode(publicFunctions);
 
   const privateFunctions: ContractClass['privateFunctions'] = artifact.functions
-    .filter(f => f.functionType === FunctionType.SECRET)
+    .filter(f => f.functionType === FunctionType.PRIVATE)
     .map(getContractClassPrivateFunctionFromArtifact)
     .sort(cmpFunctionArtifacts);
 

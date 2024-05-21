@@ -59,7 +59,7 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     return {
       name: 'entrypoint',
       isInitializer: false,
-      functionType: 'secret',
+      functionType: 'private',
       isInternal: false,
       isStatic: false,
       parameters: [

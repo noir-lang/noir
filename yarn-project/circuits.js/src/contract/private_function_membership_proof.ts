@@ -32,7 +32,7 @@ export function createPrivateFunctionMembershipProof(
 
   // Locate private function definition and artifact
   const privateFunctions = artifact.functions
-    .filter(fn => fn.functionType === FunctionType.SECRET)
+    .filter(fn => fn.functionType === FunctionType.PRIVATE)
     .map(getContractClassPrivateFunctionFromArtifact);
   const privateFunction = privateFunctions.find(fn => fn.selector.equals(selector));
   const privateFunctionArtifact = artifact.functions.find(fn => selector.equals(fn));
@@ -54,7 +54,7 @@ export function createPrivateFunctionMembershipProof(
   // And the "artifact tree" captures function bytecode and metadata, and is used by the pxe to check that its executing the code it's supposed to be executing, but it never goes into circuits.
   const functionMetadataHash = computeFunctionMetadataHash(privateFunctionArtifact);
   const functionArtifactHash = computeFunctionArtifactHash({ ...privateFunctionArtifact, functionMetadataHash });
-  const artifactTree = computeArtifactFunctionTree(artifact, FunctionType.SECRET)!;
+  const artifactTree = computeArtifactFunctionTree(artifact, FunctionType.PRIVATE)!;
   const artifactTreeLeafIndex = artifactTree.getIndex(functionArtifactHash.toBuffer());
   const artifactTreeSiblingPath = artifactTree.getSiblingPath(artifactTreeLeafIndex).map(Fr.fromBuffer);
 

@@ -144,8 +144,8 @@ export interface StructType extends BasicType<'struct'> {
  * Aztec.nr function types.
  */
 export enum FunctionType {
-  SECRET = 'secret',
-  OPEN = 'open',
+  PRIVATE = 'private',
+  PUBLIC = 'public',
   UNCONSTRAINED = 'unconstrained',
 }
 
@@ -404,7 +404,7 @@ export function getDefaultInitializer(contractArtifact: ContractArtifact): Funct
     ? initializers.find(f => f.name === 'constructor') ??
         initializers.find(f => f.name === 'initializer') ??
         initializers.find(f => f.parameters?.length === 0) ??
-        initializers.find(f => f.functionType === FunctionType.SECRET) ??
+        initializers.find(f => f.functionType === FunctionType.PRIVATE) ??
         initializers[0]
     : initializers[0];
 }

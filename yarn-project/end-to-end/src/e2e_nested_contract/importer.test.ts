@@ -33,13 +33,13 @@ describe('e2e_nested_contract manual', () => {
     await importerContract.methods.call_no_args(testContract.address).send().wait();
   });
 
-  it('calls an open function', async () => {
-    logger.info(`Calling openfn on importer contract`);
-    await importerContract.methods.call_open_fn(testContract.address).send().wait();
+  it('calls a public function', async () => {
+    logger.info(`Calling public_fn on importer contract`);
+    await importerContract.methods.call_public_fn(testContract.address).send().wait();
   });
 
-  it('calls an open function from an open function', async () => {
-    logger.info(`Calling pub openfn on importer contract`);
-    await importerContract.methods.pub_call_open_fn(testContract.address).send().wait();
+  it('calls a public function from a public function', async () => {
+    logger.info(`Calling pub_public_fn on importer contract`);
+    await importerContract.methods.pub_call_public_fn(testContract.address).send().wait();
   });
 });

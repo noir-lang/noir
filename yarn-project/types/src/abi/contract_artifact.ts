@@ -184,17 +184,17 @@ function generateFunctionArtifact(fn: NoirCompiledContractFunction, contract: No
 
 function getFunctionType(fn: NoirCompiledContractFunction): FunctionType {
   if (fn.custom_attributes.includes(AZTEC_PRIVATE_ATTRIBUTE)) {
-    return FunctionType.SECRET;
+    return FunctionType.PRIVATE;
   } else if (
     fn.custom_attributes.includes(AZTEC_PUBLIC_ATTRIBUTE) ||
     fn.custom_attributes.includes(AZTEC_PUBLIC_VM_ATTRIBUTE)
   ) {
-    return FunctionType.OPEN;
+    return FunctionType.PUBLIC;
   } else if (fn.is_unconstrained) {
     return FunctionType.UNCONSTRAINED;
   } else {
     // Default to a private function (see simple_macro_example_expanded for an example of this behavior)
-    return FunctionType.SECRET;
+    return FunctionType.PRIVATE;
   }
 }
 

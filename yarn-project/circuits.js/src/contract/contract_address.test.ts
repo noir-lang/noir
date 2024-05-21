@@ -33,7 +33,7 @@ describe('ContractAddress', () => {
 
   it('computeInitializationHash', () => {
     const mockInitFn: FunctionAbi = {
-      functionType: FunctionType.SECRET,
+      functionType: FunctionType.PRIVATE,
       isInitializer: false,
       isInternal: false,
       isStatic: false,

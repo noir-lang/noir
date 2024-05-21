@@ -20,10 +20,10 @@ describe('ContractClass', () => {
 
     // Check function selectors match
     const publicFunctionSelectors = artifact.functions
-      .filter(fn => fn.functionType === FunctionType.OPEN)
+      .filter(fn => fn.functionType === FunctionType.PUBLIC)
       .map(fn => FunctionSelector.fromNameAndParameters(fn));
     const privateFunctionSelectors = artifact.functions
-      .filter(fn => fn.functionType === FunctionType.SECRET)
+      .filter(fn => fn.functionType === FunctionType.PRIVATE)
       .map(fn => FunctionSelector.fromNameAndParameters(fn));
 
     expect(new Set(contractClass.publicFunctions.map(fn => fn.selector))).toEqual(new Set(publicFunctionSelectors));

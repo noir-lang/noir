@@ -68,8 +68,8 @@ export class AcirSimulator {
     contractAddress: AztecAddress,
     msgSender = AztecAddress.ZERO,
   ): Promise<ExecutionResult> {
-    if (entryPointArtifact.functionType !== FunctionType.SECRET) {
-      throw new Error(`Cannot run ${entryPointArtifact.functionType} function as secret`);
+    if (entryPointArtifact.functionType !== FunctionType.PRIVATE) {
+      throw new Error(`Cannot run ${entryPointArtifact.functionType} function as private`);
     }
 
     if (request.origin !== contractAddress) {
