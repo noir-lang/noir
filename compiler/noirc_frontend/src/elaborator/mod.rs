@@ -10,7 +10,10 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedTypeExpression,
     },
     hir::{
-        def_collector::{dc_crate::CompilationError, errors::DuplicateType},
+        def_collector::{
+            dc_crate::{CompilationError, UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias},
+            errors::DuplicateType,
+        },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
@@ -27,10 +30,10 @@ use crate::{
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
+        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, PrefixExpression, Statement,
         StatementKind, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId},
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
     Shared, StructType, Type, TypeVariable,
 };
 use crate::{
@@ -68,6 +71,7 @@ mod expressions;
 mod patterns;
 mod scope;
 mod statements;
+mod traits;
 mod types;
 
 use fm::FileId;
@@ -206,11 +210,12 @@ impl<'context> Elaborator<'context> {
         // the resolver filters literal globals first
         for global in items.globals {}
 
-        for alias in items.type_aliases {}
+        for (alias_id, alias) in items.type_aliases {
+            this.define_type_alias(alias_id, alias);
+        }
 
-        for trait_ in items.traits {}
-
-        for struct_ in items.types {}
+        this.collect_traits(items.traits);
+        this.collect_struct_definitions(items.types);
 
         for trait_impl in &mut items.trait_impls {
             this.collect_trait_impl(trait_impl);
@@ -1099,5 +1104,73 @@ impl<'context> Elaborator<'context> {
                 span: trait_impl.object_type.span.expect("object type must have a span"),
             });
         }
+    }
+
+    fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
+        self.file = alias.file_id;
+        self.local_module = alias.module_id;
+
+        let generics = self.add_generics(&alias.type_alias_def.generics);
+        self.resolve_local_globals();
+        self.current_item = Some(DependencyId::Alias(alias_id));
+        let typ = self.resolve_type(alias.type_alias_def.typ);
+        self.interner.set_type_alias(alias_id, typ, generics);
+    }
+
+    fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
+        // This is necessary to avoid cloning the entire struct map
+        // when adding checks after each struct field is resolved.
+        let struct_ids = structs.keys().copied().collect::<Vec<_>>();
+
+        // Resolve each field in each struct.
+        // Each struct should already be present in the NodeInterner after def collection.
+        for (type_id, typ) in structs {
+            self.file = typ.file_id;
+            self.local_module = typ.module_id;
+            let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
+
+            self.interner.update_struct(type_id, |struct_def| {
+                struct_def.set_fields(fields);
+                struct_def.generics = generics;
+            });
+        }
+
+        // Check whether the struct fields have nested slices
+        // We need to check after all structs are resolved to
+        // make sure every struct's fields is accurately set.
+        for id in struct_ids {
+            let struct_type = self.interner.get_struct(id);
+            // Only handle structs without generics as any generics args will be checked
+            // after monomorphization when performing SSA codegen
+            if struct_type.borrow().generics.is_empty() {
+                let fields = struct_type.borrow().get_fields(&[]);
+                for (_, field_type) in fields.iter() {
+                    if field_type.is_nested_slice() {
+                        let location = struct_type.borrow().location;
+                        self.file = location.file;
+                        self.push_err(ResolverError::NestedSlices { span: location.span });
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn resolve_struct_fields(
+        &mut self,
+        unresolved: NoirStruct,
+        struct_id: StructId,
+    ) -> (Generics, Vec<(Ident, Type)>) {
+        let generics = self.add_generics(&unresolved.generics);
+
+        // Check whether the struct definition has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
+        self.current_item = Some(DependencyId::Struct(struct_id));
+
+        self.resolving_ids.insert(struct_id);
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        self.resolving_ids.remove(&struct_id);
+
+        (generics, fields)
     }
 }
