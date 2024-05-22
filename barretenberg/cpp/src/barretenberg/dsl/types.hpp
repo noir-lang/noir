@@ -17,6 +17,7 @@
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
+#include "barretenberg/stdlib/primitives/databus/databus.hpp"
 #include "barretenberg/stdlib/primitives/memory/ram_table.hpp"
 #include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
@@ -57,6 +58,7 @@ using pedersen_commitment = bb::stdlib::pedersen_commitment<Builder>;
 using bn254 = bb::stdlib::bn254<Builder>;
 using secp256k1_ct = bb::stdlib::secp256k1<Builder>;
 using secp256r1_ct = bb::stdlib::secp256r1<Builder>;
+using databus_ct = bb::stdlib::databus<Builder>;
 
 using hash_path_ct = bb::crypto::merkle_tree::hash_path<Builder>;
 

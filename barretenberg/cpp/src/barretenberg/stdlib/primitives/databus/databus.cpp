@@ -3,7 +3,9 @@
 
 namespace bb::stdlib {
 
-template <typename Builder> void databus<Builder>::bus_vector::set_values(const std::vector<field_pt>& entries_in)
+template <typename Builder>
+void databus<Builder>::bus_vector::set_values(const std::vector<field_pt>& entries_in)
+    requires IsGoblinUltraBuilder<Builder>
 {
     // Set the context from the input entries
     for (const auto& entry : entries_in) {
@@ -29,7 +31,9 @@ template <typename Builder> void databus<Builder>::bus_vector::set_values(const 
     length = entries.size();
 }
 
-template <typename Builder> field_t<Builder> databus<Builder>::bus_vector::operator[](const field_pt& index) const
+template <typename Builder>
+field_t<Builder> databus<Builder>::bus_vector::operator[](const field_pt& index) const
+    requires IsGoblinUltraBuilder<Builder>
 {
     // Ensure the read is valid
     auto raw_index = static_cast<size_t>(uint256_t(index.get_value()).data[0]);

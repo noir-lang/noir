@@ -15,6 +15,8 @@ struct MemOp {
 enum BlockType {
     ROM = 0,
     RAM = 1,
+    CallData = 2,
+    ReturnData = 3,
 };
 
 struct BlockConstraint {
