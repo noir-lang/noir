@@ -11,6 +11,8 @@ use dep::aztec::{
 // Shows how to create a custom note
 
 global CARD_NOTE_LEN: Field = 3;
+// CARD_NOTE_LEN * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)
+global CARD_NOTE_BYTES_LEN: Field = 3 * 32 + 64;
 
 // docs:start:state_vars-CardNote
 #[aztec(note)]
@@ -28,7 +30,7 @@ impl CardNote {
     }
 }
 
-impl NoteInterface<CARD_NOTE_LEN> for CardNote {
+impl NoteInterface<CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN> for CardNote {
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_nsk_app(self.npk_m_hash);

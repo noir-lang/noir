@@ -100,7 +100,7 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     )
 }
 
-unconstrained pub fn get_notes<Note, N, M, S, NS>(
+unconstrained pub fn get_notes<Note, N, NB, M, S, NS>(
     storage_slot: Field,
     num_selects: u8,
     select_by_indexes: [u8; M],
@@ -118,7 +118,7 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
     mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialize the note array.
     placeholder_fields: [Field; NS], // TODO: Remove it and use `limit` to initialize the note array.
     _placeholder_note_length: [Field; N] // Turbofish hack? Compiler breaks calculating read_offset unless we add this parameter
-) -> [Option<Note>; S] where Note: NoteInterface<N> {
+) -> [Option<Note>; S] where Note: NoteInterface<N, NB> {
     let fields = get_notes_oracle_wrapper(
         storage_slot,
         num_selects,

@@ -6,13 +6,13 @@ use crate::note::{
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 
-pub fn create_note<Note, N>(
+pub fn create_note<Note, N, M>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note: &mut Note,
     broadcast: bool,
     ivpk_m: GrumpkinPoint
-) where Note: NoteInterface<N> {
+) where Note: NoteInterface<N, M> {
     let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };
@@ -42,11 +42,11 @@ pub fn create_note<Note, N>(
     }
 }
 
-pub fn create_note_hash_from_public<Note, N>(
+pub fn create_note_hash_from_public<Note, N, M>(
     context: &mut PublicContext,
     storage_slot: Field,
     note: &mut Note
-) where Note: NoteInterface<N> {
+) where Note: NoteInterface<N, M> {
     let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };
@@ -57,7 +57,10 @@ pub fn create_note_hash_from_public<Note, N>(
     context.push_new_note_hash(inner_note_hash);
 }
 
-pub fn destroy_note<Note, N>(context: &mut PrivateContext, note: Note) where Note: NoteInterface<N> {
+pub fn destroy_note<Note, N, M>(
+    context: &mut PrivateContext,
+    note: Note
+) where Note: NoteInterface<N, M> {
     let mut nullifier = 0;
     let mut consumed_note_hash: Field = 0;
     nullifier = note.compute_nullifier(context);

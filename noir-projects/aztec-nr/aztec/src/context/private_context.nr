@@ -317,14 +317,14 @@ impl PrivateContext {
         self.encrypted_logs_hashes.push(side_effect);
     }
 
-    pub fn encrypt_and_emit_note<Note, N, M>(
+    pub fn encrypt_and_emit_note<Note, N, NB, M>(
         &mut self,
         contract_address: AztecAddress,
         storage_slot: Field,
         note_type_id: Field,
         ivpk_m: GrumpkinPoint,
         note: Note
-    ) where Note: NoteInterface<N>, [Field; N]: LensForEncryptedLog<N, M> {
+    ) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
         let note_hash: Field = compute_note_hash_for_insertion(note);
         let note_exists_index = find_index(
             self.new_note_hashes.storage,

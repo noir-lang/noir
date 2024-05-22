@@ -9,6 +9,8 @@ use dep::aztec::{
 };
 
 global VALUE_NOTE_LEN: Field = 3; // 3 plus a header.
+// VALUE_NOTE_LEN * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)
+global VALUE_NOTE_BYTES_LEN: Field = 3 * 32 + 64;
 
 // docs:start:value-note-def
 #[aztec(note)]
@@ -20,7 +22,7 @@ struct ValueNote {
 }
 // docs:end:value-note-def
 
-impl NoteInterface<VALUE_NOTE_LEN> for ValueNote {
+impl NoteInterface<VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN> for ValueNote {
     // docs:start:nullifier
 
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {

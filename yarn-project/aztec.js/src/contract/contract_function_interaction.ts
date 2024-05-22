@@ -80,9 +80,6 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
     }
 
     const txRequest = await this.create();
-    // const from =
-    //   this.functionDao.functionType == FunctionType.PRIVATE ? options.from ?? this.wallet.getAddress() : undefined;
-
     const simulatedTx = await this.wallet.simulateTx(txRequest, true, options?.from);
 
     // As account entrypoints are private, for private functions we retrieve the return values from the first nested call

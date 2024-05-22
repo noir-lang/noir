@@ -12,6 +12,8 @@ trait OwnedNote {
 }
 
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
+// TOKEN_NOTE_LEN * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)
+global TOKEN_NOTE_BYTES_LEN: Field = 3 * 32 + 64;
 
 #[aztec(note)]
 struct TokenNote {
@@ -23,7 +25,7 @@ struct TokenNote {
     randomness: Field,
 }
 
-impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
+impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     // docs:start:nullifier
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);

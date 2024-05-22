@@ -10,7 +10,7 @@ trait Storage<T> where T: Serialize<N> + Deserialize<N> {
 // Every entry in the storage struct will be exported in the compilation artifact as a 
 // Storable entity, containing the storage slot and the type of the variable
 struct Storable<N> {
-        slot: Field,
-        typ: str<N>
-    }
+    slot: Field,
+    typ: str<N>
+}
 

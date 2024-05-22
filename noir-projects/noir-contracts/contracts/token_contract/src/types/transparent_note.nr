@@ -6,6 +6,8 @@ use dep::aztec::{
 };
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
+// TRANSPARENT_NOTE_LEN * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)
+global TRANSPARENT_NOTE_BYTES_LEN: Field = 2 * 32 + 64;
 
 // Transparent note represents a note that is created in the clear (public execution), but can only be spent by those
 // that know the preimage of the "secret_hash" (the secret). This is typically used when shielding a token balance.
@@ -22,7 +24,7 @@ struct TransparentNoteProperties {
     secret_hash: PropertySelector,
 }
 
-impl NoteInterface<TRANSPARENT_NOTE_LEN> for TransparentNote {
+impl NoteInterface<TRANSPARENT_NOTE_LEN, TRANSPARENT_NOTE_BYTES_LEN> for TransparentNote {
 
     // Custom serialization to avoid disclosing the secret field
     fn serialize_content(self) -> [Field; TRANSPARENT_NOTE_LEN] {

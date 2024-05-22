@@ -380,7 +380,7 @@ contract Test {
         value: Field
     ) -> [u8; 112] {
         let note = TestNote::new(value);
-        EncryptedLogIncomingBody::new(storage_slot, TestNote::get_note_type_id(), note).compute_ciphertext(secret, point).as_array()
+        EncryptedLogIncomingBody::from_note(note, storage_slot).compute_ciphertext(secret, point).as_array()
     }
 
     #[aztec(private)]

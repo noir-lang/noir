@@ -19,7 +19,7 @@ fn compute_unique_hash(nonce: Field, inner_note_hash: Field) -> Field {
     pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_NOTE_HASH)
 }
 
-fn compute_inner_note_hash<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {
+fn compute_inner_note_hash<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
     let note_hash = note.compute_note_content_hash();
 
@@ -29,7 +29,7 @@ fn compute_inner_note_hash<Note, N>(note: Note) -> Field where Note: NoteInterfa
     )
 }
 
-fn compute_unique_note_hash<Note, N>(note_with_header: Note) -> Field where Note: NoteInterface<N> {
+fn compute_unique_note_hash<Note, N, M>(note_with_header: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note_with_header.get_header();
 
     let inner_note_hash = compute_inner_note_hash(note_with_header);
@@ -37,7 +37,7 @@ fn compute_unique_note_hash<Note, N>(note_with_header: Note) -> Field where Note
     compute_unique_hash(header.nonce, inner_note_hash)
 }
 
-fn compute_siloed_note_hash<Note, N>(note_with_header: Note) -> Field where Note: NoteInterface<N> {
+fn compute_siloed_note_hash<Note, N, M>(note_with_header: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note_with_header.get_header();
 
     let unique_note_hash = if (header.nonce == 0) {
@@ -52,10 +52,10 @@ fn compute_siloed_note_hash<Note, N>(note_with_header: Note) -> Field where Note
     compute_siloed_hash(header.contract_address, unique_note_hash)
 }
 
-pub fn compute_siloed_nullifier<Note, N>(
+pub fn compute_siloed_nullifier<Note, N, M>(
     note_with_header: Note,
     context: &mut PrivateContext
-) -> Field where Note: NoteInterface<N> {
+) -> Field where Note: NoteInterface<N, M> {
     let header = note_with_header.get_header();
     let inner_nullifier = note_with_header.compute_nullifier(context);
 
@@ -63,11 +63,11 @@ pub fn compute_siloed_nullifier<Note, N>(
     pedersen_hash(input, GENERATOR_INDEX__OUTER_NULLIFIER)
 }
 
-pub fn compute_note_hash_for_insertion<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {
+pub fn compute_note_hash_for_insertion<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
     compute_inner_note_hash(note)
 }
 
-pub fn compute_note_hash_for_read_request<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {
+pub fn compute_note_hash_for_read_request<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
 
     if (header.nonce != 0) {
@@ -77,7 +77,7 @@ pub fn compute_note_hash_for_read_request<Note, N>(note: Note) -> Field where No
     }
 }
 
-pub fn compute_note_hash_for_consumption<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {
+pub fn compute_note_hash_for_consumption<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
     // There are 3 cases for reading a note intended for consumption:
     // 1. The note was inserted in this transaction, and is transient.
@@ -104,12 +104,12 @@ pub fn compute_note_hash_for_consumption<Note, N>(note: Note) -> Field where Not
     }
 }
 
-pub fn compute_note_hash_and_nullifier<T, N, S>(
+pub fn compute_note_hash_and_nullifier<T, N, M, S>(
     // docs:start:compute_note_hash_and_nullifier_args
     deserialize_content: fn([Field; N]) -> T,
     note_header: NoteHeader,
     serialized_note: [Field; S] // docs:end:compute_note_hash_and_nullifier_args
-) -> [Field; 4] where T: NoteInterface<N> {
+) -> [Field; 4] where T: NoteInterface<N, M> {
     let mut note = deserialize_content(arr_copy_slice(serialized_note, [0; N], 0));
     // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
     T::set_header((&mut note), note_header);

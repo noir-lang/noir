@@ -2,7 +2,7 @@ use dep::protocol_types::{address::AztecAddress, grumpkin_private_key::GrumpkinP
 
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 
-use dep::std::aes128::aes128_encrypt_slice;
+use dep::std::aes128::aes128_encrypt;
 
 struct EncryptedLogHeader {
     address: AztecAddress,
@@ -24,8 +24,8 @@ impl EncryptedLogHeader {
             iv[i] = full_key[i + 16];
         }
 
-        let input: [u8] = self.address.to_field().to_be_bytes(32);
-        aes128_encrypt_slice(input, iv, sym_key).as_array()
+        let input: [u8; 32] = self.address.to_field().to_be_bytes(32).as_array();
+        aes128_encrypt(input, iv, sym_key).as_array()
     }
 }
 

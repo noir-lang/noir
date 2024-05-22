@@ -2,11 +2,11 @@ use dep::aztec::prelude::{AztecAddress, PrivateContext, PrivateSet, NoteGetterOp
 use dep::aztec::note::note_getter_options::SortOrder;
 use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
 use dep::aztec::keys::getters::{get_npk_m_hash, get_ivpk_m};
-use crate::{filter::filter_notes_min_sum, value_note::{ValueNote, VALUE_NOTE_LEN}};
+use crate::{filter::filter_notes_min_sum, value_note::{ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN}};
 
 // Sort the note values (0th field) in descending order.
 // Pick the fewest notes whose sum is equal to or greater than `amount`.
-pub fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteGetterOptions<ValueNote, VALUE_NOTE_LEN, Field> {
+pub fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteGetterOptions<ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN, Field> {
     NoteGetterOptions::with_filter(filter_notes_min_sum, amount).sort(ValueNote::properties().value, SortOrder.DESC)
 }
 
