@@ -371,7 +371,7 @@ impl<'interner> TypeChecker<'interner> {
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
+        if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
             let the_trait = self.interner.get_trait(constraint.trait_id);
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
@@ -380,6 +380,13 @@ impl<'interner> TypeChecker<'interner> {
                 if !arg.occurs(param.id()) {
                     bindings.insert(param.id(), (param.clone(), arg.clone()));
                 }
+            }
+
+            // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+            // Otherwise `self` will be replaced with a fresh type variable, which will require the user 
+            // to specify a redundant type annotation.
+            if *assumed {
+                bindings.insert(the_trait.self_type_typevar_id, (the_trait.self_type_typevar.clone(), constraint.typ.clone()));
             }
         }
 
