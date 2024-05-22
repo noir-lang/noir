@@ -311,10 +311,8 @@ impl<'context> Elaborator<'context> {
             self.in_unconstrained_fn = true;
         }
 
-        let func_meta = self
-            .interner
-            .func_meta
-            .get(&id)
+        let func_meta = self.interner.func_meta.get(&id);
+        let func_meta = func_meta
             .expect("FuncMetas should be declared before a function is elaborated")
             .clone();
 
@@ -1290,16 +1288,12 @@ impl<'context> Elaborator<'context> {
             let old_generics_length = self.generics.len();
             self.add_generics(&trait_impl.generics);
 
-            let trait_generics =
-                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
-
             let self_type = self.resolve_type(unresolved_type.clone());
-            let impl_id = self.interner.next_trait_impl_id();
-
             self.self_type = Some(self_type.clone());
+
+            let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
-            let mut methods = trait_impl.methods.function_ids();
             self.define_function_metas_for_functions(&mut trait_impl.methods);
 
             trait_impl.resolved_object_type = self.self_type.take();
