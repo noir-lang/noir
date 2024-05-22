@@ -55,8 +55,7 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   // Final proof
 
-  const recursion_backend = new BarretenbergBackend(recursionProgram);
-  const recursion = new Noir(recursionProgram, recursion_backend);
+  const recursion = new Noir(recursionProgram);
 
   const recursion_inputs: InputMap = {
     verification_key: vkAsFields,
@@ -65,7 +64,10 @@ it(`smart contract can verify a recursive proof`, async () => {
     key_hash: vkHash,
   };
 
-  const recursion_proof = await recursion.generateProof(recursion_inputs);
+  const { witness: recursionWitness } = await recursion.execute(recursion_inputs);
+
+  const recursion_backend = new BarretenbergBackend(recursionProgram);
+  const recursion_proof = await recursion_backend.generateProof(recursionWitness);
   expect(await recursion.verifyProof(recursion_proof)).to.be.true;
 
   // Smart contract verification
