@@ -11,7 +11,7 @@ export function useNumber({ contract }: { contract: Contract }) {
 
     setWait(true);
     const deployerWallet = await deployerEnv.getWallet();
-    const viewTxReceipt = await contract!.methods.getNumber(deployerWallet.getCompleteAddress()).simulate();
+    const viewTxReceipt = await contract!.methods.getNumber(deployerWallet.getCompleteAddress().address).simulate();
     toast(`Number is: ${viewTxReceipt.value}`);
     setWait(false);
   };
@@ -25,7 +25,7 @@ export function useNumber({ contract }: { contract: Contract }) {
 
       const value = BigInt(el.value);
       const deployerWallet = await deployerEnv.getWallet();
-      await toast.promise(contract!.methods.setNumber(value, deployerWallet.getCompleteAddress()).send().wait(), {
+      await toast.promise(contract!.methods.setNumber(value, deployerWallet.getCompleteAddress().address, deployerWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash(), deployerWallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey).send().wait(), {
         pending: 'Setting number...',
         success: `Number set to: ${value}`,
         error: 'Error setting number',

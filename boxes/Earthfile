@@ -80,7 +80,7 @@ BOX_TEST_FROM_CACHE:
   ENV AZTEC_DOCKER_TAG=$aztec_docker_tag
   ENV CI=1
   # need a different project name for each to run in parallel
-  LET project_name=$box_$browser
+  LET project_name="$box"_"$browser"
   IF docker compose > /dev/null 2>&1
     LET CMD="docker compose"
   ELSE

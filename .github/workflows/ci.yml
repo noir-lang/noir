@@ -154,7 +154,7 @@ jobs:
     needs:
       - acir-bench
       - bench-e2e
-    runs-on: ${{ inputs.username || github.actor }}-x86
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
         with:
@@ -460,7 +460,7 @@ jobs:
 
   boxes:
     needs: build
-    runs-on: ${{ inputs.username || github.actor }}-x86
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.pull_request.head.sha }}" }
@@ -476,7 +476,7 @@ jobs:
 
   boxes-test:
     needs: boxes
-    runs-on: ${{ inputs.username || github.actor }}-x86
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     strategy:
       fail-fast: false
       matrix:

@@ -12,7 +12,7 @@ describe('BoxReact Contract Tests', () => {
   beforeAll(async () => {
     wallet = await deployerEnv.getWallet();
     const salt = Fr.random();
-    contract = await BoxReactContract.deploy(wallet, Fr.random(), wallet.getCompleteAddress().address)
+    contract = await BoxReactContract.deploy(wallet, Fr.random(), wallet.getCompleteAddress().address, wallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash(), wallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey)
       .send({ contractAddressSalt: salt })
       .deployed();
 
@@ -21,11 +21,11 @@ describe('BoxReact Contract Tests', () => {
 
   test('Can set a number', async () => {
     logger.info(`${await wallet.getRegisteredAccounts()}`);
-    await contract.methods.setNumber(numberToSet, wallet.getCompleteAddress()).send().wait();
+    await contract.methods.setNumber(numberToSet, wallet.getCompleteAddress().address, wallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash(), wallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey).send().wait();
   }, 40000);
 
   test('Can read a number', async () => {
-    const viewTxReceipt = await contract.methods.getNumber(wallet.getCompleteAddress()).simulate();
+    const viewTxReceipt = await contract.methods.getNumber(wallet.getCompleteAddress().address).simulate();
     expect(numberToSet.toBigInt()).toEqual(viewTxReceipt.value);
   }, 40000);
 });
