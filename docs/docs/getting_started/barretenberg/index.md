@@ -1,7 +1,6 @@
 ---
 title: Barretenberg Installation
-description:
-  `bb` is a command line tool for interacting with Aztec's proving backend Barretenberg. This page is a quick guide on how to install `bb`
+description: bb is a command line tool for interacting with Aztec's proving backend Barretenberg. This page is a quick guide on how to install `bb`
 keywords: [
   Barretenberg
   bb
