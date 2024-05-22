@@ -218,7 +218,6 @@ impl<'context> Elaborator<'context> {
         // the values of integer globals as numeric generics.
         let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
 
-        // the resolver filters literal globals first
         for global in literal_globals {
             this.elaborate_global(global);
         }
