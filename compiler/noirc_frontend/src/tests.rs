@@ -1430,16 +1430,17 @@ fn specify_method_types_with_turbofish() {
         }
         
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) where U: Default {
+            fn generic_method<U>(_self: Self) -> U where U: Default {
                 U::default()
             }
         }
         
         fn main() {
             let foo: Foo<Field> = Foo { inner: 1 };
-            foo.generic_method::<Field>();
+            let _ = foo.generic_method::<Field>();
         }
     "#;
     let errors = get_program_errors(src);
+    dbg!(errors.clone());
     assert_eq!(errors.len(), 0);
 }
