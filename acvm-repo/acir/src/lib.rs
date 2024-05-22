@@ -41,7 +41,7 @@ mod reflection {
         circuit::{
             brillig::{BrilligInputs, BrilligOutputs},
             directives::Directive,
-            opcodes::BlackBoxFuncCall,
+            opcodes::{BlackBoxFuncCall, BlockType},
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
         },
@@ -60,6 +60,7 @@ mod reflection {
         };
 
         let mut tracer = Tracer::new(TracerConfig::default());
+        tracer.trace_simple_type::<BlockType>().unwrap();
         tracer.trace_simple_type::<Program>().unwrap();
         tracer.trace_simple_type::<Circuit>().unwrap();
         tracer.trace_simple_type::<ExpressionWidth>().unwrap();

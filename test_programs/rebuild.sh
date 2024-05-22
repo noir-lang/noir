@@ -16,13 +16,14 @@ process_dir() {
     if [ -d ./target/ ]; then
       rm -r ./target/
     fi
-    nargo compile --only-acir && nargo execute witness
+    nargo execute witness
 
     if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
       rm -r "$current_dir/acir_artifacts/$dir_name/target"
     fi
     mkdir $current_dir/acir_artifacts/$dir_name/target
 
+    mv ./target/$dir_name.json $current_dir/acir_artifacts/$dir_name/target/program.json
     mv ./target/*.gz $current_dir/acir_artifacts/$dir_name/target/
 
     cd $current_dir

@@ -212,13 +212,14 @@ It would be incorrect to say that a Noir proof verification costs any gas at all
 
 ZK-SNARK verification depends on some precompiled cryptographic primitives such as Elliptic Curve Pairings (if you like complex math, you can read about EC Pairings [here](https://medium.com/@VitalikButerin/exploring-elliptic-curve-pairings-c73c1864e627)). Not all EVM chains support EC Pairings, notably some of the ZK-EVMs. This means that you won't be able to use the verifier contract in all of them.
 
-For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently support these precompiles, so proof verification via Solidity verifier contracts won't work. Here's a quick list of EVM chains that have been tested and are known to work:
+For example, `Polygon zkEVM` does not currently support these precompiles, so proof verification via Solidity verifier contracts won't work. Here's a quick list of EVM chains that have been tested and are known to work:
 
 - Optimism
 - Arbitrum
 - Polygon PoS
 - Scroll
 - Celo
+- zkSync
 
 If you test any other chains, please open a PR on this page to update the list. See [this doc](https://github.com/noir-lang/noir-starter/tree/main/with-foundry#testing-on-chain) for more info about testing verifier contracts on different EVM chains.
 

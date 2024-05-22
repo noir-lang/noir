@@ -5,19 +5,18 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::ops::{compile_program, report_errors, DefaultForeignCallExecutor};
+use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
-use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
+use super::compile_cmd::compile_workspace_full;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
+use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
@@ -59,32 +58,16 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
     )?;
     let target_dir = &workspace.target_directory_path();
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    // Compile the full workspace in order to generate any build artifacts.
+    compile_workspace_full(&workspace, &args.compile_options)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
-        let compilation_result = compile_program(
-            &workspace_file_manager,
-            &parsed_files,
-            package,
-            &args.compile_options,
-            None,
-        );
-
-        let compiled_program = report_errors(
-            compilation_result,
-            &workspace_file_manager,
-            args.compile_options.deny_warnings,
-            args.compile_options.silence_warnings,
-        )?;
-
-        let compiled_program =
-            nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
+        let program_artifact_path = workspace.package_build_path(package);
+        let program: CompiledProgram = read_program_from_file(program_artifact_path)?.into();
 
         let (return_value, witness_stack) = execute_program_and_decode(
-            compiled_program,
+            program,
             package,
             &args.prover_name,
             args.oracle_resolver.as_deref(),
@@ -127,14 +110,12 @@ pub(crate) fn execute_program(
     inputs_map: &InputMap,
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessStack, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
-
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let solved_witness_stack_err = nargo::ops::execute_program(
         &compiled_program.program,
         initial_witness,
-        &blackbox_solver,
+        &Bn254BlackBoxSolver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     );
     match solved_witness_stack_err {

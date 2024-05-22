@@ -293,14 +293,13 @@ impl GeneratedAcir {
             BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
                 points: inputs[0].clone(),
                 scalars: inputs[1].clone(),
-                outputs: (outputs[0], outputs[1]),
+                outputs: (outputs[0], outputs[1], outputs[2]),
             },
+
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1_x: inputs[0][0],
-                input1_y: inputs[1][0],
-                input2_x: inputs[2][0],
-                input2_y: inputs[3][0],
-                outputs: (outputs[0], outputs[1]),
+                input1: Box::new([inputs[0][0], inputs[1][0], inputs[2][0]]),
+                input2: Box::new([inputs[3][0], inputs[4][0], inputs[5][0]]),
+                outputs: (outputs[0], outputs[1], outputs[2]),
             },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = match inputs.to_vec().pop() {
@@ -684,8 +683,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
 
-        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
-        BlackBoxFunc::EmbeddedCurveAdd => Some(4),
+        // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
+        BlackBoxFunc::EmbeddedCurveAdd => Some(6),
 
         // Big integer operations take in 0 inputs. They use constants for their inputs.
         BlackBoxFunc::BigIntAdd
@@ -735,7 +734,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd

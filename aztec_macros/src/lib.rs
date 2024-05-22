@@ -1,17 +1,20 @@
 mod transforms;
 mod utils;
 
+use noirc_errors::Location;
 use transforms::{
     compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
     contract_interface::{
         generate_contract_interface, stub_function, update_fn_signatures_in_contract_interface,
     },
     events::{generate_selector_impl, transform_events},
-    functions::{export_fn_abi, transform_function, transform_unconstrained},
+    functions::{
+        check_for_public_args, export_fn_abi, transform_function, transform_unconstrained,
+    },
     note_interface::{generate_note_interface_impl, inject_note_exports},
     storage::{
         assign_storage_slots, check_for_storage_definition, check_for_storage_implementation,
-        generate_storage_implementation, generate_storage_layout,
+        generate_storage_implementation, generate_storage_layout, inject_context_in_storage,
     },
 };
 
@@ -64,6 +67,7 @@ fn transform(
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
         if transform_module(
             crate_id,
+            &file_id,
             context,
             &mut submodule.contents,
             submodule.name.0.contents.as_str(),
@@ -84,6 +88,7 @@ fn transform(
 /// Returns true if an annotated node is found, false otherwise
 fn transform_module(
     crate_id: &CrateId,
+    file_id: &FileId,
     context: &HirContext,
     module: &mut SortedModule,
     module_name: &str,
@@ -97,6 +102,7 @@ fn transform_module(
     let storage_defined = maybe_storage_struct_name.is_some();
 
     if let Some(ref storage_struct_name) = maybe_storage_struct_name {
+        inject_context_in_storage(module)?;
         if !check_for_storage_implementation(module, storage_struct_name) {
             generate_storage_implementation(module, storage_struct_name)?;
         }
@@ -132,6 +138,7 @@ fn transform_module(
         let mut is_initializer = false;
         let mut is_internal = false;
         let mut insert_init_check = has_initializer;
+        let mut is_static = false;
 
         for secondary_attribute in func.def.attributes.secondary.clone() {
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
@@ -148,6 +155,9 @@ fn transform_module(
             } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
                 is_public_vm = true;
             }
+            if is_custom_attribute(&secondary_attribute, "aztec(view)") {
+                is_static = true;
+            }
         }
 
         // Apply transformations to the function based on collected attributes
@@ -159,7 +169,8 @@ fn transform_module(
             } else {
                 "Public"
             };
-            stubs.push(stub_function(fn_type, func));
+            let stub_src = stub_function(fn_type, func, is_static);
+            stubs.push((stub_src, Location { file: *file_id, span: func.name_ident().span() }));
 
             export_fn_abi(&mut module.types, func)?;
             transform_function(
@@ -169,6 +180,7 @@ fn transform_module(
                 is_initializer,
                 insert_init_check,
                 is_internal,
+                is_static,
             )?;
             has_transformed_module = true;
         } else if storage_defined && func.def.is_unconstrained {
@@ -180,7 +192,7 @@ fn transform_module(
     if has_transformed_module {
         // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
 
-        let private_functions_count = module
+        let private_functions: Vec<_> = module
             .functions
             .iter()
             .filter(|func| {
@@ -190,9 +202,27 @@ fn transform_module(
                     .iter()
                     .any(|attr| is_custom_attribute(attr, "aztec(private)"))
             })
-            .count();
+            .collect();
 
-        if private_functions_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
+        let public_functions: Vec<_> = module
+            .functions
+            .iter()
+            .filter(|func| {
+                func.def
+                    .attributes
+                    .secondary
+                    .iter()
+                    .any(|attr| is_custom_attribute(attr, "aztec(public)"))
+            })
+            .collect();
+
+        let private_function_count = private_functions.len();
+
+        check_for_public_args(&private_functions)?;
+
+        check_for_public_args(&public_functions)?;
+
+        if private_function_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
             return Err(AztecMacroError::ContractHasTooManyPrivateFunctions {
                 span: Span::default(),
             });

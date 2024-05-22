@@ -97,7 +97,7 @@ impl NodeInterner {
         return_type_location_instead: bool,
     ) -> Option<Location> {
         match expression {
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition_info = self.definition(ident.id);
                 match definition_info.kind {
                     DefinitionKind::Function(func_id) => {

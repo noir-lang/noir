@@ -1475,14 +1475,20 @@ impl<'a> Resolver<'a> {
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
-            ExpressionKind::Variable(path) => {
+            ExpressionKind::Variable(path, generics) => {
+                let generics =
+                    generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
                 {
-                    HirExpression::Ident(HirIdent {
-                        location: Location::new(expr.span, self.file),
-                        id: self.interner.trait_method_id(method),
-                        impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
-                    })
+                    HirExpression::Ident(
+                        HirIdent {
+                            location: Location::new(expr.span, self.file),
+                            id: self.interner.trait_method_id(method),
+                            impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                        },
+                        generics,
+                    )
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1519,7 +1525,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    HirExpression::Ident(hir_ident)
+                    HirExpression::Ident(hir_ident, generics)
                 }
             }
             ExpressionKind::Prefix(prefix) => {
@@ -1557,12 +1563,20 @@ impl<'a> Resolver<'a> {
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
+
+                // Cannot verify the generic count here equals the expected count since we don't
+                // know which definition `method` refers to until it is resolved during type checking.
+                let generics = call_expr
+                    .generics
+                    .map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::MethodCall(HirMethodCallExpression {
-                    arguments,
                     method,
                     object,
+                    generics,
+                    arguments,
                     location,
                 })
             }
@@ -2038,7 +2052,7 @@ impl<'a> Resolver<'a> {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
                 match definition.kind {
                     DefinitionKind::Global(global_id) => {
@@ -2092,7 +2106,7 @@ impl<'a> Resolver<'a> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let ident = HirExpression::Ident(old_value.ident.clone());
+                let ident = HirExpression::Ident(old_value.ident.clone(), None);
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 fmt_str_idents.push(expr_id);
@@ -2132,7 +2146,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             let span = interner.expr_span(&rhs);
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
-        HirExpression::Ident(ident) => {
+        HirExpression::Ident(ident, _) => {
             if let Some(definition) = interner.try_definition(ident.id) {
                 if !definition.mutable {
                     return Err(ResolverError::MutableReferenceToImmutableVariable {

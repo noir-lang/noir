@@ -132,6 +132,10 @@ pub struct UnresolvedType {
     pub span: Option<Span>,
 }
 
+/// Type wrapper for a member access
+pub(crate) type UnaryRhsMemberAccess =
+    (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
+
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
 /// and numeric binary operators are allowed here.
@@ -310,7 +314,7 @@ impl UnresolvedTypeExpression {
                     None => Err(expr),
                 }
             }
-            ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
+            ExpressionKind::Variable(path, _) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);

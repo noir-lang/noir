@@ -335,7 +335,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 &mut self.bigint_solver,
             ),
             Opcode::Directive(directive) => solve_directives(&mut self.witness_map, directive),
-            Opcode::MemoryInit { block_id, init } => {
+            Opcode::MemoryInit { block_id, init, .. } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.init(init, &self.witness_map)
             }

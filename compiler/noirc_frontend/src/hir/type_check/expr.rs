@@ -20,7 +20,7 @@ use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
     fn check_if_deprecated(&mut self, expr: &ExprId) {
-        if let HirExpression::Ident(expr::HirIdent { location, id, impl_kind: _ }) =
+        if let HirExpression::Ident(expr::HirIdent { location, id, impl_kind: _ }, _) =
             self.interner.expression(expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -39,7 +39,7 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     fn is_unconstrained_call(&self, expr: &ExprId) -> bool {
-        if let HirExpression::Ident(expr::HirIdent { id, .. }) = self.interner.expression(expr) {
+        if let HirExpression::Ident(expr::HirIdent { id, .. }, _) = self.interner.expression(expr) {
             if let Some(DefinitionKind::Function(func_id)) =
                 self.interner.try_definition(id).map(|def| &def.kind)
             {
@@ -103,7 +103,7 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
+            HirExpression::Ident(ident, generics) => self.check_ident(ident, expr_id, generics),
             HirExpression::Literal(literal) => match literal {
                 HirLiteral::Array(hir_array_literal) => {
                     let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
@@ -236,17 +236,27 @@ impl<'interner> TypeChecker<'interner> {
 
                         // Automatically add `&mut` if the method expects a mutable reference and
                         // the object is not already one.
-                        if let HirMethodReference::FuncId(func_id) = &method_ref {
-                            if *func_id != FuncId::dummy_id() {
-                                let function_type =
-                                    self.interner.function_meta(func_id).typ.clone();
-
-                                self.try_add_mutable_reference_to_object(
-                                    &mut method_call,
-                                    &function_type,
-                                    &mut object_type,
-                                );
+                        let func_id = match &method_ref {
+                            HirMethodReference::FuncId(func_id) => *func_id,
+                            HirMethodReference::TraitMethodId(method_id, _) => {
+                                let id = self.interner.trait_method_id(*method_id);
+                                let definition = self.interner.definition(id);
+                                let DefinitionKind::Function(func_id) = definition.kind else {
+                                    unreachable!(
+                                        "Expected trait function to be a DefinitionKind::Function"
+                                    )
+                                };
+                                func_id
                             }
+                        };
+
+                        if func_id != FuncId::dummy_id() {
+                            let function_type = self.interner.function_meta(&func_id).typ.clone();
+                            self.try_add_mutable_reference_to_object(
+                                &mut method_call,
+                                &function_type,
+                                &mut object_type,
+                            );
                         }
 
                         // TODO: update object_type here?
@@ -349,7 +359,12 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     /// Returns the type of the given identifier
-    fn check_ident(&mut self, ident: HirIdent, expr_id: &ExprId) -> Type {
+    fn check_ident(
+        &mut self,
+        ident: HirIdent,
+        expr_id: &ExprId,
+        generics: Option<Vec<Type>>,
+    ) -> Type {
         let mut bindings = TypeBindings::new();
 
         // Add type bindings from any constraints that were used.
@@ -374,10 +389,20 @@ impl<'interner> TypeChecker<'interner> {
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
 
+        let span = self.interner.expr_span(expr_id);
+
+        let definition = self.interner.try_definition(ident.id);
+        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
+            DefinitionKind::Function(function) => {
+                self.interner.function_modifiers(function).generic_count
+            }
+            _ => 0,
+        });
+
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
+        let (typ, bindings) = self.instantiate(t, bindings, generics, function_generic_count, span);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
@@ -410,6 +435,37 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.store_instantiation_bindings(*expr_id, bindings);
         typ
+    }
+
+    fn instantiate(
+        &mut self,
+        typ: Type,
+        bindings: TypeBindings,
+        turbofish_generics: Option<Vec<Type>>,
+        function_generic_count: usize,
+        span: Span,
+    ) -> (Type, TypeBindings) {
+        match turbofish_generics {
+            Some(turbofish_generics) => {
+                if turbofish_generics.len() != function_generic_count {
+                    self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
+                        expected_count: function_generic_count,
+                        actual_count: turbofish_generics.len(),
+                        span,
+                    });
+                    typ.instantiate_with_bindings(bindings, self.interner)
+                } else {
+                    // Fetch the count of any implicit generics on the function, such as
+                    // for a method within a generic impl.
+                    let implicit_generic_count = match &typ {
+                        Type::Forall(generics, _) => generics.len() - function_generic_count,
+                        _ => 0,
+                    };
+                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
+                }
+            }
+            None => typ.instantiate_with_bindings(bindings, self.interner),
+        }
     }
 
     pub fn verify_trait_constraint(
@@ -521,7 +577,7 @@ impl<'interner> TypeChecker<'interner> {
 
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
-    fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
+    pub(crate) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
         if let Type::MutableReference(element) = typ {
             let location = self.interner.id_location(object);
 

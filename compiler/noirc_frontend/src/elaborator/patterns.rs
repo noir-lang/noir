@@ -323,10 +323,14 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(
+        &mut self,
+        variable: Path,
+        generics: Option<Vec<Type>>,
+    ) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
-        let id = self.interner.push_expr(HirExpression::Ident(expr.clone()));
+        let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics));
         self.interner.push_expr_location(id, span, self.file);
         let typ = self.type_check_variable(expr, id);
         self.interner.push_expr_type(id, typ.clone());

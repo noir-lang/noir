@@ -226,8 +226,6 @@ impl<'context> Elaborator<'context> {
             this.define_type_alias(alias_id, alias);
         }
 
-        this.collect_traits(items.traits);
-
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
