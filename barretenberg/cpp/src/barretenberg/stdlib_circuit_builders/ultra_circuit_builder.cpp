@@ -40,12 +40,14 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
      * our circuit is finalized, and we must not to execute these functions again.
      */
     if (!circuit_finalized) {
-        add_gates_to_ensure_all_polys_are_non_zero();
         process_non_native_field_multiplications();
         process_ROM_arrays();
         process_RAM_arrays();
         process_range_lists();
         circuit_finalized = true;
+    } else {
+        // Gates added after first call to finalize will not be processed since finalization is only performed once
+        info("WARNING: Redudant call to finalize_circuit(). Is this intentional?");
     }
 }
 

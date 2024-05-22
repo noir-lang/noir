@@ -109,7 +109,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     }
 
     void finalize_circuit();
-    void add_goblin_gates_to_ensure_all_polys_are_non_zero();
+    void add_gates_to_ensure_all_polys_are_non_zero();
 
     size_t get_num_constant_gates() const override { return 0; }
 
@@ -128,6 +128,22 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         auto num_ultra_gates = UltraCircuitBuilder_<UltraHonkArith<FF>>::get_num_gates();
         auto num_goblin_ecc_op_gates = this->blocks.ecc_op.size();
         return num_ultra_gates + num_goblin_ecc_op_gates;
+    }
+
+    /**
+     * @brief Dynamically compute the number of gates added by the "add_gates_to_ensure_all_polys_are_non_zero" method
+     * @note This does NOT add the gates to the present builder
+     *
+     */
+    size_t get_num_gates_added_to_ensure_nonzero_polynomials()
+    {
+        GoblinUltraCircuitBuilder_<FF> builder; // instantiate new builder
+
+        size_t num_gates_prior = builder.get_num_gates();
+        builder.add_gates_to_ensure_all_polys_are_non_zero();
+        size_t num_gates_post = builder.get_num_gates(); // accounts for finalization gates
+
+        return num_gates_post - num_gates_prior;
     }
 
     /**x

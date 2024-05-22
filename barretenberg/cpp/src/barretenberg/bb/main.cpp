@@ -164,7 +164,8 @@ bool proveAndVerifyHonkAcirFormat(acir_format::AcirFormat constraint_system, aci
     // Construct a bberg circuit from the acir representation
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
 
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size());
+    auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
     init_bn254_crs(srs_size);
 
     // Construct Honk proof
@@ -591,8 +592,8 @@ void prove_honk(const std::string& bytecodePath, const std::string& witnessPath,
 
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
 
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size());
-
+    auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
     init_bn254_crs(srs_size);
 
     // Construct Honk proof
@@ -662,7 +663,8 @@ template <IsUltraFlavor Flavor> void write_vk_honk(const std::string& bytecodePa
     auto constraint_system = get_constraint_system(bytecodePath);
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, {});
 
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size());
+    auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
     init_bn254_crs(srs_size);
 
     ProverInstance prover_inst(builder);
