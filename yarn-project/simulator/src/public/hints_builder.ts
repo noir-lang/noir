@@ -17,6 +17,7 @@ import {
   type PublicDataUpdateRequest,
   type ScopedReadRequest,
   buildNullifierNonExistentReadRequestHints,
+  buildPublicDataHint,
   buildPublicDataHints,
   buildPublicDataReadRequestHints,
   buildSiloedNullifierReadRequestHints,
@@ -54,6 +55,11 @@ export class HintsBuilder {
     publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
   ) {
     return buildPublicDataHints(this, publicDataReads, publicDataUpdateRequests);
+  }
+
+  getPublicDataHint(dataAction: PublicDataRead | PublicDataUpdateRequest | bigint) {
+    const slot = typeof dataAction === 'bigint' ? dataAction : dataAction.leafSlot.toBigInt();
+    return buildPublicDataHint(this, slot);
   }
 
   getPublicDataReadRequestHints(

@@ -18,7 +18,6 @@ use dep::types::{
     hash::{silo_note_hash, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
     utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
 };
-use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value};
 
 // Validates inputs to the kernel circuit that are common to all invocation scenarios.
 pub fn validate_inputs(public_call: PublicCallData) {
@@ -370,11 +369,7 @@ fn propagate_valid_public_data_update_requests(
     for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
         let update_request = update_requests[i];
         if (!update_request.is_empty()) {
-            let public_data_update_request = PublicDataUpdateRequest {
-                leaf_slot: compute_public_data_tree_index(contract_address, update_request.storage_slot),
-                new_value: compute_public_data_tree_value(update_request.new_value)
-            };
-
+            let public_data_update_request = PublicDataUpdateRequest::from_contract_storage_update_request(contract_address, update_request);
             public_data_update_requests.push(public_data_update_request);
         }
     }
@@ -393,10 +388,7 @@ fn propagate_valid_non_revertible_public_data_update_requests(
     for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
         let update_request = update_requests[i];
         if (!update_request.is_empty()) {
-            let public_data_update_request = PublicDataUpdateRequest {
-                leaf_slot: compute_public_data_tree_index(contract_address, update_request.storage_slot),
-                new_value: compute_public_data_tree_value(update_request.new_value)
-            };
+            let public_data_update_request = PublicDataUpdateRequest::from_contract_storage_update_request(contract_address, update_request);
 
             public_data_update_requests.push(public_data_update_request);
         }
@@ -413,10 +405,7 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
     for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
         let read_request: StorageRead = read_requests[i];
         if !read_request.is_empty() {
-            let public_data_read = PublicDataRead {
-                leaf_slot: compute_public_data_tree_index(contract_address, read_request.storage_slot),
-                value: compute_public_data_tree_value(read_request.current_value)
-            };
+            let public_data_read = PublicDataRead::from_contract_storage_read(contract_address, read_request);
             public_data_reads.push(public_data_read);
         }
     }

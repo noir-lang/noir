@@ -58,6 +58,7 @@ struct FixtureBuilder {
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     gas_used: Gas,
     non_revertible_gas_used: Gas,
+    revert_code: u8,
 
     // Validation requests.
     max_block_number: MaxBlockNumber,
@@ -72,7 +73,6 @@ struct FixtureBuilder {
     vk: VerificationKey,
     vk_index: u32,
     vk_path: [Field; VK_TREE_HEIGHT],
-    revert_code: u8,
     
     // Counters.
     min_revertible_side_effect_counter: u32,
@@ -555,7 +555,7 @@ impl Empty for FixtureBuilder {
             start_state: PartialStateReference::empty(),
             gas_used: Gas::empty(),
             non_revertible_gas_used: Gas::empty(),
-            public_teardown_call_request: CallRequest::empty()
+            public_teardown_call_request: CallRequest::empty(),
         }
     }
 }

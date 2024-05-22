@@ -8,27 +8,29 @@ contract GasToken {
 
     #[aztec(storage)]
     struct Storage {
+        // This map is accessed directly by protocol circuits to check balances for fee payment.
+        // Do not change this storage layout unless you also update the base rollup circuits.
         balances: Map<AztecAddress, PublicMutable<U128>>,
         portal_address: SharedImmutable<EthAddress>,
     }
 
+    // We purposefully not set this function as an initializer so we do not bind
+    // the contract to a specific L1 portal address, since the gas token address
+    // is a hardcoded constant in the rollup circuits.
     #[aztec(public)]
-    #[aztec(initializer)]
-    fn constructor(portal_address: EthAddress) {
+    fn set_portal(portal_address: EthAddress) {
+        assert(storage.portal_address.read_public().is_zero());
         storage.portal_address.initialize(portal_address);
     }
 
     #[aztec(public)]
     fn claim_public(to: AztecAddress, amount: Field, secret: Field, leaf_index: Field) {
         let content_hash = get_bridge_gas_msg_hash(to, amount);
+        let portal_address = storage.portal_address.read_public();
+        assert(!portal_address.is_zero());
 
         // Consume message and emit nullifier
-        context.consume_l1_to_l2_message(
-            content_hash,
-            secret,
-            storage.portal_address.read_public(),
-            leaf_index
-        );
+        context.consume_l1_to_l2_message(content_hash, secret, portal_address, leaf_index);
 
         let new_balance = storage.balances.at(to).read() + U128::from_integer(amount);
         storage.balances.at(to).write(new_balance);
@@ -49,24 +51,6 @@ contract GasToken {
     fn check_balance(fee_limit: Field) {
         let fee_limit = U128::from_integer(fee_limit);
         assert(storage.balances.at(context.msg_sender()).read() >= fee_limit, "Balance too low");
-    }
-
-    #[aztec(public)]
-    fn pay_fee(fee_limit: Field) -> Field {
-        let fee_limit_u128 = U128::from_integer(fee_limit);
-        let fee = U128::from_integer(calculate_fee(context));
-        // TODO(6252): implement debug logging in AVM
-        //dep::aztec::oracle::debug_log::debug_log_format(
-        //    "Gas token: paying fee {0} (limit {1})",
-        //    [fee.to_field(), fee_limit]
-        //);
-        assert(fee <= fee_limit_u128, "Fee too high");
-
-        let sender_new_balance = storage.balances.at(context.msg_sender()).read() - fee;
-        storage.balances.at(context.msg_sender()).write(sender_new_balance);
-
-        let rebate = fee_limit_u128 - fee;
-        rebate.to_field()
     }
 
     // utility function for testing

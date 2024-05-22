@@ -1,10 +1,26 @@
-use crate::constants::{PUBLIC_DATA_UPDATE_REQUEST_LENGTH, GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST};
 use dep::std::cmp::Eq;
+use crate::constants::{PUBLIC_DATA_UPDATE_REQUEST_LENGTH, GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST};
 use crate::traits::{Empty, Hash, Serialize, Deserialize};
+use crate::public_data_tree_leaf::PublicDataTreeLeaf;
+use crate::address::AztecAddress;
+use crate::contrakt::storage_update_request::StorageUpdateRequest;
+use crate::data::hash::{compute_public_data_tree_value, compute_public_data_tree_index};
 
 struct PublicDataUpdateRequest {
     leaf_slot : Field,
     new_value : Field
+}
+
+impl PublicDataUpdateRequest {
+    pub fn from_contract_storage_update_request(
+        contract_address: AztecAddress,
+        update_request: StorageUpdateRequest
+    ) -> PublicDataUpdateRequest {
+        PublicDataUpdateRequest {
+            leaf_slot: compute_public_data_tree_index(contract_address, update_request.storage_slot),
+            new_value: compute_public_data_tree_value(update_request.new_value)
+        }
+    }
 }
 
 impl Eq for PublicDataUpdateRequest {
@@ -30,6 +46,16 @@ impl Hash for PublicDataUpdateRequest {
             self.new_value
         ], GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)
     }
+}
+
+impl From<PublicDataUpdateRequest> for PublicDataTreeLeaf {
+    fn from(update_request: PublicDataUpdateRequest) -> PublicDataTreeLeaf {
+        PublicDataTreeLeaf {
+            slot: update_request.leaf_slot,
+            value: update_request.new_value
+        }
+    }
+
 }
 
 impl PublicDataUpdateRequest {

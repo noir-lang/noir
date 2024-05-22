@@ -24,6 +24,7 @@ import {
   type Proof,
   PublicCallRequest,
   PublicDataTreeLeafPreimage,
+  PublicDataUpdateRequest,
   StateReference,
   makeEmptyProof,
 } from '@aztec/circuits.js';
@@ -33,7 +34,12 @@ import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { type FieldsOf } from '@aztec/foundation/types';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
-import { type PublicExecutionResult, type PublicExecutor, WASMSimulator } from '@aztec/simulator';
+import {
+  type PublicExecutionResult,
+  type PublicExecutor,
+  WASMSimulator,
+  computeFeePayerBalanceLeafSlot,
+} from '@aztec/simulator';
 import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
 
 import { jest } from '@jest/globals';
@@ -68,6 +74,7 @@ describe('public_processor', () => {
     root = Buffer.alloc(32, 5);
 
     db.getTreeInfo.mockResolvedValue({ root } as TreeInfo);
+    publicWorldStateDB.storageRead.mockResolvedValue(Fr.ZERO);
   });
 
   describe('with mock circuits', () => {
@@ -109,6 +116,7 @@ describe('public_processor', () => {
         revertReason: undefined,
         publicKernelRequests: [],
         gasUsed: {},
+        protocolPublicDataUpdateRequests: [],
       };
 
       // Jest is complaining that the two objects are not equal, but they are.
@@ -225,18 +233,15 @@ describe('public_processor', () => {
       });
 
     it('runs a tx with enqueued public calls', async function () {
-      const feePayer = AztecAddress.random();
       const tx = mockTxWithPartialState({
         numberOfRevertiblePublicCallRequests: 2,
         publicTeardownCallRequest: PublicCallRequest.empty(),
-        feePayer,
       });
 
       publicExecutor.simulate.mockImplementation(execution => {
         for (const request of tx.enqueuedPublicFunctionCalls) {
           if (execution.contractAddress.equals(request.contractAddress)) {
             const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
-            // result.unencryptedLogs = tx.unencryptedLogs.functionLogs[0];
             return Promise.resolve(result);
           }
         }
@@ -251,7 +256,6 @@ describe('public_processor', () => {
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(2);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
-      expect(processed[0].data.feePayer).toEqual(feePayer);
 
       expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
     });
@@ -826,6 +830,128 @@ describe('public_processor', () => {
       expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);
 
       expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
+    });
+
+    describe('with fee payer', () => {
+      it('injects balance update with no public calls', async function () {
+        const feePayer = AztecAddress.random();
+        const initialBalance = BigInt(1e12);
+        const inclusionFee = 100n;
+        const tx = mockTxWithPartialState({
+          numberOfRevertiblePublicCallRequests: 0,
+          publicTeardownCallRequest: PublicCallRequest.empty(),
+          feePayer,
+        });
+
+        tx.data.constants.txContext.gasSettings = GasSettings.from({
+          ...GasSettings.default(),
+          inclusionFee: new Fr(inclusionFee),
+        });
+
+        publicWorldStateDB.storageRead.mockResolvedValue(new Fr(initialBalance));
+        publicWorldStateDB.storageWrite.mockImplementation((address: AztecAddress, slot: Fr) =>
+          Promise.resolve(computePublicDataTreeLeafSlot(address, slot).toBigInt()),
+        );
+
+        const [processed, failed] = await processor.process([tx], 1, prover);
+
+        expect(failed.map(f => f.error)).toEqual([]);
+        expect(processed).toHaveLength(1);
+        expect(publicExecutor.simulate).toHaveBeenCalledTimes(0);
+        expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
+        expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
+        expect(publicWorldStateDB.storageWrite).toHaveBeenCalledTimes(1);
+        expect(processed[0].data.feePayer).toEqual(feePayer);
+        expect(processed[0].protocolPublicDataUpdateRequests[0]).toEqual(
+          PublicDataUpdateRequest.from({
+            leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
+            newValue: new Fr(initialBalance - inclusionFee),
+          }),
+        );
+
+        expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
+      });
+
+      it('injects balance update with public enqueued call', async function () {
+        const feePayer = AztecAddress.random();
+        const initialBalance = BigInt(1e12);
+        const inclusionFee = 100n;
+        const tx = mockTxWithPartialState({
+          numberOfRevertiblePublicCallRequests: 2,
+          publicTeardownCallRequest: PublicCallRequest.empty(),
+          feePayer,
+        });
+
+        tx.data.constants.txContext.gasSettings = GasSettings.from({
+          ...GasSettings.default(),
+          inclusionFee: new Fr(inclusionFee),
+        });
+
+        publicWorldStateDB.storageRead.mockResolvedValue(new Fr(initialBalance));
+        publicWorldStateDB.storageWrite.mockImplementation((address: AztecAddress, slot: Fr) =>
+          Promise.resolve(computePublicDataTreeLeafSlot(address, slot).toBigInt()),
+        );
+
+        publicExecutor.simulate.mockImplementation(execution => {
+          for (const request of tx.enqueuedPublicFunctionCalls) {
+            if (execution.contractAddress.equals(request.contractAddress)) {
+              const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
+              return Promise.resolve(result);
+            }
+          }
+          throw new Error(`Unexpected execution request: ${execution}`);
+        });
+
+        const [processed, failed] = await processor.process([tx], 1, prover);
+
+        expect(failed.map(f => f.error)).toEqual([]);
+        expect(processed).toHaveLength(1);
+        expect(processed).toEqual([expectedTxByHash(tx)]);
+        expect(publicExecutor.simulate).toHaveBeenCalledTimes(2);
+        expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
+        expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
+        expect(publicWorldStateDB.storageWrite).toHaveBeenCalledTimes(1);
+        expect(processed[0].data.feePayer).toEqual(feePayer);
+        expect(processed[0].protocolPublicDataUpdateRequests[0]).toEqual(
+          PublicDataUpdateRequest.from({
+            leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
+            newValue: new Fr(initialBalance - inclusionFee),
+          }),
+        );
+
+        expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
+      });
+
+      it('rejects tx if fee payer has not enough balance', async function () {
+        const feePayer = AztecAddress.random();
+        const initialBalance = 1n;
+        const inclusionFee = 100n;
+        const tx = mockTxWithPartialState({
+          numberOfRevertiblePublicCallRequests: 0,
+          publicTeardownCallRequest: PublicCallRequest.empty(),
+          feePayer,
+        });
+
+        tx.data.constants.txContext.gasSettings = GasSettings.from({
+          ...GasSettings.default(),
+          inclusionFee: new Fr(inclusionFee),
+        });
+
+        publicWorldStateDB.storageRead.mockResolvedValue(new Fr(initialBalance));
+        publicWorldStateDB.storageWrite.mockImplementation((address: AztecAddress, slot: Fr) =>
+          Promise.resolve(computePublicDataTreeLeafSlot(address, slot).toBigInt()),
+        );
+
+        const [processed, failed] = await processor.process([tx], 1, prover);
+
+        expect(processed).toHaveLength(0);
+        expect(failed).toHaveLength(1);
+        expect(failed[0].error.message).toMatch(/Not enough balance/i);
+        expect(publicExecutor.simulate).toHaveBeenCalledTimes(0);
+        expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(0);
+        expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
+        expect(publicWorldStateDB.storageWrite).toHaveBeenCalledTimes(0);
+      });
     });
   });
 });

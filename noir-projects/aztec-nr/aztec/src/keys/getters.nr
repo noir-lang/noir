@@ -1,15 +1,13 @@
 use dep::protocol_types::{
     abis::key_validation_request::KeyValidationRequest, address::AztecAddress,
-    constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint
+    constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint,
+    storage::map::derive_storage_slot_in_map
 };
 use crate::{
     context::PrivateContext,
     oracle::{keys::get_public_keys_and_partial_address, key_validation_request::get_key_validation_request},
     keys::{public_keys::PublicKeys, constants::{NULLIFIER_INDEX, INCOMING_INDEX}},
-    state_vars::{
-    map::derive_storage_slot_in_map,
-    shared_mutable::shared_mutable_private_getter::SharedMutablePrivateGetter
-}
+    state_vars::{shared_mutable::shared_mutable_private_getter::SharedMutablePrivateGetter}
 };
 
 global DELAY = 5;

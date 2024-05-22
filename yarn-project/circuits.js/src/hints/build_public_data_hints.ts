@@ -21,29 +21,27 @@ interface PublicDataMembershipWitnessWithPreimage {
   leafPreimage: PublicDataTreeLeafPreimage;
 }
 
+type PublicDataMembershipWitnessOracle = {
+  getMatchOrLowPublicDataMembershipWitness(leafSlot: bigint): Promise<PublicDataMembershipWitnessWithPreimage>;
+};
+
 export async function buildPublicDataHints(
-  oracle: {
-    getMatchOrLowPublicDataMembershipWitness(leafSlot: bigint): Promise<PublicDataMembershipWitnessWithPreimage>;
-  },
+  oracle: PublicDataMembershipWitnessOracle,
   publicDataReads: Tuple<PublicDataRead, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
   publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
 ) {
-  const publicDataLeafSlotSet: Set<bigint> = new Set();
-  [...publicDataReads, ...publicDataUpdateRequests]
+  const publicDataLeafSlots = [...publicDataReads, ...publicDataUpdateRequests]
     .filter(r => !r.isEmpty())
-    .forEach(v => {
-      publicDataLeafSlotSet.add(v.leafSlot.toBigInt());
-    });
-  const uniquePublicDataLeafSlots = [...publicDataLeafSlotSet];
+    .map(r => r.leafSlot.toBigInt());
+  const uniquePublicDataLeafSlots = [...new Set(publicDataLeafSlots)];
 
-  const hints: PublicDataHint[] = [];
-  for (let i = 0; i < uniquePublicDataLeafSlots.length; i++) {
-    const leafSlot = uniquePublicDataLeafSlots[i];
-    const { membershipWitness, leafPreimage } = await oracle.getMatchOrLowPublicDataMembershipWitness(leafSlot);
-    const exists = leafPreimage.slot.toBigInt() === leafSlot;
-    const value = exists ? leafPreimage.value : Fr.ZERO;
-    hints.push(new PublicDataHint(new Fr(leafSlot), value, 0, membershipWitness, leafPreimage));
-  }
-
+  const hints = await Promise.all(uniquePublicDataLeafSlots.map(slot => buildPublicDataHint(oracle, slot)));
   return padArrayEnd(hints, PublicDataHint.empty(), MAX_PUBLIC_DATA_HINTS);
+}
+
+export async function buildPublicDataHint(oracle: PublicDataMembershipWitnessOracle, leafSlot: bigint) {
+  const { membershipWitness, leafPreimage } = await oracle.getMatchOrLowPublicDataMembershipWitness(leafSlot);
+  const exists = leafPreimage.slot.toBigInt() === leafSlot;
+  const value = exists ? leafPreimage.value : Fr.ZERO;
+  return new PublicDataHint(new Fr(leafSlot), value, 0, membershipWitness, leafPreimage);
 }

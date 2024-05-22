@@ -10,6 +10,7 @@ const {
   TEMP_DIR = '/tmp',
   ACVM_BINARY_PATH = '',
   ACVM_WORKING_DIRECTORY = '',
+  ACVM_FORCE_WASM = '',
 } = process.env;
 
 // Determines if we have access to the acvm binary and a tmp folder for temp files
@@ -22,6 +23,9 @@ export async function getACVMConfig(logger: DebugLogger): Promise<
   | undefined
 > {
   try {
+    if (['1', 'true'].includes(ACVM_FORCE_WASM)) {
+      return undefined;
+    }
     const acvmBinaryPath = ACVM_BINARY_PATH ? ACVM_BINARY_PATH : `../../noir/${NOIR_RELEASE_DIR}/acvm`;
     await fs.access(acvmBinaryPath, fs.constants.R_OK);
     const tempWorkingDirectory = `${TEMP_DIR}/${randomBytes(4).toString('hex')}`;

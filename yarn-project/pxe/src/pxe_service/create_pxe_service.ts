@@ -65,7 +65,7 @@ export async function createPXEService(
     getCanonicalClassRegisterer(),
     getCanonicalInstanceDeployer(),
     getCanonicalMultiCallEntrypointContract(),
-    getCanonicalGasToken(l1Contracts.gasPortalAddress),
+    getCanonicalGasToken(),
     getCanonicalKeyRegistry(),
   ]) {
     await server.registerContract(contract);

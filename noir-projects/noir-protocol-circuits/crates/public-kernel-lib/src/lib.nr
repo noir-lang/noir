@@ -1,7 +1,6 @@
 // TODO: rename to be precise as to what its common to (the public kernel circuits).
 mod common;
 
-mod hash;
 mod utils;
 
 mod public_kernel_setup;

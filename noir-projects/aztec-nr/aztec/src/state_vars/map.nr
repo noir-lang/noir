@@ -1,4 +1,4 @@
-use dep::protocol_types::{hash::pedersen_hash, traits::ToField};
+use dep::protocol_types::{hash::pedersen_hash, storage::map::derive_storage_slot_in_map, traits::ToField};
 use crate::state_vars::storage::Storage;
 
 // docs:start:map
@@ -32,8 +32,4 @@ impl<K, V, Context> Map<K, V, Context> {
         state_var_constructor(self.context, derived_storage_slot)
     }
     // docs:end:at
-}
-
-pub fn derive_storage_slot_in_map<K>(storage_slot: Field, key: K) -> Field where K: ToField {
-    pedersen_hash([storage_slot, key.to_field()], 0)
 }

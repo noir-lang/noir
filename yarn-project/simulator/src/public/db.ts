@@ -23,9 +23,9 @@ export interface PublicStateDB {
    * @param contract - Owner of the storage.
    * @param slot - Slot to read in the contract storage.
    * @param newValue - The new value to store.
-   * @returns Nothing.
+   * @returns The slot of the written leaf in the public data tree.
    */
-  storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void>;
+  storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<bigint>;
 
   /**
    * Mark the uncommitted changes in this TX as a checkpoint.

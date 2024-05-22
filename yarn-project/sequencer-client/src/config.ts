@@ -175,16 +175,12 @@ function getDefaultAllowedSetupFunctions(): AllowedFunction[] {
 function getDefaultAllowedTeardownFunctions(): AllowedFunction[] {
   return [
     {
-      classId: getContractClassFromArtifact(GasTokenContract.artifact).id,
-      selector: FunctionSelector.fromSignature('pay_fee(Field)'),
+      classId: getContractClassFromArtifact(FPCContract.artifact).id,
+      selector: FunctionSelector.fromSignature('pay_refund((Field),Field,(Field))'),
     },
     {
       classId: getContractClassFromArtifact(FPCContract.artifact).id,
-      selector: FunctionSelector.fromSignature('pay_fee((Field),Field,(Field))'),
-    },
-    {
-      classId: getContractClassFromArtifact(FPCContract.artifact).id,
-      selector: FunctionSelector.fromSignature('pay_fee_with_shielded_rebate(Field,(Field),Field)'),
+      selector: FunctionSelector.fromSignature('pay_refund_with_shielded_rebate(Field,(Field),Field)'),
     },
   ];
 }

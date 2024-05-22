@@ -46,7 +46,7 @@ describe('e2e_fees gas_estimation', () => {
     );
 
   it('estimates gas with native fee payment method', async () => {
-    const paymentMethod = await NativeFeePaymentMethod.create(aliceWallet);
+    const paymentMethod = new NativeFeePaymentMethod();
     const [withEstimate, withoutEstimate] = await sendTransfers(paymentMethod);
 
     // Estimation should yield that teardown has no cost, so should send the tx with zero for teardown

@@ -33,7 +33,9 @@ library Constants {
   uint256 internal constant MAX_NEW_NULLIFIERS_PER_TX = 64;
   uint256 internal constant MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX = 8;
   uint256 internal constant MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX = 32;
-  uint256 internal constant MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 32;
+  uint256 internal constant MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 31;
+  uint256 internal constant PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 1;
+  uint256 internal constant MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 32;
   uint256 internal constant MAX_PUBLIC_DATA_READS_PER_TX = 32;
   uint256 internal constant MAX_NEW_L2_TO_L1_MSGS_PER_TX = 2;
   uint256 internal constant MAX_NOTE_HASH_READ_REQUESTS_PER_TX = 128;
@@ -89,8 +91,6 @@ library Constants {
     0xe7af816635466f128568edb04c9fa024f6c87fb9010fdbffa68b3d99;
   uint256 internal constant DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE =
     0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
-  uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
-    0x2e9c386f07e22a1d24e677ab70407b2dd0adbc7cafb9c822bf249685d6a2e4cc;
   uint256 internal constant DEFAULT_GAS_LIMIT = 1_000_000_000;
   uint256 internal constant DEFAULT_TEARDOWN_GAS_LIMIT = 100_000_000;
   uint256 internal constant DEFAULT_MAX_FEE_PER_GAS = 10;
@@ -100,6 +100,10 @@ library Constants {
   uint256 internal constant FIXED_DA_GAS = 512;
   uint256 internal constant CANONICAL_KEY_REGISTRY_ADDRESS =
     0x1585e564a60e6ec974bc151b62705292ebfc75c33341986a47fd9749cedb567e;
+  uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
+    0x2e9c386f07e22a1d24e677ab70407b2dd0adbc7cafb9c822bf249685d6a2e4cc;
+  uint256 internal constant GAS_TOKEN_ADDRESS =
+    0x283353eafd3802181f7c1461a4b68332afc6c04e95097bc51b5458d8a8abf4f9;
   uint256 internal constant AZTEC_ADDRESS_LENGTH = 1;
   uint256 internal constant GAS_FEES_LENGTH = 2;
   uint256 internal constant GAS_LENGTH = 2;

@@ -4,7 +4,7 @@ import { EthAddress, PrivateFeePaymentMethod, PublicFeePaymentMethod, TxStatus }
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
 import { CompleteAddress, Fq, Fr, GasSettings } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
-import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { ProverPool } from '@aztec/prover-client/prover-pool';
 import { type PXEService, createPXEService } from '@aztec/pxe';
 
@@ -80,10 +80,7 @@ describe('benchmarks/proving', () => {
     )
       .send()
       .deployed();
-    initialGasContract = await GasTokenContract.at(
-      getCanonicalGasTokenAddress(ctx.deployL1ContractsValues.l1ContractAddresses.gasPortalAddress),
-      initialSchnorrWallet,
-    );
+    initialGasContract = await GasTokenContract.at(GasTokenAddress, initialSchnorrWallet);
     initialFpContract = await FPCContract.deploy(
       initialSchnorrWallet,
       initialTokenContract.address,

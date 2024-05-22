@@ -52,7 +52,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { KeyRegistryContract } from '@aztec/noir-contracts.js';
 import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
-import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { GasTokenAddress, getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { type ProverClient } from '@aztec/prover-client';
 import { PXEService, type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
@@ -140,7 +140,7 @@ async function initGasBridge({ walletClient, l1ContractAddresses }: DeployL1Cont
     [
       l1ContractAddresses.registryAddress.toString(),
       l1ContractAddresses.gasTokenAddress.toString(),
-      getCanonicalGasTokenAddress(l1ContractAddresses.gasPortalAddress).toString(),
+      GasTokenAddress.toString(),
     ],
     {} as any,
   );
@@ -589,7 +589,7 @@ export async function expectMappingDelta<K, V extends number | bigint>(
 export async function deployCanonicalGasToken(deployer: Wallet) {
   // "deploy" the Gas token as it contains public functions
   const gasPortalAddress = (await deployer.getNodeInfo()).l1ContractAddresses.gasPortalAddress;
-  const canonicalGasToken = getCanonicalGasToken(gasPortalAddress);
+  const canonicalGasToken = getCanonicalGasToken();
 
   if (await deployer.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
     getLogger().debug('Gas token already deployed');
@@ -597,9 +597,10 @@ export async function deployCanonicalGasToken(deployer: Wallet) {
     return;
   }
 
-  const gasToken = await GasTokenContract.deploy(deployer, gasPortalAddress)
+  const gasToken = await GasTokenContract.deploy(deployer)
     .send({ contractAddressSalt: canonicalGasToken.instance.salt, universalDeploy: true })
     .deployed();
+  await gasToken.methods.set_portal(gasPortalAddress).send().wait();
 
   getLogger().info(`Gas token publicly deployed at ${gasToken.address}`);
 

@@ -192,10 +192,9 @@ export class FeesTest {
           bananaFPCAddress: bananaFPC.address,
           gasTokenAddress: gasTokenContract.address,
           l1GasTokenAddress: harness.l1GasTokenAddress,
-          rpcUrl: context.aztecNodeConfig.rpcUrl,
         };
       },
-      async data => {
+      async (data, context) => {
         const bananaFPC = await FPCContract.at(data.bananaFPCAddress, this.aliceWallet);
         const bananaCoin = await BananaCoin.at(data.bananaCoinAddress, this.aliceWallet);
         const gasTokenContract = await GasTokenContract.at(data.gasTokenAddress, this.aliceWallet);
@@ -209,7 +208,7 @@ export class FeesTest {
         this.gasBalances = getBalancesFn('⛽', gasTokenContract.methods.balance_of_public, this.logger);
 
         this.getCoinbaseBalance = async () => {
-          const { walletClient } = createL1Clients(data.rpcUrl, MNEMONIC);
+          const { walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
           const gasL1 = getContract({
             address: data.l1GasTokenAddress.toString(),
             abi: PortalERC20Abi,

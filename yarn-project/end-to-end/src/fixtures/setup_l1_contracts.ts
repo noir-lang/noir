@@ -20,7 +20,7 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
-import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { type HDAccount, type PrivateKeyAccount, getContract } from 'viem';
 import { foundry } from 'viem/chains';
@@ -80,7 +80,7 @@ async function initGasBridge({ walletClient, l1ContractAddresses }: DeployL1Cont
     [
       l1ContractAddresses.registryAddress.toString(),
       l1ContractAddresses.gasTokenAddress.toString(),
-      getCanonicalGasTokenAddress(l1ContractAddresses.gasPortalAddress).toString(),
+      GasTokenAddress.toString(),
     ],
     {} as any,
   );

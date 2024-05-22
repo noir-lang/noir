@@ -10,7 +10,7 @@ import {
 } from '@aztec/aztec.js';
 import { GasPortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
 import { GasTokenContract } from '@aztec/noir-contracts.js';
-import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { GasTokenAddress, getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 
 import {
   type Account,
@@ -46,10 +46,8 @@ export class GasPortalTestingHarnessFactory {
     const wallet = this.config.wallet;
 
     // In this case we are not using a portal we just yolo it.
-    const gasL2 = await GasTokenContract.deploy(wallet, EthAddress.ZERO)
-      .send({
-        contractAddressSalt: getCanonicalGasToken(EthAddress.ZERO).instance.salt,
-      })
+    const gasL2 = await GasTokenContract.deploy(wallet)
+      .send({ contractAddressSalt: getCanonicalGasToken().instance.salt })
       .deployed();
     return Promise.resolve(new MockGasBridgingTestHarness(gasL2, EthAddress.ZERO));
   }
@@ -85,7 +83,7 @@ export class GasPortalTestingHarnessFactory {
       client: walletClient,
     });
 
-    const gasL2 = await GasTokenContract.at(getCanonicalGasTokenAddress(gasPortalAddress), wallet);
+    const gasL2 = await GasTokenContract.at(GasTokenAddress, wallet);
 
     return new GasBridgingTestHarness(
       aztecNode,

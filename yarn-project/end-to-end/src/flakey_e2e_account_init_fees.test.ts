@@ -148,7 +148,7 @@ describe('e2e_fees_account_init', () => {
           .deploy({
             fee: {
               gasSettings,
-              paymentMethod: await NativeFeePaymentMethod.create(await bobsAccountManager.getWallet()),
+              paymentMethod: new NativeFeePaymentMethod(),
             },
           })
           .wait();
@@ -311,7 +311,7 @@ describe('e2e_fees_account_init', () => {
             universalDeploy: true,
             fee: {
               gasSettings,
-              paymentMethod: await NativeFeePaymentMethod.create(alice),
+              paymentMethod: new NativeFeePaymentMethod(),
             },
           })
           .wait();

@@ -10,7 +10,7 @@ import {
   KernelData,
   type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
@@ -21,14 +21,17 @@ import {
   NULLIFIER_TREE_HEIGHT,
   type NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NullifierLeafPreimage,
+  PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_SUBTREE_HEIGHT,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   PartialStateReference,
   PreviousRollupData,
   type Proof,
+  PublicDataHint,
   PublicDataTreeLeaf,
   type PublicDataTreeLeafPreimage,
+  PublicDataUpdateRequest,
   ROLLUP_VK_TREE_HEIGHT,
   RollupTypes,
   type RootParityInput,
@@ -40,7 +43,9 @@ import {
   type VerificationKey,
 } from '@aztec/circuits.js';
 import { assertPermutation, makeTuple } from '@aztec/foundation/array';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { type Tuple, assertLength, toFriendlyJSON } from '@aztec/foundation/serialize';
+import { HintsBuilder, computeFeePayerBalanceLeafSlot } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { type VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
@@ -84,6 +89,13 @@ export async function buildBaseRollupInput(
   const noteHashSubtreeSiblingPath = makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, i =>
     i < noteHashSubtreeSiblingPathArray.length ? noteHashSubtreeSiblingPathArray[i] : Fr.ZERO,
   );
+
+  // Create data hint for reading fee payer initial balance in gas tokens
+  const hintsBuilder = new HintsBuilder(db);
+  const leafSlot = computeFeePayerBalanceLeafSlot(tx.data.feePayer);
+  const feePayerGasTokenBalanceReadHint = leafSlot.isZero()
+    ? PublicDataHint.empty()
+    : await hintsBuilder.getPublicDataHint(leafSlot.toBigInt());
 
   // Update the note hash trees with the new items being inserted to get the new roots
   // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
@@ -153,7 +165,7 @@ export async function buildBaseRollupInput(
     kernelData: getKernelDataFor(tx, getVerificationKeys()),
     start,
     stateDiffHints,
-
+    feePayerGasTokenBalanceReadHint,
     sortedPublicDataWrites: txPublicDataUpdateRequestInfo.sortedPublicDataWrites,
     sortedPublicDataWritesIndexes: txPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
     lowPublicDataWritesPreimages: txPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
@@ -311,12 +323,20 @@ export function makeEmptyMembershipWitness<N extends number>(height: N) {
 }
 
 export async function processPublicDataUpdateRequests(tx: ProcessedTx, db: MerkleTreeOperations) {
-  const combinedPublicDataUpdateRequests = tx.data.end.publicDataUpdateRequests.map(updateRequest => {
-    return new PublicDataTreeLeaf(updateRequest.leafSlot, updateRequest.newValue);
-  });
+  const allPublicDataUpdateRequests = [
+    ...tx.data.end.publicDataUpdateRequests,
+    ...padArrayEnd(
+      tx.protocolPublicDataUpdateRequests,
+      PublicDataUpdateRequest.empty(),
+      PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    ),
+  ];
+  const allPublicDataWrites = allPublicDataUpdateRequests.map(
+    ({ leafSlot, newValue }) => new PublicDataTreeLeaf(leafSlot, newValue),
+  );
   const { lowLeavesWitnessData, newSubtreeSiblingPath, sortedNewLeaves, sortedNewLeavesIndexes } = await db.batchInsert(
     MerkleTreeId.PUBLIC_DATA_TREE,
-    combinedPublicDataUpdateRequests.map(x => x.toBuffer()),
+    allPublicDataWrites.map(x => x.toBuffer()),
     // TODO(#3675) remove oldValue from update requests
     PUBLIC_DATA_SUBTREE_HEIGHT,
   );
@@ -325,11 +345,11 @@ export async function processPublicDataUpdateRequests(tx: ProcessedTx, db: Merkl
     throw new Error(`Could not craft public data batch insertion proofs`);
   }
 
-  const sortedPublicDataWrites = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
+  const sortedPublicDataWrites = makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
     return PublicDataTreeLeaf.fromBuffer(sortedNewLeaves[i]);
   });
 
-  const sortedPublicDataWritesIndexes = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
+  const sortedPublicDataWritesIndexes = makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
     return sortedNewLeavesIndexes[i];
   });
 
@@ -340,8 +360,8 @@ export async function processPublicDataUpdateRequests(tx: ProcessedTx, db: Merkl
 
   const lowPublicDataWritesMembershipWitnesses: Tuple<
     MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
-    typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-  > = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
+    typeof MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+  > = makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
     const witness = lowLeavesWitnessData[i];
     return MembershipWitness.fromBufferArray(
       witness.index,
@@ -349,16 +369,16 @@ export async function processPublicDataUpdateRequests(tx: ProcessedTx, db: Merkl
     );
   });
 
-  const lowPublicDataWritesPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> =
-    makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
-      return lowLeavesWitnessData[i].leafPreimage as PublicDataTreeLeafPreimage;
-    });
+  const lowPublicDataWritesPreimages: Tuple<
+    PublicDataTreeLeafPreimage,
+    typeof MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+  > = makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
+    return lowLeavesWitnessData[i].leafPreimage as PublicDataTreeLeafPreimage;
+  });
 
   // validate that the sortedPublicDataWrites and sortedPublicDataWritesIndexes are in the correct order
   // otherwise it will just fail in the circuit
-  assertPermutation(combinedPublicDataUpdateRequests, sortedPublicDataWrites, sortedPublicDataWritesIndexes, (a, b) =>
-    a.equals(b),
-  );
+  assertPermutation(allPublicDataWrites, sortedPublicDataWrites, sortedPublicDataWritesIndexes, (a, b) => a.equals(b));
 
   return {
     lowPublicDataWritesPreimages,

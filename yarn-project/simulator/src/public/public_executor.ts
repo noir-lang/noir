@@ -145,11 +145,12 @@ export class WorldStatePublicDB implements PublicStateDB {
    * @param contract - Owner of the storage.
    * @param slot - Slot to read in the contract storage.
    * @param newValue - The new value to store.
+   * @returns The slot of the written leaf in the public data tree.
    */
-  public storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
+  public storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<bigint> {
     const index = computePublicDataTreeLeafSlot(contract, slot).value;
     this.uncommittedWriteCache.set(index, newValue);
-    return Promise.resolve();
+    return Promise.resolve(index);
   }
 
   /**

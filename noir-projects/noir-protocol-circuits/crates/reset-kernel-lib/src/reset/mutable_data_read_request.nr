@@ -1,14 +1,8 @@
 use crate::reset::read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus};
 use dep::types::{
     abis::{public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest},
-    traits::{Empty, is_empty}
+    data::leaf_data_hint::LeafDataHint, traits::{Empty, is_empty}
 };
-
-trait LeafDataHint {
-    fn leaf_slot(self) -> Field;
-    fn value(self) -> Field;
-    fn override_counter(self) -> u32;
-}
 
 struct LeafDataReadHint {
     read_request_index: u64,
@@ -114,12 +108,15 @@ pub fn reset_mutable_data_read_requests<READ_REQUEST_LEN, PENDING_VALUE_LEN, H, 
 mod tests {
     use crate::reset::{
         mutable_data_read_request::{
-        ensure_all_read_requests_are_verified, reset_mutable_data_read_requests, LeafDataHint,
-        LeafDataReadHint, validate_pending_read_requests, validate_leaf_data_read_requests
+        ensure_all_read_requests_are_verified, reset_mutable_data_read_requests, LeafDataReadHint,
+        validate_pending_read_requests, validate_leaf_data_read_requests
     },
         read_request::{PendingReadHint, ReadRequestState, ReadRequestStatus}
     };
-    use dep::types::{abis::{public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest}};
+    use dep::types::{
+        abis::{public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest},
+        data::leaf_data_hint::LeafDataHint
+    };
 
     struct TestLeafDataHint {
         leaf_slot: Field,

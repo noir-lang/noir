@@ -129,7 +129,7 @@ export async function deployContractsToL1(
   const l1Contracts = await waitThenDeploy(aztecNodeConfig, () =>
     deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, contractDeployLogger, l1Artifacts),
   );
-  await initL1GasPortal(l1Contracts, getCanonicalGasToken(l1Contracts.l1ContractAddresses.gasPortalAddress).address);
+  await initL1GasPortal(l1Contracts, getCanonicalGasToken().address);
 
   aztecNodeConfig.l1Contracts = l1Contracts.l1ContractAddresses;
 
@@ -169,20 +169,25 @@ async function initL1GasPortal(
  */
 async function deployCanonicalL2GasToken(deployer: Wallet, l1ContractAddresses: L1ContractAddresses) {
   const gasPortalAddress = l1ContractAddresses.gasPortalAddress;
-  const canonicalGasToken = getCanonicalGasToken(gasPortalAddress);
+  const canonicalGasToken = getCanonicalGasToken();
 
   if (await deployer.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
     return;
   }
 
-  const gasToken = await GasTokenContract.deploy(deployer, gasPortalAddress)
-    .send({ contractAddressSalt: canonicalGasToken.instance.salt, universalDeploy: true })
+  const gasToken = await GasTokenContract.deploy(deployer)
+    .send({ universalDeploy: true, contractAddressSalt: canonicalGasToken.instance.salt })
     .deployed();
+  await gasToken.methods.set_portal(gasPortalAddress).send().wait();
 
-  if (gasToken.address !== canonicalGasToken.address) {
+  if (!gasToken.address.equals(canonicalGasToken.address)) {
     throw new Error(
       `Deployed Gas Token address ${gasToken.address} does not match expected address ${canonicalGasToken.address}`,
     );
+  }
+
+  if (!(await deployer.isContractPubliclyDeployed(canonicalGasToken.address))) {
+    throw new Error(`Failed to deploy Gas Token to ${canonicalGasToken.address}`);
   }
 
   logger.info(`Deployed Gas Token on L2 at ${canonicalGasToken.address}`);

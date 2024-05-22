@@ -19,7 +19,6 @@ struct KernelCircuitPublicInputs {
 }
 
 impl KernelCircuitPublicInputs {
-
     pub fn compute_transaction_fee(self) -> Field {
         let gas_fees = self.constants.global_variables.gas_fees;
         let inclusion_fee = self.constants.tx_context.gas_settings.inclusion_fee;
@@ -91,9 +90,7 @@ mod tests {
         accumulated_data::CombinedAccumulatedData, combined_constant_data::CombinedConstantData,
         validation_requests::RollupValidationRequests, gas::Gas, gas_fees::GasFees
     };
-    use crate::address::AztecAddress;
-    use crate::partial_state_reference::PartialStateReference;
-    use crate::mocked::AggregationObject;
+    use crate::{address::AztecAddress, partial_state_reference::PartialStateReference, mocked::AggregationObject};
 
     #[test]
     unconstrained fn empty_has_zero_gas_and_fee() {

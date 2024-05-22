@@ -4,13 +4,14 @@ import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
   ARCHIVE_HEIGHT,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
 import { GlobalVariables } from '../global_variables.js';
 import { KernelData } from '../kernel/kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { PartialStateReference } from '../partial_state_reference.js';
+import { PublicDataHint } from '../public_data_hint.js';
 import { type UInt32 } from '../shared.js';
 import { PublicDataTreeLeaf, PublicDataTreeLeafPreimage } from '../trees/index.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
@@ -89,23 +90,25 @@ export class BaseRollupInputs {
     public start: PartialStateReference,
     /** Hints used while proving state diff validity. */
     public stateDiffHints: StateDiffHints,
+    /** Public data read hint for accessing the balance of the fee payer. */
+    public feePayerGasTokenBalanceReadHint: PublicDataHint,
 
     /**
      * The public data writes to be inserted in the tree, sorted high slot to low slot.
      */
-    public sortedPublicDataWrites: Tuple<PublicDataTreeLeaf, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+    public sortedPublicDataWrites: Tuple<PublicDataTreeLeaf, typeof MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
 
     /**
      * The indexes of the sorted public data writes to the original ones.
      */
-    public sortedPublicDataWritesIndexes: Tuple<UInt32, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+    public sortedPublicDataWritesIndexes: Tuple<UInt32, typeof MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
     /**
      * The public data writes which need to be updated to perform the batch insertion of the new public data writes.
      * See `StandardIndexedTree.batchInsert` function for more details.
      */
     public lowPublicDataWritesPreimages: Tuple<
       PublicDataTreeLeafPreimage,
-      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+      typeof MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
     /**
      * Membership witnesses for the nullifiers which need to be updated to perform the batch insertion of the new
@@ -113,7 +116,7 @@ export class BaseRollupInputs {
      */
     public lowPublicDataWritesMembershipWitnesses: Tuple<
       MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
-      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+      typeof MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
 
     /**
@@ -135,6 +138,7 @@ export class BaseRollupInputs {
       fields.kernelData,
       fields.start,
       fields.stateDiffHints,
+      fields.feePayerGasTokenBalanceReadHint,
       fields.sortedPublicDataWrites,
       fields.sortedPublicDataWritesIndexes,
       fields.lowPublicDataWritesPreimages,
@@ -171,10 +175,11 @@ export class BaseRollupInputs {
       reader.readObject(KernelData),
       reader.readObject(PartialStateReference),
       reader.readObject(StateDiffHints),
-      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataTreeLeaf),
-      reader.readNumbers(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX),
-      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataTreeLeafPreimage),
-      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, {
+      reader.readObject(PublicDataHint),
+      reader.readArray(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataTreeLeaf),
+      reader.readNumbers(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX),
+      reader.readArray(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataTreeLeafPreimage),
+      reader.readArray(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, {
         fromBuffer: buffer => MembershipWitness.fromBuffer(buffer, PUBLIC_DATA_TREE_HEIGHT),
       }),
       MembershipWitness.fromBuffer(reader, ARCHIVE_HEIGHT),

@@ -1,7 +1,7 @@
 use crate::common;
 use dep::reset_kernel_lib::{
     NullifierReadRequestHints, NullifierNonExistentReadRequestHints, PublicDataReadRequestHints,
-    PublicValidationRequestProcessor, PublicDataHint
+    PublicValidationRequestProcessor
 };
 use dep::types::{
     abis::{
@@ -9,8 +9,9 @@ use dep::types::{
     public_kernel_data::PublicKernelData
 },
     constants::{MAX_PUBLIC_DATA_HINTS, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
+    data::public_data_hint::PublicDataHint,
     merkle_tree::{conditionally_assert_check_membership, MembershipWitness},
-    partial_state_reference::PartialStateReference, utils::{arrays::array_length}
+    partial_state_reference::PartialStateReference, utils::{arrays::array_length}, address::AztecAddress
 };
 
 struct PublicKernelTailCircuitPrivateInputs {
@@ -37,30 +38,9 @@ impl PublicKernelTailCircuitPrivateInputs {
     }
 
     fn validate_public_data_hints(self) {
-        let public_data_hints = self.public_data_hints;
         let public_data_tree_root = self.start_state.public_data_tree.root;
-        for i in 0..public_data_hints.len() {
-            let hint = public_data_hints[i];
-            // We only need to check leaf_slot to decide if a (non-)membership check is required.
-            // It will fail if a PublicDataHint with 0 leaf_slot is used to verify a non-empty public read or write.
-            if hint.leaf_slot != 0 {
-                let exists_in_tree = hint.leaf_slot == hint.leaf_preimage.slot;
-                if exists_in_tree {
-                    assert(
-                        hint.value == hint.leaf_preimage.value, "Hinted public data value does not match the value in leaf preimage"
-                    );
-                } else {
-                    assert(hint.value == 0, "Value must be 0 for non-existent public data");
-                }
-
-                conditionally_assert_check_membership(
-                    hint.leaf_slot,
-                    exists_in_tree,
-                    hint.leaf_preimage,
-                    hint.membership_witness,
-                    public_data_tree_root
-                );
-            }
+        for i in 0..self.public_data_hints.len() {
+            self.public_data_hints[i].validate(public_data_tree_root);
         }
     }
 
@@ -123,7 +103,7 @@ mod tests {
         MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
         NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_HEIGHT,
         PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX,
-        MAX_UNENCRYPTED_LOGS_PER_TX
+        MAX_UNENCRYPTED_LOGS_PER_TX, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     },
         hash::{silo_nullifier, sha256_to_field},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
@@ -144,15 +124,15 @@ mod tests {
         )
     }
 
-    fn get_settled_public_data_leaves() -> [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] {
-        let mut settled_public_data_leaves = [PublicDataTreeLeafPreimage::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+    fn get_settled_public_data_leaves() -> [PublicDataTreeLeafPreimage; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] {
+        let mut settled_public_data_leaves = [PublicDataTreeLeafPreimage::empty(); MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         settled_public_data_leaves[0] = PublicDataTreeLeafPreimage { slot: 22, value: 200, next_slot: 33, next_index: 1 };
         settled_public_data_leaves[1] = PublicDataTreeLeafPreimage { slot: 33, value: 300, next_slot: 0, next_index: 0 };
         settled_public_data_leaves[2] = PublicDataTreeLeafPreimage { slot: 11, value: 100, next_slot: 22, next_index: 0 };
         settled_public_data_leaves
     }
 
-    fn build_public_data_tree<N>() -> NonEmptyMerkleTree<MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_DATA_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT> {
+    fn build_public_data_tree<N>() -> NonEmptyMerkleTree<MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_DATA_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT> {
         let settled_public_data_leaves = get_settled_public_data_leaves();
         NonEmptyMerkleTree::new(
             settled_public_data_leaves.map(|preimage: PublicDataTreeLeafPreimage| preimage.hash()),
@@ -169,7 +149,7 @@ mod tests {
         nullifier_non_existent_read_request_hints_builder: NullifierNonExistentReadRequestHintsBuilder,
         public_data_read_request_hints_builder: PublicDataReadRequestHintsBuilder,
         public_data_hints: BoundedVec<PublicDataHint, MAX_PUBLIC_DATA_HINTS>,
-        public_data_tree: NonEmptyMerkleTree<MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_DATA_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT>,
+        public_data_tree: NonEmptyMerkleTree<MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_DATA_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT>,
         start_state: PartialStateReference,
     }
 

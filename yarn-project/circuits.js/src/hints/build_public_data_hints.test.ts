@@ -5,7 +5,7 @@ import { type Tuple } from '@aztec/foundation/serialize';
 import {
   MAX_PUBLIC_DATA_HINTS,
   MAX_PUBLIC_DATA_READS_PER_TX,
-  type MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
 } from '../constants.gen.js';
 import { PublicDataRead, PublicDataTreeLeafPreimage, PublicDataUpdateRequest } from '../structs/index.js';
 import { buildPublicDataHints } from './build_public_data_hints.js';
@@ -58,7 +58,7 @@ describe('buildPublicDataHints', () => {
 
   beforeEach(() => {
     publicDataReads = makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, PublicDataRead.empty);
-    publicDataUpdateRequests = makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, PublicDataUpdateRequest.empty);
+    publicDataUpdateRequests = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty);
     expectedHints = makeTuple(MAX_PUBLIC_DATA_HINTS, ExpectedHint.empty);
   });
 
