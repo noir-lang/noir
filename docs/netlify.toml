@@ -1,4 +1,44 @@
 [[redirects]]
+    from = "/developers/tutorials/*"
+    to = "/tutorials/contract_tutorials/private_voting_contract"
+
+[[redirects]]
+    from = "/developers/sandbox/*"
+    to = "/reference/sandbox_reference"
+
+[[redirects]]
+    from = "/developers/contracts/*"
+    to = "/reference/smart_contract_reference"
+
+[[redirects]]
+    from = "/dev_docs/*"
+    to = "/getting_started"
+
+[[redirects]]
+    from = "/aztec/cryptography/cryptography-roadmap"
+    to = "/aztec/roadmap/cryptography_roadmap"
+
+[[redirects]]
+    from = "/aztec/milestones/features-initial-ldt"
+    to = "/aztec/roadmap/"
+
+[[redirects]]
+    from = "/learn/concepts/*"
+    to = "/aztec/concepts/"
+
+[[redirects]]
+    from = "/noir"
+    to = "/"
+
+[[redirects]]
+    from = "/misc/aztec-connect-sunset"
+    to = "/aztec_connect_sunset"
+
+[[redirects]]
+    from= "zk-money/userguide"
+    to= "/aztec_connect_sunset"
+
+[[redirects]]
     from = "/how-aztec-works/*"
     to = "/"
 
@@ -17,199 +57,3 @@
 [[redirects]]
     from = "/compliance"
     to = "/"
-
-[[redirects]]
-    from = "/dev_docs/aztec3/*"
-    to = "/learn/about_aztec/what_is_aztec"
-
-[[redirects]]
-    from = "/dev_docs/contracts/types"
-    to = "/developers/contracts/syntax/types"
-
-[[redirects]]
-    from = "/dev_docs/contracts/storage"
-    to = "/developers/contracts/syntax/storage"
-
-[[redirects]]
-    from = "/dev_docs/contracts/state_variables"
-    to = "/developers/contracts/syntax/storage"
-
-[[redirects]]
-    from = "/dev_docs/contracts/functions"
-    to = "/developers/contracts/syntax/functions"
-
-[[redirects]]
-    from = "/dev_docs/contracts/visibility"
-    to = "/developers/contracts/syntax/visibility"
-
-[[redirects]]
-    from = "/dev_docs/contracts/globals"
-    to = "/developers/contracts/syntax/globals"
-
-[[redirects]]
-    from = "/dev_docs/contracts/syntax"
-    to = "/developers/contracts/syntax/main"
-
-[[redirects]]
-    from = "/dev_docs/contracts/contract"
-    to = "/developers/contracts/syntax/contract"
-
-[[redirects]]
-    from = "/dev_docs/getting_started/cli"
-    to = "/developers/cli/main"
-
-[[redirects]]
-    from = "/dev_docs/getting_started/noir_contracts"
-    to = "/developers/contracts/main"
-
-[[redirects]]
-    from = "/dev_docs/getting_started/token_contract_tutorial"
-    to = "/developers/tutorials/writing_token_contract"
-
-[[redirects]]
-    from = "/dev_docs/getting_started/updating"
-    to = "/developers/updating"
-
-[[redirects]]
-    from = "/dev_docs/sandbox/main"
-    to = "/developers/getting_started/sandbox"
-
-[[redirects]]
-    from = "/dev_docs/cli/updating"
-    to = "/developers/updating"
-
-[[redirects]]
-    from = "/dev_docs/dapps/tutorials/main"
-    to = "/developers/tutorials/writing_dapp/main"
-
-[[redirects]]
-    from = "/dev_docs/dapps/tutorials/project_setup"
-    to = "/developers/tutorials/writing_dapp/project_setup"
-
-[[redirects]]
-    from = "/dev_docs/dapps/tutorials/contract_deployment"
-    to = "/developers/tutorials/writing_dapp/contract_deployment"
-
-[[redirects]]
-    from = "/dev_docs/dapps/tutorials/contract_interaction"
-    to = "/developers/tutorials/writing_dapp/contract_interaction"
-
-[[redirects]]
-    from = "/dev_docs/dapps/tutorials/rpc_server"
-    to = "/developers/tutorials/writing_dapp/rpc_server"
-
-[[redirects]]
-    from = "/dev_docs/dapps/tutorials/testing"
-    to = "/developers/tutorials/writing_dapp/testing"
-
-[[redirects]]
-    from = "/aztec/cryptography/cryptography-roadmap"
-    to = "/about_aztec/roadmap/cryptography_roadmap"
-
-[[redirects]]
-    from = "/aztec/milestones/features-initial-ldt"
-    to = "/about_aztec/roadmap/features_initial_ldt"
-
-[[redirects]]
-    from = "/aztec/protocol/trees"
-    to = "/learn/concepts/storage/trees/main"
-
-[[redirects]]
-    from = "/aztec/protocol/trees/indexed-merkle-tree"
-    to = "/learn/concepts/storage/trees/indexed_merkle_tree"
-
-[[redirects]]
-    from = "/aztec/protocol/circuits/private-kernel"
-    to = "/learn/concepts/circuits/kernels/private_kernel"
-
-[[redirects]]
-    from = "/aztec/protocol/circuits/public-kernel"
-    to = "/learn/concepts/circuits/kernels/public_kernel"
-
-[[redirects]]
-    from = "/aztec/protocol/circuits/rollup"
-    to = "/learn/concepts/circuits/rollup_circuits/main"
-
-[[redirects]]
-    from = "/aztec/protocol/public-functions-vm-architectures"
-    to = "/learn/concepts/hybrid_state/public_vm"
-
-[[redirects]]
-    from = "/aztec/how-it-works/private-smart-contracts"
-    to = "/learn/concepts/contracts/main"
-
-[[redirects]]
-    from = "/aztec/how-it-works/private-state"
-    to = "/learn/concepts/hybrid_state/main"
-
-[[redirects]]
-    from = "/concepts/foundation/state_model"
-    to = "/learn/concepts/hybrid_state/main"
-
-[[redirects]]
-    from = "/aztec/how-it-works/private-public-execution"
-    to = "/learn/concepts/communication/public_private_calls/main"
-
-[[redirects]]
-    from="/concepts/foundation/communication/public_private_calls"
-    to="/learn/concepts/communication/public_private_calls/main"
-
-[[redirects]]
-    from="/learn/concepts/communication/public_private_calls/main"
-    to="/learn/concepts/communication/public_private_calls"
-
-[[redirects]]
-    from = "/aztec/how-it-works/l1-l2-messaging"
-    to = "/learn/concepts/communication/cross_chain_calls"
-
-[[redirects]]
-    from = "/aztec/protocol/contract-creation"
-    to = "/learn/concepts/contracts/contract_creation"
-
-[[redirects]]
-    from = "/concepts/advanced/contract_creation"
-    to = "/learn/concepts/smart_contracts/main"
-
-[[redirects]]
-    from = "/noir"
-    to = "/"
-
-[[redirects]]
-    from = "/aztec-connect-sunset"
-    to = "/misc/aztec-connect-sunset"
-
-[[redirects]]
-    from = "/glossary"
-    to = "/misc/glossary"
-
-[[redirects]]
-    from = "/aztec/*"
-    to = "/"
-
-[[redirects]]
-    from = "/dev_docs/contracts/syntax/state_variables"
-    to = "/developers/contracts/syntax/storage"
-
-[[redirects]]
-    from = "/dev_docs/getting_started/sandbox"
-    to = "/developers/getting_started/quickstart"
-
-[[redirects]]
-    from = "/dev_docs/getting_started/updating"
-    to = "/developers/cli/updating"
-
-[[redirects]]
-    from = "/dev_docs/sandbox_errors/main"
-    to = "developers/debugging/sandbox-errors"
-
-[[redirects]]
-    from = "/dev_docs/contracts/common_errors"
-    to = "developers/debugging/aztecnr-errors"
-
-[[redirects]]
-    from = "/misc/aztec-connect-sunset"
-    to = "/misc/aztec_connect_sunset"
-
-[[redirects]]
-    from= "zk-money/userguide"
-    to= "/misc/aztec_connect_sunset"

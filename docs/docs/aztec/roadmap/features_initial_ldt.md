@@ -5,6 +5,8 @@ sidebar_position: 0
 
 The Aztec Sandbox is intended to provide developers with a lightweight and fast local node, running alongside a PXE.
 
+You can learn more about running the Sandbox [here](../../reference/sandbox_reference/sandbox-reference.md).
+
 Developers should be able to quickly spin up local, emulated instances of an Ethereum blockchain and an Aztec encrypted rollup, and start deploying private contracts and submitting private txs.
 
 The sandbox allows developers to:

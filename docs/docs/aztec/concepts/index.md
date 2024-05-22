@@ -2,14 +2,14 @@
 title: Concepts
 ---
 
-import Image from '@theme/IdealImage';
-import DocCardList from '@theme/DocCardList';
+import Image from "@theme/IdealImage";
+import DocCardList from "@theme/DocCardList";
 
 This page outlines Aztec's fundamental technical concepts.
 
 ## Aztec Overview
 
-<Image img={require('/img/aztec_high_level_network_architecture.svg')} />
+<Image img={require("/img/aztec_high_level_network_architecture.png")} />
 
 1. A user interacts with Aztec through Aztec.js (like web3js or ethersjs) or Aztec CLI
 2. Private functions are executed in the PXE, which is client-side
@@ -52,6 +52,7 @@ Aztec allows private communications with Ethereum - ie no-one knows where the tr
 This is achieved through portals - these are smart contracts deployed on an EVM that are related to the Ethereum smart contract you want to interact with.
 
 Learn more about portals [here](/protocol-specs/l1-smart-contracts/index.md).
+
 ## Circuits
 
 Aztec operates on three types of circuits:

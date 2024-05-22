@@ -1,5 +1,5 @@
 ---
-title: Defining Storage
+title: Declaring Storage
 ---
 
 On this page, you will learn how to define storage in your smart contract.
