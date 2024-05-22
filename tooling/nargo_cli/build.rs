@@ -63,7 +63,6 @@ fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
 
@@ -101,7 +100,6 @@ fn execution_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
 
@@ -139,7 +137,6 @@ fn noir_test_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
 
@@ -177,7 +174,6 @@ fn noir_test_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
 
@@ -218,7 +214,6 @@ fn compile_success_empty_{test_name}() {{
 
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
@@ -269,7 +264,6 @@ fn compile_success_contract_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
 
@@ -307,7 +301,6 @@ fn compile_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
 

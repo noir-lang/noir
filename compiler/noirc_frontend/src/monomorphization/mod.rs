@@ -55,9 +55,12 @@ struct LambdaContext {
 struct Monomorphizer<'interner> {
     /// Functions are keyed by their unique ID and expected type so that we can monomorphize
     /// a new version of the function for each type.
+    /// We also key by any turbofish generics that are specified.
+    /// This is necessary for a case where we may have a trait generic that can be instantiated
+    /// outside of a function parameter or return value.
     ///
     /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
-    functions: HashMap<node_interner::FuncId, HashMap<HirType, FuncId>>,
+    functions: HashMap<node_interner::FuncId, HashMap<(HirType, Vec<HirType>), FuncId>>,
 
     /// Unlike functions, locals are only keyed by their unique ID because they are never
     /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
@@ -198,10 +201,15 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         typ: &HirType,
+        turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitMethodId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
-        match self.functions.get(&id).and_then(|inner_map| inner_map.get(&typ)) {
+        match self
+            .functions
+            .get(&id)
+            .and_then(|inner_map| inner_map.get(&(typ.clone(), turbofish_generics.clone())))
+        {
             Some(id) => Definition::Function(*id),
             None => {
                 // Function has not been monomorphized yet
@@ -222,7 +230,8 @@ impl<'interner> Monomorphizer<'interner> {
                         Definition::Builtin(opcode)
                     }
                     FunctionKind::Normal => {
-                        let id = self.queue_function(id, expr_id, typ, trait_method);
+                        let id =
+                            self.queue_function(id, expr_id, typ, turbofish_generics, trait_method);
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
@@ -249,8 +258,14 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Prerequisite: typ = typ.follow_bindings()
-    fn define_function(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
-        self.functions.entry(id).or_default().insert(typ, new_id);
+    fn define_function(
+        &mut self,
+        id: node_interner::FuncId,
+        typ: HirType,
+        turbofish_generics: Vec<HirType>,
+        new_id: FuncId,
+    ) {
+        self.functions.entry(id).or_default().insert((typ, turbofish_generics), new_id);
     }
 
     fn compile_main(
@@ -393,7 +408,7 @@ impl<'interner> Monomorphizer<'interner> {
         use ast::Literal::*;
 
         let expr = match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => self.ident(ident, expr)?,
+            HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics)?,
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
                 let fields = try_vecmap(idents, |ident| self.expr(ident))?;
@@ -825,6 +840,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         ident: HirIdent,
         expr_id: node_interner::ExprId,
+        generics: Option<Vec<HirType>>,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
@@ -838,7 +854,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
-                let definition = self.lookup_function(*func_id, expr_id, &typ, None);
+                let definition = self.lookup_function(
+                    *func_id,
+                    expr_id,
+                    &typ,
+                    generics.unwrap_or_default(),
+                    None,
+                );
                 let typ = Self::convert_type(&typ, ident.location)?;
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
                 let ident_expression = ast::Expression::Ident(ident);
@@ -1063,10 +1085,11 @@ impl<'interner> Monomorphizer<'interner> {
             }
         };
 
-        let func_id = match self.lookup_function(func_id, expr_id, &function_type, Some(method)) {
-            Definition::Function(func_id) => func_id,
-            _ => unreachable!(),
-        };
+        let func_id =
+            match self.lookup_function(func_id, expr_id, &function_type, vec![], Some(method)) {
+                Definition::Function(func_id) => func_id,
+                _ => unreachable!(),
+            };
 
         let the_trait = self.interner.get_trait(method.trait_id);
         let location = self.interner.expr_location(&expr_id);
@@ -1172,7 +1195,7 @@ impl<'interner> Monomorphizer<'interner> {
         arguments: &mut Vec<ast::Expression>,
     ) {
         match hir_argument {
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let typ = self.interner.definition_type(ident.id);
                 let typ: Type = typ.follow_bindings();
                 let is_fmt_str = match typ {
@@ -1292,10 +1315,11 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         function_type: HirType,
+        turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitMethodId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        self.define_function(id, function_type.clone(), new_id);
+        self.define_function(id, function_type.clone(), turbofish_generics, new_id);
 
         let bindings = self.interner.get_instantiation_bindings(expr_id);
         let bindings = self.follow_bindings(bindings);

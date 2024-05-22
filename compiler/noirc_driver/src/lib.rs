@@ -84,10 +84,6 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Output ACIR gzipped bytecode instead of the JSON artefact
-    #[arg(long, hide = true)]
-    pub only_acir: bool,
-
     /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,

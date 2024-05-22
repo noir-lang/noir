@@ -4,7 +4,7 @@ use acir::{
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, MemOp},
+        opcodes::{BlockId, BlockType, MemOp},
         Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
@@ -658,7 +658,11 @@ fn memory_operations() {
 
     let block_id = BlockId(0);
 
-    let init = Opcode::MemoryInit { block_id, init: (1..6).map(Witness).collect() };
+    let init = Opcode::MemoryInit {
+        block_id,
+        init: (1..6).map(Witness).collect(),
+        block_type: BlockType::Memory,
+    };
 
     let read_op = Opcode::MemoryOp {
         block_id,

@@ -29,6 +29,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
@@ -1683,7 +1684,18 @@ impl<'a> Context<'a> {
         len: usize,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        self.acir_context.initialize_array(array, len, value)?;
+        let databus = if self.data_bus.call_data.is_some()
+            && self.block_id(&self.data_bus.call_data.unwrap()) == array
+        {
+            BlockType::CallData
+        } else if self.data_bus.return_data.is_some()
+            && self.block_id(&self.data_bus.return_data.unwrap()) == array
+        {
+            BlockType::ReturnData
+        } else {
+            BlockType::Memory
+        };
+        self.acir_context.initialize_array(array, len, value, databus)?;
         self.initialized_arrays.insert(array);
         Ok(())
     }
@@ -1716,7 +1728,7 @@ impl<'a> Context<'a> {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<Vec<SsaReport>, InternalError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack)
@@ -1738,6 +1750,8 @@ impl<'a> Context<'a> {
             if !is_databus {
                 // We do not return value for the data bus.
                 self.acir_context.return_var(acir_var)?;
+            } else {
+                self.check_array_is_initialized(self.data_bus.return_data.unwrap(), dfg)?;
             }
         }
         Ok(warnings)
@@ -2604,6 +2618,15 @@ impl<'a> Context<'a> {
                 result.append(&mut popped_elements);
 
                 Ok(result)
+            }
+
+            Intrinsic::AsWitness => {
+                let arg = arguments[0];
+                let input = self.convert_value(arg, dfg).into_var()?;
+                Ok(self
+                    .acir_context
+                    .get_or_create_witness_var(input)
+                    .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
             }
             _ => todo!("expected a black box function"),
         }

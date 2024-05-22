@@ -54,6 +54,10 @@ impl UnresolvedFunctions {
         self.functions.push((mod_id, func_id, func));
     }
 
+    pub fn function_ids(&self) -> Vec<FuncId> {
+        vecmap(&self.functions, |(_, id, _)| *id)
+    }
+
     pub fn resolve_trait_bounds_trait_ids(
         &mut self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
@@ -482,7 +486,7 @@ fn inject_prelude(
 /// Separate the globals Vec into two. The first element in the tuple will be the
 /// literal globals, except for arrays, and the second will be all other globals.
 /// We exclude array literals as they can contain complex types
-fn filter_literal_globals(
+pub fn filter_literal_globals(
     globals: Vec<UnresolvedGlobal>,
 ) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
     globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
