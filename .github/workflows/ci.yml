@@ -423,7 +423,6 @@ jobs:
   docs-preview:
     needs: build
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    if: github.event.number
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -431,6 +430,7 @@ jobs:
         with:
           concurrency_key: docs-preview-x86
       - name: "Docs Preview"
+        if: github.event.number
         timeout-minutes: 40
         run: earthly-ci --no-output ./docs/+deploy-preview --ENV=staging --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
 
