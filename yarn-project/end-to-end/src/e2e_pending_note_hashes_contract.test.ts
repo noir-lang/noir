@@ -1,4 +1,10 @@
 import { type AztecAddress, type AztecNode, type DebugLogger, Fr, type Wallet } from '@aztec/aztec.js';
+import {
+  MAX_NEW_NOTE_HASHES_PER_CALL,
+  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+  MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+} from '@aztec/circuits.js';
 import { PendingNoteHashesContract } from '@aztec/noir-contracts.js/PendingNoteHashes';
 
 import { EncryptedTxL2Logs } from '../../circuit-types/src/logs/tx_l2_logs.js';
@@ -216,5 +222,15 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     // There is a single new nullifier.
     await expectNullifiersSquashedExcept(1);
+  });
+
+  it('Should handle overflowing the kernel data structures in nested calls', async () => {
+    const notesPerIteration = Math.min(MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
+    const minToNeedReset = Math.min(MAX_NEW_NOTE_HASHES_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX) + 1;
+    const deployedContract = await deployContract();
+    await deployedContract.methods
+      .test_recursively_create_notes(owner, Math.ceil(minToNeedReset / notesPerIteration))
+      .send()
+      .wait();
   });
 });

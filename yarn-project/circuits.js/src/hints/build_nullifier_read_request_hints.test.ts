@@ -33,6 +33,7 @@ describe('buildNullifierReadRequestHints', () => {
   let numReadRequests = 0;
   let numPendingReads = 0;
   let numSettledReads = 0;
+  let futureNullifiers: ScopedNullifier[];
 
   const innerNullifier = (index: number) => index + 1;
 
@@ -72,6 +73,12 @@ describe('buildNullifierReadRequestHints', () => {
     numSettledReads++;
   };
 
+  const readFutureNullifier = (nullifierIndex: number) => {
+    const readRequestIndex = numReadRequests;
+    nullifierReadRequests[readRequestIndex] = makeReadRequest(futureNullifiers[nullifierIndex].value.toNumber());
+    numReadRequests++;
+  };
+
   const buildHints = async () =>
     (
       await buildNullifierReadRequestHints(
@@ -80,6 +87,7 @@ describe('buildNullifierReadRequestHints', () => {
         nullifiers,
         MAX_NULLIFIER_READ_REQUESTS_PER_TX,
         MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+        futureNullifiers,
       )
     ).hints;
 
@@ -93,6 +101,9 @@ describe('buildNullifierReadRequestHints', () => {
     numReadRequests = 0;
     numPendingReads = 0;
     numSettledReads = 0;
+    futureNullifiers = new Array(MAX_NEW_NULLIFIERS_PER_TX)
+      .fill(null)
+      .map((_, i) => makeNullifier(innerNullifier(i + MAX_NEW_NULLIFIERS_PER_TX)));
   });
 
   it('builds empty hints', async () => {
@@ -114,11 +125,13 @@ describe('buildNullifierReadRequestHints', () => {
     expect(hints).toEqual(expectedHints);
   });
 
-  it('builds hints for mixed pending and settled nullifier read requests', async () => {
+  it('builds hints for mixed pending and settled and future nullifier read requests', async () => {
     readPendingNullifier({ nullifierIndex: 2 });
     readSettledNullifier();
+    readFutureNullifier(0);
     readSettledNullifier();
     readPendingNullifier({ nullifierIndex: 1 });
+    readFutureNullifier(1);
     readPendingNullifier({ nullifierIndex: 1 });
     const hints = await buildHints();
     expect(hints).toEqual(expectedHints);

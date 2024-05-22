@@ -2,6 +2,12 @@ import { type KernelProofOutput, type ProofCreator } from '@aztec/circuit-types'
 import {
   CallRequest,
   Fr,
+  MAX_KEY_VALIDATION_REQUESTS_PER_TX,
+  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+  MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+  MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   NESTED_RECURSIVE_PROOF_LENGTH,
   PrivateCallData,
@@ -16,6 +22,7 @@ import {
   type TxRequest,
   VK_TREE_HEIGHT,
   VerificationKeyAsFields,
+  getNonEmptyItems,
   makeRecursiveProof,
 } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -70,6 +77,9 @@ export class KernelProver {
     const noteHashNullifierCounterMap = collectNullifiedNoteHashCounters(executionResult);
 
     while (executionStack.length) {
+      if (!firstIteration && this.needsReset(executionStack, output)) {
+        output = await this.runReset(executionStack, output, noteHashLeafIndexMap, noteHashNullifierCounterMap);
+      }
       const currentExecution = executionStack.pop()!;
       executionStack.push(...[...currentExecution.nestedExecutions].reverse());
 
@@ -126,21 +136,11 @@ export class KernelProver {
       firstIteration = false;
     }
 
-    let previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);
-    let previousKernelData = new PrivateKernelData(
-      output.publicInputs,
-      output.proof,
-      output.verificationKey,
-      Number(previousVkMembershipWitness.leafIndex),
-      assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
-    );
-
-    output = await this.proofCreator.createProofReset(
-      await buildPrivateKernelResetInputs(previousKernelData, noteHashLeafIndexMap, this.oracle),
-    );
-
-    previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);
-    previousKernelData = new PrivateKernelData(
+    if (this.somethingToReset(output)) {
+      output = await this.runReset(executionStack, output, noteHashLeafIndexMap, noteHashNullifierCounterMap);
+    }
+    const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);
+    const previousKernelData = new PrivateKernelData(
       output.publicInputs,
       output.proof,
       output.verificationKey,
@@ -158,6 +158,66 @@ export class KernelProver {
 
     pushTestData('private-kernel-inputs-ordering', privateInputs);
     return await this.proofCreator.createProofTail(privateInputs);
+  }
+
+  private needsReset(executionStack: ExecutionResult[], output: KernelProofOutput<PrivateKernelCircuitPublicInputs>) {
+    const nextIteration = executionStack[executionStack.length - 1];
+    return (
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.newNoteHashes).length +
+        getNonEmptyItems(output.publicInputs.end.newNoteHashes).length >
+        MAX_NEW_NOTE_HASHES_PER_TX ||
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.newNullifiers).length +
+        getNonEmptyItems(output.publicInputs.end.newNullifiers).length >
+        MAX_NEW_NULLIFIERS_PER_TX ||
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.noteEncryptedLogsHashes).length +
+        getNonEmptyItems(output.publicInputs.end.noteEncryptedLogsHashes).length >
+        MAX_NOTE_ENCRYPTED_LOGS_PER_TX ||
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.noteHashReadRequests).length +
+        getNonEmptyItems(output.publicInputs.validationRequests.noteHashReadRequests).length >
+        MAX_NOTE_HASH_READ_REQUESTS_PER_TX ||
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.nullifierReadRequests).length +
+        getNonEmptyItems(output.publicInputs.validationRequests.nullifierReadRequests).length >
+        MAX_NULLIFIER_READ_REQUESTS_PER_TX ||
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.keyValidationRequests).length +
+        getNonEmptyItems(output.publicInputs.validationRequests.keyValidationRequests).length >
+        MAX_KEY_VALIDATION_REQUESTS_PER_TX
+    );
+  }
+
+  private somethingToReset(output: KernelProofOutput<PrivateKernelCircuitPublicInputs>) {
+    return (
+      getNonEmptyItems(output.publicInputs.validationRequests.noteHashReadRequests).length > 0 ||
+      getNonEmptyItems(output.publicInputs.validationRequests.nullifierReadRequests).length > 0 ||
+      getNonEmptyItems(output.publicInputs.validationRequests.keyValidationRequests).length > 0 ||
+      output.publicInputs.end.newNoteHashes.find(noteHash => noteHash.nullifierCounter !== 0) ||
+      output.publicInputs.end.newNullifiers.find(nullifier => !nullifier.nullifiedNoteHash.equals(Fr.zero()))
+    );
+  }
+
+  private async runReset(
+    executionStack: ExecutionResult[],
+    output: KernelProofOutput<PrivateKernelCircuitPublicInputs>,
+    noteHashLeafIndexMap: Map<bigint, bigint>,
+    noteHashNullifierCounterMap: Map<number, number>,
+  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
+    const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);
+    const previousKernelData = new PrivateKernelData(
+      output.publicInputs,
+      output.proof,
+      output.verificationKey,
+      Number(previousVkMembershipWitness.leafIndex),
+      assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
+    );
+
+    return this.proofCreator.createProofReset(
+      await buildPrivateKernelResetInputs(
+        executionStack,
+        previousKernelData,
+        noteHashLeafIndexMap,
+        noteHashNullifierCounterMap,
+        this.oracle,
+      ),
+    );
   }
 
   private async createPrivateCallData(
