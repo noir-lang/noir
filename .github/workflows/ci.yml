@@ -148,10 +148,10 @@ jobs:
               --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
               --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
               --no-output \
-              +bench-publish-acir-bb         
+              +bench-publish-acir-bb
 
   bench-summary:
-    needs: 
+    needs:
       - acir-bench
       - bench-e2e
     runs-on: ${{ inputs.username || github.actor }}-x86
@@ -178,7 +178,7 @@ jobs:
           mkdir -p $BENCH_FOLDER
           ./scripts/logs/download_base_benchmark_from_s3.sh
           # Package it into an earthly artifact to read from bench-comment
-          earthly-ci -P ./scripts/logs+pack-base-benchmark --LOCAL_BENCH_FOLDER=./tmp/bench
+          earthly-ci -P ./scripts/logs+pack-base-benchmark
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -12,8 +12,8 @@ pack-base-benchmark:
   # the cache of yarn-project+build since it does a `COPY . .`, and we cannot add the bench file to
   # earthlyignore or we would not be able to copy it from anywhere. So we need to place this target
   # outside yarn-project altogether, since that folder should not be modified.
-  ARG LOCAL_BENCH_FOLDER
   FROM scratch
+  LET LOCAL_BENCH_FOLDER=./tmp/bench
   LET BENCH_FOLDER=/usr/var/bench
   COPY $LOCAL_BENCH_FOLDER $BENCH_FOLDER
   SAVE ARTIFACT $BENCH_FOLDER bench
