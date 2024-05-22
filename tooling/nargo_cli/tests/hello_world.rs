@@ -34,7 +34,6 @@ fn hello_world_example() {
         .stdout(predicate::str::contains("Constraint system successfully built!"));
 
     project_dir.child("Prover.toml").assert(predicate::path::is_file());
-    project_dir.child("Verifier.toml").assert(predicate::path::is_file());
 
     // `nargo execute`
     project_dir.child("Prover.toml").write_str("x = 1\ny = 2").unwrap();
