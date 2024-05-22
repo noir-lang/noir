@@ -1,5 +1,6 @@
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::native_types::WitnessMap;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::workspace::Workspace;
@@ -193,11 +194,9 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
-                        let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver::new();
-
                         noir_debugger::run_dap_loop(
                             server,
-                            &blackbox_solver,
+                            &Bn254BlackBoxSolver,
                             compiled_program,
                             initial_witness,
                         )?;

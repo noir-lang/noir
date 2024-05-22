@@ -402,8 +402,7 @@ jobs:
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
-          echo "$HOME/.barretenberg/" >> $GITHUB_PATH
-          export PATH="$PATH:$HOME/.barretenberg/"
+          echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -512,8 +511,7 @@ jobs:
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
-          echo "$HOME/.barretenberg/" >> $GITHUB_PATH
-          export PATH="$PATH:$HOME/.barretenberg/"
+          echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
         uses: actions/download-artifact@v4

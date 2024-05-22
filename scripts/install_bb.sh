@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# We use this script just for CI so we assume we're running on x86 linux
+VERSION="0.41.0"
 
-mkdir -p $HOME/.barretenberg
-curl -o ./barretenberg-x86_64-linux-gnu.tar.gz -L https://github.com/AztecProtocol/aztec-packages/releases/download/aztec-packages-v0.41.0/barretenberg-x86_64-linux-gnu.tar.gz
-tar -xvf ./barretenberg-x86_64-linux-gnu.tar.gz -C $HOME/.barretenberg/
-echo 'export PATH=$PATH:$HOME/.barretenberg/' >> ~/.bashrc
-source ~/.bashrc
+BBUP_PATH=~/.bb/bbup
+
+if ! [ -f $BBUP_PATH ]; then 
+    curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
+fi
+
+$BBUP_PATH -v $VERSION
