@@ -1441,6 +1441,5 @@ fn specify_method_types_with_turbofish() {
         }
     "#;
     let errors = get_program_errors(src);
-    dbg!(errors.clone());
     assert_eq!(errors.len(), 0);
 }
