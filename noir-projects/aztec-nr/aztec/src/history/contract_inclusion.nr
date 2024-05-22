@@ -1,51 +1,59 @@
-use dep::protocol_types::{
-    address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-    grumpkin_point::GrumpkinPoint, hash::silo_nullifier, constants::DEPLOYER_CONTRACT_ADDRESS
-};
-use dep::std::merkle::compute_merkle_root;
+use dep::protocol_types::{header::Header, address::AztecAddress, hash::silo_nullifier, constants::DEPLOYER_CONTRACT_ADDRESS};
 
-use crate::{
-    context::PrivateContext,
-    history::{
-    nullifier_inclusion::prove_nullifier_inclusion_at,
-    nullifier_non_inclusion::prove_nullifier_not_included_at
-}
-};
-
-pub fn prove_contract_deployment_at(contract_address: AztecAddress, block_number: u32, context: PrivateContext) {
-    // Compute deployment nullifier
-    let nullifier = silo_nullifier(
-        AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
-        contract_address.to_field()
-    );
-
-    // Prove its inclusion
-    prove_nullifier_inclusion_at(nullifier, block_number, context);
+trait ProveContractDeployment {
+    fn prove_contract_deployment(header: Header, contract_address: AztecAddress);
 }
 
-pub fn prove_contract_non_deployment_at(contract_address: AztecAddress, block_number: u32, context: PrivateContext) {
-    // Compute deployment nullifier
-    let nullifier = silo_nullifier(
-        AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
-        contract_address.to_field()
-    );
+impl ProveContractDeployment for Header {
+    fn prove_contract_deployment(self, contract_address: AztecAddress) {
+        // Compute deployment nullifier
+        let nullifier = silo_nullifier(
+            AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
+            contract_address.to_field()
+        );
 
-    // Prove its non-inclusion
-    prove_nullifier_not_included_at(nullifier, block_number, context);
+        self.prove_nullifier_inclusion(nullifier);
+    }
 }
 
-pub fn prove_contract_initialization_at(contract_address: AztecAddress, block_number: u32, context: PrivateContext) {
-    // Compute initialization nullifier
-    let nullifier = silo_nullifier(contract_address, contract_address.to_field());
-
-    // Prove its inclusion
-    prove_nullifier_inclusion_at(nullifier, block_number, context);
+trait ProveContractNonDeployment {
+    fn prove_contract_non_deployment(header: Header, contract_address: AztecAddress);
 }
 
-pub fn prove_contract_non_initialization_at(contract_address: AztecAddress, block_number: u32, context: PrivateContext) {
-    // Compute initialization nullifier
-    let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+impl ProveContractNonDeployment for Header {
+    fn prove_contract_non_deployment(self, contract_address: AztecAddress) {
+        // Compute deployment nullifier
+        let nullifier = silo_nullifier(
+            AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
+            contract_address.to_field()
+        );
 
-    // Prove its non-inclusion
-    prove_nullifier_not_included_at(nullifier, block_number, context);
+        self.prove_nullifier_non_inclusion(nullifier);
+    }
+}
+
+trait ProveContractInitialization {
+    fn prove_contract_initialization(header: Header, contract_address: AztecAddress);
+}
+
+impl ProveContractInitialization for Header {
+    fn prove_contract_initialization(self, contract_address: AztecAddress) {
+        // Compute initialization nullifier
+        let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+
+        self.prove_nullifier_inclusion(nullifier);
+    }
+}
+
+trait ProveContractNonInitialization {
+    fn prove_contract_non_initialization(header: Header, contract_address: AztecAddress);
+}
+
+impl ProveContractNonInitialization for Header {
+    fn prove_contract_non_initialization(self, contract_address: AztecAddress) {
+        // Compute initialization nullifier
+        let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+
+        self.prove_nullifier_non_inclusion(nullifier);
+    }
 }

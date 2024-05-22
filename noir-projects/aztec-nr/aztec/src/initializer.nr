@@ -6,8 +6,7 @@ use dep::protocol_types::{
 use crate::{
     context::{PrivateContext, PublicContext, ContextInterface},
     oracle::get_contract_instance::get_contract_instance,
-    oracle::get_contract_instance::get_contract_instance_avm,
-    history::nullifier_inclusion::prove_nullifier_inclusion
+    oracle::get_contract_instance::get_contract_instance_avm
 };
 
 pub fn mark_as_initialized_public(context: &mut PublicContext) {
@@ -30,7 +29,8 @@ pub fn assert_is_initialized_public(context: &mut PublicContext) {
 
 pub fn assert_is_initialized_private(context: &mut PrivateContext) {
     let init_nullifier = compute_contract_initialization_nullifier(context.this_address());
-    prove_nullifier_inclusion(init_nullifier, *context);
+    let header = context.get_header();
+    header.prove_nullifier_inclusion(init_nullifier);
 }
 
 fn compute_contract_initialization_nullifier(address: AztecAddress) -> Field {

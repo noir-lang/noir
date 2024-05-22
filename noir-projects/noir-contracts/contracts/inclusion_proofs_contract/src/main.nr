@@ -8,20 +8,6 @@ contract InclusionProofs {
     use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId};
     use dep::aztec::{note::note_getter_options::NoteStatus, keys::getters::{get_npk_m_hash, get_ivpk_m}};
     // docs:start:imports
-    use dep::aztec::history::{
-        contract_inclusion::{
-        prove_contract_deployment_at, prove_contract_non_deployment_at,
-        prove_contract_initialization_at, prove_contract_non_initialization_at
-    },
-        note_inclusion::{prove_note_inclusion, prove_note_inclusion_at},
-        note_validity::{prove_note_validity, prove_note_validity_at},
-        nullifier_inclusion::{
-        prove_nullifier_inclusion, prove_nullifier_inclusion_at, prove_note_is_nullified,
-        prove_note_is_nullified_at
-    },
-        nullifier_non_inclusion::{prove_note_not_nullified, prove_note_not_nullified_at},
-        public_storage::{public_storage_historical_read, public_storage_historical_read_at}
-    };
     // docs:end:imports
     // docs:start:value_note_imports
     use dep::value_note::value_note::ValueNote;
@@ -81,10 +67,12 @@ contract InclusionProofs {
         // 2) Prove the note inclusion
         if (use_block_number) {
             // docs:start:prove_note_inclusion
-            prove_note_inclusion_at(maybe_note.unwrap_unchecked(), block_number, context);
+            let header = context.get_header_at(block_number);
+            header.prove_note_inclusion(maybe_note.unwrap_unchecked());
             // docs:end:prove_note_inclusion
         } else {
-            prove_note_inclusion(maybe_note.unwrap_unchecked(), context);
+            let header = context.get_header();
+            header.prove_note_inclusion(maybe_note.unwrap_unchecked());
         }
     }
 
@@ -98,9 +86,11 @@ contract InclusionProofs {
         let mut note = ValueNote::new(1, owner_npk_m_hash);
 
         if (use_block_number) {
-            prove_note_inclusion_at(note, block_number, context);
+            let header = context.get_header_at(block_number);
+            header.prove_note_inclusion(note);
         } else {
-            prove_note_inclusion(note, context);
+            let header = context.get_header();
+            header.prove_note_inclusion(note);
         }
     }
 
@@ -135,9 +125,11 @@ contract InclusionProofs {
         // 3) Compute the nullifier from the note
         // docs:start:prove_note_not_nullified
         if (use_block_number) {
-            prove_note_not_nullified_at(maybe_note.unwrap_unchecked(), block_number, &mut context);
+            let header = context.get_header_at(block_number);
+            header.prove_note_not_nullified(maybe_note.unwrap_unchecked(), &mut context);
         } else {
-            prove_note_not_nullified(maybe_note.unwrap_unchecked(), &mut context);
+            let header = context.get_header();
+            header.prove_note_not_nullified(maybe_note.unwrap_unchecked(), &mut context);
         }
         // docs:end:prove_note_not_nullified
     }
@@ -169,10 +161,12 @@ contract InclusionProofs {
         // 2) Prove the note validity
         if (use_block_number) {
             // docs:start:prove_note_validity
-            prove_note_validity_at(note, block_number, &mut context);
+            let header = context.get_header_at(block_number);
+            header.prove_note_validity(note, &mut context);
             // docs:end:prove_note_validity
         } else {
-            prove_note_validity(note, &mut context);
+            let header = context.get_header();
+            header.prove_note_validity(note, &mut context);
         }
     }
 
@@ -207,10 +201,12 @@ contract InclusionProofs {
     ) {
         if (use_block_number) {
             // docs:start:prove_nullifier_inclusion
-            prove_nullifier_inclusion_at(nullifier, block_number, context);
+            let header = context.get_header_at(block_number);
+            header.prove_nullifier_inclusion(nullifier);
             // docs:end:prove_nullifier_inclusion
         } else {
-            prove_nullifier_inclusion(nullifier, context);
+            let header = context.get_header();
+            header.prove_nullifier_inclusion(nullifier);
         }
     }
 
@@ -228,12 +224,12 @@ contract InclusionProofs {
     #[aztec(private)]
     fn test_storage_historical_read_unset_slot(block_number: u32 // The block at which we'll read the public storage value
     ) {
+        let header = context.get_header_at(block_number);
+
         assert_eq(
-            public_storage_historical_read_at(
-                context,
+            header.public_storage_historical_read(
                 storage.public_unused_value.storage_slot,
-                context.this_address(),
-                block_number
+                context.this_address()
             ), 0
         );
     }
@@ -245,18 +241,11 @@ contract InclusionProofs {
         block_number: u32 // The block at which we'll read the public storage value
     ) {
         let actual = if (use_block_number) {
-            public_storage_historical_read_at(
-                context,
-                storage.public_value.storage_slot,
-                context.this_address(),
-                block_number
-            )
+            let header = context.get_header_at(block_number);
+            header.public_storage_historical_read(storage.public_value.storage_slot, context.this_address())
         } else {
-            public_storage_historical_read(
-                context,
-                storage.public_value.storage_slot,
-                context.this_address()
-            )
+            let header = context.get_header();
+            header.public_storage_historical_read(storage.public_value.storage_slot, context.this_address())
         };
 
         assert_eq(actual, expected, "Actual public value does not match expected");
@@ -270,11 +259,13 @@ contract InclusionProofs {
         test_deployment: bool,
         test_initialization: bool
     ) {
+        let header = context.get_header_at(block_number);
+
         if test_deployment {
-            prove_contract_deployment_at(contract_address, block_number, context);
+            header.prove_contract_deployment(contract_address);
         }
         if test_initialization {
-            prove_contract_initialization_at(contract_address, block_number, context);
+            header.prove_contract_initialization(contract_address);
         }
     }
 
@@ -286,11 +277,13 @@ contract InclusionProofs {
         test_deployment: bool,
         test_initialization: bool
     ) {
+        let header = context.get_header_at(block_number);
+
         if test_deployment {
-            prove_contract_non_deployment_at(contract_address, block_number, context);
+            header.prove_contract_non_deployment(contract_address);
         }
         if test_initialization {
-            prove_contract_non_initialization_at(contract_address, block_number, context);
+            header.prove_contract_non_initialization(contract_address);
         }
     }
 }

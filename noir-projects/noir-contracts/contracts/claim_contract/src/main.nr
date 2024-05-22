@@ -1,6 +1,5 @@
 contract Claim {
     use dep::aztec::{
-        history::note_inclusion::prove_note_inclusion,
         protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
         state_vars::SharedImmutable, keys::getters::get_npk_m_hash
     };
@@ -36,7 +35,8 @@ contract Claim {
         assert_eq(proof_note.npk_m_hash, msg_sender_npk_m_hash, "Note does not belong to the sender");
 
         // 2) Prove that the note hash exists in the note hash tree
-        prove_note_inclusion(proof_note, context);
+        let header = context.get_header();
+        header.prove_note_inclusion(proof_note);
 
         // 3) Compute and emit a nullifier which is unique to the note and this contract to ensure the reward can be
         // claimed only once with the given note.

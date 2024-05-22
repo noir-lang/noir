@@ -1,6 +1,6 @@
 use crate::{
-    context::{PrivateContext, PublicContext}, history::public_storage::public_storage_historical_read,
-    oracle::{storage::{storage_read, storage_write}}, state_vars::storage::Storage
+    context::{PrivateContext, PublicContext}, oracle::{storage::{storage_read, storage_write}},
+    state_vars::storage::Storage
 };
 use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
 
@@ -58,12 +58,12 @@ impl<T> SharedImmutable<T, ()> {
 
 impl<T> SharedImmutable<T, &mut PrivateContext> {
     pub fn read_private<T_SERIALIZED_LEN>(self) -> T  where T: Deserialize<T_SERIALIZED_LEN> {
+        let header = self.context.get_header();
         let mut fields = [0; T_SERIALIZED_LEN];
 
         for i in 0..fields.len() {
             fields[i] =
-                public_storage_historical_read(
-                    (*self.context),
+                header.public_storage_historical_read(
                     self.storage_slot + i as Field,
                     (*self.context).this_address()
                 );
