@@ -383,10 +383,13 @@ impl<'interner> TypeChecker<'interner> {
             }
 
             // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-            // Otherwise `self` will be replaced with a fresh type variable, which will require the user 
+            // Otherwise `self` will be replaced with a fresh type variable, which will require the user
             // to specify a redundant type annotation.
             if *assumed {
-                bindings.insert(the_trait.self_type_typevar_id, (the_trait.self_type_typevar.clone(), constraint.typ.clone()));
+                bindings.insert(
+                    the_trait.self_type_typevar_id,
+                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
+                );
             }
         }
 
