@@ -20,11 +20,11 @@ use crate::{
 };
 
 #[wasm_bindgen]
-pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
+pub struct WasmBlackBoxFunctionSolver;
 
 impl WasmBlackBoxFunctionSolver {
     async fn initialize() -> WasmBlackBoxFunctionSolver {
-        WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver::initialize().await)
+        WasmBlackBoxFunctionSolver
     }
 }
 
@@ -47,15 +47,9 @@ pub async fn execute_circuit(
 ) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
 
-    let solver = WasmBlackBoxFunctionSolver::initialize().await;
-
-    let mut witness_stack = execute_program_with_native_type_return(
-        &solver,
-        program,
-        initial_witness,
-        &foreign_call_handler,
-    )
-    .await?;
+    let mut witness_stack =
+        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler)
+            .await?;
     let witness_map =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
     Ok(witness_map.into())
@@ -71,7 +65,7 @@ pub async fn execute_circuit(
 /// @returns {SolvedAndReturnWitness} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.
 #[wasm_bindgen(js_name = executeCircuitWithReturnWitness, skip_jsdoc)]
 pub async fn execute_circuit_with_return_witness(
-    solver: &WasmBlackBoxFunctionSolver,
+    _solver: &WasmBlackBoxFunctionSolver,
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
@@ -82,7 +76,6 @@ pub async fn execute_circuit_with_return_witness(
     .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None, None))?;
 
     let mut witness_stack = execute_program_with_native_program_and_return(
-        solver,
         &program,
         initial_witness,
         &foreign_call_handler,
@@ -108,20 +101,16 @@ pub async fn execute_circuit_with_return_witness(
 /// @returns {WitnessMap} The solved witness calculated by executing the circuit on the provided inputs.
 #[wasm_bindgen(js_name = executeCircuitWithBlackBoxSolver, skip_jsdoc)]
 pub async fn execute_circuit_with_black_box_solver(
-    solver: &WasmBlackBoxFunctionSolver,
+    _solver: &WasmBlackBoxFunctionSolver,
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
 
-    let mut witness_stack = execute_program_with_native_type_return(
-        solver,
-        program,
-        initial_witness,
-        &foreign_call_handler,
-    )
-    .await?;
+    let mut witness_stack =
+        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler)
+            .await?;
     let witness_map =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
     Ok(witness_map.into())
@@ -143,24 +132,19 @@ pub async fn execute_program(
 
 #[wasm_bindgen(js_name = executeProgramWithBlackBoxSolver, skip_jsdoc)]
 pub async fn execute_program_with_black_box_solver(
-    solver: &WasmBlackBoxFunctionSolver,
+    _solver: &WasmBlackBoxFunctionSolver,
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
 ) -> Result<JsWitnessStack, Error> {
-    let witness_stack = execute_program_with_native_type_return(
-        solver,
-        program,
-        initial_witness,
-        foreign_call_executor,
-    )
-    .await?;
+    let witness_stack =
+        execute_program_with_native_type_return(program, initial_witness, foreign_call_executor)
+            .await?;
 
     Ok(witness_stack.into())
 }
 
 async fn execute_program_with_native_type_return(
-    solver: &WasmBlackBoxFunctionSolver,
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
@@ -171,25 +155,20 @@ async fn execute_program_with_native_type_return(
         None,
         None))?;
 
-    execute_program_with_native_program_and_return(
-        solver,
-        &program,
-        initial_witness,
-        foreign_call_executor,
-    )
-    .await
+    execute_program_with_native_program_and_return(&program, initial_witness, foreign_call_executor)
+        .await
 }
 
 async fn execute_program_with_native_program_and_return(
-    solver: &WasmBlackBoxFunctionSolver,
     program: &Program,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
 ) -> Result<WitnessStack, Error> {
+    let blackbox_solver = Bn254BlackBoxSolver;
     let executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
-        &solver.0,
+        &blackbox_solver,
         foreign_call_executor,
     );
     let witness_stack = executor.execute(initial_witness.into()).await?;
