@@ -173,7 +173,8 @@ const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateRecurs
     proof,
     numPublicInputs,
 );
-const recursiveProof = await noir_programs.recursive.generateProof(recursiveInputs)
+const { witness: recursiveWitness } = await noir_programs.recursive.execute(recursiveInputs)
+const recursiveProof = await backends.recursive.generateProof(recursiveWitness);
 ```
 
 :::
