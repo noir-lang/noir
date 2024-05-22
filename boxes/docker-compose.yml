@@ -22,7 +22,7 @@ services:
     image: aztecprotocol/boxes:${AZTEC_DOCKER_TAG:-latest}
     entrypoint: >
       sh -c '
-        yarn workspace @aztec/$BOX test --project=$BOX-$BROWSER
+        yarn workspace @aztec/$BOX test --project=$BROWSER
       '
     environment:
       DEBUG: "aztec:*"

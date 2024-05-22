@@ -18,15 +18,15 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'vanilla-chromium',
+      name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'vanilla-firefox',
+      name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
     },
     {
-      name: 'vanilla-webkit',
+      name: 'webkit',
       use: { ...devices['Desktop Safari'] },
     },
   ],
