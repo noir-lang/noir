@@ -340,6 +340,9 @@ impl Instruction {
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
+                // Explicitly allows removal of unused ec operations, even if they can fail
+                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
