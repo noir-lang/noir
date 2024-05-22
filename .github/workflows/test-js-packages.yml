@@ -399,7 +399,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
@@ -506,6 +505,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.2.0
 
       - name: Install `bb`
         run: |
