@@ -1,0 +1,1 @@
+barretenberg_module(eccvm_recursion stdlib_circuit_builders commitment_schemes stdlib_primitives)

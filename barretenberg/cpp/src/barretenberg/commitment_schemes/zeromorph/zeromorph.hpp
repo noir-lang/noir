@@ -788,7 +788,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
             auto builder = multivariate_challenge[0].get_context();
             first_g1 = Commitment(builder, vk->srs->get_first_g1());
         } else {
-            first_g1 = vk->srs->get_first_g1();
+            first_g1 = vk->get_first_g1();
         }
         auto opening_claim = compute_univariate_evaluation_opening_claim(unshifted_commitments,
                                                                          to_be_shifted_commitments,

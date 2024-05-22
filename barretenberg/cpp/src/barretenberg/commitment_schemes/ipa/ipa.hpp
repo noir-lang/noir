@@ -424,7 +424,7 @@ template <typename Curve_> class IPA {
             /*finite_field_additions_per_iteration=*/0,
             /*finite_field_multiplications_per_iteration=*/log_poly_degree);
 
-        auto* srs_elements = vk->srs->get_monomial_points();
+        auto* srs_elements = vk->get_monomial_points();
 
         // Copy the G_vector to local memory.
         std::vector<Commitment> G_vec_local(poly_length);

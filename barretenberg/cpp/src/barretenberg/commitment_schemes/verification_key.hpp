@@ -34,13 +34,13 @@ template <> class VerifierCommitmentKey<curve::BN254> {
     using Commitment = typename Curve::AffineElement;
 
   public:
-    std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> srs;
-
     VerifierCommitmentKey()
     {
         srs::init_crs_factory("../srs_db/ignition");
         srs = srs::get_crs_factory<Curve>()->get_verifier_crs();
     };
+
+    Commitment get_first_g1() { return srs->get_first_g1(); }
 
     /**
      * @brief verifies a pairing equation over 2 points using the verifier SRS
@@ -58,6 +58,9 @@ template <> class VerifierCommitmentKey<curve::BN254> {
 
         return (result == Curve::TargetField::one());
     }
+
+  private:
+    std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> srs;
 };
 
 /**
@@ -71,8 +74,6 @@ template <> class VerifierCommitmentKey<curve::Grumpkin> {
     using Commitment = typename Curve::AffineElement;
 
   public:
-    VerifierCommitmentKey() = delete;
-
     /**
      * @brief Construct a new IPA Verification Key object from existing SRS
      *
@@ -92,7 +93,13 @@ template <> class VerifierCommitmentKey<curve::Grumpkin> {
         srs = srs::get_crs_factory<Curve>()->get_verifier_crs(num_points);
     }
 
+    Commitment get_first_g1() { return srs->get_first_g1(); }
+
+    Commitment* get_monomial_points() { return srs->get_monomial_points(); }
+
     bb::scalar_multiplication::pippenger_runtime_state<Curve> pippenger_runtime_state;
+
+  private:
     std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> srs;
 };
 
