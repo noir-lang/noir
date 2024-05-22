@@ -37,12 +37,13 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
     y: '3',
   };
 
-  // Initialize backend
-  const backend = new Backend(assert_lt_program);
-  // Initialize program
-  const program = new Noir(assert_lt_program, backend);
+  // Execute program
+  const program = new Noir(assert_lt_program);
+  const { witness } = await program.execute(inputs);
+
   // Generate proof
-  const proof = await program.generateProof(inputs);
+  const backend = new Backend(assert_lt_program);
+  const proof = await backend.generateProof(witness);
 
   const verificationKey = await backend.getVerificationKey();
 
