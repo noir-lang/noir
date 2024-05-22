@@ -194,6 +194,23 @@ jobs:
             --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} \
             +bench-comment
 
+  bb-gcc:
+    needs: setup
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      # Only allow one memory-hunger prover test to use this runner
+      - uses: ./.github/ci-setup-action
+        with:
+          # must be globally unique for build x runner
+          concurrency_key: bb-gcc
+      - name: "Ensure GCC Builds"
+        working-directory: ./barretenberg/cpp/
+        timeout-minutes: 40
+        # limit our parallelism to half our cores
+        run: earthly-ci --no-output +preset-gcc
+
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
@@ -482,13 +499,14 @@ jobs:
       # - bench-e2e # does not block merge
       # - bench-summary # does not block merge
       - e2e
-      - bb-native-tests
       - acir-bench
       - bb-bench
+      - bb-gcc
+      - bb-js-test
+      - bb-native-tests
       - yarn-project-formatting
       - yarn-project-test
       - prover-client-test
-      - bb-js-test
       - barretenberg-acir-tests-bb-js
       - barretenberg-acir-tests-bb
       - barretenberg-acir-tests-sol
