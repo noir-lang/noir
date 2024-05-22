@@ -18,6 +18,8 @@ ATTEMPT_COUNT=0
 export EARTHLY_ALLOW_PRIVILEGED=true
 export EARTHLY_USE_INLINE_CACHE=true
 export EARTHLY_NO_BUILDKIT_UPDATE=true
+# make sure earthly gives annotations that github picks up
+export GITHUB_ACTIONS=true
 export FORCE_COLOR=1
 export EARTHLY_CONFIG=$(git rev-parse --show-toplevel)/.github/earthly-ci-config.yml
 # TODO(AD) to be investigated
@@ -56,6 +58,7 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
       sleep 20
     else
       # If other errors, exit the script
+      echo "Errors may exist in other jobs. Please see the run summary page and check for Build Summary. If there are no errors, it may be because runs were interrupted due to runner going down (please report this)."
       exit 1
     fi
   fi
