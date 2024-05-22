@@ -801,7 +801,7 @@ mod tests {
         acir::{
             circuit::{
                 brillig::{BrilligInputs, BrilligOutputs},
-                opcodes::BlockId,
+                opcodes::{BlockId, BlockType},
             },
             native_types::Expression,
         },
@@ -1042,7 +1042,7 @@ mod tests {
 
         let circuit_one = Circuit {
             opcodes: vec![
-                Opcode::MemoryInit { block_id: BlockId(0), init: vec![] },
+                Opcode::MemoryInit { block_id: BlockId(0), init: vec![], block_type: BlockType::Memory },
                 Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
                 Opcode::Call { id: 1, inputs: vec![], outputs: vec![], predicate: None },
                 Opcode::AssertZero(Expression::default()),

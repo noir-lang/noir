@@ -219,10 +219,8 @@ pub(crate) fn debug_program(
     compiled_program: CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<Option<WitnessStack>, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
-
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    noir_debugger::run_repl_session(&blackbox_solver, compiled_program, initial_witness)
+    noir_debugger::run_repl_session(&Bn254BlackBoxSolver, compiled_program, initial_witness)
         .map_err(CliError::from)
 }
