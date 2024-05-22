@@ -11,7 +11,7 @@ const assert_lt_program = assert_lt_json as CompiledCircuit;
 const assert_msg_runtime = assert_msg_json as CompiledCircuit;
 const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
 
-it('returns the return value of the circuit', async () => {
+it('executes a single-ACIR program correctly', async () => {
   const inputs = {
     x: '2',
     y: '3',
@@ -19,6 +19,17 @@ it('returns the return value of the circuit', async () => {
   const { returnValue } = await new Noir(assert_lt_program).execute(inputs);
 
   expect(returnValue).to.be.eq('0x05');
+});
+
+it('executes a multi-ACIR program correctly', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '10',
+  };
+
+  const program = new Noir(fold_fibonacci_program);
+
+  const _ = await program.execute(inputs);
 });
 
 it('circuit with a fmt string assert message should fail with the resolved assertion message', async () => {

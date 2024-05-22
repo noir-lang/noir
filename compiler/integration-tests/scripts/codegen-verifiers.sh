@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 self_path=$(dirname "$(readlink -f "$0")")
 
