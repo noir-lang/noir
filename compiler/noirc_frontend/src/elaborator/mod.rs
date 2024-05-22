@@ -211,7 +211,12 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id);
 
-        let (literal_globals, other_globals) = filter_literal_globals(items.globals);
+        // We must first resolve and intern the globals before we can resolve any stmts inside each function.
+        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
+        //
+        // Additionally, we must resolve integer globals before structs since structs may refer to
+        // the values of integer globals as numeric generics.
+        let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
 
         // the resolver filters literal globals first
         for global in literal_globals {
@@ -223,17 +228,30 @@ impl<'context> Elaborator<'context> {
         }
 
         this.collect_traits(items.traits);
+
+        // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
+        // Bind trait impls to their trait. Collect trait functions, that have a
+        // default implementation, which hasn't been overridden.
         for trait_impl in &mut items.trait_impls {
             this.collect_trait_impl(trait_impl);
         }
 
+        // Before we resolve any function symbols we must go through our impls and
+        // re-collect the methods within into their proper module. This cannot be
+        // done during def collection since we need to be able to resolve the type of
+        // the impl since that determines the module we should collect into.
+        //
+        // These are resolved after trait impls so that struct methods are chosen
+        // over trait methods if there are name conflicts.
         for ((typ, module), impls) in &items.impls {
             this.collect_impls(typ, *module, impls);
         }
 
-        for global in other_globals {
+        // We must wait to resolve non-literal globals until after we resolve structs since struct
+        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        for global in non_literal_globals {
             this.elaborate_global(global);
         }
 
