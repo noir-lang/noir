@@ -531,6 +531,8 @@ jobs:
 
   merge-check:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     needs:
       - setup
       # - bench-e2e # does not block merge
