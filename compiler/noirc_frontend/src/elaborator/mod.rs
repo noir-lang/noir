@@ -1,19 +1,15 @@
-#![allow(unused)]
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
 use crate::{
-    ast::{
-        ArrayLiteral, ConstructorExpression, FunctionKind, IfExpression, InfixExpression, Lambda,
-        TraitItem, UnresolvedTraitConstraint, UnresolvedTypeExpression,
-    },
+    ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
-                UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
+                UnresolvedStruct, UnresolvedTypeAlias,
             },
             errors::DuplicateType,
         },
@@ -21,39 +17,21 @@ use crate::{
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
     },
-    hir_def::{
-        expr::{
-            HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
-        },
-        function::Parameters,
-        stmt::HirLetStatement,
-        traits::TraitConstraint,
-    },
+    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
-        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, Pattern, PrefixExpression,
-        SecondaryAttribute, Statement, StatementKind, StructId,
+        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
-    Shared, StructType, Type, TypeVariable,
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
+    Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
     graph::CrateId,
     hir::{
-        def_collector::{
-            dc_crate::{CollectedItems, DefCollector},
-            errors::DefCollectorErrorKind,
-        },
+        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
         resolution::{
-            errors::PubPosition,
-            import::{PathResolution, PathResolutionError},
-            path_resolver::StandardPathResolver,
+            errors::PubPosition, import::PathResolution, path_resolver::StandardPathResolver,
         },
         Context,
     },
@@ -81,9 +59,7 @@ mod types;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_arena::Index;
 use noirc_errors::{Location, Span};
-use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -863,6 +839,8 @@ impl<'context> Elaborator<'context> {
         module: LocalModuleId,
         impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>,
     ) {
+        self.local_module = module;
+
         for (generics, _, functions) in impls {
             self.file = functions.file_id;
             let old_generics_length = self.generics.len();
@@ -913,7 +891,7 @@ impl<'context> Elaborator<'context> {
         self.self_type = Some(self_type.clone());
         self.current_trait_impl = trait_impl.impl_id;
 
-        let mut methods = trait_impl.methods.function_ids();
+        let methods = trait_impl.methods.function_ids();
 
         self.elaborate_functions(trait_impl.methods);
 
@@ -1284,7 +1262,6 @@ impl<'context> Elaborator<'context> {
             self.local_module = trait_impl.module_id;
 
             let unresolved_type = &trait_impl.object_type;
-            let self_type_span = unresolved_type.span;
             let old_generics_length = self.generics.len();
             self.add_generics(&trait_impl.generics);
 
