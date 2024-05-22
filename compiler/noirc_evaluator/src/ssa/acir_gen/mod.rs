@@ -1728,7 +1728,7 @@ impl<'a> Context<'a> {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<Vec<SsaReport>, InternalError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack)
@@ -1750,6 +1750,8 @@ impl<'a> Context<'a> {
             if !is_databus {
                 // We do not return value for the data bus.
                 self.acir_context.return_var(acir_var)?;
+            } else {
+                self.check_array_is_initialized(self.data_bus.return_data.unwrap(), dfg)?;
             }
         }
         Ok(warnings)
