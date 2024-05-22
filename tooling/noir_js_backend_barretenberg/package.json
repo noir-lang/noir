@@ -42,7 +42,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {
-    "@aztec/bb.js": "portal:../../../../barretenberg/ts",
+    "@aztec/bb.js": "0.41.0",
     "@noir-lang/types": "workspace:*",
     "fflate": "^0.8.0"
   },
