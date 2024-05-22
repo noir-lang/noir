@@ -522,9 +522,15 @@ jobs:
         env:
           # We treat any skipped or failing jobs as a failure for the workflow as a whole.
           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ $FAIL == true ]]; then
               echo "At least one job failed (or skipped/cancelled), merging not allowed."
+              if [[ $RUN_ATTEMPT -lt 2 ]] ; then
+                echo "Retrying first workflow failure. This is a stop-gap until things are more stable."
+                gh workflow run rerun.yml -F run_id=${{ github.run_id }}
+              fi
               exit 1
           else
               echo "All jobs succeeded, merge allowed."
