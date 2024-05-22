@@ -119,7 +119,12 @@ impl Intrinsic {
             | Intrinsic::AsField => false,
 
             // Some black box functions have side-effects
-            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+            Intrinsic::BlackBox(func) => matches!(
+                func,
+                BlackBoxFunc::RecursiveAggregation
+                    | BlackBoxFunc::MultiScalarMul
+                    | BlackBoxFunc::EmbeddedCurveAdd
+            ),
         }
     }
 
@@ -365,7 +370,13 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    matches!(
+                        intrinsic,
+                        Intrinsic::SliceInsert
+                            | Intrinsic::SliceRemove
+                            | Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)
+                            | Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)
+                    )
                 }
                 _ => false,
             },
