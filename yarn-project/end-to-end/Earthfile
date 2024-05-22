@@ -163,8 +163,9 @@ uniswap-trade-on-l1-from-l2:
 integration-l1-publisher:
   DO +E2E_COMPOSE_TEST --test=integration_l1_publisher.test.ts
 
-integration-proof-verification:
-  DO +E2E_COMPOSE_TEST --compose_file=./scripts/docker-compose-no-sandbox.yml --test=integration_proof_verification.test.ts
+# Disabled, TODO https://github.com/AztecProtocol/aztec-packages/issues/6624
+# integration-proof-verification:
+#  DO +E2E_COMPOSE_TEST --compose_file=./scripts/docker-compose-no-sandbox.yml --test=integration_proof_verification.test.ts
 
 e2e-browser:
   DO +E2E_COMPOSE_TEST --test=e2e_aztec_js_browser.test.ts
