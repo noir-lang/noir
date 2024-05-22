@@ -7,13 +7,13 @@ use std::{
 use crate::{
     ast::{
         ArrayLiteral, ConstructorExpression, FunctionKind, IfExpression, InfixExpression, Lambda,
-        UnresolvedTraitConstraint, UnresolvedTypeExpression, TraitItem,
+        TraitItem, UnresolvedTraitConstraint, UnresolvedTypeExpression,
     },
     hir::{
         def_collector::{
             dc_crate::{
-                filter_literal_globals, CompilationError, UnresolvedGlobal, UnresolvedStruct,
-                UnresolvedTrait, UnresolvedTypeAlias, ImplMap,
+                filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
+                UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
             },
             errors::DuplicateType,
         },
@@ -28,8 +28,9 @@ use crate::{
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
+        function::Parameters,
         stmt::HirLetStatement,
-        traits::TraitConstraint, function::Parameters,
+        traits::TraitConstraint,
     },
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
@@ -232,7 +233,7 @@ impl<'context> Elaborator<'context> {
         this.collect_traits(items.traits);
 
         // Must resolve structs before we resolve globals.
-        this.collect_struct_definitions(&items.types);
+        this.collect_struct_definitions(items.types);
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
@@ -310,7 +311,10 @@ impl<'context> Elaborator<'context> {
             self.in_unconstrained_fn = true;
         }
 
-        let func_meta = self.interner.func_meta.get(&id)
+        let func_meta = self
+            .interner
+            .func_meta
+            .get(&id)
             .expect("FuncMetas should be declared before a function is elaborated")
             .clone();
 
@@ -554,8 +558,6 @@ impl<'context> Elaborator<'context> {
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
-
-
 
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
@@ -907,7 +909,8 @@ impl<'context> Elaborator<'context> {
             vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
 
         let self_type = trait_impl.resolved_object_type.unwrap_or(Type::Error);
-        let impl_id = trait_impl.impl_id.expect("An impls' id should be set during define_function_metas");
+        let impl_id =
+            trait_impl.impl_id.expect("An impls' id should be set during define_function_metas");
 
         self.self_type = Some(self_type.clone());
         self.current_trait_impl = trait_impl.impl_id;
@@ -1174,7 +1177,7 @@ impl<'context> Elaborator<'context> {
         self.interner.set_type_alias(alias_id, typ, generics);
     }
 
-    fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {
+    fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
         // This is necessary to avoid cloning the entire struct map
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
@@ -1184,9 +1187,9 @@ impl<'context> Elaborator<'context> {
         for (type_id, typ) in structs {
             self.file = typ.file_id;
             self.local_module = typ.module_id;
-            let (generics, fields) = self.resolve_struct_fields(&typ.struct_def, *type_id);
+            let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
 
-            self.interner.update_struct(*type_id, |struct_def| {
+            self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
                 struct_def.generics = generics;
             });
@@ -1214,7 +1217,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_struct_fields(
         &mut self,
-        unresolved: &NoirStruct,
+        unresolved: NoirStruct,
         struct_id: StructId,
     ) -> (Generics, Vec<(Ident, Type)>) {
         let generics = self.add_generics(&unresolved.generics);
@@ -1225,7 +1228,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Struct(struct_id));
 
         self.resolving_ids.insert(struct_id);
-        let fields = vecmap(&unresolved.fields, |(ident, typ)| (ident.clone(), self.resolve_type(typ.clone())));
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
         self.resolving_ids.remove(&struct_id);
 
         (generics, fields)
@@ -1260,7 +1263,8 @@ impl<'context> Elaborator<'context> {
         self.interner.replace_statement(statement_id, let_statement);
     }
 
-    fn define_function_metas(&mut self,
+    fn define_function_metas(
+        &mut self,
         functions: &mut [UnresolvedFunctions],
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],

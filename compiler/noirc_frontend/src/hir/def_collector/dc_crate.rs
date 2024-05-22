@@ -1,11 +1,11 @@
 use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
-use crate::Type;
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
+use crate::Type;
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -19,7 +19,9 @@ use crate::hir::type_check::{
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId, TraitId, TypeAliasId, TraitImplId};
+use crate::node_interner::{
+    FuncId, GlobalId, NodeInterner, StructId, TraitId, TraitImplId, TypeAliasId,
+};
 
 use crate::ast::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
