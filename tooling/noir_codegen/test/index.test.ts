@@ -1,18 +1,18 @@
 import { expect } from 'chai';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore File is codegenned at test time.
-import { exported_function_foo, MyStruct, u64, ForeignCallHandler } from './codegen/index.js';
+import { exported_function_foo, MyStruct, u64, u32, ForeignCallHandler } from './codegen/index.js';
 
 it('codegens a callable function', async () => {
-  const my_struct = { foo: true, bar: ['12345', '12345', '12345'], baz: '0x00' };
+  const my_struct = { foo: true, bar: ['123', '123', '123', '123'], baz: '0x00' };
 
-  const [sum, constant, struct]: [u64, u64, MyStruct] = await exported_function_foo(
+  const [sum, constant, struct]: [u64, u32, MyStruct] = await exported_function_foo(
     '2',
     '3',
-    [0, 0, 0, 0, 0],
+    ['0x00', '0x00', '0x00', '0x00', '0x00'],
     {
       foo: my_struct,
-      bar: [my_struct, my_struct, my_struct],
+      bar: [my_struct, my_struct],
       baz: '64',
     },
     '12345',
@@ -35,15 +35,15 @@ it('allows passing a custom foreign call handler', async () => {
     return [];
   };
 
-  const my_struct = { foo: true, bar: ['12345', '12345', '12345'], baz: '0x00' };
+  const my_struct = { foo: true, bar: ['123', '123', '123', '123'], baz: '0x00' };
 
-  const [sum, constant, struct]: [u64, u64, MyStruct] = await exported_function_foo(
+  const [sum, constant, struct]: [u64, u32, MyStruct] = await exported_function_foo(
     '2',
     '3',
-    [0, 0, 0, 0, 0],
+    ['0x00', '0x00', '0x00', '0x00', '0x00'],
     {
       foo: my_struct,
-      bar: [my_struct, my_struct, my_struct],
+      bar: [my_struct, my_struct],
       baz: '64',
     },
     '12345',

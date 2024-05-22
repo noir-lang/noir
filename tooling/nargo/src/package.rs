@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
 use noirc_frontend::graph::CrateName;
 
-use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
+use crate::constants::PROVER_INPUT_FILE;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PackageType {
@@ -58,11 +58,6 @@ impl Package {
         // TODO: This should be configurable, such as if we are looking for .json or .toml or custom paths
         // For now it is hard-coded to be toml.
         self.root_dir.join(format!("{PROVER_INPUT_FILE}.toml"))
-    }
-    pub fn verifier_input_path(&self) -> PathBuf {
-        // TODO: This should be configurable, such as if we are looking for .json or .toml or custom paths
-        // For now it is hard-coded to be toml.
-        self.root_dir.join(format!("{VERIFIER_INPUT_FILE}.toml"))
     }
 
     pub fn is_binary(&self) -> bool {

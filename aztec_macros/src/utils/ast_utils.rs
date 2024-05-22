@@ -1,9 +1,9 @@
 use noirc_errors::{Span, Spanned};
 use noirc_frontend::ast::{
     BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
-    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MethodCallExpression,
-    NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind, TraitImplItem,
-    UnaryOp, UnresolvedType, UnresolvedTypeData,
+    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MemberAccessExpression,
+    MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind,
+    TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::token::SecondaryAttribute;
 
@@ -124,6 +124,13 @@ pub fn make_eq(lhs: Expression, rhs: Expression) -> Expression {
 
 pub fn make_statement(kind: StatementKind) -> Statement {
     Statement { span: Span::default(), kind }
+}
+
+pub fn member_access(lhs: Expression, member: &str) -> Expression {
+    expression(ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+        lhs,
+        rhs: ident(member),
+    })))
 }
 
 #[macro_export]
