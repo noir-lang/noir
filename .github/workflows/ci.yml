@@ -566,7 +566,7 @@ jobs:
         run: |
           if [[ $FAIL == true ]]; then
               echo "At least one job failed (or skipped/cancelled), merging not allowed."
-              if [[ $RUN_ATTEMPT -lt 2 ]] ; then
+              if [[ $RUN_ATTEMPT -lt 2 ]] && [[ "${{ contains(needs.*.result, 'failure') }}" == true ]] ; then
                 echo "Retrying first workflow failure. This is a stop-gap until things are more stable."
                 gh workflow run rerun.yml -F run_id=${{ github.run_id }}
               fi
