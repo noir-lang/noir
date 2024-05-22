@@ -10,7 +10,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirIdent, ImplKind},
-        stmt::HirPattern,
+        stmt::HirPattern, function::FuncMeta,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, TraitImplKind},

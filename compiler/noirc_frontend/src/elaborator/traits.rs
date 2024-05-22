@@ -26,10 +26,6 @@ use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
-        for (trait_id, unresolved_trait) in &traits {
-            self.interner.push_empty_trait(*trait_id, unresolved_trait);
-        }
-
         for (trait_id, unresolved_trait) in traits {
             let generics = vecmap(&unresolved_trait.trait_def.generics, |_| {
                 TypeVariable::unbound(self.interner.next_type_variable_id())
@@ -187,7 +183,9 @@ impl<'context> Elaborator<'context> {
             return_visibility: Visibility::Private,
         };
 
-        self.elaborate_function(NoirFunction { kind, def }, func_id);
+        let mut function = NoirFunction { kind, def };
+        self.define_function_meta(&mut function, func_id);
+        self.elaborate_function(function, func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.trait_bounds.clear();

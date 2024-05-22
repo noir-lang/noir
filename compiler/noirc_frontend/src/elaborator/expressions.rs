@@ -84,10 +84,10 @@ impl<'context> Elaborator<'context> {
                     expr_type: inner_expr_type.clone(),
                     expr_span: span,
                 });
+            }
 
-                if i + 1 == statements.len() {
-                    block_type = stmt_type;
-                }
+            if i + 1 == statements.len() {
+                block_type = stmt_type;
             }
         }
 
