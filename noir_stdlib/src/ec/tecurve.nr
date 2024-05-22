@@ -296,10 +296,8 @@ mod curvegroup {
             let yy = y * y;
             let zz = z * z;
             let zzzz = zz * zz;
-            
-            (z != 0)
-                & (z * t == x * y)
-                & (zz * (self.a * xx + yy) == zzzz + self.d * xx * yy)
+
+            (z != 0) & (z * t == x * y) & (zz * (self.a * xx + yy) == zzzz + self.d * xx * yy)
         }
 
         // Point addition

@@ -236,7 +236,7 @@ mod curvegroup {
             if z == 0 {
                 affine::Point::zero()
             } else {
-                let zz = z*z;
+                let zz = z * z;
                 affine::Point::new(x / zz, y / (zz * z))
             }
         }
@@ -295,7 +295,7 @@ mod curvegroup {
                 let yy = y * y;
                 let zz = z * z;
                 let zzzz = zz * zz;
-          
+
                 yy == x * (xx + self.a * zzzz) + self.b * zzzz * zz
             }
         }
@@ -311,7 +311,7 @@ mod curvegroup {
                 let Point {x: x2, y: y2, z: z2} = p2;
                 let z1z1 = z1 * z1;
                 let z2z2 = z2 * z2;
-                
+
                 let you1 = x1 * z2z2;
                 let you2 = x2 * z1z1;
                 let s1 = y1 * z2 * z2z2;
@@ -330,7 +330,7 @@ mod curvegroup {
                     let you1_hh = you1 * hh;
                     let r = s2 - s1;
                     let rr = r * r;
-                    
+
                     let x3 = rr - hhh - 2 * you1_hh;
                     let y3 = r * (you1_hh - x3) - s1 * hhh;
                     let z3 = h * z1 * z2;
@@ -354,7 +354,7 @@ mod curvegroup {
                 let yyyy = yy * yy;
                 let zz = z * z;
                 let zzzz = zz * zz;
-          
+
                 let s = 4 * x * yy;
                 let m = 3 * xx + self.a * zzzz;
                 let mm = m * m;
