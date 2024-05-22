@@ -21,7 +21,7 @@ AvmMemTraceBuilder::AvmMemTraceBuilder()
 void AvmMemTraceBuilder::reset()
 {
     mem_trace.clear();
-    memory.clear();
+    memory.fill({});
 }
 
 /**
@@ -48,7 +48,8 @@ std::vector<AvmMemTraceBuilder::MemoryTraceEntry> AvmMemTraceBuilder::finalize()
  * @param w_in_tag Write memory tag pertaining to the instruction
  * @param m_rw Boolean telling whether it is a load (false) or store operation (true).
  */
-void AvmMemTraceBuilder::insert_in_mem_trace(uint32_t const m_clk,
+void AvmMemTraceBuilder::insert_in_mem_trace(uint8_t space_id,
+                                             uint32_t const m_clk,
                                              uint32_t const m_sub_clk,
                                              uint32_t const m_addr,
                                              FF const& m_val,
@@ -58,6 +59,7 @@ void AvmMemTraceBuilder::insert_in_mem_trace(uint32_t const m_clk,
                                              bool const m_rw)
 {
     mem_trace.emplace_back(MemoryTraceEntry{
+        .m_space_id = space_id,
         .m_clk = m_clk,
         .m_sub_clk = m_sub_clk,
         .m_addr = m_addr,
@@ -85,7 +87,8 @@ void AvmMemTraceBuilder::insert_in_mem_trace(uint32_t const m_clk,
  * @param r_in_tag Memory write tag pertaining to the instruction
  * @param m_tag Memory tag pertaining to the address
  */
-void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
+void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint8_t space_id,
+                                                        uint32_t const m_clk,
                                                         uint32_t const m_sub_clk,
                                                         uint32_t const m_addr,
                                                         FF const& m_val,
@@ -105,7 +108,8 @@ void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
     // Lookup counter hint, used for #[INCL_MAIN_TAG_ERR] lookup (joined on clk)
     m_tag_err_lookup_counts[m_clk]++;
 
-    mem_trace.emplace_back(MemoryTraceEntry{ .m_clk = m_clk,
+    mem_trace.emplace_back(MemoryTraceEntry{ .m_space_id = space_id,
+                                             .m_clk = m_clk,
                                              .m_sub_clk = m_sub_clk,
                                              .m_addr = m_addr,
                                              .m_val = m_val,
@@ -130,18 +134,24 @@ void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
  * @return A boolean indicating that memory tag matches (resp. does not match) the
  *         instruction tag. Set to false in case of a mismatch.
  */
-bool AvmMemTraceBuilder::load_from_mem_trace(
-    uint32_t clk, uint32_t sub_clk, uint32_t addr, FF const& val, AvmMemoryTag r_in_tag, AvmMemoryTag w_in_tag)
+bool AvmMemTraceBuilder::load_from_mem_trace(uint8_t space_id,
+                                             uint32_t clk,
+                                             uint32_t sub_clk,
+                                             uint32_t addr,
+                                             FF const& val,
+                                             AvmMemoryTag r_in_tag,
+                                             AvmMemoryTag w_in_tag)
 {
-    AvmMemoryTag m_tag = memory.contains(addr) ? memory.at(addr).tag : AvmMemoryTag::U0;
+    auto& mem_space = memory.at(space_id);
+    AvmMemoryTag m_tag = mem_space.contains(addr) ? mem_space.at(addr).tag : AvmMemoryTag::U0;
 
     if (m_tag == AvmMemoryTag::U0 || m_tag == r_in_tag) {
-        insert_in_mem_trace(clk, sub_clk, addr, val, r_in_tag, r_in_tag, w_in_tag, false);
+        insert_in_mem_trace(space_id, clk, sub_clk, addr, val, r_in_tag, r_in_tag, w_in_tag, false);
         return true;
     }
 
     // Handle memory tag inconsistency
-    load_mismatch_tag_in_mem_trace(clk, sub_clk, addr, val, r_in_tag, w_in_tag, m_tag);
+    load_mismatch_tag_in_mem_trace(space_id, clk, sub_clk, addr, val, r_in_tag, w_in_tag, m_tag);
     return false;
 }
 
@@ -156,8 +166,13 @@ bool AvmMemTraceBuilder::load_from_mem_trace(
  * @param r_in_tag The write memory tag of the instruction
  * @param w_in_tag The write memory tag of the instruction
  */
-void AvmMemTraceBuilder::store_in_mem_trace(
-    uint32_t clk, IntermRegister interm_reg, uint32_t addr, FF const& val, AvmMemoryTag r_in_tag, AvmMemoryTag w_in_tag)
+void AvmMemTraceBuilder::store_in_mem_trace(uint8_t space_id,
+                                            uint32_t clk,
+                                            IntermRegister interm_reg,
+                                            uint32_t addr,
+                                            FF const& val,
+                                            AvmMemoryTag r_in_tag,
+                                            AvmMemoryTag w_in_tag)
 {
     uint32_t sub_clk = 0;
     switch (interm_reg) {
@@ -175,7 +190,7 @@ void AvmMemTraceBuilder::store_in_mem_trace(
         break;
     }
 
-    insert_in_mem_trace(clk, sub_clk, addr, val, w_in_tag, r_in_tag, w_in_tag, true);
+    insert_in_mem_trace(space_id, clk, sub_clk, addr, val, w_in_tag, r_in_tag, w_in_tag, true);
 }
 
 /**
@@ -191,11 +206,15 @@ void AvmMemTraceBuilder::store_in_mem_trace(
  * @return Result of the read operation containing the value and the tag of the memory cell
  *         at the supplied address.
  */
-AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_mov_opcode(uint32_t const clk, uint32_t const addr)
+AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_mov_opcode(uint8_t space_id,
+                                                                          uint32_t const clk,
+                                                                          uint32_t const addr)
 {
-    MemEntry mem_entry = memory.contains(addr) ? memory.at(addr) : MemEntry{};
+    auto& mem_space = memory.at(space_id);
+    MemEntry mem_entry = mem_space.contains(addr) ? mem_space.at(addr) : MemEntry{};
 
     mem_trace.emplace_back(MemoryTraceEntry{
+        .m_space_id = space_id,
         .m_clk = clk,
         .m_sub_clk = SUB_CLK_LOAD_A,
         .m_addr = addr,
@@ -224,20 +243,20 @@ AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_mov_opcode(uint32
  * @return Result of the read operation containing the value and the tag of the memory cell
  *         at the supplied address.
  */
-std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cmov_opcode(uint32_t clk,
-                                                                                          uint32_t a_addr,
-                                                                                          uint32_t b_addr,
-                                                                                          uint32_t cond_addr)
+std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cmov_opcode(
+    uint8_t space_id, uint32_t clk, uint32_t a_addr, uint32_t b_addr, uint32_t cond_addr)
 {
-    MemEntry a_mem_entry = memory.contains(a_addr) ? memory.at(a_addr) : MemEntry{};
-    MemEntry b_mem_entry = memory.contains(b_addr) ? memory.at(b_addr) : MemEntry{};
-    MemEntry cond_mem_entry = memory.contains(cond_addr) ? memory.at(cond_addr) : MemEntry{};
+    auto& mem_space = memory.at(space_id);
+    MemEntry a_mem_entry = mem_space.contains(a_addr) ? mem_space.at(a_addr) : MemEntry{};
+    MemEntry b_mem_entry = mem_space.contains(b_addr) ? mem_space.at(b_addr) : MemEntry{};
+    MemEntry cond_mem_entry = mem_space.contains(cond_addr) ? mem_space.at(cond_addr) : MemEntry{};
 
     bool mov_b = cond_mem_entry.val == 0;
 
     AvmMemoryTag r_w_in_tag = mov_b ? b_mem_entry.tag : a_mem_entry.tag;
 
     mem_trace.emplace_back(MemoryTraceEntry{
+        .m_space_id = space_id,
         .m_clk = clk,
         .m_sub_clk = SUB_CLK_LOAD_A,
         .m_addr = a_addr,
@@ -250,6 +269,7 @@ std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cm
     });
 
     mem_trace.emplace_back(MemoryTraceEntry{
+        .m_space_id = space_id,
         .m_clk = clk,
         .m_sub_clk = SUB_CLK_LOAD_B,
         .m_addr = b_addr,
@@ -262,6 +282,7 @@ std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cm
     });
 
     mem_trace.emplace_back(MemoryTraceEntry{
+        .m_space_id = space_id,
         .m_clk = clk,
         .m_sub_clk = SUB_CLK_LOAD_D,
         .m_addr = cond_addr,
@@ -289,13 +310,16 @@ std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cm
  * @return Result of the read operation containing the value and the tag of the memory cell
  *         at the supplied address.
  */
-AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_cast_opcode(uint32_t clk,
+AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_cast_opcode(uint8_t space_id,
+                                                                           uint32_t clk,
                                                                            uint32_t addr,
                                                                            AvmMemoryTag w_in_tag)
 {
-    MemEntry mem_entry = memory.contains(addr) ? memory.at(addr) : MemEntry{};
+    auto& mem_space = memory.at(space_id);
+    MemEntry mem_entry = mem_space.contains(addr) ? mem_space.at(addr) : MemEntry{};
 
     mem_trace.emplace_back(MemoryTraceEntry{
+        .m_space_id = space_id,
         .m_clk = clk,
         .m_sub_clk = SUB_CLK_LOAD_A,
         .m_addr = addr,
@@ -322,7 +346,8 @@ AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_cast_opcode(uint3
  * @return Result of the read operation containing the value and a boolean telling
  *         potential mismatch between instruction tag and memory tag of the address.
  */
-AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::read_and_load_from_memory(uint32_t const clk,
+AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::read_and_load_from_memory(uint8_t space_id,
+                                                                          uint32_t const clk,
                                                                           IntermRegister const interm_reg,
                                                                           uint32_t const addr,
                                                                           AvmMemoryTag const r_in_tag,
@@ -343,9 +368,9 @@ AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::read_and_load_from_memory(uint32
         sub_clk = SUB_CLK_LOAD_D;
         break;
     }
-
-    FF val = memory.contains(addr) ? memory.at(addr).val : 0;
-    bool tagMatch = load_from_mem_trace(clk, sub_clk, addr, val, r_in_tag, w_in_tag);
+    auto& mem_space = memory.at(space_id);
+    FF val = mem_space.contains(addr) ? mem_space.at(addr).val : 0;
+    bool tagMatch = load_from_mem_trace(space_id, clk, sub_clk, addr, val, r_in_tag, w_in_tag);
 
     return MemRead{
         .tag_match = tagMatch,
@@ -353,7 +378,8 @@ AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::read_and_load_from_memory(uint32
     };
 }
 
-AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::indirect_read_and_load_from_memory(uint32_t clk,
+AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::indirect_read_and_load_from_memory(uint8_t space_id,
+                                                                                   uint32_t clk,
                                                                                    IndirectRegister ind_reg,
                                                                                    uint32_t addr)
 {
@@ -373,8 +399,9 @@ AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::indirect_read_and_load_from_memo
         break;
     }
 
-    FF val = memory.contains(addr) ? memory.at(addr).val : 0;
-    bool tagMatch = load_from_mem_trace(clk, sub_clk, addr, val, AvmMemoryTag::U32, AvmMemoryTag::U0);
+    auto& mem_space = memory.at(space_id);
+    FF val = mem_space.contains(addr) ? mem_space.at(addr).val : 0;
+    bool tagMatch = load_from_mem_trace(space_id, clk, sub_clk, addr, val, AvmMemoryTag::U32, AvmMemoryTag::U0);
 
     return MemRead{
         .tag_match = tagMatch,
@@ -394,7 +421,8 @@ AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::indirect_read_and_load_from_memo
  * @param r_in_tag Read memory instruction tag
  * @param w_in_tag Write memory instruction tag
  */
-void AvmMemTraceBuilder::write_into_memory(uint32_t const clk,
+void AvmMemTraceBuilder::write_into_memory(uint8_t space_id,
+                                           uint32_t const clk,
                                            IntermRegister interm_reg,
                                            uint32_t addr,
                                            FF const& val,
@@ -402,13 +430,14 @@ void AvmMemTraceBuilder::write_into_memory(uint32_t const clk,
                                            AvmMemoryTag w_in_tag)
 {
     MemEntry memEntry{ val, w_in_tag };
-    auto it = memory.find(addr);
-    if (it != memory.end()) {
+    auto& mem_space = memory.at(space_id);
+    auto it = mem_space.find(addr);
+    if (it != mem_space.end()) {
         it->second = memEntry;
     } else {
-        memory.emplace(addr, memEntry);
+        mem_space.emplace(addr, memEntry);
     }
-    store_in_mem_trace(clk, interm_reg, addr, val, r_in_tag, w_in_tag);
+    store_in_mem_trace(space_id, clk, interm_reg, addr, val, r_in_tag, w_in_tag);
 }
 
 } // namespace bb::avm_trace

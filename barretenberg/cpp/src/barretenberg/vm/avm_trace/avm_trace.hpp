@@ -23,8 +23,6 @@ namespace bb::avm_trace {
 class AvmTraceBuilder {
 
   public:
-    static const size_t CALLSTACK_OFFSET = 896; // TODO(md): Temporary reserved area 896 - 1024
-
     AvmTraceBuilder(std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs = {});
 
     std::vector<Row> finalize();
@@ -161,10 +159,11 @@ class AvmTraceBuilder {
     void finalise_mem_trace_lookup_counts();
 
     IndirectThreeResolution resolve_ind_three(
-        uint32_t clk, uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t c_offset);
+        uint8_t space_id, uint32_t clk, uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t c_offset);
 
     uint32_t pc = 0;
-    uint32_t internal_return_ptr = CALLSTACK_OFFSET;
-    std::stack<uint32_t> internal_call_stack = {};
+    uint32_t internal_return_ptr =
+        0; // After a nested call, it should be initialized with MAX_SIZE_INTERNAL_STACK * call_ptr
+    uint8_t call_ptr = 0;
 };
 } // namespace bb::avm_trace

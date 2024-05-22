@@ -75,6 +75,7 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
             info("mem_idx_c:          ", trace.at(i).avm_main_mem_idx_c);
             info("rwc:                ", trace.at(i).avm_main_rwc);
             info("diff_hi:            ", trace.at(i).avm_mem_diff_hi);
+            info("diff_mid:           ", trace.at(i).avm_mem_diff_mid);
             info("diff_lo:            ", trace.at(i).avm_mem_diff_lo);
 
             if (enable_selectors) {

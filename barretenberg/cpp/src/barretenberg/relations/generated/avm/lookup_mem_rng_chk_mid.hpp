@@ -23,7 +23,7 @@ namespace bb {
  * FF>>;)`
  *
  */
-class lookup_mem_rng_chk_hi_lookup_settings {
+class lookup_mem_rng_chk_mid_lookup_settings {
   public:
     /**
      * @brief The number of read terms (how many lookups we perform) in each row
@@ -87,7 +87,7 @@ class lookup_mem_rng_chk_hi_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_mem_rng_chk_sel == 1 || in.avm_main_sel_rng_8 == 1);
+        return (in.avm_mem_rng_chk_sel == 1 || in.avm_main_sel_rng_16 == 1);
     }
 
     /**
@@ -105,7 +105,7 @@ class lookup_mem_rng_chk_hi_lookup_settings {
     {
         using View = typename Accumulator::View;
         const auto is_operation = View(in.avm_mem_rng_chk_sel);
-        const auto is_table_entry = View(in.avm_main_sel_rng_8);
+        const auto is_table_entry = View(in.avm_main_sel_rng_16);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -133,11 +133,11 @@ class lookup_mem_rng_chk_hi_lookup_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.lookup_mem_rng_chk_hi,
-                                     in.lookup_mem_rng_chk_hi_counts,
+        return std::forward_as_tuple(in.lookup_mem_rng_chk_mid,
+                                     in.lookup_mem_rng_chk_mid_counts,
                                      in.avm_mem_rng_chk_sel,
-                                     in.avm_main_sel_rng_8,
-                                     in.avm_mem_diff_hi,
+                                     in.avm_main_sel_rng_16,
+                                     in.avm_mem_diff_mid,
                                      in.avm_main_clk);
     }
 
@@ -151,17 +151,17 @@ class lookup_mem_rng_chk_hi_lookup_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.lookup_mem_rng_chk_hi,
-                                     in.lookup_mem_rng_chk_hi_counts,
+        return std::forward_as_tuple(in.lookup_mem_rng_chk_mid,
+                                     in.lookup_mem_rng_chk_mid_counts,
                                      in.avm_mem_rng_chk_sel,
-                                     in.avm_main_sel_rng_8,
-                                     in.avm_mem_diff_hi,
+                                     in.avm_main_sel_rng_16,
+                                     in.avm_mem_diff_mid,
                                      in.avm_main_clk);
     }
 };
 
 template <typename FF_>
-using lookup_mem_rng_chk_hi_relation = GenericLookupRelation<lookup_mem_rng_chk_hi_lookup_settings, FF_>;
-template <typename FF_> using lookup_mem_rng_chk_hi = GenericLookup<lookup_mem_rng_chk_hi_lookup_settings, FF_>;
+using lookup_mem_rng_chk_mid_relation = GenericLookupRelation<lookup_mem_rng_chk_mid_lookup_settings, FF_>;
+template <typename FF_> using lookup_mem_rng_chk_mid = GenericLookup<lookup_mem_rng_chk_mid_lookup_settings, FF_>;
 
 } // namespace bb

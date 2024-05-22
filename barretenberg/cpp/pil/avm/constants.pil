@@ -27,3 +27,5 @@ namespace constants(256);
 
     pol TRANSACTION_FEE_SELECTOR = 40;
 
+    // Other AVM specific constants
+    pol INTERNAL_CALL_SPACE_ID = 255;

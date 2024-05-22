@@ -27,6 +27,7 @@ class AvmMemTraceBuilder {
     std::map<uint32_t, uint32_t> m_tag_err_lookup_counts;
 
     struct MemoryTraceEntry {
+        uint8_t m_space_id{};
         uint32_t m_clk{};
         uint32_t m_sub_clk{};
         uint32_t m_addr{};
@@ -48,6 +49,14 @@ class AvmMemTraceBuilder {
          */
         bool operator<(const MemoryTraceEntry& other) const
         {
+            if (m_space_id < other.m_space_id) {
+                return true;
+            }
+
+            if (m_space_id > other.m_space_id) {
+                return false;
+            }
+
             if (m_addr < other.m_addr) {
                 return true;
             }
@@ -88,16 +97,19 @@ class AvmMemTraceBuilder {
 
     std::vector<MemoryTraceEntry> finalize();
 
-    MemEntry read_and_load_mov_opcode(uint32_t clk, uint32_t addr);
-    std::array<MemEntry, 3> read_and_load_cmov_opcode(uint32_t clk,
-                                                      uint32_t a_addr,
-                                                      uint32_t b_addr,
-                                                      uint32_t cond_addr);
-    MemEntry read_and_load_cast_opcode(uint32_t clk, uint32_t addr, AvmMemoryTag w_in_tag);
-    MemRead read_and_load_from_memory(
-        uint32_t clk, IntermRegister interm_reg, uint32_t addr, AvmMemoryTag r_in_tag, AvmMemoryTag w_in_tag);
-    MemRead indirect_read_and_load_from_memory(uint32_t clk, IndirectRegister ind_reg, uint32_t addr);
-    void write_into_memory(uint32_t clk,
+    MemEntry read_and_load_mov_opcode(uint8_t space_id, uint32_t clk, uint32_t addr);
+    std::array<MemEntry, 3> read_and_load_cmov_opcode(
+        uint8_t space_id, uint32_t clk, uint32_t a_addr, uint32_t b_addr, uint32_t cond_addr);
+    MemEntry read_and_load_cast_opcode(uint8_t space_id, uint32_t clk, uint32_t addr, AvmMemoryTag w_in_tag);
+    MemRead read_and_load_from_memory(uint8_t space_id,
+                                      uint32_t clk,
+                                      IntermRegister interm_reg,
+                                      uint32_t addr,
+                                      AvmMemoryTag r_in_tag,
+                                      AvmMemoryTag w_in_tag);
+    MemRead indirect_read_and_load_from_memory(uint8_t space_id, uint32_t clk, IndirectRegister ind_reg, uint32_t addr);
+    void write_into_memory(uint8_t space_id,
+                           uint32_t clk,
                            IntermRegister interm_reg,
                            uint32_t addr,
                            FF const& val,
@@ -105,10 +117,13 @@ class AvmMemTraceBuilder {
                            AvmMemoryTag w_in_tag);
 
   private:
-    std::vector<MemoryTraceEntry> mem_trace;       // Entries will be sorted by m_clk, m_sub_clk after finalize().
-    std::unordered_map<uint32_t, MemEntry> memory; // Memory table (used for simulation)
+    std::vector<MemoryTraceEntry> mem_trace; // Entries will be sorted by m_clk, m_sub_clk after finalize().
 
-    void insert_in_mem_trace(uint32_t m_clk,
+    // Global Memory table (used for simulation): (space_id, (address, mem_entry))
+    std::array<std::unordered_map<uint32_t, MemEntry>, NUM_MEM_SPACES> memory;
+
+    void insert_in_mem_trace(uint8_t space_id,
+                             uint32_t m_clk,
                              uint32_t m_sub_clk,
                              uint32_t m_addr,
                              FF const& m_val,
@@ -117,7 +132,8 @@ class AvmMemTraceBuilder {
                              AvmMemoryTag w_in_tag,
                              bool m_rw);
 
-    void load_mismatch_tag_in_mem_trace(uint32_t m_clk,
+    void load_mismatch_tag_in_mem_trace(uint8_t space_id,
+                                        uint32_t m_clk,
                                         uint32_t m_sub_clk,
                                         uint32_t m_addr,
                                         FF const& m_val,
@@ -125,9 +141,15 @@ class AvmMemTraceBuilder {
                                         AvmMemoryTag w_in_tag,
                                         AvmMemoryTag m_tag);
 
-    bool load_from_mem_trace(
-        uint32_t clk, uint32_t sub_clk, uint32_t addr, FF const& val, AvmMemoryTag r_in_tag, AvmMemoryTag w_in_tag);
-    void store_in_mem_trace(uint32_t clk,
+    bool load_from_mem_trace(uint8_t space_id,
+                             uint32_t clk,
+                             uint32_t sub_clk,
+                             uint32_t addr,
+                             FF const& val,
+                             AvmMemoryTag r_in_tag,
+                             AvmMemoryTag w_in_tag);
+    void store_in_mem_trace(uint8_t space_id,
+                            uint32_t clk,
                             IntermRegister interm_reg,
                             uint32_t addr,
                             FF const& val,
