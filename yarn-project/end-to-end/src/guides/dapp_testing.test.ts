@@ -1,3 +1,4 @@
+// docs:start:imports
 import { createAccount, getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
 import {
   type AccountWallet,
@@ -11,7 +12,10 @@ import {
   createPXEClient,
   waitForPXE,
 } from '@aztec/aztec.js';
+// docs:end:imports
+// docs:start:import_contract
 import { TestContract } from '@aztec/noir-contracts.js/Test';
+// docs:end:import_contract
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
@@ -21,11 +25,12 @@ const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:854
 describe('guides/dapp/testing', () => {
   describe('on local sandbox', () => {
     beforeAll(async () => {
+      // docs:start:create_pxe_client
       const pxe = createPXEClient(PXE_URL);
       await waitForPXE(pxe);
+      // docs:end:create_pxe_client
     });
 
-    // docs:start:sandbox-example
     describe('token contract', () => {
       let pxe: PXE;
       let owner: AccountWallet;
@@ -65,7 +70,6 @@ describe('guides/dapp/testing', () => {
         expect(await token.methods.balance_of_private(recipientAddress).simulate()).toEqual(20n);
       });
     });
-    // docs:end:sandbox-example
 
     describe('token contract with initial accounts', () => {
       let pxe: PXE;
