@@ -19,6 +19,7 @@
         "barebones",
         "barretenberg",
         "barustenberg",
+        "bbup",
         "bincode",
         "bindgen",
         "bitand",
