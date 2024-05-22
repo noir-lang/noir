@@ -1,0 +1,6 @@
+[package]
+name = "keccak256_permutation"
+type = "bin"
+authors = [""]
+
+[dependencies]
