@@ -524,11 +524,11 @@ jobs:
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
-        run: ./test
+        run: ./test.sh
 
       - name: Run `codegen_verifier`
         working-directory: ./examples/codegen_verifier
-        run: ./test
+        run: ./test.sh
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
