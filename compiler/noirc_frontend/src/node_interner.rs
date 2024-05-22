@@ -151,7 +151,7 @@ pub struct NodeInterner {
     global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
     // TODO: rename to arith_expressions
-    arithmetic_expressions: HashMap<ArithId, ArithExpr>,
+    arithmetic_expressions: HashMap<ArithId, (ArithExpr, Location)>,
 
     // // TODO: cleanup
     // pub(crate) arithmetic_constraints: Vec<ArithConstraint>,
@@ -202,15 +202,34 @@ pub enum ArithExpr {
 }
 
 impl ArithExpr {
-    // TODO: resolve variables given function
-    pub fn resolve<F: FnMut(String) -> Option<u64>>(&mut self, _f: F) {
-        unimplemented!();
-    }
+
+    // // TODO: resolve variables given function
+    // pub fn resolve(&mut self, _f: F) {
+    //     unimplemented!();
+    // }
 
     pub fn try_constant(&self) -> Option<u64> {
         match self {
             Self::Constant(x) => Some(*x),
             _ => None,
+        }
+    }
+
+    pub fn evaluate(&self, arguments: &HashMap<Type, u64>) -> Result<u64, (TypeVariable, String)> {
+        match self {
+            Self::Op { kind, lhs, rhs } => {
+                let lhs = lhs.evaluate(arguments)?;
+                let rhs = rhs.evaluate(arguments)?;
+                Ok(kind.evaluate(lhs, rhs))
+            }
+            Self::Variable(binding, name) => {
+                if let Some(result) = arguments.get(&Type::NamedGeneric(binding.clone(), name.clone())) {
+                    Ok(*result)
+                } else {
+                    Err((binding.clone(), name.to_string()))
+                }
+            }
+            Self::Constant(result) => Ok(*result),
         }
     }
 }
@@ -237,6 +256,16 @@ pub enum ArithOpKind {
     Mul,
     Add,
     Sub,
+}
+
+impl ArithOpKind {
+    pub fn evaluate(&self, x: u64, y: u64) -> u64 {
+        match self {
+            Self::Mul => x * y,
+            Self::Add => x + y,
+            Self::Sub => x - y,
+        }
+    }
 }
 
 impl ArithOpKind {
@@ -272,7 +301,93 @@ pub struct ArithConstraint {
     pub rhs_generics: Vec<Type>,
 }
 
+impl ArithConstraint {
+    // TODO: better errors
+    pub fn validate(&self, interner: &NodeInterner) -> Result<(), ArithConstraintError> {
+        // TODO: cleanup
+        dbg!("validating", self);
+        let (lhs_expr, lhs_location) = interner.get_arithmetic_expression(self.lhs);
+        let (rhs_expr, rhs_location) = interner.get_arithmetic_expression(self.rhs);
+
+        let lhs_generics = self.lhs_generics.iter().cloned().map(|generic| {
+            match generic.evaluate_to_u64() {
+                Some(result) => Ok((generic.clone(), result)),
+                None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *lhs_location }),
+            }
+        }).collect::<Result<HashMap<_,_>, _>>()?;
+
+        let rhs_generics = self.rhs_generics.iter().cloned().map(|generic| {
+            match generic.evaluate_to_u64() {
+                Some(result) => Ok((generic.clone(), result)),
+                None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *rhs_location }),
+            }
+        }).collect::<Result<HashMap<_,_>, _>>()?;
+        
+        // TODO: cleanup
+        dbg!("validating: loaded", &lhs_generics, &rhs_generics);
+
+        match (lhs_expr.evaluate(&lhs_generics), rhs_expr.evaluate(&rhs_generics)) {
+            (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
+                if lhs_evaluated == rhs_evaluated {
+                    // TODO: cleanup
+                    dbg!("validating: evaluated", &lhs_evaluated, &rhs_evaluated);
+
+                    Ok(())
+                } else {
+                    Err(ArithConstraintError::EvaluatedToDifferentValues { lhs_evaluated, rhs_evaluated, location: *rhs_location })
+                }
+            }
+            (lhs_expr, rhs_expr) => {
+                Err(ArithConstraintError::FailedToEvaluate { lhs_expr, rhs_expr, location: *rhs_location })
+            }
+        }
+    }
+}
+
 pub type ArithConstraints = Vec<ArithConstraint>;
+
+
+// TODO relocate/cleanup
+#[derive(Debug, thiserror::Error)]
+pub enum ArithConstraintError {
+    UnresolvedGeneric { generic: Type, location: Location },
+    EvaluatedToDifferentValues { lhs_evaluated: u64, rhs_evaluated: u64, location: Location },
+    FailedToEvaluate { lhs_expr: Result<u64, (TypeVariable, String)>, rhs_expr: Result<u64, (TypeVariable, String)>, location: Location },
+}
+
+impl std::fmt::Display for ArithConstraintError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::UnresolvedGeneric { generic, .. } => {
+                if let Type::NamedGeneric(_, name) = generic {
+                    write!(f, "Unresolved generic value: {}", name)
+                } else {
+                    write!(f, "Unresolved generic value: {}", generic)
+                }
+            }
+            Self::EvaluatedToDifferentValues { lhs_evaluated, rhs_evaluated, .. } => {
+                write!(f, "Generic arithmetic evaluated to different values: {} != {}", lhs_evaluated, rhs_evaluated)
+            }
+            Self::FailedToEvaluate { lhs_expr, rhs_expr, .. } => {
+                // TODO: better error message (this prints Result's)
+                write!(f, "Generic arithmetic evaluated differently: {:?} != {:?}", lhs_expr, rhs_expr)
+            }
+        }
+    }
+}
+
+
+
+impl ArithConstraintError {
+    pub fn location(&self) -> Location {
+        match self {
+            Self::UnresolvedGeneric { location, .. }
+            | Self::EvaluatedToDifferentValues { location, .. }
+            | Self::FailedToEvaluate { location, .. } => *location,
+        }
+    }
+}
+
 
 
 
@@ -804,13 +919,15 @@ impl NodeInterner {
         id
     }
 
-    pub fn push_arithmetic_expression(&mut self, expr: ArithExpr) -> ArithId {
+    // TODO rename to push_arith_expression
+    pub fn push_arithmetic_expression(&mut self, expr: ArithExpr, location: Location) -> ArithId {
         let next_arith_id = self.next_arith_id();
-        self.arithmetic_expressions.insert(next_arith_id, expr); 
+        self.arithmetic_expressions.insert(next_arith_id, (expr, location)); 
         next_arith_id
     }
 
-    pub fn get_arithmetic_expression(&self, arith_id: ArithId) -> &ArithExpr {
+    // TODO: rename to get_arith_expression
+    pub fn get_arithmetic_expression(&self, arith_id: ArithId) -> &(ArithExpr, Location) {
         self.arithmetic_expressions.get(&arith_id)
             .expect("ICE: unknown ArithId was inserted without using the node interner")
     }

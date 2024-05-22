@@ -201,7 +201,7 @@ pub fn inject_fn(
     context.def_interner.push_fn_meta(meta, func_id);
     context.def_interner.update_fn(func_id, hir_func);
 
-    let errors = type_check_func(&mut context.def_interner, func_id);
+    let errors = type_check_func(&mut context.def_interner, &mut context.arith_constraints, func_id);
 
     if !errors.is_empty() {
         return Err(MacroError {

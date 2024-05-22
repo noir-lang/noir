@@ -2,6 +2,8 @@ use thiserror::Error;
 
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
+use crate::node_interner::ArithConstraintError;
+
 #[derive(Debug, Error)]
 pub enum MonomorphizationError {
     #[error("Length of generic array could not be determined.")]
@@ -9,6 +11,9 @@ pub enum MonomorphizationError {
 
     #[error("Type annotations needed")]
     TypeAnnotationsNeeded { location: Location },
+
+    #[error("Failed to proved generic arithmetic equivalent {error:?}")]
+    ArithConstraintError { error: ArithConstraintError },
 }
 
 impl MonomorphizationError {
@@ -16,6 +21,7 @@ impl MonomorphizationError {
         match self {
             MonomorphizationError::UnknownArrayLength { location }
             | MonomorphizationError::TypeAnnotationsNeeded { location } => *location,
+            MonomorphizationError::ArithConstraintError { error } => error.location(),
         }
     }
 }
@@ -27,6 +33,12 @@ impl From<MonomorphizationError> for FileDiagnostic {
         let diagnostic = error.into_diagnostic();
         diagnostic.in_file(location.file).with_call_stack(call_stack)
     }
+}
+
+impl From<ArithConstraintError> for MonomorphizationError {
+    fn from(error: ArithConstraintError) -> Self {
+        Self::ArithConstraintError { error }
+    } 
 }
 
 impl MonomorphizationError {

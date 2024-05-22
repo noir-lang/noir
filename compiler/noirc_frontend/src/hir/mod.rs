@@ -44,7 +44,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     // Parsed files is also read only.
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 
-    pub(crate) arith_constraints: ArithConstraints,
+    pub arith_constraints: ArithConstraints,
 }
 
 #[derive(Debug, Copy, Clone)]

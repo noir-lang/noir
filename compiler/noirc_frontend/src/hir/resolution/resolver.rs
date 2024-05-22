@@ -794,6 +794,7 @@ impl<'a> Resolver<'a> {
 
 
     // TODO: relocate
+    // TODO: rename (prepare for what?)
     fn prepare_arithmetic_expression(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
 
         match typ {
@@ -805,7 +806,7 @@ impl<'a> Resolver<'a> {
             }
             Type::GenericArith(arith_id, generics) => {
 
-                let arith_expr = self.interner.get_arithmetic_expression(arith_id);
+                let (arith_expr, _location) = self.interner.get_arithmetic_expression(arith_id);
                 (arith_expr.clone(), generics)
             }
 
@@ -858,7 +859,11 @@ impl<'a> Resolver<'a> {
                         });
 
                         let arith_expr = ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
-                        let new_id = self.interner.push_arithmetic_expression(arith_expr);
+                        let op_location = Location {
+                            span: op_span,
+                            file: self.file,
+                        };
+                        let new_id = self.interner.push_arithmetic_expression(arith_expr, op_location);
                         let new_generics = lhs_generics
                             .into_iter()
                             .chain(rhs_generics.into_iter())

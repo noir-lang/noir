@@ -143,7 +143,7 @@ pub fn monomorphize_debug(
         })
         .collect();
 
-    let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
+    let functions = vecmap(monomorphizer.finished_functions.clone(), |(_, f)| f);
     let FuncMeta { return_visibility, kind, .. } = monomorphizer.interner.function_meta(&main);
 
     let (debug_variables, debug_functions, debug_types) =
@@ -159,6 +159,10 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     );
+
+    // we need to check the arith constraints
+    monomorphizer.validate_arith_constraints()?;
+    assert!(monomorphizer.arith_constraints.is_empty());
     Ok(program)
 }
 
@@ -983,8 +987,21 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
-            HirType::GenericArith(_, generics) => {
-                try_vecmap(generics, |generic| Self::convert_type(generic, location))?;
+            HirType::GenericArith(_arith_id, generics) => {
+
+                // let length = match length.evaluate_to_u64() {
+                //     Some(length) => length,
+                //     None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                // };
+
+                try_vecmap(generics, |generic| {
+                    // Self::convert_type(generic, location)
+                    match generic.evaluate_to_u64() {
+                        Some(result) => Ok(result),
+                        None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    }
+                })?;
+
                 ast::Type::Field
             }
 
@@ -1472,7 +1489,7 @@ impl<'interner> Monomorphizer<'interner> {
                         );
 
                         let ident = Box::new(ast::Expression::Ident(lambda_ctx.env_ident.clone()));
-                        Ok(ast::Expression::ExtractTupleField(ident, field_index))
+                        Ok::<_, MonomorphizationError>(ast::Expression::ExtractTupleField(ident, field_index))
                     }
                     None => {
                         let ident = self.local_ident(&capture.ident)?.unwrap();
@@ -1779,6 +1796,14 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         bindings
+    }
+
+    /// Validate and consume all of the `ArithConstraints``
+    fn validate_arith_constraints(&mut self) -> Result<(), MonomorphizationError> {
+        for arith_constraint in std::mem::take(&mut self.arith_constraints) {
+            arith_constraint.validate(self.interner)?
+        }
+        Ok(())
     }
 }
 

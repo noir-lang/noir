@@ -1303,9 +1303,12 @@ impl Type {
             }
 
             (GenericArith(lhs, lhs_generics), GenericArith(rhs, rhs_generics)) => {
-                // let arith_a = interner.get_arithmetic_expression(*arith_id_a);
-                // let arith_b = interner.get_arithmetic_expression(*arith_id_b);
+                if lhs == rhs && lhs_generics == rhs_generics {
+                    return Ok(());
+                }
 
+                // TODO: cleanup
+                dbg!(lhs, lhs_generics, rhs, rhs_generics);
                 arith_constraints.push(ArithConstraint {
                     lhs: *lhs,
                     lhs_generics: lhs_generics.to_vec(),
@@ -1313,9 +1316,7 @@ impl Type {
                     rhs_generics: rhs_generics.to_vec(),
                 });
 
-                dbg!(lhs, lhs_generics, rhs, rhs_generics);
-                panic!("hi!")
-
+                Ok(())
             }
 
             (other_a, other_b) => {

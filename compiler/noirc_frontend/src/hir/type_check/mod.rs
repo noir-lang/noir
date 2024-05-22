@@ -21,7 +21,7 @@ use crate::{
         stmt::HirStatement,
         traits::TraitConstraint,
     },
-    node_interner::{ArithConstraint, ArithConstraints, ExprId, FuncId, GlobalId, NodeInterner},
+    node_interner::{ArithConstraints, ExprId, FuncId, GlobalId, NodeInterner},
     Type, TypeBindings,
 };
 
