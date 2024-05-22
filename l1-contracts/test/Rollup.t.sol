@@ -85,7 +85,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidChainId.selector, 0x420, 31337));
-    rollup.process(header, archive, bytes(""));
+    rollup.process(header, archive, bytes(""), bytes(""));
   }
 
   function testRevertInvalidVersion() public {
@@ -101,7 +101,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidVersion.selector, 0x420, 1));
-    rollup.process(header, archive, bytes(""));
+    rollup.process(header, archive, bytes(""), bytes(""));
   }
 
   function testRevertTimestampInFuture() public {
@@ -118,7 +118,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampInFuture.selector));
-    rollup.process(header, archive, bytes(""));
+    rollup.process(header, archive, bytes(""), bytes(""));
   }
 
   function testRevertTimestampTooOld() public {
@@ -128,12 +128,12 @@ contract RollupTest is DecoderBase {
     bytes memory body = data.body;
 
     // Overwrite in the rollup contract
-    vm.store(address(rollup), bytes32(uint256(1)), bytes32(uint256(block.timestamp)));
+    vm.store(address(rollup), bytes32(uint256(2)), bytes32(uint256(block.timestamp)));
 
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampTooOld.selector));
-    rollup.process(header, archive, bytes(""));
+    rollup.process(header, archive, bytes(""), bytes(""));
   }
 
   function _testBlock(string memory name) public {
@@ -153,7 +153,7 @@ contract RollupTest is DecoderBase {
     uint256 toConsume = inbox.toConsume();
 
     vm.record();
-    rollup.process(header, archive, bytes(""));
+    rollup.process(header, archive, bytes(""), bytes(""));
 
     assertEq(inbox.toConsume(), toConsume + 1, "Message subtree not consumed");
 

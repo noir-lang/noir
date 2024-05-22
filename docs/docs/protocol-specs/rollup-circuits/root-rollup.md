@@ -108,7 +108,6 @@ ConstantRollupData *-- GlobalVariables : global_variables
 class BaseOrMergeRollupPublicInputs {
     type: Fr
     height_in_block_tree: Fr
-    aggregation_object: AggregationObject
     txs_hash: Fr[2]
     out_hash: Fr[2]
     constants: ConstantRollupData
@@ -131,7 +130,6 @@ class BaseParityInputs {
 }
 
 class ParityPublicInputs {
-    aggregation_object: AggregationObject
     sha_root: Fr[2]
     converted_root: Fr
 }
@@ -161,7 +159,6 @@ RootRollupInputs *-- ChildRollupData: right
 RootRollupInputs *-- Header : parent
 
 class RootRollupPublicInputs {
-    aggregation_object: AggregationObject
     archive: Snapshot
     header: Header
 }

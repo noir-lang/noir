@@ -1,5 +1,5 @@
 import { PROVING_STATUS } from '@aztec/circuit-types';
-import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, getMockVerificationKeys } from '@aztec/circuits.js';
 import { fr } from '@aztec/circuits.js/testing';
 import { range } from '@aztec/foundation/array';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -37,6 +37,7 @@ describe('prover/orchestrator/blocks', () => {
         context.globalVariables,
         [],
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       for (const tx of txs) {
@@ -61,6 +62,7 @@ describe('prover/orchestrator/blocks', () => {
         context.globalVariables,
         [],
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       for (const tx of txs) {
@@ -92,6 +94,7 @@ describe('prover/orchestrator/blocks', () => {
         context.globalVariables,
         l1ToL2Messages,
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       for (const tx of txs) {

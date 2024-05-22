@@ -20,6 +20,9 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
     }
 
     fn public_kernel_app_logic(self) -> PublicKernelCircuitPublicInputs {
+        // verify the previous kernel proof
+        self.previous_kernel.verify();
+
         // construct the circuit outputs
         let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
         common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);

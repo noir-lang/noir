@@ -1,4 +1,5 @@
 import { PROVING_STATUS } from '@aztec/circuit-types';
+import { getMockVerificationKeys } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { makeBloatedProcessedTx, makeEmptyProcessedTestTx, makeGlobals } from '../mocks/fixtures.js';
@@ -33,7 +34,13 @@ describe('prover/orchestrator/multi-block', () => {
         const globals = makeGlobals(blockNum);
 
         // This will need to be a 2 tx block
-        const blockTicket = await context.orchestrator.startNewBlock(2, globals, [], emptyTx);
+        const blockTicket = await context.orchestrator.startNewBlock(
+          2,
+          globals,
+          [],
+          emptyTx,
+          getMockVerificationKeys(),
+        );
 
         await context.orchestrator.addNewTx(tx);
 

@@ -1,6 +1,6 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
@@ -146,6 +146,21 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Nullifier),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
+      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readObject(Gas),
+    );
+  }
+
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return new this(
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, NoteHash),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Nullifier),
+      reader.readFieldArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),

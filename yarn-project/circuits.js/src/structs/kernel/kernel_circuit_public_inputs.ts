@@ -2,7 +2,6 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import type { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { AggregationObject } from '../aggregation_object.js';
 import { PartialStateReference } from '../partial_state_reference.js';
 import { RevertCode } from '../revert_code.js';
 import { RollupValidationRequests } from '../rollup_validation_requests.js';
@@ -15,10 +14,6 @@ import { CombinedConstantData } from './combined_constant_data.js';
  */
 export class KernelCircuitPublicInputs {
   constructor(
-    /**
-     * Aggregated proof of all the previous kernel iterations.
-     */
-    public aggregationObject: AggregationObject, // Contains the aggregated proof of all previous kernel iterations
     /**
      * Validation requests accumulated from private and public execution to be completed by the rollup.
      */
@@ -58,7 +53,6 @@ export class KernelCircuitPublicInputs {
 
   toBuffer() {
     return serializeToBuffer(
-      this.aggregationObject,
       this.rollupValidationRequests,
       this.end,
       this.constants,
@@ -76,7 +70,6 @@ export class KernelCircuitPublicInputs {
   static fromBuffer(buffer: Buffer | BufferReader): KernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new KernelCircuitPublicInputs(
-      reader.readObject(AggregationObject),
       reader.readObject(RollupValidationRequests),
       reader.readObject(CombinedAccumulatedData),
       reader.readObject(CombinedConstantData),
@@ -88,7 +81,6 @@ export class KernelCircuitPublicInputs {
 
   static empty() {
     return new KernelCircuitPublicInputs(
-      AggregationObject.makeFake(),
       RollupValidationRequests.empty(),
       CombinedAccumulatedData.empty(),
       CombinedConstantData.empty(),

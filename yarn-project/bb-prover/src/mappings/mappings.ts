@@ -2,12 +2,18 @@ import { PublicKernelType } from '@aztec/circuit-types';
 import { type PublicKernelCircuitPrivateInputs, type PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import {
   type ServerProtocolArtifact,
-  convertPublicInnerRollupInputsToWitnessMap,
-  convertPublicInnerRollupOutputFromWitnessMap,
-  convertPublicSetupRollupInputsToWitnessMap,
-  convertPublicSetupRollupOutputFromWitnessMap,
-  convertPublicTeardownRollupInputsToWitnessMap,
-  convertPublicTeardownRollupOutputFromWitnessMap,
+  convertPublicInnerInputsToWitnessMap,
+  convertPublicInnerOutputFromWitnessMap,
+  convertPublicSetupInputsToWitnessMap,
+  convertPublicSetupOutputFromWitnessMap,
+  convertPublicTeardownInputsToWitnessMap,
+  convertPublicTeardownOutputFromWitnessMap,
+  convertSimulatedPublicInnerInputsToWitnessMap,
+  convertSimulatedPublicInnerOutputFromWitnessMap,
+  convertSimulatedPublicSetupInputsToWitnessMap,
+  convertSimulatedPublicSetupOutputFromWitnessMap,
+  convertSimulatedPublicTeardownInputsToWitnessMap,
+  convertSimulatedPublicTeardownOutputFromWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
 
 import { type WitnessMap } from '@noir-lang/types';
@@ -20,22 +26,42 @@ export type PublicKernelProvingOps = {
 
 export type KernelTypeToArtifact = Record<PublicKernelType, PublicKernelProvingOps | undefined>;
 
+export const SimulatedPublicKernelArtifactMapping: KernelTypeToArtifact = {
+  [PublicKernelType.NON_PUBLIC]: undefined,
+  [PublicKernelType.APP_LOGIC]: {
+    artifact: 'PublicKernelAppLogicArtifact',
+    convertInputs: convertSimulatedPublicInnerInputsToWitnessMap,
+    convertOutputs: convertSimulatedPublicInnerOutputFromWitnessMap,
+  },
+  [PublicKernelType.SETUP]: {
+    artifact: 'PublicKernelSetupArtifact',
+    convertInputs: convertSimulatedPublicSetupInputsToWitnessMap,
+    convertOutputs: convertSimulatedPublicSetupOutputFromWitnessMap,
+  },
+  [PublicKernelType.TEARDOWN]: {
+    artifact: 'PublicKernelTeardownArtifact',
+    convertInputs: convertSimulatedPublicTeardownInputsToWitnessMap,
+    convertOutputs: convertSimulatedPublicTeardownOutputFromWitnessMap,
+  },
+  [PublicKernelType.TAIL]: undefined,
+};
+
 export const PublicKernelArtifactMapping: KernelTypeToArtifact = {
   [PublicKernelType.NON_PUBLIC]: undefined,
   [PublicKernelType.APP_LOGIC]: {
     artifact: 'PublicKernelAppLogicArtifact',
-    convertInputs: convertPublicInnerRollupInputsToWitnessMap,
-    convertOutputs: convertPublicInnerRollupOutputFromWitnessMap,
+    convertInputs: convertPublicInnerInputsToWitnessMap,
+    convertOutputs: convertPublicInnerOutputFromWitnessMap,
   },
   [PublicKernelType.SETUP]: {
     artifact: 'PublicKernelSetupArtifact',
-    convertInputs: convertPublicSetupRollupInputsToWitnessMap,
-    convertOutputs: convertPublicSetupRollupOutputFromWitnessMap,
+    convertInputs: convertPublicSetupInputsToWitnessMap,
+    convertOutputs: convertPublicSetupOutputFromWitnessMap,
   },
   [PublicKernelType.TEARDOWN]: {
     artifact: 'PublicKernelTeardownArtifact',
-    convertInputs: convertPublicTeardownRollupInputsToWitnessMap,
-    convertOutputs: convertPublicTeardownRollupOutputFromWitnessMap,
+    convertInputs: convertPublicTeardownInputsToWitnessMap,
+    convertOutputs: convertPublicTeardownOutputFromWitnessMap,
   },
   [PublicKernelType.TAIL]: undefined,
 };

@@ -8,18 +8,18 @@ import {
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
 import {
-  PublicKernelAppLogicArtifact,
-  PublicKernelSetupArtifact,
-  PublicKernelTailArtifact,
-  PublicKernelTeardownArtifact,
-  convertPublicInnerRollupInputsToWitnessMap,
-  convertPublicInnerRollupOutputFromWitnessMap,
-  convertPublicSetupRollupInputsToWitnessMap,
-  convertPublicSetupRollupOutputFromWitnessMap,
-  convertPublicTailInputsToWitnessMap,
-  convertPublicTailOutputFromWitnessMap,
-  convertPublicTeardownRollupInputsToWitnessMap,
-  convertPublicTeardownRollupOutputFromWitnessMap,
+  SimulatedPublicKernelAppLogicArtifact,
+  SimulatedPublicKernelSetupArtifact,
+  SimulatedPublicKernelTailArtifact,
+  SimulatedPublicKernelTeardownArtifact,
+  convertSimulatedPublicInnerInputsToWitnessMap,
+  convertSimulatedPublicInnerOutputFromWitnessMap,
+  convertSimulatedPublicSetupInputsToWitnessMap,
+  convertSimulatedPublicSetupOutputFromWitnessMap,
+  convertSimulatedPublicTailInputsToWitnessMap,
+  convertSimulatedPublicTailOutputFromWitnessMap,
+  convertSimulatedPublicTeardownInputsToWitnessMap,
+  convertSimulatedPublicTeardownOutputFromWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
 import { type SimulationProvider, WASMSimulator } from '@aztec/simulator';
 
@@ -47,11 +47,11 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
     if (!input.previousKernel.publicInputs.needsSetup) {
       throw new Error(`Expected previous kernel inputs to need setup`);
     }
-    const inputWitness = convertPublicSetupRollupInputsToWitnessMap(input);
+    const inputWitness = convertSimulatedPublicSetupInputsToWitnessMap(input);
     const [duration, witness] = await elapsed(() =>
-      this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelSetupArtifact),
+      this.wasmSimulator.simulateCircuit(inputWitness, SimulatedPublicKernelSetupArtifact),
     );
-    const result = convertPublicSetupRollupOutputFromWitnessMap(witness);
+    const result = convertSimulatedPublicSetupOutputFromWitnessMap(witness);
     this.log.debug(`Simulated public kernel setup circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-setup',
@@ -73,11 +73,11 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
     if (!input.previousKernel.publicInputs.needsAppLogic) {
       throw new Error(`Expected previous kernel inputs to need app logic`);
     }
-    const inputWitness = convertPublicInnerRollupInputsToWitnessMap(input);
+    const inputWitness = convertSimulatedPublicInnerInputsToWitnessMap(input);
     const [duration, witness] = await elapsed(() =>
-      this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelAppLogicArtifact),
+      this.wasmSimulator.simulateCircuit(inputWitness, SimulatedPublicKernelAppLogicArtifact),
     );
-    const result = convertPublicInnerRollupOutputFromWitnessMap(witness);
+    const result = convertSimulatedPublicInnerOutputFromWitnessMap(witness);
     this.log.debug(`Simulated public kernel app logic circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-app-logic',
@@ -99,11 +99,11 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
     if (!input.previousKernel.publicInputs.needsTeardown) {
       throw new Error(`Expected previous kernel inputs to need teardown`);
     }
-    const inputWitness = convertPublicTeardownRollupInputsToWitnessMap(input);
+    const inputWitness = convertSimulatedPublicTeardownInputsToWitnessMap(input);
     const [duration, witness] = await elapsed(() =>
-      this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelTeardownArtifact),
+      this.wasmSimulator.simulateCircuit(inputWitness, SimulatedPublicKernelTeardownArtifact),
     );
-    const result = convertPublicTeardownRollupOutputFromWitnessMap(witness);
+    const result = convertSimulatedPublicTeardownOutputFromWitnessMap(witness);
     this.log.debug(`Simulated public kernel teardown circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-teardown',
@@ -122,11 +122,11 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
   public async publicKernelCircuitTail(
     input: PublicKernelTailCircuitPrivateInputs,
   ): Promise<KernelCircuitPublicInputs> {
-    const inputWitness = convertPublicTailInputsToWitnessMap(input);
+    const inputWitness = convertSimulatedPublicTailInputsToWitnessMap(input);
     const [duration, witness] = await elapsed(() =>
-      this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelTailArtifact),
+      this.wasmSimulator.simulateCircuit(inputWitness, SimulatedPublicKernelTailArtifact),
     );
-    const result = convertPublicTailOutputFromWitnessMap(witness);
+    const result = convertSimulatedPublicTailOutputFromWitnessMap(witness);
     this.log.debug(`Simulated public kernel tail circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-tail',

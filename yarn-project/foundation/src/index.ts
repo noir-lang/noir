@@ -10,6 +10,7 @@ export * as errors from './error/index.js';
 export * as ethAddress from './eth-address/index.js';
 export * as fields from './fields/index.js';
 export * as fifo from './fifo/index.js';
+export * as fs from './fs/index.js';
 export * as jsonRpc from './json-rpc/index.js';
 export * as jsonRpcClient from './json-rpc/client/index.js';
 export * as jsonRpcServer from './json-rpc/server/index.js';

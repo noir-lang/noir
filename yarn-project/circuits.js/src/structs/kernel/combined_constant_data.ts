@@ -1,4 +1,5 @@
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type Fr } from '@aztec/foundation/fields';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
 import { GlobalVariables } from '../global_variables.js';
@@ -41,6 +42,15 @@ export class CombinedConstantData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): CombinedConstantData {
     const reader = BufferReader.asReader(buffer);
+    return new CombinedConstantData(
+      reader.readObject(Header),
+      reader.readObject(TxContext),
+      reader.readObject(GlobalVariables),
+    );
+  }
+
+  static fromFields(fields: Fr[] | FieldReader): CombinedConstantData {
+    const reader = FieldReader.asReader(fields);
     return new CombinedConstantData(
       reader.readObject(Header),
       reader.readObject(TxContext),

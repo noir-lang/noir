@@ -1,7 +1,7 @@
 use crate::kernel_circuit_public_inputs_composer::KernelCircuitPublicInputsComposer;
 use dep::types::{
     abis::{
-    private_kernel_data::{PrivateKernelData, verify_previous_kernel_proof},
+    private_kernel_data::PrivateKernelData,
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, note_hash::ScopedNoteHash,
     nullifier::ScopedNullifier, log_hash::{LogHash, NoteLogHash}
 },
@@ -41,7 +41,7 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
         );
 
         // verify/aggregate the previous kernel
-        verify_previous_kernel_proof(self.previous_kernel);
+        self.previous_kernel.verify();
 
         KernelCircuitPublicInputsComposer::new(
             self.previous_kernel,

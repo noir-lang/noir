@@ -1,4 +1,4 @@
-use crate::recursion::{verification_key::VerificationKey, proof::NestedRecursiveProof};
+use crate::recursion::{verification_key::VerificationKey, proof::NestedRecursiveProof, traits::Verifiable};
 use crate::constants::VK_TREE_HEIGHT;
 use crate::abis::kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs;
 
@@ -23,12 +23,14 @@ struct PrivateKernelData {
     vk_path: [Field; VK_TREE_HEIGHT],
 }
 
-fn verify_previous_kernel_proof(previous_kernel: PrivateKernelData) {
-    let inputs = PrivateKernelCircuitPublicInputs::serialize(previous_kernel.public_inputs);
+impl Verifiable for PrivateKernelData {
+  fn verify(self) {
+    let inputs = PrivateKernelCircuitPublicInputs::serialize(self.public_inputs);
     dep::std::verify_proof(
-        previous_kernel.vk.key.as_slice(),
-        previous_kernel.proof.fields.as_slice(),
+        self.vk.key.as_slice(),
+        self.proof.fields.as_slice(),
         inputs.as_slice(),
-        previous_kernel.vk.hash
+        self.vk.hash
     );
+  }
 }

@@ -3,7 +3,7 @@
 pragma solidity >=0.8.18;
 
 // Interfaces
-import {IVerifier} from "./interfaces/IVerifier.sol";
+import {IVerifier} from "../core/interfaces/IVerifier.sol";
 
 /**
  * @title Mock verifier

@@ -5,6 +5,7 @@ import {
   BatchCall,
   type CompleteAddress,
   type DebugLogger,
+  type DeployL1Contracts,
   EthCheatCodes,
   Fr,
   GrumpkinPrivateKey,
@@ -13,6 +14,7 @@ import {
 } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
+import { createL1Clients } from '@aztec/ethereum';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
@@ -28,15 +30,18 @@ import { mnemonicToAccount } from 'viem/accounts';
 
 import { MNEMONIC } from './fixtures.js';
 import { getACVMConfig } from './get_acvm_config.js';
+import { getBBConfig } from './get_bb_config.js';
 import { setupL1Contracts } from './setup_l1_contracts.js';
 import { deployCanonicalKeyRegistry } from './utils.js';
 
 export type SubsystemsContext = {
   anvil: Anvil;
   acvmConfig: any;
+  bbConfig: any;
   aztecNode: AztecNodeService;
   aztecNodeConfig: AztecNodeConfig;
   pxe: PXEService;
+  deployL1ContractsValues: DeployL1Contracts;
 };
 
 type SnapshotEntry = {
@@ -259,6 +264,12 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
     aztecNodeConfig.acvmBinaryPath = acvmConfig.acvmBinaryPath;
   }
 
+  const bbConfig = await getBBConfig(logger);
+  if (bbConfig) {
+    aztecNodeConfig.bbBinaryPath = bbConfig.bbBinaryPath;
+    aztecNodeConfig.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
+  }
+
   logger.verbose('Creating and synching an aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
 
@@ -282,6 +293,8 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
     aztecNode,
     pxe,
     acvmConfig,
+    bbConfig,
+    deployL1ContractsValues,
   };
 }
 
@@ -316,6 +329,15 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
     aztecNodeConfig.acvmBinaryPath = acvmConfig.acvmBinaryPath;
   }
 
+  const bbConfig = await getBBConfig(logger);
+  if (bbConfig) {
+    aztecNodeConfig.bbBinaryPath = bbConfig.bbBinaryPath;
+    aztecNodeConfig.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
+  }
+
+  logger.verbose('Creating ETH clients...');
+  const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.rpcUrl, mnemonicToAccount(MNEMONIC));
+
   logger.verbose('Creating aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
 
@@ -330,6 +352,12 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
     aztecNode,
     pxe,
     acvmConfig,
+    bbConfig,
+    deployL1ContractsValues: {
+      walletClient,
+      publicClient,
+      l1ContractAddresses: aztecNodeConfig.l1Contracts,
+    },
   };
 }
 

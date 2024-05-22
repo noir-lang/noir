@@ -1,6 +1,6 @@
 use crate::address::{SaltedInitializationHash, PublicKeysHash, EthAddress};
 use crate::contract_class_id::ContractClassId;
-use crate::recursion::{verification_key::VerificationKey, proof::RecursiveProof};
+use crate::recursion::{verification_key::VerificationKey, proof::RecursiveProof, traits::Verifiable};
 use crate::abis::{
     call_request::CallRequest, private_call_stack_item::PrivateCallStackItem,
     private_circuit_public_inputs::PrivateCircuitPublicInputs
@@ -26,12 +26,14 @@ struct PrivateCallData {
     acir_hash: Field,
 }
 
-fn verify_private_call(call: PrivateCallData) {
-    let inputs = PrivateCircuitPublicInputs::serialize(call.call_stack_item.public_inputs);
+impl Verifiable for PrivateCallData {
+  fn verify(self) {
+    let inputs = PrivateCircuitPublicInputs::serialize(self.call_stack_item.public_inputs);
     dep::std::verify_proof(
-        call.vk.key.as_slice(),
-        call.proof.fields.as_slice(),
+        self.vk.key.as_slice(),
+        self.proof.fields.as_slice(),
         inputs.as_slice(),
-        call.vk.hash
+        self.vk.hash
     );
+  }
 }

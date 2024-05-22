@@ -77,6 +77,7 @@ import { foundry } from 'viem/chains';
 
 import { MNEMONIC } from './fixtures.js';
 import { getACVMConfig } from './get_acvm_config.js';
+import { getBBConfig } from './get_bb_config.js';
 import { isMetricsLoggingRequested, setupMetricsLogger } from './logging.js';
 
 export { deployAndInitializeTokenAndBridgeContracts } from '../shared/cross_chain_test_harness.js';
@@ -323,8 +324,6 @@ export async function setup(
 
   let anvil: Anvil | undefined;
 
-  // spawn an anvil instance if one isn't already running
-  // and we're not connecting to a remote PXE
   if (!config.rpcUrl) {
     if (PXE_URL) {
       throw new Error(
@@ -332,19 +331,9 @@ export async function setup(
       );
     }
 
-    // Start anvil.
-    // We go via a wrapper script to ensure if the parent dies, anvil dies.
-    anvil = await retry(
-      async () => {
-        const ethereumHostPort = await getPort();
-        config.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
-        const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
-        await anvil.start();
-        return anvil;
-      },
-      'Start anvil',
-      makeBackoff([5, 5, 5]),
-    );
+    const res = await startAnvil();
+    anvil = res.anvil;
+    config.rpcUrl = res.rpcUrl;
   }
 
   // Enable logging metrics to a local file named after the test suite
@@ -380,6 +369,12 @@ export async function setup(
   if (acvmConfig) {
     config.acvmWorkingDirectory = acvmConfig.acvmWorkingDirectory;
     config.acvmBinaryPath = acvmConfig.acvmBinaryPath;
+  }
+
+  const bbConfig = await getBBConfig(logger);
+  if (bbConfig) {
+    config.bbBinaryPath = bbConfig.bbBinaryPath;
+    config.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
   }
   config.l1BlockPublishRetryIntervalMS = 100;
   const aztecNode = await AztecNodeService.createAndSync(config);
@@ -437,6 +432,33 @@ export async function setup(
   };
 }
 
+/**
+ * Ensures there's a running Anvil instance and returns the RPC URL.
+ * @returns
+ */
+export async function startAnvil(): Promise<{ anvil: Anvil; rpcUrl: string }> {
+  let rpcUrl: string | undefined = undefined;
+
+  // Start anvil.
+  // We go via a wrapper script to ensure if the parent dies, anvil dies.
+  const anvil = await retry(
+    async () => {
+      const ethereumHostPort = await getPort();
+      rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
+      const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+      await anvil.start();
+      return anvil;
+    },
+    'Start anvil',
+    makeBackoff([5, 5, 5]),
+  );
+
+  if (!rpcUrl) {
+    throw new Error('Failed to start anvil');
+  }
+
+  return { anvil, rpcUrl };
+}
 /**
  * Registers the contract class used for test accounts and publicly deploys the instances requested.
  * Use this when you need to make a public call to an account contract, such as for requesting a public authwit.

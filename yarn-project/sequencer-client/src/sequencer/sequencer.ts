@@ -8,7 +8,7 @@ import {
 } from '@aztec/circuit-types';
 import { type AllowedFunction, type BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, type Proof } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -247,8 +247,7 @@ export class Sequencer {
       await assertBlockHeight();
 
       // Block is proven, now finalise and publish!
-      const blockResult = await this.prover.finaliseBlock();
-      const block = blockResult.block;
+      const { block, aggregationObject, proof } = await this.prover.finaliseBlock();
 
       await assertBlockHeight();
 
@@ -260,7 +259,7 @@ export class Sequencer {
         ...block.getStats(),
       } satisfies L2BlockBuiltStats);
 
-      await this.publishL2Block(block);
+      await this.publishL2Block(block, aggregationObject, proof);
       this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
     } catch (err) {
       this.log.error(`Rolling back world state DB due to error assembling block`, (err as any).stack);
@@ -274,10 +273,10 @@ export class Sequencer {
    * Publishes the L2Block to the rollup contract.
    * @param block - The L2Block to be published.
    */
-  protected async publishL2Block(block: L2Block) {
+  protected async publishL2Block(block: L2Block, aggregationObject: Fr[], proof: Proof) {
     // Publishes new block to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_BLOCK;
-    const publishedL2Block = await this.publisher.processL2Block(block);
+    const publishedL2Block = await this.publisher.processL2Block(block, aggregationObject, proof);
     if (publishedL2Block) {
       this.lastPublishedBlock = block.number;
     } else {

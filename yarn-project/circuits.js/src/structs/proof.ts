@@ -1,3 +1,4 @@
+import { Fr } from '@aztec/bb.js';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 const EMPTY_PROOF_SIZE = 42;
@@ -16,6 +17,8 @@ export class Proof {
      * Holds the serialized proof data in a binary buffer format.
      */
     public buffer: Buffer,
+
+    public numPublicInputs: number,
   ) {}
 
   /**
@@ -29,7 +32,8 @@ export class Proof {
     const reader = BufferReader.asReader(buffer);
     const size = reader.readNumber();
     const buf = reader.readBytes(size);
-    return new Proof(buf);
+    const numPublicInputs = reader.readNumber();
+    return new Proof(buf, numPublicInputs);
   }
 
   /**
@@ -39,7 +43,7 @@ export class Proof {
    * @returns A Buffer containing the serialized proof data in custom format.
    */
   public toBuffer() {
-    return serializeToBuffer(this.buffer.length, this.buffer);
+    return serializeToBuffer(this.buffer.length, this.buffer, this.numPublicInputs);
   }
 
   /**
@@ -48,6 +52,14 @@ export class Proof {
    */
   public toString() {
     return this.toBuffer().toString('hex');
+  }
+
+  public withoutPublicInputs(): Buffer {
+    if (this.numPublicInputs > 0) {
+      return this.buffer.subarray(Fr.SIZE_IN_BYTES * this.numPublicInputs);
+    } else {
+      return this.buffer;
+    }
   }
 
   /**
@@ -66,5 +78,5 @@ export class Proof {
  * @returns The empty "proof".
  */
 export function makeEmptyProof() {
-  return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
+  return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0), 0);
 }

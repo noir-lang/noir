@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 // TODO: Rename to PublicDataReadRequest
 /**
@@ -40,6 +40,11 @@ export class PublicDataRead {
 
   isEmpty() {
     return this.leafSlot.isZero() && this.value.isZero();
+  }
+
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return new PublicDataRead(reader.readField(), reader.readField());
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {

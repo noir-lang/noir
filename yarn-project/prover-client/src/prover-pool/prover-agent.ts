@@ -6,7 +6,7 @@ import {
   type ServerCircuitProver,
   makePublicInputsAndProof,
 } from '@aztec/circuit-types';
-import { makeEmptyProof } from '@aztec/circuits.js';
+import { NESTED_RECURSIVE_PROOF_LENGTH, VerificationKeyData, makeEmptyRecursiveProof } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { elapsed } from '@aztec/foundation/timer';
@@ -70,7 +70,13 @@ export class ProverAgent {
     const { type, inputs } = request;
     switch (type) {
       case ProvingRequestType.PUBLIC_VM: {
-        return Promise.resolve(makePublicInputsAndProof<object>({}, makeEmptyProof()));
+        return Promise.resolve(
+          makePublicInputsAndProof<object>(
+            {},
+            makeEmptyRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
+            VerificationKeyData.makeFake(),
+          ),
+        );
       }
 
       case ProvingRequestType.PUBLIC_KERNEL_NON_TAIL: {

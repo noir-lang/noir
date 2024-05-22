@@ -1,6 +1,8 @@
 import { type L2Block } from '@aztec/circuit-types';
 import { type L1PublishStats } from '@aztec/circuit-types/stats';
+import { type Fr, type Proof } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
 
 import pick from 'lodash.pick';
@@ -91,6 +93,8 @@ export type L1ProcessArgs = {
   archive: Buffer;
   /** L2 block body. */
   body: Buffer;
+  /** Aggregation object needed to verify the proof */
+  aggregationObject: Buffer;
   /** Root rollup proof of the L2 block. */
   proof: Buffer;
 };
@@ -118,7 +122,7 @@ export class L1Publisher implements L2BlockReceiver {
    * @param block - L2 block to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processL2Block(block: L2Block): Promise<boolean> {
+  public async processL2Block(block: L2Block, aggregationObject: Fr[], proof: Proof): Promise<boolean> {
     // TODO(#4148) Remove this block number check, it's here because we don't currently have proper genesis state on the contract
     const lastArchive = block.header.lastArchive.root.toBuffer();
     if (block.number != 1 && !(await this.checkLastArchiveHash(lastArchive))) {
@@ -166,7 +170,8 @@ export class L1Publisher implements L2BlockReceiver {
       header: block.header.toBuffer(),
       archive: block.archive.root.toBuffer(),
       body: encodedBody,
-      proof: Buffer.alloc(0),
+      aggregationObject: serializeToBuffer(aggregationObject),
+      proof: proof.withoutPublicInputs(),
     };
 
     // Process block

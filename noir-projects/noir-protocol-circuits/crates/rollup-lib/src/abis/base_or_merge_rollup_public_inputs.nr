@@ -1,7 +1,7 @@
 use dep::types::{
     abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     constants::BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH, partial_state_reference::PartialStateReference,
-    mocked::AggregationObject, traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
+    traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
 };
 use crate::abis::constant_rollup_data::ConstantRollupData;
 
@@ -15,7 +15,6 @@ struct BaseOrMergeRollupPublicInputs {
     // subtree height is always 0 for base.
     // so that we always pass-in two base/merge circuits of the same height into the next level of recursion
     height_in_block_tree : Field,
-    aggregation_object : AggregationObject,
     constants : ConstantRollupData,
 
     start: PartialStateReference,
@@ -37,7 +36,6 @@ impl Empty for BaseOrMergeRollupPublicInputs {
         BaseOrMergeRollupPublicInputs {
             rollup_type : 0 as u32,
             height_in_block_tree : 0,
-            aggregation_object : AggregationObject::empty(),
             constants : ConstantRollupData::empty(),
             start: PartialStateReference::empty(),
             end: PartialStateReference::empty(),
@@ -86,7 +84,6 @@ impl Deserialize<BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH> for BaseOrMergeRollupPublic
     let item = Self {
         rollup_type: reader.read() as u32,
         height_in_block_tree: reader.read(),
-        aggregation_object : AggregationObject::empty(),
         constants: reader.read_struct(ConstantRollupData::deserialize),        
         start: reader.read_struct(PartialStateReference::deserialize),
         end: reader.read_struct(PartialStateReference::deserialize),

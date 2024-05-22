@@ -29,6 +29,7 @@ services:
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
       ENABLE_GAS: ${ENABLE_GAS:-''}
       JOB_NAME: ${JOB_NAME:-''}
+      HARDWARE_CONCURRENCY: ${HARDWARE_CONCURRENCY:-}
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}
     volumes:
       - ../log:/usr/src/yarn-project/end-to-end/log:rw

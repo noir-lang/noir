@@ -1,4 +1,4 @@
-import { type FieldsOf, makeHalfFullTuple, makeTuple, range } from '@aztec/foundation/array';
+import { type FieldsOf, makeHalfFullTuple, makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -14,7 +14,6 @@ import { SchnorrSignature } from '../barretenberg/index.js';
 import {
   ARCHIVE_HEIGHT,
   ARGS_LENGTH,
-  AggregationObject,
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
   BaseParityInputs,
@@ -27,11 +26,9 @@ import {
   ConstantRollupData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
-  Fq,
   Fr,
   FunctionData,
   FunctionSelector,
-  G1AffineElement,
   type GrumpkinPrivateKey,
   GrumpkinScalar,
   KeyValidationRequest,
@@ -129,6 +126,7 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   VerificationKeyAsFields,
+  VerificationKeyData,
   computeContractClassId,
   computePublicBytecodeCommitment,
   makeRecursiveProof,
@@ -351,20 +349,6 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
 }
 
 /**
- * Creates arbitrary aggregation object.
- * @param seed - The seed to use for generating the aggregation object.
- * @returns An aggregation object.
- */
-export function makeAggregationObject(seed = 1): AggregationObject {
-  return new AggregationObject(
-    new G1AffineElement(new Fq(BigInt(seed)), new Fq(BigInt(seed + 1))),
-    new G1AffineElement(new Fq(BigInt(seed + 0x100)), new Fq(BigInt(seed + 0x101))),
-    makeTuple(4, fr, seed + 2),
-    range(6, seed + 6),
-  );
-}
-
-/**
  * Creates arbitrary call context.
  * @param seed - The seed to use for generating the call context.
  * @param storageContractAddress - The storage contract address set on the call context.
@@ -436,7 +420,6 @@ export function makePublicKernelCircuitPublicInputs(
 ): PublicKernelCircuitPublicInputs {
   const tupleGenerator = fullAccumulatedData ? makeTuple : makeHalfFullTuple;
   return new PublicKernelCircuitPublicInputs(
-    makeAggregationObject(seed),
     makeValidationRequests(seed),
     makePublicAccumulatedData(seed, fullAccumulatedData),
     makePublicAccumulatedData(seed, fullAccumulatedData),
@@ -471,7 +454,6 @@ export function makePrivateKernelTailCircuitPublicInputs(
       )
     : undefined;
   return new PrivateKernelTailCircuitPublicInputs(
-    makeAggregationObject(seed),
     makeConstantData(seed + 0x300),
     RevertCode.OK,
     makeAztecAddress(seed + 0x700),
@@ -487,7 +469,6 @@ export function makePrivateKernelTailCircuitPublicInputs(
  */
 export function makeKernelCircuitPublicInputs(seed = 1, fullAccumulatedData = true): KernelCircuitPublicInputs {
   return new KernelCircuitPublicInputs(
-    makeAggregationObject(seed),
     makeRollupValidationRequests(seed),
     makeCombinedAccumulatedData(seed, fullAccumulatedData),
     makeConstantData(seed + 0x100),
@@ -513,16 +494,6 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
     parentCallContext,
     makeTuple(ARGS_LENGTH, fr, seed + 0x10),
   );
-}
-
-/**
- * Creates a uint8 vector of a given size filled with a given value.
- * @param size - The size of the vector.
- * @param fill - The value to fill the vector with.
- * @returns A uint8 vector.
- */
-export function makeDynamicSizeBuffer(size: number, fill: number) {
-  return new Proof(Buffer.alloc(size, fill));
 }
 
 /**
@@ -578,8 +549,8 @@ export function makeGrumpkinPrivateKey(seed = 1): GrumpkinPrivateKey {
 export function makePublicKernelData(seed = 1, kernelPublicInputs?: PublicKernelCircuitPublicInputs): PublicKernelData {
   return new PublicKernelData(
     kernelPublicInputs ?? makePublicKernelCircuitPublicInputs(seed, true),
-    new Proof(Buffer.alloc(16, seed + 0x80)),
-    makeVerificationKey(),
+    makeRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH, seed + 0x80),
+    VerificationKeyData.makeFake(),
     0x42,
     makeTuple(VK_TREE_HEIGHT, fr, 0x1000),
   );
@@ -594,8 +565,8 @@ export function makePublicKernelData(seed = 1, kernelPublicInputs?: PublicKernel
 export function makeRollupKernelData(seed = 1, kernelPublicInputs?: KernelCircuitPublicInputs): KernelData {
   return new KernelData(
     kernelPublicInputs ?? makeKernelCircuitPublicInputs(seed, true),
-    new Proof(Buffer.alloc(16, seed + 0x80)),
-    makeVerificationKey(),
+    makeRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH, seed + 0x80),
+    VerificationKeyData.makeFake(),
     0x42,
     makeTuple(VK_TREE_HEIGHT, fr, 0x1000),
   );
@@ -607,7 +578,7 @@ export function makeRollupKernelData(seed = 1, kernelPublicInputs?: KernelCircui
  * @returns A proof.
  */
 export function makeProof(seed = 1) {
-  return makeDynamicSizeBuffer(16, seed);
+  return new Proof(Buffer.alloc(16, seed), 0);
 }
 
 /**
@@ -891,7 +862,6 @@ export function makeBaseOrMergeRollupPublicInputs(
   return new BaseOrMergeRollupPublicInputs(
     RollupTypes.Base,
     new Fr(0n),
-    makeAggregationObject(seed + 0x100),
     makeConstantBaseRollupData(seed + 0x200, globalVariables),
     makePartialStateReference(seed + 0x300),
     makePartialStateReference(seed + 0x400),
@@ -913,8 +883,8 @@ export function makePreviousRollupData(
 ): PreviousRollupData {
   return new PreviousRollupData(
     makeBaseOrMergeRollupPublicInputs(seed, globalVariables),
-    makeDynamicSizeBuffer(16, seed + 0x50),
-    makeVerificationKey(),
+    makeRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH, seed + 0x50),
+    VerificationKeyAsFields.makeFake(),
     seed + 0x110,
     makeMembershipWitness(ROLLUP_VK_TREE_HEIGHT, seed + 0x120),
   );
@@ -978,7 +948,6 @@ export function makeRootRollupPublicInputs(
   blockNumber: number | undefined = undefined,
 ): RootRollupPublicInputs {
   return RootRollupPublicInputs.from({
-    aggregationObject: makeAggregationObject(seed),
     archive: makeAppendOnlyTreeSnapshot(seed + 0x100),
     header: makeHeader(seed + 0x200, blockNumber),
   });

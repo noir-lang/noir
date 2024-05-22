@@ -46,7 +46,6 @@ ConstantRollupData *-- GlobalVariables : global_variables
 class BaseOrMergeRollupPublicInputs {
     type: Fr
     height_in_block_tree: Fr
-    aggregation_object: AggregationObject
     txs_hash: Fr[2]
     out_hash: Fr[2]
     constants: ConstantRollupData
@@ -89,7 +88,6 @@ def MergeRollupCircuit(
     return BaseOrMergeRollupPublicInputs(
         type=1,
         height_in_block_tree=left.public_inputs.height_in_block_tree + 1,
-        aggregation_object=AggregationObject(left.proof, right.proof),
         txs_hash=SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash),
         out_hash=SHA256(left.public_inputs.out_hash | right.public_inputs.out_hash),
         start=left.public_inputs.start,

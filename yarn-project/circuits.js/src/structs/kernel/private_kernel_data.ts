@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { NESTED_RECURSIVE_PROOF_LENGTH, VK_TREE_HEIGHT } from '../../constants.gen.js';
-import { RecursiveProof, makeRecursiveProof } from '../recursive_proof.js';
+import { RecursiveProof, makeEmptyRecursiveProof } from '../recursive_proof.js';
 import { type UInt32 } from '../shared.js';
 import { VerificationKeyAsFields } from '../verification_key.js';
 import { PrivateKernelCircuitPublicInputs } from './private_kernel_circuit_public_inputs.js';
@@ -57,7 +57,7 @@ export class PrivateKernelData {
   static empty(): PrivateKernelData {
     return new PrivateKernelData(
       PrivateKernelCircuitPublicInputs.empty(),
-      makeRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH),
+      makeEmptyRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH),
       VerificationKeyAsFields.makeFake(),
       0,
       makeTuple(VK_TREE_HEIGHT, Fr.zero),

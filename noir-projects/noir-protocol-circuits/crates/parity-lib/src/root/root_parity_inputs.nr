@@ -40,12 +40,7 @@ impl RootParityInputs {
             );
             //TODO: Do we need to validate this following hash
             //assert(hash(self.children[i].verification_key) == self.children[i].verification_key.hash);
-            std::verify_proof(
-                self.children[i].verification_key.key.as_slice(),
-                self.children[i].proof.fields.as_slice(),
-                ParityPublicInputs::serialize(self.children[i].public_inputs).as_slice(),
-                self.children[i].verification_key.hash
-            );
+            self.children[i].verify();
         }
     }
 }

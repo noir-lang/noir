@@ -110,6 +110,7 @@ end-to-end:
         && rm -rf /var/lib/apt/lists/*
     ENV CHROME_BIN="/usr/bin/chromium"
     ENV PATH=/opt/foundry/bin:$PATH
+    ENV HARDWARE_CONCURRENCY=""
     COPY +anvil/anvil /opt/foundry/bin/anvil
     COPY +end-to-end-prod/usr/src /usr/src
     WORKDIR /usr/src/yarn-project/end-to-end

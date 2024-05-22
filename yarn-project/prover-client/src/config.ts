@@ -14,8 +14,6 @@ export type ProverClientConfig = ProverConfig & {
   bbWorkingDirectory: string;
   /** The path to the bb binary */
   bbBinaryPath: string;
-  /** Enable proving. If true, must set bb env vars */
-  realProofs: boolean;
   /** The interval agents poll for jobs at */
   proverAgentPollInterval: number;
 };

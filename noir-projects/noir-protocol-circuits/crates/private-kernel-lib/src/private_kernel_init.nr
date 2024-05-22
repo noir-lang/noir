@@ -4,11 +4,10 @@ use crate::{
 };
 use dep::types::{
     abis::{
-    private_kernel::private_call_data::{PrivateCallData, verify_private_call},
+    private_kernel::private_call_data::PrivateCallData,
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs
 },
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL, mocked::verify_private_function_proof,
-    transaction::tx_request::TxRequest
+    constants::MAX_NEW_NOTE_HASHES_PER_CALL, transaction::tx_request::TxRequest
 };
 
 struct PrivateKernelInitHints {
@@ -26,7 +25,7 @@ struct PrivateKernelInitCircuitPrivateInputs {
 impl PrivateKernelInitCircuitPrivateInputs {
     pub fn native_private_kernel_circuit_initial(self) -> PrivateKernelCircuitPublicInputs {
         // verify/aggregate the private call proof
-        verify_private_call(self.private_call);
+        self.private_call.verify();
 
         let privateCallDataValidator = PrivateCallDataValidator::new(self.private_call);
         privateCallDataValidator.validate();

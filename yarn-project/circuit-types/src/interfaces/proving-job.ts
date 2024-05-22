@@ -5,26 +5,33 @@ import {
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
-  type Proof,
   type PublicKernelCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
+  type RecursiveProof,
   type RootParityInput,
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
+  type VerificationKeyData,
 } from '@aztec/circuits.js';
 
 import type { PublicKernelNonTailRequest, PublicKernelTailRequest } from '../tx/processed_tx.js';
 
 export type PublicInputsAndProof<T> = {
   inputs: T;
-  proof: Proof;
+  proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
+  verificationKey: VerificationKeyData;
 };
 
-export function makePublicInputsAndProof<T>(inputs: T, proof: Proof) {
+export function makePublicInputsAndProof<T>(
+  inputs: T,
+  proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+  verificationKey: VerificationKeyData,
+) {
   const result: PublicInputsAndProof<T> = {
     inputs,
     proof,
+    verificationKey,
   };
   return result;
 }

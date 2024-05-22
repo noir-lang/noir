@@ -3,6 +3,7 @@ import {
   type GlobalVariables,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_BASE_PARITY_PER_ROOT_PARITY,
+  getMockVerificationKeys,
 } from '@aztec/circuits.js';
 import { fr, makeGlobalVariables } from '@aztec/circuits.js/testing';
 import { range } from '@aztec/foundation/array';
@@ -52,6 +53,7 @@ describe('prover/orchestrator/lifecycle', () => {
         globals1,
         l1ToL2Messages,
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       await context.orchestrator.addNewTx(txs1[0]);
@@ -75,6 +77,7 @@ describe('prover/orchestrator/lifecycle', () => {
         globals2,
         l1ToL2Messages,
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       await context.orchestrator.addNewTx(txs2[0]);
@@ -108,6 +111,7 @@ describe('prover/orchestrator/lifecycle', () => {
         globals1,
         l1ToL2Messages,
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       await context.orchestrator.addNewTx(txs1[0]);
@@ -119,6 +123,7 @@ describe('prover/orchestrator/lifecycle', () => {
         globals2,
         l1ToL2Messages,
         await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
       );
 
       await context.orchestrator.addNewTx(txs2[0]);
@@ -146,7 +151,13 @@ describe('prover/orchestrator/lifecycle', () => {
         deferredPromises.push(deferred);
         return deferred.promise;
       });
-      await orchestrator.startNewBlock(2, makeGlobalVariables(1), [], await makeEmptyProcessedTestTx(context.actualDb));
+      await orchestrator.startNewBlock(
+        2,
+        makeGlobalVariables(1),
+        [],
+        await makeEmptyProcessedTestTx(context.actualDb),
+        getMockVerificationKeys(),
+      );
 
       await sleep(1);
 

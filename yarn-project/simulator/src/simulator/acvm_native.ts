@@ -1,4 +1,4 @@
-import { randomBytes } from '@aztec/foundation/crypto';
+import { runInDirectory } from '@aztec/foundation/fs';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
@@ -137,23 +137,25 @@ export class NativeACVMSimulator implements SimulationProvider {
   async simulateCircuit(input: WitnessMap, compiledCircuit: NoirCompiledCircuit): Promise<WitnessMap> {
     // Execute the circuit on those initial witness values
 
-    // Decode the bytecode from base64 since the acvm does not know about base64 encoding
-    const decodedBytecode = Buffer.from(compiledCircuit.bytecode, 'base64');
+    const operation = async (directory: string) => {
+      // Decode the bytecode from base64 since the acvm does not know about base64 encoding
+      const decodedBytecode = Buffer.from(compiledCircuit.bytecode, 'base64');
+      // Execute the circuit
+      const result = await executeNativeCircuit(
+        input,
+        decodedBytecode,
+        directory,
+        this.pathToAcvm,
+        this.witnessFilename,
+      );
 
-    // Provide a unique working directory so we don't get clashes with parallel executions
-    const directory = `${this.workingDirectory}/${randomBytes(8).toString('hex')}`;
+      if (result.status == ACVM_RESULT.FAILURE) {
+        throw new Error(`Failed to generate witness: ${result.reason}`);
+      }
 
-    await fs.mkdir(directory, { recursive: true });
+      return result.witness;
+    };
 
-    // Execute the circuit
-    const result = await executeNativeCircuit(input, decodedBytecode, directory, this.pathToAcvm, this.witnessFilename);
-
-    await fs.rm(directory, { force: true, recursive: true });
-
-    if (result.status == ACVM_RESULT.FAILURE) {
-      throw new Error(`Failed to generate witness: ${result.reason}`);
-    }
-
-    return result.witness;
+    return await runInDirectory(this.workingDirectory, operation);
   }
 }

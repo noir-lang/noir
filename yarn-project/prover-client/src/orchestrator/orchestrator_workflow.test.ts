@@ -5,6 +5,7 @@ import {
   NUM_BASE_PARITY_PER_ROOT_PARITY,
   RECURSIVE_PROOF_LENGTH,
   type RootParityInput,
+  getMockVerificationKeys,
 } from '@aztec/circuits.js';
 import { makeGlobalVariables, makeRootParityInput } from '@aztec/circuits.js/testing';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
@@ -46,7 +47,13 @@ describe('prover/orchestrator', () => {
         }
       });
 
-      await orchestrator.startNewBlock(2, makeGlobalVariables(1), [message], await makeEmptyProcessedTestTx(actualDb));
+      await orchestrator.startNewBlock(
+        2,
+        makeGlobalVariables(1),
+        [message],
+        await makeEmptyProcessedTestTx(actualDb),
+        getMockVerificationKeys(),
+      );
 
       await sleep(10);
       expect(mockProver.getBaseParityProof).toHaveBeenCalledTimes(NUM_BASE_PARITY_PER_ROOT_PARITY);

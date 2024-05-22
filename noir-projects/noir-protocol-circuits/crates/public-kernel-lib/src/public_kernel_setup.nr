@@ -25,6 +25,9 @@ impl PublicKernelSetupCircuitPrivateInputs {
     }
 
     fn public_kernel_setup(self) -> PublicKernelCircuitPublicInputs {
+        // verify the previous kernel proof
+        self.previous_kernel.verify();
+
         // construct the circuit outputs
         let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
         // since this phase is non-revertible, we must assert the public call did not revert

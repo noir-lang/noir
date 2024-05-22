@@ -7,6 +7,8 @@ import { type ProvingJobSource } from './proving-job.js';
 export type ProverConfig = {
   /** How many agents to run */
   proverAgents: number;
+  /** Whether to construct real proofs */
+  realProofs: boolean;
 };
 
 /**

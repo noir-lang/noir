@@ -9,7 +9,7 @@ use crate::{
     gas::Gas, validation_requests::validation_requests_builder::ValidationRequestsBuilder,
     call_request::CallRequest
 },
-    address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, mocked::AggregationObject,
+    address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     partial_state_reference::PartialStateReference, traits::{Empty, is_empty}
 };
 

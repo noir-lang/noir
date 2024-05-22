@@ -5,6 +5,7 @@ import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import * as proc from 'child_process';
 import * as fs from 'fs/promises';
+import { dirname, join } from 'path';
 
 export const VK_FILENAME = 'vk';
 export const VK_FIELDS_FILENAME = 'vk_fields.json';
@@ -23,6 +24,7 @@ export type BBSuccess = {
   pkPath?: string;
   vkPath?: string;
   proofPath?: string;
+  contractPath?: string;
 };
 
 export type BBFailure = {
@@ -56,8 +58,18 @@ export function executeBB(
 ): Promise<BBExecResult> {
   return new Promise<BBExecResult>(resolve => {
     // spawn the bb process
+    const { HARDWARE_CONCURRENCY: _, ...envWithoutConcurrency } = process.env;
+    const env = process.env.HARDWARE_CONCURRENCY ? process.env : envWithoutConcurrency;
     const bb = proc.spawn(pathToBB, [command, ...args], {
-      stdio: 'pipe',
+      env,
+    });
+    bb.stdout.on('data', data => {
+      const message = data.toString('utf-8').replace(/\n$/, '');
+      logger(message);
+    });
+    bb.stderr.on('data', data => {
+      const message = data.toString('utf-8').replace(/\n$/, '');
+      logger(message);
     });
     bb.on('close', (exitCode: number, signal?: string) => {
       if (resultParser(exitCode)) {
@@ -150,7 +162,7 @@ export async function generateKeyForNoirCircuit(
     await fs.writeFile(bytecodePath, bytecode);
 
     // args are the output path and the input bytecode path
-    const args = ['-o', outputPath, '-b', bytecodePath];
+    const args = ['-o', `${outputPath}/${VK_FILENAME}`, '-b', bytecodePath];
     const timer = new Timer();
     let result = await executeBB(pathToBB, `write_${key}`, args, log);
     // If we succeeded and the type of key if verification, have bb write the 'fields' version too
@@ -338,6 +350,7 @@ export async function writeVkAsFields(
  * @param pathToBB - The full path to the bb binary
  * @param proofPath - The directory containing the binary proof
  * @param proofFileName - The filename of the proof
+ * @param vkFileName - The filename of the verification key
  * @param log - A logging function
  * @returns An object containing a result indication and duration taken
  */
@@ -345,6 +358,7 @@ export async function writeProofAsFields(
   pathToBB: string,
   proofPath: string,
   proofFileName: string,
+  vkFilePath: string,
   log: LogFn,
 ): Promise<BBFailure | BBSuccess> {
   const binaryPresent = await fs
@@ -356,7 +370,7 @@ export async function writeProofAsFields(
   }
 
   try {
-    const args = ['-p', `${proofPath}/${proofFileName}`, '-v'];
+    const args = ['-p', `${proofPath}/${proofFileName}`, '-k', vkFilePath, '-v'];
     const timer = new Timer();
     const result = await executeBB(pathToBB, 'proof_as_fields', args, log);
     const duration = timer.ms();
@@ -371,4 +385,69 @@ export async function writeProofAsFields(
   } catch (error) {
     return { status: BB_RESULT.FAILURE, reason: `${error}` };
   }
+}
+
+export async function generateContractForVerificationKey(
+  pathToBB: string,
+  vkFilePath: string,
+  contractPath: string,
+  log: LogFn,
+): Promise<BBFailure | BBSuccess> {
+  const binaryPresent = await fs
+    .access(pathToBB, fs.constants.R_OK)
+    .then(_ => true)
+    .catch(_ => false);
+
+  if (!binaryPresent) {
+    return { status: BB_RESULT.FAILURE, reason: `Failed to find bb binary at ${pathToBB}` };
+  }
+
+  try {
+    await fs.mkdir(dirname(contractPath), { recursive: true });
+
+    const args = ['-k', vkFilePath, '-o', contractPath, '-v'];
+    const timer = new Timer();
+    const result = await executeBB(pathToBB, 'contract', args, log);
+    const duration = timer.ms();
+    if (result.status == BB_RESULT.SUCCESS) {
+      return { status: BB_RESULT.SUCCESS, duration, contractPath };
+    }
+    // Not a great error message here but it is difficult to decipher what comes from bb
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to write verifier contract. Exit code ${result.exitCode}. Signal ${result.signal}.`,
+    };
+  } catch (error) {
+    return { status: BB_RESULT.FAILURE, reason: `${error}` };
+  }
+}
+
+export async function generateContractForCircuit(
+  pathToBB: string,
+  workingDirectory: string,
+  circuitName: string,
+  compiledCircuit: NoirCompiledCircuit,
+  contractName: string,
+  log: LogFn,
+  force = false,
+) {
+  const vkResult = await generateKeyForNoirCircuit(
+    pathToBB,
+    workingDirectory,
+    circuitName,
+    compiledCircuit,
+    'vk',
+    log,
+    force,
+  );
+  if (vkResult.status === BB_RESULT.FAILURE) {
+    return vkResult;
+  }
+
+  return generateContractForVerificationKey(
+    pathToBB,
+    join(vkResult.vkPath!, VK_FILENAME),
+    join(workingDirectory, 'contract', circuitName, contractName),
+    log,
+  );
 }

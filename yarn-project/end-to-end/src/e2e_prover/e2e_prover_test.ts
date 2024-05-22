@@ -1,4 +1,5 @@
 import { SchnorrAccountContractArtifact, getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { type AztecNodeService } from '@aztec/aztec-node';
 import {
   type AccountWalletWithSecretKey,
   type AztecNode,
@@ -8,15 +9,24 @@ import {
   type Fq,
   Fr,
   Note,
+  type PXE,
   type TxHash,
   computeSecretHash,
   createDebugLogger,
+  deployL1Contract,
 } from '@aztec/aztec.js';
-import { BBNativeProofCreator } from '@aztec/bb-prover';
+import { BBCircuitVerifier, BBNativeProofCreator } from '@aztec/bb-prover';
+import { RollupAbi } from '@aztec/l1-artifacts';
 import { TokenContract } from '@aztec/noir-contracts.js';
+import { ProverPool } from '@aztec/prover-client/prover-pool';
 import { type PXEService } from '@aztec/pxe';
 
+// @ts-expect-error solc-js doesn't publish its types https://github.com/ethereum/solc-js/issues/689
+import solc from 'solc';
+import { getContract } from 'viem';
+
 import { waitRegisteredAccountSynced } from '../benchmarks/utils.js';
+import { getACVMConfig } from '../fixtures/get_acvm_config.js';
 import { getBBConfig } from '../fixtures/get_bb_config.js';
 import {
   type ISnapshotManager,
@@ -32,6 +42,11 @@ const { E2E_DATA_PATH: dataPath } = process.env;
 
 const SALT = 1;
 
+type ProvenSetup = {
+  pxe: PXE;
+  teardown: () => Promise<void>;
+};
+
 /**
  * Largely taken from the e2e_token_contract test file. We deploy 2 accounts and a token contract.
  * However, we then setup a second PXE with a full prover instance.
@@ -39,7 +54,7 @@ const SALT = 1;
  * We then prove and verify transactions created via this full prover PXE.
  */
 
-export class ClientProverTest {
+export class FullProverTest {
   static TOKEN_NAME = 'Aztec Token';
   static TOKEN_SYMBOL = 'AZT';
   static TOKEN_DECIMALS = 18n;
@@ -52,15 +67,18 @@ export class ClientProverTest {
   tokenSim!: TokenSimulator;
   aztecNode!: AztecNode;
   pxe!: PXEService;
-  fullProverPXE!: PXEService;
-  provenAsset!: TokenContract;
-  provenPXETeardown?: () => Promise<void>;
+  private proverPool!: ProverPool;
+  private provenComponents: ProvenSetup[] = [];
   private bbConfigCleanup?: () => Promise<void>;
+  private acvmConfigCleanup?: () => Promise<void>;
   proofCreator?: BBNativeProofCreator;
+  circuitProofVerifier?: BBCircuitVerifier;
+  provenAssets: TokenContract[] = [];
+  private context!: SubsystemsContext;
 
   constructor(testName: string) {
-    this.logger = createDebugLogger(`aztec:client_prover_test:${testName}`);
-    this.snapshotManager = createSnapshotManager(`client_prover_integration/${testName}`, dataPath);
+    this.logger = createDebugLogger(`aztec:full_prover_test:${testName}`);
+    this.snapshotManager = createSnapshotManager(`full_prover_integration/${testName}`, dataPath);
   }
 
   /**
@@ -89,9 +107,9 @@ export class ClientProverTest {
         const asset = await TokenContract.deploy(
           this.wallets[0],
           this.accounts[0],
-          ClientProverTest.TOKEN_NAME,
-          ClientProverTest.TOKEN_SYMBOL,
-          ClientProverTest.TOKEN_DECIMALS,
+          FullProverTest.TOKEN_NAME,
+          FullProverTest.TOKEN_SYMBOL,
+          FullProverTest.TOKEN_DECIMALS,
         )
           .send()
           .deployed();
@@ -116,53 +134,96 @@ export class ClientProverTest {
   }
 
   async setup() {
-    const context = await this.snapshotManager.setup();
-    ({ pxe: this.pxe, aztecNode: this.aztecNode } = context);
+    this.context = await this.snapshotManager.setup();
+    ({ pxe: this.pxe, aztecNode: this.aztecNode } = this.context);
 
     // Configure a full prover PXE
-    const bbConfig = await getBBConfig(this.logger);
-    this.bbConfigCleanup = bbConfig?.cleanup;
+
+    const [acvmConfig, bbConfig] = await Promise.all([getACVMConfig(this.logger), getBBConfig(this.logger)]);
+    if (!acvmConfig || !bbConfig) {
+      throw new Error('Missing ACVM or BB config');
+    }
+
+    this.acvmConfigCleanup = acvmConfig.cleanup;
+    this.bbConfigCleanup = bbConfig.cleanup;
 
     if (!bbConfig?.bbWorkingDirectory || !bbConfig?.bbBinaryPath) {
       throw new Error(`Test must be run with BB native configuration`);
     }
 
-    this.proofCreator = new BBNativeProofCreator(bbConfig.bbBinaryPath, bbConfig.bbWorkingDirectory);
-
-    this.logger.debug(`Main setup completed, initializing full prover PXE...`);
-    ({ pxe: this.fullProverPXE, teardown: this.provenPXETeardown } = await setupPXEService(
-      this.aztecNode,
-      {
-        proverEnabled: false,
-        bbBinaryPath: bbConfig?.bbBinaryPath,
-        bbWorkingDirectory: bbConfig?.bbWorkingDirectory,
-      },
-      undefined,
-      true,
-      this.proofCreator,
-    ));
-    this.logger.debug(`Contract address ${this.asset.address}`);
-    await this.fullProverPXE.registerContract(this.asset);
-
-    for (let i = 0; i < 2; i++) {
-      await waitRegisteredAccountSynced(
-        this.fullProverPXE,
-        this.keys[i][0],
-        this.wallets[i].getCompleteAddress().partialAddress,
-      );
-
-      await waitRegisteredAccountSynced(this.pxe, this.keys[i][0], this.wallets[i].getCompleteAddress().partialAddress);
-    }
-
-    const account = getSchnorrAccount(this.fullProverPXE, this.keys[0][0], this.keys[0][1], SALT);
-
-    await this.fullProverPXE.registerContract({
-      instance: account.getInstance(),
-      artifact: SchnorrAccountContractArtifact,
+    this.circuitProofVerifier = await BBCircuitVerifier.new({
+      ...acvmConfig,
+      ...bbConfig,
     });
 
-    const provenWallet = await account.getWallet();
-    this.provenAsset = await TokenContract.at(this.asset.address, provenWallet);
+    this.proverPool = ProverPool.nativePool(
+      {
+        ...acvmConfig,
+        ...bbConfig,
+      },
+      4,
+      10,
+    );
+
+    this.logger.debug(`Configuring the node for real proofs...`);
+    await this.aztecNode.setConfig({
+      // stop the fake provers
+      proverAgents: 0,
+      realProofs: true,
+      minTxsPerBlock: 2, // min 2 txs per block
+    });
+
+    await this.proverPool.start((this.aztecNode as AztecNodeService).getProver().getProvingJobSource());
+
+    this.proofCreator = new BBNativeProofCreator(bbConfig.bbBinaryPath, bbConfig.bbWorkingDirectory);
+
+    this.logger.debug(`Main setup completed, initializing full prover PXE and Node...`);
+
+    for (let i = 0; i < 2; i++) {
+      const result = await setupPXEService(
+        this.aztecNode,
+        {
+          proverEnabled: false,
+          bbBinaryPath: bbConfig?.bbBinaryPath,
+          bbWorkingDirectory: bbConfig?.bbWorkingDirectory,
+        },
+        undefined,
+        true,
+        this.proofCreator,
+      );
+      this.logger.debug(`Contract address ${this.asset.address}`);
+      await result.pxe.registerContract(this.asset);
+
+      for (let i = 0; i < 2; i++) {
+        await waitRegisteredAccountSynced(
+          result.pxe,
+          this.keys[i][0],
+          this.wallets[i].getCompleteAddress().partialAddress,
+        );
+
+        await waitRegisteredAccountSynced(
+          this.pxe,
+          this.keys[i][0],
+          this.wallets[i].getCompleteAddress().partialAddress,
+        );
+      }
+
+      const account = getSchnorrAccount(result.pxe, this.keys[0][0], this.keys[0][1], SALT);
+
+      await result.pxe.registerContract({
+        instance: account.getInstance(),
+        artifact: SchnorrAccountContractArtifact,
+      });
+
+      const provenWallet = await account.getWallet();
+      const asset = await TokenContract.at(this.asset.address, provenWallet);
+      this.provenComponents.push({
+        pxe: result.pxe,
+        teardown: result.teardown,
+      });
+      this.provenAssets.push(asset);
+    }
+
     this.logger.debug(`Full prover PXE started!!`);
     return this;
   }
@@ -176,10 +237,13 @@ export class ClientProverTest {
   async teardown() {
     await this.snapshotManager.teardown();
 
-    // Cleanup related to the second 'full prover' PXE
-    await this.provenPXETeardown?.();
+    // Cleanup related to the full prover PXEs
+    for (let i = 0; i < this.provenComponents.length; i++) {
+      await this.provenComponents[i].teardown();
+    }
 
     await this.bbConfigCleanup?.();
+    await this.acvmConfigCleanup?.();
   }
 
   async addPendingShieldNoteToPXE(accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) {
@@ -242,5 +306,57 @@ export class ClientProverTest {
         return Promise.resolve();
       },
     );
+  }
+
+  async deployVerifier() {
+    if (!this.circuitProofVerifier) {
+      throw new Error('No verifier');
+    }
+
+    const { walletClient, publicClient, l1ContractAddresses } = this.context.deployL1ContractsValues;
+
+    const contract = await this.circuitProofVerifier.generateSolidityContract(
+      'RootRollupArtifact',
+      'UltraVerifier.sol',
+    );
+
+    const input = {
+      language: 'Solidity',
+      sources: {
+        'UltraVerifier.sol': {
+          content: contract,
+        },
+      },
+      settings: {
+        // we require the optimizer
+        optimizer: {
+          enabled: true,
+          runs: 200,
+        },
+        outputSelection: {
+          '*': {
+            '*': ['evm.bytecode.object', 'abi'],
+          },
+        },
+      },
+    };
+
+    const output = JSON.parse(solc.compile(JSON.stringify(input)));
+
+    const abi = output.contracts['UltraVerifier.sol']['UltraVerifier'].abi;
+    const bytecode: string = output.contracts['UltraVerifier.sol']['UltraVerifier'].evm.bytecode.object;
+
+    const verifierAddress = await deployL1Contract(walletClient, publicClient, abi, `0x${bytecode}`);
+
+    this.logger.info(`Deployed Real verifier at ${verifierAddress}`);
+
+    const rollup = getContract({
+      abi: RollupAbi,
+      address: l1ContractAddresses.rollupAddress.toString(),
+      client: walletClient,
+    });
+
+    await rollup.write.setVerifier([verifierAddress.toString()]);
+    this.logger.info('Rollup only accepts valid proofs now');
   }
 }

@@ -1,5 +1,4 @@
 export * from '@aztec/foundation/eth-address';
-export * from './aggregation_object.js';
 export * from './call_context.js';
 export * from './call_request.js';
 export * from './caller_context.js';

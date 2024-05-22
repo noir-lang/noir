@@ -2,7 +2,9 @@
 node_modules/
 dest/
 noir-contracts.js/**/*.json
+noir-protocol-circuits-types/src/target/*
 boxes/*/src/artifacts/*.json
 boxes/*/src/artifacts/*.ts
 boxes/*/src/contracts/target/*.json
 *.md
+end-to-end/src/fixtures/dumps/block_result.json

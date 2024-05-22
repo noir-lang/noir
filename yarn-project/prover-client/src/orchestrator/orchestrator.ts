@@ -16,6 +16,7 @@ import {
   type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
 import {
+  AGGREGATION_OBJECT_LENGTH,
   type BaseOrMergeRollupPublicInputs,
   BaseParityInputs,
   type BaseRollupInputs,
@@ -24,13 +25,18 @@ import {
   type KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  type NESTED_RECURSIVE_PROOF_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_BASE_PARITY_PER_ROOT_PARITY,
   type Proof,
   type PublicKernelCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
+  type RecursiveProof,
   type RootParityInput,
   RootParityInputs,
+  type VerificationKeyAsFields,
+  type VerificationKeyData,
+  type VerificationKeys,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
@@ -38,8 +44,9 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { AbortedError } from '@aztec/foundation/error';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
-import { type Tuple } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple } from '@aztec/foundation/serialize';
 import { sleep } from '@aztec/foundation/sleep';
+import { pushTestData } from '@aztec/foundation/testing';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { inspect } from 'util';
@@ -90,6 +97,7 @@ export class ProvingOrchestrator {
    * @param globalVariables - The global variables for the block
    * @param l1ToL2Messages - The l1 to l2 messages for the block
    * @param emptyTx - The instance of an empty transaction to be used to pad this block
+   * @param verificationKeys - The private kernel verification keys
    * @returns A proving ticket, containing a promise notifying of proving completion
    */
   public async startNewBlock(
@@ -97,6 +105,7 @@ export class ProvingOrchestrator {
     globalVariables: GlobalVariables,
     l1ToL2Messages: Fr[],
     emptyTx: ProcessedTx,
+    verificationKeys: VerificationKeys,
   ): Promise<ProvingTicket> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
@@ -154,6 +163,7 @@ export class ProvingOrchestrator {
       emptyTx,
       messageTreeSnapshot,
       newL1ToL2MessageTreeRootSiblingPath,
+      verificationKeys,
     );
 
     for (let i = 0; i < baseParityInputs.length; i++) {
@@ -223,7 +233,12 @@ export class ProvingOrchestrator {
    * @returns The fully proven block and proof.
    */
   public async finaliseBlock() {
-    if (!this.provingState || !this.provingState.rootRollupPublicInputs || !this.provingState.finalProof) {
+    if (
+      !this.provingState ||
+      !this.provingState.rootRollupPublicInputs ||
+      !this.provingState.finalProof ||
+      !this.provingState.finalAggregationObject
+    ) {
       throw new Error(`Invalid proving state, a block must be proven before it can be finalised`);
     }
     if (this.provingState.block) {
@@ -264,8 +279,15 @@ export class ProvingOrchestrator {
 
     const blockResult: BlockResult = {
       proof: this.provingState.finalProof,
+      aggregationObject: this.provingState.finalAggregationObject,
       block: l2Block,
     };
+
+    pushTestData('blockResults', {
+      block: l2Block.toString(),
+      proof: this.provingState.finalProof.toString(),
+      aggregationObject: blockResult.aggregationObject.map(x => x.toString()),
+    });
 
     return blockResult;
   }
@@ -276,13 +298,21 @@ export class ProvingOrchestrator {
    * @param provingState - The proving state being worked on
    */
   private async startTransaction(tx: ProcessedTx, provingState: ProvingState) {
-    const txInputs = await this.prepareBaseRollupInputs(provingState, tx);
+    // Pass the private kernel tail vk here as the previous one.
+    // If there are public functions then this key will be overwritten once the public tail has been proven
+    const previousKernelVerificationKey = provingState.privateKernelVerificationKeys.privateKernelCircuit;
+    const txInputs = await this.prepareBaseRollupInputs(provingState, tx, previousKernelVerificationKey);
     if (!txInputs) {
       // This should not be possible
       throw new Error(`Unable to add padding transaction, preparing base inputs failed`);
     }
     const [inputs, treeSnapshots] = txInputs;
-    const txProvingState = new TxProvingState(tx, inputs, treeSnapshots);
+    const txProvingState = new TxProvingState(
+      tx,
+      inputs,
+      treeSnapshots,
+      provingState.privateKernelVerificationKeys.privateKernelToPublicCircuit,
+    );
     const txIndex = provingState.addNewTx(txProvingState);
     const numPublicKernels = txProvingState.getNumPublicKernels();
     if (!numPublicKernels) {
@@ -365,12 +395,13 @@ export class ProvingOrchestrator {
   private async prepareBaseRollupInputs(
     provingState: ProvingState | undefined,
     tx: ProcessedTx,
+    kernelVk: VerificationKeyData,
   ): Promise<[BaseRollupInputs, TreeSnapshots] | undefined> {
     if (!provingState?.verifyState()) {
       logger.debug('Not preparing base rollup inputs, state invalid');
       return;
     }
-    const inputs = await buildBaseRollupInput(tx, provingState.globalVariables, this.db);
+    const inputs = await buildBaseRollupInput(tx, provingState.globalVariables, this.db, kernelVk);
     const promises = [MerkleTreeId.NOTE_HASH_TREE, MerkleTreeId.NULLIFIER_TREE, MerkleTreeId.PUBLIC_DATA_TREE].map(
       async (id: MerkleTreeId) => {
         return { key: id, value: await getTreeSnapshot(id, this.db) };
@@ -390,7 +421,11 @@ export class ProvingOrchestrator {
     provingState: ProvingState,
     currentLevel: bigint,
     currentIndex: bigint,
-    mergeInputs: [BaseOrMergeRollupPublicInputs, Proof],
+    mergeInputs: [
+      BaseOrMergeRollupPublicInputs,
+      RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+      VerificationKeyAsFields,
+    ],
   ) {
     const mergeLevel = currentLevel - 1n;
     const indexWithinMergeLevel = currentIndex >> 1n;
@@ -452,7 +487,11 @@ export class ProvingOrchestrator {
       result => {
         validatePartialState(result.inputs.end, tx.treeSnapshots);
         const currentLevel = provingState.numMergeLevels + 1n;
-        this.storeAndExecuteNextMergeLevel(provingState, currentLevel, index, [result.inputs, result.proof]);
+        this.storeAndExecuteNextMergeLevel(provingState, currentLevel, index, [
+          result.inputs,
+          result.proof,
+          result.verificationKey.keyAsFields,
+        ]);
       },
     );
   }
@@ -466,15 +505,19 @@ export class ProvingOrchestrator {
     mergeInputData: MergeRollupInputData,
   ) {
     const inputs = createMergeRollupInputs(
-      [mergeInputData.inputs[0]!, mergeInputData.proofs[0]!],
-      [mergeInputData.inputs[1]!, mergeInputData.proofs[1]!],
+      [mergeInputData.inputs[0]!, mergeInputData.proofs[0]!, mergeInputData.verificationKeys[0]!],
+      [mergeInputData.inputs[1]!, mergeInputData.proofs[1]!, mergeInputData.verificationKeys[1]!],
     );
 
     this.deferredProving(
       provingState,
       signal => this.prover.getMergeRollupProof(inputs, signal),
       result => {
-        this.storeAndExecuteNextMergeLevel(provingState, level, index, [result.inputs, result.proof]);
+        this.storeAndExecuteNextMergeLevel(provingState, level, index, [
+          result.inputs,
+          result.proof,
+          result.verificationKey.keyAsFields,
+        ]);
       },
     );
   }
@@ -491,8 +534,10 @@ export class ProvingOrchestrator {
     const inputs = await getRootRollupInput(
       mergeInputData.inputs[0]!,
       mergeInputData.proofs[0]!,
+      mergeInputData.verificationKeys[0]!,
       mergeInputData.inputs[1]!,
       mergeInputData.proofs[1]!,
+      mergeInputData.verificationKeys[1]!,
       rootParityInput,
       provingState.newL1ToL2Messages,
       provingState.messageTreeSnapshot,
@@ -505,7 +550,11 @@ export class ProvingOrchestrator {
       signal => this.prover.getRootRollupProof(inputs, signal),
       result => {
         provingState.rootRollupPublicInputs = result.inputs;
-        provingState.finalProof = result.proof;
+        provingState.finalAggregationObject = extractAggregationObject(
+          result.proof.binaryProof,
+          result.verificationKey.numPublicInputs,
+        );
+        provingState.finalProof = result.proof.binaryProof;
 
         const provingResult: ProvingResult = {
           status: PROVING_STATUS.SUCCESS,
@@ -568,7 +617,11 @@ export class ProvingOrchestrator {
     provingState: ProvingState,
     currentLevel: bigint,
     currentIndex: bigint,
-    mergeInputData: [BaseOrMergeRollupPublicInputs, Proof],
+    mergeInputData: [
+      BaseOrMergeRollupPublicInputs,
+      RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+      VerificationKeyAsFields,
+    ],
   ) {
     const result = this.storeMergeInputs(provingState, currentLevel, currentIndex, mergeInputData);
 
@@ -657,7 +710,11 @@ export class ProvingOrchestrator {
         }
       },
       result => {
-        const nextKernelRequest = txProvingState.getNextPublicKernelFromKernelProof(functionIndex, result.proof);
+        const nextKernelRequest = txProvingState.getNextPublicKernelFromKernelProof(
+          functionIndex,
+          result.proof,
+          result.verificationKey,
+        );
         // What's the status of the next kernel?
         if (nextKernelRequest.code === TX_PROVING_CODE.NOT_READY) {
           // Must be waiting on a VM proof
@@ -667,6 +724,9 @@ export class ProvingOrchestrator {
         if (nextKernelRequest.code === TX_PROVING_CODE.COMPLETED) {
           // We must have completed all public function proving, we now move to the base rollup
           logger.debug(`Public functions completed for tx ${txIndex} enqueueing base rollup`);
+          // Take the final public tail proof and verification key and pass them to the base rollup
+          txProvingState.baseRollupInputs.kernelData.proof = result.proof;
+          txProvingState.baseRollupInputs.kernelData.vk = result.verificationKey;
           this.enqueueBaseRollup(provingState, BigInt(txIndex), txProvingState);
           return;
         }
@@ -680,4 +740,12 @@ export class ProvingOrchestrator {
       },
     );
   }
+}
+
+function extractAggregationObject(proof: Proof, numPublicInputs: number): Fr[] {
+  const buffer = proof.buffer.subarray(
+    Fr.SIZE_IN_BYTES * (numPublicInputs - AGGREGATION_OBJECT_LENGTH),
+    Fr.SIZE_IN_BYTES * numPublicInputs,
+  );
+  return BufferReader.asReader(buffer).readArray(AGGREGATION_OBJECT_LENGTH, Fr);
 }

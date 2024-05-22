@@ -7,10 +7,10 @@ import {
   Nullifier,
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
-  Proof,
   PublicCallRequest,
   computeContractClassId,
   getContractClassFromArtifact,
+  makeEmptyProof,
 } from '@aztec/circuits.js';
 import {
   makeCombinedAccumulatedData,
@@ -129,7 +129,7 @@ export const mockTx = (
 
   const tx = new Tx(
     data,
-    new Proof(Buffer.alloc(0)),
+    makeEmptyProof(),
     noteEncryptedLogs,
     encryptedLogs,
     unencryptedLogs,

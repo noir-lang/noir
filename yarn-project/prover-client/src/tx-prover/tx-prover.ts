@@ -1,20 +1,35 @@
+import { BBCircuitVerifier, type BBProverConfig } from '@aztec/bb-prover';
 import { type ProcessedTx } from '@aztec/circuit-types';
 import {
   type BlockResult,
   type ProverClient,
-  type ProverConfig,
   type ProvingJobSource,
   type ProvingTicket,
 } from '@aztec/circuit-types/interfaces';
-import { type Fr, type GlobalVariables } from '@aztec/circuits.js';
+import { type Fr, type GlobalVariables, type VerificationKeys, getMockVerificationKeys } from '@aztec/circuits.js';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { type SimulationProvider } from '@aztec/simulator';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type ProverClientConfig } from '../config.js';
-import { type VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
 import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
 import { ProverPool } from '../prover-pool/prover-pool.js';
+
+const logger = createDebugLogger('aztec:tx-prover');
+
+const PRIVATE_KERNEL = 'PrivateKernelTailArtifact';
+const PRIVATE_KERNEL_TO_PUBLIC = 'PrivateKernelTailToPublicArtifact';
+
+async function retrieveRealPrivateKernelVerificationKeys(config: BBProverConfig) {
+  logger.info(`Retrieving private kernel verification keys`);
+  const bbVerifier = await BBCircuitVerifier.new(config, [PRIVATE_KERNEL, PRIVATE_KERNEL_TO_PUBLIC]);
+  const vks: VerificationKeys = {
+    privateKernelCircuit: await bbVerifier.getVerificationKeyData(PRIVATE_KERNEL),
+    privateKernelToPublicCircuit: await bbVerifier.getVerificationKeyData(PRIVATE_KERNEL_TO_PUBLIC),
+  };
+  return vks;
+}
 
 /**
  * A prover accepting individual transaction requests
@@ -24,16 +39,21 @@ export class TxProver implements ProverClient {
   private queue = new MemoryProvingQueue();
 
   constructor(
+    private config: ProverClientConfig,
     private worldStateSynchronizer: WorldStateSynchronizer,
     protected vks: VerificationKeys,
     private proverPool?: ProverPool,
   ) {
+    logger.info(`BB ${config.bbBinaryPath}, directory: ${config.bbWorkingDirectory}`);
     this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.queue);
   }
 
-  async updateProverConfig(config: Partial<ProverConfig>): Promise<void> {
+  async updateProverConfig(config: Partial<ProverClientConfig>): Promise<void> {
     if (typeof config.proverAgents === 'number') {
       await this.proverPool?.rescale(config.proverAgents);
+    }
+    if (typeof config.realProofs === 'boolean' && config.realProofs) {
+      this.vks = await retrieveRealPrivateKernelVerificationKeys(this.config);
     }
   }
 
@@ -80,7 +100,9 @@ export class TxProver implements ProverClient {
       pool = ProverPool.testPool(simulationProvider, config.proverAgents, config.proverAgentPollInterval);
     }
 
-    const prover = new TxProver(worldStateSynchronizer, getVerificationKeys(), pool);
+    const vks = config.realProofs ? await retrieveRealPrivateKernelVerificationKeys(config) : getMockVerificationKeys();
+
+    const prover = new TxProver(config, worldStateSynchronizer, vks, pool);
     await prover.start();
     return prover;
   }
@@ -100,7 +122,7 @@ export class TxProver implements ProverClient {
   ): Promise<ProvingTicket> {
     const previousBlockNumber = globalVariables.blockNumber.toNumber() - 1;
     await this.worldStateSynchronizer.syncImmediate(previousBlockNumber);
-    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages, emptyTx);
+    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages, emptyTx, this.vks);
   }
 
   /**

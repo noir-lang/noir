@@ -5,9 +5,11 @@ E2E_COMPOSE_TEST:
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
   ARG debug="aztec:*"
+  ARG hardware_concurrency=""
   LOCALLY
   ENV TEST=$test
   ENV DEBUG=$debug
+  ENV HARDWARE_CONCURRENCY=$hardware_concurrency
   LET project_name=$(echo $test | sed 's/\./_/g' | sed 's/\//_/g')
   IF docker compose > /dev/null 2>&1
     LET CMD="docker compose"
@@ -29,6 +31,7 @@ E2E_COMPOSE_TEST:
 
 E2E_TEST:
   FUNCTION
+  ARG hardware_concurrency=""
   ARG test
   ARG allow_fail=false
   LOCALLY
@@ -41,10 +44,13 @@ E2E_TEST:
     END
   END
   # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
-  RUN docker run --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
+  RUN docker run -e HARDWARE_CONCURRENCY=$hardware_concurrency --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
 
 e2e-2-pxes:
   DO +E2E_TEST --test=./src/e2e_2_pxes.test.ts
+
+e2e-prover:
+  DO +E2E_TEST --test=./src/e2e_prover --hardware_concurrency=${HARDWARE_CONCURRENCY:-32}
 
 e2e-account-contracts:
   DO +E2E_TEST --test=./src/e2e_account_contracts.test.ts
@@ -115,9 +121,6 @@ e2e-non-contract-account:
 e2e-note-getter:
   DO +E2E_TEST --test=./src/e2e_note_getter.test.ts
 
-client-prover-integration:
-  DO +E2E_TEST --test=./src/client_prover_integration/client_prover_integration.test.ts
-
 e2e-ordering:
   DO +E2E_TEST --test=./src/e2e_ordering.test.ts
 
@@ -159,6 +162,9 @@ uniswap-trade-on-l1-from-l2:
 
 integration-l1-publisher:
   DO +E2E_COMPOSE_TEST --test=integration_l1_publisher.test.ts
+
+integration-proof-verification:
+  DO +E2E_COMPOSE_TEST --compose_file=./scripts/docker-compose-no-sandbox.yml --test=integration_proof_verification.test.ts
 
 e2e-browser:
   DO +E2E_COMPOSE_TEST --test=e2e_aztec_js_browser.test.ts
@@ -208,5 +214,5 @@ bench-prover:
   ARG PULL_REQUEST
   ARG BRANCH
   ARG COMMIT_HASH
-  DO +E2E_COMPOSE_TEST --test=bench_prover --debug="aztec:benchmarks:*,aztec:prover*,aztec:bb*,aztec:pxe*" --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml
+  DO +E2E_COMPOSE_TEST --test=bench_prover --debug="aztec:benchmarks:*,aztec:prover*,aztec:bb*,aztec:pxe*" --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml --hardware_concurrency=${HARDWARE_CONCURRENCY:-32}
   DO ../../+UPLOAD_LOGS --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH

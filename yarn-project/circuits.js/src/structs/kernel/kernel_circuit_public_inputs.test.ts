@@ -1,7 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { AggregationObject } from '../aggregation_object.js';
 import { Gas } from '../gas.js';
 import { GasFees } from '../gas_fees.js';
 import { GasSettings } from '../gas_settings.js';
@@ -24,7 +23,6 @@ describe('KernelCircuitPublicInputs', () => {
 
     it('non-empty is correct', () => {
       const i = new KernelCircuitPublicInputs(
-        AggregationObject.makeFake(),
         RollupValidationRequests.empty(),
         CombinedAccumulatedData.empty(),
         new CombinedConstantData(

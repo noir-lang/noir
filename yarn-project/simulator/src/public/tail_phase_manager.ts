@@ -10,10 +10,8 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   type MAX_UNENCRYPTED_LOGS_PER_TX,
   type NoteHash,
-  type Proof,
   type PublicKernelCircuitPublicInputs,
   PublicKernelTailCircuitPrivateInputs,
-  makeEmptyProof,
   mergeAccumulatedData,
   sortByCounter,
 } from '@aztec/circuits.js';
@@ -39,16 +37,9 @@ export class TailPhaseManager extends AbstractPhaseManager {
     super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }
 
-  override async handle(
-    tx: Tx,
-    previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
-    previousPublicKernelProof: Proof,
-  ) {
+  override async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
-    const [inputs, finalKernelOutput] = await this.runTailKernelCircuit(
-      previousPublicKernelOutput,
-      previousPublicKernelProof,
-    ).catch(
+    const [inputs, finalKernelOutput] = await this.runTailKernelCircuit(previousPublicKernelOutput).catch(
       // the abstract phase manager throws if simulation gives error in non-revertible phase
       async err => {
         await this.publicStateDB.rollbackToCommit();
@@ -66,7 +57,6 @@ export class TailPhaseManager extends AbstractPhaseManager {
       kernelRequests: [request],
       publicKernelOutput: previousPublicKernelOutput,
       finalKernelOutput,
-      publicKernelProof: makeEmptyProof(),
       revertReason: undefined,
       returnValues: [],
       gasUsed: undefined,
@@ -75,13 +65,12 @@ export class TailPhaseManager extends AbstractPhaseManager {
 
   private async runTailKernelCircuit(
     previousOutput: PublicKernelCircuitPublicInputs,
-    previousProof: Proof,
   ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
     // Temporary hack. Should sort them in the tail circuit.
     previousOutput.end.unencryptedLogsHashes = this.sortLogsHashes<typeof MAX_UNENCRYPTED_LOGS_PER_TX>(
       previousOutput.end.unencryptedLogsHashes,
     );
-    const [inputs, output] = await this.simulate(previousOutput, previousProof);
+    const [inputs, output] = await this.simulate(previousOutput);
 
     // Temporary hack. Should sort them in the tail circuit.
     const noteHashes = mergeAccumulatedData(
@@ -96,15 +85,14 @@ export class TailPhaseManager extends AbstractPhaseManager {
 
   private async simulate(
     previousOutput: PublicKernelCircuitPublicInputs,
-    previousProof: Proof,
   ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
-    const inputs = await this.buildPrivateInputs(previousOutput, previousProof);
+    const inputs = await this.buildPrivateInputs(previousOutput);
     // We take a deep copy (clone) of these to pass to the prover
     return [inputs.clone(), await this.publicKernel.publicKernelCircuitTail(inputs)];
   }
 
-  private async buildPrivateInputs(previousOutput: PublicKernelCircuitPublicInputs, previousProof: Proof) {
-    const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
+  private async buildPrivateInputs(previousOutput: PublicKernelCircuitPublicInputs) {
+    const previousKernel = this.getPreviousKernelData(previousOutput);
 
     const { validationRequests, endNonRevertibleData, end } = previousOutput;
 

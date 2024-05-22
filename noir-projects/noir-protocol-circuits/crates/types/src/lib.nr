@@ -15,7 +15,6 @@ mod merkle_tree;
 mod contract_instance;
 
 mod messaging;
-mod mocked;
 mod hash;
 mod traits;
 mod type_serialization;

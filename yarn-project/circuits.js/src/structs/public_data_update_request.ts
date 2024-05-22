@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
  * Write operations on the public data tree including the previous value.
@@ -39,6 +39,11 @@ export class PublicDataUpdateRequest {
 
   isEmpty() {
     return this.leafSlot.isZero() && this.newValue.isZero();
+  }
+
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return new PublicDataUpdateRequest(reader.readField(), reader.readField());
   }
 
   static isEmpty(x: PublicDataUpdateRequest) {

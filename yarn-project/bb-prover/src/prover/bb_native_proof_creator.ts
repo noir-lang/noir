@@ -1,6 +1,7 @@
 import { type AppCircuitProofOutput, type KernelProofOutput, type ProofCreator } from '@aztec/circuit-types';
 import { type CircuitProvingStats, type CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
 import {
+  AGGREGATION_OBJECT_LENGTH,
   Fr,
   NESTED_RECURSIVE_PROOF_LENGTH,
   type PrivateCircuitPublicInputs,
@@ -13,13 +14,12 @@ import {
   Proof,
   RECURSIVE_PROOF_LENGTH,
   RecursiveProof,
-  type VERIFICATION_KEY_LENGTH_IN_FIELDS,
-  VerificationKeyAsFields,
+  type VerificationKeyAsFields,
+  type VerificationKeyData,
 } from '@aztec/circuits.js';
 import { siloNoteHash } from '@aztec/circuits.js/hash';
-import { randomBytes } from '@aztec/foundation/crypto';
+import { runInDirectory } from '@aztec/foundation/fs';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { type Tuple } from '@aztec/foundation/serialize';
 import { Timer } from '@aztec/foundation/timer';
 import {
   ClientCircuitArtifacts,
@@ -47,20 +47,12 @@ import {
   BB_RESULT,
   PROOF_FIELDS_FILENAME,
   PROOF_FILENAME,
-  VK_FIELDS_FILENAME,
-  VK_FILENAME,
   generateKeyForNoirCircuit,
   generateProof,
   verifyProof,
 } from '../bb/execute.js';
 import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
-import {
-  AGGREGATION_OBJECT_SIZE,
-  CIRCUIT_PUBLIC_INPUTS_INDEX,
-  CIRCUIT_RECURSIVE_INDEX,
-  CIRCUIT_SIZE_INDEX,
-  type VerificationKeyData,
-} from './verification_key_data.js';
+import { extractVkData } from '../verification_key/verification_key_data.js';
 
 /**
  * This proof creator implementation uses the native bb binary.
@@ -145,10 +137,7 @@ export class BBNativeProofCreator implements ProofCreator {
     bytecode: Buffer,
     appCircuitName?: string,
   ): Promise<AppCircuitProofOutput> {
-    const directory = `${this.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
-    await fs.mkdir(directory, { recursive: true });
-    this.log.debug(`Created directory: ${directory}`);
-    try {
+    const operation = async (directory: string) => {
       this.log.debug(`Proving app circuit`);
       const proofOutput = await this.createProof(directory, partialWitness, bytecode, 'App', 0, 0, appCircuitName);
       if (proofOutput.proof.proof.length != RECURSIVE_PROOF_LENGTH) {
@@ -160,10 +149,9 @@ export class BBNativeProofCreator implements ProofCreator {
         verificationKey: proofOutput.verificationKey,
       };
       return output;
-    } finally {
-      await fs.rm(directory, { recursive: true, force: true });
-      this.log.debug(`Deleted directory: ${directory}`);
-    }
+    };
+
+    return await runInDirectory(this.bbWorkingDirectory, operation);
   }
 
   /**
@@ -174,7 +162,7 @@ export class BBNativeProofCreator implements ProofCreator {
   public async verifyProofForProtocolCircuit(circuitType: ClientProtocolArtifact, proof: Proof) {
     const verificationKey = await this.getVerificationKeyDataForCircuit(circuitType);
 
-    this.log.debug(`Verifying with key: ${verificationKey.hash.toString()}`);
+    this.log.debug(`Verifying with key: ${verificationKey.keyAsFields.hash.toString()}`);
 
     const logFunction = (message: string) => {
       this.log.debug(`${circuitType} BB out - ${message}`);
@@ -195,21 +183,15 @@ export class BBNativeProofCreator implements ProofCreator {
     proof: Proof,
     logFunction: (message: string) => void = () => {},
   ) {
-    // Create random directory to be used for temp files
-    const bbWorkingDirectory = `${this.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
-    await fs.mkdir(bbWorkingDirectory, { recursive: true });
+    const operation = async (bbWorkingDirectory: string) => {
+      const proofFileName = `${bbWorkingDirectory}/proof`;
+      const verificationKeyPath = `${bbWorkingDirectory}/vk`;
 
-    const proofFileName = `${bbWorkingDirectory}/proof`;
-    const verificationKeyPath = `${bbWorkingDirectory}/vk`;
-
-    await fs.writeFile(proofFileName, proof.buffer);
-    await fs.writeFile(verificationKeyPath, verificationKey);
-
-    try {
+      await fs.writeFile(proofFileName, proof.buffer);
+      await fs.writeFile(verificationKeyPath, verificationKey);
       return await verifyProof(this.bbBinaryPath, proofFileName, verificationKeyPath!, logFunction);
-    } finally {
-      await fs.rm(bbWorkingDirectory, { recursive: true, force: true });
-    }
+    };
+    return await runInDirectory(this.bbWorkingDirectory, operation);
   }
 
   /**
@@ -231,37 +213,11 @@ export class BBNativeProofCreator implements ProofCreator {
         if (result.status === BB_RESULT.FAILURE) {
           throw new Error(`Failed to generate verification key for ${circuitType}, ${result.reason}`);
         }
-        return this.convertVk(result.vkPath!);
+        return extractVkData(result.vkPath!);
       });
       this.verificationKeys.set(circuitType, promise);
     }
     return await promise;
-  }
-
-  /**
-   * Reads the verification key data stored at the specified location and parses into a VerificationKeyData
-   * @param filePath - The directory containing the verification key data files
-   * @returns The verification key data
-   */
-  private async convertVk(filePath: string): Promise<VerificationKeyData> {
-    const [rawFields, rawBinary] = await Promise.all([
-      fs.readFile(`${filePath}/${VK_FIELDS_FILENAME}`, { encoding: 'utf-8' }),
-      fs.readFile(`${filePath}/${VK_FILENAME}`),
-    ]);
-    const fieldsJson = JSON.parse(rawFields);
-    const fields = fieldsJson.map(Fr.fromString);
-    // The first item is the hash, this is not part of the actual VK
-    const vkHash = fields[0];
-    const actualVk = fields.slice(1);
-    const vk: VerificationKeyData = {
-      hash: vkHash,
-      keyAsFields: actualVk as Tuple<Fr, typeof VERIFICATION_KEY_LENGTH_IN_FIELDS>,
-      keyAsBytes: rawBinary,
-      numPublicInputs: Number(actualVk[CIRCUIT_PUBLIC_INPUTS_INDEX]),
-      circuitSize: Number(actualVk[CIRCUIT_SIZE_INDEX]),
-      isRecursive: actualVk[CIRCUIT_RECURSIVE_INDEX] == Fr.ONE,
-    };
-    return vk;
   }
 
   /**
@@ -272,7 +228,7 @@ export class BBNativeProofCreator implements ProofCreator {
   private async updateVerificationKeyAfterProof(filePath: string, circuitType: ClientProtocolArtifact) {
     let promise = this.verificationKeys.get(circuitType);
     if (!promise) {
-      promise = this.convertVk(filePath);
+      promise = extractVkData(filePath);
       this.log.debug(`Updated verification key for circuit: ${circuitType}`);
       this.verificationKeys.set(circuitType, promise);
     }
@@ -285,15 +241,10 @@ export class BBNativeProofCreator implements ProofCreator {
     convertInputs: (inputs: I) => WitnessMap,
     convertOutputs: (outputs: WitnessMap) => O,
   ): Promise<KernelProofOutput<O>> {
-    const directory = `${this.bbWorkingDirectory}/${randomBytes(8).toString('hex')}`;
-    await fs.mkdir(directory, { recursive: true });
-    this.log.debug(`Created directory: ${directory}`);
-    try {
+    const operation = async (directory: string) => {
       return await this.generateWitnessAndCreateProof(inputs, circuitType, directory, convertInputs, convertOutputs);
-    } finally {
-      await fs.rm(directory, { recursive: true, force: true });
-      this.log.debug(`Deleted directory: ${directory}`);
-    }
+    };
+    return await runInDirectory(this.bbWorkingDirectory, operation);
   }
 
   private async generateWitnessAndCreateProof<
@@ -365,6 +316,10 @@ export class BBNativeProofCreator implements ProofCreator {
 
     this.log.debug(`Written ${inputsWitnessFile}`);
 
+    this.log.info(`Proving ${circuitType} circuit...`);
+
+    const timer = new Timer();
+
     const provingResult = await generateProof(
       this.bbBinaryPath,
       directory,
@@ -379,8 +334,12 @@ export class BBNativeProofCreator implements ProofCreator {
       throw new Error(provingResult.reason);
     }
 
+    this.log.info(
+      `Generated ${circuitType === 'App' ? appCircuitName : circuitType} circuit proof in ${timer.ms()} ms`,
+    );
+
     if (circuitType === 'App') {
-      const vkData = await this.convertVk(directory);
+      const vkData = await extractVkData(directory);
       const proof = await this.readProofAsFields<typeof RECURSIVE_PROOF_LENGTH>(directory, circuitType, vkData);
 
       this.log.debug(`Generated proof`, {
@@ -395,11 +354,14 @@ export class BBNativeProofCreator implements ProofCreator {
         numPublicInputs: vkData.numPublicInputs,
       } as CircuitProvingStats);
 
-      return { proof, verificationKey: new VerificationKeyAsFields(vkData.keyAsFields, vkData.hash) };
+      return { proof, verificationKey: vkData.keyAsFields };
     }
 
     const vkData = await this.updateVerificationKeyAfterProof(directory, circuitType);
+
     const proof = await this.readProofAsFields<typeof NESTED_RECURSIVE_PROOF_LENGTH>(directory, circuitType, vkData);
+
+    await this.verifyProofForProtocolCircuit(circuitType, proof.binaryProof);
 
     this.log.debug(`Generated proof`, {
       circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
@@ -412,7 +374,7 @@ export class BBNativeProofCreator implements ProofCreator {
       numPublicInputs: vkData.numPublicInputs,
     } as CircuitProvingStats);
 
-    return { proof, verificationKey: new VerificationKeyAsFields(vkData.keyAsFields, vkData.hash) };
+    return { proof, verificationKey: vkData.keyAsFields };
   }
 
   /**
@@ -433,12 +395,16 @@ export class BBNativeProofCreator implements ProofCreator {
     const json = JSON.parse(proofString);
     const fields = json.map(Fr.fromString);
     const numPublicInputs =
-      circuitType === 'App' ? vkData.numPublicInputs : vkData.numPublicInputs - AGGREGATION_OBJECT_SIZE;
+      circuitType === 'App' ? vkData.numPublicInputs : vkData.numPublicInputs - AGGREGATION_OBJECT_LENGTH;
     const fieldsWithoutPublicInputs = fields.slice(numPublicInputs);
     this.log.debug(
       `Circuit type: ${circuitType}, complete proof length: ${fields.length}, without public inputs: ${fieldsWithoutPublicInputs.length}, num public inputs: ${numPublicInputs}, circuit size: ${vkData.circuitSize}, is recursive: ${vkData.isRecursive}, raw length: ${binaryProof.length}`,
     );
-    const proof = new RecursiveProof<PROOF_LENGTH>(fieldsWithoutPublicInputs, new Proof(binaryProof));
+    const proof = new RecursiveProof<PROOF_LENGTH>(
+      fieldsWithoutPublicInputs,
+      new Proof(binaryProof, vkData.numPublicInputs),
+      true,
+    );
     return proof;
   }
 }

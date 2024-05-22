@@ -1,10 +1,10 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
+import { NESTED_RECURSIVE_PROOF_LENGTH, ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
 import { MembershipWitness } from '../membership_witness.js';
-import { Proof } from '../proof.js';
+import { RecursiveProof } from '../recursive_proof.js';
 import { type UInt32 } from '../shared.js';
-import { VerificationKey } from '../verification_key.js';
+import { VerificationKeyAsFields } from '../verification_key.js';
 import { BaseOrMergeRollupPublicInputs } from './base_or_merge_rollup_public_inputs.js';
 
 /**
@@ -19,11 +19,11 @@ export class PreviousRollupData {
     /**
      * The proof of the base or merge rollup circuit.
      */
-    public proof: Proof,
+    public proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
     /**
      * The verification key of the base or merge rollup circuit.
      */
-    public vk: VerificationKey,
+    public vk: VerificationKeyAsFields,
     /**
      * The index of the rollup circuit's vk in a big tree of rollup circuit vks.
      */
@@ -51,8 +51,8 @@ export class PreviousRollupData {
     const reader = BufferReader.asReader(buffer);
     return new PreviousRollupData(
       reader.readObject(BaseOrMergeRollupPublicInputs),
-      reader.readObject(Proof),
-      reader.readObject(VerificationKey),
+      RecursiveProof.fromBuffer(reader, NESTED_RECURSIVE_PROOF_LENGTH),
+      reader.readObject(VerificationKeyAsFields),
       reader.readNumber(),
       MembershipWitness.fromBuffer(reader, ROLLUP_VK_TREE_HEIGHT),
     );

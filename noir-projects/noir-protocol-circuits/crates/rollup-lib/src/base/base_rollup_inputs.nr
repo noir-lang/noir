@@ -31,8 +31,7 @@ use dep::types::{
     append_only_tree, assert_check_membership, calculate_empty_tree_root, calculate_subtree_root,
     indexed_tree, MembershipWitness
 },
-    mocked::{AggregationObject, Proof}, partial_state_reference::PartialStateReference,
-    public_data_tree_leaf::PublicDataTreeLeaf,
+    partial_state_reference::PartialStateReference, public_data_tree_leaf::PublicDataTreeLeaf,
     public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage, traits::is_empty,
     utils::{field::{full_field_less_than, full_field_greater_than}, uint256::U256}
 };
@@ -58,8 +57,8 @@ struct BaseRollupInputs {
 
 impl BaseRollupInputs {
     pub fn base_rollup_circuit(self) -> BaseOrMergeRollupPublicInputs {
-        // Verify the previous kernel proof
-        assert(verify_kernel_proof(self.kernel_data.proof), "kernel proof verification failed");
+        // Verify the kernel circuit proof
+        self.kernel_data.verify();
 
         // Verify the kernel chain_id and versions
         assert(
@@ -125,12 +124,9 @@ impl BaseRollupInputs {
         // Perform membership checks that the notes provided exist within the historical trees data
         self.perform_archive_membership_checks();
 
-        let aggregation_object = self.aggregate_proofs();
-
         BaseOrMergeRollupPublicInputs {
             rollup_type: BASE_ROLLUP_TYPE,
             height_in_block_tree: 0,
-            aggregation_object,
             constants: self.constants,
             start: self.start,
             end: PartialStateReference {
@@ -282,20 +278,6 @@ impl BaseRollupInputs {
             archive_root
         );
     }
-
-    // TODO(Kev): This aggregate_proof method is duplicated in a lot of places
-    fn aggregate_proofs(self) -> AggregationObject {
-        // TODO: for now we simply return the aggregation object from the first proof
-        AggregationObject {}
-    }
-}
-
-fn verify_kernel_proof(_proof: Proof) -> bool {
-    // TODO: Just return true as we are mocking out the proof verification
-    // and aggregation.
-    // TODO(Kev): It may make sense to move all of these methods into a
-    // separate module.
-    true
 }
 
 fn insert_public_data_update_requests(

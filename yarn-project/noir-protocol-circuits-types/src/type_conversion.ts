@@ -1,5 +1,4 @@
 import {
-  AggregationObject,
   AppendOnlyTreeSnapshot,
   AztecAddress,
   BaseOrMergeRollupPublicInputs,
@@ -1344,7 +1343,6 @@ export function mapPublicKernelCircuitPublicInputsToNoir(
 
 export function mapKernelCircuitPublicInputsFromNoir(inputs: KernelCircuitPublicInputsNoir) {
   return new KernelCircuitPublicInputs(
-    AggregationObject.makeFake(),
     mapRollupValidationRequestsFromNoir(inputs.rollup_validation_requests),
     mapCombinedAccumulatedDataFromNoir(inputs.end),
     mapCombinedConstantDataFromNoir(inputs.constants),
@@ -1373,8 +1371,8 @@ export function mapKernelCircuitPublicInputsToNoir(inputs: KernelCircuitPublicIn
 export function mapPublicKernelDataToNoir(publicKernelData: PublicKernelData): PublicKernelDataNoir {
   return {
     public_inputs: mapPublicKernelCircuitPublicInputsToNoir(publicKernelData.publicInputs),
-    proof: {},
-    vk: {},
+    proof: mapRecursiveProofToNoir<typeof NESTED_RECURSIVE_PROOF_LENGTH>(publicKernelData.proof),
+    vk: mapVerificationKeyToNoir(publicKernelData.vk.keyAsFields),
     vk_index: mapFieldToNoir(new Fr(publicKernelData.vkIndex)),
     vk_path: mapTuple(publicKernelData.vkPath, mapFieldToNoir),
   };
@@ -1383,8 +1381,8 @@ export function mapPublicKernelDataToNoir(publicKernelData: PublicKernelData): P
 export function mapKernelDataToNoir(kernelData: KernelData): KernelDataNoir {
   return {
     public_inputs: mapKernelCircuitPublicInputsToNoir(kernelData.publicInputs),
-    proof: {},
-    vk: {},
+    proof: mapRecursiveProofToNoir<typeof NESTED_RECURSIVE_PROOF_LENGTH>(kernelData.proof),
+    vk: mapVerificationKeyToNoir(kernelData.vk.keyAsFields),
     vk_index: mapFieldToNoir(new Fr(kernelData.vkIndex)),
     vk_path: mapTuple(kernelData.vkPath, mapFieldToNoir),
   };
@@ -1401,7 +1399,6 @@ export function mapPrivateKernelCircuitPublicInputsFromNoir(
   inputs: PrivateKernelCircuitPublicInputsNoir,
 ): PrivateKernelCircuitPublicInputs {
   return new PrivateKernelCircuitPublicInputs(
-    AggregationObject.makeFake(),
     mapFieldFromNoir(inputs.min_revertible_side_effect_counter),
     mapValidationRequestsFromNoir(inputs.validation_requests),
     mapPrivateAccumulatedDataFromNoir(inputs.end),
@@ -1447,7 +1444,6 @@ export function mapPrivateKernelTailCircuitPublicInputsForRollupFromNoir(
     mapCombinedAccumulatedDataFromNoir(inputs.end),
   );
   return new PrivateKernelTailCircuitPublicInputs(
-    AggregationObject.makeFake(),
     mapCombinedConstantDataFromNoir(inputs.constants),
     mapRevertCodeFromNoir(inputs.revert_code),
     mapAztecAddressFromNoir(inputs.fee_payer),
@@ -1466,7 +1462,6 @@ export function mapPrivateKernelTailCircuitPublicInputsForPublicFromNoir(
     mapTupleFromNoir(inputs.public_teardown_call_stack, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, mapCallRequestFromNoir),
   );
   return new PrivateKernelTailCircuitPublicInputs(
-    AggregationObject.makeFake(),
     mapCombinedConstantDataFromNoir(inputs.constants),
     mapRevertCodeFromNoir(inputs.revert_code),
     mapAztecAddressFromNoir(inputs.fee_payer),
@@ -1637,7 +1632,6 @@ export function mapPublicKernelCircuitPublicInputsFromNoir(
   inputs: PublicKernelCircuitPublicInputsNoir,
 ): PublicKernelCircuitPublicInputs {
   return new PublicKernelCircuitPublicInputs(
-    AggregationObject.makeFake(),
     mapValidationRequestsFromNoir(inputs.validation_requests),
     mapPublicAccumulatedDataFromNoir(inputs.end_non_revertible),
     mapPublicAccumulatedDataFromNoir(inputs.end),
@@ -1795,7 +1789,6 @@ export function mapBaseOrMergeRollupPublicInputsToNoir(
   return {
     rollup_type: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupType)),
     height_in_block_tree: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupSubtreeHeight)),
-    aggregation_object: {},
     constants: mapConstantRollupDataToNoir(baseOrMergeRollupPublicInputs.constants),
     start: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.start),
     end: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.end),
@@ -1843,7 +1836,6 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
   return new BaseOrMergeRollupPublicInputs(
     mapNumberFromNoir(baseOrMergeRollupPublicInputs.rollup_type),
     mapFieldFromNoir(baseOrMergeRollupPublicInputs.height_in_block_tree),
-    AggregationObject.makeFake(),
     mapConstantRollupDataFromNoir(baseOrMergeRollupPublicInputs.constants),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.start),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.end),
@@ -1863,8 +1855,8 @@ export function mapPreviousRollupDataToNoir(previousRollupData: PreviousRollupDa
     base_or_merge_rollup_public_inputs: mapBaseOrMergeRollupPublicInputsToNoir(
       previousRollupData.baseOrMergeRollupPublicInputs,
     ),
-    proof: {},
-    vk: {},
+    proof: mapRecursiveProofToNoir(previousRollupData.proof),
+    vk: mapVerificationKeyToNoir(previousRollupData.vk),
     vk_index: mapFieldToNoir(new Fr(previousRollupData.vkIndex)),
     vk_sibling_path: {
       leaf_index: mapFieldToNoir(new Fr(previousRollupData.vkSiblingPath.leafIndex)),
@@ -1961,7 +1953,6 @@ export function mapRootRollupPublicInputsFromNoir(
   rootRollupPublicInputs: RootRollupPublicInputsNoir,
 ): RootRollupPublicInputs {
   return new RootRollupPublicInputs(
-    AggregationObject.makeFake(),
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.archive),
     mapHeaderFromNoir(rootRollupPublicInputs.header),
   );

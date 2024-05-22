@@ -54,6 +54,7 @@ export class DummyProver implements ProverClient {
     return Promise.resolve({
       block: L2Block.empty(),
       proof: makeEmptyProof(),
+      aggregationObject: [],
     });
   }
 
