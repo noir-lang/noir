@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ContractOutputsArtifact {
     pub structs: HashMap<String, Vec<AbiType>>,
     pub globals: HashMap<String, Vec<AbiValue>>,
@@ -21,7 +21,7 @@ impl From<CompiledContractOutputs> for ContractOutputsArtifact {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ContractArtifact {
     /// Version of noir used to compile this contract
     pub noir_version: String,
@@ -51,7 +51,7 @@ impl From<CompiledContract> for ContractArtifact {
 ///
 /// A contract function unlike a regular Noir program however can have additional properties.
 /// One of these being a function type.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractFunctionArtifact {
     pub name: String,
 

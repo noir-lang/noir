@@ -24,7 +24,7 @@ function main() {
     return [program_name, { abi, bytecode }];
   });
 
-  const result = codegen(programs);
+  const result = codegen(programs, !cliConfig.externalArtifact, cliConfig.useFixedLengthArrays);
 
   const outputDir = path.resolve(cliConfig.outDir ?? './codegen');
   const outputFile = path.join(outputDir, 'index.ts');

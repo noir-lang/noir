@@ -63,19 +63,26 @@ fn multi_scalar_mul_circuit() {
         points: vec![
             FunctionInput { witness: Witness(1), num_bits: 128 },
             FunctionInput { witness: Witness(2), num_bits: 128 },
+            FunctionInput { witness: Witness(3), num_bits: 1 },
         ],
         scalars: vec![
-            FunctionInput { witness: Witness(3), num_bits: 128 },
             FunctionInput { witness: Witness(4), num_bits: 128 },
+            FunctionInput { witness: Witness(5), num_bits: 128 },
         ],
-        outputs: (Witness(5), Witness(6)),
+        outputs: (Witness(6), Witness(7), Witness(8)),
     });
 
     let circuit = Circuit {
-        current_witness_index: 7,
+        current_witness_index: 9,
         opcodes: vec![multi_scalar_mul],
-        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3), Witness(4)]),
-        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(5), Witness(6)])),
+        private_parameters: BTreeSet::from([
+            Witness(1),
+            Witness(2),
+            Witness(3),
+            Witness(4),
+            Witness(5),
+        ]),
+        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(6), Witness(7), Witness(8)])),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
@@ -83,10 +90,10 @@ fn multi_scalar_mul_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 76, 65, 14, 0, 32, 8, 82, 179, 186, 244, 104, 159,
-        30, 45, 218, 136, 141, 33, 40, 186, 93, 76, 208, 57, 31, 93, 96, 136, 47, 250, 146, 188,
-        209, 39, 181, 131, 131, 187, 148, 110, 240, 246, 101, 38, 63, 180, 243, 97, 3, 125, 173,
-        118, 131, 153, 0, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 141, 219, 10, 0, 32, 8, 67, 243, 214, 5, 250, 232,
+        62, 189, 69, 123, 176, 132, 195, 116, 50, 149, 114, 107, 0, 97, 127, 116, 2, 75, 243, 2,
+        74, 53, 122, 202, 189, 211, 15, 106, 5, 13, 116, 238, 35, 221, 81, 230, 61, 249, 37, 253,
+        250, 179, 79, 109, 218, 22, 67, 227, 173, 0, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -347,7 +354,11 @@ fn complex_brillig_foreign_call() {
 fn memory_op_circuit() {
     let init = vec![Witness(1), Witness(2)];
 
-    let memory_init = Opcode::MemoryInit { block_id: BlockId(0), init };
+    let memory_init = Opcode::MemoryInit {
+        block_id: BlockId(0),
+        init,
+        block_type: acir::circuit::opcodes::BlockType::Memory,
+    };
     let write = Opcode::MemoryOp {
         block_id: BlockId(0),
         op: MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
@@ -371,11 +382,11 @@ fn memory_op_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 82, 65, 10, 0, 32, 8, 203, 180, 255, 216, 15, 250,
-        255, 171, 10, 154, 16, 210, 45, 61, 52, 144, 13, 132, 49, 135, 84, 54, 218, 26, 134, 22,
-        112, 5, 19, 180, 237, 61, 6, 88, 223, 208, 179, 125, 41, 216, 151, 227, 188, 52, 187, 92,
-        253, 173, 92, 137, 190, 157, 143, 160, 254, 155, 45, 188, 148, 11, 38, 213, 237, 188, 16,
-        35, 3, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 82, 65, 10, 0, 32, 8, 211, 180, 255, 216, 15, 250,
+        255, 171, 10, 82, 176, 232, 150, 30, 26, 200, 118, 144, 49, 135, 8, 11, 117, 14, 169, 102,
+        229, 162, 140, 78, 219, 206, 137, 174, 44, 111, 104, 217, 190, 24, 236, 75, 113, 94, 146,
+        93, 174, 252, 86, 46, 71, 223, 78, 46, 104, 129, 253, 155, 45, 60, 195, 5, 3, 89, 11, 161,
+        73, 39, 3, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)

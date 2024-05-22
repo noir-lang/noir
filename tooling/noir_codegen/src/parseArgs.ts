@@ -6,6 +6,8 @@ export interface ParsedArgs {
   files: string[];
   outDir?: string | undefined;
   inputDir?: string | undefined;
+  externalArtifact: boolean;
+  useFixedLengthArrays: boolean;
 }
 
 export function parseArgs(): ParsedArgs {
@@ -27,6 +29,17 @@ export function parseArgs(): ParsedArgs {
           'Directory containing program artifact files. Inferred as lowest common path of all files if not specified.',
       },
       help: { type: Boolean, defaultValue: false, alias: 'h', description: 'Prints this message.' },
+      'external-artifact': {
+        type: Boolean,
+        defaultValue: false,
+        description:
+          'Does not embed the circuit artifact in the code, instead requiring passing the circuit artifact as an argument to the generated functions.',
+      },
+      'fixed-length-arrays': {
+        type: Boolean,
+        defaultValue: false,
+        description: 'Use fixed-length arrays for inputs and outputs.',
+      },
     },
     {
       helpArg: 'help',
@@ -53,6 +66,8 @@ export function parseArgs(): ParsedArgs {
     files: rawOptions.glob,
     outDir: rawOptions['out-dir'],
     inputDir: rawOptions['input-dir'],
+    externalArtifact: rawOptions['external-artifact'],
+    useFixedLengthArrays: rawOptions['fixed-length-arrays'],
   };
 }
 
@@ -61,4 +76,6 @@ interface CommandLineArgs {
   'out-dir'?: string;
   'input-dir'?: string;
   help: boolean;
+  'external-artifact': boolean;
+  'fixed-length-arrays': boolean;
 }

@@ -90,13 +90,11 @@ cd hello_world
 nargo check
 ```
 
-Two additional files would be generated in your project directory:
+A _Prover.toml_ file will be generated in your project directory, to allow specifying input values to the program.
 
-_Prover.toml_ houses input values, and _Verifier.toml_ houses public values.
+## Execute Our Noir Program
 
-## Prove Our Noir Program
-
-Now that the project is set up, we can create a proof of correct execution of our Noir program.
+Now that the project is set up, we can execute our Noir program.
 
 Fill in input values for execution in the _Prover.toml_ file. For example:
 
@@ -105,37 +103,42 @@ x = "1"
 y = "2"
 ```
 
-Prove the valid execution of your Noir program:
+Execute your Noir program:
 
 ```sh
-nargo prove
+nargo execute witness-name
 ```
 
-A new folder _proofs_ would then be generated in your project directory, containing the proof file
-`<project-name>.proof`, where the project name is defined in Nargo.toml.
+The witness corresponding to this execution will then be written to the file `./target/witness-name.gz`.
 
-The _Verifier.toml_ file would also be updated with the public values computed from program
-execution (in this case the value of `y`):
+## Prove Our Noir Program
 
-```toml
-y = "0x0000000000000000000000000000000000000000000000000000000000000002"
+:::info
+
+Nargo no longer handles communicating with backends in order to generate proofs. In order to prove/verify your Noir programs, you'll need an installation of [bb](../barretenberg/index.md).
+
+:::
+
+Prove the valid execution of your Noir program using `bb`:
+
+```sh
+bb prove -b ./target/hello_world.json -w ./target/witness-name.gz -o ./proof
 ```
 
-> **Note:** Values in _Verifier.toml_ are computed as 32-byte hex values.
+A new file called `proof` will be generated in your project directory, containing the generated proof for your program.
 
 ## Verify Our Noir Program
 
-Once a proof is generated, we can verify correct execution of our Noir program by verifying the
-proof file.
+Once a proof is generated, we can verify correct execution of our Noir program by verifying the proof file.
 
 Verify your proof by running:
 
 ```sh
-nargo verify
+bb write_vk -b ./target/hello_world.json -o ./target/vk
+bb verify -k ./target/vk -p ./proof
 ```
 
-The verification will complete in silence if it is successful. If it fails, it will log the
-corresponding error instead.
+The verification will complete in silence if it is successful. If it fails, it will log the corresponding error instead.
 
 Congratulations, you have now created and verified a proof for your very first Noir program!
 
