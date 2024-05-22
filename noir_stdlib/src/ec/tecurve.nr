@@ -101,7 +101,10 @@ mod affine {
         // Membership check
         pub fn contains(self, p: Point) -> bool {
             let Point {x, y} = p;
-            self.a * x * x + y * y == 1 + self.d * x * x * y * y
+            let xx = x * x;
+            let yy = y * y;
+
+            self.a * xx + yy == 1 + self.d * xx * yy
         }
 
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
@@ -289,10 +292,14 @@ mod curvegroup {
         // Membership check
         pub fn contains(self, p: Point) -> bool {
             let Point {x, y, t, z} = p;
-
+            let xx = x * x;
+            let yy = y * y;
+            let zz = z * z;
+            let zzzz = zz * zz;
+            
             (z != 0)
                 & (z * t == x * y)
-                & (z * z * (self.a * x * x + y * y) == z * z * z * z + self.d * x * x * y * y)
+                & (zz * (self.a * xx + yy) == zzzz + self.d * xx * yy)
         }
 
         // Point addition
@@ -355,14 +362,7 @@ mod curvegroup {
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
-
-            // TODO: temporary workaround until issue 1354 is solved
-            let mut n_as_bits: [u1; 254] = [0; 254];
-            let tmp = n.to_le_bits(N_BITS as u32);
-            for i in 0..254 {
-                n_as_bits[i] = tmp[i];
-            }
-
+            let n_as_bits: [u1; 254] = n.to_le_bits(N_BITS as u32).as_array();
             self.bit_mul(n_as_bits, p)
         }
 

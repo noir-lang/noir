@@ -92,7 +92,10 @@ mod affine {
         // Membership check
         pub fn contains(self, p: Point) -> bool {
             let Point {x, y, infty} = p;
-            infty | (y * y == x * x * x + self.a * x + self.b)
+            let xx = x * x;
+            let yy = y * y;
+
+            infty | (yy == (x * xx) + self.a * x + self.b)
         }
 
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
@@ -109,9 +112,10 @@ mod affine {
             } else {
                 let Point {x: x1, y: y1, infty: _inf} = p1;
                 let curvegroup::Point {x: x2, y: y2, z: z2} = p2;
-                let you1 = x1 * z2 * z2;
+                let z2z2 = z2 * z2;
+                let you1 = x1 * z2z2;
                 let you2 = x2;
-                let s1 = y1 * z2 * z2 * z2;
+                let s1 = y1 * z2z2 * z2;
                 let s2 = y2;
 
                 if you1 == you2 {
@@ -122,9 +126,14 @@ mod affine {
                     }
                 } else {
                     let h = you2 - you1;
+                    let hh = h * h;
+                    let hhh = h * hh;
+                    let you1_hh = you1 * hh;
                     let r = s2 - s1;
-                    let x3 = r * r - h * h * h - 2 * you1 * h * h;
-                    let y3 = r * (you1 * h * h - x3) - s1 * h * h * h;
+                    let rr = r * r;
+
+                    let x3 = rr - hhh - 2 * you1_hh;
+                    let y3 = r * (you1_hh - x3) - s1 * hhh;
                     let z3 = h * z2;
 
                     curvegroup::Point::new(x3, y3, z3)
@@ -227,7 +236,8 @@ mod curvegroup {
             if z == 0 {
                 affine::Point::zero()
             } else {
-                affine::Point::new(x / (z * z), y / (z * z * z))
+                let zz = z*z;
+                affine::Point::new(x / zz, y / (zz * z))
             }
         }
 
@@ -247,8 +257,10 @@ mod curvegroup {
         fn eq(self, p: Self) -> bool {
                let Self {x: x1, y: y1, z: z1} = self;
             let Self {x: x2, y: y2, z: z2} = p;
+            let z1z1 = z1*z1;
+            let z2z2 = z2*z2;
 
-            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
+            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2z2 == x2*z1z1) & (y1*z2*z2z2 == y2*z1*z1z1))
         }
     }
 
@@ -279,7 +291,12 @@ mod curvegroup {
             if z == 0 {
                 true
             } else {
-                y * y == x * x * x + self.a * x * z * z * z * z + self.b * z * z * z * z * z * z
+                let xx = x * x;
+                let yy = y * y;
+                let zz = z * z;
+                let zzzz = zz * zz;
+          
+                yy == x * (xx + self.a * zzzz) + self.b * zzzz * zz
             }
         }
 
@@ -292,10 +309,13 @@ mod curvegroup {
             } else {
                 let Point {x: x1, y: y1, z: z1} = p1;
                 let Point {x: x2, y: y2, z: z2} = p2;
-                let you1 = x1 * z2 * z2;
-                let you2 = x2 * z1 * z1;
-                let s1 = y1 * z2 * z2 * z2;
-                let s2 = y2 * z1 * z1 * z1;
+                let z1z1 = z1 * z1;
+                let z2z2 = z2 * z2;
+                
+                let you1 = x1 * z2z2;
+                let you2 = x2 * z1z1;
+                let s1 = y1 * z2 * z2z2;
+                let s2 = y2 * z1 * z1z1;
 
                 if you1 == you2 {
                     if s1 != s2 {
@@ -305,9 +325,14 @@ mod curvegroup {
                     }
                 } else {
                     let h = you2 - you1;
+                    let hh = h * h;
+                    let hhh = h * hh;
+                    let you1_hh = you1 * hh;
                     let r = s2 - s1;
-                    let x3 = r * r - h * h * h - 2 * you1 * h * h;
-                    let y3 = r * (you1 * h * h - x3) - s1 * h * h * h;
+                    let rr = r * r;
+                    
+                    let x3 = rr - hhh - 2 * you1_hh;
+                    let y3 = r * (you1_hh - x3) - s1 * hhh;
                     let z3 = h * z1 * z2;
 
                     Point::new(x3, y3, z3)
@@ -324,10 +349,17 @@ mod curvegroup {
             } else if y == 0 {
                 Point::zero()
             } else {
-                let s = 4 * x * y * y;
-                let m = 3 * x * x + self.a * z * z * z * z;
-                let x0 = m * m - 2 * s;
-                let y0 = m * (s - x0) - 8 * y * y * y * y;
+                let xx = x * x;
+                let yy = y * y;
+                let yyyy = yy * yy;
+                let zz = z * z;
+                let zzzz = zz * zz;
+          
+                let s = 4 * x * yy;
+                let m = 3 * xx + self.a * zzzz;
+                let mm = m * m;
+                let x0 = mm - 2 * s;
+                let y0 = m * (s - x0) - 8 * yyyy;
                 let z0 = 2 * y * z;
 
                 Point::new(x0, y0, z0)
@@ -351,14 +383,7 @@ mod curvegroup {
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
-
-            // TODO: temporary workaround until issue 1354 is solved
-            let mut n_as_bits: [u1; 254] = [0; 254];
-            let tmp = n.to_le_bits(N_BITS as u32);
-            for i in 0..254 {
-                n_as_bits[i] = tmp[i];
-            }
-
+            let n_as_bits: [u1; 254] = n.to_le_bits(N_BITS as u32).as_array();
             self.bit_mul(n_as_bits, p)
         }
 
