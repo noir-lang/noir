@@ -472,6 +472,7 @@ pub(crate) fn resolve_trait_impls(
                 impl_id,
                 impl_generics,
                 resolved_trait_impl,
+                &mut context.arith_constraints,
             ) {
                 let error = DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),

@@ -21,7 +21,7 @@ use crate::{
         },
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    node_interner::{ArithConstraints, DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
@@ -51,6 +51,8 @@ pub struct Interpreter<'interner> {
     /// True if we're currently in a compile-time context.
     /// If this is false code is skipped over instead of executed.
     in_comptime_context: bool,
+
+    arith_constraints: ArithConstraints,
 }
 
 #[allow(unused)]
@@ -63,6 +65,7 @@ impl<'a> Interpreter<'a> {
             changed_globally: false,
             in_loop: false,
             in_comptime_context: false,
+            arith_constraints: vec![],
         }
     }
 
@@ -284,11 +287,11 @@ impl<'a> Interpreter<'a> {
         Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
-    fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
+    fn type_check(&mut self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
         let typ = typ.follow_bindings();
         let value_type = value.get_type();
 
-        typ.try_unify(&value_type, &mut TypeBindings::new()).map_err(|_| {
+        typ.try_unify(&value_type, &mut TypeBindings::new(), &mut self.arith_constraints).map_err(|_| {
             InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
         })
     }
@@ -933,9 +936,9 @@ impl<'a> Interpreter<'a> {
         // TODO: Traits
         let method = match &typ {
             Type::Struct(struct_def, _) => {
-                self.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false)
+                self.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false, &mut self.arith_constraints)
             }
-            _ => self.interner.lookup_primitive_method(&typ, method_name),
+            _ => self.interner.lookup_primitive_method(&typ, method_name, &mut self.arith_constraints),
         };
 
         if let Some(method) = method {

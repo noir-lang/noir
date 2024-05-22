@@ -801,13 +801,11 @@ impl<'a> Resolver<'a> {
                 (ArithExpr::Constant(value), vec![])
             }
             Type::NamedGeneric(typevar, name) => {
-                (ArithExpr::Variable(name.clone()), vec![Type::NamedGeneric(typevar, name)])
+                (ArithExpr::Variable(typevar.clone(), name.clone()), vec![Type::NamedGeneric(typevar, name)])
             }
             Type::GenericArith(arith_id, generics) => {
 
-                let arith_expr = self.interner.get_arithmetic_expression(arith_id)
-                    .expect("ICE: unknown ArithId was inserted without using the node interner");
-
+                let arith_expr = self.interner.get_arithmetic_expression(arith_id);
                 (arith_expr.clone(), generics)
             }
 
@@ -836,15 +834,14 @@ impl<'a> Resolver<'a> {
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, op_span) => {
-
-                // TODO: fix these spans
-                // let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
-                
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
-                let (lhs, lhs_generics) = self.prepare_arithmetic_expression(lhs, op_span);
-                let (rhs, rhs_generics) = self.prepare_arithmetic_expression(rhs, op_span);
+                let span =
+                    if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                let (lhs, lhs_generics) = self.prepare_arithmetic_expression(lhs, span);
+                let (rhs, rhs_generics) = self.prepare_arithmetic_expression(rhs, span);
 
                 match (lhs, rhs) {
 

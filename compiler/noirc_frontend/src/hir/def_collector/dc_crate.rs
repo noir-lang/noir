@@ -18,7 +18,7 @@ use crate::hir::type_check::{
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{ArithConstraints, FuncId, GlobalId, NodeInterner, StructId, TraitId, TypeAliasId};
 
 use crate::ast::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
@@ -154,6 +154,8 @@ pub struct CollectedItems {
 pub(crate) type ImplMap =
     HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
+// TODO cleanup
+#[derive(PartialEq)]
 #[derive(Debug, Clone)]
 pub enum CompilationError {
     ParseError(ParserError),
@@ -402,6 +404,7 @@ impl DefCollector {
             crate_id,
             &context.def_maps,
             def_collector.items.impls,
+            &mut context.arith_constraints,
             &mut resolved_module.errors,
         ));
 
@@ -494,8 +497,8 @@ fn filter_literal_globals(
 impl ResolvedModule {
     fn type_check(&mut self, context: &mut Context) {
         self.type_check_globals(&mut context.def_interner);
-        self.type_check_functions(&mut context.def_interner);
-        self.type_check_trait_impl_function(&mut context.def_interner);
+        self.type_check_functions(&mut context.def_interner, &mut context.arith_constraints);
+        self.type_check_trait_impl_function(&mut context.def_interner, &mut context.arith_constraints);
     }
 
     fn type_check_globals(&mut self, interner: &mut NodeInterner) {
@@ -506,20 +509,20 @@ impl ResolvedModule {
         }
     }
 
-    fn type_check_functions(&mut self, interner: &mut NodeInterner) {
+    fn type_check_functions(&mut self, interner: &mut NodeInterner, arith_constraints: &mut ArithConstraints) {
         for (file, func) in self.functions.iter() {
-            for error in type_check_func(interner, *func) {
+            for error in type_check_func(interner, arith_constraints, *func) {
                 self.errors.push((error.into(), *file));
             }
         }
     }
 
-    fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner) {
+    fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner, arith_constraints: &mut ArithConstraints) {
         for (file, func) in self.trait_impl_functions.iter() {
-            for error in check_trait_impl_method_matches_declaration(interner, *func) {
+            for error in check_trait_impl_method_matches_declaration(interner, arith_constraints, *func) {
                 self.errors.push((error.into(), *file));
             }
-            for error in type_check_func(interner, *func) {
+            for error in type_check_func(interner, arith_constraints, *func) {
                 self.errors.push((error.into(), *file));
             }
         }

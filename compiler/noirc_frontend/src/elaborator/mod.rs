@@ -31,7 +31,7 @@ use crate::{
         MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
         StatementKind, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId},
+    node_interner::{ArithConstraints, DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId},
     Shared, StructType, Type, TypeVariable,
 };
 use crate::{
@@ -107,6 +107,9 @@ pub struct Elaborator<'context> {
     /// were declared in.
     generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
+    // TODO: docs/relocate
+    arith_constraints: ArithConstraints,
+
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
@@ -174,6 +177,7 @@ impl<'context> Elaborator<'context> {
             nested_loops: 0,
             in_contract: false,
             generics: Vec::new(),
+            arith_constraints: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
@@ -770,7 +774,7 @@ impl<'context> Elaborator<'context> {
             let trait_id = constraint.trait_id;
             let generics = constraint.trait_generics.clone();
 
-            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
+            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics, &mut self.arith_constraints) {
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
                     let typ = constraint.typ.clone();

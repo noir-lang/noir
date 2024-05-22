@@ -186,6 +186,7 @@ impl AbiType {
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(..)
             | Type::Forall(..)
+            | Type::GenericArith(..)
             | Type::Code
             | Type::Slice(_)
             | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),

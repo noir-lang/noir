@@ -234,7 +234,7 @@ impl<'interner> TypeChecker<'interner> {
                 let expr_span = self.interner.expr_span(index);
                 let location = *location;
 
-                index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+                index_type.unify(&self.polymorphic_integer_or_field(), &mut self.arith_constraints, &mut self.errors, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
                         expr_typ: index_type.to_string(),

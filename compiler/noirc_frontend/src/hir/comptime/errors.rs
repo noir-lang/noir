@@ -5,6 +5,8 @@ use noirc_errors::{CustomDiagnostic, Location};
 use super::value::Value;
 
 /// The possible errors that can halt the interpreter.
+// TODO cleanup
+#[derive(PartialEq)]
 #[derive(Debug, Clone)]
 pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },

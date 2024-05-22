@@ -13,7 +13,7 @@ use crate::{
         def_map::{CrateDefMap, ModuleId},
         Context,
     },
-    node_interner::{FuncId, NodeInterner},
+    node_interner::{ArithConstraints, FuncId, NodeInterner},
     Type,
 };
 
@@ -95,6 +95,7 @@ pub(crate) fn resolve_impls(
     crate_id: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_impls: ImplMap,
+    arith_constraints: &mut ArithConstraints,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_method_ids = Vec::new();
@@ -126,7 +127,7 @@ pub(crate) fn resolve_impls(
                     let method_name = interner.function_name(method_id).to_owned();
 
                     if let Some(first_fn) =
-                        interner.add_method(&self_type, method_name.clone(), *method_id, false)
+                        interner.add_method(&self_type, method_name.clone(), *method_id, false, arith_constraints)
                     {
                         let error = ResolverError::DuplicateDefinition {
                             name: method_name,

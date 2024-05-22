@@ -17,7 +17,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
+    node_interner::{self, ArithConstraints, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
@@ -86,6 +86,8 @@ struct Monomorphizer<'interner> {
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
+
+    arith_constraints: ArithConstraints,
 }
 
 type HirType = crate::Type;
@@ -174,6 +176,7 @@ impl<'interner> Monomorphizer<'interner> {
             is_range_loop: false,
             return_location: None,
             debug_type_tracker,
+            arith_constraints: Vec::new(),
         }
     }
 
@@ -1041,6 +1044,7 @@ impl<'interner> Monomorphizer<'interner> {
                     &object_type,
                     method.trait_id,
                     &trait_generics,
+                    &mut self.arith_constraints,
                 ) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
                         self.interner.get_trait_implementation(impl_id).borrow().methods
@@ -1743,7 +1747,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
     /// the correct type bindings during monomorphization.
     fn perform_impl_bindings(
-        &self,
+        &mut self,
         trait_method: Option<TraitMethodId>,
         impl_method: node_interner::FuncId,
     ) -> TypeBindings {
@@ -1767,7 +1771,7 @@ impl<'interner> Monomorphizer<'interner> {
             let type_bindings = generics.iter().map(replace_type_variable).collect();
             let impl_method_type = impl_method_type.force_substitute(&type_bindings);
 
-            trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
+            trait_method_type.try_unify(&impl_method_type, &mut bindings, &mut self.arith_constraints).unwrap_or_else(|_| {
                 unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
             });
 

@@ -8,7 +8,7 @@ pub mod type_check;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{ArithConstraints, FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
 use crate::ParsedModule;
 use def_map::{Contract, CrateDefMap};
@@ -43,6 +43,8 @@ pub struct Context<'file_manager, 'parsed_files> {
     // Same as the file manager, we take ownership of the parsed files in the WASM context.
     // Parsed files is also read only.
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
+
+    pub(crate) arith_constraints: ArithConstraints,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -62,6 +64,7 @@ impl Context<'_, '_> {
             file_manager: Cow::Owned(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
+            arith_constraints: Vec::new(),
         }
     }
 
@@ -77,6 +80,7 @@ impl Context<'_, '_> {
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
+            arith_constraints: Vec::new(),
         }
     }
 

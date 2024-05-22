@@ -8,7 +8,7 @@ use std::{
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
-    node_interner::{ArithId, ExprId, NodeInterner, TraitId, TypeAliasId},
+    node_interner::{ArithConstraint, ArithConstraints, ArithId, ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -1162,12 +1162,13 @@ impl Type {
     pub fn unify(
         &self,
         expected: &Type,
+        arith_constraints: &mut Vec<ArithConstraint>,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut bindings = TypeBindings::new();
 
-        match self.try_unify(expected, &mut bindings) {
+        match self.try_unify(expected, &mut bindings, arith_constraints) {
             Ok(()) => {
                 // Commit any type bindings on success
                 Self::apply_type_bindings(bindings);
@@ -1182,6 +1183,7 @@ impl Type {
         &self,
         other: &Type,
         bindings: &mut TypeBindings,
+        arith_constraints: &mut Vec<ArithConstraint>,
     ) -> Result<(), UnificationError> {
         use Type::*;
         use TypeVariableKind as Kind;
@@ -1191,12 +1193,12 @@ impl Type {
 
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
-                alias.try_unify(other, bindings)
+                alias.try_unify(other, bindings, arith_constraints)
             }
 
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
-                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
                     let only_integer = false;
                     other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                 })
@@ -1204,36 +1206,36 @@ impl Type {
 
             (TypeVariable(var, Kind::Integer), other)
             | (other, TypeVariable(var, Kind::Integer)) => {
-                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
                     let only_integer = true;
                     other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                 })
             }
 
             (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
-                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
                     other.try_bind_to(var, bindings)
                 })
             }
 
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
-                .try_unify_to_type_variable(var, bindings, |bindings| {
+                .try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                len_a.try_unify(len_b, bindings)?;
-                elem_a.try_unify(elem_b, bindings)
+                len_a.try_unify(len_b, bindings, arith_constraints)?;
+                elem_a.try_unify(elem_b, bindings, arith_constraints)
             }
 
-            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, bindings),
+            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, bindings, arith_constraints),
 
-            (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
+            (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings, arith_constraints),
 
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
-                len_a.try_unify(len_b, bindings)?;
-                elements_a.try_unify(elements_b, bindings)
+                len_a.try_unify(len_b, bindings, arith_constraints)?;
+                elements_a.try_unify(elements_b, bindings, arith_constraints)
             }
 
             (Tuple(elements_a), Tuple(elements_b)) => {
@@ -1241,7 +1243,7 @@ impl Type {
                     Err(UnificationError)
                 } else {
                     for (a, b) in elements_a.iter().zip(elements_b) {
-                        a.try_unify(b, bindings)?;
+                        a.try_unify(b, bindings, arith_constraints)?;
                     }
                     Ok(())
                 }
@@ -1253,7 +1255,7 @@ impl Type {
             (Struct(id_a, args_a), Struct(id_b, args_b)) => {
                 if id_a == id_b && args_a.len() == args_b.len() {
                     for (a, b) in args_a.iter().zip(args_b) {
-                        a.try_unify(b, bindings)?;
+                        a.try_unify(b, bindings, arith_constraints)?;
                     }
                     Ok(())
                 } else {
@@ -1265,7 +1267,7 @@ impl Type {
                 if !binding.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    link.try_unify(other, bindings)
+                    link.try_unify(other, bindings, arith_constraints)
                 } else {
                     unreachable!("If guard ensures binding is bound")
                 }
@@ -1286,18 +1288,34 @@ impl Type {
             (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
-                        a.try_unify(b, bindings)?;
+                        a.try_unify(b, bindings, arith_constraints)?;
                     }
 
-                    env_a.try_unify(env_b, bindings)?;
-                    ret_b.try_unify(ret_a, bindings)
+                    env_a.try_unify(env_b, bindings, arith_constraints)?;
+                    ret_b.try_unify(ret_a, bindings, arith_constraints)
                 } else {
                     Err(UnificationError)
                 }
             }
 
             (MutableReference(elem_a), MutableReference(elem_b)) => {
-                elem_a.try_unify(elem_b, bindings)
+                elem_a.try_unify(elem_b, bindings, arith_constraints)
+            }
+
+            (GenericArith(lhs, lhs_generics), GenericArith(rhs, rhs_generics)) => {
+                // let arith_a = interner.get_arithmetic_expression(*arith_id_a);
+                // let arith_b = interner.get_arithmetic_expression(*arith_id_b);
+
+                arith_constraints.push(ArithConstraint {
+                    lhs: *lhs,
+                    lhs_generics: lhs_generics.to_vec(),
+                    rhs: *rhs,
+                    rhs_generics: rhs_generics.to_vec(),
+                });
+
+                dbg!(lhs, lhs_generics, rhs, rhs_generics);
+                panic!("hi!")
+
             }
 
             (other_a, other_b) => {
@@ -1316,6 +1334,7 @@ impl Type {
         &self,
         type_variable: &TypeVariable,
         bindings: &mut TypeBindings,
+        arith_constraints: &mut Vec<ArithConstraint>,
 
         // Bind the type variable to a type. This is factored out since depending on the
         // TypeVariableKind, there are different methods to check whether the variable can
@@ -1324,12 +1343,12 @@ impl Type {
     ) -> Result<(), UnificationError> {
         match &*type_variable.borrow() {
             // If it is already bound, unify against what it is bound to
-            TypeBinding::Bound(link) => link.try_unify(self, bindings),
+            TypeBinding::Bound(link) => link.try_unify(self, bindings, arith_constraints),
             TypeBinding::Unbound(id) => {
                 // We may have already "bound" this type variable in this call to
                 // try_unify, so check those bindings as well.
                 match bindings.get(id) {
-                    Some((_, binding)) => binding.clone().try_unify(self, bindings),
+                    Some((_, binding)) => binding.clone().try_unify(self, bindings, arith_constraints),
 
                     // Otherwise, bind it
                     None => bind_variable(bindings),
@@ -1348,13 +1367,14 @@ impl Type {
         expected: &Type,
         expression: ExprId,
         interner: &mut NodeInterner,
+        arith_constraints: &mut ArithConstraints,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
-            if !self.try_array_to_slice_coercion(expected, expression, interner) {
+        if let Err(UnificationError) = self.try_unify(expected, &mut bindings, arith_constraints) {
+            if !self.try_array_to_slice_coercion(expected, expression, interner, arith_constraints) {
                 errors.push(make_error());
             }
         } else {
@@ -1369,6 +1389,7 @@ impl Type {
         target: &Type,
         expression: ExprId,
         interner: &mut NodeInterner,
+        arith_constraints: &mut ArithConstraints,
     ) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
@@ -1377,8 +1398,8 @@ impl Type {
             // Still have to ensure the element types match.
             // Don't need to issue an error here if not, it will be done in unify_with_coercions
             let mut bindings = TypeBindings::new();
-            if element1.try_unify(element2, &mut bindings).is_ok() {
-                convert_array_expression_to_slice(expression, this, target, interner);
+            if element1.try_unify(element2, &mut bindings, arith_constraints).is_ok() {
+                convert_array_expression_to_slice(expression, this, target, interner, arith_constraints);
                 Self::apply_type_bindings(bindings);
                 return true;
             }
@@ -1740,9 +1761,10 @@ fn convert_array_expression_to_slice(
     array_type: Type,
     target_type: Type,
     interner: &mut NodeInterner,
+    arith_constraints: &mut ArithConstraints,
 ) {
     let as_slice_method = interner
-        .lookup_primitive_method(&array_type, "as_slice")
+        .lookup_primitive_method(&array_type, "as_slice", arith_constraints)
         .expect("Expected 'as_slice' method to be present in Noir's stdlib");
 
     let as_slice_id = interner.function_definition_id(as_slice_method);

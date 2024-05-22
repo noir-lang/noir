@@ -12,7 +12,7 @@ use crate::{
         },
         types::Type,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
+    node_interner::{ArithConstraints, DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
     TypeBinding, TypeBindings, TypeVariableKind,
 };
 
@@ -67,7 +67,7 @@ impl<'interner> TypeChecker<'interner> {
                 for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
                     let location = self.interner.expr_location(&arr[index]);
 
-                    elem_type.unify(&first_elem_type, &mut self.errors, || {
+                    elem_type.unify(&first_elem_type, &mut self.arith_constraints, &mut self.errors, || {
                         TypeCheckError::NonHomogeneousArray {
                             first_span: self.interner.expr_location(&arr[0]).span,
                             first_type: first_elem_type.to_string(),
@@ -419,8 +419,9 @@ impl<'interner> TypeChecker<'interner> {
         trait_generics: &[Type],
         function_ident_id: ExprId,
         span: Span,
+        arith_constraints: &mut ArithConstraints,
     ) {
-        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
+        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics, arith_constraints) {
             Ok(impl_kind) => {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
@@ -572,7 +573,7 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.arith_constraints, &mut self.errors, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
@@ -912,7 +913,7 @@ impl<'interner> TypeChecker<'interner> {
         match object_type.follow_bindings() {
             Type::Struct(typ, _args) => {
                 let id = typ.borrow().id;
-                match self.interner.lookup_method(object_type, id, method_name, false) {
+                match self.interner.lookup_method(object_type, id, method_name, false, &mut self.arith_constraints) {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -969,7 +970,7 @@ impl<'interner> TypeChecker<'interner> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, &mut self.arith_constraints)
                 .map(HirMethodReference::FuncId)
                 .or_else(|| self.lookup_method(&element, method_name, expr_id)),
 
@@ -984,7 +985,7 @@ impl<'interner> TypeChecker<'interner> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name) {
+            other => match self.interner.lookup_primitive_method(&other, method_name, &mut self.arith_constraints) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -1209,7 +1210,7 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
     ) -> Type {
         let mut unify = |expected| {
-            rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::TypeMismatch {
+            rhs_type.unify(&expected, &mut self.arith_constraints, &mut self.errors, || TypeCheckError::TypeMismatch {
                 expr_typ: rhs_type.to_string(),
                 expected_typ: expected.to_string(),
                 expr_span: span,
@@ -1224,7 +1225,7 @@ impl<'interner> TypeChecker<'interner> {
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
                 let expected = self.polymorphic_integer_or_field();
-                rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
+                rhs_type.unify(&expected, &mut self.arith_constraints, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,
                 });
