@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -e
+
+BB_HOME=${BB_HOME-"$HOME/.bb"}
+
+main() {
+  need_cmd curl
+
+  while [[ $1 ]]; do
+    case $1 in
+      --)               shift; break;;
+
+      -v|--version)     shift; BBUP_VERSION=$1;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        err "internal error: unknown option "$1"\n";;
+    esac; shift
+  done
+
+  if [ -z "$BBUP_VERSION" ]; then
+    err "--version option is required"
+  fi
+
+  BBUP_REPO=AztecProtocol/aztec-packages
+
+  PLATFORM="$(uname -s)"
+  case $PLATFORM in
+    Linux)
+      PLATFORM="linux-gnu"
+      ;;
+    Darwin)
+      PLATFORM="apple-darwin"
+      ;;
+    *)
+      err "unsupported platform: $PLATFORM"
+      ;;
+  esac
+
+  # Fetch system's architecture.
+  ARCHITECTURE="$(uname -m)"
+
+  # Align ARM naming for release fetching.
+  if [ "${ARCHITECTURE}" = "arm64" ]; then
+    ARCHITECTURE="aarch64" # Align release naming.
+  fi
+
+  # Reject unsupported architectures.
+  if [ "${ARCHITECTURE}" != "x86_64" ] && [ "${ARCHITECTURE}" != "aarch64" ]; then
+    err "unsupported architecure: $ARCHITECTURE-$PLATFORM"
+  fi
+
+  BBUP_TAG=$BBUP_VERSION
+  # Normalize versions (handle channels, versions without v prefix)
+  if [[ "$BBUP_VERSION" == [[:digit:]]* ]]; then
+    # Add v prefix
+    BBUP_VERSION="v${BBUP_VERSION}"
+    BBUP_TAG="aztec-packages-${BBUP_VERSION}"
+  fi
+
+  say "installing bb (version ${BBUP_VERSION} with tag ${BBUP_TAG})"
+
+  RELEASE_URL="https://github.com/${BBUP_REPO}/releases/download/${BBUP_TAG}"
+  BIN_TARBALL_URL="${RELEASE_URL}/barretenberg-${ARCHITECTURE}-${PLATFORM}.tar.gz"
+
+  # Download the binary's tarball and unpack it into the .bb directory.
+  say "downloading bb to '$BB_HOME'"
+  ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $BB_HOME
+
+  say "done"
+}
+
+usage() {
+  cat 1>&2 <<EOF
+The installer for bb.
+Update or revert to a specific bb version with ease.
+USAGE:
+    bb <OPTIONS>
+OPTIONS:
+    -h, --help      Print help information
+    -v, --version   Install a specific version (required)
+EOF
+}
+
+say() {
+  printf 'bbup: %s\n' "$1"
+}
+
+warn() {
+  say "warning: ${1}" >&2
+}
+
+err() {
+  say "$1" >&2
+  exit 1
+}
+
+need_cmd() {
+  if ! check_cmd "$1"; then
+    err "need '$1' (command not found)"
+  fi
+}
+
+check_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Run a command that should never fail. If the command fails execution
+# will immediately terminate with an error showing the failing
+# command.
+ensure() {
+  if ! "$@"; then err "command failed: $*"; fi
+}
+
+main "$@" || exit 1
