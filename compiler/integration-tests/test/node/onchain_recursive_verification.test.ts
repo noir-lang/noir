@@ -68,7 +68,7 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   const recursion_backend = new BarretenbergBackend(recursionProgram);
   const recursion_proof = await recursion_backend.generateProof(recursionWitness);
-  expect(await recursion.verifyProof(recursion_proof)).to.be.true;
+  expect(await recursion_backend.verifyProof(recursion_proof)).to.be.true;
 
   // Smart contract verification
 
