@@ -244,6 +244,61 @@ jobs:
         timeout-minutes: 40
         run: earthly-ci --no-output ./+test
 
+  noir-build-acir-tests:
+    needs: build
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-acir-tests-x86
+      - name: "Build Acir Tests"
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./noir/+build-acir-tests
+
+  bb-acir-tests-bb:
+    needs: noir-build-acir-tests
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: barretenberg-acir-tests-bb-x86
+      - name: "BB Native Acir Tests"
+        working-directory: ./barretenberg/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-bb
+
+  bb-acir-tests-sol:
+    needs: noir-build-acir-tests
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: barretenberg-acir-tests-sol-x86
+      - name: "BB Solidity Acir Tests"
+        working-directory: ./barretenberg/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-sol
+
+  bb-acir-tests-bb-js:
+    needs: noir-build-acir-tests
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: barretenberg-acir-tests-bb-js-x86
+      - name: "BB JS Acir Tests"
+        working-directory: ./barretenberg/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
+
   noir-format:
     needs: setup
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
@@ -352,61 +407,6 @@ jobs:
       - name: "Prover Client Tests"
         timeout-minutes: 40
         run: earthly-ci --no-output ./yarn-project/+prover-client-test
-
-  build-acir-tests:
-    needs: build
-    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
-      - uses: ./.github/ci-setup-action
-        with:
-          concurrency_key: build-acir-tests-x86
-      - name: "Build Acir Tests"
-        timeout-minutes: 40
-        run: earthly-ci --no-output ./noir/+build-acir-tests
-
-  barretenberg-acir-tests-bb:
-    needs: build-acir-tests
-    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
-      - uses: ./.github/ci-setup-action
-        with:
-          concurrency_key: barretenberg-acir-tests-bb-x86
-      - name: "BB Native Acir Tests"
-        working-directory: ./noir/
-        timeout-minutes: 40
-        run: earthly-ci --no-output ./+barretenberg-acir-tests-bb
-
-  barretenberg-acir-tests-sol:
-    needs: build-acir-tests
-    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
-      - uses: ./.github/ci-setup-action
-        with:
-          concurrency_key: barretenberg-acir-tests-sol-x86
-      - name: "BB Solidity Acir Tests"
-        working-directory: ./noir/
-        timeout-minutes: 40
-        run: earthly-ci --no-output ./+barretenberg-acir-tests-sol
-
-  barretenberg-acir-tests-bb-js:
-    needs: build-acir-tests
-    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
-      - uses: ./.github/ci-setup-action
-        with:
-          concurrency_key: barretenberg-acir-tests-bb-js-x86
-      - name: "BB JS Acir Tests"
-        working-directory: ./noir/
-        timeout-minutes: 40
-        run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
 
   l1-contracts-test:
     needs: setup
@@ -546,9 +546,9 @@ jobs:
       - yarn-project-formatting
       - yarn-project-test
       - prover-client-test
-      - barretenberg-acir-tests-bb-js
-      - barretenberg-acir-tests-bb
-      - barretenberg-acir-tests-sol
+      - bb-acir-tests-bb-js
+      - bb-acir-tests-bb
+      - bb-acir-tests-sol
       - noir-test
       - noir-projects
       - l1-contracts-test
