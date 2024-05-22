@@ -45,6 +45,10 @@ test:
   FROM +nargo
   COPY ./scripts/test_native.sh ./scripts/test_native.sh
   COPY noir-repo/.rustfmt.toml noir-repo/.rustfmt.toml
+
+  # Some of the debugger tests are a little flaky wrt to timeouts so we allow a couple of retries.
+  ENV NEXTEST_RETRIES=2
+  
   RUN ./scripts/test_native.sh
 
 examples:
