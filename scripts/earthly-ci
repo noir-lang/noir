@@ -22,11 +22,6 @@ export EARTHLY_NO_BUILDKIT_UPDATE=true
 export GITHUB_ACTIONS=true
 export FORCE_COLOR=1
 export EARTHLY_CONFIG=$(git rev-parse --show-toplevel)/.github/earthly-ci-config.yml
-# TODO(AD) to be investigated
-#if [ "$GITHUB_REF_NAME" == "master" ]; then
-#  export EARTHLY_SAVE_INLINE_CACHE=true
-#  export EARTHLY_PUSH=true
-#fi
 
 # Handle earthly commands and retries
 while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
@@ -41,7 +36,7 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
     if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null || grep 'failed to get state for index' $OUTPUT_FILE >/dev/null ; then
       INCONSISTENT_GRAPH_STATE_COUNT=$((INCONSISTENT_GRAPH_STATE_COUNT + 1))
       if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq $MAX_ATTEMPTS ]; then
-        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Retry the workflow, and if all else fails, connect to spot runner and run 'earthly prune'."
+        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Do something to change the earthly cache state, like merging master. If all else fails, connect to runner with ci.py and run 'earthly prune' for a bit (can cancel early)."
         exit 1
       fi
       echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 30 seconds and retrying."
