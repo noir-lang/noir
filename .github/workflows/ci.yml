@@ -195,7 +195,7 @@ jobs:
             +bench-comment
 
   bb-gcc:
-    needs: setup
+    needs: build
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
@@ -214,7 +214,7 @@ jobs:
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
-    needs: setup
+    needs: build
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
