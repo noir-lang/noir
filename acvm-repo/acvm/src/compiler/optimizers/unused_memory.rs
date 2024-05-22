@@ -44,8 +44,9 @@ impl UnusedMemoryOptimizer {
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
             match opcode {
-                Opcode::MemoryInit { block_id, .. }
-                    if self.unused_memory_initializations.contains(&block_id) =>
+                Opcode::MemoryInit { block_id, block_type, .. }
+                    if !block_type.is_databus()
+                        && self.unused_memory_initializations.contains(&block_id) =>
                 {
                     // Drop opcode
                 }
