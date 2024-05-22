@@ -1381,8 +1381,6 @@ impl NodeInterner {
         impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
-        assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
-
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Replace each generic with a fresh type variable
