@@ -2068,12 +2068,7 @@ impl<'a> Context<'a> {
                     sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
                 });
 
-                let vars = self.acir_context.black_box_function(
-                    black_box,
-                    inputs,
-                    output_count,
-                    Some(self.current_side_effects_enabled_var),
-                )?;
+                let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
 
                 Ok(self.convert_vars_to_values(vars, dfg, result_ids))
             }

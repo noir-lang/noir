@@ -10,7 +10,7 @@
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffects] is encountered.
 use std::collections::HashSet;
 
-use acvm::{acir::BlackBoxFunc, FieldElement};
+use acvm::FieldElement;
 
 use crate::ssa::{
     ir::{
@@ -146,9 +146,7 @@ impl Context {
                     | Intrinsic::SlicePopBack
                     | Intrinsic::SlicePopFront
                     | Intrinsic::SliceInsert
-                    | Intrinsic::SliceRemove
-                    | Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)
-                    | Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd) => true,
+                    | Intrinsic::SliceRemove => true,
 
                     Intrinsic::ArrayLen
                     | Intrinsic::AssertConstant

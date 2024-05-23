@@ -424,7 +424,7 @@ impl AcirContext {
             self.add_mul_var(sum, -FieldElement::from(2_i128), prod)
         } else {
             let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1, None)?;
+            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
             Ok(outputs[0])
         }
     }
@@ -454,7 +454,7 @@ impl AcirContext {
             self.mul_var(lhs, rhs)
         } else {
             let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1, None)?;
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
             Ok(outputs[0])
         }
     }
@@ -1190,7 +1190,6 @@ impl AcirContext {
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
         mut output_count: usize,
-        current_side_effect_enabled: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let (constant_inputs, constant_outputs) = match name {
@@ -1346,38 +1345,6 @@ impl AcirContext {
             }
             _ => (vec![], vec![]),
         };
-        //Issue #5045: We set curve points to infinity if enable_side_effect is false.
-        match name {
-            BlackBoxFunc::MultiScalarMul => match inputs[0] {
-                AcirValue::Array(ref mut values) => {
-                    let mut i = 2;
-                    while i < values.len() {
-                        values[i] = AcirValue::Var(
-                            self.var_or_one(
-                                values[i].clone().into_var()?,
-                                current_side_effect_enabled.unwrap(),
-                            )?,
-                            AcirType::unsigned(1),
-                        );
-                        i += 3;
-                    }
-                }
-                _ => unreachable!(),
-            },
-            BlackBoxFunc::EmbeddedCurveAdd => {
-                let input_with_predicate = self.var_or_one(
-                    inputs[2].clone().into_var()?,
-                    current_side_effect_enabled.unwrap(),
-                )?;
-                inputs[2] = AcirValue::Var(input_with_predicate, AcirType::unsigned(1));
-                let input_with_predicate = self.var_or_one(
-                    inputs[5].clone().into_var()?,
-                    current_side_effect_enabled.unwrap(),
-                )?;
-                inputs[5] = AcirValue::Var(input_with_predicate, AcirType::unsigned(1));
-            }
-            _ => (),
-        }
 
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
@@ -1400,14 +1367,6 @@ impl AcirContext {
             self.add_data(AcirVarData::Witness(*witness_index))
         }));
         Ok(results)
-    }
-
-    // Computes: if predicate { var } else { one }
-    fn var_or_one(&mut self, var: AcirVar, predicate: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let one = self.add_constant(FieldElement::from(1_u128));
-        let not_pred = self.sub_var(one, predicate)?;
-        let with_predicate = self.mul_var(var, predicate)?;
-        self.add_var(not_pred, with_predicate)
     }
 
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).

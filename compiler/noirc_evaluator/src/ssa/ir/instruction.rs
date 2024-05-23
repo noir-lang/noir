@@ -373,13 +373,7 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
-                    matches!(
-                        intrinsic,
-                        Intrinsic::SliceInsert
-                            | Intrinsic::SliceRemove
-                            | Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)
-                            | Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)
-                    )
+                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
                 _ => false,
             },
