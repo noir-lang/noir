@@ -1043,7 +1043,7 @@ impl<'context> Elaborator<'context> {
 
     fn declare_struct_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
         for method_id in function_ids {
-            let method_name = self.interner.function_name(&method_id).to_owned();
+            let method_name = self.interner.function_name(method_id).to_owned();
 
             if let Some(first_fn) =
                 self.interner.add_method(self_type, method_name.clone(), *method_id, false)
@@ -1051,7 +1051,7 @@ impl<'context> Elaborator<'context> {
                 let error = ResolverError::DuplicateDefinition {
                     name: method_name,
                     first_span: self.interner.function_ident(&first_fn).span(),
-                    second_span: self.interner.function_ident(&method_id).span(),
+                    second_span: self.interner.function_ident(method_id).span(),
                 };
                 self.push_err(error);
             }
