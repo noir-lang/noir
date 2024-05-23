@@ -5,9 +5,10 @@ contract InclusionProofs {
         PrivateSet, PublicMutable
     };
 
-    use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId};
+    use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId, header::Header};
     use dep::aztec::{note::note_getter_options::NoteStatus, keys::getters::{get_npk_m_hash, get_ivpk_m}};
     // docs:start:imports
+    // Imports are not needed as inclusion / non_inclusion proofs are accessible on the header.
     // docs:end:imports
     // docs:start:value_note_imports
     use dep::value_note::value_note::ValueNote;
@@ -65,15 +66,14 @@ contract InclusionProofs {
         // docs:end:get_note_from_pxe
 
         // 2) Prove the note inclusion
-        if (use_block_number) {
-            // docs:start:prove_note_inclusion
-            let header = context.get_header_at(block_number);
-            header.prove_note_inclusion(maybe_note.unwrap_unchecked());
-            // docs:end:prove_note_inclusion
+        let header = if (use_block_number) {
+            context.get_header_at(block_number)
         } else {
-            let header = context.get_header();
-            header.prove_note_inclusion(maybe_note.unwrap_unchecked());
-        }
+            context.get_header()
+        };
+        // docs:start:prove_note_inclusion
+        header.prove_note_inclusion(maybe_note.unwrap_unchecked());
+        // docs:end:prove_note_inclusion
     }
 
     #[aztec(private)]
@@ -85,13 +85,13 @@ contract InclusionProofs {
         let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
         let mut note = ValueNote::new(1, owner_npk_m_hash);
 
-        if (use_block_number) {
-            let header = context.get_header_at(block_number);
-            header.prove_note_inclusion(note);
+        let header = if (use_block_number) {
+            context.get_header_at(block_number)
         } else {
-            let header = context.get_header();
-            header.prove_note_inclusion(note);
-        }
+            context.get_header()
+        };
+
+        header.prove_note_inclusion(note);
     }
 
     // Proves that the note was not yet nullified at block `block_number`.
@@ -108,7 +108,7 @@ contract InclusionProofs {
         let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
 
         // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
-        // 2) Get the note from PXE
+        // 1) Get the note from PXE
         let private_values = storage.private_values.at(owner);
         let mut options = NoteGetterOptions::new();
         options = options.select(
@@ -122,15 +122,13 @@ contract InclusionProofs {
         let notes = private_values.get_notes(options);
         let maybe_note = notes[0];
 
-        // 3) Compute the nullifier from the note
-        // docs:start:prove_note_not_nullified
-        if (use_block_number) {
-            let header = context.get_header_at(block_number);
-            header.prove_note_not_nullified(maybe_note.unwrap_unchecked(), &mut context);
+        let header = if (use_block_number) {
+            context.get_header_at(block_number)
         } else {
-            let header = context.get_header();
-            header.prove_note_not_nullified(maybe_note.unwrap_unchecked(), &mut context);
-        }
+            context.get_header()
+        };
+        // docs:start:prove_note_not_nullified
+        header.prove_note_not_nullified(maybe_note.unwrap_unchecked(), &mut context);
         // docs:end:prove_note_not_nullified
     }
 
@@ -159,15 +157,14 @@ contract InclusionProofs {
         let note = notes[0].unwrap();
 
         // 2) Prove the note validity
-        if (use_block_number) {
-            // docs:start:prove_note_validity
-            let header = context.get_header_at(block_number);
-            header.prove_note_validity(note, &mut context);
-            // docs:end:prove_note_validity
+        let header = if (use_block_number) {
+            context.get_header_at(block_number)
         } else {
-            let header = context.get_header();
-            header.prove_note_validity(note, &mut context);
-        }
+            context.get_header()
+        };
+        // docs:start:prove_note_validity
+        header.prove_note_validity(note, &mut context);
+        // docs:end:prove_note_validity
     }
 
     // docs:start:nullify_note
@@ -199,15 +196,14 @@ contract InclusionProofs {
         use_block_number: bool,
         block_number: u32 // The block at which we'll prove that the nullifier exists in the nullifier tree
     ) {
-        if (use_block_number) {
-            // docs:start:prove_nullifier_inclusion
-            let header = context.get_header_at(block_number);
-            header.prove_nullifier_inclusion(nullifier);
-            // docs:end:prove_nullifier_inclusion
+        let header = if (use_block_number) {
+            context.get_header_at(block_number)
         } else {
-            let header = context.get_header();
-            header.prove_nullifier_inclusion(nullifier);
-        }
+            context.get_header()
+        };
+        // docs:start:prove_nullifier_inclusion
+        header.prove_nullifier_inclusion(nullifier);
+        // docs:end:prove_nullifier_inclusion
     }
 
     #[aztec(public)]
@@ -240,13 +236,13 @@ contract InclusionProofs {
         use_block_number: bool,
         block_number: u32 // The block at which we'll read the public storage value
     ) {
-        let actual = if (use_block_number) {
-            let header = context.get_header_at(block_number);
-            header.public_storage_historical_read(storage.public_value.storage_slot, context.this_address())
+        let header = if (use_block_number) {
+            context.get_header_at(block_number)
         } else {
-            let header = context.get_header();
-            header.public_storage_historical_read(storage.public_value.storage_slot, context.this_address())
+            context.get_header()
         };
+
+        let actual = header.public_storage_historical_read(storage.public_value.storage_slot, context.this_address());
 
         assert_eq(actual, expected, "Actual public value does not match expected");
     }
