@@ -79,6 +79,12 @@ export function computeArtifactMetadataHash(artifact: ContractArtifact) {
     return sha256Fr(Buffer.from(JSON.stringify({ name: artifact.name }), 'utf-8'));
   }
 
+  // TODO(palla) Minimize impact of contract instance deployer address changing, using the same
+  // trick as in the contracts above.
+  if (artifact.name === 'ContractInstanceDeployer') {
+    return sha256Fr(Buffer.from(JSON.stringify({ name: artifact.name }), 'utf-8'));
+  }
+
   return sha256Fr(Buffer.from(JSON.stringify(metadata), 'utf-8'));
 }
 

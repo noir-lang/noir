@@ -37,7 +37,9 @@ export class PrivateFunctionsTree {
     const artifact = this.artifact.functions.find(f => selector.equals(f.name, f.parameters));
     if (!artifact) {
       throw new Error(
-        `Unknown function. Selector ${selector.toString()} not found in the artifact with class ${this.getContractClassId().toString()}.`,
+        `Unknown function. Selector ${selector.toString()} not found in the artifact ${
+          this.artifact.name
+        } with class ${this.getContractClassId().toString()}.`,
       );
     }
     return artifact;

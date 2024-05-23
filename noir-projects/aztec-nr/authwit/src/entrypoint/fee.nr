@@ -2,8 +2,8 @@ use dep::aztec::prelude::PrivateContext;
 use dep::aztec::protocol_types::{constants::GENERATOR_INDEX__FEE_PAYLOAD, hash::pedersen_hash, traits::{Hash, Serialize}};
 use crate::entrypoint::function_call::FunctionCall;
 
-// 2 * 5 (FUNCTION_CALL_SIZE) + 1
-global FEE_PAYLOAD_SIZE: Field = 11;
+// 2 * 5 (FUNCTION_CALL_SIZE) + 2
+global FEE_PAYLOAD_SIZE: Field = 12;
 
 // 2 * 98 (FUNCTION_CALL_SIZE_IN_BYTES) + 32
 global FEE_PAYLOAD_SIZE_IN_BYTES: Field = 228;
@@ -14,6 +14,7 @@ global MAX_FEE_FUNCTION_CALLS = 2;
 struct FeePayload {
   function_calls: [FunctionCall; MAX_FEE_FUNCTION_CALLS],
   nonce: Field,
+  is_fee_payer: bool,
 }
 // docs:end:fee-payload-struct
 
@@ -25,6 +26,7 @@ impl Serialize<FEE_PAYLOAD_SIZE> for FeePayload {
       fields.extend_from_array(self.function_calls[i].serialize());
     }
     fields.push(self.nonce);
+    fields.push(self.is_fee_payer as Field);
     fields.storage
   }
 }
@@ -46,6 +48,7 @@ impl FeePayload {
             bytes.extend_from_array(self.function_calls[i].to_be_bytes());
         }
         bytes.extend_from_slice(self.nonce.to_be_bytes(32));
+        bytes.push(self.is_fee_payer as u8);
 
         bytes.storage
     }
@@ -71,6 +74,9 @@ impl FeePayload {
                     );
                 }
             }
+        }
+        if self.is_fee_payer {
+            context.set_as_fee_payer();
         }
     }
 }

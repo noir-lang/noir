@@ -23,6 +23,7 @@ describe('e2e_fees gas_estimation', () => {
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
+    await t.applyFPCSetupSnapshot();
     await t.applyFundAliceWithBananas();
     await t.applyFundAliceWithGasToken();
     ({ aliceWallet, aliceAddress, bobAddress, bananaCoin, bananaFPC, gasSettings } = await t.setup());
@@ -45,9 +46,8 @@ describe('e2e_fees gas_estimation', () => {
       ),
     );
 
-  // TODO(palla/gas): turn this test back on with https://github.com/AztecProtocol/aztec-packages/pull/6571
-  it.skip('estimates gas with native fee payment method', async () => {
-    const paymentMethod = new NativeFeePaymentMethod();
+  it('estimates gas with native fee payment method', async () => {
+    const paymentMethod = new NativeFeePaymentMethod(aliceAddress);
     const [withEstimate, withoutEstimate] = await sendTransfers(paymentMethod);
 
     // Estimation should yield that teardown has no cost, so should send the tx with zero for teardown

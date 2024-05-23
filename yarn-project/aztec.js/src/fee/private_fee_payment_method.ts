@@ -43,12 +43,8 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
     return this.asset;
   }
 
-  /**
-   * The address which will facilitate the fee payment.
-   * @returns The contract address responsible for holding the fee payment.
-   */
-  getPaymentContract() {
-    return this.paymentContract;
+  getFeePayer(): Promise<AztecAddress> {
+    return Promise.resolve(this.paymentContract);
   }
 
   /**
@@ -80,7 +76,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
     return [
       {
         name: 'fee_entrypoint_private',
-        to: this.getPaymentContract(),
+        to: this.paymentContract,
         selector: FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field,Field)'),
         type: FunctionType.PRIVATE,
         isStatic: false,

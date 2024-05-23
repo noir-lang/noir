@@ -4,7 +4,6 @@ import { type L1ContractAddresses, NULL_KEY } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { EcdsaAccountContractArtifact } from '@aztec/noir-contracts.js/EcdsaAccount';
 import { FPCContract } from '@aztec/noir-contracts.js/FPC';
-import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
 import { SchnorrAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrAccount';
 import { SchnorrHardcodedAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrHardcodedAccount';
 import { SchnorrSingleKeyAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrSingleKeyAccount';
@@ -152,13 +151,6 @@ function getDefaultAllowedSetupFunctions(): AllowedFunction[] {
       classId: getContractClassFromArtifact(EcdsaAccountContractArtifact).id,
       selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
     },
-
-    // needed for native payments while they are not yet enshrined
-    {
-      classId: getContractClassFromArtifact(GasTokenContract.artifact).id,
-      selector: FunctionSelector.fromSignature('pay_fee(Field)'),
-    },
-
     // needed for private transfers via FPC
     {
       classId: getContractClassFromArtifact(TokenContractArtifact).id,

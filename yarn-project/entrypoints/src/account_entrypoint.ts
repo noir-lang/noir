@@ -21,7 +21,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
   async createTxExecutionRequest(exec: ExecutionRequestInit): Promise<TxExecutionRequest> {
     const { calls, fee } = exec;
     const appPayload = EntrypointPayload.fromAppExecution(calls);
-    const feePayload = await EntrypointPayload.fromFeeOptions(fee);
+    const feePayload = await EntrypointPayload.fromFeeOptions(this.address, fee);
 
     const abi = this.getEntrypointAbi();
     const entrypointPackedArgs = PackedValues.fromValues(encodeArguments(abi, [appPayload, feePayload]));
@@ -132,6 +132,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
                 },
               },
               { name: 'nonce', type: { kind: 'field' } },
+              { name: 'is_fee_payer', type: { kind: 'boolean' } },
             ],
           },
           visibility: 'public',

@@ -21,7 +21,6 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
      * Address which will hold the fee payment.
      */
     protected paymentContract: AztecAddress,
-
     /**
      * An auth witness provider to authorize fee payments
      */
@@ -36,12 +35,8 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
     return this.asset;
   }
 
-  /**
-   * The address which will facilitate the fee payment.
-   * @returns The contract address responsible for holding the fee payment.
-   */
-  getPaymentContract() {
-    return this.paymentContract;
+  getFeePayer(): Promise<AztecAddress> {
+    return Promise.resolve(this.paymentContract);
   }
 
   /**
@@ -71,7 +66,7 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
       this.wallet.setPublicAuthWit(messageHash, true).request(),
       {
         name: 'fee_entrypoint_public',
-        to: this.getPaymentContract(),
+        to: this.paymentContract,
         selector: FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
         type: FunctionType.PRIVATE,
         isStatic: false,

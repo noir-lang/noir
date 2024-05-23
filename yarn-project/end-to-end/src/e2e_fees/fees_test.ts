@@ -24,6 +24,7 @@ import {
   FPCContract,
   GasTokenContract,
 } from '@aztec/noir-contracts.js';
+import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 
 import { getContract } from 'viem';
 
@@ -129,7 +130,7 @@ export class FeesTest {
     await this.applyInitialAccountsSnapshot();
     await this.applyPublicDeployAccountsSnapshot();
     await this.applyDeployGasTokenSnapshot();
-    await this.applyFPCSetupSnapshot();
+    await this.applyDeployBananaTokenSnapshot();
   }
 
   private async applyInitialAccountsSnapshot() {
@@ -155,17 +156,39 @@ export class FeesTest {
   }
 
   private async applyDeployGasTokenSnapshot() {
-    await this.snapshotManager.snapshot('deploy_gas_token', async context => {
-      await deployCanonicalGasToken(
-        new SignerlessWallet(
-          context.pxe,
-          new DefaultMultiCallEntrypoint(context.aztecNodeConfig.chainId, context.aztecNodeConfig.version),
-        ),
-      );
-    });
+    await this.snapshotManager.snapshot(
+      'deploy_gas_token',
+      async context => {
+        await deployCanonicalGasToken(
+          new SignerlessWallet(
+            context.pxe,
+            new DefaultMultiCallEntrypoint(context.aztecNodeConfig.chainId, context.aztecNodeConfig.version),
+          ),
+        );
+      },
+      async () => {
+        this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
+      },
+    );
   }
 
-  private async applyFPCSetupSnapshot() {
+  private async applyDeployBananaTokenSnapshot() {
+    await this.snapshotManager.snapshot(
+      'deploy_banana_token',
+      async () => {
+        const bananaCoin = await BananaCoin.deploy(this.aliceWallet, this.aliceAddress, 'BC', 'BC', 18n)
+          .send()
+          .deployed();
+        this.logger.info(`BananaCoin deployed at ${bananaCoin.address}`);
+        return { bananaCoinAddress: bananaCoin.address };
+      },
+      async ({ bananaCoinAddress }) => {
+        this.bananaCoin = await BananaCoin.at(bananaCoinAddress, this.aliceWallet);
+      },
+    );
+  }
+
+  public async applyFPCSetupSnapshot() {
     await this.snapshotManager.snapshot(
       'fpc_setup',
       async context => {
@@ -173,12 +196,7 @@ export class FeesTest {
         const gasTokenContract = harness.l2Token;
         expect(await context.pxe.isContractPubliclyDeployed(gasTokenContract.address)).toBe(true);
 
-        const bananaCoin = await BananaCoin.deploy(this.aliceWallet, this.aliceAddress, 'BC', 'BC', 18n)
-          .send()
-          .deployed();
-
-        this.logger.info(`BananaCoin deployed at ${bananaCoin.address}`);
-
+        const bananaCoin = this.bananaCoin;
         const bananaFPC = await FPCContract.deploy(this.aliceWallet, bananaCoin.address, gasTokenContract.address)
           .send()
           .deployed();
@@ -188,7 +206,6 @@ export class FeesTest {
         await harness.bridgeFromL1ToL2(this.INITIAL_GAS_BALANCE, this.INITIAL_GAS_BALANCE, bananaFPC.address);
 
         return {
-          bananaCoinAddress: bananaCoin.address,
           bananaFPCAddress: bananaFPC.address,
           gasTokenAddress: gasTokenContract.address,
           l1GasTokenAddress: harness.l1GasTokenAddress,
@@ -196,16 +213,12 @@ export class FeesTest {
       },
       async (data, context) => {
         const bananaFPC = await FPCContract.at(data.bananaFPCAddress, this.aliceWallet);
-        const bananaCoin = await BananaCoin.at(data.bananaCoinAddress, this.aliceWallet);
-        const gasTokenContract = await GasTokenContract.at(data.gasTokenAddress, this.aliceWallet);
-
-        this.bananaCoin = bananaCoin;
         this.bananaFPC = bananaFPC;
-        this.gasTokenContract = gasTokenContract;
 
-        this.bananaPublicBalances = getBalancesFn('🍌.public', bananaCoin.methods.balance_of_public, this.logger);
-        this.bananaPrivateBalances = getBalancesFn('🍌.private', bananaCoin.methods.balance_of_private, this.logger);
-        this.gasBalances = getBalancesFn('⛽', gasTokenContract.methods.balance_of_public, this.logger);
+        const logger = this.logger;
+        this.bananaPublicBalances = getBalancesFn('🍌.public', this.bananaCoin.methods.balance_of_public, logger);
+        this.bananaPrivateBalances = getBalancesFn('🍌.private', this.bananaCoin.methods.balance_of_private, logger);
+        this.gasBalances = getBalancesFn('⛽', this.gasTokenContract.methods.balance_of_public, logger);
 
         this.getCoinbaseBalance = async () => {
           const { walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);

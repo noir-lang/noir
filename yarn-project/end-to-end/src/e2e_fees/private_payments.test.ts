@@ -27,6 +27,7 @@ describe('e2e_fees private_payment', () => {
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
+    await t.applyFPCSetupSnapshot();
     await t.applyFundAliceWithBananas();
     ({ aliceWallet, aliceAddress, bobAddress, sequencerAddress, gasTokenContract, bananaCoin, bananaFPC, gasSettings } =
       await t.setup());
@@ -97,9 +98,6 @@ describe('e2e_fees private_payment', () => {
      * N/A
      *
      * PUBLIC TEARDOWN
-     * call gas.pay_fee
-     *   decrease FPC AZT by FeeAmount
-     *   increase sequencer AZT by FeeAmount
      * call banana.shield
      *   decrease FPC BC.public by RefundAmount
      *   create transparent note with RefundAmount
@@ -183,9 +181,6 @@ describe('e2e_fees private_payment', () => {
      * BC increase total supply
      *
      * PUBLIC TEARDOWN
-     * call gas.pay_fee
-     *   decrease FPC AZT by FeeAmount
-     *   increase sequencer AZT by FeeAmount
      * call banana.shield
      *   decrease FPC BC.public by RefundAmount
      *   create transparent note with RefundAmount
@@ -244,9 +239,6 @@ describe('e2e_fees private_payment', () => {
      * BC create transparent note of shieldedBananas
      *
      * PUBLIC TEARDOWN
-     * call gas.pay_fee
-     *   decrease FPC AZT by FeeAmount
-     *   increase sequencer AZT by FeeAmount
      * call banana.shield
      *   decrease FPC BC.public by RefundAmount
      *   create transparent note with RefundAmount
@@ -316,9 +308,6 @@ describe('e2e_fees private_payment', () => {
      * BC create transparent note of shieldedBananas
      *
      * PUBLIC TEARDOWN
-     * call gas.pay_fee
-     *   decrease FPC AZT by FeeAmount
-     *   increase sequencer AZT by FeeAmount
      * call banana.shield
      *   decrease FPC BC.public by RefundAmount
      *   create transparent note with RefundAmount
