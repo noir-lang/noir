@@ -471,7 +471,7 @@ jobs:
           concurrency_key: boxes-${{ github.event.pull_request.user.login || github.actor }}-build
       - name: Build
         working-directory: ./boxes
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: earthly-ci +export-boxes
 
   boxes-test:
