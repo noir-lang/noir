@@ -270,7 +270,7 @@ describe('e2e_block_building', () => {
       const rct = await action.send().wait();
 
       // compare logs
-      expect(rct.status).toEqual('mined');
+      expect(rct.status).toEqual('success');
       const decryptedLogs = tx.noteEncryptedLogs
         .unrollLogs()
         .map(l => TaggedNote.decryptAsIncoming(l.data, keys.masterIncomingViewingSecretKey));

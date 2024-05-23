@@ -20,35 +20,35 @@
  * TODO: Ultimately reimplement this mega exporter by mega exporting a granular api (then deprecate it).
  */
 export {
-  WaitOpts,
-  ContractFunctionInteraction,
+  BatchCall,
   Contract,
   ContractBase,
+  ContractFunctionInteraction,
   ContractMethod,
-  ContractStorageLayout,
   ContractNotes,
-  SentTx,
-  BatchCall,
+  ContractStorageLayout,
   DeployMethod,
   DeploySentTx,
+  SentTx,
+  WaitOpts,
 } from './contract/index.js';
 
 export { ContractDeployer } from './deployment/index.js';
 
 export {
-  generatePublicKey,
-  FieldLike,
-  EthAddressLike,
-  CheatCodes,
   AztecAddressLike,
+  CheatCodes,
+  EthAddressLike,
+  EthCheatCodes,
+  FieldLike,
   FunctionSelectorLike,
   WrappedFieldLike,
-  EthCheatCodes,
   computeAuthWitMessageHash,
   computeInnerAuthWitHash,
   computeOuterAuthWitHash,
-  waitForPXE,
+  generatePublicKey,
   waitForAccountSynch,
+  waitForPXE,
 } from './utils/index.js';
 
 export { createPXEClient } from './rpc_clients/index.js';
@@ -58,21 +58,21 @@ export { AuthWitnessProvider } from './account/index.js';
 export { AccountContract } from './account/index.js';
 export { AccountManager } from './account_manager/index.js';
 
-export { AccountWalletWithSecretKey, AccountWallet, Wallet, SignerlessWallet } from './wallet/index.js';
+export { AccountWallet, AccountWalletWithSecretKey, SignerlessWallet, Wallet } from './wallet/index.js';
 
 // // TODO https://github.com/AztecProtocol/aztec-packages/issues/2632 --> FunctionSelector might not need to be exposed
 // // here once the issue is resolved.
 export {
   AztecAddress,
   EthAddress,
-  Fr,
   Fq,
+  Fr,
   GlobalVariables,
   GrumpkinScalar,
-  Point,
-  getContractInstanceFromDeployParams, // TODO(@spalladino) This method should be used from within the DeployMethod but not exposed in aztec.js
-  getContractClassFromArtifact,
   INITIAL_L2_BLOCK_NUM,
+  Point,
+  getContractClassFromArtifact,
+  getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
 
 export { computeSecretHash } from '@aztec/circuits.js/hash';
@@ -90,17 +90,20 @@ export {
   AuthWitness,
   AztecNode,
   Body,
+  Comparator,
   CompleteAddress,
+  EncryptedL2BlockL2Logs,
+  EncryptedLogHeader,
+  EncryptedLogIncomingBody,
+  EncryptedLogOutgoingBody,
   ExtendedNote,
   FunctionCall,
   GrumpkinPrivateKey,
-  L1ToL2Message,
   L1Actor,
+  L1ToL2Message,
   L2Actor,
   L2Block,
   L2BlockL2Logs,
-  EncryptedL2BlockL2Logs,
-  UnencryptedL2BlockL2Logs,
   LogFilter,
   LogId,
   LogType,
@@ -110,40 +113,37 @@ export {
   PackedValues,
   PartialAddress,
   PublicKey,
+  SiblingPath,
   SyncStatus,
   Tx,
   TxExecutionRequest,
   TxHash,
   TxReceipt,
   TxStatus,
+  UnencryptedL2BlockL2Logs,
   UnencryptedL2Log,
   createAztecNodeClient,
   merkleTreeIds,
   mockTx,
-  Comparator,
-  SiblingPath,
-  EncryptedLogHeader,
-  EncryptedLogIncomingBody,
-  EncryptedLogOutgoingBody,
 } from '@aztec/circuit-types';
 export { NodeInfo } from '@aztec/types/interfaces';
 
-export { ContractInstanceWithAddress, ContractClassWithId } from '@aztec/types/contracts';
+export { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 // TODO: These kinds of things have no place on our public api.
 // External devs will almost certainly have their own methods of doing these things.
 // If we want to use them in our own "aztec.js consuming code", import them from foundation as needed.
 export { encodeArguments } from '@aztec/foundation/abi';
+export { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 export { sha256 } from '@aztec/foundation/crypto';
+export { makeFetch } from '@aztec/foundation/json-rpc/client';
 export { DebugLogger, createDebugLogger, onLog } from '@aztec/foundation/log';
 export { retry, retryUntil } from '@aztec/foundation/retry';
+export { to2Fields, toBigInt } from '@aztec/foundation/serialize';
 export { sleep } from '@aztec/foundation/sleep';
 export { elapsed } from '@aztec/foundation/timer';
-export { fileURLToPath } from '@aztec/foundation/url';
-export { to2Fields, toBigInt } from '@aztec/foundation/serialize';
-export { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-export { makeFetch } from '@aztec/foundation/json-rpc/client';
 export { FieldsOf } from '@aztec/foundation/types';
+export { fileURLToPath } from '@aztec/foundation/url';
 
 export {
   DeployL1Contracts,
@@ -155,6 +155,6 @@ export {
 // Start of section that exports public api via granular api.
 // Here you *can* do `export *` as the granular api defacto exports things explicitly.
 // This entire index file will be deprecated at some point after we're satisfied.
-export * from './api/init.js';
 export * from './api/abi.js';
 export * from './api/fee.js';
+export * from './api/init.js';

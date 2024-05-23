@@ -34,7 +34,7 @@ struct FixtureBuilder {
     contract_address: AztecAddress,
     storage_contract_address: AztecAddress,
     fee_payer: AztecAddress,
-    public_teardown_call_request: CallRequest,
+    public_teardown_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
     // Constant data.
     historical_header: Header,
@@ -123,7 +123,7 @@ impl FixtureBuilder {
             gas_used: Gas::empty(),
             non_revertible_gas_used: Gas::empty(),
             global_variables: GlobalVariables::empty(),
-            public_teardown_call_request: CallRequest::empty()
+            public_teardown_call_stack: BoundedVec::new()
         }
     }
 
@@ -194,13 +194,14 @@ impl FixtureBuilder {
         let end = self.to_private_accumulated_data();
         let validation_requests = self.to_validation_requests();
         let constants = self.to_constant_data();
+        let public_teardown_call_request = self.public_teardown_call_stack.get_unchecked(0);
 
         PrivateKernelCircuitPublicInputs {
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             end,
             validation_requests,
             constants,
-            public_teardown_call_request: self.public_teardown_call_request,
+            public_teardown_call_request,
             fee_payer: self.fee_payer
         }
     }
@@ -224,8 +225,6 @@ impl FixtureBuilder {
         };
         let validation_requests = self.to_validation_requests();
         let constants = self.to_constant_data();
-        let mut public_teardown_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> = BoundedVec::new();
-        public_teardown_call_stack.push(self.public_teardown_call_request);
 
         PublicKernelCircuitPublicInputs {
             end_non_revertible,
@@ -233,7 +232,7 @@ impl FixtureBuilder {
             validation_requests,
             constants,
             revert_code: self.revert_code,
-            public_teardown_call_stack: public_teardown_call_stack.storage,
+            public_teardown_call_stack: self.public_teardown_call_stack.storage,
             fee_payer: self.fee_payer
         }
     }
@@ -464,8 +463,9 @@ impl FixtureBuilder {
         self.fee_payer = fee_payer;
     }
 
-    pub fn set_public_teardown_call_request(&mut self, hash: Field, is_delegate_call: bool) {
-        self.public_teardown_call_request = self.generate_call_request(hash, is_delegate_call);
+    pub fn push_public_teardown_call_request(&mut self, hash: Field, is_delegate_call: bool) {
+        let call_stack_item = self.generate_call_request(hash, is_delegate_call);
+        self.public_teardown_call_stack.push(call_stack_item);
     }
 
     pub fn end_setup(&mut self) {
@@ -555,7 +555,7 @@ impl Empty for FixtureBuilder {
             start_state: PartialStateReference::empty(),
             gas_used: Gas::empty(),
             non_revertible_gas_used: Gas::empty(),
-            public_teardown_call_request: CallRequest::empty(),
+            public_teardown_call_stack: BoundedVec::new()
         }
     }
 }

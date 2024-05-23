@@ -111,3 +111,115 @@ exports[`revert_code should serialize properly 6`] = `
   "value": "0x0000000000000000000000000000000000000000000000000000000000000001",
 }
 `;
+
+exports[`revert_code should serialize properly 7`] = `
+{
+  "data": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+  ],
+  "type": "Buffer",
+}
+`;
+
+exports[`revert_code should serialize properly 8`] = `
+{
+  "data": [
+    2,
+  ],
+  "type": "Buffer",
+}
+`;
+
+exports[`revert_code should serialize properly 9`] = `
+{
+  "type": "Fr",
+  "value": "0x0000000000000000000000000000000000000000000000000000000000000002",
+}
+`;
+
+exports[`revert_code should serialize properly 10`] = `
+{
+  "data": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+  ],
+  "type": "Buffer",
+}
+`;
+
+exports[`revert_code should serialize properly 11`] = `
+{
+  "data": [
+    3,
+  ],
+  "type": "Buffer",
+}
+`;
+
+exports[`revert_code should serialize properly 12`] = `
+{
+  "type": "Fr",
+  "value": "0x0000000000000000000000000000000000000000000000000000000000000003",
+}
+`;

@@ -91,7 +91,7 @@ describe('e2e_auth_contract', () => {
     expect(tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
     expect(tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(expectedMaxBlockNumber));
 
-    expect((await interaction.send().wait()).status).toEqual('mined');
+    expect((await interaction.send().wait()).status).toEqual('success');
   });
 
   it('a new authorized address is set but not immediately effective, the previous one retains permissions', async () => {
@@ -106,7 +106,7 @@ describe('e2e_auth_contract', () => {
     );
 
     expect((await contract.withWallet(authorized).methods.do_private_authorized_thing().send().wait()).status).toEqual(
-      'mined',
+      'success',
     );
   });
 
@@ -120,7 +120,7 @@ describe('e2e_auth_contract', () => {
     );
 
     expect((await contract.withWallet(other).methods.do_private_authorized_thing().send().wait()).status).toEqual(
-      'mined',
+      'success',
     );
   });
 });

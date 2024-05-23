@@ -12,6 +12,25 @@ struct PublicKernelAppLogicCircuitPrivateInputs {
 
 impl PublicKernelAppLogicCircuitPrivateInputs {
 
+    fn initialize_revert_code(self, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+        if self.previous_kernel.public_inputs.revert_code != 0 {
+            circuit_outputs.revert_code = self.previous_kernel.public_inputs.revert_code;
+        } else if self.public_call.call_stack_item.public_inputs.revert_code != 0 {
+            circuit_outputs.revert_code = self.public_call.call_stack_item.public_inputs.revert_code;
+        }
+    }
+
+    fn initialize_non_revertible_values(
+        self,
+        circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
+    ) {
+        // initialise the end state with our provided previous kernel state
+        common::initialize_non_revertible_values(self.previous_kernel, circuit_outputs);
+
+        // We always pass the teardown call stack forward during app logic
+        circuit_outputs.public_teardown_call_stack = array_to_bounded_vec(self.previous_kernel.public_inputs.public_teardown_call_stack);
+    }
+
     fn validate_inputs(self) {
         let needs_setup = self.previous_kernel.public_inputs.needs_setup();
         assert(needs_setup == false, "Cannot run app logic circuit before setup circuit");
@@ -25,10 +44,10 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
 
         // construct the circuit outputs
         let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
-        common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);
 
-        // initialise the end state with our provided previous kernel state
-        common::initialize_end_values(self.previous_kernel, &mut public_inputs);
+        self.initialize_revert_code(&mut public_inputs);
+
+        self.initialize_non_revertible_values(&mut public_inputs);
 
         // validate the inputs common to all invocation circumstances
         common::validate_inputs(self.public_call);
@@ -47,6 +66,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
         common::update_revertible_gas_used(self.public_call, &mut public_inputs);
 
         if public_inputs.revert_code == 0 {
+            common::initialize_end_values(self.previous_kernel, &mut public_inputs);
             // Pops the item from the call stack and validates it against the current execution.
             let call_request = public_inputs.end.public_call_stack.pop();
             common::validate_call_against_request(self.public_call, call_request);
@@ -544,5 +564,44 @@ mod tests {
         assert_eq(is_empty(builder.previous_kernel.fee_payer), true);
         let public_inputs = builder.execute();
         assert_eq(public_inputs.fee_payer, AztecAddress::empty());
+    }
+
+    #[test]
+    unconstrained fn correctly_updates_revert_code() {
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 0);
+
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+        builder.public_call.public_inputs.revert_code = 1;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 1);
+
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+        builder.previous_kernel.revert_code = 1;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 1);
+    }
+
+    #[test]
+    fn clears_stack_if_current_call_revert_code_is_set() {
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+        builder.public_call.public_inputs.revert_code = 1;
+        let public_call = builder.public_call.finish();
+        let hash = public_call.call_stack_item.hash();
+
+        builder.previous_kernel.push_public_call_request(hash, false);
+        builder.previous_kernel.push_public_call_request(hash, false);
+
+        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
+        let kernel = PublicKernelAppLogicCircuitPrivateInputs { previous_kernel, public_call };
+
+        let public_inputs = kernel.public_kernel_app_logic();
+
+        assert_eq(array_length(public_inputs.end.public_call_stack), 0);
+        assert_eq(array_length(public_inputs.public_teardown_call_stack), 2);
     }
 }

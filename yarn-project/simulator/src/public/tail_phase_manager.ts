@@ -19,7 +19,7 @@ import { type Tuple } from '@aztec/foundation/serialize';
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
+import { AbstractPhaseManager, PublicKernelPhase, removeRedundantPublicDataWrites } from './abstract_phase_manager.js';
 import { type ContractsDataSourcePublicDB } from './public_executor.js';
 import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 
@@ -45,6 +45,11 @@ export class TailPhaseManager extends AbstractPhaseManager {
         await this.publicStateDB.rollbackToCommit();
         throw err;
       },
+    );
+
+    // TODO(#3675): This should be done in a public kernel circuit
+    finalKernelOutput.end.publicDataUpdateRequests = removeRedundantPublicDataWrites(
+      finalKernelOutput.end.publicDataUpdateRequests,
     );
 
     // Return a tail proving request

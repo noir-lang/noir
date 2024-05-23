@@ -25,6 +25,7 @@ import {
   PublicCallRequest,
   PublicDataTreeLeafPreimage,
   PublicDataUpdateRequest,
+  RevertCode,
   StateReference,
   makeEmptyProof,
 } from '@aztec/circuits.js';
@@ -282,7 +283,8 @@ describe('public_processor', () => {
       expect(processed).toEqual([expectedTxByHash(tx)]);
       expect(failed).toHaveLength(0);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(1);
-      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(1);
+      // we only call checkpoint after successful "setup"
+      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(0);
       expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(0);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
@@ -375,6 +377,9 @@ describe('public_processor', () => {
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
+      const contractSlotD = fr(0x250);
+      const contractSlotE = fr(0x300);
+      const contractSlotF = fr(0x350);
 
       let simulatorCallCount = 0;
       const simulatorResults: PublicExecutionResult[] = [
@@ -396,6 +401,7 @@ describe('public_processor', () => {
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 14, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x200), 15, baseContractAddress),
               ],
             }).build(),
             PublicExecutionResultBuilder.fromFunctionCall({
@@ -414,7 +420,10 @@ describe('public_processor', () => {
               from: teardown.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 16, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotD, fr(0x251), 17, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotE, fr(0x301), 18, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotF, fr(0x351), 19, baseContractAddress),
               ],
             }).build(teardownResultSettings),
           ],
@@ -443,18 +452,27 @@ describe('public_processor', () => {
       expect(appLogicSpy).toHaveBeenCalledTimes(2);
       expect(teardownSpy).toHaveBeenCalledTimes(2);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(3);
-      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(2);
+      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
 
       const txEffect = toTxEffect(processed[0]);
-      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(2);
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(5);
       expect(txEffect.publicDataWrites[0]).toEqual(
         new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x101)),
       );
       expect(txEffect.publicDataWrites[1]).toEqual(
         new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotC), fr(0x201)),
+      );
+      expect(txEffect.publicDataWrites[2]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotD), fr(0x251)),
+      );
+      expect(txEffect.publicDataWrites[3]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotE), fr(0x301)),
+      );
+      expect(txEffect.publicDataWrites[4]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotF), fr(0x351)),
       );
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(0);
       expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);
@@ -524,7 +542,7 @@ describe('public_processor', () => {
               from: teardown.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 14, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
               ],
             }).build(),
           ],
@@ -562,7 +580,7 @@ describe('public_processor', () => {
       expect(prover.addNewTx).toHaveBeenCalledTimes(0);
     });
 
-    it('fails a transaction that reverts in teardown', async function () {
+    it('includes a transaction that reverts in teardown', async function () {
       const baseContractAddressSeed = 0x200;
       const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
       const publicCallRequests: PublicCallRequest[] = [
@@ -612,6 +630,10 @@ describe('public_processor', () => {
         // App Logic
         PublicExecutionResultBuilder.fromPublicCallRequest({
           request: publicCallRequests[1],
+          contractStorageUpdateRequests: [
+            new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15, baseContractAddress),
+          ],
         }).build(),
 
         // Teardown
@@ -621,14 +643,17 @@ describe('public_processor', () => {
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
-              revertReason: new SimulationError('Simulation Failed', []),
+              contractStorageUpdateRequests: [
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
+              ],
             }).build(teardownResultSettings),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 14, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
               ],
+              revertReason: new SimulationError('Simulation Failed', []),
             }).build(teardownResultSettings),
           ],
         }).build(teardownResultSettings),
@@ -648,20 +673,156 @@ describe('public_processor', () => {
 
       const [processed, failed] = await processor.process([tx], 1, prover);
 
-      expect(processed).toHaveLength(0);
-      expect(failed).toHaveLength(1);
-      expect(failed[0].tx.getTxHash()).toEqual(tx.getTxHash());
+      expect(processed).toHaveLength(1);
+      expect(processed).toEqual([expectedTxByHash(tx)]);
+      expect(failed).toHaveLength(0);
 
       expect(setupSpy).toHaveBeenCalledTimes(2);
       expect(appLogicSpy).toHaveBeenCalledTimes(1);
       expect(teardownSpy).toHaveBeenCalledTimes(2);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(3);
-      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(2);
-      expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(0);
-      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(0);
-      expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
 
-      expect(prover.addNewTx).toHaveBeenCalledTimes(0);
+      const txEffect = toTxEffect(processed[0]);
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(2);
+      expect(txEffect.publicDataWrites[0]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x102)),
+      );
+      expect(txEffect.publicDataWrites[1]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x151)),
+      );
+      expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(0);
+      expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);
+
+      expect(processed[0].data.revertCode).toEqual(RevertCode.TEARDOWN_REVERTED);
+
+      expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
+    });
+
+    it('includes a transaction that reverts in app logic and teardown', async function () {
+      const baseContractAddressSeed = 0x200;
+      const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
+      const publicCallRequests: PublicCallRequest[] = [
+        baseContractAddressSeed,
+        baseContractAddressSeed,
+        baseContractAddressSeed,
+      ].map(makePublicCallRequest);
+      publicCallRequests[0].callContext.sideEffectCounter = 2;
+      publicCallRequests[1].callContext.sideEffectCounter = 3;
+      publicCallRequests[2].callContext.sideEffectCounter = 4;
+      const teardown = publicCallRequests.pop()!;
+
+      const tx = mockTxWithPartialState({
+        numberOfNonRevertiblePublicCallRequests: 1,
+        numberOfRevertiblePublicCallRequests: 1,
+        publicCallRequests,
+        publicTeardownCallRequest: teardown,
+      });
+
+      const teardownGas = tx.data.constants.txContext.gasSettings.getTeardownLimits();
+      const teardownResultSettings = { startGasLeft: teardownGas, endGasLeft: teardownGas };
+
+      const contractSlotA = fr(0x100);
+      const contractSlotB = fr(0x150);
+      const contractSlotC = fr(0x200);
+
+      let simulatorCallCount = 0;
+      const simulatorResults: PublicExecutionResult[] = [
+        // Setup
+        PublicExecutionResultBuilder.fromPublicCallRequest({
+          request: publicCallRequests[0],
+          contractStorageUpdateRequests: [
+            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
+          ],
+          nestedExecutions: [
+            PublicExecutionResultBuilder.fromFunctionCall({
+              from: publicCallRequests[0].contractAddress,
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13, baseContractAddress),
+              ],
+            }).build(),
+          ],
+        }).build(),
+
+        // App Logic
+        PublicExecutionResultBuilder.fromPublicCallRequest({
+          request: publicCallRequests[1],
+          contractStorageUpdateRequests: [
+            new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15, baseContractAddress),
+          ],
+          revertReason: new SimulationError('Simulation Failed', []),
+        }).build(),
+
+        // Teardown
+        PublicExecutionResultBuilder.fromPublicCallRequest({
+          request: teardown,
+          nestedExecutions: [
+            PublicExecutionResultBuilder.fromFunctionCall({
+              from: teardown.contractAddress,
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
+              ],
+            }).build(teardownResultSettings),
+            PublicExecutionResultBuilder.fromFunctionCall({
+              from: teardown.contractAddress,
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
+              ],
+              revertReason: new SimulationError('Simulation Failed', []),
+            }).build(teardownResultSettings),
+          ],
+        }).build(teardownResultSettings),
+      ];
+
+      publicExecutor.simulate.mockImplementation(execution => {
+        if (simulatorCallCount < simulatorResults.length) {
+          return Promise.resolve(simulatorResults[simulatorCallCount++]);
+        } else {
+          throw new Error(`Unexpected execution request: ${execution}, call count: ${simulatorCallCount}`);
+        }
+      });
+
+      const setupSpy = jest.spyOn(publicKernel, 'publicKernelCircuitSetup');
+      const appLogicSpy = jest.spyOn(publicKernel, 'publicKernelCircuitAppLogic');
+      const teardownSpy = jest.spyOn(publicKernel, 'publicKernelCircuitTeardown');
+
+      const [processed, failed] = await processor.process([tx], 1, prover);
+
+      expect(processed).toHaveLength(1);
+      expect(processed).toEqual([expectedTxByHash(tx)]);
+      expect(failed).toHaveLength(0);
+
+      expect(setupSpy).toHaveBeenCalledTimes(2);
+      expect(appLogicSpy).toHaveBeenCalledTimes(1);
+      expect(teardownSpy).toHaveBeenCalledTimes(2);
+      expect(publicExecutor.simulate).toHaveBeenCalledTimes(3);
+      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(2);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
+
+      const txEffect = toTxEffect(processed[0]);
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(2);
+      expect(txEffect.publicDataWrites[0]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x102)),
+      );
+      expect(txEffect.publicDataWrites[1]).toEqual(
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x151)),
+      );
+      expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(0);
+      expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);
+
+      expect(processed[0].data.revertCode).toEqual(RevertCode.BOTH_REVERTED);
+
+      expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
     });
 
     it('runs a tx with setup and teardown phases', async function () {
@@ -746,7 +907,7 @@ describe('public_processor', () => {
               from: teardown!.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 11, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
               ],
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
@@ -754,7 +915,8 @@ describe('public_processor', () => {
               from: teardown!.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x103), 13, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 15, baseContractAddress),
               ],
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
           ],
@@ -803,7 +965,7 @@ describe('public_processor', () => {
       expect(publicExecutor.simulate).toHaveBeenNthCalledWith(2, ...expectedSimulateCall(afterSetupGas, 0));
       expect(publicExecutor.simulate).toHaveBeenNthCalledWith(3, ...expectedSimulateCall(teardownGas, expectedTxFee));
 
-      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(3);
+      expect(publicWorldStateDB.checkpoint).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCheckpoint).toHaveBeenCalledTimes(0);
       expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
@@ -821,10 +983,10 @@ describe('public_processor', () => {
         new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotC), fr(0x201)),
       );
       expect(txEffect.publicDataWrites[1]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x102)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x103)),
       );
       expect(txEffect.publicDataWrites[2]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x151)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x152)),
       );
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(0);
       expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);

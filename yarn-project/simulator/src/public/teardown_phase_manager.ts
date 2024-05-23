@@ -42,8 +42,13 @@ export class TeardownPhaseManager extends AbstractPhaseManager {
           throw err;
         },
       );
-    tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
-    await this.publicStateDB.checkpoint();
+    if (revertReason) {
+      await this.publicStateDB.rollbackToCheckpoint();
+    } else {
+      // TODO(#6464): Should we allow emitting contracts in the public teardown phase?
+      // if so, we should insert them here
+      tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
+    }
 
     // Return a list of teardown proving requests
     const kernelRequests = kernelInputs.map(input => {

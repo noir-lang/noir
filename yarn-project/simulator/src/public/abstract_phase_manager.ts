@@ -80,7 +80,7 @@ export enum PublicKernelPhase {
 export const PhaseIsRevertible: Record<PublicKernelPhase, boolean> = {
   [PublicKernelPhase.SETUP]: false,
   [PublicKernelPhase.APP_LOGIC]: true,
-  [PublicKernelPhase.TEARDOWN]: false,
+  [PublicKernelPhase.TEARDOWN]: true,
   [PublicKernelPhase.TAIL]: false,
 };
 
@@ -341,11 +341,8 @@ export abstract class AbstractPhaseManager {
       }
       // HACK(#1622): Manually patches the ordering of public state actions
       // TODO(#757): Enforce proper ordering of public state actions
-      patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!, this.phase);
+      this.patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!);
     }
-
-    // TODO(#3675): This should be done in a public kernel circuit
-    removeRedundantPublicDataWrites(kernelOutput, this.phase);
 
     return [publicKernelInputs, kernelOutput, newUnencryptedFunctionLogs, undefined, enqueuedCallResults, gasUsed];
   }
@@ -451,7 +448,7 @@ export abstract class AbstractPhaseManager {
       endGasLeft: Gas.from(result.endGasLeft),
       transactionFee: result.transactionFee,
       // TODO(@just-mitch): need better mapping from simulator to revert code.
-      revertCode: result.reverted ? RevertCode.REVERTED : RevertCode.OK,
+      revertCode: result.reverted ? RevertCode.APP_LOGIC_REVERTED : RevertCode.OK,
     });
 
     return new PublicCallStackItem(
@@ -497,9 +494,70 @@ export abstract class AbstractPhaseManager {
     const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
     return new PublicCallData(callStackItem, publicCallStack, makeEmptyProof(), bytecodeHash);
   }
+
+  // HACK(#1622): this is a hack to fix ordering of public state in the call stack. Since the private kernel
+  // cannot keep track of side effects that happen after or before a nested call, we override the public
+  // state actions it emits with whatever we got from the simulator. As a sanity check, we at least verify
+  // that the elements are the same, so we are only tweaking their ordering.
+  // See yarn-project/end-to-end/src/e2e_ordering.test.ts
+  // See https://github.com/AztecProtocol/aztec-packages/issues/1616
+  // TODO(#757): Enforce proper ordering of public state actions
+  /**
+   * Patch the ordering of storage actions output from the public kernel.
+   * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
+   * @param execResult - result of the top/first execution for this enqueued public call
+   */
+  private patchPublicStorageActionOrdering(
+    publicInputs: PublicKernelCircuitPublicInputs,
+    execResult: PublicExecutionResult,
+  ) {
+    const { publicDataUpdateRequests } = PhaseIsRevertible[this.phase]
+      ? publicInputs.end
+      : publicInputs.endNonRevertibleData;
+    const { publicDataReads } = publicInputs.validationRequests;
+
+    // Convert ContractStorage* objects to PublicData* objects and sort them in execution order.
+    // Note, this only pulls simulated reads/writes from the current phase,
+    // so the returned result will be a subset of the public kernel output.
+
+    const simPublicDataReads = collectPublicDataReads(execResult);
+
+    const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(execResult);
+
+    // We only want to reorder the items from the public inputs of the
+    // most recently processed top/enqueued call.
+
+    const effectSet = PhaseIsRevertible[this.phase] ? 'end' : 'endNonRevertibleData';
+
+    const numReadsInKernel = arrayNonEmptyLength(publicDataReads, f => f.isEmpty());
+    const numReadsBeforeThisEnqueuedCall = numReadsInKernel - simPublicDataReads.length;
+    publicInputs.validationRequests.publicDataReads = padArrayEnd(
+      [
+        // do not mess with items from previous top/enqueued calls in kernel output
+        ...publicInputs.validationRequests.publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
+        ...simPublicDataReads,
+      ],
+      PublicDataRead.empty(),
+      MAX_PUBLIC_DATA_READS_PER_TX,
+    );
+
+    const numUpdatesInKernel = arrayNonEmptyLength(publicDataUpdateRequests, f => f.isEmpty());
+    const numUpdatesBeforeThisEnqueuedCall = numUpdatesInKernel - simPublicDataUpdateRequests.length;
+
+    publicInputs[effectSet].publicDataUpdateRequests = padArrayEnd(
+      [
+        ...publicInputs[effectSet].publicDataUpdateRequests.slice(0, numUpdatesBeforeThisEnqueuedCall),
+        ...simPublicDataUpdateRequests,
+      ],
+      PublicDataUpdateRequest.empty(),
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    );
+  }
 }
 
-function removeRedundantPublicDataWrites(publicInputs: PublicKernelCircuitPublicInputs, phase: PublicKernelPhase) {
+export function removeRedundantPublicDataWrites(
+  writes: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+) {
   const lastWritesMap = new Map<string, boolean>();
   const patch = <N extends number>(requests: Tuple<PublicDataUpdateRequest, N>) =>
     requests.filter(write => {
@@ -509,75 +567,8 @@ function removeRedundantPublicDataWrites(publicInputs: PublicKernelCircuitPublic
       return !exists;
     });
 
-  const [prev, curr] = PhaseIsRevertible[phase]
-    ? [publicInputs.endNonRevertibleData, publicInputs.end]
-    : [publicInputs.end, publicInputs.endNonRevertibleData];
-
-  curr.publicDataUpdateRequests = padArrayEnd(
-    patch(curr.publicDataUpdateRequests.reverse()).reverse(),
-    PublicDataUpdateRequest.empty(),
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  );
-
-  prev.publicDataUpdateRequests = padArrayEnd(
-    patch(prev.publicDataUpdateRequests.reverse()),
-    PublicDataUpdateRequest.empty(),
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  );
-}
-
-// HACK(#1622): this is a hack to fix ordering of public state in the call stack. Since the private kernel
-// cannot keep track of side effects that happen after or before a nested call, we override the public
-// state actions it emits with whatever we got from the simulator. As a sanity check, we at least verify
-// that the elements are the same, so we are only tweaking their ordering.
-// See yarn-project/end-to-end/src/e2e_ordering.test.ts
-// See https://github.com/AztecProtocol/aztec-packages/issues/1616
-// TODO(#757): Enforce proper ordering of public state actions
-/**
- * Patch the ordering of storage actions output from the public kernel.
- * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
- * @param execResult - result of the top/first execution for this enqueued public call
- */
-function patchPublicStorageActionOrdering(
-  publicInputs: PublicKernelCircuitPublicInputs,
-  execResult: PublicExecutionResult,
-  phase: PublicKernelPhase,
-) {
-  const { publicDataUpdateRequests } = PhaseIsRevertible[phase] ? publicInputs.end : publicInputs.endNonRevertibleData;
-  const { publicDataReads } = publicInputs.validationRequests;
-
-  // Convert ContractStorage* objects to PublicData* objects and sort them in execution order.
-  // Note, this only pulls simulated reads/writes from the current phase,
-  // so the returned result will be a subset of the public kernel output.
-
-  const simPublicDataReads = collectPublicDataReads(execResult);
-
-  const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(execResult);
-
-  // We only want to reorder the items from the public inputs of the
-  // most recently processed top/enqueued call.
-
-  const effectSet = PhaseIsRevertible[phase] ? 'end' : 'endNonRevertibleData';
-
-  const numReadsInKernel = arrayNonEmptyLength(publicDataReads, f => f.isEmpty());
-  const numReadsBeforeThisEnqueuedCall = numReadsInKernel - simPublicDataReads.length;
-  publicInputs.validationRequests.publicDataReads = padArrayEnd(
-    [
-      // do not mess with items from previous top/enqueued calls in kernel output
-      ...publicInputs.validationRequests.publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
-      ...simPublicDataReads,
-    ],
-    PublicDataRead.empty(),
-    MAX_PUBLIC_DATA_READS_PER_TX,
-  );
-
-  const numUpdatesInKernel = arrayNonEmptyLength(publicDataUpdateRequests, f => f.isEmpty());
-  const numUpdatesBeforeThisEnqueuedCall = numUpdatesInKernel - simPublicDataUpdateRequests.length;
-  publicInputs[effectSet].publicDataUpdateRequests = padArrayEnd(
-    [
-      ...publicInputs[effectSet].publicDataUpdateRequests.slice(0, numUpdatesBeforeThisEnqueuedCall),
-      ...simPublicDataUpdateRequests,
-    ],
+  return padArrayEnd(
+    patch(writes.reverse()).reverse(),
     PublicDataUpdateRequest.empty(),
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   );

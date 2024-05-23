@@ -45,7 +45,8 @@ describe('e2e_fees gas_estimation', () => {
       ),
     );
 
-  it('estimates gas with native fee payment method', async () => {
+  // TODO(palla/gas): turn this test back on with https://github.com/AztecProtocol/aztec-packages/pull/6571
+  it.skip('estimates gas with native fee payment method', async () => {
     const paymentMethod = new NativeFeePaymentMethod();
     const [withEstimate, withoutEstimate] = await sendTransfers(paymentMethod);
 

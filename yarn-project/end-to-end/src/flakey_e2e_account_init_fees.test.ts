@@ -203,7 +203,7 @@ describe('e2e_fees_account_init', () => {
           })
           .wait();
 
-        expect(tx.status).toEqual(TxStatus.MINED);
+        expect(tx.status).toEqual(TxStatus.SUCCESS);
 
         // the new account should have paid the full fee to the FPC
         await expect(bananaPrivateBalances(bobsAddress)).resolves.toEqual([mintedPrivateBananas - maxFee]);
@@ -260,7 +260,7 @@ describe('e2e_fees_account_init', () => {
           })
           .wait();
 
-        expect(tx.status).toEqual(TxStatus.MINED);
+        expect(tx.status).toEqual(TxStatus.SUCCESS);
 
         // we should have paid the fee to the FPC
         await expect(
@@ -316,7 +316,7 @@ describe('e2e_fees_account_init', () => {
           })
           .wait();
 
-        expect(tx.status).toBe(TxStatus.MINED);
+        expect(tx.status).toBe(TxStatus.SUCCESS);
 
         await expectMapping(
           gasBalances,

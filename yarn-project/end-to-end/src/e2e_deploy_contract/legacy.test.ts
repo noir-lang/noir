@@ -110,7 +110,7 @@ describe('e2e_deploy_contract legacy', () => {
     expect(goodTxReceipt.blockNumber).toEqual(expect.any(Number));
     expect(badTxReceipt.blockNumber).toEqual(expect.any(Number));
 
-    expect(badTxReceipt.status).toEqual(TxStatus.REVERTED);
+    expect(badTxReceipt.status).toEqual(TxStatus.APP_LOGIC_REVERTED);
 
     // But the bad tx did not deploy
     await expect(pxe.isContractClassPubliclyRegistered(badDeploy.getInstance().address)).resolves.toBeFalsy();

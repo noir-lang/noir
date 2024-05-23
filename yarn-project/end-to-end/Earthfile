@@ -133,8 +133,14 @@ e2e-pending-note-hashes-contract:
 e2e-private-voting-contract:
   DO +E2E_TEST --test=./src/e2e_private_voting_contract.test.ts
 
-e2e-private-payments:
+e2e-fees-private-payments:
   DO +E2E_TEST --test=./src/e2e_fees/private_payments.test.ts
+
+e2e-fees-gas-estimation:
+  DO +E2E_TEST --test=./src/e2e_fees/gas_estimation.test.ts
+
+e2e-fees-failures:
+  DO +E2E_TEST --test=./src/e2e_fees/failures.test.ts
 
 e2e-public-cross-chain-messaging:
   DO +E2E_TEST --test=./src/e2e_public_cross_chain_messaging

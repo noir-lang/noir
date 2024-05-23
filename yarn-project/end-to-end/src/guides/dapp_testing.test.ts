@@ -250,7 +250,7 @@ describe('guides/dapp/testing', () => {
         // docs:start:pub-reverted
         const call = token.methods.transfer_public(owner.getAddress(), recipient.getAddress(), 1000n, 0);
         const receipt = await call.send({ skipPublicSimulation: true }).wait({ dontThrowOnRevert: true });
-        expect(receipt.status).toEqual(TxStatus.REVERTED);
+        expect(receipt.status).toEqual(TxStatus.APP_LOGIC_REVERTED);
         const ownerPublicBalanceSlot = cheats.aztec.computeSlotInMap(6n, owner.getAddress());
         const balance = await pxe.getPublicStorageAt(token.address, ownerPublicBalanceSlot);
         expect(balance.value).toEqual(100n);

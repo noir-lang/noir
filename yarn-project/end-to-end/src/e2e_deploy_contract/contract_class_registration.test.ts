@@ -161,7 +161,7 @@ describe('e2e_deploy_contract contract class registration', () => {
             .increment_public_value(whom, 10)
             .send({ skipPublicSimulation: true })
             .wait({ dontThrowOnRevert: true });
-          expect(receipt.status).toEqual(TxStatus.REVERTED);
+          expect(receipt.status).toEqual(TxStatus.APP_LOGIC_REVERTED);
 
           // Meanwhile we check we didn't increment the value
           expect(await contract.methods.get_public_value(whom).simulate()).toEqual(0n);
@@ -206,7 +206,7 @@ describe('e2e_deploy_contract contract class registration', () => {
             .public_constructor(whom, 43)
             .send({ skipPublicSimulation: true })
             .wait({ dontThrowOnRevert: true });
-          expect(receipt.status).toEqual(TxStatus.REVERTED);
+          expect(receipt.status).toEqual(TxStatus.APP_LOGIC_REVERTED);
           expect(await contract.methods.get_public_value(whom).simulate()).toEqual(0n);
         });
 

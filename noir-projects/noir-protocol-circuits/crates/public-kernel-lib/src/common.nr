@@ -65,37 +65,33 @@ pub fn validate_public_call_non_revert(public_call: PublicCallData) {
     assert(public_call.call_stack_item.public_inputs.revert_code == 0, "Public call cannot be reverted");
 }
 
-pub fn initialize_revert_code(
+pub fn initialize_end_values(
     previous_kernel: PublicKernelData,
-    public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
-    if previous_kernel.public_inputs.revert_code != 0 {
-        circuit_outputs.revert_code = previous_kernel.public_inputs.revert_code;
-    } else if public_call.call_stack_item.public_inputs.revert_code != 0 {
-        circuit_outputs.revert_code = public_call.call_stack_item.public_inputs.revert_code;
-    }
+    let start = previous_kernel.public_inputs.end;
+    circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
+    circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
+    circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
+    circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
+    circuit_outputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
+    circuit_outputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
+    circuit_outputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
+    circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
 }
 
 // Initialises the circuit outputs with the end state of the previous iteration. 
-// Skips data that will be checked and cleared in the tail circuit.
-pub fn initialize_emitted_end_values(
+// Includes data that will be checked and cleared in the tail circuit.
+pub fn initialize_non_revertible_values(
     previous_kernel: PublicKernelData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
     circuit_outputs.constants = previous_kernel.public_inputs.constants;
     circuit_outputs.fee_payer = previous_kernel.public_inputs.fee_payer;
 
-    if circuit_outputs.revert_code == 0 {
-        let start = previous_kernel.public_inputs.end;
-        circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
-        circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
-        circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
-        circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
-        circuit_outputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
-        circuit_outputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
-        circuit_outputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
-    }
+    // Copy gas-used as-is. Gas used in this iteration will be deducted later in update_(non)_revertible_gas_used.
+    circuit_outputs.end.gas_used = previous_kernel.public_inputs.end.gas_used;
+    circuit_outputs.end_non_revertible.gas_used = previous_kernel.public_inputs.end_non_revertible.gas_used;
 
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
     circuit_outputs.end_non_revertible.new_note_hashes = array_to_bounded_vec(start_non_revertible.new_note_hashes);
@@ -105,35 +101,10 @@ pub fn initialize_emitted_end_values(
     circuit_outputs.end_non_revertible.unencrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.unencrypted_logs_hashes);
     circuit_outputs.end_non_revertible.note_encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.note_encrypted_logs_hashes);
     circuit_outputs.end_non_revertible.encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.encrypted_logs_hashes);
+    circuit_outputs.end_non_revertible.public_call_stack = array_to_bounded_vec(start_non_revertible.public_call_stack);
 
     let start = previous_kernel.public_inputs.validation_requests;
     circuit_outputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
-}
-
-// Initialises the circuit outputs with the end state of the previous iteration. 
-// Includes data that will be checked and cleared in the tail circuit.
-pub fn initialize_end_values(
-    previous_kernel: PublicKernelData,
-    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
-) {
-    initialize_emitted_end_values(previous_kernel, circuit_outputs);
-
-    // Copy gas-used as-is. Gas used in this iteration will be deducted later in update_(non)_revertible_gas_used.
-    circuit_outputs.end.gas_used = previous_kernel.public_inputs.end.gas_used;
-    circuit_outputs.end_non_revertible.gas_used = previous_kernel.public_inputs.end_non_revertible.gas_used;
-
-    if circuit_outputs.revert_code == 0 {
-        let start = previous_kernel.public_inputs.end;
-        circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
-    }
-
-    let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
-    circuit_outputs.end_non_revertible.public_call_stack = array_to_bounded_vec(start_non_revertible.public_call_stack);
-
-    circuit_outputs.public_teardown_call_stack = array_to_bounded_vec(previous_kernel.public_inputs.public_teardown_call_stack);
-
-    let start = previous_kernel.public_inputs.validation_requests;
-    circuit_outputs.validation_requests.max_block_number = previous_kernel.public_inputs.validation_requests.for_rollup.max_block_number;
     circuit_outputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
     circuit_outputs.validation_requests.nullifier_non_existent_read_requests = array_to_bounded_vec(start.nullifier_non_existent_read_requests);
     circuit_outputs.validation_requests.public_data_reads = array_to_bounded_vec(start.public_data_reads);

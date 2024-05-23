@@ -96,7 +96,7 @@ describe('benchmarks/tx_size_fees', () => {
         .send({ fee: paymentMethod ? { gasSettings, paymentMethod } : undefined })
         .wait();
 
-      expect(tx.status).toEqual(TxStatus.MINED);
+      expect(tx.status).toEqual(TxStatus.SUCCESS);
       expect(tx.transactionFee).toEqual(expectedTransactionFee);
     },
   );

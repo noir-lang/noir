@@ -13,7 +13,6 @@ import {
   type TxEffect,
   type TxHash,
   TxReceipt,
-  TxStatus,
   type UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import { Fr, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
@@ -282,7 +281,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
           return Promise.resolve(
             new TxReceipt(
               txHash,
-              TxStatus.MINED,
+              TxReceipt.statusFromRevertCode(txEffect.revertCode),
               '',
               txEffect.transactionFee.toBigInt(),
               block.hash().toBuffer(),

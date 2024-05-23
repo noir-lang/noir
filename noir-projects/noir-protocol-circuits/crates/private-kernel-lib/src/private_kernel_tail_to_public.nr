@@ -254,7 +254,7 @@ mod tests {
     unconstrained fn can_run_with_only_teardown() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         builder.previous_kernel.public_call_stack = BoundedVec::new();
-        builder.previous_kernel.set_public_teardown_call_request(1, false);
+        builder.previous_kernel.push_public_teardown_call_request(1, false);
 
         builder.succeeded();
     }

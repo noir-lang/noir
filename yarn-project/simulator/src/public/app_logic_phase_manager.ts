@@ -30,6 +30,9 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
     // have to capture contracts emitted in that phase as well.
     // TODO(@spalladino): Should we allow emitting contracts in the fee preparation phase?
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
+    // add new contracts to the contracts db so that their functions may be found and called
+    // TODO(#6464): Should we allow emitting contracts in the private setup phase?
+    // if so, this should only add contracts that were deployed during private app logic.
     await this.publicContractsDB.addNewContracts(tx);
     const [kernelInputs, publicKernelOutput, newUnencryptedFunctionLogs, revertReason, returnValues, gasUsed] =
       await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput).catch(
@@ -41,11 +44,13 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
       );
 
     if (revertReason) {
+      // TODO(#6464): Should we allow emitting contracts in the private setup phase?
+      // if so, this is removing contracts deployed in private setup
       await this.publicContractsDB.removeNewContracts(tx);
       await this.publicStateDB.rollbackToCheckpoint();
     } else {
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
-      await this.publicStateDB.checkpoint();
+      // TODO(#6470): we should be adding contracts deployed in those logs to the publicContractsDB
     }
 
     // Return a list of app logic proving requests

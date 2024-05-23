@@ -3,6 +3,7 @@ use dep::types::abis::{
     kernel_circuit_public_inputs::{PublicKernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
     public_kernel_data::PublicKernelData, public_call_data::PublicCallData, gas_fees::GasFees
 };
+use dep::types::utils::arrays::array_to_bounded_vec;
 
 struct PublicKernelTeardownCircuitPrivateInputs {
     previous_kernel: PublicKernelData,
@@ -10,6 +11,24 @@ struct PublicKernelTeardownCircuitPrivateInputs {
 }
 
 impl PublicKernelTeardownCircuitPrivateInputs {
+    fn initialize_revert_code(self, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+        // See https://docs.aztec.network/protocol-specs/gas-and-fees/kernel-tracking#handling-reverts
+        let previous_kernel_revert_code = self.previous_kernel.public_inputs.revert_code;
+        let public_call_revert_code = self.public_call.call_stack_item.public_inputs.revert_code;
+        if previous_kernel_revert_code.eq(0) & public_call_revert_code.eq(0) {
+            circuit_outputs.revert_code = 0;
+        } else if previous_kernel_revert_code.eq(1) & public_call_revert_code.eq(0) {
+            // Case where we carry forward a revert code from app logic
+            circuit_outputs.revert_code = 1;
+        } else if previous_kernel_revert_code.eq(0) & !public_call_revert_code.eq(0) {
+            // Case where there is a new error in teardown
+            circuit_outputs.revert_code = 2;
+        } else if previous_kernel_revert_code.eq(1) & !public_call_revert_code.eq(0) {
+            // Case where there is an error in both app logic and teardown
+            circuit_outputs.revert_code = 3;
+        }
+    }
+
     fn validate_inputs(self) {
         // Currently the nested calls will be pushed to the public call stack and need_setup will return true.
         // This should not be the case when nested calls are handled in avm.
@@ -68,18 +87,22 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         );
     }
 
+    fn initialize_end_values(self, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+        common::initialize_end_values(self.previous_kernel, circuit_outputs);
+        // unlike app logic, only pass forward the teardown call stack if there is no new error
+        circuit_outputs.public_teardown_call_stack = array_to_bounded_vec(self.previous_kernel.public_inputs.public_teardown_call_stack);
+    }
+
     fn public_kernel_teardown(self) -> PublicKernelCircuitPublicInputs {
         // verify the previous kernel proof
         self.previous_kernel.verify();
 
         // construct the circuit outputs
         let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
-        // since this phase is non-revertible, we must assert the public call did not revert
-        common::validate_public_call_non_revert(self.public_call);
-        common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);
+        self.initialize_revert_code(&mut public_inputs);
 
         // initialise the end state with our provided previous kernel state
-        common::initialize_end_values(self.previous_kernel, &mut public_inputs);
+        common::initialize_non_revertible_values(self.previous_kernel, &mut public_inputs);
 
         // validate the inputs common to all invocation circumstances
         common::validate_inputs(self.public_call);
@@ -90,17 +113,27 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         // validate the inputs unique to having a previous private kernel
         self.validate_inputs();
 
-        // Pops the item from the call stack and validates it against the current execution.
-        let call_request = public_inputs.public_teardown_call_stack.pop();
-        common::validate_call_against_request(self.public_call, call_request);
-
         self.validate_start_gas();
         self.validate_transaction_fee(public_inputs);
 
         common::update_validation_requests(self.public_call, &mut public_inputs);
 
-        common::update_teardown_call_stack(self.public_call, &mut public_inputs);
-        common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
+        // there was no revert, or a revert in app logic
+        if public_inputs.revert_code.eq(0) | public_inputs.revert_code.eq(1) {
+            self.initialize_end_values(&mut public_inputs);
+            // Pops the item from the call stack and validates it against the current execution.
+            let call_request = public_inputs.public_teardown_call_stack.pop();
+            common::validate_call_against_request(self.public_call, call_request);
+            common::update_teardown_call_stack(self.public_call, &mut public_inputs);
+            common::update_public_end_values(self.public_call, &mut public_inputs);
+        } else {
+            let mut remaining_calls = array_to_bounded_vec(self.previous_kernel.public_inputs.public_teardown_call_stack);
+            let reverted_call_request = remaining_calls.pop();
+
+            assert(
+                reverted_call_request.hash == self.public_call.call_stack_item.hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the teardown call stack"
+            );
+        }
 
         public_inputs.finish()
     }
@@ -167,9 +200,8 @@ mod tests {
             // Adjust the call stack item hash for the current call in the previous iteration.
             let hash = public_call.call_stack_item.hash();
             let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.set_public_teardown_call_request(hash, is_delegate_call);
-            let mut previous_kernel = self.previous_kernel.to_public_kernel_data(false);
-            previous_kernel.public_inputs.end = self.previous_revertible.to_public_accumulated_data();
+            self.previous_kernel.push_public_teardown_call_request(hash, is_delegate_call);
+            let mut previous_kernel = self.previous_kernel.to_public_kernel_data(true);
 
             let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -224,8 +256,8 @@ mod tests {
 
         let hash = public_call.call_stack_item.hash();
         // Tweak the call stack item hash.
-        builder.previous_kernel.set_public_teardown_call_request(hash + 1, false);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
+        builder.previous_kernel.push_public_teardown_call_request(hash + 1, false);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -266,8 +298,8 @@ mod tests {
         let hash = public_call.call_stack_item.hash();
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
-        builder.previous_kernel.set_public_teardown_call_request(hash, is_delegate_call);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
+        builder.previous_kernel.push_public_teardown_call_request(hash, is_delegate_call);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -365,7 +397,7 @@ mod tests {
 
         let public_call = builder.public_call.finish();
         // Don't push a call for teardown
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -410,24 +442,16 @@ mod tests {
 
         assert(
             array_eq(
-                public_inputs.end_non_revertible.encrypted_logs_hashes,
+                public_inputs.end.encrypted_logs_hashes,
                 expected_encrypted_logs
             )
         );
         assert(
             array_eq(
-                public_inputs.end_non_revertible.unencrypted_logs_hashes,
+                public_inputs.end.unencrypted_logs_hashes,
                 expected_unencrypted_logs
             )
         );
-    }
-
-    #[test(should_fail_with="Public call cannot be reverted")]
-    fn fails_if_public_call_reverted() {
-        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-        builder.public_call.public_inputs.revert_code = 1;
-
-        builder.failed();
     }
 
     #[test(should_fail_with="Start gas for teardown phase does not match teardown gas allocation")]
@@ -482,5 +506,67 @@ mod tests {
         assert_eq(is_empty(builder.previous_kernel.fee_payer), true);
         let public_inputs = builder.execute();
         assert_eq(public_inputs.fee_payer, AztecAddress::empty());
+    }
+
+    #[test]
+    fn clears_stack_if_current_call_revert_code_is_set() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+        builder.public_call.public_inputs.revert_code = 1;
+        let public_call = builder.public_call.finish();
+        let hash = public_call.call_stack_item.hash();
+        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        // push again to check that the stack is cleared
+        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
+
+        let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
+
+        let public_inputs = kernel.public_kernel_teardown();
+
+        assert_eq(array_length(public_inputs.public_teardown_call_stack), 0);
+    }
+
+    #[test]
+    fn retains_stack_if_fail_in_app_logic() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+        builder.previous_kernel.revert_code = 1;
+        let public_call = builder.public_call.finish();
+        let hash = public_call.call_stack_item.hash();
+        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        // push again to check that we keep one item after popping the current call
+        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
+
+        let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
+
+        let public_inputs = kernel.public_kernel_teardown();
+
+        assert_eq(array_length(public_inputs.public_teardown_call_stack), 1);
+    }
+
+    #[test]
+    unconstrained fn correctly_updates_revert_code() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 0);
+
+        // Case where we carry forward a revert code from app logic
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+        builder.previous_kernel.revert_code = 1;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 1);
+
+        // Case where there is a new error in teardown
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+        builder.public_call.public_inputs.revert_code = 1;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 2);
+
+        // Case where there is an error in both app logic and teardown
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+        builder.previous_kernel.revert_code = 1;
+        builder.public_call.public_inputs.revert_code = 1;
+        let public_inputs = builder.execute();
+        assert_eq(public_inputs.revert_code, 3);
     }
 }

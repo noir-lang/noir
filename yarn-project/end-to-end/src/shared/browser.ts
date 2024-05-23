@@ -286,7 +286,7 @@ export const browserTestSuite = (
       );
 
       const txResult = await testClient.getTxReceipt(AztecJs.TxHash.fromString(txHash));
-      expect(txResult.status).toEqual(AztecJs.TxStatus.MINED);
+      expect(txResult.status).toEqual(AztecJs.TxStatus.SUCCESS);
       contractAddress = AztecJs.AztecAddress.fromString(tokenAddress);
     };
 

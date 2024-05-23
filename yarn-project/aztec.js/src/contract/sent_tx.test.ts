@@ -19,7 +19,7 @@ describe('SentTx', () => {
   describe('wait', () => {
     let txReceipt: TxReceipt;
     beforeEach(() => {
-      txReceipt = { status: TxStatus.MINED, blockNumber: 20 } as TxReceipt;
+      txReceipt = { status: TxStatus.SUCCESS, blockNumber: 20 } as TxReceipt;
       pxe.getTxReceipt.mockResolvedValue(txReceipt);
     });
 

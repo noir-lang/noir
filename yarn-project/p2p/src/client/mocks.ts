@@ -81,7 +81,7 @@ export class MockBlockSource implements L2BlockSource {
           return Promise.resolve(
             new TxReceipt(
               txHash,
-              TxStatus.MINED,
+              TxStatus.SUCCESS,
               '',
               txEffect.transactionFee.toBigInt(),
               block.hash().toBuffer(),

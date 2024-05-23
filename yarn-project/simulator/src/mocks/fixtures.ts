@@ -34,17 +34,22 @@ export class PublicExecutionResultBuilder {
     returnValues = [new Fr(1n)],
     nestedExecutions = [],
     contractStorageUpdateRequests = [],
+    revertReason = undefined,
   }: {
     request: PublicCallRequest;
     returnValues?: Fr[];
     nestedExecutions?: PublicExecutionResult[];
     contractStorageUpdateRequests?: ContractStorageUpdateRequest[];
+    revertReason?: SimulationError;
   }): PublicExecutionResultBuilder {
     const builder = new PublicExecutionResultBuilder(request);
 
     builder.withNestedExecutions(...nestedExecutions);
     builder.withContractStorageUpdateRequest(...contractStorageUpdateRequests);
     builder.withReturnValues(...returnValues);
+    if (revertReason) {
+      builder.withReverted(revertReason);
+    }
 
     return builder;
   }

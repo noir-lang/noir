@@ -72,7 +72,7 @@ export class SentTx {
       throw new Error('Cannot set debug to true if waitForNotesSync is false');
     }
     const receipt = await this.waitForReceipt(opts);
-    if (!(receipt.status === TxStatus.MINED || (receipt.status === TxStatus.REVERTED && opts?.dontThrowOnRevert))) {
+    if (receipt.status !== TxStatus.SUCCESS && !opts?.dontThrowOnRevert) {
       throw new Error(
         `Transaction ${await this.getTxHash()} was ${receipt.status}. Reason: ${receipt.error ?? 'unknown'}`,
       );
