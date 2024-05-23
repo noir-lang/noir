@@ -229,7 +229,6 @@ impl<'context> Elaborator<'context> {
         }
 
         this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
-
         this.collect_traits(items.traits);
 
         // Must resolve structs before we resolve globals.
@@ -275,6 +274,15 @@ impl<'context> Elaborator<'context> {
         this.errors
     }
 
+    /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
+    /// back to the previous length.
+    fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let generics_count = self.generics.len();
+        let ret = f(self);
+        self.generics.truncate(generics_count);
+        ret
+    }
+
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
         self.file = functions.file_id;
         self.trait_id = functions.trait_id; // TODO: Resolve?
@@ -282,9 +290,7 @@ impl<'context> Elaborator<'context> {
 
         for (local_module, id, func) in functions.functions {
             self.local_module = local_module;
-            let generics_count = self.generics.len();
-            self.elaborate_function(func, id);
-            self.generics.truncate(generics_count);
+            self.recover_generics(|this| this.elaborate_function(func, id));
         }
     }
 
@@ -890,7 +896,6 @@ impl<'context> Elaborator<'context> {
         let impl_id =
             trait_impl.impl_id.expect("An impls' id should be set during define_function_metas");
 
-        self.self_type = Some(self_type.clone());
         self.current_trait_impl = trait_impl.impl_id;
 
         let mut methods = trait_impl.methods.function_ids();
@@ -1226,18 +1231,20 @@ impl<'context> Elaborator<'context> {
         unresolved: NoirStruct,
         struct_id: StructId,
     ) -> (Generics, Vec<(Ident, Type)>) {
-        let generics = self.add_generics(&unresolved.generics);
+        self.recover_generics(|this| {
+            let generics = this.add_generics(&unresolved.generics);
 
-        // Check whether the struct definition has globals in the local module and add them to the scope
-        self.resolve_local_globals();
+            // Check whether the struct definition has globals in the local module and add them to the scope
+            this.resolve_local_globals();
 
-        self.current_item = Some(DependencyId::Struct(struct_id));
+            this.current_item = Some(DependencyId::Struct(struct_id));
 
-        self.resolving_ids.insert(struct_id);
-        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
-        self.resolving_ids.remove(&struct_id);
+            this.resolving_ids.insert(struct_id);
+            let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, this.resolve_type(typ)));
+            this.resolving_ids.remove(&struct_id);
 
-        (generics, fields)
+            (generics, fields)
+        })
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
@@ -1288,6 +1295,7 @@ impl<'context> Elaborator<'context> {
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
+                self.generics.clear();
             }
         }
 
@@ -1297,7 +1305,6 @@ impl<'context> Elaborator<'context> {
 
             let unresolved_type = &trait_impl.object_type;
             let self_type_span = unresolved_type.span;
-            let old_generics_length = self.generics.len();
             self.add_generics(&trait_impl.generics);
 
             let self_type = self.resolve_type(unresolved_type.clone());
@@ -1311,7 +1318,7 @@ impl<'context> Elaborator<'context> {
 
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
-            self.generics.truncate(old_generics_length);
+            self.generics.clear();
         }
     }
 
@@ -1320,9 +1327,9 @@ impl<'context> Elaborator<'context> {
 
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
-            let old_generics_length = self.generics.len();
-            self.define_function_meta(func, *id);
-            self.generics.truncate(old_generics_length);
+            self.recover_generics(|this| {
+                this.define_function_meta(func, *id);
+            });
         }
     }
 }
