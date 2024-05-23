@@ -8,6 +8,8 @@ use crate::note::{
 };
 use crate::oracle;
 
+mod test;
+
 fn extract_property_value_from_selector<N>(
     serialized_note: [Field; N],
     selector: PropertySelector
@@ -105,10 +107,10 @@ pub fn get_notes<Note, N, M, FILTER_ARGS>(
 ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N, M> {
     let opt_notes = get_notes_internal(storage_slot, options);
 
-    _get_notes_constrain_get_notes_internal(context, storage_slot, opt_notes, options)
+    constrain_get_notes_internal(context, storage_slot, opt_notes, options)
 }
 
-pub fn _get_notes_constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
+fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     opt_notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
