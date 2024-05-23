@@ -3,6 +3,8 @@
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
 #include "barretenberg/stdlib/primitives/logic/logic.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/keccak/keccak_rho.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/keccak/keccak_theta.hpp"
 namespace bb::stdlib {
 
 using namespace bb::plookup;

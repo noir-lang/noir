@@ -1,4 +1,5 @@
 #include "pedersen.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 namespace bb::stdlib {
 
