@@ -84,6 +84,6 @@ Many applications rely on some form of access control to function well. USDC hav
 
 Access control like this cannot easily be enforced in the private domain, as reading is also nullifying (to ensure data is up to date). However, as it is possible to read historical public state, one can combine private and public functions to get the desired effect.
 
-This concept is known as [shared state](/reference/smart_contract_reference/storage/shared_state.md), and relies on using delays when changing public data so that it can also be read in private with currentness guarantees. Since values cannot be immediately modified but instead require delays to elapse, it is possible to privately prove that an application is using the current value _as long as the transaction gets included before some time in the future_, which would be the earliest the value could possibly change.
+This concept is known as [shared state](../../../../reference/smart_contract_reference/storage/shared_state.md), and relies on using delays when changing public data so that it can also be read in private with currentness guarantees. Since values cannot be immediately modified but instead require delays to elapse, it is possible to privately prove that an application is using the current value _as long as the transaction gets included before some time in the future_, which would be the earliest the value could possibly change.
 
 If the public state is only changed infrequently, and it is acceptable to have delays when doing so, then shared state is a good solution to this problem.

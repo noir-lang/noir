@@ -76,7 +76,7 @@ Replace the example functions with an initializer that takes the required campai
 }
 ```
 
-More about initializers [here](/guides/smart_contracts/writing_contracts/initializers.md).
+More about initializers [here](../../guides/smart_contracts/writing_contracts/initializers.md).
 
 #### Dependencies
 
@@ -184,7 +184,7 @@ token = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_
 With the dependency already `use`d at the start of the contract, the token contract can be called to make the transfer from msg sender to this contract. 
 
 :::note
-The user must have authorised this action (concept [here](/aztec/concepts/accounts#authorizing-actions)), example use of `createAuthWit` in 'full donor flow' test [here](../../../../yarn-project/end-to-end/src/e2e_crowdfunding_and_claim.test.ts).
+The user must have authorised this action (concept [here](../../aztec/concepts/accounts/index.md#authorizing-actions)), example use of `createAuthWit` in 'full donor flow' test [here](../../../../yarn-project/end-to-end/src/e2e_crowdfunding_and_claim.test.ts).
 :::
 
 #### Creating and storing a private receipt note

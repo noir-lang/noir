@@ -9,7 +9,7 @@ Let's start by showing our user's private balance for the token across their acc
 #include_code balance_of_private noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 :::info
-Note that this function will only return a valid response for accounts registered in the Private eXecution Environment (PXE), since it requires access to the [user's private state](/aztec/concepts/wallets/index.md#private-state). In other words, you cannot query the private balance of another user for the token contract.
+Note that this function will only return a valid response for accounts registered in the Private eXecution Environment (PXE), since it requires access to the [user's private state](../../aztec/concepts/wallets/index.md#private-state). In other words, you cannot query the private balance of another user for the token contract.
 :::
 
 To do this, let's first initialize a new `Contract` instance using `aztec.js` that represents our deployed token contracts. Create a new `src/contracts.mjs` file with the imports for our artifacts and other dependencies:
@@ -93,12 +93,12 @@ At the time of this writing, there are no events emitted when new private notes 
 
 ## Working with public state
 
-While [private and public state](/aztec/concepts/state_model/index.md) are fundamentally different, the API for working with private and public functions and state from `aztec.js` is equivalent. To query the balance in public tokens for our user accounts, we can just call the `balance_of_public` view function in the contract:
+While [private and public state](../../aztec/concepts/state_model/index.md) are fundamentally different, the API for working with private and public functions and state from `aztec.js` is equivalent. To query the balance in public tokens for our user accounts, we can just call the `balance_of_public` view function in the contract:
 
 #include_code showPublicBalances yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
 
 :::info
-Since this we are working with pubic balances, we can now query the balance for any address, not just those registered in our local PXE. We can also send funds to addresses for which we don't know their [public encryption key](/aztec/concepts/accounts/keys.md#encryption-keys).
+Since this we are working with pubic balances, we can now query the balance for any address, not just those registered in our local PXE. We can also send funds to addresses for which we don't know their [public encryption key](../../aztec/concepts/accounts/keys.md#encryption-keys).
 :::
 
 Here, since the token contract does not mint any initial funds upon deployment, the balances for all of our user's accounts will be zero.

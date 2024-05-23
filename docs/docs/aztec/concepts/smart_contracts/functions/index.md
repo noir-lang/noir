@@ -2,9 +2,9 @@
 title: Defining Functions
 ---
 
-Functions serve as the building blocks of smart contracts. Functions can be either **public**, ie they are publicly available for anyone to see and can directly interact with public state, or **private**, meaning they are executed completely client-side in the [PXE](/aztec/concepts/pxe/index.md). Read more about how private functions work [here](./inner_workings.md#private-functions).
+Functions serve as the building blocks of smart contracts. Functions can be either **public**, ie they are publicly available for anyone to see and can directly interact with public state, or **private**, meaning they are executed completely client-side in the [PXE](../../pxe/index.md). Read more about how private functions work [here](./inner_workings.md#private-functions).
 
-For a more practical guide of using multiple types of functions, follow the [token tutorial](/tutorials/contract_tutorials/token_contract.md).
+For a more practical guide of using multiple types of functions, follow the [token tutorial](../../../../tutorials/contract_tutorials/token_contract.md).
 
 Currently, any function is "mutable" in the sense that it might alter state. However, we also support support static calls, similarly to EVM. A static call is essentially a call that does not alter state (it keeps state static).
 
@@ -22,7 +22,7 @@ Explore this section to learn:
 
 - [How function visibility works in Aztec](./visibility.md)
 - [Public, private, and unconstrained functions](./public_private_unconstrained.md), and how to write them
-- How to write an [initializer function](/guides/smart_contracts/writing_contracts/initializers.md)
-- [Calling functions from within the same smart contract and from different contracts](/guides/smart_contracts/writing_contracts/call_functions.md), including calling private functions from private functions, public from public, and even private from public
-- [Oracles](/aztec/concepts/smart_contracts/oracles/index.md) and how Aztec smart contracts might use them
+- How to write an [initializer function](../../../../guides/smart_contracts/writing_contracts/initializers.md)
+- [Calling functions from within the same smart contract and from different contracts](../../../../guides/smart_contracts/writing_contracts/call_functions.md), including calling private functions from private functions, public from public, and even private from public
+- [Oracles](../oracles/index.md) and how Aztec smart contracts might use them
 - [How functions work under the hood](./inner_workings.md)

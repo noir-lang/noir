@@ -40,4 +40,4 @@ You can view the current implementation on Github [here](https://github.com/Azte
 
 ## Further Reading
 
-- [Sequencer Selection](/aztec/concepts/nodes_clients/sequencer/sequencer_selection.md)
+- [Sequencer Selection](sequencer_selection.md)

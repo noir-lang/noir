@@ -5,13 +5,13 @@ sidebar_position: 4
 
 # Deploying contracts
 
-Once you have [compiled](/guides/smart_contracts/how_to_compile_contract) your contracts you can proceed to deploying them using aztec.js which is a Typescript client to interact with the sandbox.
+Once you have [compiled](how_to_compile_contract.md) your contracts you can proceed to deploying them using aztec.js which is a Typescript client to interact with the sandbox.
 
 ## Prerequisites
 
-- `aztec-nargo` installed (go to [Sandbox and CLI section](/reference/sandbox_reference) for installation instructions)
-- contract artifacts ready (go to [How to Compile Contract](/guides/smart_contracts/how_to_compile_contract) for instructions on how to compile contracts)
-- Aztec Sandbox running (go to [Sandbox section](/getting_started) for instructions on how to install and run the sandbox)
+- `aztec-nargo` installed (go to [Sandbox and CLI section](../../reference/sandbox_reference/index.md) for installation instructions)
+- contract artifacts ready (go to [How to Compile Contract](how_to_compile_contract.md) for instructions on how to compile contracts)
+- Aztec Sandbox running (go to [Sandbox section](../../getting_started.md) for instructions on how to install and run the sandbox)
 
 ## Deploy
 
@@ -29,7 +29,7 @@ Generate the typescript class:
 aztec-builder ./aztec-nargo/output/target/path -o src/artifacts
 ```
 
-This would create a typescript file like `Example.ts` in `./src/artifacts`. Read more on the [compiling page](/guides/smart_contracts/how_to_compile_contract).
+This would create a typescript file like `Example.ts` in `./src/artifacts`. Read more on the [compiling page](how_to_compile_contract.md).
 
 Now you can import it to easily deploy and interact with the contract.
 

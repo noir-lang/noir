@@ -21,7 +21,7 @@ Note inclusion proves that a note existed (its hash was included in a note hash 
 
 ## prove_note_commitment_inclusion
 
-A **commitment**, also referred to as a **note hash** is a public acknowledgment of the existence of a note without revealing the content of the note. You can learn more about how to compress a note to a note hash [here](/aztec/concepts/storage/trees/index.md#example-note).
+A **commitment**, also referred to as a **note hash** is a public acknowledgment of the existence of a note without revealing the content of the note. You can learn more about how to compress a note to a note hash [here](../../aztec/concepts/storage/trees/index.md#example-note).
 
 `prove_note_commitment_inclusion` takes 2 parameters:
 

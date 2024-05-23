@@ -3,9 +3,9 @@ title: Using the Archive Tree
 sidebar_position: 4
 ---
 
-The Aztec Protocol uses an append-only Merkle tree to store hashes of the headers of all previous blocks in the chain as its leaves. This is known as an archive tree. You can learn more about how it works in the [concepts section](/aztec/concepts/storage/trees/index.md#archive-tree).
+The Aztec Protocol uses an append-only Merkle tree to store hashes of the headers of all previous blocks in the chain as its leaves. This is known as an archive tree. You can learn more about how it works in the [concepts section](../../../aztec/concepts/storage/trees/index.md#archive-tree).
 
-View the History lib reference [here](/reference/smart_contract_reference/history_lib_reference.md).
+View the History lib reference [here](../../../reference/smart_contract_reference/history_lib_reference.md).
 
 # History library
 
@@ -30,7 +30,7 @@ Using this library, you can check that specific notes or nullifiers were part of
 - Prove a note was included in a specified block
 - Create a nullifier and prove it was not included in a specified block
 
-For a more extensive reference, go to [the reference page](/reference/smart_contract_reference/history_lib_reference.md).
+For a more extensive reference, go to [the reference page](../../../reference/smart_contract_reference/history_lib_reference.md).
 
 ## 1. Import the `history` library from `aztec`
 
@@ -98,4 +98,4 @@ You can also prove that a nullifier was not included in a specified block by usi
 
 ## Prove contract inclusion, public value inclusion, and use current state in lookups
 
-To see what else you can do with the `history` library, check out the [reference](/reference/smart_contract_reference/history_lib_reference.md).
+To see what else you can do with the `history` library, check out the [reference](../../../reference/smart_contract_reference/history_lib_reference.md).

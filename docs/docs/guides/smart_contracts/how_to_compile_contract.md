@@ -5,7 +5,7 @@ sidebar_position: 3
 
 import Disclaimer from "@site/src/components/Disclaimers/\_wip_disclaimer.mdx";
 
-Once you have written a contract in Aztec.nr, you will need to compile it into an [artifact](/aztec/concepts/smart_contracts/contract_structure.md) in order to use it.
+Once you have written a contract in Aztec.nr, you will need to compile it into an [artifact](../../aztec/concepts/smart_contracts/contract_structure.md) in order to use it.
 
 In this guide we will cover how to do so, both using the `aztec-nargo` command and programmatically.
 
@@ -21,7 +21,7 @@ Run the `aztec-nargo compile` command within your contract project folder (the o
 aztec-nargo compile
 ```
 
-This will output a JSON [artifact](/aztec/concepts/smart_contracts/contract_structure.md) for each contract in the project to a `target` folder containing the Noir ABI artifacts.
+This will output a JSON [artifact](../../aztec/concepts/smart_contracts/contract_structure.md) for each contract in the project to a `target` folder containing the Noir ABI artifacts.
 
 :::note
 This command looks for `Nargo.toml` files by ascending up the parent directories, and will compile the top-most Nargo.toml file it finds.
@@ -222,11 +222,11 @@ export class TokenContract extends ContractBase {
 }
 ```
 
-Read more about interacting with contracts using `aztec.js` [here](/getting_started/aztecjs-getting-started.md).
+Read more about interacting with contracts using `aztec.js` [here](../../getting_started/aztecjs-getting-started.md).
 
 ### Aztec.nr interfaces
 
-An Aztec.nr contract can [call a function](/guides/smart_contracts/writing_contracts/call_functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serializing the arguments, which is not type-safe.
+An Aztec.nr contract can [call a function](writing_contracts/call_functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serializing the arguments, which is not type-safe.
 
 To make this easier, the compiler automatically generates interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one. 
 
@@ -260,7 +260,7 @@ contract FPC {
 }
 ```
 
-Read more about how to use the Aztec.nr interfaces [here](/aztec/concepts/smart_contracts/functions).
+Read more about how to use the Aztec.nr interfaces [here](../../aztec/concepts/smart_contracts/functions/index.md).
 
 :::info
 At the moment, the compiler generates these interfaces from already compiled ABIs, and not from source code. This means that you should not import a generated interface from within the same project as its source contract, or you risk circular references.

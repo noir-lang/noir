@@ -10,11 +10,11 @@ You should have a wallet to act as the deployer, and a contract artifact ready t
 
 You can learn how to create wallets from [this guide](./create_account.md).
 
-You can read about contract artifacts [here](/aztec/concepts/smart_contracts/contract_structure.md).
+You can read about contract artifacts [here](../../aztec/concepts/smart_contracts/contract_structure.md).
 
 ## Import the contract artifact
 
-In this guide we are using a Token contract artifact. This comes from the [token contract tutorial](/tutorials/contract_tutorials/token_contract.md).
+In this guide we are using a Token contract artifact. This comes from the [token contract tutorial](../../tutorials/contract_tutorials/token_contract.md).
 
 #include_code import_token_contract yarn-project/end-to-end/src/composed/docs_examples.test.ts typescript
 

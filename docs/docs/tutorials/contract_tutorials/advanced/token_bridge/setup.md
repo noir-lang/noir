@@ -18,7 +18,7 @@ We recommend going through this setup to fully understand where things live.
 - [node v18+](https://github.com/tj/n)
 - [docker](https://docs.docker.com/)
 - [Aztec sandbox](https://docs.aztec.network/developers/getting_started/sandbox) - you should have this running before starting the tutorial
-- [Aztec CLI](/getting_started)
+- [Aztec CLI](../../../../getting_started.md)
 
 ```bash
 /bin/sh -c "$(curl -fsSL 'https://sandbox.aztec.network')"

@@ -81,11 +81,11 @@ cd your/aztec/project
 aztec-builder update . --contract src/contract1 --contract src/contract2
 ```
 
-The sandbox must be running for the update command to work. Make sure it is [installed and running](/reference/sandbox_reference/index.md).
+The sandbox must be running for the update command to work. Make sure it is [installed and running](../../reference/sandbox_reference/index.md).
 
 Follow [updating Aztec.nr packages](#updating-aztecnr-packages) and [updating JavaScript packages](#updating-aztecjs-packages) guides.
 
-3. Refer to [Migration Notes](/migration_notes.md) on any breaking changes that might affect your dapp
+3. Refer to [Migration Notes](../../migration_notes.md) on any breaking changes that might affect your dapp
 
 ---
 

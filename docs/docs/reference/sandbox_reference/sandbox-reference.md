@@ -4,7 +4,7 @@ title: Sandbox Reference
 
 :::tip
 
-For a quick start, follow the [guide](/getting_started.md) to install the sandbox.
+For a quick start, follow the [guide](../../getting_started.md) to install the sandbox.
 
 :::
 
@@ -67,7 +67,7 @@ If you wish to run components of the Aztec network stack separately, you can use
 aztec start --node [nodeOptions] --pxe [pxeOptions] --archiver [archiverOptions] --sequencer [sequencerOptions] --prover [proverOptions] ----p2p-bootstrap [p2pOptions]
 ```
 
-Starting the aztec node alongside a PXE, sequencer or archiver, will attach the components to the node.Eg if you want to run a PXE separately to a node, you can [read this guide](/aztec/concepts/pxe/index.md)/
+Starting the aztec node alongside a PXE, sequencer or archiver, will attach the components to the node.Eg if you want to run a PXE separately to a node, you can [read this guide](../../aztec/concepts/pxe/index.md)/
 
 ## Environment Variables
 
@@ -165,7 +165,7 @@ To help with testing, the sandbox is shipped with a set of cheatcodes.
 
 Cheatcodes allow you to change the time of the Aztec block, load certain state or more easily manipulate Ethereum instead of having to write dedicated RPC calls to anvil or hardhat.
 
-You can find the cheat code reference [here](/reference/sandbox_reference/cheat_codes.md).
+You can find the cheat code reference [here](cheat_codes.md).
 
 ## Contracts
 

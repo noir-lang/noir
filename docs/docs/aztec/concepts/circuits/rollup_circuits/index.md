@@ -23,7 +23,7 @@ For both transactions, it:
 
 - Performs public state read membership checks.
 - Updates the public data tree in line with the requested state transitions.
-- Checks that the nullifiers haven't previously been inserted into the [indexed nullifier tree](/aztec/concepts/storage/trees/indexed_merkle_tree.mdx#primer-on-nullifier-trees).
+- Checks that the nullifiers haven't previously been inserted into the [indexed nullifier tree](../../storage/trees/indexed_merkle_tree.mdx#primer-on-nullifier-trees).
 - Batch-inserts new nullifiers into the nullifier tree.
 - Batch-inserts new note hashes into the note hash tree
 - Batch-inserts any new contract deployments into the contract tree.

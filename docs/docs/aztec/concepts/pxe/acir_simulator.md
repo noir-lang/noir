@@ -14,13 +14,13 @@ It simulates three types of functions:
 
 Private functions are simulated and proved client-side, and verified client-side in the private kernel circuit.
 
-They are run with the assistance of a DB oracle that provides any private data requested by the function. You can read more about oracle functions in the smart contract section [here](/aztec/concepts/smart_contracts/oracles/index.md).
+They are run with the assistance of a DB oracle that provides any private data requested by the function. You can read more about oracle functions in the smart contract section [here](../smart_contracts/oracles/index.md).
 
 Private functions can call other private functions and can request to call a public function. The public function execution will be performed by the sequencer asynchronously, so private functions don't have direct access to the return values of public functions.
 
 ### Public Functions
 
-Public functions are simulated and proved on the [sequencer](/aztec/concepts/nodes_clients/sequencer) side, and verified by the [public kernel circuit](../circuits/kernels/public_kernel.md).
+Public functions are simulated and proved on the [sequencer](../nodes_clients/sequencer) side, and verified by the [public kernel circuit](../circuits/kernels/public_kernel.md).
 
 They are run with the assistance of an oracle that provides any value read from the public state tree.
 

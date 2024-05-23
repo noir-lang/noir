@@ -4,15 +4,15 @@ title: Private State
 
 On this page we will look at how to manage private state in Aztec contracts. We will look at how to declare private state, how to read and write to it, and how to use it in your contracts.
 
-For a higher level overview of the state model in Aztec, see the [hybrid state model](/aztec/concepts/state_model/index.md) page.
+For a higher level overview of the state model in Aztec, see the [hybrid state model](../../../aztec/concepts/state_model/index.md) page.
 
 ## Overview
 
 In contrast to public state, private state is persistent state that is **not** visible to the whole world. Depending on the logic of the smart contract, a private state variable's current value will only be known to one entity, or a closed group of entities.
 
-The value of a private state variable can either be shared via an [encrypted log](/guides/smart_contracts/writing_contracts/how_to_emit_event#encrypted-events), or offchain via web2, or completely offline: it's up to the app developer.
+The value of a private state variable can either be shared via an [encrypted log](../../../guides/smart_contracts/writing_contracts/how_to_emit_event.md#encrypted-events), or offchain via web2, or completely offline: it's up to the app developer.
 
-Aztec private state follows a [utxo](https://en.wikipedia.org/wiki/Unspent_transaction_output)-based model. That is, a private state's current value is represented as one or many [notes](/aztec/concepts/storage/trees/index.md).
+Aztec private state follows a [utxo](https://en.wikipedia.org/wiki/Unspent_transaction_output)-based model. That is, a private state's current value is represented as one or many [notes](../../../aztec/concepts/storage/trees/index.md).
 
 To greatly simplify the experience of writing private state, Aztec.nr provides three different types of private state variable:
 
@@ -184,7 +184,7 @@ Functionally similar to `get_note`, but executed unconstrained and can be used b
 
 You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/set.nr).
 
-And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](/guides/smart_contracts/writing_contracts/call_functions.md).
+And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](../../../guides/smart_contracts/writing_contracts/call_functions.md).
 
 #include_code storage-set-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
@@ -200,13 +200,13 @@ We can initialize the set as follows:
 
 Allows us to modify the storage by inserting a note into the `PrivateSet`.
 
-A hash of the note will be generated, and inserted into the note hash tree, allowing us to later use in contract interactions. Recall that the content of the note should be shared with the owner to allow them to use it, as mentioned this can be done via an [encrypted log](/guides/smart_contracts/writing_contracts/how_to_emit_event#encrypted-events), or offchain via web2, or completely offline.
+A hash of the note will be generated, and inserted into the note hash tree, allowing us to later use in contract interactions. Recall that the content of the note should be shared with the owner to allow them to use it, as mentioned this can be done via an [encrypted log](../../../guides/smart_contracts/writing_contracts/how_to_emit_event.md#encrypted-events), or offchain via web2, or completely offline.
 
 #include_code insert /noir-projects/aztec-nr/easy-private-state/src/easy_private_uint.nr rust
 
 ### `insert_from_public`
 
-The `insert_from_public` allow public function to insert notes into private storage. This is very useful when we want to support private function calls that have been initiated in public, such as shielding in the [example token contract](/tutorials/contract_tutorials/token_contract.md#shield).
+The `insert_from_public` allow public function to insert notes into private storage. This is very useful when we want to support private function calls that have been initiated in public, such as shielding in the [example token contract](../../../tutorials/contract_tutorials/token_contract.md#shield).
 
 The usage is similar to using the `insert` method with the difference that this one is called in public functions.
 
@@ -248,7 +248,7 @@ This function requires a `NoteViewerOptions`. The `NoteViewerOptions` is essenti
 
 ## `NoteGetterOptions`
 
-`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](/aztec/concepts/smart_contracts/oracles/index.md). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
+`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](../../../aztec/concepts/smart_contracts/oracles/index.md). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
 
 You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/note/note_getter_options.nr).
 

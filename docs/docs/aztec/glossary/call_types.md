@@ -121,7 +121,7 @@ A common pattern is to enqueue public calls to check some validity condition on 
 #include_code deadline /noir-projects/noir-contracts/contracts/crowdfunding_contract/src/main.nr rust
 
 :::warning
-Calling public functions privately leaks some privacy! The caller of the function and all arguments will be revelead, so exercise care when mixing the private and public domains. To learn about alternative ways to access public state privately, look into [Shared State](/reference/smart_contract_reference/storage/shared_state.md).
+Calling public functions privately leaks some privacy! The caller of the function and all arguments will be revelead, so exercise care when mixing the private and public domains. To learn about alternative ways to access public state privately, look into [Shared State](../../reference/smart_contract_reference/storage/shared_state.md).
 :::
 
 ### Public Execution

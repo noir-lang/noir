@@ -12,7 +12,7 @@ All smart contracts written in Aztec.nr need the `aztec` dependency. In your `Na
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
 ```
 
-You can learn more about dependencies and their paths [here](/reference/smart_contract_reference/dependencies.md).
+You can learn more about dependencies and their paths [here](../smart_contract_reference/dependencies.md).
 
 #### `backend has encountered an error`
 
@@ -26,7 +26,7 @@ It will then reinstall when you compile.
 
 #### `Oracle callback {} not found` & `Oracle callback pedersenHash not found`
 
-This can occasionally happen when there are breaking releases. Make sure that your dependencies in `Nargo.toml` are [updated to the latest release](/reference/smart_contract_reference/dependencies.md).
+This can occasionally happen when there are breaking releases. Make sure that your dependencies in `Nargo.toml` are [updated to the latest release](../smart_contract_reference/dependencies.md).
 
 #### `error: Failed constraint: 'Public state writes only supported in public functions`
 
@@ -47,7 +47,7 @@ This error occurs when you are trying to interact with a smart contract via an P
 
 To execute a transaction, the PXE needs to know the complete address of a contract and contract artifacts.
 
-To address the error, add the contract to the PXE by calling [`pxe.addContracts(...)`](/aztec/concepts/pxe/index.md#addcontracts).
+To address the error, add the contract to the PXE by calling [`pxe.addContracts(...)`](../../aztec/concepts/pxe/index.md#addcontracts).
 
 #### `Simulation error: No public key registered for address 0x0. Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...)`
 

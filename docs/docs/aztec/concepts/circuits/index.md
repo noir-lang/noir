@@ -52,7 +52,7 @@ In other words, since neither the EVM nor other rollups have rules for how to pr
 
 What kind of extra rules / checks does a rollup need, to enforce notions of private states and private functions? Stuff like:
 
-- "Perform state reads and writes using new tree structures which prevent tx linkability" (see [trees](/aztec/concepts/storage/trees/index.md)).
+- "Perform state reads and writes using new tree structures which prevent tx linkability" (see [trees](../storage/trees/index.md)).
 - "Hide which function was just executed, by wrapping it in a zk-snark"
 - "Hide all functions which were executed as part of this tx's stack trace, by wrapping the whole tx in a zk-snark"
 
@@ -62,12 +62,12 @@ So what kinds of core protocol circuits does Aztec have?
 
 ### Kernel Circuits
 
-- [Private Kernel Circuit](/aztec/concepts/circuits/kernels/private_kernel)
-- [Public Kernel Circuit](/aztec/concepts/circuits/kernels/public_kernel)
+- [Private Kernel Circuit](../circuits/kernels/private_kernel.md)
+- [Public Kernel Circuit](../circuits/kernels/public_kernel.md)
 
 ### Rollup Circuits
 
-- [Rollup Circuits](/aztec/concepts/circuits/rollup_circuits)
+- [Rollup Circuits](../circuits/rollup_circuits/index.md)
 
 #### Squisher Circuits
 

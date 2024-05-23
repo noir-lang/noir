@@ -52,7 +52,7 @@ Contributors to Aztec uphold many of the values of the Ethereum community -- bui
 
 Noir is a domain specific programming language for writing zero-knowledge circuits. On Aztec a smart contract is a collection of circuits that developers write using Noir.
 
-You can find more information and resources for learning about Noir smart contracts on [this page](/aztec/concepts/smart_contracts/index.md).
+You can find more information and resources for learning about Noir smart contracts on [this page](aztec/concepts/smart_contracts/index.md).
 
 ## Cryptography
 

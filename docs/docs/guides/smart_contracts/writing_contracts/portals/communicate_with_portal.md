@@ -4,7 +4,7 @@ title: Communicating with L1
 
 Is this your first time hearing the word `Portal`? Check out the [concepts section](../../../../protocol-specs/l1-smart-contracts/index.md).
 
-Follow the [token bridge tutorial](/tutorials/contract_tutorials/advanced/token_bridge) for hands-on experience writing and deploying a Portal contract.
+Follow the [token bridge tutorial](../../../../tutorials/contract_tutorials/advanced/token_bridge/index.md) for hands-on experience writing and deploying a Portal contract.
 
 ## Passing data to the rollup
 
@@ -42,7 +42,7 @@ Note that while the `secret` and the `content` are both hashed, they are actuall
 
 ### Token bridge example
 
-Computing the `content` must currently be done manually, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](/tutorials/contract_tutorials/advanced/token_bridge/minting_on_aztec.md#consume-the-l1-message).
+Computing the `content` must currently be done manually, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](../../../../tutorials/contract_tutorials/advanced/token_bridge/minting_on_aztec.md#consume-the-l1-message).
 
 #include_code claim_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 

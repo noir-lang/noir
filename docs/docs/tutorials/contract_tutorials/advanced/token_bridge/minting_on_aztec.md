@@ -47,6 +47,6 @@ If the content hashes were constructed similarly for `mint_private` and `mint_pu
 
 While we mint the tokens on L2, we _still don’t actually mint them to a certain address_. Instead we continue to pass the `secret_hash_for_redeeming_minted_notes` like we did on L1. This means that a user could reveal their secret for L2 message consumption for anyone to mint tokens on L2 but they can redeem these notes at a later time. **This enables a paradigm where an app can manage user’s secrets for L2 message consumption on their behalf**. **The app or any external party can also mint tokens on the user’s behalf should they be comfortable with leaking the secret for L2 Message consumption.** This doesn’t leak any new information to the app because their smart contract on L1 knew that a user wanted to move some amount of tokens to L2. The app still doesn’t know which address on L2 the user wants these notes to be in, but they can mint tokens nevertheless on their behalf.
 
-To mint tokens privately, `claim_private` calls an internal function `_call_mint_on_token()` which then calls [token.mint_private()](/tutorials/contract_tutorials/token_contract.md#redeem_shield).
+To mint tokens privately, `claim_private` calls an internal function `_call_mint_on_token()` which then calls [token.mint_private()](../../token_contract.md#redeem_shield).
 
 In the next step we will see how we can cancel a message.

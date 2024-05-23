@@ -1,5 +1,6 @@
 ---
 title: Sandbox Reference
+sidebar_position: 0
 ---
 
 The Aztec Sandbox is an environment for local development on the Aztec Network. It's easy to get setup with just a single, simple command, and contains all the components needed to develop and test Aztec contracts and applications.
@@ -10,7 +11,7 @@ Aztec's Layer 2 network is a fully programmable combined private/public ZK rollu
 
 - Aztec Node - Aggregates all of the 'backend' services necessary for the building and publishing of rollups. This package is currently in development and much of the functionality is mocked.
 - [Private Execution Environment (PXE)](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/pxe) - Normally residing with the end client, this decrypts and stores a client's private state, executes simulations and submits transactions to the Aztec Node.
-- [Aztec.js](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec.js) - Aztec's client library for interacting with the PXE (think Ethers.js). See the getting started guide [here](/getting_started/aztecjs-getting-started.md).
+- [Aztec.js](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec.js) - Aztec's client library for interacting with the PXE (think Ethers.js). See the getting started guide [here](../../getting_started/aztecjs-getting-started.md).
 
 All of this is included in the Sandbox, with the exception of Aztec.js which you can use to interact with it.
 
@@ -34,4 +35,4 @@ The current sandbox does not generate or verify proofs, but provides a working e
 
 ## Command line tools
 
-Aztec-nargo and aztec-builder are command-line tool allowing you to compile smart contracts. See the [compiling contracts](/guides/smart_contracts/how_to_compile_contract) page for more information.
+Aztec-nargo and aztec-builder are command-line tool allowing you to compile smart contracts. See the [compiling contracts](../../guides/smart_contracts/how_to_compile_contract.md) page for more information.

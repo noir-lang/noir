@@ -9,4 +9,4 @@ See [Private \<--\> Public execution](./public_private_calls.md) for information
 
 ## Cross-chain communication
 
-Read the protocol specification about Cross-chain communication between Aztec and Ethereum [here](/protocol-specs/l1-smart-contracts/index.md).
+Read the protocol specification about Cross-chain communication between Aztec and Ethereum [here](../../../../protocol-specs/l1-smart-contracts/index.md).

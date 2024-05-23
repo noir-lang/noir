@@ -12,7 +12,8 @@
     "serve": "docusaurus serve",
     "preprocess": "yarn node -r dotenv/config ./src/preprocess/index.js  && node src/preprocess/generate_aztecnr_reference.js",
     "preprocess:dev": "nodemon --config nodemon.json ./src/preprocess/index.js  && nodemon --config nodemon.json src/preprocess/generate_aztecnr_reference.js ",
-    "typedoc": "docusaurus generate-typedoc"
+    "typedoc": "docusaurus generate-typedoc",
+    "rewrite": "node ./scripts/rewrite_paths.js"
   },
   "dependencies": {
     "@docusaurus/core": "^3.0.1",

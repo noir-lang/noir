@@ -12,7 +12,7 @@ It also means that we need to be careful about how we allocate storage to ensure
 
 ## Public State Slots
 
-As mentioned in [State Model](/aztec/concepts/state_model/index.md), Aztec public state behaves similarly to public state on Ethereum from the point of view of the developer. Behind the scenes however, the storage is managed differently. As mentioned, public state has just one large sparse tree in Aztec - so we silo slots of public data by hashing it together with its contract address. 
+As mentioned in [State Model](../state_model/index.md), Aztec public state behaves similarly to public state on Ethereum from the point of view of the developer. Behind the scenes however, the storage is managed differently. As mentioned, public state has just one large sparse tree in Aztec - so we silo slots of public data by hashing it together with its contract address. 
 
 The mental model is that we have a key-value store, where the siloed slot is the key, and the value is the data stored in that slot. You can think of the `real_storage_slot` identifying its position in the tree, and the `logical_storage_slot` identifying the position in the contract storage.
 
@@ -20,14 +20,14 @@ The mental model is that we have a key-value store, where the siloed slot is the
 real_storage_slot = H(contract_address, logical_storage_slot)
 ```
 
-The siloing is performed by the [Kernel circuits](/aztec/concepts/circuits). 
+The siloing is performed by the [Kernel circuits](../circuits/index.md). 
 
 For structs and arrays, we are logically using a similar storage slot computation to ethereum, e.g., as a struct with 3 fields would be stored in 3 consecutive slots. However, because the "actual" storage slot is computed as a hash of the contract address and the logical storage slot, the actual storage slot is not consecutive.
 
 
 ## Private State Slots - Slots aren't real
 
-Private storage is a different beast. As you might remember from [Hybrid State Model](/aztec/concepts/state_model/index.md), private state is stored in encrypted logs and the corresponding private state commitments in append-only tree where each leaf is a commitment. Being append-only, means that leaves are never updated or deleted; instead a nullifier is emitted to signify that some note is no longer valid. A major reason we used this tree, is that lookups at a specific storage slot would leak information in the context of private state. If you could look up a specific address balance just by looking at the storage slot, even if encrypted you would be able to see it changing! That is not good privacy. 
+Private storage is a different beast. As you might remember from [Hybrid State Model](../state_model/index.md), private state is stored in encrypted logs and the corresponding private state commitments in append-only tree where each leaf is a commitment. Being append-only, means that leaves are never updated or deleted; instead a nullifier is emitted to signify that some note is no longer valid. A major reason we used this tree, is that lookups at a specific storage slot would leak information in the context of private state. If you could look up a specific address balance just by looking at the storage slot, even if encrypted you would be able to see it changing! That is not good privacy. 
 
 Following this, the storage slot as we know it doesn't really exist. The leaves of the note hashes tree are just commitments to content (think of it as a hash of its content).
 
@@ -62,4 +62,4 @@ By doing this address-siloing at the kernel circuit we *force* the inserted comm
 To ensure that nullifiers don't collide across contracts we also force this contract siloing at the kernel level.
 :::
 
-For an example of this see [developer documentation storage slots](/aztec/concepts/storage/index.md).
+For an example of this see [developer documentation storage slots](index.md).

@@ -4,7 +4,7 @@ title: Public State
 
 On this page we will look at how to manage public state in Aztec contracts. We will look at how to declare public state, how to read and write to it, and how to use it in your contracts.
 
-For a higher level overview of the state model in Aztec, see the [state model](/aztec/concepts/state_model/index.md) page.
+For a higher level overview of the state model in Aztec, see the [state model](../../../aztec/concepts/state_model/index.md) page.
 
 ## `PublicMutable`
 
@@ -13,7 +13,7 @@ The `PublicMutable` (formerly known as `PublicState`) struct is generic over the
 #include_code serialize /noir-projects/noir-protocol-circuits/crates/types/src/traits.nr rust
 #include_code deserialize /noir-projects/noir-protocol-circuits/crates/types/src/traits.nr rust
 
-The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](/aztec/concepts/state_model/index.md) as EVM chains it will look similar from the contract developers point of view.
+The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](../../../aztec/concepts/state_model/index.md) as EVM chains it will look similar from the contract developers point of view.
 
 You can find the details of `PublicMutable` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_mutable.nr).
 
@@ -25,7 +25,7 @@ An example using a larger struct can be found in the [lending example](https://g
 
 ### `new`
 
-When declaring the storage for `T` as a persistent public storage variable, we use the `PublicMutable::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](/aztec/concepts/smart_contracts/functions/context), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_mutable.nr).
+When declaring the storage for `T` as a persistent public storage variable, we use the `PublicMutable::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](../../../aztec/concepts/smart_contracts/functions/context.md), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_mutable.nr).
 
 #### Single value example
 

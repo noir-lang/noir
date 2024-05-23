@@ -4,7 +4,7 @@ title: Understanding Function Context
 
 ## What is the context
 
-The context is an object that is made available within every function in `Aztec.nr`. As mentioned in the [kernel circuit documentation](/aztec/concepts/circuits/kernels/private_kernel.md). At the beginning of a function's execution, the context contains all of the kernel information that application needs to execute. During the lifecycle of a transaction, the function will update the context with each of it's side effects (created notes, nullifiers etc.). At the end of a function's execution the mutated context is returned to the kernel to be checked for validity.
+The context is an object that is made available within every function in `Aztec.nr`. As mentioned in the [kernel circuit documentation](../../circuits/kernels/private_kernel.md). At the beginning of a function's execution, the context contains all of the kernel information that application needs to execute. During the lifecycle of a transaction, the function will update the context with each of it's side effects (created notes, nullifiers etc.). At the end of a function's execution the mutated context is returned to the kernel to be checked for validity.
 
 Behind the scenes, Aztec.nr will pass data the kernel needs to and from a circuit, this is abstracted away from the developer. In an developer's eyes; the context is a useful structure that allows access and mutate the state of the `Aztec` blockchain.
 
@@ -18,7 +18,7 @@ On this page, you'll learn
 
 ## Two contexts, one API
 
-The `Aztec` blockchain contains two environments [public and private](/aztec/concepts/state_model/index.md).
+The `Aztec` blockchain contains two environments [public and private](../../state_model/index.md).
 
 - Private, for private transactions taking place on user's devices.
 - Public, for public transactions taking place on the network's sequencers.
@@ -126,7 +126,7 @@ The public call stack contains all of the external function calls that are creat
 
 ### New L2 to L1 msgs
 
-New L2 to L1 messages contains messages that are delivered to the [l1 outbox](/protocol-specs/l1-smart-contracts/index.md) on the execution of each rollup.
+New L2 to L1 messages contains messages that are delivered to the [l1 outbox](../../../../protocol-specs/l1-smart-contracts/index.md) on the execution of each rollup.
 
 ## Public Context
 
