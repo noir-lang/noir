@@ -550,6 +550,7 @@ pub mod test {
             direct_generics: Vec::new(),
             is_entry_point: true,
             has_inline_attribute: false,
+            all_generics: Vec::new(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
