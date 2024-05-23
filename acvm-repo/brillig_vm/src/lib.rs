@@ -32,6 +32,8 @@ mod memory;
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
+pub static MAX_ITERATIONS: u64 = 100000000;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FailureReason {
     Trap { revert_data_offset: usize, revert_data_size: usize },
@@ -43,6 +45,7 @@ pub enum VMStatus {
     Finished {
         return_data_offset: usize,
         return_data_size: usize,
+        number_of_iterations: u64,
     },
     InProgress,
     Failure {
@@ -89,6 +92,8 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     black_box_solver: &'a B,
     // The solver for big integers
     bigint_solver: BigIntSolver,
+    // The number of steps the VM has executed
+    number_of_iterations: u64,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
@@ -110,6 +115,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
             call_stack: Vec::new(),
             black_box_solver,
             bigint_solver: Default::default(),
+            number_of_iterations: 0,
         }
     }
 
@@ -126,7 +132,11 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
 
     /// Sets the current status of the VM to Finished (completed execution).
     fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus {
-        self.status(VMStatus::Finished { return_data_offset, return_data_size })
+        self.status(VMStatus::Finished {
+            return_data_offset,
+            return_data_size,
+            number_of_iterations: self.number_of_iterations,
+        })
     }
 
     /// Sets the status of the VM to `ForeignCallWait`.
@@ -198,6 +208,11 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     /// Process a single opcode and modify the program counter.
     pub fn process_opcode(&mut self) -> VMStatus {
         let opcode = &self.bytecode[self.program_counter];
+        self.number_of_iterations += 1;
+
+        if self.number_of_iterations > MAX_ITERATIONS {
+            panic!("Execution exceeded the number of allowed iterations");
+        }
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
                 if let Err(error) = self.process_binary_field_op(*op, *lhs, *rhs, *result) {
@@ -371,7 +386,11 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         assert!(self.program_counter < self.bytecode.len());
         self.program_counter = value;
         if self.program_counter >= self.bytecode.len() {
-            self.status = VMStatus::Finished { return_data_offset: 0, return_data_size: 0 };
+            self.status = VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: self.number_of_iterations,
+            };
         }
         self.status.clone()
     }
@@ -652,7 +671,14 @@ mod tests {
         // After processing a single opcode, we should have
         // the vm status as finished since there is only one opcode
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 1
+            }
+        );
 
         // The address at index `2` should have the value of 3 since we had an
         // add opcode
@@ -704,7 +730,14 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 4
+            }
+        );
     }
 
     #[test]
@@ -803,7 +836,14 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 1,
+                return_data_size: 1,
+                number_of_iterations: 3
+            }
+        );
 
         let VM { memory, .. } = vm;
 
@@ -831,7 +871,14 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 2
+            }
+        );
 
         let VM { memory, .. } = vm;
 
@@ -896,7 +943,14 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 5
+            }
+        );
 
         let VM { memory, .. } = vm;
 
@@ -995,7 +1049,14 @@ mod tests {
         assert_eq!(lt_value, true.into());
 
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 10
+            }
+        );
 
         let lte_value = vm.memory.read(MemoryAddress::from(2));
         assert_eq!(lte_value, true.into());
@@ -1314,7 +1375,14 @@ mod tests {
         brillig_execute(&mut vm);
 
         // Check that VM finished once resumed
-        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            vm.status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 3
+            }
+        );
 
         // Check result address
         let result_value = vm.memory.read(r_result);
@@ -1386,7 +1454,14 @@ mod tests {
         brillig_execute(&mut vm);
 
         // Check that VM finished once resumed
-        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            vm.status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 5
+            }
+        );
 
         // Check result in memory
         let result_values = vm.memory.read_slice(MemoryAddress(2), 4).to_vec();
@@ -1484,7 +1559,14 @@ mod tests {
         brillig_execute(&mut vm);
 
         // Check that VM finished once resumed
-        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            vm.status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 7
+            }
+        );
 
         // Check result in memory
         let result_values: Vec<_> = vm
@@ -1561,7 +1643,14 @@ mod tests {
         brillig_execute(&mut vm);
 
         // Check that VM finished once resumed
-        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            vm.status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 5
+            }
+        );
 
         // Check initial memory still in place
         let initial_values: Vec<_> = vm
@@ -1659,7 +1748,14 @@ mod tests {
         brillig_execute(&mut vm);
 
         // Check that VM finished once resumed
-        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            vm.status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 6
+            }
+        );
 
         // Check result in memory
         let result_values: Vec<_> = vm
@@ -1797,7 +1893,14 @@ mod tests {
         brillig_execute(&mut vm);
 
         // Check that VM finished once resumed
-        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            vm.status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 29
+            }
+        );
 
         // Check result
         let result_value = vm.memory.read(r_output);
