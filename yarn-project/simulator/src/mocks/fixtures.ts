@@ -6,13 +6,13 @@ import {
   CallRequest,
   type ContractStorageUpdateRequest,
   Fr,
-  FunctionData,
   Gas,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   type PrivateKernelTailCircuitPublicInputs,
   type PublicCallRequest,
 } from '@aztec/circuits.js';
 import { makeAztecAddress, makeSelector } from '@aztec/circuits.js/testing';
+import { FunctionType } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 
 import { type PublicExecution, type PublicExecutionResult } from '../public/execution.js';
@@ -65,9 +65,9 @@ export class PublicExecutionResultBuilder {
     revertReason?: SimulationError;
   }) {
     const builder = new PublicExecutionResultBuilder({
-      callContext: new CallContext(from, tx.to, tx.functionData.selector, false, false, 0),
+      callContext: new CallContext(from, tx.to, tx.selector, false, false, 0),
       contractAddress: tx.to,
-      functionData: tx.functionData,
+      functionSelector: tx.selector,
       args: tx.args,
     });
 
@@ -130,11 +130,14 @@ export class PublicExecutionResultBuilder {
 }
 
 export const makeFunctionCall = (
+  name = 'function',
   to = makeAztecAddress(30),
   selector = makeSelector(5),
+  type = FunctionType.PUBLIC,
   args = new Array(ARGS_LENGTH).fill(Fr.ZERO),
   isStatic = false,
-) => ({ to, functionData: new FunctionData(selector, /*isPrivate=*/ false), args, isStatic });
+  returnTypes = [],
+) => ({ name, to, selector, type, args, isStatic, returnTypes });
 
 export function addKernelPublicCallStack(
   kernelOutput: PrivateKernelTailCircuitPublicInputs,

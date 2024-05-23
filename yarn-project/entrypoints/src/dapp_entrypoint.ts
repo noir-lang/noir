@@ -2,8 +2,8 @@ import { computeInnerAuthWitHash, computeOuterAuthWitHash } from '@aztec/aztec.j
 import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { type EntrypointInterface, EntrypointPayload, type ExecutionRequestInit } from '@aztec/aztec.js/entrypoint';
 import { PackedValues, TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, Fr, FunctionData, GasSettings, TxContext } from '@aztec/circuits.js';
-import { type FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
+import { type AztecAddress, Fr, GasSettings, TxContext } from '@aztec/circuits.js';
+import { type FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from './constants.js';
 
@@ -31,9 +31,9 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     const abi = this.getEntrypointAbi();
     const entrypointPackedArgs = PackedValues.fromValues(encodeArguments(abi, [payload, this.userAddress]));
     const gasSettings = exec.fee?.gasSettings ?? GasSettings.default();
-    const functionData = FunctionData.fromAbi(abi);
+    const functionSelector = FunctionSelector.fromNameAndParameters(abi.name, abi.parameters);
 
-    const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionData.selector.toField(), entrypointPackedArgs.hash]);
+    const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionSelector.toField(), entrypointPackedArgs.hash]);
     const outerHash = computeOuterAuthWitHash(
       this.dappEntrypointAddress,
       new Fr(this.chainId),
@@ -46,7 +46,7 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     const txRequest = TxExecutionRequest.from({
       firstCallArgsHash: entrypointPackedArgs.hash,
       origin: this.dappEntrypointAddress,
-      functionData,
+      functionSelector,
       txContext: new TxContext(this.chainId, this.version, gasSettings),
       argsOfCalls: [...payload.packedArguments, entrypointPackedArgs],
       authWitnesses: [authWitness],

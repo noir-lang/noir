@@ -22,11 +22,7 @@ export const computeAuthWitMessageHash = (caller: AztecAddress, chainId: Fr, ver
     action.to.toField(),
     chainId,
     version,
-    computeInnerAuthWitHash([
-      caller.toField(),
-      action.functionData.selector.toField(),
-      PackedValues.fromValues(action.args).hash,
-    ]),
+    computeInnerAuthWitHash([caller.toField(), action.selector.toField(), PackedValues.fromValues(action.args).hash]),
   );
 };
 // docs:end:authwit_computeAuthWitMessageHash

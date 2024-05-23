@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, FunctionData, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
+import { AztecAddress, Fr, FunctionData, FunctionSelector, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
@@ -15,10 +15,9 @@ export class TxExecutionRequest {
      */
     public origin: AztecAddress,
     /**
-     * Function data representing the function to call.
-     * TODO(#3417): Remove this field and replace with a function selector.
+     * Selector of the function to call.
      */
-    public functionData: FunctionData,
+    public functionSelector: FunctionSelector,
     /**
      * The hash of arguments of first call to be executed (usually account entrypoint).
      * @dev This hash is a pointer to `argsOfCalls` unordered array.
@@ -42,13 +41,19 @@ export class TxExecutionRequest {
   ) {}
 
   toTxRequest(): TxRequest {
-    return new TxRequest(this.origin, this.functionData, this.firstCallArgsHash, this.txContext);
+    return new TxRequest(
+      this.origin,
+      // Entrypoints must be private as as defined by the protocol.
+      new FunctionData(this.functionSelector, true /* isPrivate */),
+      this.firstCallArgsHash,
+      this.txContext,
+    );
   }
 
   static getFields(fields: FieldsOf<TxExecutionRequest>) {
     return [
       fields.origin,
-      fields.functionData,
+      fields.functionSelector,
       fields.firstCallArgsHash,
       fields.txContext,
       fields.argsOfCalls,
@@ -67,7 +72,7 @@ export class TxExecutionRequest {
   toBuffer() {
     return serializeToBuffer(
       this.origin,
-      this.functionData,
+      this.functionSelector,
       this.firstCallArgsHash,
       this.txContext,
       new Vector(this.argsOfCalls),
@@ -92,7 +97,7 @@ export class TxExecutionRequest {
     const reader = BufferReader.asReader(buffer);
     return new TxExecutionRequest(
       reader.readObject(AztecAddress),
-      reader.readObject(FunctionData),
+      reader.readObject(FunctionSelector),
       Fr.fromBuffer(reader),
       reader.readObject(TxContext),
       reader.readVector(PackedValues),

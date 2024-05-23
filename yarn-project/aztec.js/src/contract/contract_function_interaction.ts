@@ -1,6 +1,12 @@
 import type { FunctionCall, TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, FunctionData, type GasSettings } from '@aztec/circuits.js';
-import { type FunctionAbi, FunctionType, decodeReturnValues, encodeArguments } from '@aztec/foundation/abi';
+import { type AztecAddress, type GasSettings } from '@aztec/circuits.js';
+import {
+  type FunctionAbi,
+  FunctionSelector,
+  FunctionType,
+  decodeReturnValues,
+  encodeArguments,
+} from '@aztec/foundation/abi';
 
 import { type Wallet } from '../account/wallet.js';
 import { BaseContractInteraction, type SendMethodOptions } from './base_contract_interaction.js';
@@ -61,8 +67,15 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
    */
   public request(): FunctionCall {
     const args = encodeArguments(this.functionDao, this.args);
-    const functionData = FunctionData.fromAbi(this.functionDao);
-    return { args, functionData, to: this.contractAddress, isStatic: this.functionDao.isStatic };
+    return {
+      name: this.functionDao.name,
+      args,
+      selector: FunctionSelector.fromNameAndParameters(this.functionDao.name, this.functionDao.parameters),
+      type: this.functionDao.functionType,
+      to: this.contractAddress,
+      isStatic: this.functionDao.isStatic,
+      returnTypes: this.functionDao.returnTypes,
+    };
   }
 
   /**
@@ -88,8 +101,8 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
     const rawReturnValues =
       this.functionDao.functionType == FunctionType.PRIVATE
         ? simulatedTx.privateReturnValues?.nested?.[0].values
-        : simulatedTx.publicOutput?.publicReturnValues?.values;
+        : simulatedTx.publicOutput?.publicReturnValues?.[0].values;
 
-    return rawReturnValues ? decodeReturnValues(this.functionDao, rawReturnValues) : [];
+    return rawReturnValues ? decodeReturnValues(this.functionDao.returnTypes, rawReturnValues) : [];
   }
 }

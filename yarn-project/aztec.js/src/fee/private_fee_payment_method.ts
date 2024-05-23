@@ -1,7 +1,7 @@
 import { type FunctionCall } from '@aztec/circuit-types';
-import { FunctionData, type GasSettings } from '@aztec/circuits.js';
+import { type GasSettings } from '@aztec/circuits.js';
 import { computeSecretHash } from '@aztec/circuits.js/hash';
-import { FunctionSelector } from '@aztec/foundation/abi';
+import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -64,13 +64,13 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
       this.wallet.getChainId(),
       this.wallet.getVersion(),
       {
+        name: 'unshield',
         args: [this.wallet.getCompleteAddress().address, this.paymentContract, maxFee, nonce],
-        functionData: new FunctionData(
-          FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'),
-          /*isPrivate=*/ true,
-        ),
+        selector: FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'),
+        type: FunctionType.PRIVATE,
         isStatic: false,
         to: this.asset,
+        returnTypes: [],
       },
     );
     await this.wallet.createAuthWit(messageHash);
@@ -79,13 +79,13 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
 
     return [
       {
+        name: 'fee_entrypoint_private',
         to: this.getPaymentContract(),
-        functionData: new FunctionData(
-          FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field,Field)'),
-          /*isPrivate=*/ true,
-        ),
+        selector: FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field,Field)'),
+        type: FunctionType.PRIVATE,
         isStatic: false,
         args: [maxFee, this.asset, secretHashForRebate, nonce],
+        returnTypes: [],
       },
     ];
   }

@@ -1,5 +1,6 @@
-import { type FunctionCall, PackedValues, emptyFunctionCall } from '@aztec/circuit-types';
+import { FunctionCall, PackedValues } from '@aztec/circuit-types';
 import { Fr, type GasSettings, GeneratorIndex } from '@aztec/circuits.js';
+import { FunctionType } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { type Tuple } from '@aztec/foundation/serialize';
@@ -53,9 +54,9 @@ export class EntrypointPayload {
     /* eslint-disable camelcase */
     this.#functionCalls = functionCalls.map((call, index) => ({
       args_hash: this.#packedArguments[index].hash,
-      function_selector: call.functionData.selector.toField(),
+      function_selector: call.selector.toField(),
       target_address: call.to.toField(),
-      is_public: !call.functionData.isPrivate,
+      is_public: call.type == FunctionType.PUBLIC,
       is_static: call.isStatic,
     }));
     /* eslint-enable camelcase */
@@ -131,7 +132,7 @@ export class EntrypointPayload {
     if (functionCalls.length > APP_MAX_CALLS) {
       throw new Error(`Expected at most ${APP_MAX_CALLS} function calls, got ${functionCalls.length}`);
     }
-    const paddedCalls = padArrayEnd(functionCalls, emptyFunctionCall(), APP_MAX_CALLS);
+    const paddedCalls = padArrayEnd(functionCalls, FunctionCall.empty(), APP_MAX_CALLS);
     return new EntrypointPayload(paddedCalls, GeneratorIndex.SIGNATURE_PAYLOAD);
   }
 
@@ -142,7 +143,7 @@ export class EntrypointPayload {
    */
   static async fromFeeOptions(feeOpts?: FeeOptions) {
     const calls = feeOpts ? await feeOpts.paymentMethod.getFunctionCalls(feeOpts?.gasSettings) : [];
-    const paddedCalls = padArrayEnd(calls, emptyFunctionCall(), FEE_MAX_CALLS);
+    const paddedCalls = padArrayEnd(calls, FunctionCall.empty(), FEE_MAX_CALLS);
     return new EntrypointPayload(paddedCalls, GeneratorIndex.FEE_PAYLOAD);
   }
 }

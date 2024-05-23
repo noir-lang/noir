@@ -152,7 +152,7 @@ export const mockSimulatedTx = (seed = 1, hasLogs = true) => {
     undefined,
     makeCombinedConstantData(),
     makeCombinedAccumulatedData(),
-    dec,
+    [dec],
     {},
   );
   return new SimulatedTx(tx, dec, output);

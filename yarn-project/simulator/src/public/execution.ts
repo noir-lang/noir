@@ -78,7 +78,7 @@ export interface PublicExecutionResult {
 /**
  * The execution of a public function.
  */
-export type PublicExecution = Pick<PublicCallRequest, 'contractAddress' | 'functionData' | 'callContext' | 'args'>;
+export type PublicExecution = Pick<PublicCallRequest, 'contractAddress' | 'functionSelector' | 'callContext' | 'args'>;
 
 /**
  * Returns if the input is a public execution result and not just a public execution.

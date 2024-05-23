@@ -114,7 +114,7 @@ export class PublicProcessor {
     txs = txs.map(tx => Tx.clone(tx));
     const result: ProcessedTx[] = [];
     const failed: FailedTx[] = [];
-    const returns: NestedProcessReturnValues[] = [];
+    let returns: NestedProcessReturnValues[] = [];
 
     for (const tx of txs) {
       // only process up to the limit of the block
@@ -152,7 +152,7 @@ export class PublicProcessor {
           await blockProver.addNewTx(processedTx);
         }
         result.push(processedTx);
-        returns.push(returnValues?.[0] ?? new NestedProcessReturnValues([]));
+        returns = returns.concat(returnValues ?? []);
       } catch (err: any) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         this.log.warn(`Failed to process tx ${tx.getTxHash()}: ${errorMessage} ${err?.stack}`);

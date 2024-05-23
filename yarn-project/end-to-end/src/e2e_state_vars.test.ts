@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, type Wallet } from '@aztec/aztec.js';
+import { AztecAddress, BatchCall, Fr, type Wallet } from '@aztec/aztec.js';
 import { AuthContract, DocsExampleContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -33,18 +33,28 @@ describe('e2e_state_vars', () => {
       await contract.methods.match_shared_immutable(s.account, s.points).send().wait();
     });
 
-    it('private read of SharedImmutable', async () => {
+    it('initialize and read SharedImmutable', async () => {
       // Initializes the shared immutable and then reads the value using an unconstrained function
-      // checking the return values with:
+      // checking the return values:
+
+      await contract.methods.initialize_shared_immutable(1).send().wait();
+
+      const read = await contract.methods.get_shared_immutable().simulate();
+
+      expect(read).toEqual({ account: wallet.getAddress(), points: read.points });
+    });
+
+    it('private read of SharedImmutable', async () => {
+      // Reads the value using an unconstrained function checking the return values with:
       // 1. A constrained private function that reads it directly
       // 2. A constrained private function that calls another private function that reads.
       //    The indirect, adds 1 to the point to ensure that we are returning the correct value.
 
-      await contract.methods.initialize_shared_immutable(1).send().wait();
-
-      const a = await contract.methods.get_shared_immutable_constrained_private().simulate();
-      const b = await contract.methods.get_shared_immutable_constrained_private_indirect().simulate();
-      const c = await contract.methods.get_shared_immutable().simulate();
+      const [a, b, c] = await new BatchCall(wallet, [
+        contract.methods.get_shared_immutable_constrained_private().request(),
+        contract.methods.get_shared_immutable_constrained_private_indirect().request(),
+        contract.methods.get_shared_immutable().request(),
+      ]).simulate();
 
       expect(a).toEqual(c);
       expect(b).toEqual({ account: c.account, points: c.points + 1n });
@@ -57,9 +67,11 @@ describe('e2e_state_vars', () => {
       // 2. A constrained public function that calls another public function that reads.
       //    The indirect, adds 1 to the point to ensure that we are returning the correct value.
 
-      const a = await contract.methods.get_shared_immutable_constrained_public().simulate();
-      const b = await contract.methods.get_shared_immutable_constrained_public_indirect().simulate();
-      const c = await contract.methods.get_shared_immutable().simulate();
+      const [a, b, c] = await new BatchCall(wallet, [
+        contract.methods.get_shared_immutable_constrained_public().request(),
+        contract.methods.get_shared_immutable_constrained_public_indirect().request(),
+        contract.methods.get_shared_immutable().request(),
+      ]).simulate();
 
       expect(a).toEqual(c);
       expect(b).toEqual({ account: c.account, points: c.points + 1n });

@@ -1,7 +1,6 @@
 import { UnencryptedFunctionL2Logs, type UnencryptedL2Log } from '@aztec/circuit-types';
 import {
   CallContext,
-  FunctionData,
   type FunctionSelector,
   type Gas,
   type GasSettings,
@@ -212,7 +211,6 @@ export class PublicExecutionContext extends TypedOracle {
       `Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`,
     );
 
-    const functionData = new FunctionData(functionSelector, /*isPrivate=*/ false);
     const callContext = CallContext.from({
       msgSender: isDelegateCall ? this.execution.callContext.msgSender : this.execution.contractAddress,
       storageContractAddress: isDelegateCall ? this.execution.contractAddress : targetContractAddress,
@@ -225,7 +223,7 @@ export class PublicExecutionContext extends TypedOracle {
     const nestedExecution: PublicExecution = {
       args,
       contractAddress: targetContractAddress,
-      functionData,
+      functionSelector,
       callContext,
     };
 

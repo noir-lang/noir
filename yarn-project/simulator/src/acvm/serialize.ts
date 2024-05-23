@@ -55,7 +55,7 @@ export function toACVMField(
 export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVMField[] {
   const fields = [
     item.contractAddress.toField(),
-    ...item.functionData.toFields(),
+    item.functionSelector.toField(),
     ...item.callContext.toFields(),
     item.getArgsHash(),
   ];

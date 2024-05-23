@@ -43,7 +43,7 @@ export class PublicSimulationOutput {
     public revertReason: SimulationError | undefined,
     public constants: CombinedConstantData,
     public end: CombinedAccumulatedData,
-    public publicReturnValues: NestedProcessReturnValues,
+    public publicReturnValues: NestedProcessReturnValues[],
     public gasUsed: Partial<Record<PublicKernelType, Gas>>,
   ) {}
 
@@ -54,7 +54,7 @@ export class PublicSimulationOutput {
       revertReason: this.revertReason,
       constants: this.constants.toBuffer().toString('hex'),
       end: this.end.toBuffer().toString('hex'),
-      publicReturnValues: this.publicReturnValues?.toJSON(),
+      publicReturnValues: this.publicReturnValues.map(returns => returns?.toJSON()),
       gasUsed: mapValues(this.gasUsed, gas => gas?.toJSON()),
     };
   }
@@ -66,7 +66,9 @@ export class PublicSimulationOutput {
       json.revertReason,
       CombinedConstantData.fromBuffer(Buffer.from(json.constants, 'hex')),
       CombinedAccumulatedData.fromBuffer(Buffer.from(json.end, 'hex')),
-      NestedProcessReturnValues.fromJSON(json.publicReturnValues),
+      Array.isArray(json.publicReturnValues)
+        ? json.publicReturnValues.map((returns: any) => NestedProcessReturnValues.fromJSON(returns))
+        : [],
       mapValues(json.gasUsed, gas => (gas ? Gas.fromJSON(gas) : undefined)),
     );
   }

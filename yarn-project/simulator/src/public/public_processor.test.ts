@@ -392,7 +392,7 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 14, baseContractAddress),
@@ -400,7 +400,7 @@ describe('public_processor', () => {
             }).build(),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(),
           ],
@@ -412,7 +412,7 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown.contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
               ],
@@ -497,7 +497,7 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13, baseContractAddress),
@@ -505,7 +505,7 @@ describe('public_processor', () => {
             }).build(),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(),
           ],
@@ -522,7 +522,7 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown.contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 14, baseContractAddress),
               ],
@@ -600,7 +600,7 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: publicCallRequests[0].contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13, baseContractAddress),
@@ -620,12 +620,12 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown.contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(teardownResultSettings),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown.contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 14, baseContractAddress),
               ],
@@ -744,7 +744,7 @@ describe('public_processor', () => {
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown!.contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
                 new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
@@ -752,7 +752,7 @@ describe('public_processor', () => {
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown!.contractAddress,
-              tx: makeFunctionCall(baseContractAddress, makeSelector(5)),
+              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
                 new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
               ],

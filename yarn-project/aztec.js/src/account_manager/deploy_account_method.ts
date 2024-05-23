@@ -1,7 +1,8 @@
-import { type Fr, FunctionData } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/circuits.js';
 import {
   type ContractArtifact,
   type FunctionArtifact,
+  FunctionSelector,
   encodeArguments,
   getFunctionArtifact,
 } from '@aztec/foundation/abi';
@@ -54,10 +55,16 @@ export class DeployAccountMethod extends DeployMethod {
       const feePayload = await EntrypointPayload.fromFeeOptions(options?.fee);
 
       exec.calls.push({
+        name: this.#feePaymentArtifact.name,
         to: address,
         args: encodeArguments(this.#feePaymentArtifact, [emptyAppPayload, feePayload]),
-        functionData: FunctionData.fromAbi(this.#feePaymentArtifact),
+        selector: FunctionSelector.fromNameAndParameters(
+          this.#feePaymentArtifact.name,
+          this.#feePaymentArtifact.parameters,
+        ),
+        type: this.#feePaymentArtifact.functionType,
         isStatic: this.#feePaymentArtifact.isStatic,
+        returnTypes: this.#feePaymentArtifact.returnTypes,
       });
 
       exec.authWitnesses ??= [];

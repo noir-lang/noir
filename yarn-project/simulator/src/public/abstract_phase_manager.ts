@@ -13,6 +13,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
+  FunctionData,
   Gas,
   type GlobalVariables,
   type Header,
@@ -276,7 +277,7 @@ export abstract class AbstractPhaseManager {
 
         // Sanity check for a current upstream assumption.
         // Consumers of the result seem to expect "reverted <=> revertReason !== undefined".
-        const functionSelector = result.execution.functionData.selector.toString();
+        const functionSelector = result.execution.functionSelector.toString();
         if (result.reverted && !result.revertReason) {
           throw new Error(
             `Simulation of ${result.execution.contractAddress.toString()}:${functionSelector} reverted with no reason.`,
@@ -455,7 +456,7 @@ export abstract class AbstractPhaseManager {
 
     return new PublicCallStackItem(
       result.execution.contractAddress,
-      result.execution.functionData,
+      new FunctionData(result.execution.functionSelector, false),
       publicCircuitPublicInputs,
       isExecutionRequest,
     );

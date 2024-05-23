@@ -117,12 +117,12 @@ describe('PhasesTxValidator', () => {
   ): { address: AztecAddress; selector: FunctionSelector } {
     const fn = tx.enqueuedPublicFunctionCalls.at(-1 * index - 1)!;
     fn.contractAddress = address ?? fn.contractAddress;
-    fn.functionData.selector = selector;
+    fn.functionSelector = selector;
     tx.data.forPublic!.endNonRevertibleData.publicCallStack[index] = fn.toCallRequest();
 
     return {
       address: fn.contractAddress,
-      selector: fn.functionData.selector,
+      selector: fn.functionSelector,
     };
   }
 });

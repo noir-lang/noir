@@ -1,5 +1,5 @@
 import { type AztecNode, type FunctionCall, type Note, type TxExecutionRequest } from '@aztec/circuit-types';
-import { CallContext, FunctionData } from '@aztec/circuits.js';
+import { CallContext } from '@aztec/circuits.js';
 import {
   type ArrayType,
   type FunctionArtifact,
@@ -110,7 +110,7 @@ export class AcirSimulator {
         context,
         entryPointArtifact,
         contractAddress,
-        request.functionData,
+        request.functionSelector,
       );
       return executionResult;
     } catch (err) {
@@ -141,7 +141,7 @@ export class AcirSimulator {
         context,
         entryPointArtifact,
         contractAddress,
-        request.functionData,
+        request.selector,
         request.args,
       );
     } catch (err) {
@@ -193,10 +193,13 @@ export class AcirSimulator {
     const extendedNoteItems = note.items.concat(Array(maxNoteFields - note.items.length).fill(Fr.ZERO));
 
     const execRequest: FunctionCall = {
+      name: artifact.name,
       to: contractAddress,
-      functionData: FunctionData.empty(),
+      selector: FunctionSelector.empty(),
+      type: FunctionType.UNCONSTRAINED,
       isStatic: artifact.isStatic,
       args: encodeArguments(artifact, [contractAddress, nonce, storageSlot, noteTypeId, extendedNoteItems]),
+      returnTypes: artifact.returnTypes,
     };
 
     const [innerNoteHash, uniqueNoteHash, siloedNoteHash, innerNullifier] = (await this.runUnconstrained(

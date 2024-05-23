@@ -1,4 +1,4 @@
-import { AztecAddress, CallContext, FunctionData, FunctionSelector, type Header } from '@aztec/circuits.js';
+import { AztecAddress, CallContext, FunctionSelector, type Header } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -42,7 +42,6 @@ describe('AVM WitGen and Proof Generation', () => {
       const bytecode = addArtifact.bytecode;
       publicContracts.getBytecode.mockResolvedValue(bytecode);
 
-      const functionData = FunctionData.fromAbi(addArtifact);
       const args: Fr[] = [new Fr(99), new Fr(12)];
       // We call initContext here to load up a AvmExecutionEnvironment that prepends the calldata with the function selector
       // and the args hash. In reality, we should simulate here and get this from the output of the simulation call.
@@ -50,7 +49,7 @@ describe('AVM WitGen and Proof Generation', () => {
       const context = initContext({ env: initExecutionEnvironment({ calldata: args }) });
       const execution: PublicExecution = {
         contractAddress,
-        functionData,
+        functionSelector: FunctionSelector.fromNameAndParameters(addArtifact.name, addArtifact.parameters),
         args: context.environment.calldata,
         callContext,
       };

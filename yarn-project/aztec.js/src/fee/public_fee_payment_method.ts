@@ -1,6 +1,6 @@
 import { type FunctionCall } from '@aztec/circuit-types';
-import { FunctionData, type GasSettings } from '@aztec/circuits.js';
-import { FunctionSelector } from '@aztec/foundation/abi';
+import { type GasSettings } from '@aztec/circuits.js';
+import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -57,26 +57,26 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
       this.wallet.getChainId(),
       this.wallet.getVersion(),
       {
+        name: 'transfer_public',
         args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
-        functionData: new FunctionData(
-          FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-          /*isPrivate=*/ false,
-        ),
+        selector: FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
+        type: FunctionType.PUBLIC,
         isStatic: false,
         to: this.asset,
+        returnTypes: [],
       },
     );
 
     return Promise.resolve([
       this.wallet.setPublicAuthWit(messageHash, true).request(),
       {
+        name: 'fee_entrypoint_public',
         to: this.getPaymentContract(),
-        functionData: new FunctionData(
-          FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
-          /*isPrivate=*/ true,
-        ),
+        selector: FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
+        type: FunctionType.PRIVATE,
         isStatic: false,
         args: [maxFee, this.asset, nonce],
+        returnTypes: [],
       },
     ]);
   }

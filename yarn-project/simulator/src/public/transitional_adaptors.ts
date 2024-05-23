@@ -1,13 +1,6 @@
 // All code in this file needs to die once the public executor is phased out in favor of the AVM.
 import { UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
-import {
-  CallContext,
-  FunctionData,
-  type Gas,
-  type GasSettings,
-  type GlobalVariables,
-  type Header,
-} from '@aztec/circuits.js';
+import { CallContext, type Gas, type GasSettings, type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import { promisify } from 'util';
@@ -48,7 +41,7 @@ export function createAvmExecutionEnvironment(
     current.args,
     gasSettings,
     transactionFee,
-    current.functionData.selector,
+    current.functionSelector,
   );
 }
 
@@ -65,12 +58,11 @@ export function createPublicExecution(
     isStaticCall: avmEnvironment.isStaticCall,
     sideEffectCounter: startSideEffectCounter,
   });
-  const functionData = new FunctionData(avmEnvironment.temporaryFunctionSelector, /*isPrivate=*/ false);
   const execution: PublicExecution = {
     contractAddress: avmEnvironment.address,
     callContext,
     args: calldata,
-    functionData,
+    functionSelector: avmEnvironment.temporaryFunctionSelector,
   };
   return execution;
 }

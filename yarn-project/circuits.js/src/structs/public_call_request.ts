@@ -9,7 +9,7 @@ import { computeVarArgsHash } from '../hash/hash.js';
 import { CallContext } from './call_context.js';
 import { CallRequest } from './call_request.js';
 import { CallerContext } from './caller_context.js';
-import { FunctionData } from './function_data.js';
+import { FunctionData, FunctionSelector } from './index.js';
 import { PublicCallStackItem } from './public_call_stack_item.js';
 import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
 import { Vector } from './shared.js';
@@ -26,9 +26,8 @@ export class PublicCallRequest {
     public contractAddress: AztecAddress,
     /**
      * Data identifying the function being called.
-     * TODO(#3417): Remove this since the only useful data is the function selector, which is already part of the call context.
      */
-    public functionData: FunctionData,
+    public functionSelector: FunctionSelector,
     /**
      * Context of the public call.
      * TODO(#3417): Check if all fields of CallContext are actually needed.
@@ -52,7 +51,7 @@ export class PublicCallRequest {
   toBuffer() {
     return serializeToBuffer(
       this.contractAddress,
-      this.functionData,
+      this.functionSelector,
       this.callContext,
       this.parentCallContext,
       new Vector(this.args),
@@ -68,7 +67,7 @@ export class PublicCallRequest {
     const reader = BufferReader.asReader(buffer);
     return new PublicCallRequest(
       new AztecAddress(reader.readBytes(32)),
-      FunctionData.fromBuffer(reader),
+      FunctionSelector.fromBuffer(reader),
       CallContext.fromBuffer(reader),
       CallContext.fromBuffer(reader),
       reader.readVector(Fr),
@@ -92,7 +91,7 @@ export class PublicCallRequest {
   static getFields(fields: FieldsOf<PublicCallRequest>) {
     return [
       fields.contractAddress,
-      fields.functionData,
+      fields.functionSelector,
       fields.callContext,
       fields.parentCallContext,
       fields.args,
@@ -107,7 +106,12 @@ export class PublicCallRequest {
     const publicInputs = PublicCircuitPublicInputs.empty();
     publicInputs.callContext = this.callContext;
     publicInputs.argsHash = this.getArgsHash();
-    return new PublicCallStackItem(this.contractAddress, this.functionData, publicInputs, true);
+    return new PublicCallStackItem(
+      this.contractAddress,
+      new FunctionData(this.functionSelector, false),
+      publicInputs,
+      true,
+    );
   }
 
   /**
@@ -141,13 +145,19 @@ export class PublicCallRequest {
   }
 
   static empty() {
-    return new PublicCallRequest(AztecAddress.ZERO, FunctionData.empty(), CallContext.empty(), CallContext.empty(), []);
+    return new PublicCallRequest(
+      AztecAddress.ZERO,
+      FunctionSelector.empty(),
+      CallContext.empty(),
+      CallContext.empty(),
+      [],
+    );
   }
 
   isEmpty(): boolean {
     return (
       this.contractAddress.isZero() &&
-      this.functionData.isEmpty() &&
+      this.functionSelector.isEmpty() &&
       this.callContext.isEmpty() &&
       this.parentCallContext.isEmpty() &&
       this.args.length === 0
@@ -157,7 +167,7 @@ export class PublicCallRequest {
   [inspect.custom]() {
     return `PublicCallRequest {
       contractAddress: ${this.contractAddress}
-      functionData: ${this.functionData}
+      functionSelector: ${this.functionSelector}
       callContext: ${this.callContext}
       parentCallContext: ${this.parentCallContext}
       args: ${this.args} }`;

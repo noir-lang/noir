@@ -680,7 +680,7 @@ export class AztecNodeService implements AztecNode {
       processedTx.revertReason,
       processedTx.data.constants,
       processedTx.data.end,
-      returns[0],
+      returns,
       processedTx.gasUsed,
     );
   }
