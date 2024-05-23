@@ -110,7 +110,8 @@ impl BaseRollupInputs {
         let protocol_public_data_update_requests = [self.build_payment_update_request()];
         let end_public_data_tree_snapshot = self.validate_and_process_public_state(protocol_public_data_update_requests);
 
-        let transaction_fee = self.kernel_data.public_inputs.compute_transaction_fee();
+        let gas_fees = self.constants.global_variables.gas_fees;
+        let transaction_fee = self.kernel_data.public_inputs.compute_transaction_fee(gas_fees);
 
         // Calculate the tx effects hash of the transaction
         let tx_effects_hash = compute_tx_effects_hash(
@@ -242,7 +243,8 @@ impl BaseRollupInputs {
             read_hint.validate(self.start.public_data_tree.root);
 
             // Compute tx fee to charge
-            let tx_fee = self.kernel_data.public_inputs.compute_transaction_fee();
+            let gas_fees = self.constants.global_variables.gas_fees;
+            let tx_fee = self.kernel_data.public_inputs.compute_transaction_fee(gas_fees);
             assert(!read_hint.value.lt(tx_fee), "Not enough balance for fee payer to pay for transaction");
 
             // Get slot for the fee payer balance

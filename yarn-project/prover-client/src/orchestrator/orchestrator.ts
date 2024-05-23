@@ -253,8 +253,9 @@ export class ProvingOrchestrator {
     await validateRootOutput(rootRollupOutputs, this.db);
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
+    const gasFees = this.provingState.globalVariables.gasFees;
     const nonEmptyTxEffects: TxEffect[] = this.provingState!.allTxs.map(txProvingState =>
-      toTxEffect(txProvingState.processedTx),
+      toTxEffect(txProvingState.processedTx, gasFees),
     ).filter(txEffect => !txEffect.isEmpty());
     const blockBody = new Body(nonEmptyTxEffects);
 

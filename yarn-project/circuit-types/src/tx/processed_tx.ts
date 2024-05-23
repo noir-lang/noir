@@ -10,6 +10,7 @@ import {
 import {
   Fr,
   type Gas,
+  type GasFees,
   type Header,
   KernelCircuitPublicInputs,
   type Proof,
@@ -175,10 +176,10 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
   };
 }
 
-export function toTxEffect(tx: ProcessedTx): TxEffect {
+export function toTxEffect(tx: ProcessedTx, gasFees: GasFees): TxEffect {
   return new TxEffect(
     tx.data.revertCode,
-    tx.data.transactionFee,
+    tx.data.getTransactionFee(gasFees),
     tx.data.end.newNoteHashes.filter(h => !h.isZero()),
     tx.data.end.newNullifiers.filter(h => !h.isZero()),
     tx.data.end.newL2ToL1Msgs.filter(h => !h.isZero()),

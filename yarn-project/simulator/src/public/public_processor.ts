@@ -182,13 +182,12 @@ export class PublicProcessor {
     const gasToken = AztecAddress.fromBigInt(GAS_TOKEN_ADDRESS);
     const balanceSlot = computeFeePayerBalanceStorageSlot(feePayer);
     const currentBalance = await this.publicStateDB.storageRead(gasToken, balanceSlot);
-    if (currentBalance < tx.data.transactionFee) {
-      throw new Error(
-        `Not enough balance for fee payer to pay for transaction (got ${currentBalance} needs ${tx.data.transactionFee})`,
-      );
+    const txFee = tx.data.getTransactionFee(this.globalVariables.gasFees);
+    if (currentBalance.lt(txFee)) {
+      throw new Error(`Not enough balance for fee payer to pay for transaction (got ${currentBalance} needs ${txFee})`);
     }
 
-    const updatedBalance = currentBalance.sub(tx.data.transactionFee);
+    const updatedBalance = currentBalance.sub(txFee);
     const slot = await this.publicStateDB.storageWrite(gasToken, balanceSlot, updatedBalance);
     return new PublicDataUpdateRequest(new Fr(slot), updatedBalance);
   }
@@ -253,7 +252,7 @@ export class PublicProcessor {
     this.log.debug(`Processed public part of ${tx.getTxHash()}`, {
       eventName: 'tx-sequencer-processing',
       duration: timer.ms(),
-      effectsSize: toTxEffect(processedTx).toBuffer().length,
+      effectsSize: toTxEffect(processedTx, this.globalVariables.gasFees).toBuffer().length,
       publicDataUpdateRequests:
         processedTx.data.end.publicDataUpdateRequests.filter(x => !x.leafSlot.isZero()).length ?? 0,
       ...tx.getStats(),

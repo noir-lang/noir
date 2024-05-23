@@ -20,6 +20,8 @@ export enum TxStatus {
 /**
  * Represents a transaction receipt in the Aztec network.
  * Contains essential information about the transaction including its status, origin, and associated addresses.
+ * REFACTOR: TxReceipt should be returned only once the tx is mined, and all its fields should be required.
+ * We should not be using a TxReceipt to answer a query for a pending or dropped tx.
  */
 export class TxReceipt {
   constructor(

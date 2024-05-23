@@ -57,7 +57,7 @@ describe('benchmarks/tx_size_fees', () => {
   });
 
   it.each<[string, () => FeePaymentMethod | undefined, bigint]>([
-    ['no', () => undefined, 0n],
+    ['no', () => undefined, 200021120n],
     // TODO(palla/gas): Fix and reenable
     // [
     //   'native fee',

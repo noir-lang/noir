@@ -186,6 +186,7 @@ impl PrivateContext {
     }
 
     pub fn set_as_fee_payer(&mut self) {
+        dep::protocol_types::debug_log::debug_log_format("Setting {0} as fee payer", [self.this_address().to_field()]);
         self.is_fee_payer = true;
     }
 
