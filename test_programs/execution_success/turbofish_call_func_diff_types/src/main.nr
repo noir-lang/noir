@@ -23,9 +23,7 @@ fn main(x: Field, y: pub Field) {
 
 fn hash_simple_array<H>(input: [Field; 2]) -> Field where H: Hasher + Default {
     // Check that we can call a trait method instead of a trait implementation
-    // TODO(https://github.com/noir-lang/noir/issues/5063): Need to remove the need for this type annotation
-    // Curently, without the annotation we will get `Expression type is ambiguous` when trying to use the `hasher`
-    let mut hasher: H = H::default();
+    let mut hasher = H::default();
     // Regression that the object is converted to a mutable reference type `&mut _`.
     // Otherwise will see `Expected type &mut _, found type H`.
     // Then we need to make sure to also auto dereference later in the type checking process
