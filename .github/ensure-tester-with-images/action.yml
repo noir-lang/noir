@@ -13,6 +13,10 @@ inputs:
     required: true
   run:
     required: true
+  tester_ttl:
+    required: false
+    description: "Time to live for the tester instance in minutes"
+    default: 30
 runs:
   # define an action, runs in OS of caller
   using: composite
@@ -55,6 +59,7 @@ runs:
       if: ${{ env.CACHE_SUCCESS != 'true' }}
       with:
         runner_type: ${{ inputs.runner_type}}
+        ttl: ${{ inputs.tester_ttl }}
         run: |
           set -eux
           export BUILDER_SPOT_IP=${{ env.BUILDER_SPOT_IP }}
