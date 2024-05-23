@@ -1962,7 +1962,7 @@ fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<V
     // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
     // If it's finished then we can omit the opcode and just write in the return values.
     match vm_status {
-        VMStatus::Finished { return_data_offset, return_data_size } => Some(
+        VMStatus::Finished { return_data_offset, return_data_size, .. } => Some(
             vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec(),
         ),
         VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),

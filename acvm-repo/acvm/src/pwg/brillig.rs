@@ -20,7 +20,7 @@ use super::{get_value, insert_value, memory_op::MemoryOpSolver};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus {
-    Finished,
+    Finished(u64),
     InProgress,
     ForeignCallWait(ForeignCallWaitInfo),
 }
@@ -158,7 +158,9 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         // Return the "resolution" to the caller who may choose to make subsequent calls
         // (when it gets foreign call results for example).
         match vm_status {
-            VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
+            VMStatus::Finished { number_of_iterations, .. } => {
+                Ok(BrilligSolverStatus::Finished(number_of_iterations))
+            }
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
             VMStatus::Failure { reason, call_stack } => {
                 let payload = match reason {
@@ -233,7 +235,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         // Finish the Brillig execution by writing the outputs to the witness map
         let vm_status = self.vm.get_status();
         match vm_status {
-            VMStatus::Finished { return_data_offset, return_data_size } => {
+            VMStatus::Finished { return_data_offset, return_data_size, .. } => {
                 self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
                 Ok(())
             }
