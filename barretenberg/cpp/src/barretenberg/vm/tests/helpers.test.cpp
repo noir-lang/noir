@@ -37,7 +37,6 @@ void validate_trace(std::vector<Row>&& trace, std::array<FF, KERNEL_INPUTS_LENGT
     EXPECT_TRUE(circuit_builder.check_circuit());
 
     if (with_proof) {
-        info("With proof");
         AvmComposer composer = AvmComposer();
         AvmProver prover = composer.create_prover(circuit_builder);
         HonkProof proof = prover.construct_proof();

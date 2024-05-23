@@ -142,13 +142,14 @@ class AvmRangeCheckNegativeTests : public AvmInterTableTests {
     size_t mem_idx;
     size_t alu_idx;
 
-    void genTraceAdd(uint128_t const& a, uint128_t const& b, uint128_t const& c, AvmMemoryTag tag)
+    void genTraceAdd(
+        uint128_t const& a, uint128_t const& b, uint128_t const& c, AvmMemoryTag tag, uint32_t min_trace_size = 0)
     {
         trace_builder.op_set(0, a, 0, tag);
         trace_builder.op_set(0, b, 1, tag);
         trace_builder.op_add(0, 0, 1, 2, tag); // 7 + 8 = 15
         trace_builder.return_op(0, 0, 0);
-        trace = trace_builder.finalize();
+        trace = trace_builder.finalize(min_trace_size);
 
         // Find the row with addition operation and retrieve clk.
         auto row =
@@ -254,7 +255,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU8Reg1)
 // Out-of-range value in register u16_r0
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg0)
 {
-    genTraceAdd(1200, 2000, 3200, AvmMemoryTag::U16);
+    genTraceAdd(1200, 2000, 3200, AvmMemoryTag::U16, 130);
     auto& row = trace.at(main_idx);
     auto& mem_row = trace.at(mem_idx);
     auto& alu_row = trace.at(alu_idx);
