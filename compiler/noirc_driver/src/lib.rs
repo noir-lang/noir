@@ -100,10 +100,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Force Brillig output (for step debugging)
-    #[arg(long, hide = true)]
-    pub use_plonky2_backend_experimental: bool,
-
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
     pub use_elaborator: bool,
@@ -286,6 +282,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
+    generate_plonky2: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (_, mut warnings) = check_crate(
         context,
@@ -310,7 +307,7 @@ pub fn compile_main(
         main,
         cached_program,
         options.force_compile,
-        options.use_plonky2_backend_experimental,
+        generate_plonky2,
     )
     .map_err(FileDiagnostic::from)?;
 

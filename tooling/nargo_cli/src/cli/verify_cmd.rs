@@ -59,6 +59,7 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
             package,
             &args.compile_options,
             None,
+            true,
         );
 
         let compiled_program = report_errors(
@@ -71,13 +72,7 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         let compiled_program =
             nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
 
-        verify_package(
-            &workspace,
-            package,
-            compiled_program,
-            &args.verifier_name,
-            args.compile_options.use_plonky2_backend_experimental,
-        )?;
+        verify_package(&workspace, package, compiled_program, &args.verifier_name)?;
     }
 
     Ok(())
@@ -88,7 +83,6 @@ fn verify_package(
     package: &Package,
     compiled_program: CompiledProgram,
     verifier_name: &str,
-    use_plonky2_backend_experimental: bool,
 ) -> Result<(), CliError> {
     // Load public inputs (if any) from `verifier_name`.
     let public_abi = compiled_program.abi.public_abi();
@@ -102,19 +96,14 @@ fn verify_package(
 
     let proof = load_hex_data(&proof_path)?;
 
-    let valid_proof = if !use_plonky2_backend_experimental {
-        let message =
-            "verify command has been deprecated without the --use_plonky2_backend_experimental flag";
-        return Err(CliError::InvalidProof(message.into()));
-    } else {
+    let valid_proof =
         match compiled_program.plonky2_circuit.as_ref().unwrap().verify(&proof, public_inputs) {
             Ok(valid_proof) => valid_proof,
             Err(error) => {
                 let error_message = format!("{:?}", error);
                 return Err(CliError::BackendError(BackendError::UnfitBackend(error_message)));
             }
-        }
-    };
+        };
 
     if valid_proof {
         Ok(())

@@ -176,7 +176,7 @@ pub fn compile_program(
     };
 
     let compiled_program =
-        noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
+        noirc_driver::compile_main(&mut context, crate_id, &compile_options, None, false)
             .map_err(|errs| {
                 CompileError::with_file_diagnostics(
                     "Failed to compile program",

@@ -171,7 +171,14 @@ pub(super) fn compile_workspace(
                     .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
                     .map(|p| p.into());
 
-            compile_program(file_manager, parsed_files, package, compile_options, cached_program)
+            compile_program(
+                file_manager,
+                parsed_files,
+                package,
+                compile_options,
+                cached_program,
+                false,
+            )
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages

@@ -365,7 +365,7 @@ fn noirc_frontend_failure_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
+    cmd.arg("prove");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
             "#,
@@ -425,7 +425,7 @@ fn plonky2_prove_success_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
+    cmd.arg("prove");
 
     cmd.assert().success();
 }}
@@ -465,7 +465,7 @@ fn plonky2_prove_failure_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
+    cmd.arg("prove");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
             test_dir = test_dir.display(),
@@ -526,7 +526,7 @@ fn plonky2_prove_unsupported_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
+    cmd.arg("prove");
 
     cmd.assert().failure().stderr(predicate::str::contains("PLONKY2 backend does not support"));
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
@@ -567,7 +567,7 @@ fn plonky2_prove_crash_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
+    cmd.arg("prove");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed)."));
 }}

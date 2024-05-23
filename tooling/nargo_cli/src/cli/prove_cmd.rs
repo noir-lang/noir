@@ -76,6 +76,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
             package,
             &args.compile_options,
             None,
+            true,
         );
 
         let compiled_program = report_errors(
@@ -94,7 +95,6 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
             compiled_program,
             &args.prover_name,
             &args.verifier_name,
-            args.compile_options.use_plonky2_backend_experimental,
             args.verify,
             args.oracle_resolver.as_deref(),
         )?;
@@ -110,7 +110,6 @@ pub(crate) fn prove_package(
     compiled_program: CompiledProgram,
     prover_name: &str,
     verifier_name: &str,
-    use_plonky2_backend_experimental: bool,
     check_proof: bool,
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<(), CliError> {
@@ -136,17 +135,11 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = if !use_plonky2_backend_experimental {
-        let message =
-            "prove command has been deprecated without the --use_plonky2_backend_experimental flag";
-        return Err(CliError::InvalidProof(message.into()));
-    } else {
-        match compiled_program.plonky2_circuit.unwrap().prove(&inputs_map) {
-            Ok(proof) => proof,
-            Err(error) => {
-                let error_message = format!("{:?}", error);
-                return Err(CliError::BackendError(BackendError::UnfitBackend(error_message)));
-            }
+    let proof = match compiled_program.plonky2_circuit.unwrap().prove(&inputs_map) {
+        Ok(proof) => proof,
+        Err(error) => {
+            let error_message = format!("{:?}", error);
+            return Err(CliError::BackendError(BackendError::UnfitBackend(error_message)));
         }
     };
 
