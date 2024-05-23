@@ -1,23 +1,10 @@
 import { foreignCallHandler } from '@aztec/noir-protocol-circuits-types';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
-import {
-  type WasmBlackBoxFunctionSolver,
-  createBlackBoxSolver,
-  executeCircuitWithBlackBoxSolver,
-} from '@noir-lang/acvm_js';
+import { executeCircuit } from '@noir-lang/acvm_js';
 import { type WitnessMap } from '@noir-lang/types';
 
 import { type SimulationProvider } from './simulation_provider.js';
-
-let solver: Promise<WasmBlackBoxFunctionSolver>;
-
-const getSolver = (): Promise<WasmBlackBoxFunctionSolver> => {
-  if (!solver) {
-    solver = createBlackBoxSolver();
-  }
-  return solver;
-};
 
 export class WASMSimulator implements SimulationProvider {
   async simulateCircuit(input: WitnessMap, compiledCircuit: NoirCompiledCircuit): Promise<WitnessMap> {
@@ -27,8 +14,7 @@ export class WASMSimulator implements SimulationProvider {
     const decodedBytecode = Buffer.from(compiledCircuit.bytecode, 'base64');
     //
     // Execute the circuit
-    const _witnessMap = await executeCircuitWithBlackBoxSolver(
-      await getSolver(),
+    const _witnessMap = await executeCircuit(
       decodedBytecode,
       input,
       foreignCallHandler, // handle calls to debug_log

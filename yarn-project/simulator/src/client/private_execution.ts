@@ -8,7 +8,6 @@ import { Oracle, acvm, extractCallStack } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
 import { type ClientExecutionContext } from './client_execution_context.js';
 import { type ExecutionResult } from './execution_result.js';
-import { AcirSimulator } from './simulator.js';
 
 /**
  * Execute a private function and return the execution result.
@@ -24,19 +23,17 @@ export async function executePrivateFunction(
   const acir = artifact.bytecode;
   const initialWitness = context.getInitialWitness(artifact);
   const acvmCallback = new Oracle(context);
-  const acirExecutionResult = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, acvmCallback).catch(
-    (err: Error) => {
-      throw new ExecutionError(
-        err.message,
-        {
-          contractAddress,
-          functionSelector,
-        },
-        extractCallStack(err, artifact.debug),
-        { cause: err },
-      );
-    },
-  );
+  const acirExecutionResult = await acvm(acir, initialWitness, acvmCallback).catch((err: Error) => {
+    throw new ExecutionError(
+      err.message,
+      {
+        contractAddress,
+        functionSelector,
+      },
+      extractCallStack(err, artifact.debug),
+      { cause: err },
+    );
+  });
   const partialWitness = acirExecutionResult.partialWitness;
   const returnWitness = witnessMapToFields(acirExecutionResult.returnWitness);
   const publicInputs = PrivateCircuitPublicInputs.fromFields(returnWitness);

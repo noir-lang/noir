@@ -6,7 +6,6 @@ import {
   type ExecutionError,
   type ForeignCallInput,
   type ForeignCallOutput,
-  type WasmBlackBoxFunctionSolver,
   executeCircuitWithReturnWitness,
 } from '@noir-lang/acvm_js';
 
@@ -85,7 +84,6 @@ export function resolveOpcodeLocations(
  * The function call that executes an ACIR.
  */
 export async function acvm(
-  solver: WasmBlackBoxFunctionSolver,
   acir: Buffer,
   initialWitness: ACVMWitness,
   callback: ACIRCallback,
@@ -93,7 +91,6 @@ export async function acvm(
   const logger = createDebugLogger('aztec:simulator:acvm');
 
   const solvedAndReturnWitness = await executeCircuitWithReturnWitness(
-    solver,
     acir,
     initialWitness,
     async (name: string, args: ForeignCallInput[]) => {

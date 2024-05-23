@@ -21,7 +21,6 @@ import { AvmMachineState } from '../avm/avm_machine_state.js';
 import { AvmSimulator } from '../avm/avm_simulator.js';
 import { HostStorage } from '../avm/journal/host_storage.js';
 import { AvmPersistableStateManager } from '../avm/journal/index.js';
-import { AcirSimulator } from '../client/simulator.js';
 import { ExecutionError, createSimulationError } from '../common/errors.js';
 import { SideEffectCounter } from '../common/index.js';
 import { PackedValuesCache } from '../common/packed_values_cache.js';
@@ -140,7 +139,7 @@ async function executePublicFunctionAcvm(
 
   const { partialWitness, returnWitnessMap, reverted, revertReason } = await (async () => {
     try {
-      const result = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, acvmCallback);
+      const result = await acvm(acir, initialWitness, acvmCallback);
       return {
         partialWitness: result.partialWitness,
         returnWitnessMap: result.returnWitness,
