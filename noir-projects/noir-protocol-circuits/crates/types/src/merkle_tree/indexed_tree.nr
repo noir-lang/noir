@@ -26,8 +26,6 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     // A permutation to the values is provided to make the insertion use only one insertion strategy
     check_permutation(values_to_insert, sorted_values, sorted_values_indexes);
 
-    // TODO: Shouldn't we check `sorted_values` is sorted?
-
     // Now, update the existing leaves with the new leaves
     let mut current_tree_root = start_snapshot.root;
     let mut insertion_subtree = [Leaf::empty(); SubtreeWidth];

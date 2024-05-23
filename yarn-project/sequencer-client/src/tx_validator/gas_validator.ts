@@ -1,7 +1,8 @@
 import { type Tx, type TxValidator } from '@aztec/circuit-types';
 import { type AztecAddress, type Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { computeFeePayerBalanceStorageSlot } from '@aztec/simulator';
+import { GasTokenArtifact } from '@aztec/protocol-contracts/gas-token';
+import { AbstractPhaseManager, PublicKernelPhase, computeFeePayerBalanceStorageSlot } from '@aztec/simulator';
 
 /** Provides a view into public contract state */
 export interface PublicStateSource {
@@ -39,11 +40,29 @@ export class GasTxValidator implements TxValidator<Tx> {
     if (feePayer.isZero()) {
       return true;
     }
+
+    // Compute the maximum fee that this tx may pay, based on its gasLimits and maxFeePerGas
     const feeLimit = tx.data.constants.txContext.gasSettings.getFeeLimit();
-    const balance = await this.#publicDataSource.storageRead(
+
+    // Read current balance of the feePayer
+    const initialBalance = await this.#publicDataSource.storageRead(
       this.#gasTokenAddress,
       computeFeePayerBalanceStorageSlot(feePayer),
     );
+
+    // If there is a claim in this tx that increases the fee payer balance in gas token, add it to balance
+    const { [PublicKernelPhase.SETUP]: setupFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx);
+    const claimFunctionCall = setupFns.find(
+      fn =>
+        fn.contractAddress.equals(this.#gasTokenAddress) &&
+        fn.callContext.msgSender.equals(this.#gasTokenAddress) &&
+        fn.functionSelector.equals(GasTokenArtifact.functions.find(f => f.name === '_increase_public_balance')!) &&
+        fn.args[0].equals(feePayer) &&
+        !fn.callContext.isStaticCall &&
+        !fn.callContext.isDelegateCall,
+    );
+
+    const balance = claimFunctionCall ? initialBalance.add(claimFunctionCall.args[1]) : initialBalance;
     if (balance.lt(feeLimit)) {
       this.#log.info(`Rejecting transaction due to not enough fee payer balance`, { feePayer, balance, feeLimit });
       return false;

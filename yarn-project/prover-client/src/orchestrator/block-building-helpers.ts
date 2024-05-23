@@ -21,7 +21,6 @@ import {
   NULLIFIER_TREE_HEIGHT,
   type NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NullifierLeafPreimage,
-  PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_SUBTREE_HEIGHT,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
@@ -91,11 +90,15 @@ export async function buildBaseRollupInput(
   );
 
   // Create data hint for reading fee payer initial balance in gas tokens
+  // If no fee payer is set, read hint should be empty
+  // If there is already a public data write for this slot, also skip the read hint
   const hintsBuilder = new HintsBuilder(db);
   const leafSlot = computeFeePayerBalanceLeafSlot(tx.data.feePayer);
-  const feePayerGasTokenBalanceReadHint = leafSlot.isZero()
-    ? PublicDataHint.empty()
-    : await hintsBuilder.getPublicDataHint(leafSlot.toBigInt());
+  const existingBalanceWrite = tx.data.end.publicDataUpdateRequests.find(write => write.leafSlot.equals(leafSlot));
+  const feePayerGasTokenBalanceReadHint =
+    leafSlot.isZero() || existingBalanceWrite
+      ? PublicDataHint.empty()
+      : await hintsBuilder.getPublicDataHint(leafSlot.toBigInt());
 
   // Update the note hash trees with the new items being inserted to get the new roots
   // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
@@ -322,14 +325,12 @@ export function makeEmptyMembershipWitness<N extends number>(height: N) {
 }
 
 export async function processPublicDataUpdateRequests(tx: ProcessedTx, db: MerkleTreeOperations) {
-  const allPublicDataUpdateRequests = [
-    ...tx.data.end.publicDataUpdateRequests,
-    ...padArrayEnd(
-      tx.protocolPublicDataUpdateRequests,
-      PublicDataUpdateRequest.empty(),
-      PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    ),
-  ];
+  const allPublicDataUpdateRequests = padArrayEnd(
+    tx.finalPublicDataUpdateRequests,
+    PublicDataUpdateRequest.empty(),
+    MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  );
+
   const allPublicDataWrites = allPublicDataUpdateRequests.map(
     ({ leafSlot, newValue }) => new PublicDataTreeLeaf(leafSlot, newValue),
   );

@@ -29,14 +29,9 @@ import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getContract } from 'viem';
 
 import { MNEMONIC } from '../fixtures/fixtures.js';
-import {
-  type ISnapshotManager,
-  type SubsystemsContext,
-  addAccounts,
-  createSnapshotManager,
-} from '../fixtures/snapshot_manager.js';
+import { type ISnapshotManager, addAccounts, createSnapshotManager } from '../fixtures/snapshot_manager.js';
 import { type BalancesFn, deployCanonicalGasToken, getBalancesFn, publicDeployAccounts } from '../fixtures/utils.js';
-import { GasPortalTestingHarnessFactory } from '../shared/gas_portal_test_harness.js';
+import { GasPortalTestingHarnessFactory, type IGasBridgingTestHarness } from '../shared/gas_portal_test_harness.js';
 
 const { E2E_DATA_PATH: dataPath } = process.env;
 
@@ -72,6 +67,7 @@ export class FeesTest {
   public bananaFPC!: FPCContract;
   public counterContract!: CounterContract;
   public subscriptionContract!: AppSubscriptionContract;
+  public gasBridgeTestHarness!: IGasBridgingTestHarness;
 
   public getCoinbaseBalance!: () => Promise<bigint>;
   public gasBalances!: BalancesFn;
@@ -166,8 +162,19 @@ export class FeesTest {
           ),
         );
       },
-      async () => {
+      async (_data, context) => {
         this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
+
+        const { publicClient, walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
+        this.gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+          aztecNode: context.aztecNode,
+          pxeService: context.pxe,
+          publicClient: publicClient,
+          walletClient: walletClient,
+          wallet: this.aliceWallet,
+          logger: this.logger,
+          mockL1: false,
+        });
       },
     );
   }
@@ -192,8 +199,7 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'fpc_setup',
       async context => {
-        const harness = await this.createGasBridgeTestHarness(context);
-        const gasTokenContract = harness.l2Token;
+        const gasTokenContract = this.gasBridgeTestHarness.l2Token;
         expect(await context.pxe.isContractPubliclyDeployed(gasTokenContract.address)).toBe(true);
 
         const bananaCoin = this.bananaCoin;
@@ -203,12 +209,16 @@ export class FeesTest {
 
         this.logger.info(`BananaPay deployed at ${bananaFPC.address}`);
 
-        await harness.bridgeFromL1ToL2(this.INITIAL_GAS_BALANCE, this.INITIAL_GAS_BALANCE, bananaFPC.address);
+        await this.gasBridgeTestHarness.bridgeFromL1ToL2(
+          this.INITIAL_GAS_BALANCE,
+          this.INITIAL_GAS_BALANCE,
+          bananaFPC.address,
+        );
 
         return {
           bananaFPCAddress: bananaFPC.address,
           gasTokenAddress: gasTokenContract.address,
-          l1GasTokenAddress: harness.l1GasTokenAddress,
+          l1GasTokenAddress: this.gasBridgeTestHarness.l1GasTokenAddress,
         };
       },
       async (data, context) => {
@@ -291,19 +301,5 @@ export class FeesTest {
         this.subscriptionContract = await AppSubscriptionContract.at(subscriptionContractAddress, this.bobWallet);
       },
     );
-  }
-
-  private createGasBridgeTestHarness(context: SubsystemsContext) {
-    const { publicClient, walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
-
-    return GasPortalTestingHarnessFactory.create({
-      aztecNode: context.aztecNode,
-      pxeService: context.pxe,
-      publicClient: publicClient,
-      walletClient: walletClient,
-      wallet: this.aliceWallet,
-      logger: this.logger,
-      mockL1: false,
-    });
   }
 }

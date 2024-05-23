@@ -23,6 +23,29 @@ contract GasToken {
         storage.portal_address.initialize(portal_address);
     }
 
+    #[aztec(private)]
+    fn claim(to: AztecAddress, amount: Field, secret: Field) {
+        let content_hash = get_bridge_gas_msg_hash(to, amount);
+        let portal_address = storage.portal_address.read_private();
+        assert(!portal_address.is_zero());
+
+        // Consume message and emit nullifier
+        context.consume_l1_to_l2_message(content_hash, secret, portal_address);
+
+        // TODO(palla/gas) Emit an unencrypted log to announce which L1 to L2 message has been claimed
+        // Otherwise, we cannot trace L1 deposits to their corresponding claims on L2
+
+        GasToken::at(context.this_address())._increase_public_balance(to, amount).enqueue(&mut context);
+    }
+
+    #[aztec(public)]
+    #[aztec(internal)]
+    fn _increase_public_balance(to: AztecAddress, amount: Field) {
+        let new_balance = storage.balances.at(to).read().add(U128::from_integer(amount));
+        storage.balances.at(to).write(new_balance);
+    }
+
+    // TODO(palla/gas) Remove this function and use the private claim flow only
     #[aztec(public)]
     fn claim_public(to: AztecAddress, amount: Field, secret: Field, leaf_index: Field) {
         let content_hash = get_bridge_gas_msg_hash(to, amount);

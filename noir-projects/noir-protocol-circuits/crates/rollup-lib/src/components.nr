@@ -128,7 +128,7 @@ pub fn compute_tx_effects_hash(
     combined: CombinedAccumulatedData,
     revert_code: u8,
     transaction_fee: Field,
-    protocol_public_data_update_requests: [PublicDataUpdateRequest; PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]
+    all_public_data_update_requests: [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]
 ) -> Field {
     // Compute tx effect hash
     // Consist of
@@ -151,10 +151,7 @@ pub fn compute_tx_effects_hash(
     let new_l2_to_l1_msgs = combined.new_l2_to_l1_msgs;
 
     // Public writes are the concatenation of all non-empty user update requests and protocol update requests, then padded with zeroes.
-    let public_data_update_requests = get_all_update_requests_for_tx_effects(
-        combined.public_data_update_requests,
-        protocol_public_data_update_requests
-    );
+    let public_data_update_requests = get_all_update_requests_for_tx_effects(all_public_data_update_requests);
 
     let encrypted_logs_length = combined.encrypted_log_preimages_length;
     let unencrypted_logs_length = combined.unencrypted_log_preimages_length;
@@ -227,17 +224,9 @@ pub fn compute_tx_effects_hash(
     sha_digest
 }
 
-fn get_all_update_requests_for_tx_effects(
-    public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    protocol_public_data_update_requests: [PublicDataUpdateRequest; PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]
-) -> [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] {
+fn get_all_update_requests_for_tx_effects(all_public_data_update_requests: [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]) -> [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] {
     let mut all_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new();
-    for update_request in public_data_update_requests {
-        if !update_request.is_empty() {
-            all_update_requests.push(update_request);
-        }
-    }
-    for update_request in protocol_public_data_update_requests {
+    for update_request in all_public_data_update_requests {
         if !update_request.is_empty() {
             all_update_requests.push(update_request);
         }

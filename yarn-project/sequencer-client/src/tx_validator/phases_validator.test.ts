@@ -1,4 +1,4 @@
-import { type Tx, mockTx } from '@aztec/circuit-types';
+import { mockTx } from '@aztec/circuit-types';
 import { type AztecAddress, Fr, type FunctionSelector } from '@aztec/circuits.js';
 import { makeAztecAddress, makeSelector } from '@aztec/circuits.js/testing';
 import { type ContractDataSource } from '@aztec/types/contracts';
@@ -6,6 +6,7 @@ import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
 import { PhasesTxValidator } from './phases_validator.js';
+import { patchNonRevertibleFn } from './test_utils.js';
 
 describe('PhasesTxValidator', () => {
   let contractDataSource: MockProxy<ContractDataSource>;
@@ -109,20 +110,4 @@ describe('PhasesTxValidator', () => {
 
     await expect(txValidator.validateTxs([tx])).resolves.toEqual([[], [tx]]);
   });
-
-  function patchNonRevertibleFn(
-    tx: Tx,
-    index: number,
-    { address, selector }: { address?: AztecAddress; selector: FunctionSelector },
-  ): { address: AztecAddress; selector: FunctionSelector } {
-    const fn = tx.enqueuedPublicFunctionCalls.at(-1 * index - 1)!;
-    fn.contractAddress = address ?? fn.contractAddress;
-    fn.functionSelector = selector;
-    tx.data.forPublic!.endNonRevertibleData.publicCallStack[index] = fn.toCallRequest();
-
-    return {
-      address: fn.contractAddress,
-      selector: fn.functionSelector,
-    };
-  }
 });

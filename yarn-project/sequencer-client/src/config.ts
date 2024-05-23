@@ -8,6 +8,7 @@ import { SchnorrAccountContractArtifact } from '@aztec/noir-contracts.js/Schnorr
 import { SchnorrHardcodedAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrHardcodedAccount';
 import { SchnorrSingleKeyAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrSingleKeyAccount';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
+import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { type Hex } from 'viem';
 
@@ -151,12 +152,16 @@ function getDefaultAllowedSetupFunctions(): AllowedFunction[] {
       classId: getContractClassFromArtifact(EcdsaAccountContractArtifact).id,
       selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
     },
+    // needed for claiming on the same tx as a spend
+    {
+      address: GasTokenAddress,
+      selector: FunctionSelector.fromSignature('_increase_public_balance((Field),Field)'),
+    },
     // needed for private transfers via FPC
     {
       classId: getContractClassFromArtifact(TokenContractArtifact).id,
       selector: FunctionSelector.fromSignature('_increase_public_balance((Field),Field)'),
     },
-
     {
       classId: getContractClassFromArtifact(FPCContract.artifact).id,
       selector: FunctionSelector.fromSignature('prepare_fee((Field),Field,(Field),Field)'),
