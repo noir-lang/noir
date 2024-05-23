@@ -222,7 +222,7 @@ pub(crate) mod tests {
         let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver);
 
         let status = vm.process_opcodes();
-        if let VMStatus::Finished { return_data_offset, return_data_size } = status {
+        if let VMStatus::Finished { return_data_offset, return_data_size, .. } = status {
             (vm, return_data_offset, return_data_size)
         } else {
             panic!("VM did not finish")
@@ -287,6 +287,13 @@ pub(crate) mod tests {
             &DummyBlackBoxSolver,
         );
         let status = vm.process_opcodes();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+        assert_eq!(
+            status,
+            VMStatus::Finished {
+                return_data_offset: 0,
+                return_data_size: 0,
+                number_of_iterations: 8
+            }
+        );
     }
 }

@@ -287,7 +287,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     DebugCommandResult::Ok
                 }
             }
-            Ok(BrilligSolverStatus::Finished) => {
+            Ok(BrilligSolverStatus::Finished(_)) => {
                 let status = self.acvm.finish_brillig_with_solver(solver);
                 self.handle_acvm_status(status)
             }
