@@ -303,7 +303,7 @@ impl<'context> Elaborator<'context> {
                     }
                 };
 
-                if *func_id != FuncId::dummy_id() {
+                if func_id != FuncId::dummy_id() {
                     let function_type = self.interner.function_meta(&func_id).typ.clone();
                     self.try_add_mutable_reference_to_object(
                         &function_type,
@@ -331,8 +331,13 @@ impl<'context> Elaborator<'context> {
                 let generics = method_call.generics.map(|option_inner| {
                     option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
                 });
-                let method_call =
-                    HirMethodCallExpression { method, object, arguments, location, generics };
+                let method_call = HirMethodCallExpression {
+                    method,
+                    object,
+                    arguments,
+                    location,
+                    generics: generics.clone(),
+                };
 
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
@@ -344,7 +349,7 @@ impl<'context> Elaborator<'context> {
                     self.interner,
                 );
 
-                let func_type = self.type_check_variable(function_name, function_id, method_call.generics);
+                let func_type = self.type_check_variable(function_name, function_id, generics);
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
