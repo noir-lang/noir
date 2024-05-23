@@ -292,6 +292,9 @@ impl<'context> Elaborator<'context> {
             self.local_module = local_module;
             self.recover_generics(|this| this.elaborate_function(func, id));
         }
+
+        self.self_type = None;
+        self.trait_id = None;
     }
 
     fn elaborate_function(&mut self, mut function: NoirFunction, id: FuncId) {
@@ -347,7 +350,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        if !func_meta.can_ignore_return_type() {
+        // Don't verify the return type for builtin functions & trait function declarations
+        if !func_meta.is_stub() {
             self.type_check_function_body(body_type, &func_meta, hir_func.as_expr());
         }
 
@@ -381,7 +385,7 @@ impl<'context> Elaborator<'context> {
         let func_scope_tree = self.scopes.end_function();
 
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
-        if !is_low_level_or_oracle {
+        if !func_meta.is_stub() {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
         }
 
@@ -550,7 +554,12 @@ impl<'context> Elaborator<'context> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: any implicit generics, including any generics from the impl,
     /// have already been added to scope via `self.add_generics`.
-    fn define_function_meta(&mut self, func: &mut NoirFunction, func_id: FuncId) {
+    fn define_function_meta(
+        &mut self,
+        func: &mut NoirFunction,
+        func_id: FuncId,
+        is_trait_function: bool,
+    ) {
         self.current_function = Some(func_id);
         self.resolve_where_clause(&mut func.def.where_clause);
 
@@ -685,6 +694,7 @@ impl<'context> Elaborator<'context> {
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point,
+            is_trait_function,
             has_inline_attribute,
         };
 
@@ -983,11 +993,12 @@ impl<'context> Elaborator<'context> {
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
             let object_type = &trait_impl.object_type;
-            let old_generic_count = self.generics.len();
-            self.add_generics(&trait_impl.generics);
-            trait_impl.resolved_generics = self.generics.clone();
-            self.declare_methods_on_struct(object_type, true, &mut trait_impl.methods, span);
-            self.generics.truncate(old_generic_count);
+
+            self.recover_generics(|this| {
+                this.add_generics(&trait_impl.generics);
+                trait_impl.resolved_generics = this.generics.clone();
+                this.declare_methods_on_struct(object_type, true, &mut trait_impl.methods, span);
+            });
         }
     }
 
@@ -1308,6 +1319,7 @@ impl<'context> Elaborator<'context> {
             self.add_generics(&trait_impl.generics);
 
             let self_type = self.resolve_type(unresolved_type.clone());
+
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
 
@@ -1328,7 +1340,7 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id);
+                this.define_function_meta(func, *id, false);
             });
         }
     }
