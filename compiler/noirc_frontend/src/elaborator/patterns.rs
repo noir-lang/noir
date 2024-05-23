@@ -486,16 +486,12 @@ impl<'context> Elaborator<'context> {
         match turbofish_generics {
             Some(turbofish_generics) => {
                 if turbofish_generics.len() != function_generic_count {
-                    self.errors.push((
-                        CompilationError::TypeError(
-                            TypeCheckError::IncorrectTurbofishGenericCount {
-                                expected_count: function_generic_count,
-                                actual_count: turbofish_generics.len(),
-                                span,
-                            },
-                        ),
-                        location.file,
-                    ));
+                    let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+                        expected_count: function_generic_count,
+                        actual_count: turbofish_generics.len(),
+                        span,
+                    };
+                    self.errors.push((CompilationError::TypeError(type_check_err), location.file));
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
                     // Fetch the count of any implicit generics on the function, such as
