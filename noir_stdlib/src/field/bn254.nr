@@ -1,11 +1,13 @@
+use crate::within_unconstrained;
+
 // The low and high decomposition of the field modulus
 global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
 
 global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
-/// A hint for decomposing a single field into two 16 byte fields.
-unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
+// Decomposes a single field into two 16 byte fields.
+fn compute_decomposition(x: Field) -> (Field, Field) {
     let x_bytes = x.to_le_bytes(32);
 
     let mut low: Field = 0;
@@ -21,11 +23,15 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
     (low, high)
 }
 
+unconstrained fn decompose_hint(x: Field) -> (Field, Field) {
+    compute_decomposition(x)
+}
+
 // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
 fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
-    let borrow = lte_unsafe_16(alo, blo);
+    let borrow = lte_16_hint(alo, blo);
 
     let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
     let rhi = ahi - bhi - (borrow as Field);
@@ -34,10 +40,9 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     rhi.assert_max_bit_size(128);
 }
 
-/// Decompose a single field into two 16 byte fields.
-pub fn decompose(x: Field) -> (Field, Field) {
+fn decompose_circuit_optimized(x: Field) -> (Field, Field) {
     // Take hints of the decomposition
-    let (xlo, xhi) = decompose_unsafe(x);
+    let (xlo, xhi) = decompose_hint(x);
 
     // Range check the limbs
     xlo.assert_max_bit_size(128);
@@ -51,7 +56,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
     (xlo, xhi)
 }
 
-fn lt_unsafe_internal(x: Field, y: Field, num_bytes: u32) -> bool {
+fn compute_lt(x: Field, y: Field, num_bytes: u32) -> bool {
     let x_bytes = x.to_le_radix(256, num_bytes);
     let y_bytes = y.to_le_radix(256, num_bytes);
     let mut x_is_lt = false;
@@ -70,29 +75,46 @@ fn lt_unsafe_internal(x: Field, y: Field, num_bytes: u32) -> bool {
     x_is_lt
 }
 
-fn lte_unsafe_internal(x: Field, y: Field, num_bytes: u32) -> bool {
+fn compute_lte(x: Field, y: Field, num_bytes: u32) -> bool {
     if x == y {
         true
     } else {
-        lt_unsafe_internal(x, y, num_bytes)
+        compute_lt(x, y, num_bytes)
     }
 }
 
-unconstrained fn lt_unsafe_32(x: Field, y: Field) -> bool {
-    lt_unsafe_internal(x, y, 32)
+unconstrained fn lt_32_hint(x: Field, y: Field) -> bool {
+    compute_lt(x, y, 32)
 }
 
-unconstrained fn lte_unsafe_16(x: Field, y: Field) -> bool {
-    lte_unsafe_internal(x, y, 16)
+unconstrained fn lte_16_hint(x: Field, y: Field) -> bool {
+    compute_lte(x, y, 16)
 }
 
-pub fn assert_gt(a: Field, b: Field) {
+fn assert_gt_circuit_optimized(a: Field, b: Field) {
     // Decompose a and b
-    let a_limbs = decompose(a);
-    let b_limbs = decompose(b);
+    let a_limbs = decompose_circuit_optimized(a);
+    let b_limbs = decompose_circuit_optimized(b);
 
     // Assert that a_limbs is greater than b_limbs
     assert_gt_limbs(a_limbs, b_limbs)
+}
+
+/// Decompose a single field into two 16 byte fields.
+pub fn decompose(x: Field) -> (Field, Field) {
+    if within_unconstrained() {
+        compute_decomposition(x)
+    } else {
+        decompose_circuit_optimized(x)
+    }
+}
+
+pub fn assert_gt(a: Field, b: Field) {
+    if within_unconstrained() {
+        assert(compute_lt(b, a, 32));
+    } else {
+        assert_gt_circuit_optimized(a, b);
+    }
 }
 
 pub fn assert_lt(a: Field, b: Field) {
@@ -100,14 +122,19 @@ pub fn assert_lt(a: Field, b: Field) {
 }
 
 pub fn gt(a: Field, b: Field) -> bool {
-    if a == b {
+    if within_unconstrained() {
+        compute_lt(b, a, 32)
+    } else if a == b {
         false
-    } else if lt_unsafe_32(a, b) {
-        assert_gt(b, a);
-        false
-    } else {
-        assert_gt(a, b);
-        true
+    } else  {
+        // Take a hint of the comparison and verify it
+        if lt_32_hint(a, b) {
+            assert_gt(b, a);
+            false
+        } else {
+            assert_gt(a, b);
+            true
+        }
     }
 }
 
@@ -117,17 +144,7 @@ pub fn lt(a: Field, b: Field) -> bool {
 
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{
-        decompose_unsafe, decompose, lt_unsafe_internal, assert_gt, gt, lt, TWO_POW_128,
-        lte_unsafe_internal, PLO, PHI
-    };
-
-    #[test]
-    fn check_decompose_unsafe() {
-        assert_eq(decompose_unsafe(TWO_POW_128), (0, 1));
-        assert_eq(decompose_unsafe(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
-        assert_eq(decompose_unsafe(0x1234567890), (0x1234567890, 0));
-    }
+    use crate::field::bn254::{decompose_hint, decompose, compute_lt, assert_gt, gt, lt, TWO_POW_128, compute_lte, PLO, PHI};
 
     #[test]
     fn check_decompose() {
@@ -137,24 +154,31 @@ mod tests {
     }
 
     #[test]
-    fn check_lt_unsafe() {
-        assert(lt_unsafe_internal(0, 1, 16));
-        assert(lt_unsafe_internal(0, 0x100, 16));
-        assert(lt_unsafe_internal(0x100, TWO_POW_128 - 1, 16));
-        assert(!lt_unsafe_internal(0, TWO_POW_128, 16));
+    unconstrained fn check_decompose_unconstrained() {
+        assert_eq(decompose(TWO_POW_128), (0, 1));
+        assert_eq(decompose(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
+        assert_eq(decompose(0x1234567890), (0x1234567890, 0));
     }
 
     #[test]
-    fn check_lte_unsafe() {
-        assert(lte_unsafe_internal(0, 1, 16));
-        assert(lte_unsafe_internal(0, 0x100, 16));
-        assert(lte_unsafe_internal(0x100, TWO_POW_128 - 1, 16));
-        assert(!lte_unsafe_internal(0, TWO_POW_128, 16));
+    fn check_compute_lt() {
+        assert(compute_lt(0, 1, 16));
+        assert(compute_lt(0, 0x100, 16));
+        assert(compute_lt(0x100, TWO_POW_128 - 1, 16));
+        assert(!compute_lt(0, TWO_POW_128, 16));
+    }
 
-        assert(lte_unsafe_internal(0, 0, 16));
-        assert(lte_unsafe_internal(0x100, 0x100, 16));
-        assert(lte_unsafe_internal(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
-        assert(lte_unsafe_internal(TWO_POW_128, TWO_POW_128, 16));
+    #[test]
+    fn check_compute_lte() {
+        assert(compute_lte(0, 1, 16));
+        assert(compute_lte(0, 0x100, 16));
+        assert(compute_lte(0x100, TWO_POW_128 - 1, 16));
+        assert(!compute_lte(0, TWO_POW_128, 16));
+
+        assert(compute_lte(0, 0, 16));
+        assert(compute_lte(0x100, 0x100, 16));
+        assert(compute_lte(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
+        assert(compute_lte(TWO_POW_128, TWO_POW_128, 16));
     }
 
     #[test]
@@ -167,7 +191,28 @@ mod tests {
     }
 
     #[test]
+    unconstrained fn check_assert_gt_unconstrained() {
+        assert_gt(1, 0);
+        assert_gt(0x100, 0);
+        assert_gt((0 - 1), (0 - 2));
+        assert_gt(TWO_POW_128, 0);
+        assert_gt(0 - 1, 0);
+    }
+
+    #[test]
     fn check_gt() {
+        assert(gt(1, 0));
+        assert(gt(0x100, 0));
+        assert(gt((0 - 1), (0 - 2)));
+        assert(gt(TWO_POW_128, 0));
+        assert(!gt(0, 0));
+        assert(!gt(0, 0x100));
+        assert(gt(0 - 1, 0 - 2));
+        assert(!gt(0 - 2, 0 - 1));
+    }
+
+    #[test]
+    unconstrained fn check_gt_unconstrained() {
         assert(gt(1, 0));
         assert(gt(0x100, 0));
         assert(gt((0 - 1), (0 - 2)));

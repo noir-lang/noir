@@ -70,3 +70,6 @@ pub fn wrapping_mul<T>(x: T, y: T) -> T {
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
+
+#[builtin(within_unconstrained)]
+pub fn within_unconstrained() -> bool {}
