@@ -102,7 +102,8 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes"]);
+            let mut program_table =
+                table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes"]);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();

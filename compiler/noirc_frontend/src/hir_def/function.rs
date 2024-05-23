@@ -109,6 +109,12 @@ pub struct FuncMeta {
     /// such as a trait's `Self` type variable.
     pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
 
+    /// All the generics used by this function, which includes any implicit generics or generics
+    /// from outer scopes, such as those introduced by an impl.
+    /// This is stored when the FuncMeta is first created to later be used to set the current
+    /// generics when the function's body is later resolved.
+    pub all_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+
     pub location: Location,
 
     // This flag is needed for the attribute check pass

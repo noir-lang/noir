@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::Type;
+use crate::{Type, TypeVariable};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -33,6 +33,7 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 
+use std::rc::Rc;
 use std::vec;
 
 #[derive(Default)]
@@ -50,6 +51,9 @@ pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
     pub trait_id: Option<TraitId>,
+
+    // The object type this set of functions was declared on, if there is one.
+    pub self_type: Option<Type>,
 }
 
 impl UnresolvedFunctions {
@@ -121,6 +125,7 @@ pub struct UnresolvedTraitImpl {
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
+    pub resolved_generics: Vec<(Rc<String>, TypeVariable, Span)>,
 }
 
 #[derive(Clone)]
