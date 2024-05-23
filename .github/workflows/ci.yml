@@ -531,9 +531,8 @@ jobs:
 
   merge-check:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
     needs:
+      # Must be in sync with rerun-check
       - setup
       # - bench-e2e # does not block merge
       # - bench-summary # does not block merge
@@ -561,19 +560,54 @@ jobs:
         env:
           # We treat any skipped or failing jobs as a failure for the workflow as a whole.
           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ $FAIL == true ]]; then
               echo "At least one job failed (or skipped/cancelled), merging not allowed."
-              if [[ $RUN_ATTEMPT -lt 2 ]] && [[ "${{ contains(needs.*.result, 'failure') }}" == true ]] ; then
-                echo "Retrying first workflow failure. This is a stop-gap until things are more stable."
-                gh workflow run rerun.yml -F run_id=${{ github.run_id }}
-              fi
               exit 1
           else
               echo "All jobs succeeded, merge allowed."
               exit 0
+          fi
+
+  rerun-check:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    needs:
+      # Must be in sync with merge-check
+      - setup
+      # - bench-e2e # does not block merge
+      # - bench-summary # does not block merge
+      - e2e
+      - acir-bench
+      - bb-bench
+      - bb-gcc
+      - bb-js-test
+      - bb-native-tests
+      - yarn-project-formatting
+      - yarn-project-test
+      - prover-client-test
+      - bb-acir-tests-bb-js
+      - bb-acir-tests-bb
+      - bb-acir-tests-sol
+      - noir-test
+      - noir-projects
+      - l1-contracts-test
+      - noir-packages-test
+      - docs-preview
+      # - protocol-circuit-gates-report # does not block merge
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Check for Rerun
+        env:
+          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+          HAD_FAILURE: ${{ contains(needs.*.result, 'failure') }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ $HAD_FAILURE == true ]] && [[ $RUN_ATTEMPT -lt 2 ]] ; then
+            echo "Retrying first workflow failure. This is a stop-gap until things are more stable."
+            gh workflow run rerun.yml -F run_id=${{ github.run_id }}
           fi
 
   notify:
