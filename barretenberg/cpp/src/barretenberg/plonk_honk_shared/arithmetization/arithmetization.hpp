@@ -187,13 +187,12 @@ template <typename FF_> class UltraArith {
         void summarize() const
         {
             info("Gate blocks summary:");
-            info("pub inputs:\t", pub_inputs.size());
-            info("arithmetic:\t", arithmetic.size());
+            info("pub inputs :\t", pub_inputs.size());
+            info("arithmetic :\t", arithmetic.size());
             info("delta range:\t", delta_range.size());
-            info("elliptic:\t", elliptic.size());
-            info("auxiliary:\t", aux.size());
-            info("lookups:\t", lookup.size());
-            info("");
+            info("elliptic   :\t", elliptic.size());
+            info("auxiliary  :\t", aux.size());
+            info("lookups    :\t", lookup.size());
         }
 
         size_t get_total_structured_size()
@@ -349,16 +348,16 @@ template <typename FF_> class UltraHonkArith {
         void summarize() const
         {
             info("Gate blocks summary: (actual gates / fixed capacity)");
-            info("goblin ecc op:\t", ecc_op.size(), "/", ecc_op.get_fixed_size());
-            info("pub inputs:\t", pub_inputs.size(), "/", pub_inputs.get_fixed_size());
-            info("arithmetic:\t", arithmetic.size(), "/", arithmetic.get_fixed_size());
-            info("delta range:\t", delta_range.size(), "/", delta_range.get_fixed_size());
-            info("elliptic:\t", elliptic.size(), "/", elliptic.get_fixed_size());
-            info("auxiliary:\t", aux.size(), "/", aux.get_fixed_size());
-            info("lookups:\t", lookup.size(), "/", lookup.get_fixed_size());
-            info("busread:\t", busread.size(), "/", busread.get_fixed_size());
-            info("poseidon ext:\t", poseidon_external.size(), "/", poseidon_external.get_fixed_size());
-            info("poseidon int:\t", poseidon_internal.size(), "/", poseidon_internal.get_fixed_size());
+            info("goblin ecc op :\t", ecc_op.size(), "/", ecc_op.get_fixed_size());
+            info("pub inputs    :\t", pub_inputs.size(), "/", pub_inputs.get_fixed_size());
+            info("arithmetic    :\t", arithmetic.size(), "/", arithmetic.get_fixed_size());
+            info("delta range   :\t", delta_range.size(), "/", delta_range.get_fixed_size());
+            info("elliptic      :\t", elliptic.size(), "/", elliptic.get_fixed_size());
+            info("auxiliary     :\t", aux.size(), "/", aux.get_fixed_size());
+            info("lookups       :\t", lookup.size(), "/", lookup.get_fixed_size());
+            info("busread       :\t", busread.size(), "/", busread.get_fixed_size());
+            info("poseidon ext  :\t", poseidon_external.size(), "/", poseidon_external.get_fixed_size());
+            info("poseidon int  :\t", poseidon_internal.size(), "/", poseidon_internal.get_fixed_size());
             info("");
         }
 
