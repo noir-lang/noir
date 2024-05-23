@@ -18,6 +18,8 @@ struct PrivateMutable<Note, Context> {
 }
 // docs:end:struct
 
+mod test;
+
 impl<T, Context> Storage<T> for PrivateMutable<T, Context> {}
 
 impl<Note, Context> PrivateMutable<Note, Context> {
@@ -27,10 +29,6 @@ impl<Note, Context> PrivateMutable<Note, Context> {
         Self { context, storage_slot }
     }
     // docs:end:new
-
-    pub fn to_unconstrained(self) -> PrivateMutable<Note, ()> {
-        PrivateMutable { context: (), storage_slot: self.storage_slot }
-    }
 
     // The following computation is leaky, in that it doesn't hide the storage slot that has been initialized, nor does it hide the contract address of this contract.
     // When this initialization nullifier is emitted, an observer could do a dictionary or rainbow attack to learn the preimage of this nullifier to deduce the storage slot and contract address.
@@ -80,6 +78,31 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
         create_note(self.context, self.storage_slot, new_note, broadcast, ivpk_m);
     }
     // docs:end:replace
+
+    pub fn initialize_or_replace<N, M>(
+        self,
+        note: &mut Note,
+        broadcast: bool,
+        ivpk_m: GrumpkinPoint
+    ) where Note: NoteInterface<N, M> {
+        let is_initialized = check_nullifier_exists(self.compute_initialization_nullifier());
+
+        // check_nullifier_exists() is an unconstrained function - we can constrain a true value by providing an 
+        // inclusion proof of the nullifier, but cannot constrain a false value since a non-inclusion proof would only 
+        // be valid if done in public.
+        // Ultimately, this is not an issue ginen that we'll either:
+        //  - initialize the state variable, which would fail if it was already initialized due to the duplicate 
+        //    nullifier, or
+        //  - replace the current value, which would fail if it was not initialized since we wouldn't be able to produce
+        //    an inclusion proof for the current note
+        // This means that an honest oracle will assist the prover to produce a valid proof, while a malicious oracle
+        // (i.e. one that returns an incorrect value for is_initialized) will simply fail to produce a proof.
+        if (!is_initialized) {
+            self.initialize(note, broadcast, ivpk_m);
+        } else {
+            self.replace(note, broadcast, ivpk_m)
+        }
+    }
 
     // docs:start:get_note
     pub fn get_note<N, M>(

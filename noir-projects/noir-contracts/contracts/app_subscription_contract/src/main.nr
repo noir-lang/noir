@@ -115,17 +115,7 @@ contract AppSubscription {
         let subscriber_ivpk_m = get_ivpk_m(&mut context, subscriber_address);
 
         let mut subscription_note = SubscriptionNote::new(subscriber_npk_m_hash, expiry_block_number, tx_count);
-
-        // is_initialized is an unconstrained function, so we must first convert the state variable to an unconstrained
-        // one to avoid having a mutable reference (to the private context) cross the constrained <> unconstrained
-        // boundary, which is not allowed.
-        let is_initialized = storage.subscriptions.at(subscriber_address).to_unconstrained().is_initialized();
-
-        if (!is_initialized) {
-            storage.subscriptions.at(subscriber_address).initialize(&mut subscription_note, true, subscriber_ivpk_m);
-        } else {
-            storage.subscriptions.at(subscriber_address).replace(&mut subscription_note, true, subscriber_ivpk_m)
-        }
+        storage.subscriptions.at(subscriber_address).initialize_or_replace(&mut subscription_note, true, subscriber_ivpk_m);
     }
 
     unconstrained fn is_initialized(subscriber_address: AztecAddress) -> pub bool {
