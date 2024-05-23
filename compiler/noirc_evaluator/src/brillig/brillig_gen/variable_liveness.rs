@@ -93,6 +93,9 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<Value
         })
         .collect();
 
+    // We consider block parameters used, so they live up to the block that owns them.
+    used.extend(block.parameters().iter());
+
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
             used.extend(collect_variables_of_value(value_id, dfg));
@@ -574,5 +577,36 @@ mod test {
             liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
             Some(&FxHashSet::from_iter([v3].into_iter()))
         );
+    }
+
+    #[test]
+    fn unused_block_param() {
+        // brillig fn main f1 {
+        //     b0():
+        //       jmp b1(Field 0)
+        //     b1(v1: Field):
+        //       return
+        // }
+
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
+
+        let b1 = builder.insert_block();
+
+        let v0 = builder.numeric_constant(0u128, Type::field());
+        builder.terminate_with_jmp(b1, vec![v0]);
+
+        builder.switch_to_block(b1);
+
+        let v1 = builder.add_block_parameter(b1, Type::field());
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+        let func = ssa.main();
+        let liveness = VariableLiveness::from_function(func);
+
+        assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v1]);
+        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1].into_iter()));
     }
 }
