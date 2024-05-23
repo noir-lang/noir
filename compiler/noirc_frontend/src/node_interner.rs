@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -153,8 +154,7 @@ pub struct NodeInterner {
     // TODO: rename to arith_expressions
     arithmetic_expressions: HashMap<ArithId, (ArithExpr, Location)>,
 
-    // // TODO: cleanup
-    // pub(crate) arithmetic_constraints: Vec<ArithConstraint>,
+    pub(crate) arith_constraints: ArithConstraints,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -344,7 +344,7 @@ impl ArithConstraint {
     }
 }
 
-pub type ArithConstraints = Vec<ArithConstraint>;
+pub type ArithConstraints = RefCell<Vec<ArithConstraint>>;
 
 
 // TODO relocate/cleanup
@@ -711,6 +711,7 @@ impl Default for NodeInterner {
             globals: Vec::new(),
             global_attributes: HashMap::new(),
             arithmetic_expressions: HashMap::new(),
+            arith_constraints: Vec::new().into(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -1331,13 +1332,12 @@ impl NodeInterner {
         method_name: String,
         method_id: FuncId,
         is_trait_method: bool,
-        arith_constraints: &mut ArithConstraints,
     ) -> Option<FuncId> {
         match self_type {
             Type::Struct(struct_type, _generics) => {
                 let id = struct_type.borrow().id;
 
-                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true, arith_constraints) {
+                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true) {
                     return Some(existing);
                 }
 
@@ -1347,7 +1347,7 @@ impl NodeInterner {
             }
             Type::Error => None,
             Type::MutableReference(element) => {
-                self.add_method(element, method_name, method_id, is_trait_method, arith_constraints)
+                self.add_method(element, method_name, method_id, is_trait_method)
             }
 
             other => {
@@ -1379,10 +1379,9 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
-        arith_constraints: &mut ArithConstraints,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
         let (impl_kind, bindings) =
-            self.try_lookup_trait_implementation(object_type, trait_id, trait_generics, arith_constraints)?;
+            self.try_lookup_trait_implementation(object_type, trait_id, trait_generics)?;
 
         Type::apply_type_bindings(bindings);
         Ok(impl_kind)
@@ -1426,7 +1425,6 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
-        arith_constraints: &mut ArithConstraints,
     ) -> Result<(TraitImplKind, TypeBindings), Vec<TraitConstraint>> {
         let mut bindings = TypeBindings::new();
         let impl_kind = self.lookup_trait_implementation_helper(
@@ -1434,7 +1432,6 @@ impl NodeInterner {
             trait_id,
             trait_generics,
             &mut bindings,
-            arith_constraints,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
         Ok((impl_kind, bindings))
@@ -1451,7 +1448,6 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         type_bindings: &mut TypeBindings,
-        arith_constraints: &mut ArithConstraints,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
         let make_constraint =
@@ -1484,7 +1480,7 @@ impl NodeInterner {
             let mut check_trait_generics = |impl_generics: &[Type]| {
                 trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic2)| {
                     let impl_generic = impl_generic2.substitute(&instantiation_bindings);
-                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings, arith_constraints).is_ok()
+                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings, &self.arith_constraints).is_ok()
                 })
             };
 
@@ -1503,7 +1499,7 @@ impl NodeInterner {
                 continue;
             }
 
-            if object_type.try_unify(&existing_object_type, &mut fresh_bindings, arith_constraints).is_ok() {
+            if object_type.try_unify(&existing_object_type, &mut fresh_bindings, &self.arith_constraints).is_ok() {
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
@@ -1511,7 +1507,6 @@ impl NodeInterner {
                     if let Err(mut errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
-                        arith_constraints,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
@@ -1542,7 +1537,6 @@ impl NodeInterner {
         &self,
         where_clause: &[TraitConstraint],
         type_bindings: &mut TypeBindings,
-        arith_constraints: &mut ArithConstraints,
         instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
     ) -> Result<(), Vec<TraitConstraint>> {
@@ -1564,7 +1558,6 @@ impl NodeInterner {
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
                 type_bindings,
-                arith_constraints,
                 recursion_limit - 1,
             )?;
         }
@@ -1585,10 +1578,9 @@ impl NodeInterner {
         object_type: Type,
         trait_id: TraitId,
         trait_generics: Vec<Type>,
-        arith_constraints: &mut ArithConstraints,
     ) -> bool {
         // Make sure there are no overlapping impls
-        if self.try_lookup_trait_implementation(&object_type, trait_id, &trait_generics, arith_constraints).is_ok() {
+        if self.try_lookup_trait_implementation(&object_type, trait_id, &trait_generics).is_ok() {
             return false;
         }
 
@@ -1606,7 +1598,6 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
-        arith_constraints: &mut ArithConstraints,
     ) -> Result<(), (Span, FileId)> {
         assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
 
@@ -1628,7 +1619,6 @@ impl NodeInterner {
             &instantiated_object_type,
             trait_id,
             &trait_generics,
-            arith_constraints,
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
@@ -1637,7 +1627,7 @@ impl NodeInterner {
 
         for method in &trait_impl.borrow().methods {
             let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, true, arith_constraints);
+            self.add_method(&object_type, method_name, *method, true);
         }
 
         // The object type is generalized so that a generic impl will apply
@@ -1666,7 +1656,6 @@ impl NodeInterner {
         id: StructId,
         method_name: &str,
         force_type_check: bool,
-        arith_constraints: &mut ArithConstraints,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
         // If there is only one method, just return it immediately.
@@ -1677,7 +1666,7 @@ impl NodeInterner {
             }
         }
 
-        self.find_matching_method(typ, methods, method_name, arith_constraints)
+        self.find_matching_method(typ, methods, method_name)
     }
 
     /// Select the 1 matching method with an object type matching `typ`
@@ -1686,16 +1675,15 @@ impl NodeInterner {
         typ: &Type,
         methods: Option<&Methods>,
         method_name: &str,
-        arith_constraints: &mut ArithConstraints,
     ) -> Option<FuncId> {
-        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self, arith_constraints)) {
+        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
             Some(method)
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
             // for all types `T`, e.g. `impl<T> Foo for T`
             let key = &(TypeMethodKey::Generic, method_name.to_owned());
             let global_methods = self.primitive_methods.get(key)?.clone();
-            global_methods.find_matching_method(typ, self, arith_constraints)
+            global_methods.find_matching_method(typ, self)
         }
     }
 
@@ -1704,21 +1692,19 @@ impl NodeInterner {
         &mut self,
         typ: &Type,
         method_name: &str,
-        arith_constraints: &mut ArithConstraints,
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
         let methods = self.primitive_methods.get(&(key, method_name.to_owned()))?.clone();
-        self.find_matching_method(typ, Some(&methods), method_name, arith_constraints)
+        self.find_matching_method(typ, Some(&methods), method_name)
     }
 
     pub fn lookup_primitive_trait_method_mut(
         &mut self,
         typ: &Type,
         method_name: &str,
-        arith_constraints: &mut ArithConstraints,
     ) -> Option<FuncId> {
         let typ = Type::MutableReference(Box::new(typ.clone()));
-        self.lookup_primitive_method(&typ, method_name, arith_constraints)
+        self.lookup_primitive_method(&typ, method_name)
     }
 
     /// Returns what the next trait impl id is expected to be.
@@ -1969,7 +1955,7 @@ impl Methods {
     }
 
     /// Select the 1 matching method with an object type matching `typ`
-    fn find_matching_method(&self, typ: &Type, interner: &NodeInterner, arithmetic_constraints: &mut Vec<ArithConstraint>) -> Option<FuncId> {
+    fn find_matching_method(&self, typ: &Type, interner: &NodeInterner) -> Option<FuncId> {
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
         for method in self.iter() {
@@ -1978,7 +1964,7 @@ impl Methods {
                     if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
-                        if object.try_unify(typ, &mut bindings, arithmetic_constraints).is_ok() {
+                        if object.try_unify(typ, &mut bindings, &interner.arith_constraints).is_ok() {
                             Type::apply_type_bindings(bindings);
                             return Some(method);
                         }

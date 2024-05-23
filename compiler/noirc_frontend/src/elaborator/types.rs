@@ -581,7 +581,7 @@ impl<'context> Elaborator<'context> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut errors = Vec::new();
-        actual.unify(expected, &mut self.arith_constraints, &mut errors, make_error);
+        actual.unify(expected, &self.interner.arith_constraints, &mut errors, make_error);
         self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
     }
 
@@ -594,7 +594,7 @@ impl<'context> Elaborator<'context> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut errors = Vec::new();
-        actual.unify_with_coercions(expected, expression, self.interner, &mut self.arith_constraints, &mut errors, make_error);
+        actual.unify_with_coercions(expected, expression, self.interner, &mut errors, make_error);
         self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
     }
 
@@ -1124,7 +1124,7 @@ impl<'context> Elaborator<'context> {
         match object_type.follow_bindings() {
             Type::Struct(typ, _args) => {
                 let id = typ.borrow().id;
-                match self.interner.lookup_method(object_type, id, method_name, false, &mut self.arith_constraints) {
+                match self.interner.lookup_method(object_type, id, method_name, false) {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.push_err(TypeCheckError::UnresolvedMethodCall {
@@ -1181,7 +1181,7 @@ impl<'context> Elaborator<'context> {
             // This may be a struct or a primitive type.
             Type::MutableReference(element) => self
                 .interner
-                .lookup_primitive_trait_method_mut(element.as_ref(), method_name, &mut self.arith_constraints)
+                .lookup_primitive_trait_method_mut(element.as_ref(), method_name)
                 .map(HirMethodReference::FuncId)
                 .or_else(|| self.lookup_method(&element, method_name, span)),
 
@@ -1195,7 +1195,7 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => match self.interner.lookup_primitive_method(&other, method_name, &mut self.arith_constraints) {
+            other => match self.interner.lookup_primitive_method(&other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.push_err(TypeCheckError::UnresolvedMethodCall {
@@ -1350,7 +1350,7 @@ impl<'context> Elaborator<'context> {
 
         let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
-            if self.interner.lookup_trait_implementation(&body_type, *trait_id, generics, &mut self.arith_constraints).is_err() {
+            if self.interner.lookup_trait_implementation(&body_type, *trait_id, generics).is_err() {
                 self.push_err(TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: body_type,
@@ -1404,7 +1404,7 @@ impl<'context> Elaborator<'context> {
         function_ident_id: ExprId,
         span: Span,
     ) {
-        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics, &mut self.arith_constraints) {
+        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
             Ok(impl_kind) => {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }

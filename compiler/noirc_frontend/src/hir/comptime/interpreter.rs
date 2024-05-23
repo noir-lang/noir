@@ -51,8 +51,6 @@ pub struct Interpreter<'interner> {
     /// True if we're currently in a compile-time context.
     /// If this is false code is skipped over instead of executed.
     in_comptime_context: bool,
-
-    arith_constraints: ArithConstraints,
 }
 
 #[allow(unused)]
@@ -65,7 +63,6 @@ impl<'a> Interpreter<'a> {
             changed_globally: false,
             in_loop: false,
             in_comptime_context: false,
-            arith_constraints: vec![],
         }
     }
 
@@ -291,7 +288,7 @@ impl<'a> Interpreter<'a> {
         let typ = typ.follow_bindings();
         let value_type = value.get_type();
 
-        typ.try_unify(&value_type, &mut TypeBindings::new(), &mut self.arith_constraints).map_err(|_| {
+        typ.try_unify(&value_type, &mut TypeBindings::new(), &self.interner.arith_constraints).map_err(|_| {
             InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
         })
     }
@@ -936,9 +933,9 @@ impl<'a> Interpreter<'a> {
         // TODO: Traits
         let method = match &typ {
             Type::Struct(struct_def, _) => {
-                self.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false, &mut self.arith_constraints)
+                self.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false)
             }
-            _ => self.interner.lookup_primitive_method(&typ, method_name, &mut self.arith_constraints),
+            _ => self.interner.lookup_primitive_method(&typ, method_name),
         };
 
         if let Some(method) = method {

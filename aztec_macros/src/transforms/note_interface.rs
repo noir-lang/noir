@@ -636,7 +636,6 @@ pub fn inject_note_exports(
                     note.borrow().id,
                     "get_note_type_id",
                     false,
-                    &mut context.arith_constraints,
                 )
                 .ok_or((
                     AztecMacroError::CouldNotExportStorageLayout {

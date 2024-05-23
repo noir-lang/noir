@@ -42,13 +42,11 @@ pub struct TypeChecker<'interner> {
     /// This map is used to default any integer type variables at the end of
     /// a function (before checking trait constraints) if a type wasn't already chosen.
     type_variables: Vec<Type>,
-
-    arith_constraints: ArithConstraints,
 }
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
-pub fn type_check_func(interner: &mut NodeInterner, arith_constraints: &mut ArithConstraints, func_id: FuncId) -> Vec<TypeCheckError> {
+pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
@@ -72,7 +70,7 @@ pub fn type_check_func(interner: &mut NodeInterner, arith_constraints: &mut Arit
         let trait_id = constraint.trait_id;
         let generics = constraint.trait_generics.clone();
 
-        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id, generics, arith_constraints) {
+        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id, generics) {
             if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
                 let trait_name = the_trait.name.to_string();
                 let typ = constraint.typ.clone();
@@ -99,7 +97,7 @@ pub fn type_check_func(interner: &mut NodeInterner, arith_constraints: &mut Arit
         if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
             if type_checker
                 .interner
-                .lookup_trait_implementation(&function_last_type, *trait_id, generics, arith_constraints)
+                .lookup_trait_implementation(&function_last_type, *trait_id, generics)
                 .is_err()
             {
                 let error = TypeCheckError::TypeMismatchWithSource {
@@ -115,7 +113,6 @@ pub fn type_check_func(interner: &mut NodeInterner, arith_constraints: &mut Arit
                 &declared_return_type,
                 *function_body_id,
                 type_checker.interner,
-                arith_constraints,
                 &mut errors,
                 || {
                     let mut error = TypeCheckError::TypeMismatchWithSource {
@@ -153,7 +150,6 @@ pub fn type_check_func(interner: &mut NodeInterner, arith_constraints: &mut Arit
             &constraint.trait_generics,
             expr_id,
             span,
-            arith_constraints,
         );
     }
 
@@ -225,7 +221,6 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
-    arithmetic_constraints: &mut ArithConstraints,
     function: FuncId,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
@@ -290,7 +285,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             &meta.parameters,
             meta.name.location.span,
             &trait_info.name.0.contents,
-            arithmetic_constraints,
+            &interner.arith_constraints,
             &mut errors,
         );
     }
@@ -305,7 +300,7 @@ fn check_function_type_matches_expected_type(
     actual_parameters: &Parameters,
     span: Span,
     trait_name: &str,
-    arithmetic_constraints: &mut ArithConstraints,
+    arith_constraints: &ArithConstraints,
     errors: &mut Vec<TypeCheckError>,
 ) {
     let mut bindings = TypeBindings::new();
@@ -315,7 +310,7 @@ fn check_function_type_matches_expected_type(
     {
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
-                if a.try_unify(b, &mut bindings, arithmetic_constraints).is_err() {
+                if a.try_unify(b, &mut bindings, arith_constraints).is_err() {
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
@@ -326,7 +321,7 @@ fn check_function_type_matches_expected_type(
                 }
             }
 
-            if ret_b.try_unify(ret_a, &mut bindings, arithmetic_constraints).is_err() {
+            if ret_b.try_unify(ret_a, &mut bindings, arith_constraints).is_err() {
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: ret_a.to_string(),
                     expr_typ: ret_b.to_string(),
@@ -361,7 +356,6 @@ impl<'interner> TypeChecker<'interner> {
             errors: Vec::new(),
             trait_constraints: Vec::new(),
             type_variables: Vec::new(),
-            arith_constraints: Vec::new(),
             current_function: None,
         }
     }
@@ -379,7 +373,6 @@ impl<'interner> TypeChecker<'interner> {
             errors: Vec::new(),
             trait_constraints: Vec::new(),
             type_variables: Vec::new(),
-            arith_constraints: Vec::new(),
             current_function: None,
         };
         let statement = this.interner.get_global(id).let_statement;
@@ -394,7 +387,7 @@ impl<'interner> TypeChecker<'interner> {
         expected: &Type,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.unify(expected, &mut self.arith_constraints, &mut self.errors, make_error);
+        actual.unify(expected, &self.interner.arith_constraints, &mut self.errors, make_error);
     }
 
     /// Wrapper of Type::unify_with_coercions using self.errors
@@ -409,7 +402,6 @@ impl<'interner> TypeChecker<'interner> {
             expected,
             expression,
             self.interner,
-            &mut self.arith_constraints,
             &mut self.errors,
             make_error,
         );
@@ -557,10 +549,9 @@ pub mod test {
         };
         interner.push_fn_meta(func_meta, func_id);
 
-        let mut arith_constraints = vec![];
-        let errors = super::type_check_func(&mut interner, &mut arith_constraints, func_id);
+        let errors = super::type_check_func(&mut interner, func_id);
         assert!(errors.is_empty());
-        assert!(arith_constraints.is_empty());
+        assert!(interner.arith_constraints.borrow().is_empty());
     }
 
     #[test]
@@ -761,10 +752,8 @@ pub mod test {
 
         // Type check section
         let mut errors = Vec::new();
-        let mut arith_constraints = vec![];
-
         for function in func_ids.values() {
-            errors.extend(super::type_check_func(&mut interner, &mut arith_constraints, *function));
+            errors.extend(super::type_check_func(&mut interner, *function));
         }
 
         assert_eq!(
@@ -775,7 +764,7 @@ pub mod test {
             errors.len(),
             errors
         );
-        assert!(arith_constraints.is_empty());
+        assert!(interner.arith_constraints.borrow().is_empty());
 
         (interner, main_id)
     }

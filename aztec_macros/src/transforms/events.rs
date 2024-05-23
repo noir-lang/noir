@@ -98,11 +98,10 @@ fn event_signature(event: &StructType) -> String {
 fn transform_event(
     struct_id: StructId,
     interner: &mut NodeInterner,
-    arith_constraints: &mut ArithConstraints,
 ) -> Result<(), (AztecMacroError, FileId)> {
     let struct_type = interner.get_struct(struct_id);
     let selector_id = interner
-        .lookup_method(&Type::Struct(struct_type.clone(), vec![]), struct_id, "selector", false, arith_constraints)
+        .lookup_method(&Type::Struct(struct_type.clone(), vec![]), struct_id, "selector", false)
         .ok_or_else(|| {
             let error = AztecMacroError::EventError {
                 span: struct_type.borrow().location.span,
@@ -181,7 +180,7 @@ pub fn transform_events(
     for struct_id in collect_crate_structs(crate_id, context) {
         let attributes = context.def_interner.struct_attributes(&struct_id);
         if attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)")) {
-            transform_event(struct_id, &mut context.def_interner, &mut context.arith_constraints)?;
+            transform_event(struct_id, &mut context.def_interner)?;
         }
     }
     Ok(())

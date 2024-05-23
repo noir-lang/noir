@@ -1162,7 +1162,7 @@ impl Type {
     pub fn unify(
         &self,
         expected: &Type,
-        arith_constraints: &mut Vec<ArithConstraint>,
+        arith_constraints: &ArithConstraints,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
@@ -1183,7 +1183,7 @@ impl Type {
         &self,
         other: &Type,
         bindings: &mut TypeBindings,
-        arith_constraints: &mut Vec<ArithConstraint>,
+        arith_constraints: &ArithConstraints,
     ) -> Result<(), UnificationError> {
         use Type::*;
         use TypeVariableKind as Kind;
@@ -1309,7 +1309,7 @@ impl Type {
 
                 // TODO: cleanup
                 dbg!(lhs, lhs_generics, rhs, rhs_generics);
-                arith_constraints.push(ArithConstraint {
+                arith_constraints.borrow_mut().push(ArithConstraint {
                     lhs: *lhs,
                     lhs_generics: lhs_generics.to_vec(),
                     rhs: *rhs,
@@ -1335,7 +1335,7 @@ impl Type {
         &self,
         type_variable: &TypeVariable,
         bindings: &mut TypeBindings,
-        arith_constraints: &mut Vec<ArithConstraint>,
+        arith_constraints: &ArithConstraints,
 
         // Bind the type variable to a type. This is factored out since depending on the
         // TypeVariableKind, there are different methods to check whether the variable can
@@ -1368,14 +1368,13 @@ impl Type {
         expected: &Type,
         expression: ExprId,
         interner: &mut NodeInterner,
-        arith_constraints: &mut ArithConstraints,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Err(UnificationError) = self.try_unify(expected, &mut bindings, arith_constraints) {
-            if !self.try_array_to_slice_coercion(expected, expression, interner, arith_constraints) {
+        if let Err(UnificationError) = self.try_unify(expected, &mut bindings, &interner.arith_constraints) {
+            if !self.try_array_to_slice_coercion(expected, expression, interner) {
                 errors.push(make_error());
             }
         } else {
@@ -1390,7 +1389,6 @@ impl Type {
         target: &Type,
         expression: ExprId,
         interner: &mut NodeInterner,
-        arith_constraints: &mut ArithConstraints,
     ) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
@@ -1399,8 +1397,8 @@ impl Type {
             // Still have to ensure the element types match.
             // Don't need to issue an error here if not, it will be done in unify_with_coercions
             let mut bindings = TypeBindings::new();
-            if element1.try_unify(element2, &mut bindings, arith_constraints).is_ok() {
-                convert_array_expression_to_slice(expression, this, target, interner, arith_constraints);
+            if element1.try_unify(element2, &mut bindings, &interner.arith_constraints).is_ok() {
+                convert_array_expression_to_slice(expression, this, target, interner);
                 Self::apply_type_bindings(bindings);
                 return true;
             }
@@ -1762,10 +1760,9 @@ fn convert_array_expression_to_slice(
     array_type: Type,
     target_type: Type,
     interner: &mut NodeInterner,
-    arith_constraints: &mut ArithConstraints,
 ) {
     let as_slice_method = interner
-        .lookup_primitive_method(&array_type, "as_slice", arith_constraints)
+        .lookup_primitive_method(&array_type, "as_slice")
         .expect("Expected 'as_slice' method to be present in Noir's stdlib");
 
     let as_slice_id = interner.function_definition_id(as_slice_method);

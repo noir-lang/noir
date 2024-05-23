@@ -86,8 +86,6 @@ struct Monomorphizer<'interner> {
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
-
-    arith_constraints: ArithConstraints,
 }
 
 type HirType = crate::Type;
@@ -162,7 +160,7 @@ pub fn monomorphize_debug(
 
     // we need to check the arith constraints
     monomorphizer.validate_arith_constraints()?;
-    assert!(monomorphizer.arith_constraints.is_empty());
+    assert!(monomorphizer.interner.arith_constraints.borrow().is_empty());
     Ok(program)
 }
 
@@ -180,7 +178,6 @@ impl<'interner> Monomorphizer<'interner> {
             is_range_loop: false,
             return_location: None,
             debug_type_tracker,
-            arith_constraints: Vec::new(),
         }
     }
 
@@ -1061,7 +1058,6 @@ impl<'interner> Monomorphizer<'interner> {
                     &object_type,
                     method.trait_id,
                     &trait_generics,
-                    &mut self.arith_constraints,
                 ) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
                         self.interner.get_trait_implementation(impl_id).borrow().methods
@@ -1788,7 +1784,7 @@ impl<'interner> Monomorphizer<'interner> {
             let type_bindings = generics.iter().map(replace_type_variable).collect();
             let impl_method_type = impl_method_type.force_substitute(&type_bindings);
 
-            trait_method_type.try_unify(&impl_method_type, &mut bindings, &mut self.arith_constraints).unwrap_or_else(|_| {
+            trait_method_type.try_unify(&impl_method_type, &mut bindings, &self.interner.arith_constraints).unwrap_or_else(|_| {
                 unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
             });
 
@@ -1800,7 +1796,15 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Validate and consume all of the `ArithConstraints``
     fn validate_arith_constraints(&mut self) -> Result<(), MonomorphizationError> {
-        for arith_constraint in std::mem::take(&mut self.arith_constraints) {
+        // TODO: cleanup
+        // let arith_constraints = std::mem::replace(&mut self.interner.arith_constraints.borrow_mut(), vec![].into());
+        let arith_constraints = self.interner.arith_constraints.replace(vec![].into());
+        dbg!("validate_arith_constraints running..", &arith_constraints);
+        dbg!("validate_arith_constraints ok?", &self.interner.arith_constraints);
+
+        for arith_constraint in arith_constraints {
+            // TODO: cleanup
+            dbg!("validate_arith_constraints for loop.. ({:?})", &arith_constraint);
             arith_constraint.validate(self.interner)?
         }
         Ok(())

@@ -64,7 +64,7 @@ impl Context<'_, '_> {
             file_manager: Cow::Owned(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
-            arith_constraints: Vec::new(),
+            arith_constraints: Vec::new().into(),
         }
     }
 
@@ -80,7 +80,7 @@ impl Context<'_, '_> {
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
-            arith_constraints: Vec::new(),
+            arith_constraints: Vec::new().into(),
         }
     }
 

@@ -404,7 +404,6 @@ impl DefCollector {
             crate_id,
             &context.def_maps,
             def_collector.items.impls,
-            &mut context.arith_constraints,
             &mut resolved_module.errors,
         ));
 
@@ -497,8 +496,8 @@ fn filter_literal_globals(
 impl ResolvedModule {
     fn type_check(&mut self, context: &mut Context) {
         self.type_check_globals(&mut context.def_interner);
-        self.type_check_functions(&mut context.def_interner, &mut context.arith_constraints);
-        self.type_check_trait_impl_function(&mut context.def_interner, &mut context.arith_constraints);
+        self.type_check_functions(&mut context.def_interner);
+        self.type_check_trait_impl_function(&mut context.def_interner);
     }
 
     fn type_check_globals(&mut self, interner: &mut NodeInterner) {
@@ -509,20 +508,20 @@ impl ResolvedModule {
         }
     }
 
-    fn type_check_functions(&mut self, interner: &mut NodeInterner, arith_constraints: &mut ArithConstraints) {
+    fn type_check_functions(&mut self, interner: &mut NodeInterner) {
         for (file, func) in self.functions.iter() {
-            for error in type_check_func(interner, arith_constraints, *func) {
+            for error in type_check_func(interner, *func) {
                 self.errors.push((error.into(), *file));
             }
         }
     }
 
-    fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner, arith_constraints: &mut ArithConstraints) {
+    fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner) {
         for (file, func) in self.trait_impl_functions.iter() {
-            for error in check_trait_impl_method_matches_declaration(interner, arith_constraints, *func) {
+            for error in check_trait_impl_method_matches_declaration(interner, *func) {
                 self.errors.push((error.into(), *file));
             }
-            for error in type_check_func(interner, arith_constraints, *func) {
+            for error in type_check_func(interner, *func) {
                 self.errors.push((error.into(), *file));
             }
         }
