@@ -587,7 +587,9 @@ jobs:
       fail-fast: false
       matrix:
         box: [vanilla, react]
-        browser: [chromium, webkit, firefox]
+        # intermittent issues with firefox https://github.com/AztecProtocol/aztec-packages/issues/6676
+        # browser: [chromium, webkit, firefox]
+        browser: [chromium, webkit]
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.pull_request.head.sha }}" }
