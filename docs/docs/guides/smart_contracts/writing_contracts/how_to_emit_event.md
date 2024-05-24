@@ -31,15 +31,11 @@ Then to register the recipient's [complete address](../../../aztec/concepts/acco
 
 :::info
 If a note recipient is one of the accounts inside the PXE, we don't need to register it as a recipient because we already have the public key available. You can register a recipient as shown [here](../how_to_deploy_contract.md)
-
-At this point the Sandbox only enables the emitting of encrypted note preimages through encrypted events.
-In the future we will allow emitting arbitrary information.
-(If you currently emit arbitrary information, PXE will fail to decrypt, process and store this data, so it will not be queryable).
 :::
 
-### Call emit_encrypted_log
+### Call encrypt_and_emit_note
 
-To emit encrypted logs you don't need to import any library. You call the context method `emit_encrypted_log`:
+To emit encrypted logs you don't need to import any library. You call the context method `encrypt_and_emit_note`:
 
 #include_code encrypted /noir-projects/aztec-nr/address-note/src/address_note.nr rust
 
@@ -53,6 +49,11 @@ If the decryption fails, the specific log will be discarded.
 For the PXE to successfully process the decrypted note we need to compute the note's 'note hash' and 'nullifier'.
 Aztec.nr enables smart contract developers to design custom notes, meaning developers can also customize how a note's note hash and nullifier should be computed. Because of this customizability, and because there will be a potentially-unlimited number of smart contracts deployed to Aztec, an PXE needs to be 'taught' how to compute the custom note hashes and nullifiers for a particular contract. This is done by a function called `compute_note_hash_and_nullifier`, which is automatically injected into every contract when compiled.
 
+## Encrypted Events
+
+To emit generic event information as an encrypted log, call the context method `encrypt_and_emit_note`. Currently, only arrays of 
+fields are supported, and the PXE will fail to decrypt, process and store this data, so it will not be queryable automatically.
+
 ## Unencrypted Events
 
 Unencrypted events are events which can be read by anyone.
@@ -60,7 +61,6 @@ They can be emitted by both public and private functions.
 
 :::danger
 - Emitting unencrypted events from private function is a significant privacy leak and it should be considered by the developer whether it is acceptable.
-- Unencrypted events are currently **NOT** linked to the contract emitting them, so it is practically a [`debug_log`](../../../aztec/concepts/smart_contracts/oracles/index.md#a-few-useful-inbuilt-oracles).
 
 :::
 

@@ -270,6 +270,51 @@ mod tests {
     }
 
     #[test]
+    unconstrained fn encrypted_logs_are_hashed_as_expected() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+        // Logs for the previous call stack.
+        let prev_encrypted_logs_hash = 80;
+        let prev_encrypted_log_preimages_length = 13;
+        builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+
+        // Set the randomness to 0 to signal not masking the address to silo with
+        builder.previous_kernel.encrypted_logs_hashes.storage[0].log_hash.randomness = 0;
+
+        let new_encrypted_logs_hash = 26;
+        let new_encrypted_log_preimages_length = 50;
+        builder.previous_kernel.set_encrypted_logs(new_encrypted_logs_hash, new_encrypted_log_preimages_length);
+
+        let public_inputs = builder.execute();
+
+        assert_eq(
+            public_inputs.end.encrypted_log_preimages_length, prev_encrypted_log_preimages_length + new_encrypted_log_preimages_length
+        );
+
+        let siloed_encrypted_logs_hash = silo_encrypted_log(
+            builder.previous_kernel.storage_contract_address,
+            builder.previous_kernel.encrypted_logs_hashes.storage[0].log_hash.randomness,
+            prev_encrypted_logs_hash
+        );
+
+        let siloed_hash_bytes: [u8; 64] = builder.previous_kernel.storage_contract_address.to_field().to_be_bytes(32).append(prev_encrypted_logs_hash.to_be_bytes(32)).as_array();
+        assert_eq(siloed_encrypted_logs_hash, sha256_to_field(siloed_hash_bytes));
+
+        let new_siloed_encrypted_logs_hash = silo_encrypted_log(
+            builder.previous_kernel.storage_contract_address,
+            builder.previous_kernel.encrypted_logs_hashes.storage[1].log_hash.randomness,
+            new_encrypted_logs_hash
+        );
+        // noir-fmt:ignore
+        let hash_bytes: [u8; MAX_ENCRYPTED_LOGS_PER_TX * 32] = siloed_encrypted_logs_hash
+            .to_be_bytes(32)
+            .append(new_siloed_encrypted_logs_hash.to_be_bytes(32))
+            .append(&[0; MAX_ENCRYPTED_LOGS_PER_TX * 32 - 64])
+            .as_array();
+        let expected_encrypted_logs_hash = sha256_to_field(hash_bytes);
+        assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
+    }
+
+    #[test]
     unconstrained fn ordering_of_note_hashes_and_nullifiers() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
 

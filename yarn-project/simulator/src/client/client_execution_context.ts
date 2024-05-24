@@ -365,7 +365,12 @@ export class ClientExecutionContext extends ViewDataOracle {
     encryptedData: Buffer,
     counter: number,
   ) {
-    const maskedContractAddress = pedersenHash([contractAddress, randomness], 0);
+    // In some cases, we actually want to reveal the contract address we are siloing with:
+    // e.g. 'handshaking' contract w/ known address
+    // An app providing randomness = 0 signals to not mask the address.
+    const maskedContractAddress = randomness.isZero()
+      ? contractAddress.toField()
+      : pedersenHash([contractAddress, randomness], 0);
     const encryptedLog = new CountedLog(new EncryptedL2Log(encryptedData, maskedContractAddress), counter);
     this.encryptedLogs.push(encryptedLog);
   }

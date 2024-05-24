@@ -299,7 +299,8 @@ describe('e2e_block_building', () => {
       const encryptedLogs = tx.encryptedLogs.unrollLogs();
       expect(encryptedLogs[0].maskedContractAddress).toEqual(pedersenHash([testContract.address, new Fr(5)], 0));
       expect(encryptedLogs[1].maskedContractAddress).toEqual(pedersenHash([testContract.address, new Fr(5)], 0));
-      expect(encryptedLogs[2].maskedContractAddress).toEqual(pedersenHash([testContract.address, new Fr(6)], 0));
+      // Setting randomness = 0 in app means 'do not mask the address'
+      expect(encryptedLogs[2].maskedContractAddress).toEqual(testContract.address.toField());
       const expectedEncryptedLogsHash = tx.encryptedLogs.hash();
       expect(tx.data.forRollup?.end.encryptedLogsHash).toEqual(new Fr(expectedEncryptedLogsHash));
 

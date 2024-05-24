@@ -118,7 +118,7 @@ Private state in the Aztec is represented via sets of [private notes](../../azte
 
 ### Logs
 
-You can check the logs of [events](../smart_contracts/writing_contracts/how_to_emit_event.md) emitted by contracts. Contracts in Aztec can emit both [encrypted](../smart_contracts/writing_contracts/how_to_emit_event.md#call-emit_encrypted_log) and [unencrypted](../smart_contracts/writing_contracts/how_to_emit_event.md#call-emit_unencrypted_log) events.
+You can check the logs of [events](../smart_contracts/writing_contracts/how_to_emit_event.md) emitted by contracts. Contracts in Aztec can emit both [encrypted](../smart_contracts/writing_contracts/how_to_emit_event.md#Encrypted-Events) and [unencrypted](../smart_contracts/writing_contracts/how_to_emit_event.md#Unencrypted-Events) events.
 
 #### Querying unencrypted logs
 

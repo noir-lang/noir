@@ -264,7 +264,7 @@ contract Test {
             Test::at(context.this_address()).emit_array_as_encrypted_log([0, 0, 0, 0, 0], owner, false).call(&mut context);
             context.encrypt_and_emit_log(
                 context.this_address(),
-                6, // testing only - this should be a secret random value to salt the addr
+                0, // testing only - this signals to the kerels to not mask the address
                 1,
                 owner_ivpk_m,
                 [1, 2, 3, 4, 5]

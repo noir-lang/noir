@@ -77,7 +77,13 @@ pub fn silo_nullifier(address: AztecAddress, nullifier: Field) -> Field {
 pub fn silo_encrypted_log(address: AztecAddress, randomness: Field, log_hash: Field) -> Field {
     // TODO: Using 0 GENERATOR_INDEX here as interim before we move to posiedon
     // NB: A unique separator will be needed for masked_contract_address
-    let masked_contract_address = pedersen_hash([address.to_field(), randomness], 0);
+    let mut masked_contract_address = pedersen_hash([address.to_field(), randomness], 0);
+    if randomness == 0 {
+        // In some cases, we actually want to reveal the contract address we are siloing with:
+        // e.g. 'handshaking' contract w/ known address
+        // An app providing randomness = 0 signals to not mask the address.
+        masked_contract_address = address.to_field();
+    }
     accumulate_sha256([masked_contract_address, log_hash])
 }
 

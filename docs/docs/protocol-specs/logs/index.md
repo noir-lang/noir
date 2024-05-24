@@ -222,7 +222,7 @@ Following the iterations for all private or public calls, the tail kernel circui
 
 1. Hash the _contract_address_ to each _log_hash_:
 
-   - _`log_hash_a = hash(log_hash_a, contract_address_a)`_
+   - _`log_hash_a = hash(contract_address_a, log_hash_a)`_
    - Repeat the process for all _log_hashes_ in the transaction.
 
 2. Accumulate all the hashes and output the final hash to the public inputs:
@@ -254,31 +254,35 @@ Encrypted logs contain information encrypted using the recipient's key. They can
 
 ### Hashing
 
-Private kernel circuits ensure the association of the contract address with each encrypted _log_hash_. However, unlike unencrypted logs, submitting encrypted log preimages with their contract address poses a significant privacy risk. Therefore, instead of using the _contract_address_, a _contract_address_tag_ is generated for each encrypted _log_hash_.
+Private kernel circuits ensure the association of the contract address with each encrypted _log_hash_. However, unlike unencrypted logs, submitting encrypted log preimages with their contract address poses a significant privacy risk. Therefore, instead of using the _contract_address_, a _masked_contract_address_ is generated for each encrypted _log_hash_.
 
-The _contract_address_tag_ is a hash of the _contract_address_ and a random value _randomness_, computed as:
+The _masked_contract_address_ is a hash of the _contract_address_ and a random value _randomness_, computed as:
 
-_`contract_address_tag = hash(contract_address, randomness)`_.
+_`masked_contract_address = hash(contract_address, randomness)`_.
 
-Here, _randomness_ is generated in the private function circuit and supplied to the private kernel circuit. The value must be included in the preimage for encrypted log generation. The private function circuit is responsible for ensuring that the _randomness_ differs for every encrypted log to avoid potential information linkage based on identical _contract_address_tag_.
+Here, _randomness_ is generated in the private function circuit and supplied to the private kernel circuit. The value must be included in the preimage for encrypted log generation. The private function circuit is responsible for ensuring that the _randomness_ differs for every encrypted log to avoid potential information linkage based on identical _masked_contract_address_.
 
-After successfully decrypting an encrypted log, one can use the _randomness_ in the log preimage, hash it with the _contract_address_, and verify it against the _contract_address_tag_ to ascertain that the log originated from the specified contract.
+After successfully decrypting an encrypted log, one can use the _randomness_ in the log preimage, hash it with the _contract_address_, and verify it against the _masked_contract_address_ to ascertain that the log originated from the specified contract.
 
 1. Hash the _contract_address_tag_ to each _log_hash_:
 
-   - _`contract_address_tag_a = hash(contract_address_a, randomness)`_
-   - _`log_hash_a = hash(log_hash_a, contract_address_tag_a)`_
+   - _`masked_contract_address_a = hash(contract_address_a, randomness)`_
+   - _`log_hash_a = hash(contract_address_tag_a, log_hash_a)`_
    - Repeat the process for all _log_hashes_ in the transaction.
 
 2. Accumulate all the hashes in the tail and outputs the final hash to the public inputs:
 
    - `accumulated_logs_hash = hash(log_hash[0], log_hash[1], ..., log_hash[N - 1])` for N logs, with hashes defined above.
 
+Note that, in some cases, the user may want to reveal which contract address the encrypted log came from. Providing a `randomness` value of 0 signals that we should not mask the address, so in this case the log hash is simply:
+
+_`log_hash_a = hash(contract_address_a, log_hash_a)`_
+
 ### Encoding
 
-The following represents the encoded data for an unencrypted log:
+The following represents the encoded data for an encrypted log:
 
-_`log_data = [log_preimage_length, contract_address_tag, ...log_preimage]`_
+_`log_data = [log_preimage_length, masked_contract_address, ...log_preimage]`_
 
 ### Verification
 

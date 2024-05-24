@@ -8,6 +8,20 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.42.0
 
+### [Aztec.nr] Emitting encrypted notes and logs
+
+The `emit_encrypted_log` context function is now `encrypt_and_emit_log` or `encrypt_and_emit_note`.
+
+```diff
+- context.emit_encrypted_log(log1);
++ context.encrypt_and_emit_log(log1);
++ context.encrypt_and_emit_note(note1);
+```
+Broadcasting a note will call `encrypt_and_emit_note` in the background. To broadcast a generic event, use `encrypt_and_emit_log`
+with the same encryption parameters as notes require. Currently, only fields and arrays of fields are supported as events.
+
+By default, logs emitted via `encrypt_and_emit_log` will be siloed with a _masked_ contract address. To force the contract address to be revealed, so everyone can check it rather than just the log recipient, provide `randomness = 0`.
+
 ## Public execution migrated to the Aztec Virtual Machine
 
 **What does this mean for me?**
