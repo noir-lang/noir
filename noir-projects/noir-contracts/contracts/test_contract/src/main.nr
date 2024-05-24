@@ -478,7 +478,7 @@ contract Test {
     ) -> Field where T: FromField, T: ToField {
         // It's a bit wonky because we need to know the delay for get_current_value_in_private to work correctly
         let test: SharedMutablePrivateGetter<T, 5> = SharedMutablePrivateGetter::new(
-            context,
+            &mut context,
             contract_address_to_read,
             storage_slot_of_shared_mutable
         );
@@ -500,7 +500,7 @@ contract Test {
 
         // It's a bit wonky because we need to know the delay for get_current_value_in_private to work correctly
         let registry_private_getter: SharedMutablePrivateGetter<Field, 5> = SharedMutablePrivateGetter::new(
-            context,
+            &mut context,
             AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
             derived_slot
         );

@@ -8,7 +8,7 @@ use crate::state_vars::{
 };
 
 struct SharedMutablePrivateGetter<T, INITIAL_DELAY> {
-    context: PrivateContext,
+    context: &mut PrivateContext,
     // The contract address of the contract we want to read from
     other_contract_address: AztecAddress,
     // The storage slot where the SharedMutable is stored on the other contract
@@ -22,7 +22,7 @@ struct SharedMutablePrivateGetter<T, INITIAL_DELAY> {
 // Currently the Shared Mutable does not support this. We can adapt SharedMutable at a later date
 impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
     pub fn new(
-        context: PrivateContext,
+        context: &mut PrivateContext,
         other_contract_address: AztecAddress,
         storage_slot: Field
     ) -> Self {
@@ -32,13 +32,11 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
     }
 
     pub fn get_current_value_in_private(self) -> T where T: FromField {
-        let mut context = self.context;
-
-        let (value_change, delay_change, historical_block_number) = self.historical_read_from_public_storage(context);
+        let (value_change, delay_change, historical_block_number) = self.historical_read_from_public_storage(*self.context);
         let effective_minimum_delay = delay_change.get_effective_minimum_delay_at(historical_block_number);
         let block_horizon = value_change.get_block_horizon(historical_block_number, effective_minimum_delay);
 
-        context.set_tx_max_block_number(block_horizon);
+        self.context.set_tx_max_block_number(block_horizon);
         value_change.get_current_at(historical_block_number)
     }
 
@@ -57,7 +55,7 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
         }
 
         let delay_change_slot = self.get_delay_change_storage_slot();
-        let raw_delay_change_fields = [header.public_storage_historical_read(delay_change_slot, context.this_address())];
+        let raw_delay_change_fields = [header.public_storage_historical_read(delay_change_slot, self.other_contract_address)];
 
         let value_change = ScheduledValueChange::deserialize(raw_value_change_fields);
         let delay_change = ScheduledDelayChange::deserialize(raw_delay_change_fields);

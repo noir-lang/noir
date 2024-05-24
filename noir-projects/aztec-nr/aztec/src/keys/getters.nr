@@ -63,12 +63,12 @@ fn fetch_key_from_registry(
     let y_coordinate_derived_slot = derive_storage_slot_in_map(y_coordinate_map_slot, address);
 
     let x_coordinate_registry: SharedMutablePrivateGetter<Field, DELAY> = SharedMutablePrivateGetter::new(
-        *context,
+        context,
         AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
         x_coordinate_derived_slot
     );
     let y_coordinate_registry: SharedMutablePrivateGetter<Field, DELAY> = SharedMutablePrivateGetter::new(
-        *context,
+        context,
         AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
         y_coordinate_derived_slot
     );
