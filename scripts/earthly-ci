@@ -43,7 +43,7 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
       sleep 30
     elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null; then
       echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker. If this persists, try 'systemctl restart docker' on the spot instance."
-    elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null; then
+    elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null || grep 'Error response from daemon: removal of container earthly-buildkitd is already in progress: exit status 1' $OUTPUT_FILE >/dev/null ; then
       echo "Detected an Earthly daemon restart, possibly due to it (mis)detecting a cache setting change, trying again..."
     elif grep 'dial unix /run/buildkit/buildkitd.sock' $OUTPUT_FILE >/dev/null; then
       echo "Detected earthly unable to find buildkit, waiting and trying again..."
@@ -54,7 +54,7 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
     elif grep 'status 125: docker: Error response from daemon: layer does not exist.' $OUTPUT_FILE >/dev/null; then
       echo "Detected corrupted docker images. Wiping and trying again."
       # Based on https://stackoverflow.com/a/75849307
-      sudo rm -rf /var/lib/docker/image/overlay2/layerdb/sha256/* /var/lib/docker/image/overlay2/imagedb/content/sha256/*
+      sudo rm -rf /var/lib/docker/image/overlay2/layerdb/sha256/* /var/lib/docker/image/overlay2/imagedb/content/sha256/* /var/lib/docker/image/overlay2/imagedb/metadata/sha256/*
     else
       # If other errors, exit the script
       echo "Errors may exist in other jobs. Please see the run summary page and check for Build Summary. If there are no errors, it may be because runs were interrupted due to runner going down (please report this)."
