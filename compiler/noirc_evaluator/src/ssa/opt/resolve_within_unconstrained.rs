@@ -11,20 +11,21 @@ use acvm::FieldElement;
 use fxhash::FxHashSet as HashSet;
 
 impl Ssa {
-    /// A simple SSA pass to find any calls to `Intrinsic::WithinUnconstrained` and replacing any references to the result of the intrinsic
-    /// with the correct boolean value.
+    /// An SSA pass to find any calls to `Intrinsic::WithinUnconstrained` and replacing any uses of the result of the intrinsic
+    /// with the resoled boolean value.
     /// Note that this pass must run after the pass that does runtime separation, since in SSA generation an ACIR function can end up targeting brillig.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn resolve_within_unconstrained(mut self) -> Self {
         for func in self.functions.values_mut() {
-            replace_within_unconstrained(func);
+            replace_within_unconstrained_result(func);
         }
         self
     }
 }
 
-fn replace_within_unconstrained(func: &mut Function) {
+fn replace_within_unconstrained_result(func: &mut Function) {
     let mut within_unconstrained_calls = HashSet::default();
+    // Collect all calls to within_unconstrained
     for block_id in func.reachable_blocks() {
         for &instruction_id in func.dfg[block_id].instructions() {
             let target_func = match &func.dfg[instruction_id] {
@@ -32,12 +33,9 @@ fn replace_within_unconstrained(func: &mut Function) {
                 _ => continue,
             };
 
-            match &func.dfg[target_func] {
-                Value::Intrinsic(Intrinsic::WithinUnconstrained) => {
-                    within_unconstrained_calls.insert(instruction_id);
-                }
-                _ => continue,
-            };
+            if let Value::Intrinsic(Intrinsic::WithinUnconstrained) = &func.dfg[target_func] {
+                within_unconstrained_calls.insert(instruction_id);
+            }
         }
     }
 
@@ -45,11 +43,14 @@ fn replace_within_unconstrained(func: &mut Function) {
         let call_returns = func.dfg.instruction_results(instruction_id);
         let original_return_id = call_returns[0];
 
+        // We replace the result with a fresh id. This will be unused, so the DIE pass will remove the leftover intrinsic call.
         func.dfg.replace_result(instruction_id, original_return_id);
-        let known_value = func.dfg.make_constant(
+
+        let is_within_unconstrained = func.dfg.make_constant(
             FieldElement::from(matches!(func.runtime(), RuntimeType::Brillig)),
             Type::bool(),
         );
-        func.dfg.set_value_from_id(original_return_id, known_value);
+        // Replace all uses of the original return value with the constant
+        func.dfg.set_value_from_id(original_return_id, is_within_unconstrained);
     }
 }
