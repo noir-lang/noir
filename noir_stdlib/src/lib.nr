@@ -25,6 +25,7 @@ mod default;
 mod prelude;
 mod uint128;
 mod bigint;
+mod runtime;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
@@ -71,5 +72,3 @@ pub fn wrapping_mul<T>(x: T, y: T) -> T {
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
 
-#[builtin(within_unconstrained)]
-pub fn within_unconstrained() -> bool {}

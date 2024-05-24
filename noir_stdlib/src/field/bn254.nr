@@ -1,4 +1,4 @@
-use crate::within_unconstrained;
+use crate::runtime::is_unconstrained;
 
 // The low and high decomposition of the field modulus
 global PLO: Field = 53438638232309528389504892708671455233;
@@ -77,7 +77,7 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
 
 /// Decompose a single field into two 16 byte fields.
 pub fn decompose(x: Field) -> (Field, Field) {
-    if within_unconstrained() {
+    if is_unconstrained() {
         compute_decomposition(x)
     } else {
         // Take hints of the decomposition
@@ -97,7 +97,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
 }
 
 pub fn assert_gt(a: Field, b: Field) {
-    if within_unconstrained() {
+    if is_unconstrained() {
         assert(compute_lt(b, a, 32));
     } else {
         // Decompose a and b
@@ -114,7 +114,7 @@ pub fn assert_lt(a: Field, b: Field) {
 }
 
 pub fn gt(a: Field, b: Field) -> bool {
-    if within_unconstrained() {
+    if is_unconstrained() {
         compute_lt(b, a, 32)
     } else if a == b {
         false
