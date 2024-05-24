@@ -1,8 +1,10 @@
 use crate::{
     abis::{
-    max_block_number::MaxBlockNumber, key_validation_request::ScopedKeyValidationRequest,
-    public_data_read::PublicDataRead, read_request::ScopedReadRequest,
-    validation_requests::rollup_validation_requests::RollupValidationRequests
+    max_block_number::MaxBlockNumber, public_data_read::PublicDataRead, read_request::ScopedReadRequest,
+    validation_requests::{
+    rollup_validation_requests::RollupValidationRequests,
+    scoped_key_validation_request_and_generator::ScopedKeyValidationRequestAndGenerator
+}
 },
     constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
@@ -18,7 +20,7 @@ struct ValidationRequests {
     note_hash_read_requests: [ScopedReadRequest; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
     nullifier_read_requests: [ScopedReadRequest; MAX_NULLIFIER_READ_REQUESTS_PER_TX],
     nullifier_non_existent_read_requests: [ScopedReadRequest; MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX],
-    key_validation_requests: [ScopedKeyValidationRequest; MAX_KEY_VALIDATION_REQUESTS_PER_TX],
+    scoped_key_validation_requests_and_generators: [ScopedKeyValidationRequestAndGenerator; MAX_KEY_VALIDATION_REQUESTS_PER_TX],
     public_data_reads: [PublicDataRead; MAX_PUBLIC_DATA_READS_PER_TX],
 }
 
@@ -41,7 +43,7 @@ impl Serialize<VALIDATION_REQUESTS_LENGTH> for ValidationRequests {
     }
 
     for i in 0..MAX_KEY_VALIDATION_REQUESTS_PER_TX {
-      fields.extend_from_array(self.key_validation_requests[i].serialize());
+      fields.extend_from_array(self.scoped_key_validation_requests_and_generators[i].serialize());
     }
 
     for i in 0..MAX_PUBLIC_DATA_READS_PER_TX {
@@ -63,7 +65,7 @@ impl Deserialize<VALIDATION_REQUESTS_LENGTH> for ValidationRequests {
             note_hash_read_requests: reader.read_struct_array(ScopedReadRequest::deserialize, [ScopedReadRequest::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_TX]),
             nullifier_read_requests: reader.read_struct_array(ScopedReadRequest::deserialize, [ScopedReadRequest::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_TX]),
             nullifier_non_existent_read_requests: reader.read_struct_array(ScopedReadRequest::deserialize, [ScopedReadRequest::empty(); MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX]),
-            key_validation_requests: reader.read_struct_array(ScopedKeyValidationRequest::deserialize, [ScopedKeyValidationRequest::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_TX]),
+            scoped_key_validation_requests_and_generators: reader.read_struct_array(ScopedKeyValidationRequestAndGenerator::deserialize, [ScopedKeyValidationRequestAndGenerator::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_TX]),
             public_data_reads: reader.read_struct_array(PublicDataRead::deserialize, [PublicDataRead::empty(); MAX_PUBLIC_DATA_READS_PER_TX]),
         };
 
@@ -80,7 +82,7 @@ impl Empty for ValidationRequests {
             note_hash_read_requests: [ScopedReadRequest::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
             nullifier_read_requests: [ScopedReadRequest::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_TX],
             nullifier_non_existent_read_requests: [ScopedReadRequest::empty(); MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX],
-            key_validation_requests: [ScopedKeyValidationRequest::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_TX],
+            scoped_key_validation_requests_and_generators: [ScopedKeyValidationRequestAndGenerator::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_TX],
             public_data_reads: [PublicDataRead::empty(); MAX_PUBLIC_DATA_READS_PER_TX],
         }
     }
@@ -92,7 +94,7 @@ impl Eq for ValidationRequests {
         (self.note_hash_read_requests == other.note_hash_read_requests) &
         (self.nullifier_read_requests == other.nullifier_read_requests) &
         (self.nullifier_non_existent_read_requests == other.nullifier_non_existent_read_requests) &
-        (self.key_validation_requests == other.key_validation_requests) &
+        (self.scoped_key_validation_requests_and_generators == other.scoped_key_validation_requests_and_generators) &
         (self.public_data_reads == other.public_data_reads)
     }
 }

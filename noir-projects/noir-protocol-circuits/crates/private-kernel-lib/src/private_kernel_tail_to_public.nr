@@ -72,7 +72,7 @@ mod tests {
     use dep::types::constants::{
         MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
         MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX, DA_BYTES_PER_FIELD,
-        DA_GAS_PER_BYTE, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
+        DA_GAS_PER_BYTE, MAX_NOTE_ENCRYPTED_LOGS_PER_TX, GENERATOR_INDEX__TSK_M
     };
     use dep::types::{
         abis::{
@@ -377,7 +377,7 @@ mod tests {
     #[test(should_fail_with="Non empty key validation requests")]
     unconstrained fn non_empty_key_validations() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
-        let _void = builder.previous_kernel.add_request_for_key_validation(GrumpkinPoint::new(1, 2), 27);
+        let _void = builder.previous_kernel.add_request_for_key_validation(GrumpkinPoint::new(1, 2), 27, GENERATOR_INDEX__TSK_M);
         builder.failed();
     }
 

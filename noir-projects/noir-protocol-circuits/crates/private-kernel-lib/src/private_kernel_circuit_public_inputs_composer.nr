@@ -62,7 +62,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
         public_inputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
         public_inputs.validation_requests.note_hash_read_requests = array_to_bounded_vec(start.note_hash_read_requests);
         public_inputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
-        public_inputs.validation_requests.key_validation_requests = array_to_bounded_vec(start.key_validation_requests);
+        public_inputs.validation_requests.scoped_key_validation_requests_and_generators = array_to_bounded_vec(start.scoped_key_validation_requests_and_generators);
 
         let start = previous_kernel_public_inputs.end;
         public_inputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
@@ -144,11 +144,11 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn propagate_key_validation_requests(&mut self, source: DataSource) {
-        let key_validation_requests = source.private_call_public_inputs.key_validation_requests;
-        for i in 0..key_validation_requests.len() {
-            let request = key_validation_requests[i];
+        let key_validation_requests_and_generators = source.private_call_public_inputs.key_validation_requests_and_generators;
+        for i in 0..key_validation_requests_and_generators.len() {
+            let request = key_validation_requests_and_generators[i];
             if !is_empty(request) {
-                self.public_inputs.validation_requests.key_validation_requests.push(request.scope(source.storage_contract_address));
+                self.public_inputs.validation_requests.scoped_key_validation_requests_and_generators.push(request.scope(source.storage_contract_address));
             }
         }
     }

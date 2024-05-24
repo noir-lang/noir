@@ -178,8 +178,8 @@ export class KernelProver {
       getNonEmptyItems(nextIteration.callStackItem.publicInputs.nullifierReadRequests).length +
         getNonEmptyItems(output.publicInputs.validationRequests.nullifierReadRequests).length >
         MAX_NULLIFIER_READ_REQUESTS_PER_TX ||
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.keyValidationRequests).length +
-        getNonEmptyItems(output.publicInputs.validationRequests.keyValidationRequests).length >
+      getNonEmptyItems(nextIteration.callStackItem.publicInputs.keyValidationRequestsAndGenerators).length +
+        getNonEmptyItems(output.publicInputs.validationRequests.scopedKeyValidationRequestsAndGenerators).length >
         MAX_KEY_VALIDATION_REQUESTS_PER_TX
     );
   }
@@ -188,7 +188,7 @@ export class KernelProver {
     return (
       getNonEmptyItems(output.publicInputs.validationRequests.noteHashReadRequests).length > 0 ||
       getNonEmptyItems(output.publicInputs.validationRequests.nullifierReadRequests).length > 0 ||
-      getNonEmptyItems(output.publicInputs.validationRequests.keyValidationRequests).length > 0 ||
+      getNonEmptyItems(output.publicInputs.validationRequests.scopedKeyValidationRequestsAndGenerators).length > 0 ||
       output.publicInputs.end.newNoteHashes.find(noteHash => noteHash.nullifierCounter !== 0) ||
       output.publicInputs.end.newNullifiers.find(nullifier => !nullifier.nullifiedNoteHash.equals(Fr.zero()))
     );

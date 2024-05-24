@@ -5,8 +5,9 @@ use crate::{
 };
 use dep::types::{
     abis::{
-    note_hash::ScopedNoteHash, nullifier::ScopedNullifier, validation_requests::ValidationRequests,
-    read_request::ScopedReadRequest, key_validation_request::ScopedKeyValidationRequest
+    note_hash::ScopedNoteHash, nullifier::ScopedNullifier,
+    validation_requests::{ValidationRequests, ScopedKeyValidationRequestAndGenerator},
+    read_request::ScopedReadRequest
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX,
@@ -39,7 +40,7 @@ impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATIO
             public_data_reads: self.validation_requests.public_data_reads,
             note_hash_read_requests: remaining_note_hash_read_requests.storage,
             nullifier_read_requests: remaining_nullifier_read_requests.storage,
-            key_validation_requests: remaining_key_validation_requests.storage
+            scoped_key_validation_requests_and_generators: remaining_key_validation_requests.storage
         }
     }
 
@@ -65,9 +66,9 @@ impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATIO
         )
     }
 
-    fn validate_keys(self) -> BoundedVec<ScopedKeyValidationRequest, MAX_KEY_VALIDATION_REQUESTS_PER_TX> {
+    fn validate_keys(self) -> BoundedVec<ScopedKeyValidationRequestAndGenerator, MAX_KEY_VALIDATION_REQUESTS_PER_TX> {
         reset_key_validation_requests(
-            self.validation_requests.key_validation_requests,
+            self.validation_requests.scoped_key_validation_requests_and_generators,
             self.key_validation_hints
         )
     }

@@ -1,6 +1,6 @@
 use dep::protocol_types::{
     grumpkin_point::GrumpkinPoint,
-    abis::key_validation_request::{KeyValidationRequest, KEY_VALIDATION_REQUEST_LENGTH}
+    abis::validation_requests::{KeyValidationRequest, key_validation_request::KEY_VALIDATION_REQUEST_LENGTH}
 };
 
 #[oracle(getKeyValidationRequest)]

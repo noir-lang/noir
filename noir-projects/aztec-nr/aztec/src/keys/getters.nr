@@ -1,5 +1,5 @@
 use dep::protocol_types::{
-    abis::key_validation_request::KeyValidationRequest, address::AztecAddress,
+    abis::validation_requests::KeyValidationRequest, address::AztecAddress,
     constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint,
     storage::map::derive_storage_slot_in_map
 };

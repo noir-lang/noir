@@ -4,7 +4,6 @@ import {
   type Fr,
   type FunctionSelector,
   type GrumpkinPrivateKey,
-  type KeyGenerator,
   type MembershipWitness,
   type NOTE_HASH_TREE_HEIGHT,
   type Point,
@@ -71,13 +70,13 @@ export interface ProvingDataOracle {
   getNoteHashTreeRoot(): Promise<Fr>;
 
   /**
-   * Retrieves the sk_m for the pk_m and a generator index of the key type.
+   * Retrieves the sk_m corresponding to the pk_m.
    * @throws If the provided public key is not associated with any of the registered accounts.
-   * @param masterPublicKey - The master public key to get secret key for.
-   * @returns A Promise that resolves to sk_m and the corresponding app key generator.
+   * @param pkM - The master public key to get secret key for.
+   * @returns A Promise that resolves to sk_m.
    * @dev Used when feeding the sk_m to the kernel circuit for keys verification.
    */
-  getMasterSecretKeyAndAppKeyGenerator(masterPublicKey: Point): Promise<[GrumpkinPrivateKey, KeyGenerator]>;
+  getMasterSecretKey(masterPublicKey: Point): Promise<GrumpkinPrivateKey>;
 
   getFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string | undefined>;
 }

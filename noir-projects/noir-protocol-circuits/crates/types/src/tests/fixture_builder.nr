@@ -8,11 +8,13 @@ use crate::{
     kernel_data::KernelData, public_kernel_data::PublicKernelData, max_block_number::MaxBlockNumber,
     private_kernel_data::PrivateKernelData, note_hash::{NoteHash, ScopedNoteHash},
     nullifier::{Nullifier, ScopedNullifier},
-    key_validation_request::{ScopedKeyValidationRequest, KeyValidationRequest},
     private_call_request::{PrivateCallRequest, ScopedPrivateCallRequest},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::{ReadRequest, ScopedReadRequest}, log_hash::{LogHash, NoteLogHash},
-    validation_requests::{ValidationRequests, ValidationRequestsBuilder}
+    validation_requests::{
+    ValidationRequests, ValidationRequestsBuilder, KeyValidationRequest,
+    KeyValidationRequestAndGenerator, ScopedKeyValidationRequestAndGenerator
+}
 },
     address::{AztecAddress, EthAddress},
     constants::{
@@ -65,7 +67,7 @@ struct FixtureBuilder {
     note_hash_read_requests: BoundedVec<ScopedReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
     nullifier_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_non_existent_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    key_validation_requests: BoundedVec<ScopedKeyValidationRequest, MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
+    scoped_key_validation_requests_and_generators: BoundedVec<ScopedKeyValidationRequestAndGenerator, MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
     public_data_reads: BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_TX>,
 
     // Proof.
@@ -110,7 +112,7 @@ impl FixtureBuilder {
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             nullifier_non_existent_read_requests: BoundedVec::new(),
-            key_validation_requests: BoundedVec::new(),
+            scoped_key_validation_requests_and_generators: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
             proof: NestedRecursiveProof::empty(),
             vk: VerificationKey::empty(),
@@ -184,7 +186,7 @@ impl FixtureBuilder {
             note_hash_read_requests: self.note_hash_read_requests,
             nullifier_read_requests: self.nullifier_read_requests,
             nullifier_non_existent_read_requests: self.nullifier_non_existent_read_requests,
-            key_validation_requests: self.key_validation_requests,
+            scoped_key_validation_requests_and_generators: self.scoped_key_validation_requests_and_generators,
             public_data_reads: self.public_data_reads
         };
         validation_requests.finish()
@@ -410,10 +412,12 @@ impl FixtureBuilder {
         new_read_request_index
     }
 
-    pub fn add_request_for_key_validation(&mut self, pk_m: GrumpkinPoint, sk_app: Field) -> u64 {
-        let new_request_index = self.key_validation_requests.len();
+    pub fn add_request_for_key_validation(&mut self, pk_m: GrumpkinPoint, sk_app: Field, sk_app_generator: Field) -> u64 {
+        let new_request_index = self.scoped_key_validation_requests_and_generators.len();
         let request = KeyValidationRequest { pk_m, sk_app };
-        self.key_validation_requests.push(request.scope(self.storage_contract_address));
+        let request_and_generator = KeyValidationRequestAndGenerator { request, sk_app_generator };
+        let scoped_key_validation_request_and_generator = request_and_generator.scope(self.storage_contract_address);
+        self.scoped_key_validation_requests_and_generators.push(scoped_key_validation_request_and_generator);
 
         new_request_index
     }
@@ -543,7 +547,7 @@ impl Empty for FixtureBuilder {
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             nullifier_non_existent_read_requests: BoundedVec::new(),
-            key_validation_requests: BoundedVec::new(),
+            scoped_key_validation_requests_and_generators: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
             proof: NestedRecursiveProof::empty(),
             vk: VerificationKey::empty(),

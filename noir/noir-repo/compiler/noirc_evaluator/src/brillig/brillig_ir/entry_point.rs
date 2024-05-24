@@ -7,7 +7,7 @@ use super::{
 };
 use acvm::{acir::brillig::MemoryAddress, FieldElement};
 
-pub(crate) const MAX_STACK_SIZE: usize = 2048;
+pub(crate) const MAX_STACK_SIZE: usize = 3072;
 
 impl BrilligContext {
     /// Creates an entry point artifact that will jump to the function label provided.

@@ -8,7 +8,6 @@ import {
   type GrumpkinPrivateKey,
   GrumpkinScalar,
   KEY_PREFIXES,
-  type KeyGenerator,
   type KeyPrefix,
   KeyValidationRequest,
   type PartialAddress,
@@ -17,7 +16,6 @@ import {
   computeAppSecretKey,
   deriveKeys,
   derivePublicKeyFromSecretKey,
-  getKeyGenerator,
 } from '@aztec/circuits.js';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { type Bufferable, serializeToBuffer } from '@aztec/foundation/serialize';
@@ -270,17 +268,17 @@ export class KeyStore {
   }
 
   /**
-   * Retrieves the sk_m for the pk_m and a generator index of the key type.
+   * Retrieves the sk_m corresponding to the pk_m.
    * @throws If the provided public key is not associated with any of the registered accounts.
    * @param pkM - The master public key to get secret key for.
    * @returns A Promise that resolves to sk_m.
    * @dev Used when feeding the sk_m to the kernel circuit for keys verification.
    */
-  public getMasterSecretKeyAndAppKeyGenerator(pkM: PublicKey): Promise<[GrumpkinPrivateKey, KeyGenerator]> {
+  public getMasterSecretKey(pkM: PublicKey): Promise<GrumpkinPrivateKey> {
     const [keyPrefix, account] = this.#getKeyPrefixAndAccount(pkM);
 
     // We get the secret keys buffer and iterate over the values in the buffer to find the one that matches pkM
-    let sk: GrumpkinScalar | undefined;
+    let skM: GrumpkinScalar | undefined;
     {
       const secretKeysBuffer = this.#keys.get(`${account.toString()}-${keyPrefix}sk_m`);
       if (!secretKeysBuffer) {
@@ -291,23 +289,21 @@ export class KeyStore {
 
       const numKeys = this.#calculateNumKeys(secretKeysBuffer, GrumpkinScalar);
       for (let i = 0; i < numKeys; i++) {
-        const foundSk = GrumpkinScalar.fromBuffer(
+        const foundSkM = GrumpkinScalar.fromBuffer(
           secretKeysBuffer.subarray(i * GrumpkinScalar.SIZE_IN_BYTES, (i + 1) * GrumpkinScalar.SIZE_IN_BYTES),
         );
-        if (derivePublicKeyFromSecretKey(foundSk).equals(pkM)) {
-          sk = foundSk;
+        if (derivePublicKeyFromSecretKey(foundSkM).equals(pkM)) {
+          skM = foundSkM;
           break;
         }
       }
 
-      if (!sk) {
+      if (!skM) {
         throw new Error(`Could not find ${keyPrefix}skM for ${keyPrefix}pkM ${pkM.toString()} in secret keys buffer.`);
       }
     }
 
-    // Now we determine the key type and return generator accordingly
-    const generator = getKeyGenerator(keyPrefix);
-    return Promise.resolve([sk, generator]);
+    return Promise.resolve(skM);
   }
 
   /**

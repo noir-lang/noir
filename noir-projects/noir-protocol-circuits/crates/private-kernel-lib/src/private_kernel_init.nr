@@ -49,11 +49,12 @@ mod tests {
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, note_hash::NoteHash,
-        key_validation_request::KeyValidationRequest,
+        validation_requests::{KeyValidationRequest, KeyValidationRequestAndGenerator},
         private_kernel::private_call_data::PrivateCallData, read_request::ReadRequest,
         nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
     },
-        address::{AztecAddress, EthAddress}, constants::MAX_NEW_NOTE_HASHES_PER_CALL,
+        address::{AztecAddress, EthAddress},
+        constants::{MAX_NEW_NOTE_HASHES_PER_CALL, GENERATOR_INDEX__NSK_M},
         grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message,
         tests::private_call_data_builder::PrivateCallDataBuilder, transaction::tx_request::TxRequest,
         utils::arrays::{array_length, array_eq}
@@ -200,14 +201,17 @@ mod tests {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
         let request_0 = KeyValidationRequest { pk_m: GrumpkinPoint { x: 1, y: 2 }, sk_app: 3 };
-        builder.private_call.public_inputs.key_validation_requests.push(request_0);
+        let request_and_generator_0 = KeyValidationRequestAndGenerator { request: request_0, sk_app_generator: GENERATOR_INDEX__NSK_M };
+        builder.private_call.public_inputs.key_validation_requests_and_generators.push(request_and_generator_0);
 
         let public_inputs = builder.execute();
 
-        assert_eq(array_length(public_inputs.validation_requests.key_validation_requests), 1);
+        assert_eq(
+            array_length(public_inputs.validation_requests.scoped_key_validation_requests_and_generators), 1
+        );
 
-        let request = public_inputs.validation_requests.key_validation_requests[0];
-        assert_eq(request.request, request_0);
+        let request = public_inputs.validation_requests.scoped_key_validation_requests_and_generators[0];
+        assert_eq(request.request, request_and_generator_0);
         assert_eq(
             request.contract_address, builder.private_call.public_inputs.call_context.storage_contract_address
         );

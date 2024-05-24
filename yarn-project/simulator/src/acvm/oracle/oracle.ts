@@ -40,12 +40,10 @@ export class Oracle {
     return unpacked.map(toACVMField);
   }
 
-  async getKeyValidationRequest([masterPublicKeyHash]: ACVMField[]): Promise<ACVMField[]> {
-    const { masterPublicKey, appSecretKey } = await this.typedOracle.getKeyValidationRequest(
-      fromACVMField(masterPublicKeyHash),
-    );
+  async getKeyValidationRequest([pkMHash]: ACVMField[]): Promise<ACVMField[]> {
+    const { pkM, skApp } = await this.typedOracle.getKeyValidationRequest(fromACVMField(pkMHash));
 
-    return [toACVMField(masterPublicKey.x), toACVMField(masterPublicKey.y), toACVMField(appSecretKey)];
+    return [toACVMField(pkM.x), toACVMField(pkM.y), toACVMField(skApp)];
   }
 
   async getContractInstance([address]: ACVMField[]) {

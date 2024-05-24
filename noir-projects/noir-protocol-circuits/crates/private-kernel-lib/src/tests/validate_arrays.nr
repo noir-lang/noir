@@ -1,11 +1,13 @@
 use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
 use dep::types::{
     abis::{
-    key_validation_request::KeyValidationRequest, caller_context::CallerContext, note_hash::NoteHash,
-    nullifier::Nullifier, private_call_request::PrivateCallRequest, read_request::ReadRequest,
+    validation_requests::{KeyValidationRequest, KeyValidationRequestAndGenerator},
+    caller_context::CallerContext, note_hash::NoteHash, nullifier::Nullifier,
+    private_call_request::PrivateCallRequest, read_request::ReadRequest,
     log_hash::{LogHash, NoteLogHash}
 },
-    address::EthAddress, grumpkin_point::GrumpkinPoint, messaging::l2_to_l1_message::L2ToL1Message
+    address::EthAddress, constants::GENERATOR_INDEX__IVSK_M, grumpkin_point::GrumpkinPoint,
+    messaging::l2_to_l1_message::L2ToL1Message
 };
 
 #[test(should_fail_with="invalid array")]
@@ -40,10 +42,13 @@ fn validate_arrays_malformed_nullifier_read_requests_fails() {
 fn validate_arrays_malformed_key_validation_requests_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.public_inputs.key_validation_requests.extend_from_array(
+    builder.private_call.public_inputs.key_validation_requests_and_generators.extend_from_array(
         [
-        KeyValidationRequest::empty(),
-        KeyValidationRequest { pk_m: GrumpkinPoint { x: 12, y: 34 }, sk_app: 5 }
+        KeyValidationRequestAndGenerator::empty(),
+        KeyValidationRequestAndGenerator {
+            request: KeyValidationRequest { pk_m: GrumpkinPoint { x: 12, y: 34 }, sk_app: 5 },
+            sk_app_generator: GENERATOR_INDEX__IVSK_M
+        }
     ]
     );
 

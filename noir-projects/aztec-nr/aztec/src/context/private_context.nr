@@ -19,7 +19,8 @@ use dep::protocol_types::{
     hash::sha256_to_field,
     abis::{
     caller_context::CallerContext, function_selector::FunctionSelector,
-    max_block_number::MaxBlockNumber, key_validation_request::KeyValidationRequest,
+    max_block_number::MaxBlockNumber,
+    validation_requests::{KeyValidationRequest, KeyValidationRequestAndGenerator},
     private_call_request::PrivateCallRequest, private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem, read_request::ReadRequest, note_hash::NoteHash,
     nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
@@ -54,8 +55,7 @@ struct PrivateContext {
 
     note_hash_read_requests: BoundedVec<ReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
-    key_validation_requests: BoundedVec<KeyValidationRequest, MAX_KEY_VALIDATION_REQUESTS_PER_CALL>,
-    app_secret_keys_generators: BoundedVec<Field, MAX_KEY_VALIDATION_REQUESTS_PER_CALL>,
+    key_validation_requests_and_generators: BoundedVec<KeyValidationRequestAndGenerator, MAX_KEY_VALIDATION_REQUESTS_PER_CALL>,
 
     new_note_hashes: BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL>,
     new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL>,
@@ -125,8 +125,7 @@ impl PrivateContext {
             max_block_number: MaxBlockNumber::empty(),
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
-            key_validation_requests: BoundedVec::new(),
-            app_secret_keys_generators: BoundedVec::new(),
+            key_validation_requests_and_generators: BoundedVec::new(),
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             historical_header: inputs.historical_header,
@@ -168,7 +167,7 @@ impl PrivateContext {
             max_block_number: self.max_block_number,
             note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
-            key_validation_requests: self.key_validation_requests.storage,
+            key_validation_requests_and_generators: self.key_validation_requests_and_generators.storage,
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
             private_call_requests: self.private_call_requests.storage,
@@ -228,11 +227,11 @@ impl PrivateContext {
             // We didn't get a match meaning the cached result is stale. We fetch new values from oracle and instruct
             // protocol circuits to validate them by storing the validation request in context.
             let request = get_key_validation_request(pk_m_hash, key_index);
+            let request_and_generator = KeyValidationRequestAndGenerator { request, sk_app_generator: sk_generators[key_index] };
             // We constrain that the pk_m_hash matches the one in the request (otherwise we could get an arbitrary
             // valid key request and not the one corresponding to pk_m_hash).
             assert(request.pk_m.hash() == pk_m_hash);
-            self.key_validation_requests.push(request);
-            self.app_secret_keys_generators.push(sk_generators[key_index]);
+            self.key_validation_requests_and_generators.push(request_and_generator);
             self.last_key_validation_requests[key_index] = Option::some(request);
             request.sk_app
         }
@@ -675,8 +674,7 @@ impl Empty for PrivateContext {
             max_block_number: MaxBlockNumber::empty(),
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
-            key_validation_requests: BoundedVec::new(),
-            app_secret_keys_generators: BoundedVec::new(),
+            key_validation_requests_and_generators: BoundedVec::new(),
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             private_call_requests: BoundedVec::new(),

@@ -16,7 +16,6 @@ mod read_request;
 mod log_hash;
 mod note_hash;
 mod nullifier;
-mod key_validation_request;
 mod public_data_read;
 mod public_data_update_request;
 

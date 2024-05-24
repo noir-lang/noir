@@ -1,5 +1,5 @@
 import {
-  Fr,
+  type Fr,
   KeyValidationHint,
   MAX_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
@@ -15,7 +15,7 @@ import {
   type PrivateKernelResetCircuitPrivateInputsVariants,
   PrivateKernelResetHints,
   type ReadRequest,
-  type ScopedKeyValidationRequest,
+  type ScopedKeyValidationRequestAndGenerator,
   ScopedNoteHash,
   ScopedNullifier,
   ScopedReadRequest,
@@ -67,7 +67,7 @@ function getNullifierReadRequestHints<PENDING extends number, SETTLED extends nu
 }
 
 async function getMasterSecretKeysAndAppKeyGenerators(
-  keyValidationRequests: Tuple<ScopedKeyValidationRequest, typeof MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
+  keyValidationRequests: Tuple<ScopedKeyValidationRequestAndGenerator, typeof MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
   oracle: ProvingDataOracle,
 ) {
   const keysHints = makeTuple(MAX_KEY_VALIDATION_REQUESTS_PER_TX, KeyValidationHint.empty);
@@ -78,8 +78,8 @@ async function getMasterSecretKeysAndAppKeyGenerators(
     if (request.isEmpty()) {
       break;
     }
-    const [secretKeys, appKeyGenerator] = await oracle.getMasterSecretKeyAndAppKeyGenerator(request.masterPublicKey);
-    keysHints[keyIndex] = new KeyValidationHint(secretKeys, new Fr(appKeyGenerator), i);
+    const secretKeys = await oracle.getMasterSecretKey(request.request.pkM);
+    keysHints[keyIndex] = new KeyValidationHint(secretKeys, i);
     keyIndex++;
   }
   return {
@@ -146,7 +146,7 @@ export async function buildPrivateKernelResetInputs(
   );
 
   const { keysCount, keysHints } = await getMasterSecretKeysAndAppKeyGenerators(
-    publicInputs.validationRequests.keyValidationRequests,
+    publicInputs.validationRequests.scopedKeyValidationRequestsAndGenerators,
     oracle,
   );
 

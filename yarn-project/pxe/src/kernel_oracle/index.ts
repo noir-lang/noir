@@ -4,7 +4,6 @@ import {
   type Fr,
   type FunctionSelector,
   type GrumpkinPrivateKey,
-  type KeyGenerator,
   MembershipWitness,
   type NOTE_HASH_TREE_HEIGHT,
   type Point,
@@ -70,8 +69,8 @@ export class KernelOracle implements ProvingDataOracle {
     return header.state.partial.noteHashTree.root;
   }
 
-  public getMasterSecretKeyAndAppKeyGenerator(masterPublicKey: Point): Promise<[GrumpkinPrivateKey, KeyGenerator]> {
-    return this.keyStore.getMasterSecretKeyAndAppKeyGenerator(masterPublicKey);
+  public getMasterSecretKey(masterPublicKey: Point): Promise<GrumpkinPrivateKey> {
+    return this.keyStore.getMasterSecretKey(masterPublicKey);
   }
 
   public async getFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string | undefined> {
