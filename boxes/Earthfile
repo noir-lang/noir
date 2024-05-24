@@ -43,6 +43,8 @@ build:
 
 boxes:
     FROM node:18.19
+    # prefetch playwright installs earlier in downloads
+    RUN npx playwright install --with-deps
     COPY --dir +build/usr/src /usr
     WORKDIR /usr/src/boxes
     RUN yarn install-browsers
