@@ -247,8 +247,8 @@ impl<'context> Elaborator<'context> {
         //
         // These are resolved after trait impls so that struct methods are chosen
         // over trait methods if there are name conflicts.
-        for ((typ, module), impls) in &mut items.impls {
-            this.collect_impls(typ, *module, impls);
+        for ((_self_type, module), impls) in &mut items.impls {
+            this.collect_impls(*module, impls);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
@@ -903,8 +903,9 @@ impl<'context> Elaborator<'context> {
             vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
 
         let self_type = trait_impl.resolved_object_type.unwrap_or(Type::Error);
+
         let impl_id =
-            trait_impl.impl_id.expect("An impls' id should be set during define_function_metas");
+            trait_impl.impl_id.expect("An impl's id should be set during define_function_metas");
 
         self.current_trait_impl = trait_impl.impl_id;
 
@@ -968,7 +969,6 @@ impl<'context> Elaborator<'context> {
 
     fn collect_impls(
         &mut self,
-        self_type: &UnresolvedType,
         module: LocalModuleId,
         impls: &mut [(Vec<Ident>, Span, UnresolvedFunctions)],
     ) {
@@ -978,7 +978,7 @@ impl<'context> Elaborator<'context> {
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
-            self.declare_methods_on_struct(self_type, false, unresolved, *span);
+            self.declare_methods_on_struct(false, unresolved, *span);
             self.generics.truncate(old_generic_count);
         }
     }
@@ -992,13 +992,9 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl_methods(trait_id, trait_impl);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
-            let object_type = &trait_impl.object_type;
-
-            self.recover_generics(|this| {
-                this.add_generics(&trait_impl.generics);
-                trait_impl.resolved_generics = this.generics.clone();
-                this.declare_methods_on_struct(object_type, true, &mut trait_impl.methods, span);
-            });
+            self.generics = trait_impl.resolved_generics.clone();
+            self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
+            self.generics.clear();
         }
     }
 
@@ -1009,14 +1005,14 @@ impl<'context> Elaborator<'context> {
 
     fn declare_methods_on_struct(
         &mut self,
-        self_type: &UnresolvedType,
         is_trait_impl: bool,
         functions: &mut UnresolvedFunctions,
         span: Span,
     ) {
-        let self_type = self.resolve_type(self_type.clone());
-
-        functions.self_type = Some(self_type.clone());
+        let self_type = functions
+            .self_type
+            .as_ref()
+            .expect("Expected struct type to be set before declare_methods_on_struct");
 
         let function_ids = functions.function_ids();
 
@@ -1048,7 +1044,7 @@ impl<'context> Elaborator<'context> {
 
             self.declare_struct_methods(&self_type, &function_ids);
         // We can define methods on primitive types only if we're in the stdlib
-        } else if !is_trait_impl && self_type != Type::Error {
+        } else if !is_trait_impl && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
                 self.declare_struct_methods(&self_type, &function_ids);
             } else {
@@ -1175,8 +1171,8 @@ impl<'context> Elaborator<'context> {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
 
-        let object_crate = match self.resolve_type(trait_impl.object_type.clone()) {
-            Type::Struct(struct_type, _) => struct_type.borrow().id.krate(),
+        let object_crate = match &trait_impl.resolved_object_type {
+            Some(Type::Struct(struct_type, _)) => struct_type.borrow().id.krate(),
             _ => CrateId::Dummy,
         };
 
@@ -1317,6 +1313,7 @@ impl<'context> Elaborator<'context> {
             let unresolved_type = &trait_impl.object_type;
             let self_type_span = unresolved_type.span;
             self.add_generics(&trait_impl.generics);
+            trait_impl.resolved_generics = self.generics.clone();
 
             let self_type = self.resolve_type(unresolved_type.clone());
 
