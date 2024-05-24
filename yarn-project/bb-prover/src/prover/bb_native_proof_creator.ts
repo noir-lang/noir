@@ -36,7 +36,7 @@ import {
   convertPrivateKernelTailOutputsFromWitnessMap,
   convertPrivateKernelTailToPublicInputsToWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
-import { type ACVMField, WASMSimulator } from '@aztec/simulator';
+import { WASMSimulator } from '@aztec/simulator';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import { serializeWitness } from '@noir-lang/noirc_abi';
@@ -133,13 +133,13 @@ export class BBNativeProofCreator implements ProofCreator {
   }
 
   public async createAppCircuitProof(
-    partialWitness: Map<number, ACVMField>,
+    partialWitness: WitnessMap,
     bytecode: Buffer,
     appCircuitName?: string,
   ): Promise<AppCircuitProofOutput> {
     const operation = async (directory: string) => {
       this.log.debug(`Proving app circuit`);
-      const proofOutput = await this.createProof(directory, partialWitness, bytecode, 'App', 0, 0, appCircuitName);
+      const proofOutput = await this.createProof(directory, partialWitness, bytecode, 'App', appCircuitName);
       if (proofOutput.proof.proof.length != RECURSIVE_PROOF_LENGTH) {
         throw new Error(`Incorrect proof length`);
       }
@@ -265,14 +265,12 @@ export class BBNativeProofCreator implements ProofCreator {
     const outputWitness = await this.simulator.simulateCircuit(witnessMap, compiledCircuit);
     const output = convertOutputs(outputWitness);
 
-    const inputSize = inputs.toBuffer().length;
-    const outputSize = output.toBuffer().length;
     this.log.debug(`Generated witness for ${circuitType}`, {
       eventName: 'circuit-witness-generation',
       circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
       duration: timer.ms(),
-      inputSize,
-      outputSize,
+      inputSize: inputs.toBuffer().length,
+      outputSize: output.toBuffer().length,
     } satisfies CircuitWitnessGenerationStats);
 
     const proofOutput = await this.createProof(
@@ -280,8 +278,6 @@ export class BBNativeProofCreator implements ProofCreator {
       outputWitness,
       Buffer.from(compiledCircuit.bytecode, 'base64'),
       circuitType,
-      inputSize,
-      outputSize,
     );
     if (proofOutput.proof.proof.length != NESTED_RECURSIVE_PROOF_LENGTH) {
       throw new Error(`Incorrect proof length`);
@@ -301,8 +297,6 @@ export class BBNativeProofCreator implements ProofCreator {
     partialWitness: WitnessMap,
     bytecode: Buffer,
     circuitType: ClientProtocolArtifact | 'App',
-    inputSize: number,
-    outputSize: number,
     appCircuitName?: string,
   ): Promise<{
     proof: RecursiveProof<typeof RECURSIVE_PROOF_LENGTH> | RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
@@ -346,8 +340,7 @@ export class BBNativeProofCreator implements ProofCreator {
         eventName: 'circuit-proving',
         circuitName: 'app-circuit',
         duration: provingResult.duration,
-        inputSize,
-        outputSize,
+        inputSize: compressedBincodedWitness.length,
         proofSize: proof.binaryProof.buffer.length,
         appCircuitName,
         circuitSize: vkData.circuitSize,
@@ -367,8 +360,7 @@ export class BBNativeProofCreator implements ProofCreator {
       circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
       duration: provingResult.duration,
       eventName: 'circuit-proving',
-      inputSize,
-      outputSize,
+      inputSize: compressedBincodedWitness.length,
       proofSize: proof.binaryProof.buffer.length,
       circuitSize: vkData.circuitSize,
       numPublicInputs: vkData.numPublicInputs,

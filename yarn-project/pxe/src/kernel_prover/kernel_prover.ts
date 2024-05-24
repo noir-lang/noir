@@ -88,7 +88,7 @@ export class KernelProver {
         ? CallRequest.empty()
         : currentExecution.publicTeardownFunctionCall.toCallRequest();
 
-      const functionName = await this.oracle.getFunctionName(
+      const functionName = await this.oracle.getDebugFunctionName(
         currentExecution.callStackItem.contractAddress,
         currentExecution.callStackItem.functionData.selector,
       );

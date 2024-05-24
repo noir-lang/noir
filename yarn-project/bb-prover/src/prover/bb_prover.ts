@@ -295,14 +295,16 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     logger.debug(`Generating witness data for ${circuitType}`);
 
-    const witnessMap = convertInput(input);
+    const inputWitness = convertInput(input);
     const timer = new Timer();
-    const outputWitness = await simulator.simulateCircuit(witnessMap, artifact);
+    const outputWitness = await simulator.simulateCircuit(inputWitness, artifact);
+    const witnessGenerationDuration = timer.ms();
+    const output = convertOutput(outputWitness);
     logger.debug(`Generated witness`, {
       circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
-      duration: timer.ms(),
-      inputSize: witnessMap.size * Fr.SIZE_IN_BYTES,
-      outputSize: outputWitness.size * Fr.SIZE_IN_BYTES,
+      duration: witnessGenerationDuration,
+      inputSize: input.toBuffer().length,
+      outputSize: output.toBuffer().length,
       eventName: 'circuit-witness-generation',
     } satisfies CircuitWitnessGenerationStats);
 
@@ -325,7 +327,6 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     // Ensure our vk cache is up to date
     const vkData = await this.updateVerificationKeyAfterProof(provingResult.vkPath!, circuitType);
-    const output = convertOutput(outputWitness);
 
     return {
       circuitOutput: output,
@@ -359,8 +360,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
           duration: provingResult.duration,
           proofSize: proof.buffer.length,
           eventName: 'circuit-proving',
-          inputSize: input.toBuffer().length,
-          outputSize: output.toBuffer().length,
+          // circuitOutput is the partial witness that became the input to the proof
+          inputSize: output.toBuffer().length,
           circuitSize: vkData.circuitSize,
           numPublicInputs: vkData.numPublicInputs,
         } satisfies CircuitProvingStats,
@@ -407,8 +408,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
           circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
           circuitSize: vkData.circuitSize,
           duration: provingResult.duration,
-          inputSize: input.toBuffer().length,
-          outputSize: output.toBuffer().length,
+          inputSize: output.toBuffer().length,
           proofSize: proof.binaryProof.buffer.length,
           eventName: 'circuit-proving',
           numPublicInputs: vkData.numPublicInputs,

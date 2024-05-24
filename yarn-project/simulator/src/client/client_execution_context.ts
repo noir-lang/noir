@@ -682,4 +682,8 @@ export class ClientExecutionContext extends ViewDataOracle {
   public override debugLog(message: string, fields: Fr[]) {
     this.log.verbose(`debug_log ${applyStringFormatting(message, fields)}`);
   }
+
+  public getDebugFunctionName() {
+    return this.db.getDebugFunctionName(this.contractAddress, this.callContext.functionSelector);
+  }
 }

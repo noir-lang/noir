@@ -21,7 +21,6 @@ import {
   UnencryptedTxL2Logs,
   isNoirCallStackUnresolved,
 } from '@aztec/circuit-types';
-import { type TxPXEProcessingStats } from '@aztec/circuit-types/stats';
 import {
   AztecAddress,
   CallRequest,
@@ -39,7 +38,6 @@ import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { type Fq, Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { Timer } from '@aztec/foundation/timer';
 import { type KeyStore } from '@aztec/key-store';
 import {
   type AcirSimulator,
@@ -426,20 +424,11 @@ export class PXEService implements PXE {
     msgSender: AztecAddress | undefined = undefined,
   ): Promise<SimulatedTx> {
     return await this.jobQueue.put(async () => {
-      const timer = new Timer();
       const simulatedTx = await this.#simulateAndProve(txRequest, msgSender);
       // We log only if the msgSender is undefined, as simulating with a different msgSender
       // is unlikely to be a real transaction, and likely to be only used to read data.
       // Meaning that it will not necessarily have produced a nullifier (and thus have no TxHash)
       // If we log, the `getTxHash` function will throw.
-
-      if (!msgSender) {
-        this.log.debug(`Processed private part of ${simulatedTx.tx.getTxHash()}`, {
-          eventName: 'tx-pxe-processing',
-          duration: timer.ms(),
-          ...simulatedTx.tx.getStats(),
-        } satisfies TxPXEProcessingStats);
-      }
 
       if (simulatePublic) {
         simulatedTx.publicOutput = await this.#simulatePublicCalls(simulatedTx.tx);

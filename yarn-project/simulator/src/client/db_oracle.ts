@@ -96,6 +96,13 @@ export interface DBOracle extends CommitmentsDB {
   getFunctionArtifact(contractAddress: AztecAddress, selector: FunctionSelector): Promise<FunctionArtifact>;
 
   /**
+   * Generates a stable function name for debug purposes.
+   * @param contractAddress - The contract address.
+   * @param selector - The corresponding function selector.
+   */
+  getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string>;
+
+  /**
    * Retrieves the artifact of a specified function within a given contract.
    * The function is identified by its name, which is unique within a contract.
    *

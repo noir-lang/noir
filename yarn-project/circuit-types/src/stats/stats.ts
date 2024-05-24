@@ -126,8 +126,6 @@ export type CircuitProvingStats = {
   circuitSize: number;
   /** Size in bytes of circuit inputs. */
   inputSize: number;
-  /** Size in bytes of circuit output. */
-  outputSize: number;
   /** Size in bytes of the proof. */
   proofSize: number;
   /** The number of public inputs */
@@ -215,29 +213,6 @@ export type TxStats = {
 };
 
 /**
- * Stats for a tx that has been processed by the public processor.
- */
-export type TxPXEProcessingStats = {
-  /** Name of the event. */
-  eventName: 'tx-pxe-processing';
-  /** Duration in ms. */
-  duration: number;
-} & TxStats;
-
-/**
- * Stats for a tx that has been processed by the public processor.
- */
-export type TxSequencerProcessingStats = {
-  /** Name of the event. */
-  eventName: 'tx-sequencer-processing';
-  /** Duration in ms. */
-  duration: number;
-  /** Count of how many public writes this tx has made. Acts as a proxy for how 'heavy' this tx */
-  publicDataUpdateRequests: number;
-  effectsSize: number;
-} & Pick<TxStats, 'classRegisteredCount' | 'newCommitmentCount' | 'feePaymentMethod'>;
-
-/**
  * Stats for tree insertions
  */
 export type TreeInsertionStats = {
@@ -277,8 +252,6 @@ export type Stats =
   | L2BlockHandledStats
   | NoteProcessorCaughtUpStats
   | TxAddedToPoolStats
-  | TxPXEProcessingStats
-  | TxSequencerProcessingStats
   | TreeInsertionStats;
 
 /** Set of event names across emitted stats. */

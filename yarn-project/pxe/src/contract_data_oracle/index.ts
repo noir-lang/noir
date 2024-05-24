@@ -145,6 +145,13 @@ export class ContractDataOracle {
     return await Promise.resolve(MembershipWitness.random(VK_TREE_HEIGHT));
   }
 
+  public async getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector) {
+    const tree = await this.getTreeForAddress(contractAddress);
+    const { name: contractName } = tree.getArtifact();
+    const { name: functionName } = tree.getFunctionArtifact(selector);
+    return `${contractName}:${functionName}`;
+  }
+
   /**
    * Retrieve or create a ContractTree instance based on the provided class id.
    * If an existing tree with the same class id is found in the cache, it will be returned.

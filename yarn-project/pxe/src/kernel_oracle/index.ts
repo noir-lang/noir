@@ -73,19 +73,7 @@ export class KernelOracle implements ProvingDataOracle {
     return this.keyStore.getMasterSecretKey(masterPublicKey);
   }
 
-  public async getFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string | undefined> {
-    try {
-      const contractInstance = await this.contractDataOracle.getContractInstance(contractAddress);
-
-      const [contractArtifact, functionArtifact] = await Promise.all([
-        this.contractDataOracle.getContractArtifact(contractInstance.contractClassId),
-        this.contractDataOracle.getFunctionArtifact(contractAddress, selector),
-      ]);
-
-      return `${contractArtifact.name}:${functionArtifact.name}`;
-    } catch (e) {
-      this.log.error(`Failed to get function name for contract ${contractAddress} and selector ${selector}: ${e}`);
-      return 'Unknown';
-    }
+  public getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string> {
+    return this.contractDataOracle.getDebugFunctionName(contractAddress, selector);
   }
 }

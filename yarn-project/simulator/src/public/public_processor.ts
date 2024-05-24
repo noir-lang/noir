@@ -9,10 +9,8 @@ import {
   type TxValidator,
   makeEmptyProcessedTx,
   makeProcessedTx,
-  toTxEffect,
   validateProcessedTx,
 } from '@aztec/circuit-types';
-import { type TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
 import {
   AztecAddress,
   GAS_TOKEN_ADDRESS,
@@ -25,7 +23,6 @@ import {
 } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { Timer } from '@aztec/foundation/timer';
 import {
   PublicExecutor,
   type PublicStateDB,
@@ -241,7 +238,6 @@ export class PublicProcessor {
     let publicKernelPublicInput = tx.data.toPublicKernelCircuitPublicInputs();
     let finalKernelOutput: KernelCircuitPublicInputs | undefined;
     let revertReason: SimulationError | undefined;
-    const timer = new Timer();
     const gasUsed: ProcessedTx['gasUsed'] = {};
     while (phase) {
       const output = await phase.handle(tx, publicKernelPublicInput);
@@ -271,16 +267,6 @@ export class PublicProcessor {
     }
 
     const processedTx = makeProcessedTx(tx, finalKernelOutput, tx.proof, publicRequests, revertReason, gasUsed);
-
-    this.log.debug(`Processed public part of ${tx.getTxHash()}`, {
-      eventName: 'tx-sequencer-processing',
-      duration: timer.ms(),
-      effectsSize: toTxEffect(processedTx, this.globalVariables.gasFees).toBuffer().length,
-      publicDataUpdateRequests:
-        processedTx.data.end.publicDataUpdateRequests.filter(x => !x.leafSlot.isZero()).length ?? 0,
-      ...tx.getStats(),
-    } satisfies TxSequencerProcessingStats);
-
     return [processedTx, returnValues];
   }
 }

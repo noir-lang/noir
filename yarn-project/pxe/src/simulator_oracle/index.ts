@@ -230,4 +230,8 @@ export class SimulatorOracle implements DBOracle {
   public async getBlockNumber(): Promise<number> {
     return await this.aztecNode.getBlockNumber();
   }
+
+  public getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string> {
+    return this.contractDataOracle.getDebugFunctionName(contractAddress, selector);
+  }
 }
