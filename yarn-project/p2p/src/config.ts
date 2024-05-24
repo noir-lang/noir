@@ -118,6 +118,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     P2P_MAX_PEERS,
     DATA_DIRECTORY,
     TX_GOSSIP_VERSION,
+    P2P_TX_PROTOCOL,
   } = process.env;
   const envVars: P2PConfig = {
     p2pEnabled: P2P_ENABLED === 'true',
@@ -130,7 +131,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     udpListenIp: P2P_UDP_LISTEN_IP ? P2P_UDP_LISTEN_IP : '0.0.0.0',
     peerIdPrivateKey: PEER_ID_PRIVATE_KEY,
     bootstrapNodes: BOOTSTRAP_NODES ? BOOTSTRAP_NODES.split(',') : [],
-    transactionProtocol: '',
+    transactionProtocol: P2P_TX_PROTOCOL ? P2P_TX_PROTOCOL : '/aztec/0.1.0',
     announceHostname: P2P_ANNOUNCE_HOSTNAME,
     announcePort: P2P_ANNOUNCE_PORT ? +P2P_ANNOUNCE_PORT : undefined,
     enableNat: P2P_NAT_ENABLED === 'true',

@@ -26,6 +26,11 @@ provider "aws" {
   region  = "eu-west-2"
 }
 
+# Allocate Elastic IPs for each subnet
+resource "aws_eip" "aztec_network_p2p_eip" {
+  vpc = true
+}
+
 # Create our load balancer.
 resource "aws_lb" "aztec-network" {
   name               = "aztec-network"
@@ -34,10 +39,16 @@ resource "aws_lb" "aztec-network" {
   security_groups = [
     data.terraform_remote_state.setup_iac.outputs.security_group_public_id, aws_security_group.security-group-p2p.id
   ]
-  subnets = [
-    data.terraform_remote_state.setup_iac.outputs.subnet_az1_id,
-    data.terraform_remote_state.setup_iac.outputs.subnet_az2_id
-  ]
+
+  subnet_mapping {
+    subnet_id     = data.terraform_remote_state.setup_iac.outputs.subnet_az1_id
+    allocation_id = aws_eip.aztec_network_p2p_eip.id
+  }
+
+  # No EIP for the second subnet, so it will use a dynamic IP.
+  subnet_mapping {
+    subnet_id = data.terraform_remote_state.setup_iac.outputs.subnet_az2_id
+  }
 
   access_logs {
     bucket  = "aztec-logs"

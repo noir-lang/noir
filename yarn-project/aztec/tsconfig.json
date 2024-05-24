@@ -49,6 +49,9 @@
       "path": "../p2p"
     },
     {
+      "path": "../p2p-bootstrap"
+    },
+    {
       "path": "../protocol-contracts"
     },
     {

@@ -55,7 +55,7 @@ export function getProgram(userLog: LogFn, debugLogger: DebugLogger): Command {
         services = await startArchiver(options, signalHandlers);
       } else if (options.p2pBootstrap) {
         const { startP2PBootstrap } = await import('./cmds/start_p2p_bootstrap.js');
-        await startP2PBootstrap(options, signalHandlers, userLog, debugLogger);
+        await startP2PBootstrap(options, userLog, debugLogger);
       } else if (options.prover) {
         const { startProver } = await import('./cmds/start_prover.js');
         services = await startProver(options, signalHandlers, userLog);

@@ -41,6 +41,7 @@
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/noir-contracts.js": "workspace:^",
     "@aztec/p2p": "workspace:^",
+    "@aztec/p2p-bootstrap": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/prover-client": "workspace:^",
     "@aztec/pxe": "workspace:^",

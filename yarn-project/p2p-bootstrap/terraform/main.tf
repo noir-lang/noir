@@ -49,7 +49,7 @@ data "terraform_remote_state" "aztec-network_iac" {
 }
 
 locals {
-  bootnode_keys  = [var.BOOTNODE_1_PRIVATE_KEY, var.BOOTNODE_2_PRIVATE_KEY]
+  bootnode_keys  = [var.BOOTNODE_1_PRIVATE_KEY]
   bootnode_count = length(local.bootnode_keys)
 }
 
@@ -105,13 +105,14 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
 [
   {
     "name": "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}",
-    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:devnet",
     "command": ["start", "--p2p-bootstrap"],
     "essential": true,
     "memoryReservation": 3776,
     "portMappings": [
       {
-        "containerPort": ${var.BOOTNODE_LISTEN_PORT + count.index}
+        "containerPort": ${var.BOOTNODE_LISTEN_PORT + count.index},
+        "protocol": "udp"
       },
       {
         "containerPort": 80
@@ -123,16 +124,24 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
         "value": "production"
       },
       {
-        "name": "P2P_TCP_LISTEN_PORT",
+        "name": "P2P_UDP_LISTEN_PORT",
         "value": "${var.BOOTNODE_LISTEN_PORT + count.index}"
       },
       {
-        "name": "P2P_TCP_LISTEN_IP",
+        "name": "P2P_UDP_LISTEN_IP",
         "value": "0.0.0.0"
       },
       {
         "name": "PEER_ID_PRIVATE_KEY",
         "value": "${local.bootnode_keys[count.index]}"
+      },
+      {
+        "name": "P2P_ANNOUNCE_HOSTNAME",
+        "value": "/ip4/${data.terraform_remote_state.aztec-network_iac.outputs.p2p_eip}"
+      },
+      {
+        "name": "P2P_ANNOUNCE_PORT",
+        "value": "${var.BOOTNODE_LISTEN_PORT + count.index}"
       },
       {
         "name": "DEBUG",
@@ -145,6 +154,10 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
       {
         "name": "P2P_MAX_PEERS",
         "value": "${var.P2P_MAX_PEERS}"
+      },
+      {
+        "name": "HTTP_PORT",
+        "value": "80"
       }
     ],
     "logConfiguration": {
@@ -172,8 +185,7 @@ resource "aws_ecs_service" "p2p-bootstrap" {
 
   network_configuration {
     subnets = [
-      data.terraform_remote_state.setup_iac.outputs.subnet_az1_private_id,
-      data.terraform_remote_state.setup_iac.outputs.subnet_az2_private_id
+      data.terraform_remote_state.setup_iac.outputs.subnet_az1_private_id
     ]
     security_groups = [data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id, data.terraform_remote_state.setup_iac.outputs.security_group_private_id]
   }
@@ -185,7 +197,7 @@ resource "aws_ecs_service" "p2p-bootstrap" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.p2p-bootstrap-target-group[count.index].id
+    target_group_arn = aws_lb_target_group.p2p-bootstrap-target-group-udp[count.index].id
     container_name   = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
     container_port   = var.BOOTNODE_LISTEN_PORT + count.index
   }
@@ -193,45 +205,56 @@ resource "aws_ecs_service" "p2p-bootstrap" {
   task_definition = aws_ecs_task_definition.p2p-bootstrap[count.index].family
 }
 
-resource "aws_lb_target_group" "p2p-bootstrap-target-group" {
+# Create a target group for UDP traffic.
+resource "aws_lb_target_group" "p2p-bootstrap-target-group-udp" {
   count       = local.bootnode_count
-  name        = "p2p-bootstrap-${count.index + 1}-target-group"
+  name        = "p2p-bootstrap-${count.index + 1}-target-group-udp"
   port        = var.BOOTNODE_LISTEN_PORT + count.index
-  protocol    = "TCP"
+  protocol    = "UDP"
   target_type = "ip"
   vpc_id      = data.terraform_remote_state.setup_iac.outputs.vpc_id
 
   health_check {
-    protocol            = "TCP"
-    interval            = 10
+    enabled             = true
+    path                = "/health"
+    port                = "80"
+    interval            = 30
+    timeout             = 10
     healthy_threshold   = 2
     unhealthy_threshold = 2
-    port                = var.BOOTNODE_LISTEN_PORT + count.index
+    matcher             = "200"
+    protocol            = "HTTP"
   }
 }
 
-resource "aws_security_group_rule" "allow-bootstrap-tcp" {
+resource "aws_lb_listener" "p2p-bootstrap-udp-listener" {
+  count             = local.bootnode_count
+  load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
+  port              = var.BOOTNODE_LISTEN_PORT + count.index
+  protocol          = "UDP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.p2p-bootstrap-target-group-udp[count.index].arn
+  }
+}
+
+resource "aws_security_group_rule" "allow-bootstrap-udp" {
   count             = local.bootnode_count
   type              = "ingress"
   from_port         = var.BOOTNODE_LISTEN_PORT + count.index
   to_port           = var.BOOTNODE_LISTEN_PORT + count.index
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
+  protocol          = "udp"
   security_group_id = data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
-resource "aws_lb_listener" "p2p-bootstrap-tcp-listener" {
-  count             = local.bootnode_count
-  load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
-  port              = var.BOOTNODE_LISTEN_PORT + count.index
-  protocol          = "TCP"
-
-  tags = {
-    name = "p2p-bootstrap-${count.index}-target-group"
-  }
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.p2p-bootstrap-target-group[count.index].arn
-  }
+# Egress Rule for UDP Traffic
+resource "aws_security_group_rule" "allow-bootstrap-udp-egress" {
+  type              = "egress"
+  from_port         = var.BOOTNODE_LISTEN_PORT
+  to_port           = var.BOOTNODE_LISTEN_PORT
+  protocol          = "udp"
+  security_group_id = data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id
+  cidr_blocks       = ["0.0.0.0/0"]
 }
