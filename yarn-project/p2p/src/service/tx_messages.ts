@@ -1,4 +1,4 @@
-import { EncryptedTxL2Logs, Tx, UnencryptedTxL2Logs } from '@aztec/circuit-types';
+import { EncryptedNoteTxL2Logs, EncryptedTxL2Logs, Tx, UnencryptedTxL2Logs } from '@aztec/circuit-types';
 import { PrivateKernelTailCircuitPublicInputs, Proof, PublicCallRequest } from '@aztec/circuits.js';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 
@@ -115,9 +115,9 @@ export function fromTxMessage(buffer: Buffer): Tx {
   const publicInputs = toObject(buffer.subarray(4), PrivateKernelTailCircuitPublicInputs);
   const proof = toObject(publicInputs.remainingData, Proof);
 
-  const noteEncryptedLogs = toObject(proof.remainingData, EncryptedTxL2Logs);
+  const noteEncryptedLogs = toObject(proof.remainingData, EncryptedNoteTxL2Logs);
   if (!noteEncryptedLogs.obj) {
-    noteEncryptedLogs.obj = new EncryptedTxL2Logs([]);
+    noteEncryptedLogs.obj = new EncryptedNoteTxL2Logs([]);
   }
   const encryptedLogs = toObject(noteEncryptedLogs.remainingData, EncryptedTxL2Logs);
   if (!encryptedLogs.obj) {

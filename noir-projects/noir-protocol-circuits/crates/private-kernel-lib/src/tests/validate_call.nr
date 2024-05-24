@@ -1,7 +1,7 @@
 use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
 use dep::types::{
-    abis::{note_hash::NoteHash, nullifier::Nullifier, log_hash::LogHash}, address::EthAddress,
-    messaging::l2_to_l1_message::L2ToL1Message
+    abis::{note_hash::NoteHash, nullifier::Nullifier, log_hash::{LogHash, EncryptedLogHash}},
+    address::EthAddress, messaging::l2_to_l1_message::L2ToL1Message
 };
 
 #[test]
@@ -83,7 +83,7 @@ fn validate_call_is_static_creating_l2_to_l1_msgs_fails() {
 fn validate_call_is_static_creating_encrypted_logs_hashes_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new().is_static_call();
 
-    builder.private_call.public_inputs.encrypted_logs_hashes.push(LogHash { value: 9123, counter: 1, length: 2 });
+    builder.private_call.public_inputs.encrypted_logs_hashes.push(EncryptedLogHash { value: 9123, counter: 1, length: 2, randomness: 4 });
 
     builder.validate();
 }

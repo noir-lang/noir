@@ -9,7 +9,7 @@ use crate::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH
 },
-    utils::arrays::array_merge, traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
+    utils::{arrays::array_merge, reader::Reader}, traits::{Empty, Serialize, Deserialize}
 };
 
 struct CombinedAccumulatedData {
@@ -23,6 +23,7 @@ struct CombinedAccumulatedData {
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.
+    note_encrypted_log_preimages_length: Field,
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
 
@@ -52,10 +53,10 @@ impl CombinedAccumulatedData {
                 revertible.unencrypted_logs_hashes
             )
         );
+        let note_encrypted_log_preimages_length = non_revertible.note_encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
+            + revertible.note_encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
         let encrypted_log_preimages_length = non_revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
-            + revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
-            + non_revertible.note_encrypted_logs_hashes.fold(0, |a, b: NoteLogHash| a + b.length)
-            + revertible.note_encrypted_logs_hashes.fold(0, |a, b: NoteLogHash| a + b.length);
+            + revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
         let unencrypted_log_preimages_length = non_revertible.unencrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
             + revertible.unencrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
         CombinedAccumulatedData {
@@ -68,6 +69,7 @@ impl CombinedAccumulatedData {
             note_encrypted_logs_hash,
             encrypted_logs_hash,
             unencrypted_logs_hash,
+            note_encrypted_log_preimages_length,
             encrypted_log_preimages_length,
             unencrypted_log_preimages_length,
             public_data_update_requests: array_merge(
@@ -88,6 +90,7 @@ impl Empty for CombinedAccumulatedData {
             note_encrypted_logs_hash: 0,
             encrypted_logs_hash: 0,
             unencrypted_logs_hash: 0,
+            note_encrypted_log_preimages_length: 0,
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
@@ -106,6 +109,7 @@ impl Serialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
     fields.push(self.note_encrypted_logs_hash);
     fields.push(self.encrypted_logs_hash);
     fields.push(self.unencrypted_logs_hash);
+    fields.push(self.note_encrypted_log_preimages_length);
     fields.push(self.encrypted_log_preimages_length);
     fields.push(self.unencrypted_log_preimages_length);
 
@@ -132,6 +136,7 @@ impl Deserialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
         note_encrypted_logs_hash: reader.read(),
         encrypted_logs_hash: reader.read(),
         unencrypted_logs_hash: reader.read(),
+        note_encrypted_log_preimages_length: reader.read(),
         encrypted_log_preimages_length: reader.read(),
         unencrypted_log_preimages_length: reader.read(),
         public_data_update_requests: reader.read_struct_array(PublicDataUpdateRequest::deserialize, [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]),
@@ -150,6 +155,7 @@ impl Eq for CombinedAccumulatedData {
     (self.note_encrypted_logs_hash == other.note_encrypted_logs_hash) &
     (self.encrypted_logs_hash == other.encrypted_logs_hash) &
     (self.unencrypted_logs_hash == other.unencrypted_logs_hash) &
+    (self.note_encrypted_log_preimages_length == other.note_encrypted_log_preimages_length) &
     (self.encrypted_log_preimages_length == other.encrypted_log_preimages_length) &
     (self.unencrypted_log_preimages_length == other.unencrypted_log_preimages_length) &
     (self.public_data_update_requests == other.public_data_update_requests) &

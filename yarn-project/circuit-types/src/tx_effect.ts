@@ -1,4 +1,10 @@
-import { EncryptedTxL2Logs, PublicDataWrite, TxHash, UnencryptedTxL2Logs } from '@aztec/circuit-types';
+import {
+  EncryptedNoteTxL2Logs,
+  EncryptedTxL2Logs,
+  PublicDataWrite,
+  TxHash,
+  UnencryptedTxL2Logs,
+} from '@aztec/circuit-types';
 import {
   Fr,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -43,9 +49,10 @@ export class TxEffect {
     /**
      * The logs and logs lengths of the txEffect
      */
+    public noteEncryptedLogsLength: Fr,
     public encryptedLogsLength: Fr,
     public unencryptedLogsLength: Fr,
-    public noteEncryptedLogs: EncryptedTxL2Logs,
+    public noteEncryptedLogs: EncryptedNoteTxL2Logs,
     public encryptedLogs: EncryptedTxL2Logs,
     public unencryptedLogs: UnencryptedTxL2Logs,
   ) {
@@ -98,6 +105,7 @@ export class TxEffect {
       serializeArrayOfBufferableToVector(this.nullifiers, 1),
       serializeArrayOfBufferableToVector(this.l2ToL1Msgs, 1),
       serializeArrayOfBufferableToVector(this.publicDataWrites, 1),
+      this.noteEncryptedLogsLength,
       this.encryptedLogsLength,
       this.unencryptedLogsLength,
       this.noteEncryptedLogs,
@@ -123,7 +131,8 @@ export class TxEffect {
       reader.readVectorUint8Prefix(PublicDataWrite),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
-      reader.readObject(EncryptedTxL2Logs),
+      Fr.fromBuffer(reader),
+      reader.readObject(EncryptedNoteTxL2Logs),
       reader.readObject(EncryptedTxL2Logs),
       reader.readObject(UnencryptedTxL2Logs),
     );
@@ -154,7 +163,7 @@ export class TxEffect {
       PublicDataWrite.SIZE_IN_BYTES * MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     );
 
-    const noteEncryptedLogsHashKernel0 = this.noteEncryptedLogs.hash(0);
+    const noteEncryptedLogsHashKernel0 = this.noteEncryptedLogs.hash();
     const encryptedLogsHashKernel0 = this.encryptedLogs.hash();
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
@@ -165,6 +174,7 @@ export class TxEffect {
       nullifiersBuffer,
       l2ToL1MsgsBuffer,
       publicDataWritesBuffer,
+      this.noteEncryptedLogsLength.toBuffer(),
       this.encryptedLogsLength.toBuffer(),
       this.unencryptedLogsLength.toBuffer(),
       noteEncryptedLogsHashKernel0,
@@ -181,10 +191,8 @@ export class TxEffect {
     numEncryptedLogsPerCall = 2,
     numUnencryptedLogsPerCall = 1,
   ): TxEffect {
-    const encryptedLogs = [
-      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
-      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
-    ];
+    const noteEncryptedLogs = EncryptedNoteTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall);
+    const encryptedLogs = EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall);
     const unencryptedLogs = UnencryptedTxL2Logs.random(numPublicCallsPerTx, numUnencryptedLogsPerCall);
     return new TxEffect(
       RevertCode.random(),
@@ -193,10 +201,11 @@ export class TxEffect {
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
       makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.random),
-      new Fr(encryptedLogs[0].getKernelLength() + encryptedLogs[1].getKernelLength()),
+      new Fr(noteEncryptedLogs.getKernelLength()),
+      new Fr(encryptedLogs.getKernelLength()),
       new Fr(unencryptedLogs.getKernelLength()),
-      encryptedLogs[0],
-      encryptedLogs[1],
+      noteEncryptedLogs,
+      encryptedLogs,
       unencryptedLogs,
     );
   }
@@ -211,7 +220,8 @@ export class TxEffect {
       [],
       Fr.ZERO,
       Fr.ZERO,
-      EncryptedTxL2Logs.empty(),
+      Fr.ZERO,
+      EncryptedNoteTxL2Logs.empty(),
       EncryptedTxL2Logs.empty(),
       UnencryptedTxL2Logs.empty(),
     );
@@ -238,6 +248,7 @@ export class TxEffect {
       nullifiers: [${this.nullifiers.map(h => h.toString()).join(', ')}],
       l2ToL1Msgs: [${this.l2ToL1Msgs.map(h => h.toString()).join(', ')}],
       publicDataWrites: [${this.publicDataWrites.map(h => h.toString()).join(', ')}],
+      noteEncryptedLogsLength: ${this.noteEncryptedLogsLength},
       encryptedLogsLength: ${this.encryptedLogsLength},
       unencryptedLogsLength: ${this.unencryptedLogsLength},
       noteEncryptedLogs: ${JSON.stringify(this.noteEncryptedLogs.toJSON())},

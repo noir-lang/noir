@@ -8,7 +8,12 @@ import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/cl
 import { type AztecNode } from '../../interfaces/aztec-node.js';
 import { NullifierMembershipWitness } from '../../interfaces/nullifier_tree.js';
 import { L2Block } from '../../l2_block.js';
-import { EncryptedL2BlockL2Logs, ExtendedUnencryptedL2Log, LogId, UnencryptedL2BlockL2Logs } from '../../logs/index.js';
+import {
+  EncryptedNoteL2BlockL2Logs,
+  ExtendedUnencryptedL2Log,
+  LogId,
+  UnencryptedL2BlockL2Logs,
+} from '../../logs/index.js';
 import { PublicDataWitness } from '../../public_data_witness.js';
 import { SiblingPath } from '../../sibling_path/index.js';
 import { PublicSimulationOutput, Tx, TxHash, TxReceipt } from '../../tx/index.js';
@@ -42,7 +47,7 @@ export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecN
       PublicSimulationOutput,
       Tx,
       TxReceipt,
-      EncryptedL2BlockL2Logs,
+      EncryptedNoteL2BlockL2Logs,
       UnencryptedL2BlockL2Logs,
       NullifierMembershipWitness,
     },

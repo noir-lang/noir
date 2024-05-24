@@ -447,12 +447,12 @@ export class ProvingOrchestrator {
     if (
       !tx.baseRollupInputs.kernelData.publicInputs.end.noteEncryptedLogsHash
         .toBuffer()
-        .equals(tx.processedTx.noteEncryptedLogs.hash(0))
+        .equals(tx.processedTx.noteEncryptedLogs.hash())
     ) {
       provingState.reject(
         `Note encrypted logs hash mismatch: ${
           tx.baseRollupInputs.kernelData.publicInputs.end.noteEncryptedLogsHash
-        } === ${Fr.fromBuffer(tx.processedTx.noteEncryptedLogs.hash(0))}`,
+        } === ${Fr.fromBuffer(tx.processedTx.noteEncryptedLogs.hash())}`,
       );
       return;
     }

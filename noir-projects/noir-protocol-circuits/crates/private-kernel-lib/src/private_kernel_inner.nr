@@ -56,7 +56,7 @@ mod tests {
         abis::{
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
         max_block_number::MaxBlockNumber, note_hash::NoteHash, nullifier::Nullifier,
-        read_request::ReadRequest, log_hash::{LogHash, NoteLogHash}
+        read_request::ReadRequest, log_hash::{LogHash, NoteLogHash, ScopedLogHash}
     },
         address::{AztecAddress, EthAddress}, constants::MAX_NEW_NOTE_HASHES_PER_CALL,
         messaging::l2_to_l1_message::L2ToL1Message, utils::arrays::{array_length, array_eq},
@@ -232,10 +232,10 @@ mod tests {
         );
 
         let expected_unencrypted_logs = [
-            builder.previous_kernel.unencrypted_logs_hashes.storage[0], builder.private_call.public_inputs.unencrypted_logs_hashes.storage[0]
+            builder.previous_kernel.unencrypted_logs_hashes.storage[0], builder.private_call.public_inputs.unencrypted_logs_hashes.storage[0].scope(builder.private_call.contract_address)
         ];
         let expected_encrypted_logs = [
-            builder.previous_kernel.encrypted_logs_hashes.storage[0], builder.private_call.public_inputs.encrypted_logs_hashes.storage[0]
+            builder.previous_kernel.encrypted_logs_hashes.storage[0], builder.private_call.public_inputs.encrypted_logs_hashes.storage[0].scope(builder.private_call.contract_address)
         ];
 
         let public_inputs = builder.execute();

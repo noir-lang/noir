@@ -1,6 +1,8 @@
 import {
   EncryptedFunctionL2Logs,
   type EncryptedL2Log,
+  type EncryptedL2NoteLog,
+  EncryptedNoteFunctionL2Logs,
   type Note,
   UnencryptedFunctionL2Logs,
   type UnencryptedL2Log,
@@ -22,7 +24,7 @@ export interface NoteAndSlot {
   noteTypeId: Fr;
 }
 
-export class CountedLog<TLog extends UnencryptedL2Log | EncryptedL2Log> implements IsEmpty {
+export class CountedLog<TLog extends UnencryptedL2Log | EncryptedL2NoteLog | EncryptedL2Log> implements IsEmpty {
   constructor(public log: TLog, public counter: number) {}
 
   isEmpty(): boolean {
@@ -62,7 +64,7 @@ export interface ExecutionResult {
    * Encrypted note logs emitted during execution of this function call.
    * Note: These are preimages to `noteEncryptedLogsHashes`.
    */
-  noteEncryptedLogs: CountedLog<EncryptedL2Log>[];
+  noteEncryptedLogs: CountedLog<EncryptedL2NoteLog>[];
   /**
    * Encrypted logs emitted during execution of this function call.
    * Note: These are preimages to `encryptedLogsHashes`.
@@ -92,7 +94,7 @@ export function collectNullifiedNoteHashCounters(execResult: ExecutionResult, ac
  * @param execResult - The topmost execution result.
  * @returns All encrypted logs.
  */
-function collectNoteEncryptedLogs(execResult: ExecutionResult): CountedLog<EncryptedL2Log>[] {
+function collectNoteEncryptedLogs(execResult: ExecutionResult): CountedLog<EncryptedL2NoteLog>[] {
   return [execResult.noteEncryptedLogs, ...execResult.nestedExecutions.flatMap(collectNoteEncryptedLogs)].flat();
 }
 
@@ -101,10 +103,10 @@ function collectNoteEncryptedLogs(execResult: ExecutionResult): CountedLog<Encry
  * @param execResult - The topmost execution result.
  * @returns All encrypted logs.
  */
-export function collectSortedNoteEncryptedLogs(execResult: ExecutionResult): EncryptedFunctionL2Logs {
+export function collectSortedNoteEncryptedLogs(execResult: ExecutionResult): EncryptedNoteFunctionL2Logs {
   const allLogs = collectNoteEncryptedLogs(execResult);
   const sortedLogs = sortByCounter(allLogs);
-  return new EncryptedFunctionL2Logs(sortedLogs.map(l => l.log));
+  return new EncryptedNoteFunctionL2Logs(sortedLogs.map(l => l.log));
 }
 /**
  * Collect all encrypted logs across all nested executions.

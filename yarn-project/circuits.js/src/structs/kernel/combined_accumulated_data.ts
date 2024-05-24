@@ -47,6 +47,10 @@ export class CombinedAccumulatedData {
      */
     public unencryptedLogsHash: Fr,
     /**
+     * Total accumulated length of the encrypted note log preimages emitted in all the previous kernel iterations
+     */
+    public noteEncryptedLogPreimagesLength: Fr,
+    /**
      * Total accumulated length of the encrypted log preimages emitted in all the previous kernel iterations
      */
     public encryptedLogPreimagesLength: Fr,
@@ -71,6 +75,7 @@ export class CombinedAccumulatedData {
       this.noteEncryptedLogsHash,
       this.encryptedLogsHash,
       this.unencryptedLogsHash,
+      this.noteEncryptedLogPreimagesLength,
       this.encryptedLogPreimagesLength,
       this.unencryptedLogPreimagesLength,
       this.publicDataUpdateRequests,
@@ -93,6 +98,7 @@ export class CombinedAccumulatedData {
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
+      Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
@@ -122,6 +128,7 @@ export class CombinedAccumulatedData {
       Fr.zero(),
       Fr.zero(),
       Fr.zero(),
+      Fr.zero(),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       Gas.empty(),
     );
@@ -144,6 +151,7 @@ export class CombinedAccumulatedData {
       noteEncryptedLogsHash: ${this.noteEncryptedLogsHash.toString()},
       encryptedLogsHash: ${this.encryptedLogsHash.toString()},
       unencryptedLogsHash: ${this.unencryptedLogsHash.toString()},
+      noteEncryptedLogPreimagesLength: ${this.noteEncryptedLogPreimagesLength.toString()},
       encryptedLogPreimagesLength: ${this.encryptedLogPreimagesLength.toString()},
       unencryptedLogPreimagesLength: ${this.unencryptedLogPreimagesLength.toString()},
       publicDataUpdateRequests: [${this.publicDataUpdateRequests

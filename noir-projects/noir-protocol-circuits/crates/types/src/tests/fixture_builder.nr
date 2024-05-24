@@ -10,7 +10,8 @@ use crate::{
     nullifier::{Nullifier, ScopedNullifier},
     private_call_request::{PrivateCallRequest, ScopedPrivateCallRequest},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-    read_request::{ReadRequest, ScopedReadRequest}, log_hash::{LogHash, NoteLogHash},
+    read_request::{ReadRequest, ScopedReadRequest},
+    log_hash::{LogHash, NoteLogHash, ScopedLogHash, EncryptedLogHash, ScopedEncryptedLogHash},
     validation_requests::{
     ValidationRequests, ValidationRequestsBuilder, KeyValidationRequest,
     KeyValidationRequestAndGenerator, ScopedKeyValidationRequestAndGenerator
@@ -48,11 +49,12 @@ struct FixtureBuilder {
     new_nullifiers: BoundedVec<ScopedNullifier, MAX_NEW_NULLIFIERS_PER_TX>,
     new_l2_to_l1_msgs: BoundedVec<ScopedL2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
     note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
-    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
-    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
+    encrypted_logs_hashes: BoundedVec<ScopedEncryptedLogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
+    unencrypted_logs_hashes: BoundedVec<ScopedLogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
     note_encrypted_logs_hash: Field,
     encrypted_logs_hash: Field,
     unencrypted_logs_hash: Field,
+    note_encrypted_log_preimages_length: Field,
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
@@ -103,6 +105,7 @@ impl FixtureBuilder {
             note_encrypted_logs_hash: 0,
             encrypted_logs_hash: 0,
             unencrypted_logs_hash: 0,
+            note_encrypted_log_preimages_length: 0,
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: BoundedVec::new(),
@@ -156,9 +159,9 @@ impl FixtureBuilder {
             new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash),
             new_nullifiers: self.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
-            note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
-            encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
-            unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
+            note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public()),
+            encrypted_logs_hashes: self.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public()),
+            unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.log_hash),
             public_data_update_requests: self.public_data_update_requests.storage,
             public_call_stack: self.public_call_stack.storage,
             gas_used: self.gas_used
@@ -173,6 +176,7 @@ impl FixtureBuilder {
             note_encrypted_logs_hash: self.note_encrypted_logs_hash,
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
+            note_encrypted_log_preimages_length: self.note_encrypted_log_preimages_length,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             public_data_update_requests: self.public_data_update_requests.storage,
@@ -285,7 +289,7 @@ impl FixtureBuilder {
         self.note_encrypted_logs_hashes.push(
             NoteLogHash { value: value + 1, counter: self.next_counter(), length: 64, note_hash_counter: self.counter - 2 }
         );
-        self.encrypted_log_preimages_length += 64;
+        self.note_encrypted_log_preimages_length += 64;
     }
 
     pub fn append_new_note_hashes(&mut self, num_new_note_hashes: u64, broadcast: bool) {
@@ -423,14 +427,14 @@ impl FixtureBuilder {
     }
 
     pub fn set_encrypted_logs(&mut self, hash: Field, preimages_length: Field) {
-        let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
-        self.encrypted_logs_hashes.push(side_effect);
+        let side_effect = EncryptedLogHash { value: hash, counter: self.next_counter(), length: preimages_length, randomness: 2 };
+        self.encrypted_logs_hashes.push(side_effect.scope(self.storage_contract_address));
         self.encrypted_log_preimages_length += preimages_length;
     }
 
     pub fn set_unencrypted_logs(&mut self, hash: Field, preimages_length: Field) {
         let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
-        self.unencrypted_logs_hashes.push(side_effect);
+        self.unencrypted_logs_hashes.push(side_effect.scope(self.storage_contract_address));
         self.unencrypted_log_preimages_length += preimages_length;
     }
 
@@ -538,6 +542,7 @@ impl Empty for FixtureBuilder {
             note_encrypted_logs_hash: 0,
             encrypted_logs_hash: 0,
             unencrypted_logs_hash: 0,
+            note_encrypted_log_preimages_length: 0,
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: BoundedVec::new(),

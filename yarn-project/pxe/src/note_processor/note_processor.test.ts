@@ -1,9 +1,9 @@
 import {
   type AztecNode,
-  EncryptedFunctionL2Logs,
-  EncryptedL2BlockL2Logs,
-  EncryptedL2Log,
-  EncryptedTxL2Logs,
+  EncryptedL2NoteLog,
+  EncryptedNoteFunctionL2Logs,
+  EncryptedNoteL2BlockL2Logs,
+  EncryptedNoteTxL2Logs,
   type L1NotePayload,
   L2Block,
   TaggedNote,
@@ -52,7 +52,7 @@ describe('Note Processor', () => {
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: TaggedNote[]) => {
     const newNotes: TaggedNote[] = [];
     const ownedL1NotePayloads: L1NotePayload[] = [];
-    const txLogs: EncryptedTxL2Logs[] = [];
+    const txLogs: EncryptedNoteTxL2Logs[] = [];
     let usedOwnedNote = 0;
     for (let i = 0; i < TXS_PER_BLOCK; ++i) {
       const ownedDataIndices = ownedData[i] || [];
@@ -60,7 +60,7 @@ describe('Note Processor', () => {
         throw new Error(`Data index should be less than ${MAX_NEW_NOTE_HASHES_PER_TX}.`);
       }
 
-      const logs: EncryptedFunctionL2Logs[] = [];
+      const logs: EncryptedNoteFunctionL2Logs[] = [];
       for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
         const ivsk = isOwner ? ownerMasterIncomingViewingPublicKey : Point.random();
@@ -78,12 +78,12 @@ describe('Note Processor', () => {
         const recipient = AztecAddress.random();
         const log = note.encrypt(ephSk, recipient, ivsk, ovsk);
         // 1 tx containing 1 function invocation containing 1 log
-        logs.push(new EncryptedFunctionL2Logs([new EncryptedL2Log(log)]));
+        logs.push(new EncryptedNoteFunctionL2Logs([new EncryptedL2NoteLog(log)]));
       }
-      txLogs.push(new EncryptedTxL2Logs(logs));
+      txLogs.push(new EncryptedNoteTxL2Logs(logs));
     }
 
-    const encryptedLogs = new EncryptedL2BlockL2Logs(txLogs);
+    const encryptedLogs = new EncryptedNoteL2BlockL2Logs(txLogs);
     return { newNotes, ownedL1NotePayloads, encryptedLogs };
   };
 
@@ -98,7 +98,7 @@ describe('Note Processor', () => {
     }
 
     const blocks: L2Block[] = [];
-    const encryptedLogsArr: EncryptedL2BlockL2Logs[] = [];
+    const encryptedLogsArr: EncryptedNoteL2BlockL2Logs[] = [];
     const ownedL1NotePayloads: L1NotePayload[] = [];
     const numberOfBlocks = prependedBlocks + appendedBlocks + 1;
     for (let i = 0; i < numberOfBlocks; ++i) {

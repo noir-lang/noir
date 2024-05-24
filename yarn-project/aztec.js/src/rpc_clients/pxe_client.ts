@@ -1,6 +1,6 @@
 import {
   AuthWitness,
-  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   ExtendedNote,
   ExtendedUnencryptedL2Log,
   L2Block,
@@ -54,7 +54,7 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], false)
       TxExecutionRequest,
       TxHash,
     },
-    { Tx, SimulatedTx, TxReceipt, EncryptedL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
+    { Tx, SimulatedTx, TxReceipt, EncryptedNoteL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
     false,
     'pxe',
     fetch,

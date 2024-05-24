@@ -10,7 +10,7 @@ import {
   type ContractMethod,
   type DebugLogger,
   type DeployL1Contracts,
-  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   EthCheatCodes,
   type L1ContractArtifactsForDeployment,
   LogType,
@@ -526,7 +526,7 @@ export const expectsNumOfNoteEncryptedLogsInTheLastBlockToBe = async (
   }
   const l2BlockNum = await aztecNode.getBlockNumber();
   const encryptedLogs = await aztecNode.getLogs(l2BlockNum, 1, LogType.NOTEENCRYPTED);
-  const unrolledLogs = EncryptedL2BlockL2Logs.unrollLogs(encryptedLogs);
+  const unrolledLogs = EncryptedNoteL2BlockL2Logs.unrollLogs(encryptedLogs);
   expect(unrolledLogs.length).toBe(numEncryptedLogs);
 };
 

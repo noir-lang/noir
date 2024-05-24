@@ -104,6 +104,7 @@ export {
   L2Actor,
   L2Block,
   L2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   LogFilter,
   LogId,
   LogType,

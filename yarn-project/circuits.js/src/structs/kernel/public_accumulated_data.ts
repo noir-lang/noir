@@ -17,7 +17,7 @@ import {
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
 import { Gas } from '../gas.js';
-import { LogHash, NoteLogHash } from '../log_hash.js';
+import { LogHash } from '../log_hash.js';
 import { NoteHash } from '../note_hash.js';
 import { Nullifier } from '../nullifier.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
@@ -40,7 +40,7 @@ export class PublicAccumulatedData {
      * Accumulated encrypted note logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public noteEncryptedLogsHashes: Tuple<NoteLogHash, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
+    public noteEncryptedLogsHashes: Tuple<LogHash, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
     /**
      * Accumulated encrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
@@ -146,7 +146,7 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Nullifier),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
-      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
+      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
@@ -161,7 +161,7 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, NoteHash),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Nullifier),
       reader.readFieldArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX),
-      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
+      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
@@ -184,7 +184,7 @@ export class PublicAccumulatedData {
       makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, NoteHash.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Nullifier.empty),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
-      makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash.empty),
+      makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
       makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash.empty),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),

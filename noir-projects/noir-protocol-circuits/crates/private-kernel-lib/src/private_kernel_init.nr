@@ -51,7 +51,7 @@ mod tests {
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, note_hash::NoteHash,
         validation_requests::{KeyValidationRequest, KeyValidationRequestAndGenerator},
         private_kernel::private_call_data::PrivateCallData, read_request::ReadRequest,
-        nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
+        nullifier::Nullifier, log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}
     },
         address::{AztecAddress, EthAddress},
         constants::{MAX_NEW_NOTE_HASHES_PER_CALL, GENERATOR_INDEX__NSK_M},
@@ -123,13 +123,13 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value(), tx_hash);
         assert(
             array_eq(
-                public_inputs.end.encrypted_logs_hashes,
+                public_inputs.end.encrypted_logs_hashes.map(|l: ScopedEncryptedLogHash| l.log_hash),
                 expected_encrypted_logs
             )
         );
         assert(
             array_eq(
-                public_inputs.end.unencrypted_logs_hashes,
+                public_inputs.end.unencrypted_logs_hashes.map(|l: ScopedLogHash| l.log_hash),
                 expected_unencrypted_logs
             )
         );

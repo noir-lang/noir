@@ -24,18 +24,9 @@ import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
-import { EncryptedL2Log } from './logs/encrypted_l2_log.js';
-import { EncryptedFunctionL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';
+import { EncryptedNoteTxL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';
 import { ExtendedNote } from './notes/index.js';
 import { NestedProcessReturnValues, PublicSimulationOutput, SimulatedTx, Tx, TxHash } from './tx/index.js';
-
-/**
- * Testing utility to create empty logs composed from a single empty log.
- */
-export function makeEmptyLogs(): EncryptedTxL2Logs {
-  const functionLogs = [new EncryptedFunctionL2Logs([EncryptedL2Log.empty()])];
-  return new EncryptedTxL2Logs(functionLogs);
-}
 
 export const randomTxHash = (): TxHash => new TxHash(randomBytes(32));
 
@@ -68,7 +59,7 @@ export const mockTx = (
   const isForPublic = totalPublicCallRequests > 0;
   const data = PrivateKernelTailCircuitPublicInputs.empty();
   const firstNullifier = new Nullifier(new Fr(seed + 1), 0, Fr.ZERO);
-  const noteEncryptedLogs = EncryptedTxL2Logs.empty(); // Mock seems to have no new notes => no note logs
+  const noteEncryptedLogs = EncryptedNoteTxL2Logs.empty(); // Mock seems to have no new notes => no note logs
   const encryptedLogs = hasLogs ? EncryptedTxL2Logs.random(2, 3) : EncryptedTxL2Logs.empty(); // 2 priv function invocations creating 3 encrypted logs each
   const unencryptedLogs = hasLogs ? UnencryptedTxL2Logs.random(2, 1) : UnencryptedTxL2Logs.empty(); // 2 priv function invocations creating 1 unencrypted log each
   data.constants.txContext.gasSettings = GasSettings.default();
@@ -122,7 +113,7 @@ export const mockTx = (
     }
   } else {
     data.forRollup!.end.newNullifiers[0] = firstNullifier.value;
-    data.forRollup!.end.noteEncryptedLogsHash = Fr.fromBuffer(noteEncryptedLogs.hash(0));
+    data.forRollup!.end.noteEncryptedLogsHash = Fr.fromBuffer(noteEncryptedLogs.hash());
     data.forRollup!.end.encryptedLogsHash = Fr.fromBuffer(encryptedLogs.hash());
     data.forRollup!.end.unencryptedLogsHash = Fr.fromBuffer(unencryptedLogs.hash());
   }

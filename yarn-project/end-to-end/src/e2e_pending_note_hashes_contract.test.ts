@@ -7,7 +7,7 @@ import {
 } from '@aztec/circuits.js';
 import { PendingNoteHashesContract } from '@aztec/noir-contracts.js/PendingNoteHashes';
 
-import { EncryptedTxL2Logs } from '../../circuit-types/src/logs/tx_l2_logs.js';
+import { EncryptedNoteTxL2Logs } from '../../circuit-types/src/logs/tx_l2_logs.js';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_pending_note_hashes_contract', () => {
@@ -64,10 +64,10 @@ describe('e2e_pending_note_hashes_contract', () => {
     const logArray = block.body.txEffects.flatMap(txEffect => txEffect.noteEncryptedLogs);
 
     for (let l = 0; l < exceptFirstFew + 1; l++) {
-      expect(logArray[l]).not.toEqual(EncryptedTxL2Logs.empty());
+      expect(logArray[l]).not.toEqual(EncryptedNoteTxL2Logs.empty());
     }
     for (let l = exceptFirstFew + 1; l < logArray.length; l++) {
-      expect(logArray[l]).toEqual(EncryptedTxL2Logs.empty());
+      expect(logArray[l]).toEqual(EncryptedNoteTxL2Logs.empty());
     }
   };
 

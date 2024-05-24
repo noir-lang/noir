@@ -15,7 +15,7 @@ use dep::types::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
-    hash::{silo_note_hash, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
+    hash::{silo_note_hash, silo_nullifier, compute_l2_to_l1_hash, silo_unencrypted_log},
     utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
 };
 
@@ -525,13 +525,13 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
 pub fn propagate_new_unencrypted_logs(public_call: PublicCallData, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
     // new unencrypted logs
     let new_logs = public_call.call_stack_item.public_inputs.unencrypted_logs_hashes;
-    // TODO(Miranda): silo logs here once we have finalised struct
+    let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
     let mut new_logs_to_insert : BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
-            // let siloed_new_log = something;
-            new_logs_to_insert.push(new_log)
+            let siloed_new_log = silo_unencrypted_log(storage_contract_address, new_log.value);
+            new_logs_to_insert.push(LogHash { value: siloed_new_log, counter: new_log.counter, length: new_log.length });
         }
     }
     public_inputs.end.unencrypted_logs_hashes.extend_from_bounded_vec(new_logs_to_insert);
@@ -543,13 +543,13 @@ pub fn propagate_new_unencrypted_logs_non_revertible(
 ) {
     // new unencrypted logs
     let new_logs = public_call.call_stack_item.public_inputs.unencrypted_logs_hashes;
-    // TODO(Miranda): silo logs here once we have finalised struct
+    let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
     let mut new_logs_to_insert : BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
-            // let siloed_new_log = something;
-            new_logs_to_insert.push(new_log)
+            let siloed_new_log = silo_unencrypted_log(storage_contract_address, new_log.value);
+            new_logs_to_insert.push(LogHash { value: siloed_new_log, counter: new_log.counter, length: new_log.length });
         }
     }
     public_inputs.end_non_revertible.unencrypted_logs_hashes.extend_from_bounded_vec(new_logs_to_insert);

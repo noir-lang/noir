@@ -1,4 +1,4 @@
-import { type EncryptedL2Log } from '@aztec/circuit-types';
+import { type EncryptedL2NoteLog } from '@aztec/circuit-types';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -34,7 +34,7 @@ export class ExecutionNoteCache {
    * This mapping maps from inner note hash to log(s) emitted for that note hash.
    * Note that their value (bigint representation) is used because Frs cannot be looked up in Sets.
    */
-  private logs: Map<bigint, CountedLog<EncryptedL2Log>[]> = new Map();
+  private logs: Map<bigint, CountedLog<EncryptedL2NoteLog>[]> = new Map();
 
   /**
    * Add a new note to cache.
@@ -50,7 +50,7 @@ export class ExecutionNoteCache {
    * Add a new note to cache.
    * @param note - New note created during execution.
    */
-  public addNewLog(log: CountedLog<EncryptedL2Log>, innerNoteHash: Fr) {
+  public addNewLog(log: CountedLog<EncryptedL2NoteLog>, innerNoteHash: Fr) {
     const logs = this.logs.get(innerNoteHash.toBigInt()) ?? [];
     logs.push(log);
     this.logs.set(innerNoteHash.toBigInt(), logs);
@@ -121,7 +121,7 @@ export class ExecutionNoteCache {
   /**
    * Return all note logs emitted from a contract.
    */
-  public getLogs(): CountedLog<EncryptedL2Log>[] {
+  public getLogs(): CountedLog<EncryptedL2NoteLog>[] {
     return Array.from(this.logs.values()).flat();
   }
 }

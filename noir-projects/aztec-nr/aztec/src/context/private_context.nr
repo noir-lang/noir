@@ -23,7 +23,7 @@ use dep::protocol_types::{
     validation_requests::{KeyValidationRequest, KeyValidationRequestAndGenerator},
     private_call_request::PrivateCallRequest, private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem, read_request::ReadRequest, note_hash::NoteHash,
-    nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
+    nullifier::Nullifier, log_hash::{LogHash, NoteLogHash, EncryptedLogHash}
 },
     address::{AztecAddress, EthAddress},
     constants::{
@@ -70,7 +70,7 @@ struct PrivateContext {
     historical_header: Header,
 
     note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL>,
-    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
+    encrypted_logs_hashes: BoundedVec<EncryptedLogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
     unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
 
     // Contains the last key validation request for each key type. This is used to cache the last request and avoid
@@ -302,18 +302,18 @@ impl PrivateContext {
     pub fn encrypt_and_emit_log<N, M>(
         &mut self,
         contract_address: AztecAddress,
-        storage_slot: Field,
-        note_type_id: Field,
+        randomness: Field, // Secret random value used later for masked_contract_address
+        event_type_id: Field,
         ivpk_m: GrumpkinPoint,
         preimage: [Field; N]
     ) where [Field; N]: LensForEncryptedLog<N, M> {
         // We are currently just encrypting it EXACTLY the same way as if it was a note.
         let counter = self.next_counter();
-        let encrypted_log: [u8; M] = compute_encrypted_log(contract_address, storage_slot, note_type_id, ivpk_m, preimage);
-        emit_encrypted_log(encrypted_log, counter);
+        let encrypted_log: [u8; M] = compute_encrypted_log(contract_address, randomness, event_type_id, ivpk_m, preimage);
+        emit_encrypted_log(contract_address, randomness, encrypted_log, counter);
         let len = 32 + 32 + 64 + 48 + 48 + 176 + 64 + (preimage.len() as Field * 32) + 16 + 4;
         let log_hash = sha256_to_field(encrypted_log);
-        let side_effect = LogHash { value: log_hash, counter, length: len };
+        let side_effect = EncryptedLogHash { value: log_hash, counter, length: len, randomness };
         self.encrypted_logs_hashes.push(side_effect);
     }
 

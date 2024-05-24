@@ -1,6 +1,7 @@
 import {
   type AuthWitness,
   type AztecNode,
+  EncryptedNoteTxL2Logs,
   EncryptedTxL2Logs,
   ExtendedNote,
   type FunctionCall,
@@ -648,7 +649,7 @@ export class PXEService implements PXE {
     this.log.debug(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
 
-    const noteEncryptedLogs = new EncryptedTxL2Logs([collectSortedNoteEncryptedLogs(executionResult)]);
+    const noteEncryptedLogs = new EncryptedNoteTxL2Logs([collectSortedNoteEncryptedLogs(executionResult)]);
     const unencryptedLogs = new UnencryptedTxL2Logs([collectSortedUnencryptedLogs(executionResult)]);
     const encryptedLogs = new EncryptedTxL2Logs([collectSortedEncryptedLogs(executionResult)]);
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);

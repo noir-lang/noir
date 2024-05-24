@@ -245,22 +245,48 @@ contract Test {
         context.push_new_nullifier(nullifier, 0);
     }
 
+    // For testing non-note encrypted logs
+    #[aztec(private)]
+    fn emit_array_as_encrypted_log(fields: [Field; 5], owner: AztecAddress, nest: bool) {
+        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        context.encrypt_and_emit_log(
+            context.this_address(),
+            5, // testing only - this should be a secret random value to salt the addr
+            1,
+            owner_ivpk_m,
+            fields
+        );
+        // this contract has reached max number of functions, so using this one fn
+        // to test nested and non nested encrypted logs
+        if nest {
+            Test::at(context.this_address()).emit_array_as_encrypted_log([0, 0, 0, 0, 0], owner, false).call(&mut context);
+            context.encrypt_and_emit_log(
+                context.this_address(),
+                6, // testing only - this should be a secret random value to salt the addr
+                1,
+                owner_ivpk_m,
+                [1, 2, 3, 4, 5]
+            );
+        }
+    }
+
     #[aztec(private)]
     fn emit_msg_sender() {
-        // Note: don't use emit_unencrypted_log from private in production code
         context.emit_unencrypted_log(context.msg_sender());
     }
 
     #[aztec(private)]
-    fn emit_array_as_unencrypted_log(fields: [Field; 5]) {
-        context.emit_unencrypted_log(fields);
-    }
-
-    #[aztec(private)]
-    fn emit_unencrypted_logs_nested(fields: [Field; 5]) {
-        Test::at(context.this_address()).emit_msg_sender().call(&mut context);
-        Test::at(context.this_address()).emit_array_as_unencrypted_log(fields).call(&mut context);
-        context.emit_unencrypted_log("test");
+    fn emit_unencrypted_logs(fields: [Field; 5], nest: bool) {
+        // Merged two fns to avoid hitting max #functions limit:
+        // nest -> emit_unencrypted_logs_nested
+        // else -> emit_array_as_unencrypted_log
+        if nest {
+            Test::at(context.this_address()).emit_msg_sender().call(&mut context);
+            Test::at(context.this_address()).emit_unencrypted_logs(fields, false).call(&mut context);
+            context.emit_unencrypted_log("test");
+        } else {
+            context.emit_unencrypted_log(fields);
+        }
     }
 
     #[aztec(private)]

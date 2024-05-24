@@ -1,5 +1,5 @@
 use crate::{
-    hash::{compute_tx_logs_hash, compute_tx_note_logs_hash},
+    address::AztecAddress, hash::{compute_tx_logs_hash, compute_tx_note_logs_hash},
     abis::{
     gas::Gas,
     accumulated_data::{
@@ -9,7 +9,7 @@ use crate::{
 },
     call_request::CallRequest, note_hash::{NoteHash, ScopedNoteHash}, nullifier::ScopedNullifier,
     private_call_request::ScopedPrivateCallRequest, public_data_update_request::PublicDataUpdateRequest,
-    log_hash::{LogHash, NoteLogHash}
+    log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
@@ -30,8 +30,8 @@ struct PrivateAccumulatedDataBuilder {
     new_l2_to_l1_msgs: BoundedVec<ScopedL2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
 
     note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
-    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
-    unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
+    encrypted_logs_hashes: BoundedVec<ScopedEncryptedLogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
+    unencrypted_logs_hashes: BoundedVec<ScopedLogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
 
     private_call_stack: BoundedVec<ScopedPrivateCallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
@@ -54,13 +54,13 @@ impl PrivateAccumulatedDataBuilder {
 
     pub fn to_combined(self, teardown_gas: Gas) -> CombinedAccumulatedData {
         // TODO(Miranda): Hash here or elsewhere?
-        let note_encrypted_logs_hash = compute_tx_note_logs_hash(self.note_encrypted_logs_hashes.storage);
-        let encrypted_logs_hash = compute_tx_logs_hash(self.encrypted_logs_hashes.storage);
-        let unencrypted_logs_hash = compute_tx_logs_hash(self.unencrypted_logs_hashes.storage);
+        let note_encrypted_logs_hash = compute_tx_note_logs_hash(self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public()));
+        let encrypted_logs_hash = compute_tx_logs_hash(self.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public()));
+        let unencrypted_logs_hash = compute_tx_logs_hash(self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.log_hash));
         let gas_used = self.to_metered_gas_used() + Gas::tx_overhead() + teardown_gas;
-        let encrypted_log_preimages_length = self.encrypted_logs_hashes.storage.fold(0, |a, b: LogHash| a + b.length)
-            + self.note_encrypted_logs_hashes.storage.fold(0, |a, b: NoteLogHash| a + b.length);
-        let unencrypted_log_preimages_length = self.unencrypted_logs_hashes.storage.fold(0, |a, b: LogHash| a + b.length);
+        let note_encrypted_log_preimages_length = self.note_encrypted_logs_hashes.storage.fold(0, |a, b: NoteLogHash| a + b.length);
+        let encrypted_log_preimages_length = self.encrypted_logs_hashes.storage.fold(0, |a, b: ScopedEncryptedLogHash| a + b.log_hash.length);
+        let unencrypted_log_preimages_length = self.unencrypted_logs_hashes.storage.fold(0, |a, b: ScopedLogHash| a + b.log_hash.length);
 
         CombinedAccumulatedData {
             new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value),
@@ -69,6 +69,7 @@ impl PrivateAccumulatedDataBuilder {
             note_encrypted_logs_hash,
             encrypted_logs_hash,
             unencrypted_logs_hash,
+            note_encrypted_log_preimages_length,
             encrypted_log_preimages_length,
             unencrypted_log_preimages_length,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
@@ -109,13 +110,13 @@ impl PrivateAccumulatedDataBuilder {
         // encrypted_logs_hash_gas
         for i in 0..self.encrypted_logs_hashes.storage.len() {
             let log = self.encrypted_logs_hashes.get_unchecked(i);
-            metered_bytes += log.length as u32;
+            metered_bytes += log.log_hash.length as u32;
         }
 
         // unencrypted_logs_hash_gas
         for i in 0..self.unencrypted_logs_hashes.storage.len() {
             let log = self.unencrypted_logs_hashes.get_unchecked(i);
-            metered_bytes += log.length as u32;
+            metered_bytes += log.log_hash.length as u32;
         }
 
         Gas::new(DA_GAS_PER_BYTE * metered_bytes, 0)
@@ -186,30 +187,31 @@ impl PrivateAccumulatedDataBuilder {
         }
 
         for i in 0..MAX_NOTE_ENCRYPTED_LOGS_PER_TX {
-            let note_encrypted_logs_hash_private = self.note_encrypted_logs_hashes.storage[i];
-            let note_encrypted_logs_hash = note_encrypted_logs_hash_private.expose_to_public();
-            if note_encrypted_logs_hash_private.counter < min_revertible_side_effect_counter {
-                non_revertible_builder.note_encrypted_logs_hashes.push(note_encrypted_logs_hash);
-                non_revertible_da_gas_used += note_encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
+            let note_encrypted_logs_hash = self.note_encrypted_logs_hashes.storage[i];
+            let note_encrypted_logs_hash_public = note_encrypted_logs_hash.expose_to_public();
+            if note_encrypted_logs_hash.counter < min_revertible_side_effect_counter {
+                non_revertible_builder.note_encrypted_logs_hashes.push(note_encrypted_logs_hash_public);
+                non_revertible_da_gas_used += note_encrypted_logs_hash_public.length as u32 * DA_GAS_PER_BYTE;
             } else {
-                revertible_builder.note_encrypted_logs_hashes.push(note_encrypted_logs_hash);
-                revertible_da_gas_used += note_encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
+                revertible_builder.note_encrypted_logs_hashes.push(note_encrypted_logs_hash_public);
+                revertible_da_gas_used += note_encrypted_logs_hash_public.length as u32 * DA_GAS_PER_BYTE;
             }
         }
 
         for i in 0..MAX_ENCRYPTED_LOGS_PER_TX {
             let encrypted_logs_hash = self.encrypted_logs_hashes.storage[i];
-            if encrypted_logs_hash.counter < min_revertible_side_effect_counter {
-                non_revertible_builder.encrypted_logs_hashes.push(encrypted_logs_hash);
-                non_revertible_da_gas_used += encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
+            let encrypted_logs_hash_public = encrypted_logs_hash.expose_to_public();
+            if encrypted_logs_hash.counter() < min_revertible_side_effect_counter {
+                non_revertible_builder.encrypted_logs_hashes.push(encrypted_logs_hash_public);
+                non_revertible_da_gas_used += encrypted_logs_hash_public.length as u32 * DA_GAS_PER_BYTE;
             } else {
-                revertible_builder.encrypted_logs_hashes.push(encrypted_logs_hash);
-                revertible_da_gas_used += encrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
+                revertible_builder.encrypted_logs_hashes.push(encrypted_logs_hash_public);
+                revertible_da_gas_used += encrypted_logs_hash_public.length as u32 * DA_GAS_PER_BYTE;
             }
         }
 
         for i in 0..MAX_UNENCRYPTED_LOGS_PER_TX {
-            let unencrypted_logs_hash = self.unencrypted_logs_hashes.storage[i];
+            let unencrypted_logs_hash = self.unencrypted_logs_hashes.storage[i].log_hash;
             if unencrypted_logs_hash.counter < min_revertible_side_effect_counter {
                 non_revertible_builder.unencrypted_logs_hashes.push(unencrypted_logs_hash);
                 non_revertible_da_gas_used += unencrypted_logs_hash.length as u32 * DA_GAS_PER_BYTE;
@@ -246,7 +248,7 @@ mod tests {
         accumulated_data::private_accumulated_data_builder::PrivateAccumulatedDataBuilder, gas::Gas,
         call_request::CallRequest, caller_context::CallerContext, note_hash::NoteHash,
         nullifier::Nullifier, public_data_update_request::PublicDataUpdateRequest,
-        log_hash::{LogHash, NoteLogHash}
+        log_hash::{LogHash, NoteLogHash, ScopedLogHash, EncryptedLogHash, ScopedEncryptedLogHash}
     },
         address::{AztecAddress, EthAddress}, messaging::l2_to_l1_message::L2ToL1Message,
         utils::arrays::array_eq, constants::{DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE}
@@ -295,13 +297,13 @@ mod tests {
         ];
 
         let non_revertible_enc_log_hashes = [
-            LogHash { value: 11, counter: 9, length: 2 },
-            LogHash { value: 22, counter: 10, length: 2 }
+            EncryptedLogHash { value: 11, counter: 9, length: 2, randomness: 4 }.scope(contract_address),
+            EncryptedLogHash { value: 22, counter: 10, length: 2, randomness: 4 }.scope(contract_address)
         ];
 
         let non_revertible_unenc_log_hashes = [
-            LogHash { value: 33, counter: 11, length: 5 },
-            LogHash { value: 44, counter: 12, length: 5 }
+            LogHash { value: 33, counter: 11, length: 5 }.scope(contract_address),
+            LogHash { value: 44, counter: 12, length: 5 }.scope(contract_address)
         ];
 
         // Revertible: counter >= 13
@@ -333,13 +335,13 @@ mod tests {
         ];
 
         let revertible_enc_log_hashes = [
-            LogHash { value: 55, counter: 20, length: 2 },
-            LogHash { value: 66, counter: 21, length: 2 }
+            EncryptedLogHash { value: 55, counter: 20, length: 2, randomness: 4 }.scope(contract_address),
+            EncryptedLogHash { value: 66, counter: 21, length: 2, randomness: 4 }.scope(contract_address)
         ];
 
         let revertible_unenc_log_hashes = [
-            LogHash { value: 77, counter: 22, length: 5 },
-            LogHash { value: 88, counter: 23, length: 5 }
+            LogHash { value: 77, counter: 22, length: 5 }.scope(contract_address),
+            LogHash { value: 88, counter: 23, length: 5 }.scope(contract_address)
         ];
 
         builder.new_note_hashes.extend_from_array(non_revertible_note_hashes);
@@ -397,13 +399,13 @@ mod tests {
         assert(
             array_eq(
                 non_revertible.encrypted_logs_hashes,
-                non_revertible_enc_log_hashes
+                non_revertible_enc_log_hashes.map(|h: ScopedEncryptedLogHash| h.expose_to_public())
             )
         );
         assert(
             array_eq(
                 non_revertible.unencrypted_logs_hashes,
-                non_revertible_unenc_log_hashes
+                non_revertible_unenc_log_hashes.map(|h: ScopedLogHash| h.log_hash)
             )
         );
 
@@ -433,11 +435,16 @@ mod tests {
                 public_revertible_note_logs
             )
         );
-        assert(array_eq(revertible.encrypted_logs_hashes, revertible_enc_log_hashes));
+        assert(
+            array_eq(
+                revertible.encrypted_logs_hashes,
+                revertible_enc_log_hashes.map(|h: ScopedEncryptedLogHash| h.expose_to_public())
+            )
+        );
         assert(
             array_eq(
                 revertible.unencrypted_logs_hashes,
-                revertible_unenc_log_hashes
+                revertible_unenc_log_hashes.map(|h: ScopedLogHash| h.log_hash)
             )
         );
 

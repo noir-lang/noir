@@ -1,6 +1,7 @@
 import {
   type Body,
   type EncryptedL2BlockL2Logs,
+  type EncryptedNoteL2BlockL2Logs,
   type FromLogType,
   type GetUnencryptedLogsResponse,
   type InboxLeaf,
@@ -153,7 +154,7 @@ export class KVArchiverDataStore implements ArchiverDataStore {
    * @returns True if the operation is successful.
    */
   addLogs(
-    noteEncryptedLogs: EncryptedL2BlockL2Logs | undefined,
+    noteEncryptedLogs: EncryptedNoteL2BlockL2Logs | undefined,
     encryptedLogs: EncryptedL2BlockL2Logs | undefined,
     unencryptedLogs: UnencryptedL2BlockL2Logs | undefined,
     blockNumber: number,

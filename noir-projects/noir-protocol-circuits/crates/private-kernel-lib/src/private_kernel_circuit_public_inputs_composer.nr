@@ -188,8 +188,21 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn propagate_logs(&mut self, source: DataSource) {
-        self.public_inputs.end.encrypted_logs_hashes.extend_from_bounded_vec(array_to_bounded_vec(source.private_call_public_inputs.encrypted_logs_hashes));
-        self.public_inputs.end.unencrypted_logs_hashes.extend_from_bounded_vec(array_to_bounded_vec(source.private_call_public_inputs.unencrypted_logs_hashes));
+        let encrypted_logs = source.private_call_public_inputs.encrypted_logs_hashes;
+        for i in 0..encrypted_logs.len() {
+            let log = encrypted_logs[i];
+            if !is_empty(log) {
+                self.public_inputs.end.encrypted_logs_hashes.push(log.scope(source.storage_contract_address));
+            }
+        }
+        let unencrypted_logs = source.private_call_public_inputs.unencrypted_logs_hashes;
+        for i in 0..unencrypted_logs.len() {
+            let log = unencrypted_logs[i];
+            if !is_empty(log) {
+                self.public_inputs.end.unencrypted_logs_hashes.push(log.scope(source.storage_contract_address));
+            }
+        }
+
         let note_logs = source.private_call_public_inputs.note_encrypted_logs_hashes;
         for i in 0..note_logs.len() {
             if !is_empty(note_logs[i]) {

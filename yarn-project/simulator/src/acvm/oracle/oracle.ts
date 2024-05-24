@@ -280,10 +280,20 @@ export class Oracle {
     return newValues.map(toACVMField);
   }
 
-  emitEncryptedLog(encryptedLog: ACVMField[], [counter]: ACVMField[]): void {
+  emitEncryptedLog(
+    [contractAddress]: ACVMField[],
+    [randomness]: ACVMField[],
+    encryptedLog: ACVMField[],
+    [counter]: ACVMField[],
+  ): void {
     // Convert each field to a number and then to a buffer (1 byte is stored in 1 field)
     const processedInput = Buffer.from(encryptedLog.map(fromACVMField).map(f => f.toNumber()));
-    this.typedOracle.emitEncryptedLog(processedInput, +counter);
+    this.typedOracle.emitEncryptedLog(
+      AztecAddress.fromString(contractAddress),
+      Fr.fromString(randomness),
+      processedInput,
+      +counter,
+    );
   }
 
   emitEncryptedNoteLog([noteHash]: ACVMField[], encryptedNote: ACVMField[], [counter]: ACVMField[]): void {

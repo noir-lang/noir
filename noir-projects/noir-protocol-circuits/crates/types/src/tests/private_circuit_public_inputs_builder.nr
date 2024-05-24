@@ -5,7 +5,7 @@ use crate::{
     nullifier::Nullifier,
     validation_requests::key_validation_request_and_generator::KeyValidationRequestAndGenerator,
     private_call_request::PrivateCallRequest, private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    read_request::ReadRequest, log_hash::{LogHash, NoteLogHash}
+    read_request::ReadRequest, log_hash::{LogHash, NoteLogHash, EncryptedLogHash}
 },
     address::{AztecAddress, compute_initialization_hash}, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, tests::fixtures, transaction::tx_context::TxContext
@@ -46,7 +46,7 @@ struct PrivateCircuitPublicInputsBuilder {
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
     note_encrypted_logs_hashes: BoundedVec<NoteLogHash, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL>,
-    encrypted_logs_hashes: BoundedVec<LogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
+    encrypted_logs_hashes: BoundedVec<EncryptedLogHash, MAX_ENCRYPTED_LOGS_PER_CALL>,
     unencrypted_logs_hashes: BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL>,
 
     historical_header: Header,
@@ -152,7 +152,7 @@ impl PrivateCircuitPublicInputsBuilder {
     }
 
     pub fn add_encrypted_log(&mut self, hash: Field, preimages_length: Field) {
-        let side_effect = LogHash { value: hash, counter: self.next_counter(), length: preimages_length };
+        let side_effect = EncryptedLogHash { value: hash, counter: self.next_counter(), length: preimages_length, randomness: 2 };
         self.encrypted_logs_hashes.push(side_effect);
     }
 

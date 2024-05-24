@@ -119,7 +119,7 @@ export const makeBloatedProcessedTx = async (builderDb: MerkleTreeOperations, se
   processedTx.data.end.newNullifiers[tx.data.forPublic!.end.newNullifiers.length - 1] = Fr.zero();
 
   processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-  processedTx.data.end.noteEncryptedLogsHash = Fr.fromBuffer(processedTx.noteEncryptedLogs.hash(0));
+  processedTx.data.end.noteEncryptedLogsHash = Fr.fromBuffer(processedTx.noteEncryptedLogs.hash());
   processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());
   processedTx.data.end.unencryptedLogsHash = Fr.fromBuffer(processedTx.unencryptedLogs.hash());
 

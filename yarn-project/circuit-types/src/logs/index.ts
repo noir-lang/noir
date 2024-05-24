@@ -1,3 +1,4 @@
+export * from './encrypted_l2_note_log.js';
 export * from './encrypted_l2_log.js';
 export * from './get_unencrypted_logs_response.js';
 export * from './function_l2_logs.js';

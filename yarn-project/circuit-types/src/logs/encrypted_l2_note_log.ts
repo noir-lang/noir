@@ -2,12 +2,14 @@ import { Fr, Point } from '@aztec/circuits.js';
 import { randomBytes, sha256Trunc } from '@aztec/foundation/crypto';
 
 /**
- * Represents an individual encrypted event log entry.
+ * Represents an individual encrypted log entry.
  */
-export class EncryptedL2Log {
-  constructor(public readonly data: Buffer, public readonly maskedContractAddress: Fr) {}
+export class EncryptedL2NoteLog {
+  constructor(
+    /** The encrypted data contents of the log. */
+    public readonly data: Buffer,
+  ) {}
 
-  // We do not 'count' the maskedContractAddress in .length, as this method is called to calculate ciphertext length
   get length(): number {
     return this.data.length;
   }
@@ -17,20 +19,19 @@ export class EncryptedL2Log {
    * @returns A buffer containing the serialized log.
    */
   public toBuffer(): Buffer {
-    return Buffer.concat([this.maskedContractAddress.toBuffer(), this.data]);
+    return this.data;
   }
 
   /** Returns a JSON-friendly representation of the log. */
   public toJSON(): object {
     return {
       data: this.data.toString('hex'),
-      maskedContractAddress: this.maskedContractAddress.toString(),
     };
   }
 
   /** Converts a plain JSON object into an instance. */
   public static fromJSON(obj: any) {
-    return new EncryptedL2Log(Buffer.from(obj.data, 'hex'), Fr.fromString(obj.maskedContractAddress));
+    return new EncryptedL2NoteLog(Buffer.from(obj.data, 'hex'));
   }
 
   /**
@@ -38,8 +39,8 @@ export class EncryptedL2Log {
    * @param buffer - The buffer containing the log.
    * @returns Deserialized instance of `Log`.
    */
-  public static fromBuffer(data: Buffer): EncryptedL2Log {
-    return new EncryptedL2Log(data.subarray(32), new Fr(data.subarray(0, 32)));
+  public static fromBuffer(data: Buffer): EncryptedL2NoteLog {
+    return new EncryptedL2NoteLog(data);
   }
 
   /**
@@ -47,26 +48,22 @@ export class EncryptedL2Log {
    * @returns Buffer containing 248 bits of information of sha256 hash.
    */
   public hash(): Buffer {
-    return sha256Trunc(this.data);
-  }
-
-  /**
-   * Calculates siloed hash of serialized encryptedlogs.
-   * @returns Buffer containing 248 bits of information of sha256 hash.
-   */
-  public getSiloedHash(): Buffer {
-    const hash = this.hash();
-    return sha256Trunc(Buffer.concat([this.maskedContractAddress.toBuffer(), hash]));
+    const preimage = this.toBuffer();
+    return sha256Trunc(preimage);
   }
 
   /**
    * Crates a random log.
    * @returns A random log.
    */
-  public static random(): EncryptedL2Log {
+  public static random(): EncryptedL2NoteLog {
     const randomEphPubKey = Point.random();
     const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
     const data = Buffer.concat([Fr.random().toBuffer(), randomLogContent, randomEphPubKey.toBuffer()]);
-    return new EncryptedL2Log(data, Fr.random());
+    return new EncryptedL2NoteLog(data);
+  }
+
+  public static empty() {
+    return new EncryptedL2NoteLog(Buffer.alloc(0));
   }
 }

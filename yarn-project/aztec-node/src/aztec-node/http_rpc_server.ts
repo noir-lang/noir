@@ -1,6 +1,6 @@
 import {
   type AztecNode,
-  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   ExtendedUnencryptedL2Log,
   L2Block,
   LogId,
@@ -46,7 +46,7 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       PublicSimulationOutput,
       Tx,
       TxReceipt,
-      EncryptedL2BlockL2Logs,
+      EncryptedNoteL2BlockL2Logs,
       UnencryptedL2BlockL2Logs,
       NullifierMembershipWitness,
     },

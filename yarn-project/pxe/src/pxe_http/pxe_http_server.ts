@@ -1,7 +1,7 @@
 import {
   AuthWitness,
   CompleteAddress,
-  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   ExtendedNote,
   ExtendedUnencryptedL2Log,
   L2Block,
@@ -50,7 +50,7 @@ export function createPXERpcServer(pxeService: PXE): JsonRpcServer {
       TxEffect,
       LogId,
     },
-    { SimulatedTx, Tx, TxReceipt, EncryptedL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
+    { SimulatedTx, Tx, TxReceipt, EncryptedNoteL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
     ['start', 'stop'],
   );
 }

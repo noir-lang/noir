@@ -1,5 +1,5 @@
 import {
-  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   ExtendedUnencryptedL2Log,
   L2Block,
   NullifierMembershipWitness,
@@ -19,7 +19,7 @@ export const createArchiverClient = (url: string, fetch = makeFetch([1, 2, 3], t
       ExtendedUnencryptedL2Log,
       Fr,
       L2Block,
-      EncryptedL2BlockL2Logs,
+      EncryptedNoteL2BlockL2Logs,
       UnencryptedL2BlockL2Logs,
     },
     { TxReceipt, NullifierMembershipWitness },

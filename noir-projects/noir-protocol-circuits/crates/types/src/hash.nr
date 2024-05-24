@@ -3,7 +3,7 @@ use crate::recursion::verification_key::VerificationKey;
 use crate::abis::function_selector::FunctionSelector;
 use crate::abis::contract_class_function_leaf_preimage::ContractClassFunctionLeafPreimage;
 use crate::contract_class_id::ContractClassId;
-use crate::abis::log_hash::{LogHash, NoteLogHash};
+use crate::abis::log_hash::LogHash;
 use crate::traits::is_empty;
 use crate::utils::{uint256::U256, field::field_from_bytes_32_trunc};
 use crate::constants::{
@@ -72,6 +72,17 @@ pub fn silo_nullifier(address: AztecAddress, nullifier: Field) -> Field {
     ],
         GENERATOR_INDEX__OUTER_NULLIFIER
     )
+}
+
+pub fn silo_encrypted_log(address: AztecAddress, randomness: Field, log_hash: Field) -> Field {
+    // TODO: Using 0 GENERATOR_INDEX here as interim before we move to posiedon
+    // NB: A unique separator will be needed for masked_contract_address
+    let masked_contract_address = pedersen_hash([address.to_field(), randomness], 0);
+    accumulate_sha256([masked_contract_address, log_hash])
+}
+
+pub fn silo_unencrypted_log(address: AztecAddress, log_hash: Field) -> Field {
+    accumulate_sha256([address.to_field(), log_hash])
 }
 
 pub fn merkle_hash(left: Field, right: Field) -> Field {
@@ -163,7 +174,7 @@ pub fn compute_tx_logs_hash(logs: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX]) -> Field
     hash
 }
 
-pub fn compute_tx_note_logs_hash(logs: [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX]) -> Field {
+pub fn compute_tx_note_logs_hash(logs: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX]) -> Field {
     // Convert each field element into a byte array and append the bytes to `hash_input_flattened`
     let mut hash_input_flattened = [0; MAX_NOTE_ENCRYPTED_LOGS_PER_TX * 32];
     for offset in 0..MAX_NOTE_ENCRYPTED_LOGS_PER_TX {

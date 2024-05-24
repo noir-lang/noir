@@ -13,7 +13,7 @@ import {
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
 import { ScopedL2ToL1Message } from '../l2_to_l1_message.js';
-import { LogHash, NoteLogHash } from '../log_hash.js';
+import { NoteLogHash, ScopedEncryptedLogHash, ScopedLogHash } from '../log_hash.js';
 import { ScopedNoteHash } from '../note_hash.js';
 import { ScopedNullifier } from '../nullifier.js';
 import { ScopedPrivateCallRequest } from '../private_call_request.js';
@@ -45,12 +45,12 @@ export class PrivateAccumulatedData {
      * Accumulated encrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public encryptedLogsHashes: Tuple<LogHash, typeof MAX_ENCRYPTED_LOGS_PER_TX>,
+    public encryptedLogsHashes: Tuple<ScopedEncryptedLogHash, typeof MAX_ENCRYPTED_LOGS_PER_TX>,
     /**
      * Accumulated unencrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
+    public unencryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     /**
      * Current private call stack.
      */
@@ -90,8 +90,8 @@ export class PrivateAccumulatedData {
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, ScopedNullifier),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
-      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
-      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, ScopedEncryptedLogHash),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, ScopedPrivateCallRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
     );
@@ -112,8 +112,8 @@ export class PrivateAccumulatedData {
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, ScopedNullifier.empty),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message.empty),
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash.empty),
-      makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
-      makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash.empty),
+      makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, ScopedEncryptedLogHash.empty),
+      makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, ScopedPrivateCallRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
     );

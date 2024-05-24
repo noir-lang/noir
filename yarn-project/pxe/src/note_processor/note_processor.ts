@@ -1,6 +1,6 @@
 import {
   type AztecNode,
-  type EncryptedL2BlockL2Logs,
+  type EncryptedNoteL2BlockL2Logs,
   L1NotePayload,
   type L2Block,
   TaggedNote,
@@ -88,7 +88,7 @@ export class NoteProcessor {
    * @param encryptedL2BlockLogs - Encrypted logs associated with the L2 blocks.
    * @returns A promise that resolves once the processing is completed.
    */
-  public async process(l2Blocks: L2Block[], encryptedL2BlockLogs: EncryptedL2BlockL2Logs[]): Promise<void> {
+  public async process(l2Blocks: L2Block[], encryptedL2BlockLogs: EncryptedNoteL2BlockL2Logs[]): Promise<void> {
     if (l2Blocks.length !== encryptedL2BlockLogs.length) {
       throw new Error(
         `Number of blocks and EncryptedLogs is not equal. Received ${l2Blocks.length} blocks, ${encryptedL2BlockLogs.length} encrypted logs.`,

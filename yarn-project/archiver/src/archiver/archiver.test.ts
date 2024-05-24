@@ -1,4 +1,11 @@
-import { type Body, EncryptedL2BlockL2Logs, L2Block, LogType, UnencryptedL2BlockL2Logs } from '@aztec/circuit-types';
+import {
+  type Body,
+  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
+  L2Block,
+  LogType,
+  UnencryptedL2BlockL2Logs,
+} from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
@@ -110,7 +117,7 @@ describe('Archiver', () => {
 
     for (const [index, x] of blockNumbers.entries()) {
       const expectedTotalNumEncryptedLogs = 4 * x * 2;
-      const totalNumEncryptedLogs = EncryptedL2BlockL2Logs.unrollLogs([noteEncryptedLogs[index]]).length;
+      const totalNumEncryptedLogs = EncryptedNoteL2BlockL2Logs.unrollLogs([noteEncryptedLogs[index]]).length;
       expect(totalNumEncryptedLogs).toEqual(expectedTotalNumEncryptedLogs);
     }
 

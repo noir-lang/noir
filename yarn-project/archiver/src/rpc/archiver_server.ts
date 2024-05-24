@@ -1,5 +1,5 @@
 import {
-  EncryptedL2BlockL2Logs,
+  EncryptedNoteL2BlockL2Logs,
   ExtendedUnencryptedL2Log,
   L2Block,
   NullifierMembershipWitness,
@@ -25,7 +25,7 @@ export function createArchiverRpcServer(archiverService: Archiver): JsonRpcServe
       ExtendedUnencryptedL2Log,
       Fr,
       L2Block,
-      EncryptedL2BlockL2Logs,
+      EncryptedNoteL2BlockL2Logs,
       UnencryptedL2BlockL2Logs,
       TxEffect,
     },

@@ -93,6 +93,17 @@ export class UnencryptedL2Log {
   }
 
   /**
+   * Calculates siloed hash of serialized logs.
+   * In the kernels, we use the storage contract address and not the one encoded here.
+   * They should match, so it seems fine to use the existing info here.
+   * @returns Buffer containing 248 bits of information of sha256 hash.
+   */
+  public getSiloedHash(): Buffer {
+    const hash = this.hash();
+    return sha256Trunc(Buffer.concat([this.contractAddress.toBuffer(), hash]));
+  }
+
+  /**
    * Crates a random log.
    * @returns A random log.
    */

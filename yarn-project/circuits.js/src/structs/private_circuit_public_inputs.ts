@@ -31,7 +31,7 @@ import { isEmptyArray } from '../utils/index.js';
 import { CallContext } from './call_context.js';
 import { KeyValidationRequestAndGenerator } from './key_validation_request_and_generator.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
-import { LogHash, NoteLogHash } from './log_hash.js';
+import { EncryptedLogHash, LogHash, NoteLogHash } from './log_hash.js';
 import { MaxBlockNumber } from './max_block_number.js';
 import { NoteHash } from './note_hash.js';
 import { Nullifier } from './nullifier.js';
@@ -124,7 +124,7 @@ export class PrivateCircuitPublicInputs {
      * Hash of the encrypted logs emitted in this function call.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public encryptedLogsHashes: Tuple<LogHash, typeof MAX_ENCRYPTED_LOGS_PER_CALL>,
+    public encryptedLogsHashes: Tuple<EncryptedLogHash, typeof MAX_ENCRYPTED_LOGS_PER_CALL>,
     /**
      * Hash of the unencrypted logs emitted in this function call.
      * Note: Truncated to 31 bytes to fit in Fr.
@@ -179,7 +179,7 @@ export class PrivateCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, NoteLogHash),
-      reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, LogHash),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, EncryptedLogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
       reader.readObject(Header),
       reader.readObject(TxContext),
@@ -207,7 +207,7 @@ export class PrivateCircuitPublicInputs {
       reader.readField(),
       reader.readField(),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, NoteLogHash),
-      reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, LogHash),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_CALL, EncryptedLogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash),
       reader.readObject(Header),
       reader.readObject(TxContext),
@@ -238,7 +238,7 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       Fr.ZERO,
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, NoteLogHash.empty),
-      makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, LogHash.empty),
+      makeTuple(MAX_ENCRYPTED_LOGS_PER_CALL, EncryptedLogHash.empty),
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_CALL, LogHash.empty),
       Header.empty(),
       TxContext.empty(),

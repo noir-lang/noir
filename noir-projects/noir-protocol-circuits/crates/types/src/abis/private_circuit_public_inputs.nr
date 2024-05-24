@@ -3,7 +3,7 @@ use crate::{
     call_context::CallContext, max_block_number::MaxBlockNumber, gas_settings::GasSettings,
     validation_requests::KeyValidationRequestAndGenerator, note_hash::NoteHash, nullifier::Nullifier,
     private_call_request::PrivateCallRequest, read_request::ReadRequest,
-    log_hash::{LogHash, NoteLogHash}
+    log_hash::{LogHash, NoteLogHash, EncryptedLogHash}
 },
     constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
@@ -75,7 +75,7 @@ struct PrivateCircuitPublicInputs {
     start_side_effect_counter : u32,
     end_side_effect_counter : u32,
     note_encrypted_logs_hashes: [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_CALL],
-    encrypted_logs_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_CALL],
+    encrypted_logs_hashes: [EncryptedLogHash; MAX_ENCRYPTED_LOGS_PER_CALL],
     unencrypted_logs_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_CALL],
 
     // Header of a block whose state is used during private execution (not the block the transaction is included in).
@@ -191,7 +191,7 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             start_side_effect_counter: reader.read() as u32,
             end_side_effect_counter: reader.read() as u32,
             note_encrypted_logs_hashes: reader.read_struct_array(NoteLogHash::deserialize, [NoteLogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_CALL]),
-            encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_ENCRYPTED_LOGS_PER_CALL]),
+            encrypted_logs_hashes: reader.read_struct_array(EncryptedLogHash::deserialize, [EncryptedLogHash::empty(); MAX_ENCRYPTED_LOGS_PER_CALL]),
             unencrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL]),
             historical_header: reader.read_struct(Header::deserialize),
             tx_context: reader.read_struct(TxContext::deserialize),
@@ -229,7 +229,7 @@ impl Empty for PrivateCircuitPublicInputs {
             start_side_effect_counter : 0 as u32,
             end_side_effect_counter : 0 as u32,
             note_encrypted_logs_hashes: [NoteLogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_CALL],
-            encrypted_logs_hashes: [LogHash::empty(); MAX_ENCRYPTED_LOGS_PER_CALL],
+            encrypted_logs_hashes: [EncryptedLogHash::empty(); MAX_ENCRYPTED_LOGS_PER_CALL],
             unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
             historical_header: Header::empty(),
             tx_context: TxContext::empty(),
@@ -250,6 +250,6 @@ fn empty_hash() {
     let inputs = PrivateCircuitPublicInputs::empty();
     let hash = inputs.hash();
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x12fd497b4a94b811301f9029cab9260db3ad3c64e0af6839c5804bea3f135d02;
+    let test_data_empty_hash = 0x1970bf189adc837d1769f9f44a8b55c97d45690e7744859b71b647e808ee8622;
     assert_eq(hash, test_data_empty_hash);
 }
