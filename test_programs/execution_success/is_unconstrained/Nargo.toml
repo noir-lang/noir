@@ -1,5 +1,5 @@
 [package]
-name = "within_unconstrained"
+name = "is_unconstrained"
 type = "bin"
 authors = [""]
 

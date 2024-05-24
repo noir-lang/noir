@@ -294,7 +294,7 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::AsWitness => SimplifyResult::None,
-        Intrinsic::WithinUnconstrained => SimplifyResult::None,
+        Intrinsic::IsUnconstrained => SimplifyResult::None,
     }
 }
 

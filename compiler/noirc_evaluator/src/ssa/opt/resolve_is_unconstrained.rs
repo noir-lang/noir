@@ -15,17 +15,17 @@ impl Ssa {
     /// with the resolved boolean value.
     /// Note that this pass must run after the pass that does runtime separation, since in SSA generation an ACIR function can end up targeting brillig.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn resolve_within_unconstrained(mut self) -> Self {
+    pub(crate) fn resolve_is_unconstrained(mut self) -> Self {
         for func in self.functions.values_mut() {
-            replace_within_unconstrained_result(func);
+            replace_is_unconstrained_result(func);
         }
         self
     }
 }
 
-fn replace_within_unconstrained_result(func: &mut Function) {
-    let mut within_unconstrained_calls = HashSet::default();
-    // Collect all calls to within_unconstrained
+fn replace_is_unconstrained_result(func: &mut Function) {
+    let mut is_unconstrained_calls = HashSet::default();
+    // Collect all calls to is_unconstrained
     for block_id in func.reachable_blocks() {
         for &instruction_id in func.dfg[block_id].instructions() {
             let target_func = match &func.dfg[instruction_id] {
@@ -33,13 +33,13 @@ fn replace_within_unconstrained_result(func: &mut Function) {
                 _ => continue,
             };
 
-            if let Value::Intrinsic(Intrinsic::WithinUnconstrained) = &func.dfg[target_func] {
-                within_unconstrained_calls.insert(instruction_id);
+            if let Value::Intrinsic(Intrinsic::IsUnconstrained) = &func.dfg[target_func] {
+                is_unconstrained_calls.insert(instruction_id);
             }
         }
     }
 
-    for instruction_id in within_unconstrained_calls {
+    for instruction_id in is_unconstrained_calls {
         let call_returns = func.dfg.instruction_results(instruction_id);
         let original_return_id = call_returns[0];
 

@@ -1,7 +1,7 @@
-use dep::std::within_unconstrained;
+use dep::std::runtime::is_unconstrained;
 
 fn check(should_be_unconstrained: bool) {
-    assert_eq(should_be_unconstrained, within_unconstrained());
+    assert_eq(should_be_unconstrained, is_unconstrained());
 }
 
 unconstrained fn unconstrained_intermediate() {

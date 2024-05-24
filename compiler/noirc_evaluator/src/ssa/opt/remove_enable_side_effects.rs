@@ -159,7 +159,7 @@ impl Context {
                     | Intrinsic::AsField
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
-                    | Intrinsic::WithinUnconstrained => false,
+                    | Intrinsic::IsUnconstrained => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.

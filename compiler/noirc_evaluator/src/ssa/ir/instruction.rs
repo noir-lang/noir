@@ -65,7 +65,7 @@ pub(crate) enum Intrinsic {
     FromField,
     AsField,
     AsWitness,
-    WithinUnconstrained,
+    IsUnconstrained,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -90,7 +90,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
-            Intrinsic::WithinUnconstrained => write!(f, "within_unconstrained"),
+            Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
         }
     }
 }
@@ -119,7 +119,7 @@ impl Intrinsic {
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
             | Intrinsic::AsField
-            | Intrinsic::WithinUnconstrained => false,
+            | Intrinsic::IsUnconstrained => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -148,7 +148,7 @@ impl Intrinsic {
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
-            "within_unconstrained" => Some(Intrinsic::WithinUnconstrained),
+            "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
