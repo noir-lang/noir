@@ -56,17 +56,18 @@ jobs:
             echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u aztecprotocolci --password-stdin
             scripts/earthly-ci -P --no-output ./yarn-project/end-to-end/+uniswap-trade-on-l1-from-l2
 
-  notify:
-    needs: [e2e]
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/master' && failure() }}
-    steps:
-      - name: Send notification to aztec3-ci channel if workflow failed on master
-        uses: slackapi/slack-github-action@v1.25.0
-        with:
-          payload: |
-            {
-              "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY_WORKFLOW_TRIGGER_URL }}
+  # not notifying failures right now
+  # notify:
+  #   needs: [e2e]
+  #   runs-on: ubuntu-latest
+  #   if: ${{ github.ref == 'refs/heads/master' && failure() }}
+  #   steps:
+  #     - name: Send notification to aztec3-ci channel if workflow failed on master
+  #       uses: slackapi/slack-github-action@v1.25.0
+  #       with:
+  #         payload: |
+  #           {
+  #             "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  #           }
+  #       env:
+  #         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY_WORKFLOW_TRIGGER_URL }}
