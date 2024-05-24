@@ -14,6 +14,7 @@
 #include <vector>
 
 namespace tests_avm {
+using namespace bb;
 using namespace bb::avm_trace;
 namespace {
 

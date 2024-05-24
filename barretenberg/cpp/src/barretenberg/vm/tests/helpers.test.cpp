@@ -4,6 +4,7 @@
 #include "barretenberg/vm/generated/avm_flavor.hpp"
 
 namespace tests_avm {
+using namespace bb;
 
 std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<ThreeOpParam> operands,
                                                  std::vector<bb::avm_trace::AvmMemoryTag> mem_tags)

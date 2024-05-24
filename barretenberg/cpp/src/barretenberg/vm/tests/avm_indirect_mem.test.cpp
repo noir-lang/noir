@@ -2,6 +2,7 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 
 namespace tests_avm {
+using namespace bb;
 using namespace bb::avm_trace;
 
 class AvmIndirectMemTests : public ::testing::Test {

@@ -2,6 +2,7 @@
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/polynomials/pow.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
+#include <tuple>
 namespace bb {
 
 template <typename Flavor> class RelationUtils {
@@ -54,10 +55,10 @@ template <typename Flavor> class RelationUtils {
      */
     static void zero_univariates(auto& tuple)
     {
-        auto set_to_zero = []<size_t, size_t>(auto& element) {
-            std::fill(element.evaluations.begin(), element.evaluations.end(), FF(0));
+        auto set_to_zero = [](auto&&... elements) {
+            (std::fill(elements.evaluations.begin(), elements.evaluations.end(), FF(0)), ...);
         };
-        apply_to_tuple_of_tuples(tuple, set_to_zero);
+        std::apply([&](auto&&... args) { (std::apply(set_to_zero, args), ...); }, tuple);
     }
 
     /**
@@ -91,11 +92,11 @@ template <typename Flavor> class RelationUtils {
     static void scale_univariates(auto& tuple, const RelationSeparator& challenge, FF& current_scalar)
         requires(!bb::IsFoldingFlavor<Flavor>)
     {
-        auto scale_by_consecutive_powers_of_challenge = [&]<size_t, size_t>(auto& element) {
-            element *= current_scalar;
-            current_scalar *= challenge;
+        auto scale_by_consecutive_powers_of_challenge = [&](auto&... elements) {
+            ((elements *= current_scalar, current_scalar *= challenge), ...);
         };
-        apply_to_tuple_of_tuples(tuple, scale_by_consecutive_powers_of_challenge);
+
+        std::apply([&](auto&&... args) { (std::apply(scale_by_consecutive_powers_of_challenge, args), ...); }, tuple);
     }
 
     /**

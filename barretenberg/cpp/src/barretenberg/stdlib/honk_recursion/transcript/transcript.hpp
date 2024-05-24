@@ -1,5 +1,8 @@
 #pragma once
 
+#include "barretenberg/crypto/poseidon2/poseidon2.hpp"
+#include "barretenberg/stdlib/hash/poseidon2/poseidon2.hpp"
+#include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb::stdlib::recursion::honk {
