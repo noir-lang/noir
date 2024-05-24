@@ -27,35 +27,6 @@ unconstrained fn decompose_hint(x: Field) -> (Field, Field) {
     compute_decomposition(x)
 }
 
-// Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
-fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
-    let (alo, ahi) = a;
-    let (blo, bhi) = b;
-    let borrow = lte_16_hint(alo, blo);
-
-    let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
-    let rhi = ahi - bhi - (borrow as Field);
-
-    rlo.assert_max_bit_size(128);
-    rhi.assert_max_bit_size(128);
-}
-
-fn decompose_circuit_optimized(x: Field) -> (Field, Field) {
-    // Take hints of the decomposition
-    let (xlo, xhi) = decompose_hint(x);
-
-    // Range check the limbs
-    xlo.assert_max_bit_size(128);
-    xhi.assert_max_bit_size(128);
-
-    // Check that the decomposition is correct
-    assert_eq(x, xlo + TWO_POW_128 * xhi);
-
-    // Assert that the decomposition of P is greater than the decomposition of x
-    assert_gt_limbs((PLO, PHI), (xlo, xhi));
-    (xlo, xhi)
-}
-
 fn compute_lt(x: Field, y: Field, num_bytes: u32) -> bool {
     let x_bytes = x.to_le_radix(256, num_bytes);
     let y_bytes = y.to_le_radix(256, num_bytes);
@@ -91,13 +62,17 @@ unconstrained fn lte_16_hint(x: Field, y: Field) -> bool {
     compute_lte(x, y, 16)
 }
 
-fn assert_gt_circuit_optimized(a: Field, b: Field) {
-    // Decompose a and b
-    let a_limbs = decompose_circuit_optimized(a);
-    let b_limbs = decompose_circuit_optimized(b);
+// Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
+fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
+    let (alo, ahi) = a;
+    let (blo, bhi) = b;
+    let borrow = lte_16_hint(alo, blo);
 
-    // Assert that a_limbs is greater than b_limbs
-    assert_gt_limbs(a_limbs, b_limbs)
+    let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
+    let rhi = ahi - bhi - (borrow as Field);
+
+    rlo.assert_max_bit_size(128);
+    rhi.assert_max_bit_size(128);
 }
 
 /// Decompose a single field into two 16 byte fields.
@@ -105,7 +80,19 @@ pub fn decompose(x: Field) -> (Field, Field) {
     if within_unconstrained() {
         compute_decomposition(x)
     } else {
-        decompose_circuit_optimized(x)
+        // Take hints of the decomposition
+        let (xlo, xhi) = decompose_hint(x);
+
+        // Range check the limbs
+        xlo.assert_max_bit_size(128);
+        xhi.assert_max_bit_size(128);
+
+        // Check that the decomposition is correct
+        assert_eq(x, xlo + TWO_POW_128 * xhi);
+
+        // Assert that the decomposition of P is greater than the decomposition of x
+        assert_gt_limbs((PLO, PHI), (xlo, xhi));
+        (xlo, xhi)
     }
 }
 
@@ -113,7 +100,12 @@ pub fn assert_gt(a: Field, b: Field) {
     if within_unconstrained() {
         assert(compute_lt(b, a, 32));
     } else {
-        assert_gt_circuit_optimized(a, b);
+        // Decompose a and b
+        let a_limbs = decompose(a);
+        let b_limbs = decompose(b);
+
+        // Assert that a_limbs is greater than b_limbs
+        assert_gt_limbs(a_limbs, b_limbs)
     }
 }
 
