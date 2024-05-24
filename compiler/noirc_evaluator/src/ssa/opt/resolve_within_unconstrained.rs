@@ -12,7 +12,7 @@ use fxhash::FxHashSet as HashSet;
 
 impl Ssa {
     /// An SSA pass to find any calls to `Intrinsic::WithinUnconstrained` and replacing any uses of the result of the intrinsic
-    /// with the resoled boolean value.
+    /// with the resolved boolean value.
     /// Note that this pass must run after the pass that does runtime separation, since in SSA generation an ACIR function can end up targeting brillig.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn resolve_within_unconstrained(mut self) -> Self {
