@@ -10,7 +10,7 @@ keywords:
 
 It's very common for functions in circuits to take unconstrained hints of an expensive computation and then verify it. This is done by running the hint in an unconstrained context and then verifying the result in a constrained context.
 
-When a function is marked as unconstrained, any subsequent functions that it calls will also be run in an unconstrained context. However, if we are implementing a library function other users might call it within an unconstrained context or a constrained one. Generally, in an unconstrained context we prefer just computing the result instead of taking a hint of it and verifying it, since that'd mean doing the same computation twice:
+When a function is marked as unconstrained, any subsequent functions that it calls will also be run in an unconstrained context. However, if we are implementing a library function, other users might call it within an unconstrained context or a constrained one. Generally, in an unconstrained context we prefer just computing the result instead of taking a hint of it and verifying it, since that'd mean doing the same computation twice:
 
 ```rust 
 
