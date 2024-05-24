@@ -1042,11 +1042,11 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            self.declare_struct_methods(&self_type, &function_ids);
+            self.declare_struct_methods(self_type, &function_ids);
         // We can define methods on primitive types only if we're in the stdlib
         } else if !is_trait_impl && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
-                self.declare_struct_methods(&self_type, &function_ids);
+                self.declare_struct_methods(self_type, &function_ids);
             } else {
                 self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span });
             }
