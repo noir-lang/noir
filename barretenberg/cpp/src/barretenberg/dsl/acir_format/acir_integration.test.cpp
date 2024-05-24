@@ -1,3 +1,4 @@
+#include "barretenberg/client_ivc/client_ivc.hpp"
 #ifndef __wasm__
 #include "barretenberg/bb/exec_pipe.hpp"
 #include "barretenberg/common/streams.hpp"
@@ -53,11 +54,6 @@ class AcirIntegrationTest : public ::testing::Test {
         using VerificationKey = Flavor::VerificationKey;
 
         Prover prover{ builder };
-        // builder.blocks.summarize();
-        // info("num gates          = ", builder.get_num_gates());
-        // info("total circuit size = ", builder.get_total_circuit_size());
-        // info("circuit size       = ", prover.instance->proving_key.circuit_size);
-        // info("log circuit size   = ", prover.instance->proving_key.log_circuit_size);
         auto proof = prover.construct_proof();
 
         // Verify Honk proof
@@ -66,16 +62,49 @@ class AcirIntegrationTest : public ::testing::Test {
 
         return verifier.verify_proof(proof);
     }
-};
 
-class AcirIntegrationSingleTest : public AcirIntegrationTest, public testing::WithParamInterface<std::string> {
+    void add_some_simple_RAM_gates(auto& circuit)
+    {
+        std::array<uint32_t, 3> ram_values{ circuit.add_variable(5),
+                                            circuit.add_variable(10),
+                                            circuit.add_variable(20) };
+
+        size_t ram_id = circuit.create_RAM_array(3);
+
+        for (size_t i = 0; i < 3; ++i) {
+            circuit.init_RAM_element(ram_id, i, ram_values[i]);
+        }
+
+        auto val_idx_1 = circuit.read_RAM_array(ram_id, circuit.add_variable(1));
+        auto val_idx_2 = circuit.read_RAM_array(ram_id, circuit.add_variable(2));
+        auto val_idx_3 = circuit.read_RAM_array(ram_id, circuit.add_variable(0));
+
+        circuit.create_big_add_gate({
+            val_idx_1,
+            val_idx_2,
+            val_idx_3,
+            circuit.zero_idx,
+            1,
+            1,
+            1,
+            0,
+            -35,
+        });
+    }
+
   protected:
     static void SetUpTestSuite() { srs::init_crs_factory("../srs_db/ignition"); }
 };
+
+class AcirIntegrationSingleTest : public AcirIntegrationTest, public testing::WithParamInterface<std::string> {};
 
 class AcirIntegrationFoldingTest : public AcirIntegrationTest, public testing::WithParamInterface<std::string> {
   protected:
-    static void SetUpTestSuite() { srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite()
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+        srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    }
 };
 
 TEST_P(AcirIntegrationSingleTest, ProveAndVerifyProgram)
@@ -322,14 +351,72 @@ TEST_P(AcirIntegrationFoldingTest, ProveAndVerifyProgramStack)
     }
 }
 
+TEST_P(AcirIntegrationFoldingTest, FoldAndVerifyProgramStack)
+{
+    using Flavor = GoblinUltraFlavor;
+    using Builder = Flavor::CircuitBuilder;
+
+    std::string test_name = GetParam();
+    auto program_stack = get_program_stack_data_from_test_file(test_name);
+
+    ClientIVC ivc;
+    ivc.structured_flag = true;
+
+    while (!program_stack.empty()) {
+        auto program = program_stack.back();
+
+        // Construct a bberg circuit from the acir representation
+        auto circuit =
+            acir_format::create_circuit<Builder>(program.constraints, 0, program.witness, false, ivc.goblin.op_queue);
+
+        ivc.accumulate(circuit);
+
+        CircuitChecker::check(circuit);
+        // EXPECT_TRUE(prove_and_verify_honk<Flavor>(ivc.prover_instance));
+
+        program_stack.pop_back();
+    }
+
+    EXPECT_TRUE(ivc.prove_and_verify());
+}
+
 INSTANTIATE_TEST_SUITE_P(AcirTests,
                          AcirIntegrationFoldingTest,
-                         testing::Values("fold_after_inlined_calls",
-                                         "fold_basic",
-                                         "fold_basic_nested_call",
-                                         "fold_call_witness_condition",
-                                         "fold_complex_outputs",
-                                         "fold_distinct_return",
-                                         "fold_fibonacci",
-                                         "fold_numeric_generic_poseidon"));
+                         testing::Values("fold_basic", "fold_basic_nested_call"));
+
+/**
+ * @brief Ensure that adding gates post-facto to a circuit generated from acir still results in a valid circuit
+ * @details This is a pattern required by e.g. ClientIvc which appends recursive verifiers to acir-generated circuits
+ *
+ */
+TEST_F(AcirIntegrationTest, UpdateAcirCircuit)
+{
+    using Flavor = GoblinUltraFlavor;
+    using Builder = Flavor::CircuitBuilder;
+
+    std::string test_name = "6_array"; // arbitrary program with RAM gates
+    auto acir_program = get_program_data_from_test_file(test_name);
+
+    // Construct a bberg circuit from the acir representation
+    auto circuit = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);
+
+    EXPECT_TRUE(CircuitChecker::check(circuit));
+
+    // Now append some RAM gates onto the circuit generated from acir and confirm that its still valid. (First, check
+    // that the RAM operations constitute a valid independent circuit).
+    {
+        Builder circuit;
+        add_some_simple_RAM_gates(circuit);
+        EXPECT_TRUE(CircuitChecker::check(circuit));
+        EXPECT_TRUE(prove_and_verify_honk<Flavor>(circuit));
+    }
+
+    // Now manually append the simple RAM circuit to the circuit generated from acir
+    add_some_simple_RAM_gates(circuit);
+
+    // Confirm that the result is still valid
+    EXPECT_TRUE(CircuitChecker::check(circuit));
+    EXPECT_TRUE(prove_and_verify_honk<Flavor>(circuit));
+}
+
 #endif

@@ -23,6 +23,8 @@ RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify ./run_acir_tests.sh poseid
 RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh closures_mut_ref
 # Run a single arbitrary test for separate prove and verify for UltraHonk
 RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
+# Fold and verify an ACIR program stack
+RUN BIN=../ts/dest/node/main.js FLOW=fold_and_verify_program ./run_acir_tests.sh fold_basic
 # Run a single arbitrary test not involving recursion through bb.js for full Goblin
 RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
 # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.

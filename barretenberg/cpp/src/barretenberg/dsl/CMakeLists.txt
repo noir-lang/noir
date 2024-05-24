@@ -2,6 +2,7 @@ barretenberg_module(
     dsl
     plonk
     ultra_honk
+    client_ivc
     stdlib_sha256
     stdlib_aes128
     stdlib_keccak

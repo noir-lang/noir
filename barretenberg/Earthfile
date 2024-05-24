@@ -38,6 +38,8 @@ barretenberg-acir-tests-bb:
     RUN FLOW=prove_and_verify_goblin_ultra_honk ./run_acir_tests.sh 6_array
     # Construct and verify a UltraHonk proof for all ACIR programs using the new witness stack workflow
     RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh
+    # Fold and verify an ACIR program stack using ClientIvc
+    RUN FLOW=fold_and_verify_program ./run_acir_tests.sh fold_basic
     # This is a "full" Goblin flow. It constructs and verifies four proofs: GoblinUltraHonk, ECCVM, Translator, and merge
     RUN FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
     # Run 1_mul through native bb build, all_cmds flow, to test all cli args.

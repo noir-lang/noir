@@ -87,6 +87,8 @@ class ClientIVC {
 
     bool verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances);
 
+    bool prove_and_verify();
+
     HonkProof decider_prove() const;
 
     std::vector<std::shared_ptr<VerificationKey>> precompute_folding_verification_keys(std::vector<ClientCircuit>);
