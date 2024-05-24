@@ -308,8 +308,6 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(id));
 
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
         self.trait_bounds = function.def.where_clause.clone();
 
         let is_low_level_or_oracle = function
@@ -497,18 +495,6 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    fn resolve_local_globals(&mut self) {
-        let globals = vecmap(self.interner.get_all_globals(), |global| {
-            (global.id, global.local_id, global.ident.clone())
-        });
-        for (id, local_module_id, name) in globals {
-            if local_module_id == self.local_module {
-                let definition = DefinitionKind::Global(id);
-                self.add_global_variable_decl(name, definition);
-            }
-        }
-    }
-
     /// TODO: This is currently only respected for generic free functions
     /// there's a bunch of other places where trait constraints can pop up
     fn resolve_trait_constraints(
@@ -570,9 +556,6 @@ impl<'context> Elaborator<'context> {
 
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
-
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
 
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
@@ -1189,7 +1172,6 @@ impl<'context> Elaborator<'context> {
         self.local_module = alias.module_id;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
-        self.resolve_local_globals();
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
@@ -1241,9 +1223,6 @@ impl<'context> Elaborator<'context> {
         self.recover_generics(|this| {
             let generics = this.add_generics(&unresolved.generics);
 
-            // Check whether the struct definition has globals in the local module and add them to the scope
-            this.resolve_local_globals();
-
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
@@ -1276,10 +1255,11 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
+        let name = let_stmt.pattern.name_ident().clone();
         let (let_statement, _typ) = self.elaborate_let(let_stmt);
 
         let statement_id = self.interner.get_global(global_id).let_statement;
-        self.interner.get_global_definition_mut(global_id).kind = definition_kind;
+        self.interner.get_global_definition_mut(global_id).kind = definition_kind.clone();
         self.interner.replace_statement(statement_id, let_statement);
     }
 

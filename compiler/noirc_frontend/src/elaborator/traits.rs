@@ -154,9 +154,6 @@ impl<'context> Elaborator<'context> {
         let old_generic_count = self.generics.len();
         self.scopes.start_function();
 
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
-
         self.trait_bounds = where_clause.to_vec();
 
         let kind = FunctionKind::Normal;
