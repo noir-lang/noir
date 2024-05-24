@@ -10,11 +10,6 @@ import {
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { spawn } from 'child_process';
-import { assert } from 'console';
-import fs from 'fs/promises';
-import path from 'path';
-
 import { Oracle, acvm, extractCallStack, witnessMapToFields } from '../acvm/index.js';
 import { AvmContext } from '../avm/avm_context.js';
 import { AvmMachineState } from '../avm/avm_machine_state.js';
@@ -27,12 +22,7 @@ import { PackedValuesCache } from '../common/packed_values_cache.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
 import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { PublicExecutionContext } from './public_execution_context.js';
-import {
-  convertAvmResultsToPxResult,
-  createAvmExecutionEnvironment,
-  decompressBytecodeIfCompressed,
-  isAvmBytecode,
-} from './transitional_adaptors.js';
+import { convertAvmResultsToPxResult, createAvmExecutionEnvironment, isAvmBytecode } from './transitional_adaptors.js';
 
 /**
  * Execute a public function and return the execution result.
@@ -327,125 +317,5 @@ export class PublicExecutor {
     }
 
     return executionResult;
-  }
-
-  /**
-   * These functions are currently housed in the temporary executor as it relies on access to
-   * oracles like the contractsDB and this is the least intrusive way to achieve this.
-   * When we remove this executor(tracking issue #4792) and have an interface that is compatible with the kernel circuits,
-   * this will be moved to sequencer-client/prover.
-   */
-
-  /**
-   * Generates a proof for an associated avm execution. This is currently only used for testing purposes,
-   * as proof generation is not fully complete in the AVM yet.
-   * @param execution - The execution to run.
-   * @returns An AVM proof and the verification key.
-   */
-  public async getAvmProof(avmExecution: PublicExecution): Promise<Buffer[]> {
-    // The paths for the barretenberg binary and the write path are hardcoded for now.
-    const bbPath = path.resolve('../../barretenberg/cpp');
-    const artifactsPath = path.resolve('target');
-
-    // Create the directory if it does not exist
-    await fs.rm(artifactsPath, { recursive: true, force: true });
-    await fs.mkdir(artifactsPath, { recursive: true });
-
-    const calldataPath = path.join(artifactsPath, 'calldata.bin');
-    const bytecodePath = path.join(artifactsPath, 'avm_bytecode.bin');
-    const proofPath = path.join(artifactsPath, 'proof');
-
-    const { args, functionSelector, contractAddress } = avmExecution;
-    let bytecode = await this.contractsDb.getBytecode(contractAddress, functionSelector);
-    assert(!!bytecode, `Bytecode not found for ${contractAddress}:${functionSelector}`);
-    // This should be removed once we do bytecode validation.
-    bytecode = await decompressBytecodeIfCompressed(bytecode!);
-    // Write call data and bytecode to files.
-    await fs.writeFile(
-      calldataPath,
-      args.map(c => c.toBuffer()),
-    );
-    await fs.writeFile(bytecodePath, bytecode!);
-
-    const bbExec = path.join(bbPath, 'build', 'bin', 'bb');
-    const bbArgs = ['avm_prove', '-b', bytecodePath, '-d', calldataPath, '-o', proofPath];
-    this.log.debug(`calling '${bbExec} ${bbArgs.join(' ')}'`);
-    const bbBinary = spawn(bbExec, bbArgs);
-
-    // The binary writes the proof and the verification key to the write path.
-    return new Promise((resolve, reject) => {
-      let stdout: string = '';
-      let stderr: string = '';
-
-      bbBinary.on('close', () => {
-        this.log.verbose(`Proof generation complete. Reading proof and vk from ${proofPath}.`);
-        return resolve(Promise.all([fs.readFile(proofPath), fs.readFile(path.join(artifactsPath, 'vk'))]));
-      });
-
-      // Catch stdout.
-      bbBinary.stdout.on('data', (data: Buffer) => {
-        stdout += data.toString();
-      });
-      bbBinary.stdout.on('end', () => {
-        if (stdout.length > 0) {
-          this.log.debug(`stdout: ${stdout}`);
-        }
-      });
-
-      // Catch stderr.
-      bbBinary.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
-      bbBinary.stderr.on('end', () => {
-        if (stderr.length > 0) {
-          this.log.warn(`stderr: ${stderr}`);
-        }
-      });
-
-      // Catch and propagate errors from spawning
-      bbBinary.on('error', err => {
-        reject(err);
-      });
-    });
-  }
-
-  /**
-   * Verifies an AVM proof. This function is currently only used for testing purposes, as verification
-   * is not fully complete in the AVM yet.
-   * @param vk - The verification key to use.
-   * @param proof - The proof to verify.
-   * @returns True if the proof is valid, false otherwise.
-   */
-  async verifyAvmProof(vk: Buffer, proof: Buffer): Promise<boolean> {
-    // The relative paths for the barretenberg binary and the write path are hardcoded for now.
-    const bbPath = path.resolve('../../barretenberg/cpp');
-    const artifactsPath = path.resolve('./target');
-
-    const vkPath = path.join(artifactsPath, 'vk');
-    const proofPath = path.join(artifactsPath, 'proof');
-
-    // Write the verification key and the proof to files.
-    await fs.writeFile(vkPath, vk);
-    await fs.writeFile(proofPath, proof);
-
-    const bbExec = path.join(bbPath, 'build', 'bin', 'bb');
-    const bbArgs = ['avm_verify', '-p', proofPath];
-    this.log.debug(`calling '${bbPath} ${bbArgs.join(' ')}'`);
-    const bbBinary = spawn(bbExec, bbArgs);
-
-    // The binary prints to stdout 1 if the proof is valid and 0 if it is not.
-    return new Promise((resolve, reject) => {
-      let result = Buffer.alloc(0);
-      bbBinary.stdout.on('data', data => {
-        result += data;
-      });
-      bbBinary.on('close', () => {
-        resolve(result.toString() === '1');
-      });
-      // Catch and propagate errors from spawning
-      bbBinary.on('error', err => {
-        reject(err);
-      });
-    });
   }
 }

@@ -5,10 +5,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak256, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
-import { AvmNestedCallsTestContractArtifact, AvmTestContractArtifact } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
-import { strict as assert } from 'assert';
 
 import { isAvmBytecode, markBytecodeAsAvm } from '../public/transitional_adaptors.js';
 import { AvmMachineState } from './avm_machine_state.js';
@@ -16,6 +14,8 @@ import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
 import {
   adjustCalldataIndex,
+  getAvmNestedCallsTestContractBytecode,
+  getAvmTestContractBytecode,
   initContext,
   initExecutionEnvironment,
   initGlobalVariables,
@@ -916,24 +916,6 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     expect(resultBuffer.equals(expectedResults)).toBe(true);
   });
 });
-
-function getAvmTestContractBytecode(functionName: string): Buffer {
-  const artifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
-  assert(
-    !!artifact?.bytecode,
-    `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
-  );
-  return artifact.bytecode;
-}
-
-function getAvmNestedCallsTestContractBytecode(functionName: string): Buffer {
-  const artifact = AvmNestedCallsTestContractArtifact.functions.find(f => f.name === functionName)!;
-  assert(
-    !!artifact?.bytecode,
-    `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
-  );
-  return artifact.bytecode;
-}
 
 function sha256FromMemoryBytes(bytes: Uint8[]): Fr[] {
   return [...sha256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b));

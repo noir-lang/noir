@@ -50,7 +50,7 @@ export class ToRadixLE extends Instruction {
       value /= radixBN;
     }
 
-    const res = [...limbArray].map(byte => new Uint8(byte));
+    const res = limbArray.map(byte => new Uint8(byte));
     memory.setSlice(dstOffset, res);
 
     memory.assert(memoryOperations);

@@ -344,7 +344,6 @@ void gateCount(const std::string& bytecodePath)
  *   an exit code of 0 will be returned for success and 1 for failure.
  *
  * @param proof_path Path to the file containing the serialized proof
- * @param recursive Whether to use recursive proof generation of non-recursive
  * @param vk_path Path to the file containing the serialized verification key
  * @return true If the proof is valid
  * @return false If the proof is invalid
@@ -515,14 +514,15 @@ void vk_as_fields(const std::string& vk_path, const std::string& output_path)
  * @param bytecode_path Path to the file containing the serialised bytecode
  * @param calldata_path Path to the file containing the serialised calldata (could be empty)
  * @param crs_path Path to the file containing the CRS (ignition is suitable for now)
- * @param output_path Path to write the output proof and verification key
+ * @param output_path Path (directory) to write the output proof and verification key
  */
 void avm_prove(const std::filesystem::path& bytecode_path,
                const std::filesystem::path& calldata_path,
                const std::filesystem::path& output_path)
 {
     // Get Bytecode
-    std::vector<uint8_t> const avm_bytecode = read_file(bytecode_path);
+    std::vector<uint8_t> const avm_bytecode =
+        bytecode_path.extension() == ".gz" ? gunzip(bytecode_path) : read_file(bytecode_path);
     std::vector<uint8_t> call_data_bytes{};
     if (std::filesystem::exists(calldata_path)) {
         call_data_bytes = read_file(calldata_path);
@@ -537,34 +537,33 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     // TODO(ilyas): <#4887>: Currently we only need these two parts of the vk, look into pcs_verification key reqs
     std::vector<uint64_t> vk_vector = { verification_key.circuit_size, verification_key.num_public_inputs };
 
-    std::filesystem::path output_vk_path = output_path.parent_path() / "vk";
-    write_file(output_vk_path, to_buffer(vk_vector));
-    write_file(output_path, to_buffer(proof));
+    write_file(output_path / "proof", to_buffer(proof));
+    write_file(output_path / "vk", to_buffer(vk_vector));
 }
 
 /**
  * @brief Verifies an avm proof and writes the result to stdout
  *
  * Communication:
- * - stdout: The boolean value indicating whether the proof is valid.
  * - proc_exit: A boolean value is returned indicating whether the proof is valid.
+ *   an exit code of 0 will be returned for success and 1 for failure.
  *
- * @param proof_path Path to the file containing the serialised proof (the vk should also be in the parent)
+ * @param proof_path Path to the file containing the serialized proof
+ * @param vk_path Path to the file containing the serialized verification key
+ * @return true If the proof is valid
+ * @return false If the proof is invalid
  */
-bool avm_verify(const std::filesystem::path& proof_path)
+bool avm_verify(const std::filesystem::path& proof_path, const std::filesystem::path& vk_path)
 {
-    std::filesystem::path vk_path = proof_path.parent_path() / "vk";
     std::vector<fr> const proof = many_from_buffer<fr>(read_file(proof_path));
     std::vector<uint8_t> vk_bytes = read_file(vk_path);
     auto circuit_size = from_buffer<size_t>(vk_bytes, 0);
     auto num_public_inputs = from_buffer<size_t>(vk_bytes, sizeof(size_t));
     auto vk = AvmFlavor::VerificationKey(circuit_size, num_public_inputs);
 
-    std::cout << avm_trace::Execution::verify(vk, proof);
-    return avm_trace::Execution::verify(vk, proof);
-
-    std::cout << 1;
-    return true;
+    const bool verified = avm_trace::Execution::verify(vk, proof);
+    vinfo("verified: ", verified);
+    return verified;
 }
 
 /**
@@ -865,11 +864,11 @@ int main(int argc, char* argv[])
         } else if (command == "avm_prove") {
             std::filesystem::path avm_bytecode_path = get_option(args, "-b", "./target/avm_bytecode.bin");
             std::filesystem::path calldata_path = get_option(args, "-d", "./target/call_data.bin");
-            std::filesystem::path output_path = get_option(args, "-o", "./proofs/avm_proof");
+            // This outputs both files: proof and vk, under the given directory.
+            std::filesystem::path output_path = get_option(args, "-o", "./proofs");
             avm_prove(avm_bytecode_path, calldata_path, output_path);
         } else if (command == "avm_verify") {
-            std::filesystem::path proof_path = get_option(args, "-p", "./proofs/avm_proof");
-            return avm_verify(proof_path) ? 0 : 1;
+            return avm_verify(proof_path, vk_path) ? 0 : 1;
         } else if (command == "prove_ultra_honk") {
             std::string output_path = get_option(args, "-o", "./proofs/proof");
             prove_honk<UltraFlavor>(bytecode_path, witness_path, output_path);

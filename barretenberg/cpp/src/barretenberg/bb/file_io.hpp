@@ -45,7 +45,7 @@ inline void write_file(const std::string& filename, std::vector<uint8_t> const& 
 {
     std::ofstream file(filename, std::ios::binary);
     if (!file) {
-        throw std::runtime_error("Failed to open data file for writing");
+        throw std::runtime_error("Failed to open data file for writing: " + filename);
     }
     file.write((char*)data.data(), (std::streamsize)data.size());
     file.close();
