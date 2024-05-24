@@ -4,7 +4,7 @@
 #include "protogalaxy_prover_impl.hpp"
 namespace bb {
 
-template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 2>>;
-template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 3>>;
-template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 4>>;
+template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 2>>;
+template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 3>>;
+template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 4>>;
 } // namespace bb

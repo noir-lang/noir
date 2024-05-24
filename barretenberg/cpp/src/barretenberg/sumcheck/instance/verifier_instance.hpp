@@ -4,7 +4,7 @@
 
 namespace bb {
 /**
- * @brief The VerifierInstance encapsulates all the necessary information for a Goblin Ultra Honk Verifier to verify a
+ * @brief The VerifierInstance encapsulates all the necessary information for a Mega Honk Verifier to verify a
  * proof (sumcheck + Zeromorph). In the context of folding, this is returned by the Protogalaxy verifier with non-zero
  * target sum and gate challenges.
  *

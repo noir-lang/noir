@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 
 namespace bb {
 
@@ -98,7 +98,7 @@ class MockCircuits {
      *
      * @param builder
      */
-    static void construct_goblin_ecc_op_circuit(GoblinUltraCircuitBuilder& builder)
+    static void construct_goblin_ecc_op_circuit(MegaCircuitBuilder& builder)
     {
         // Add a mul accum op, an add accum op and an equality op
         builder.queue_ecc_add_accum(Point::one() * FF::random_element(&engine));

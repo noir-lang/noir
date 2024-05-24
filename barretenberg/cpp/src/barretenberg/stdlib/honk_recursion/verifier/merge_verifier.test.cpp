@@ -12,18 +12,18 @@ namespace bb::stdlib::recursion::goblin {
 /**
  * @brief Test suite for recursive verification of Goblin Merge proofs
  * @details The recursive verification circuit is arithmetized using Goblin-style Ultra arithmetization
- * (GoblinUltraCircuitBuilder).
+ * (MegaCircuitBuilder).
  *
  * @tparam Builder
  */
 class RecursiveMergeVerifierTest : public testing::Test {
 
     // Types for recursive verifier circuit
-    using RecursiveBuilder = GoblinUltraCircuitBuilder;
+    using RecursiveBuilder = MegaCircuitBuilder;
     using RecursiveMergeVerifier = MergeRecursiveVerifier_<RecursiveBuilder>;
 
     // Define types relevant for inner circuit
-    using InnerFlavor = GoblinUltraFlavor;
+    using InnerFlavor = MegaFlavor;
     using InnerProverInstance = ProverInstance_<InnerFlavor>;
     using InnerBuilder = typename InnerFlavor::CircuitBuilder;
 
@@ -85,9 +85,9 @@ class RecursiveMergeVerifierTest : public testing::Test {
         // Check 3: Construct and verify a (goblin) ultra honk proof of the Merge recursive verifier circuit
         {
             auto instance = std::make_shared<InnerProverInstance>(outer_circuit);
-            GoblinUltraProver prover(instance);
-            auto verification_key = std::make_shared<GoblinUltraFlavor::VerificationKey>(instance->proving_key);
-            GoblinUltraVerifier verifier(verification_key);
+            MegaProver prover(instance);
+            auto verification_key = std::make_shared<MegaFlavor::VerificationKey>(instance->proving_key);
+            MegaVerifier verifier(verification_key);
             auto proof = prover.construct_proof();
             bool verified = verifier.verify_proof(proof);
 

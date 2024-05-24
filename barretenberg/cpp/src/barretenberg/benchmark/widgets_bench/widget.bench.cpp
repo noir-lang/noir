@@ -7,7 +7,7 @@
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/genperm_sort_widget.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/plookup_arithmetic_widget.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/plookup_auxiliary_widget.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 
 // The widgets are implemented in a non-uniform way where the transition widgets provide a per-row execution function

@@ -88,6 +88,6 @@ field_t<C> pedersen_hash<C>::hash_buffer(const stdlib::byte_array<C>& input, Gen
 }
 template class pedersen_hash<bb::StandardCircuitBuilder>;
 template class pedersen_hash<bb::UltraCircuitBuilder>;
-template class pedersen_hash<bb::GoblinUltraCircuitBuilder>;
+template class pedersen_hash<bb::MegaCircuitBuilder>;
 
 } // namespace bb::stdlib

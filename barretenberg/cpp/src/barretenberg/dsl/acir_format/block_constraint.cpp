@@ -79,7 +79,7 @@ void create_block_constraints(Builder& builder, const BlockConstraint constraint
         }
     } break;
     case BlockType::CallData: {
-        if constexpr (IsGoblinUltraBuilder<Builder>) {
+        if constexpr (IsMegaBuilder<Builder>) {
             databus_ct databus;
             // Populate the calldata in the databus
             databus.calldata.set_values(init);
@@ -99,7 +99,7 @@ void create_block_constraints(Builder& builder, const BlockConstraint constraint
         }
     } break;
     case BlockType::ReturnData: {
-        if constexpr (IsGoblinUltraBuilder<Builder>) {
+        if constexpr (IsMegaBuilder<Builder>) {
             databus_ct databus;
             // Populate the returndata in the databus
             databus.return_data.set_values(init);
@@ -127,8 +127,8 @@ void create_block_constraints(Builder& builder, const BlockConstraint constraint
 template void create_block_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                             const BlockConstraint constraint,
                                                             bool has_valid_witness_assignments);
-template void create_block_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                  const BlockConstraint constraint,
-                                                                  bool has_valid_witness_assignments);
+template void create_block_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                           const BlockConstraint constraint,
+                                                           bool has_valid_witness_assignments);
 
 } // namespace acir_format

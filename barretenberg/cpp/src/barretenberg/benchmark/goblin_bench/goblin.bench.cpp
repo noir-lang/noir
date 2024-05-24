@@ -27,7 +27,8 @@ class GoblinBench : public benchmark::Fixture {
     /**
      * @brief Perform a specified number of function circuit accumulation rounds
      * @details Each round "accumulates" a mock function circuit and a mock kernel circuit. Each round thus consists of
-     * the generation of two circuits, two UGH proofs and two Merge proofs. To match the sizes called out in the spec
+     * the generation of two circuits, two MegaHonk proofs and two Merge proofs. To match the sizes called out in the
+     * spec
      * (https://github.com/AztecProtocol/aztec-packages/blob/master/yellow-paper/docs/cryptography/performance-targets.md)
      * we set the size of the function circuit to be 2^17 except for the first one which is 2^19.
      *
@@ -39,14 +40,14 @@ class GoblinBench : public benchmark::Fixture {
         for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
 
             // Construct and accumulate a mock function circuit
-            GoblinUltraCircuitBuilder function_circuit{ goblin.op_queue };
+            MegaCircuitBuilder function_circuit{ goblin.op_queue };
             // On the first iteration construct a "large" function circuit (2^19), otherwise medium (2^17)
             GoblinMockCircuits::construct_mock_function_circuit(function_circuit, /*large=*/circuit_idx == 0);
             auto function_accum = goblin.accumulate(function_circuit);
 
             // Construct and accumulate the mock kernel circuit
             // Note: in first round, kernel_accum is empty since there is no previous kernel to recursively verify
-            GoblinUltraCircuitBuilder circuit_builder{ goblin.op_queue };
+            MegaCircuitBuilder circuit_builder{ goblin.op_queue };
             GoblinMockCircuits::construct_mock_recursion_kernel_circuit(
                 circuit_builder,
                 { function_accum.proof, function_accum.verification_key },

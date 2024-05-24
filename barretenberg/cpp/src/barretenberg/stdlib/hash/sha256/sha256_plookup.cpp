@@ -362,6 +362,5 @@ template <typename Builder> packed_byte_array<Builder> sha256(const packed_byte_
 }
 
 template packed_byte_array<bb::UltraCircuitBuilder> sha256(const packed_byte_array<bb::UltraCircuitBuilder>& input);
-template packed_byte_array<bb::GoblinUltraCircuitBuilder> sha256(
-    const packed_byte_array<bb::GoblinUltraCircuitBuilder>& input);
+template packed_byte_array<bb::MegaCircuitBuilder> sha256(const packed_byte_array<bb::MegaCircuitBuilder>& input);
 } // namespace bb::stdlib::sha256_plookup

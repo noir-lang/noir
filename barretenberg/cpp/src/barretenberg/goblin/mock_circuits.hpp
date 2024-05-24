@@ -13,7 +13,7 @@
 #include "barretenberg/stdlib/honk_recursion/verifier/ultra_recursive_verifier.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/mock_circuits.hpp"
 
 namespace bb {
@@ -26,9 +26,9 @@ class GoblinMockCircuits {
     using Point = Curve::AffineElement;
     using CommitmentKey = bb::CommitmentKey<Curve>;
     using OpQueue = bb::ECCOpQueue;
-    using GoblinUltraBuilder = bb::GoblinUltraCircuitBuilder;
-    using Flavor = bb::GoblinUltraFlavor;
-    using RecursiveFlavor = bb::GoblinUltraRecursiveFlavor_<GoblinUltraBuilder>;
+    using MegaBuilder = bb::MegaCircuitBuilder;
+    using Flavor = bb::MegaFlavor;
+    using RecursiveFlavor = bb::MegaRecursiveFlavor_<MegaBuilder>;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<RecursiveFlavor>;
     using VerifierInstance = bb::VerifierInstance_<Flavor>;
     using RecursiveVerifierInstance = ::bb::stdlib::recursion::honk::RecursiveVerifierInstance_<RecursiveFlavor>;
@@ -50,7 +50,7 @@ class GoblinMockCircuits {
      * @param builder
      * @param large If true, construct a "large" circuit (2^19), else a medium circuit (2^17)
      */
-    static void construct_mock_function_circuit(GoblinUltraBuilder& builder, bool large = false)
+    static void construct_mock_function_circuit(MegaBuilder& builder, bool large = false)
     {
         // Determine number of times to execute the below operations that constitute the mock circuit logic. Note that
         // the circuit size does not scale linearly with number of iterations due to e.g. amortization of lookup costs
@@ -68,7 +68,7 @@ class GoblinMockCircuits {
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/911): We require goblin ops to be added to the
         // function circuit because we cannot support zero commtiments. While the builder handles this at
-        // ProverInstance creation stage via the add_gates_to_ensure_all_polys_are_non_zero function for other UGH
+        // ProverInstance creation stage via the add_gates_to_ensure_all_polys_are_non_zero function for other MegaHonk
         // circuits (where we don't explicitly need to add goblin ops), in ClientIVC merge proving happens prior to
         // folding where the absense of goblin ecc ops will result in zero commitments.
         MockCircuits::construct_goblin_ecc_op_circuit(builder);
@@ -88,7 +88,7 @@ class GoblinMockCircuits {
      */
     static void perform_op_queue_interactions_for_mock_first_circuit(std::shared_ptr<bb::ECCOpQueue>& op_queue)
     {
-        bb::GoblinUltraCircuitBuilder builder{ op_queue };
+        bb::MegaCircuitBuilder builder{ op_queue };
 
         // Add some goblinized ecc ops
         MockCircuits::construct_goblin_ecc_op_circuit(builder);
@@ -112,7 +112,7 @@ class GoblinMockCircuits {
      *
      * @param builder
      */
-    static void add_some_ecc_op_gates(GoblinUltraBuilder& builder)
+    static void add_some_ecc_op_gates(MegaBuilder& builder)
     {
         // Add some arbitrary ecc op gates
         for (size_t i = 0; i < 3; ++i) {
@@ -130,7 +130,7 @@ class GoblinMockCircuits {
      *
      * @param builder
      */
-    static void construct_simple_circuit(GoblinUltraBuilder& builder)
+    static void construct_simple_circuit(MegaBuilder& builder)
     {
         add_some_ecc_op_gates(builder);
         MockCircuits::construct_arithmetic_circuit(builder);
@@ -147,7 +147,7 @@ class GoblinMockCircuits {
      * @param function_accum {proof, vkey} for function circuit to be recursively verified
      * @param prev_kernel_accum {proof, vkey} for previous kernel circuit to be recursively verified
      */
-    static void construct_mock_recursion_kernel_circuit(GoblinUltraBuilder& builder,
+    static void construct_mock_recursion_kernel_circuit(MegaBuilder& builder,
                                                         const KernelInput& function_accum,
                                                         const KernelInput& prev_kernel_accum)
     {
@@ -180,7 +180,7 @@ class GoblinMockCircuits {
      * @param function_fold_proof
      * @param kernel_fold_proof
      */
-    static void construct_mock_folding_kernel(GoblinUltraBuilder& builder)
+    static void construct_mock_folding_kernel(MegaBuilder& builder)
     {
         // Add operations representing general kernel logic e.g. state updates. Note: these are structured to make
         // the kernel "full" within the dyadic size 2^17
@@ -196,7 +196,7 @@ class GoblinMockCircuits {
      * @brief A minimal version of the mock kernel (recursive verifiers only) for faster testing
      *
      */
-    static void construct_mock_kernel_small(GoblinUltraBuilder& builder,
+    static void construct_mock_kernel_small(MegaBuilder& builder,
                                             const KernelInput& function_accum,
                                             const KernelInput& prev_kernel_accum)
     {

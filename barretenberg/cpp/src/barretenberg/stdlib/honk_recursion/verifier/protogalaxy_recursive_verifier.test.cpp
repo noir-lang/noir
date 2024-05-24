@@ -31,7 +31,7 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
 
     // Defines types for the outer circuit, i.e. the circuit of the recursive verifier
     using OuterBuilder = typename RecursiveFlavor::CircuitBuilder;
-    using OuterFlavor = std::conditional_t<IsGoblinUltraBuilder<OuterBuilder>, GoblinUltraFlavor, UltraFlavor>;
+    using OuterFlavor = std::conditional_t<IsMegaBuilder<OuterBuilder>, MegaFlavor, UltraFlavor>;
     using OuterProver = UltraProver_<OuterFlavor>;
     using OuterVerifier = UltraVerifier_<OuterFlavor>;
     using OuterProverInstance = ProverInstance_<OuterFlavor>;
@@ -365,12 +365,12 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
     };
 };
 
-using FlavorTypes = testing::Types<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
-                                   GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>,
+using FlavorTypes = testing::Types<MegaRecursiveFlavor_<MegaCircuitBuilder>,
+                                   MegaRecursiveFlavor_<UltraCircuitBuilder>,
                                    UltraRecursiveFlavor_<UltraCircuitBuilder>,
-                                   UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
+                                   UltraRecursiveFlavor_<MegaCircuitBuilder>,
                                    UltraRecursiveFlavor_<CircuitSimulatorBN254>,
-                                   GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>>;
+                                   MegaRecursiveFlavor_<CircuitSimulatorBN254>>;
 TYPED_TEST_SUITE(ProtoGalaxyRecursiveTests, FlavorTypes);
 
 TYPED_TEST(ProtoGalaxyRecursiveTests, InnerCircuit)

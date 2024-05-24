@@ -635,7 +635,7 @@
     "isAsync": false
   },
   {
-    "functionName": "acir_prove_and_verify_goblin_ultra_honk",
+    "functionName": "acir_prove_and_verify_mega_honk",
     "inArgs": [
       {
         "name": "constraint_system_buf",

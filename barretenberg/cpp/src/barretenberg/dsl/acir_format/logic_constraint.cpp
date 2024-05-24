@@ -23,12 +23,12 @@ void create_logic_gate(Builder& builder,
     res.assert_equal(our_res);
 }
 
-template void create_logic_gate<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                           const uint32_t a,
-                                                           const uint32_t b,
-                                                           const uint32_t result,
-                                                           const size_t num_bits,
-                                                           const bool is_xor_gate);
+template void create_logic_gate<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                    const uint32_t a,
+                                                    const uint32_t b,
+                                                    const uint32_t result,
+                                                    const size_t num_bits,
+                                                    const bool is_xor_gate);
 template void create_logic_gate<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                      const uint32_t a,
                                                      const uint32_t b,

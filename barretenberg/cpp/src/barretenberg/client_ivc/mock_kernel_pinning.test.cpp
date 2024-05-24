@@ -1,6 +1,6 @@
 #include "barretenberg/client_ivc/client_ivc.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 
 #include <gtest/gtest.h>
 
@@ -13,7 +13,7 @@ using namespace bb;
  */
 class MockKernelTest : public ::testing::Test {
   public:
-    using Builder = GoblinUltraCircuitBuilder;
+    using Builder = MegaCircuitBuilder;
 
   protected:
     static void SetUpTestSuite() { srs::init_crs_factory("../srs_db/ignition"); }

@@ -21,7 +21,7 @@ using StandardCircuitBuilder = StandardCircuitBuilder_<field<Bn254FrParams>>;
 using StandardGrumpkinCircuitBuilder = StandardCircuitBuilder_<field<Bn254FqParams>>;
 template <class Arithmetization> class UltraCircuitBuilder_;
 using UltraCircuitBuilder = UltraCircuitBuilder_<UltraArith<field<Bn254FrParams>>>;
-template <class FF> class GoblinUltraCircuitBuilder_;
-using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<field<Bn254FrParams>>;
+template <class FF> class MegaCircuitBuilder_;
+using MegaCircuitBuilder = MegaCircuitBuilder_<field<Bn254FrParams>>;
 class CircuitSimulatorBN254;
 } // namespace bb

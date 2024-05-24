@@ -81,6 +81,6 @@ template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const HonkP
 }
 
 template class MergeVerifier_<UltraFlavor>;
-template class MergeVerifier_<GoblinUltraFlavor>;
+template class MergeVerifier_<MegaFlavor>;
 
 } // namespace bb

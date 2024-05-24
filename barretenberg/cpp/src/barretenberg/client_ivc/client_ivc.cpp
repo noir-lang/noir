@@ -83,7 +83,7 @@ bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierI
  */
 HonkProof ClientIVC::decider_prove() const
 {
-    GoblinUltraDeciderProver decider_prover(fold_output.accumulator);
+    MegaDeciderProver decider_prover(fold_output.accumulator);
     return decider_prover.construct_proof();
 }
 

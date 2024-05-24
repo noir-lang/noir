@@ -42,8 +42,8 @@ template <typename Builder> fq<Builder> convert_to_grumpkin_fr(Builder& builder,
 
 template fq<UltraCircuitBuilder> convert_to_grumpkin_fr<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                              const fr<UltraCircuitBuilder>& f);
-template fq<GoblinUltraCircuitBuilder> convert_to_grumpkin_fr<GoblinUltraCircuitBuilder>(
-    GoblinUltraCircuitBuilder& builder, const fr<GoblinUltraCircuitBuilder>& f);
+template fq<MegaCircuitBuilder> convert_to_grumpkin_fr<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                           const fr<MegaCircuitBuilder>& f);
 
 template fq<CircuitSimulatorBN254> convert_to_grumpkin_fr<CircuitSimulatorBN254>(CircuitSimulatorBN254& builder,
                                                                                  const fr<CircuitSimulatorBN254>& f);

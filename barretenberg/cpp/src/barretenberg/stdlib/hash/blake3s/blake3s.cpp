@@ -255,5 +255,5 @@ template <typename Builder> byte_array<Builder> blake3s(const byte_array<Builder
 
 template byte_array<bb::StandardCircuitBuilder> blake3s(const byte_array<bb::StandardCircuitBuilder>& input);
 template byte_array<bb::UltraCircuitBuilder> blake3s(const byte_array<bb::UltraCircuitBuilder>& input);
-template byte_array<bb::GoblinUltraCircuitBuilder> blake3s(const byte_array<bb::GoblinUltraCircuitBuilder>& input);
+template byte_array<bb::MegaCircuitBuilder> blake3s(const byte_array<bb::MegaCircuitBuilder>& input);
 } // namespace bb::stdlib

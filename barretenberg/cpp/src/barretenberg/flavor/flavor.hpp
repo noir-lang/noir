@@ -309,10 +309,10 @@ template <typename Tuple, std::size_t Index = 0> static constexpr auto create_tu
 namespace bb {
 class UltraFlavor;
 class ECCVMFlavor;
-class GoblinUltraFlavor;
+class MegaFlavor;
 class TranslatorFlavor;
 template <typename BuilderType> class UltraRecursiveFlavor_;
-template <typename BuilderType> class GoblinUltraRecursiveFlavor_;
+template <typename BuilderType> class MegaRecursiveFlavor_;
 template <typename BuilderType> class TranslatorRecursiveFlavor_;
 } // namespace bb
 
@@ -339,37 +339,37 @@ template <typename T>
 concept IsUltraPlonkFlavor = IsAnyOf<T, plonk::flavor::Ultra>;
 
 template <typename T> 
-concept IsUltraPlonkOrHonk = IsAnyOf<T, plonk::flavor::Ultra, UltraFlavor, GoblinUltraFlavor>;
+concept IsUltraPlonkOrHonk = IsAnyOf<T, plonk::flavor::Ultra, UltraFlavor, MegaFlavor>;
 
 template <typename T> 
-concept IsHonkFlavor = IsAnyOf<T, UltraFlavor, GoblinUltraFlavor>;
+concept IsHonkFlavor = IsAnyOf<T, UltraFlavor, MegaFlavor>;
 
 template <typename T> 
-concept IsUltraFlavor = IsAnyOf<T, UltraFlavor, GoblinUltraFlavor>;
+concept IsUltraFlavor = IsAnyOf<T, UltraFlavor, MegaFlavor>;
 
 template <typename T> 
-concept IsGoblinFlavor = IsAnyOf<T, GoblinUltraFlavor,
-                                    GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>,
-                                    GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>>;
+concept IsGoblinFlavor = IsAnyOf<T, MegaFlavor,
+                                    MegaRecursiveFlavor_<UltraCircuitBuilder>,
+                                    MegaRecursiveFlavor_<MegaCircuitBuilder>, MegaRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 template <typename T> 
 concept IsRecursiveFlavor = IsAnyOf<T, UltraRecursiveFlavor_<UltraCircuitBuilder>, 
-                                       UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 
+                                       UltraRecursiveFlavor_<MegaCircuitBuilder>, 
                                        UltraRecursiveFlavor_<CircuitSimulatorBN254>,
-                                       GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>,
-                                       GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>
-,GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>, TranslatorRecursiveFlavor_<UltraCircuitBuilder>, TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>,  TranslatorRecursiveFlavor_<CircuitSimulatorBN254>>;
+                                       MegaRecursiveFlavor_<UltraCircuitBuilder>,
+                                       MegaRecursiveFlavor_<MegaCircuitBuilder>
+,MegaRecursiveFlavor_<CircuitSimulatorBN254>, TranslatorRecursiveFlavor_<UltraCircuitBuilder>, TranslatorRecursiveFlavor_<MegaCircuitBuilder>,  TranslatorRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 
 template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, ECCVMFlavor>;
 
 template <typename T> concept IsFoldingFlavor = IsAnyOf<T, UltraFlavor, 
-                                                           GoblinUltraFlavor, 
+                                                           MegaFlavor, 
                                                            UltraRecursiveFlavor_<UltraCircuitBuilder>, 
-                                                           UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 
+                                                           UltraRecursiveFlavor_<MegaCircuitBuilder>, 
                                                            UltraRecursiveFlavor_<CircuitSimulatorBN254>,
-                                                           GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>, 
-                                                           GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>>;
+                                                           MegaRecursiveFlavor_<UltraCircuitBuilder>, 
+                                                           MegaRecursiveFlavor_<MegaCircuitBuilder>, MegaRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 template <typename Container, typename Element>
 inline std::string flavor_get_label(Container&& container, const Element& element) {

@@ -8,7 +8,7 @@
 #include "barretenberg/protogalaxy/folding_result.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/utils.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/sumcheck/instance/instances.hpp"
 
@@ -146,7 +146,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * that help establishing each subrelation is independently valid in Honk - from the Plonk paper, DO NOT confuse
      * with α in ProtoGalaxy).
      *
-     * @details When folding GoblinUltra instances, one of the relations is linearly dependent. We define such relations
+     * @details When folding Mega instances, one of the relations is linearly dependent. We define such relations
      * as acting on the entire execution trace and hence requiring to be accumulated separately as we iterate over each
      * row. At the end of the function, the linearly dependent contribution is accumulated at index 0 representing the
      * sum f_0(ω) + α_j*g(ω) where f_0 represents the full honk evaluation at row 0, g(ω) is the linearly dependent

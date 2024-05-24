@@ -4,10 +4,10 @@
 
 namespace bb {
 template class TranslatorDecompositionRelationImpl<stdlib::field_t<UltraCircuitBuilder>>;
-template class TranslatorDecompositionRelationImpl<stdlib::field_t<GoblinUltraCircuitBuilder>>;
+template class TranslatorDecompositionRelationImpl<stdlib::field_t<MegaCircuitBuilder>>;
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorDecompositionRelationImpl,
                                         TranslatorRecursiveFlavor_<UltraCircuitBuilder>);
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorDecompositionRelationImpl,
-                                        TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>);
+                                        TranslatorRecursiveFlavor_<MegaCircuitBuilder>);
 
 } // namespace bb

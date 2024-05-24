@@ -19,7 +19,7 @@ namespace {
  */
 class ClientIVCBench : public benchmark::Fixture {
   public:
-    using Builder = GoblinUltraCircuitBuilder;
+    using Builder = MegaCircuitBuilder;
 
     // Number of function circuits to accumulate(based on Zacs target numbers)
     static constexpr size_t NUM_ITERATIONS_MEDIUM_COMPLEXITY = 6;

@@ -1,5 +1,5 @@
 #include "ultra_circuit_checker.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include <barretenberg/plonk/proof_system/constants.hpp>
 #include <unordered_set>
 
@@ -10,9 +10,9 @@ template <> auto UltraCircuitChecker::init_empty_values<UltraCircuitBuilder_<Ult
     return UltraFlavor::AllValues{};
 }
 
-template <> auto UltraCircuitChecker::init_empty_values<GoblinUltraCircuitBuilder_<bb::fr>>()
+template <> auto UltraCircuitChecker::init_empty_values<MegaCircuitBuilder_<bb::fr>>()
 {
-    return GoblinUltraFlavor::AllValues{};
+    return MegaFlavor::AllValues{};
 }
 
 template <typename Builder> bool UltraCircuitChecker::check(const Builder& builder_in)
@@ -102,7 +102,7 @@ bool UltraCircuitChecker::check_block(Builder& builder,
             info("Failed Lookup check relation at row idx = ", idx);
             return false;
         }
-        if constexpr (IsGoblinUltraBuilder<Builder>) {
+        if constexpr (IsMegaBuilder<Builder>) {
             result = result && check_relation<PoseidonInternal>(values, params);
             if (result == false) {
                 info("Failed PoseidonInternal relation at row idx = ", idx);
@@ -285,7 +285,7 @@ void UltraCircuitChecker::populate_values(
     values.q_elliptic = block.q_elliptic()[idx];
     values.q_aux = block.q_aux()[idx];
     values.q_lookup = block.q_lookup_type()[idx];
-    if constexpr (IsGoblinUltraBuilder<Builder>) {
+    if constexpr (IsMegaBuilder<Builder>) {
         values.q_busread = block.q_busread()[idx];
         values.q_poseidon2_internal = block.q_poseidon2_internal()[idx];
         values.q_poseidon2_external = block.q_poseidon2_external()[idx];
@@ -295,6 +295,5 @@ void UltraCircuitChecker::populate_values(
 // Template method instantiations for each check method
 template bool UltraCircuitChecker::check<UltraCircuitBuilder_<UltraArith<bb::fr>>>(
     const UltraCircuitBuilder_<UltraArith<bb::fr>>& builder_in);
-template bool UltraCircuitChecker::check<GoblinUltraCircuitBuilder_<bb::fr>>(
-    const GoblinUltraCircuitBuilder_<bb::fr>& builder_in);
+template bool UltraCircuitChecker::check<MegaCircuitBuilder_<bb::fr>>(const MegaCircuitBuilder_<bb::fr>& builder_in);
 } // namespace bb

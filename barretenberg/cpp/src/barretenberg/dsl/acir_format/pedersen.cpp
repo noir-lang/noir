@@ -43,9 +43,9 @@ template void create_pedersen_constraint<UltraCircuitBuilder>(UltraCircuitBuilde
                                                               const PedersenConstraint& input);
 template void create_pedersen_hash_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                    const PedersenHashConstraint& input);
-template void create_pedersen_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                    const PedersenConstraint& input);
-template void create_pedersen_hash_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                         const PedersenHashConstraint& input);
+template void create_pedersen_constraint<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                             const PedersenConstraint& input);
+template void create_pedersen_hash_constraint<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                  const PedersenHashConstraint& input);
 
 } // namespace acir_format

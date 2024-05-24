@@ -84,7 +84,7 @@ std::array<typename bn254<CircuitBuilder>::Element, 2> MergeRecursiveVerifier_<C
     return pairing_points;
 }
 
-template class MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
+template class MergeRecursiveVerifier_<MegaCircuitBuilder>;
 template class MergeRecursiveVerifier_<UltraCircuitBuilder>;
 
 } // namespace bb::stdlib::recursion::goblin

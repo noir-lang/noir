@@ -1177,7 +1177,7 @@ std::vector<bool_t<Builder>> field_t<Builder>::decompose_into_bits(
 
 template class field_t<bb::StandardCircuitBuilder>;
 template class field_t<bb::UltraCircuitBuilder>;
-template class field_t<bb::GoblinUltraCircuitBuilder>;
+template class field_t<bb::MegaCircuitBuilder>;
 template class field_t<bb::CircuitSimulatorBN254>;
 
 } // namespace bb::stdlib

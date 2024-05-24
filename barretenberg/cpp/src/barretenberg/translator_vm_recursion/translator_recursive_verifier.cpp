@@ -160,7 +160,7 @@ bool TranslatorRecursiveVerifier_<Flavor>::verify_translation(
     return is_value_reconstructed;
 }
 template class TranslatorRecursiveVerifier_<bb::TranslatorRecursiveFlavor_<UltraCircuitBuilder>>;
-template class TranslatorRecursiveVerifier_<bb::TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
+template class TranslatorRecursiveVerifier_<bb::TranslatorRecursiveFlavor_<MegaCircuitBuilder>>;
 template class TranslatorRecursiveVerifier_<bb::TranslatorRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 } // namespace bb

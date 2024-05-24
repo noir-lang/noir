@@ -1,13 +1,13 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include <cstddef>
 
 namespace acir_format {
 
 template class DSLBigInts<UltraCircuitBuilder>;
-template class DSLBigInts<GoblinUltraCircuitBuilder>;
+template class DSLBigInts<MegaCircuitBuilder>;
 
 template <typename Builder>
 void build_constraints(Builder& builder,
@@ -122,9 +122,9 @@ void build_constraints(Builder& builder,
     }
 
     // RecursionConstraint
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for UGH for now since we're not yet
-    // dealing with proper recursion
-    if constexpr (IsGoblinUltraBuilder<Builder>) {
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for MegaHonk for now since we're
+    // not yet dealing with proper recursion
+    if constexpr (IsMegaBuilder<Builder>) {
         if (!constraint_system.recursion_constraints.empty()) {
             info("WARNING: this circuit contains recursion_constraints!");
         }
@@ -212,9 +212,9 @@ void build_constraints(Builder& builder,
     }
 
     // HonkRecursionConstraint
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for UGH for now since we're not yet
-    // dealing with proper recursion
-    if constexpr (IsGoblinUltraBuilder<Builder>) {
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for MegaHonk for now since we're
+    // not yet dealing with proper recursion
+    if constexpr (IsMegaBuilder<Builder>) {
         if (!constraint_system.honk_recursion_constraints.empty()) {
             info("WARNING: this circuit contains honk_recursion_constraints!");
         }
@@ -353,7 +353,7 @@ UltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
 };
 
 /**
- * @brief Specialization for creating GoblinUltra circuit from acir constraints and optionally a witness
+ * @brief Specialization for creating Mega circuit from acir constraints and optionally a witness
  *
  * @tparam Builder
  * @param constraint_system
@@ -362,15 +362,14 @@ UltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
  * @return Builder
  */
 template <>
-GoblinUltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
-                                         [[maybe_unused]] size_t size_hint,
-                                         WitnessVector const& witness,
-                                         bool honk_recursion)
+MegaCircuitBuilder create_circuit(const AcirFormat& constraint_system,
+                                  [[maybe_unused]] size_t size_hint,
+                                  WitnessVector const& witness,
+                                  bool honk_recursion)
 {
     // Construct a builder using the witness and public input data from acir and with the goblin-owned op_queue
     auto op_queue = std::make_shared<ECCOpQueue>(); // instantiate empty op_queue
-    auto builder =
-        GoblinUltraCircuitBuilder{ op_queue, witness, constraint_system.public_inputs, constraint_system.varnum };
+    auto builder = MegaCircuitBuilder{ op_queue, witness, constraint_system.public_inputs, constraint_system.varnum };
 
     // Populate constraints in the builder via the data in constraint_system
     bool has_valid_witness_assignments = !witness.empty();
@@ -379,6 +378,6 @@ GoblinUltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
     return builder;
 };
 
-template void build_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder&, AcirFormat const&, bool, bool);
+template void build_constraints<MegaCircuitBuilder>(MegaCircuitBuilder&, AcirFormat const&, bool, bool);
 
 } // namespace acir_format

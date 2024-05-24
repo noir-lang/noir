@@ -197,12 +197,11 @@ template <typename Builder> void generate_sha256_test_circuit(Builder& builder, 
 
 template byte_array<bb::StandardCircuitBuilder> sha256_block(const byte_array<bb::StandardCircuitBuilder>& input);
 template byte_array<bb::UltraCircuitBuilder> sha256_block(const byte_array<bb::UltraCircuitBuilder>& input);
-template byte_array<bb::GoblinUltraCircuitBuilder> sha256_block(const byte_array<bb::GoblinUltraCircuitBuilder>& input);
+template byte_array<bb::MegaCircuitBuilder> sha256_block(const byte_array<bb::MegaCircuitBuilder>& input);
 template packed_byte_array<bb::StandardCircuitBuilder> sha256(
     const packed_byte_array<bb::StandardCircuitBuilder>& input);
 template packed_byte_array<bb::UltraCircuitBuilder> sha256(const packed_byte_array<bb::UltraCircuitBuilder>& input);
-template packed_byte_array<bb::GoblinUltraCircuitBuilder> sha256(
-    const packed_byte_array<bb::GoblinUltraCircuitBuilder>& input);
+template packed_byte_array<bb::MegaCircuitBuilder> sha256(const packed_byte_array<bb::MegaCircuitBuilder>& input);
 template void generate_sha256_test_circuit(bb::UltraCircuitBuilder&, size_t);
-template void generate_sha256_test_circuit(bb::GoblinUltraCircuitBuilder&, size_t);
+template void generate_sha256_test_circuit(bb::MegaCircuitBuilder&, size_t);
 } // namespace bb::stdlib

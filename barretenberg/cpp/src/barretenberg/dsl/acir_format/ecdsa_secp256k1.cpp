@@ -165,9 +165,9 @@ template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaS
 template void create_ecdsa_k1_verify_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                       const EcdsaSecp256k1Constraint& input,
                                                                       bool has_valid_witness_assignments);
-template void create_ecdsa_k1_verify_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                            const EcdsaSecp256k1Constraint& input,
-                                                                            bool has_valid_witness_assignments);
+template void create_ecdsa_k1_verify_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                     const EcdsaSecp256k1Constraint& input,
+                                                                     bool has_valid_witness_assignments);
 template void dummy_ecdsa_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                           EcdsaSecp256k1Constraint const& input);
 

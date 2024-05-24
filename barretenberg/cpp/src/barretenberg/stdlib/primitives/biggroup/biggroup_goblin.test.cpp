@@ -77,7 +77,7 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     }
 };
 
-using TestTypes = testing::Types<stdlib::bn254<bb::GoblinUltraCircuitBuilder>>;
+using TestTypes = testing::Types<stdlib::bn254<bb::MegaCircuitBuilder>>;
 
 TYPED_TEST_SUITE(stdlib_biggroup_goblin, TestTypes);
 

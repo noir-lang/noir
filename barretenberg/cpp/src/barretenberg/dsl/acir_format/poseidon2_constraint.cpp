@@ -36,6 +36,6 @@ template <typename Builder> void create_poseidon2_permutations(Builder& builder,
 template void create_poseidon2_permutations<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                  const Poseidon2Constraint& constraint);
 
-template void create_poseidon2_permutations<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                       const Poseidon2Constraint& constraint);
+template void create_poseidon2_permutations<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                const Poseidon2Constraint& constraint);
 } // namespace acir_format

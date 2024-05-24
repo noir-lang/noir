@@ -41,28 +41,27 @@ ModulusId modulus_param_to_id(ModulusParam param)
 template void create_bigint_operations_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
                                                                        DSLBigInts<UltraCircuitBuilder>& dsl_bigint,
                                                                        bool has_valid_witness_assignments);
-template void create_bigint_operations_constraint<GoblinUltraCircuitBuilder>(
-    const BigIntOperation& input,
-    DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint,
-    bool has_valid_witness_assignments);
+template void create_bigint_operations_constraint<MegaCircuitBuilder>(const BigIntOperation& input,
+                                                                      DSLBigInts<MegaCircuitBuilder>& dsl_bigint,
+                                                                      bool has_valid_witness_assignments);
 template void create_bigint_addition_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
                                                                      DSLBigInts<UltraCircuitBuilder>& dsl_bigint);
-template void create_bigint_addition_constraint<GoblinUltraCircuitBuilder>(
-    const BigIntOperation& input, DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint);
+template void create_bigint_addition_constraint<MegaCircuitBuilder>(const BigIntOperation& input,
+                                                                    DSLBigInts<MegaCircuitBuilder>& dsl_bigint);
 template void create_bigint_sub_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
                                                                 DSLBigInts<UltraCircuitBuilder>& dsl_bigint);
-template void create_bigint_sub_constraint<GoblinUltraCircuitBuilder>(
-    const BigIntOperation& input, DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint);
+template void create_bigint_sub_constraint<MegaCircuitBuilder>(const BigIntOperation& input,
+                                                               DSLBigInts<MegaCircuitBuilder>& dsl_bigint);
 template void create_bigint_mul_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
                                                                 DSLBigInts<UltraCircuitBuilder>& dsl_bigint);
-template void create_bigint_mul_constraint<GoblinUltraCircuitBuilder>(
-    const BigIntOperation& input, DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint);
+template void create_bigint_mul_constraint<MegaCircuitBuilder>(const BigIntOperation& input,
+                                                               DSLBigInts<MegaCircuitBuilder>& dsl_bigint);
 template void create_bigint_div_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
                                                                 DSLBigInts<UltraCircuitBuilder>& dsl_bigint,
                                                                 bool has_valid_witness_assignments);
-template void create_bigint_div_constraint<GoblinUltraCircuitBuilder>(const BigIntOperation& input,
-                                                                      DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint,
-                                                                      bool has_valid_witness_assignments);
+template void create_bigint_div_constraint<MegaCircuitBuilder>(const BigIntOperation& input,
+                                                               DSLBigInts<MegaCircuitBuilder>& dsl_bigint,
+                                                               bool has_valid_witness_assignments);
 
 template <typename Builder>
 void create_bigint_addition_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigint)
@@ -457,17 +456,15 @@ void create_bigint_to_le_bytes_constraint(Builder& builder,
 template void create_bigint_from_le_bytes_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                           const BigIntFromLeBytes& input,
                                                                           DSLBigInts<UltraCircuitBuilder>& dsl_bigints);
-template void create_bigint_from_le_bytes_constraint<GoblinUltraCircuitBuilder>(
-    GoblinUltraCircuitBuilder& builder,
-    const BigIntFromLeBytes& input,
-    DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigints);
+template void create_bigint_from_le_bytes_constraint<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                         const BigIntFromLeBytes& input,
+                                                                         DSLBigInts<MegaCircuitBuilder>& dsl_bigints);
 template void create_bigint_to_le_bytes_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                         const BigIntToLeBytes& input,
                                                                         DSLBigInts<UltraCircuitBuilder>& dsl_bigints);
 
-template void create_bigint_to_le_bytes_constraint<GoblinUltraCircuitBuilder>(
-    GoblinUltraCircuitBuilder& builder,
-    const BigIntToLeBytes& input,
-    DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigints);
+template void create_bigint_to_le_bytes_constraint<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                       const BigIntToLeBytes& input,
+                                                                       DSLBigInts<MegaCircuitBuilder>& dsl_bigints);
 
 } // namespace acir_format

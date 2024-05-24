@@ -1364,6 +1364,6 @@ template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator/
 
 template class cycle_group<bb::StandardCircuitBuilder>;
 template class cycle_group<bb::UltraCircuitBuilder>;
-template class cycle_group<bb::GoblinUltraCircuitBuilder>;
+template class cycle_group<bb::MegaCircuitBuilder>;
 
 } // namespace bb::stdlib

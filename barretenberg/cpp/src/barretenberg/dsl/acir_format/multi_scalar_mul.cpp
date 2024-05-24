@@ -44,7 +44,7 @@ template <typename Builder> void create_multi_scalar_mul_constraint(Builder& bui
 
 template void create_multi_scalar_mul_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                       const MultiScalarMul& input);
-template void create_multi_scalar_mul_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                            const MultiScalarMul& input);
+template void create_multi_scalar_mul_constraint<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                     const MultiScalarMul& input);
 
 } // namespace acir_format

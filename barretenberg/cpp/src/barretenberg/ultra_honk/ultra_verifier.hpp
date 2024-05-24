@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/srs/global_crs.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
@@ -30,6 +30,6 @@ template <typename Flavor> class UltraVerifier_ {
 };
 
 using UltraVerifier = UltraVerifier_<UltraFlavor>;
-using GoblinUltraVerifier = UltraVerifier_<GoblinUltraFlavor>;
+using MegaVerifier = UltraVerifier_<MegaFlavor>;
 
 } // namespace bb

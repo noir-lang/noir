@@ -5,7 +5,7 @@
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/plonk_honk_shared/instance_inspector.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
@@ -24,21 +24,21 @@ class DataBusTests : public ::testing::Test {
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
 
-    // Construct and verify a GUH proof for a given circuit
-    static bool construct_and_verify_proof(GoblinUltraCircuitBuilder& builder)
+    // Construct and verify a MegaHonk proof for a given circuit
+    static bool construct_and_verify_proof(MegaCircuitBuilder& builder)
     {
-        GoblinUltraProver prover{ builder };
-        auto verification_key = std::make_shared<GoblinUltraFlavor::VerificationKey>(prover.instance->proving_key);
-        GoblinUltraVerifier verifier{ verification_key };
+        MegaProver prover{ builder };
+        auto verification_key = std::make_shared<MegaFlavor::VerificationKey>(prover.instance->proving_key);
+        MegaVerifier verifier{ verification_key };
         auto proof = prover.construct_proof();
         return verifier.verify_proof(proof);
     }
 
-    // Construct a Goblin Ultra circuit with some arbitrary sample gates
-    static GoblinUltraCircuitBuilder construct_test_builder()
+    // Construct a Mega circuit with some arbitrary sample gates
+    static MegaCircuitBuilder construct_test_builder()
     {
         auto op_queue = std::make_shared<bb::ECCOpQueue>();
-        auto builder = GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = MegaCircuitBuilder{ op_queue };
         GoblinMockCircuits::construct_simple_circuit(builder);
         return builder;
     }

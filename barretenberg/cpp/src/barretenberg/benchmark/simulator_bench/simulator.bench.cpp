@@ -28,7 +28,7 @@ template <typename RecursiveFlavor> class SimulatorFixture : public benchmark::F
     }
 
     /**
-     * @brief Create a Honk proof (either Ultra or GoblinUltra) for a non-trivial circuit.
+     * @brief Create a Honk proof (either Ultra or Mega) for a non-trivial circuit.
      *
      * @param large determines whether the circuit is 2^17 or 2^19
      */
@@ -83,7 +83,7 @@ template <typename RecursiveFlavor> class SimulatorFixture : public benchmark::F
     }
 };
 
-BENCHMARK_TEMPLATE_F(SimulatorFixture, GoblinNative, bb::GoblinUltraRecursiveFlavor_<bb::CircuitSimulatorBN254>)
+BENCHMARK_TEMPLATE_F(SimulatorFixture, GoblinNative, bb::MegaRecursiveFlavor_<bb::CircuitSimulatorBN254>)
 (benchmark::State& state)
 {
     auto verifier_input = SimulatorFixture::create_proof();
@@ -93,7 +93,7 @@ BENCHMARK_TEMPLATE_F(SimulatorFixture, GoblinNative, bb::GoblinUltraRecursiveFla
     }
 }
 
-BENCHMARK_TEMPLATE_F(SimulatorFixture, GoblinSimulated, bb::GoblinUltraRecursiveFlavor_<bb::CircuitSimulatorBN254>)
+BENCHMARK_TEMPLATE_F(SimulatorFixture, GoblinSimulated, bb::MegaRecursiveFlavor_<bb::CircuitSimulatorBN254>)
 (benchmark::State& state)
 {
     auto verifier_input = SimulatorFixture::create_proof();

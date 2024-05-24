@@ -102,7 +102,7 @@ class UltraCircuitChecker {
     /**
      * @brief Helper for initializing an empty AllValues container of the right Flavor based on Builder
      * @details We construct a Flavor::AllValues object from each row of circuit data so that we can use the Relations
-     * to check correctness. UltraFlavor is used for the Ultra builder and GoblinUltraFlavor is used for the GoblinUltra
+     * to check correctness. UltraFlavor is used for the Ultra builder and MegaFlavor is used for the Mega
      * builder
      *
      * @tparam Builder

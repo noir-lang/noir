@@ -273,5 +273,5 @@ template <typename Builder> void DynamicArray<Builder>::conditional_pop(const bo
 }
 
 template class DynamicArray<bb::UltraCircuitBuilder>;
-template class DynamicArray<bb::GoblinUltraCircuitBuilder>;
+template class DynamicArray<bb::MegaCircuitBuilder>;
 } // namespace bb::stdlib

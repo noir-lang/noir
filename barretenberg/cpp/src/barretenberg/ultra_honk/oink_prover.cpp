@@ -174,6 +174,6 @@ template <IsUltraFlavor Flavor> typename Flavor::RelationSeparator OinkProver<Fl
 }
 
 template class OinkProver<UltraFlavor>;
-template class OinkProver<GoblinUltraFlavor>;
+template class OinkProver<MegaFlavor>;
 
 } // namespace bb

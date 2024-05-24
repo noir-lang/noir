@@ -118,6 +118,6 @@ field_t<Builder> logic<Builder>::create_logic_constraint(
 }
 template class logic<bb::StandardCircuitBuilder>;
 template class logic<bb::UltraCircuitBuilder>;
-template class logic<bb::GoblinUltraCircuitBuilder>;
+template class logic<bb::MegaCircuitBuilder>;
 template class logic<bb::CircuitSimulatorBN254>;
 } // namespace bb::stdlib

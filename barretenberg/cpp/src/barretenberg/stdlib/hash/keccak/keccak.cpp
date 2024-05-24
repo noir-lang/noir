@@ -917,8 +917,8 @@ template <typename Builder> void generate_keccak_test_circuit(Builder& builder, 
 
 template class keccak<bb::CircuitSimulatorBN254>;
 template class keccak<bb::UltraCircuitBuilder>;
-template class keccak<bb::GoblinUltraCircuitBuilder>;
+template class keccak<bb::MegaCircuitBuilder>;
 template void generate_keccak_test_circuit(bb::UltraCircuitBuilder&, size_t);
-template void generate_keccak_test_circuit(bb::GoblinUltraCircuitBuilder&, size_t);
+template void generate_keccak_test_circuit(bb::MegaCircuitBuilder&, size_t);
 
 } // namespace bb::stdlib

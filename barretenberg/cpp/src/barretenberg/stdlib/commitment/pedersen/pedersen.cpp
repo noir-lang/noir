@@ -42,6 +42,6 @@ cycle_group<C> pedersen_commitment<C>::commit(const std::vector<std::pair<field_
 
 template class pedersen_commitment<bb::StandardCircuitBuilder>;
 template class pedersen_commitment<bb::UltraCircuitBuilder>;
-template class pedersen_commitment<bb::GoblinUltraCircuitBuilder>;
+template class pedersen_commitment<bb::MegaCircuitBuilder>;
 
 } // namespace bb::stdlib

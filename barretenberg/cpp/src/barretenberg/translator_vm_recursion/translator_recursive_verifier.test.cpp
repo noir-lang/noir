@@ -34,7 +34,7 @@ template <typename RecursiveFlavor> class TranslatorRecursiveTests : public ::te
     using RecursiveVerifier = TranslatorRecursiveVerifier_<RecursiveFlavor>;
 
     using OuterBuilder = typename RecursiveFlavor::CircuitBuilder;
-    using OuterFlavor = std::conditional_t<IsGoblinUltraBuilder<OuterBuilder>, GoblinUltraFlavor, UltraFlavor>;
+    using OuterFlavor = std::conditional_t<IsMegaBuilder<OuterBuilder>, MegaFlavor, UltraFlavor>;
     using OuterProver = UltraProver_<OuterFlavor>;
     using OuterVerifier = UltraVerifier_<OuterFlavor>;
     using OuterProverInstance = ProverInstance_<OuterFlavor>;
@@ -123,7 +123,7 @@ template <typename RecursiveFlavor> class TranslatorRecursiveTests : public ::te
 };
 
 using FlavorTypes = testing::Types<TranslatorRecursiveFlavor_<UltraCircuitBuilder>,
-                                   TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>,
+                                   TranslatorRecursiveFlavor_<MegaCircuitBuilder>,
                                    TranslatorRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 TYPED_TEST_SUITE(TranslatorRecursiveTests, FlavorTypes);

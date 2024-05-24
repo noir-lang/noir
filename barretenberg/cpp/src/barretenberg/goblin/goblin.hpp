@@ -6,8 +6,8 @@
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/plonk_honk_shared/instance_inspector.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/translator_vm/translator_circuit_builder.hpp"
 #include "barretenberg/translator_vm/translator_prover.hpp"
 #include "barretenberg/translator_vm/translator_verifier.hpp"
@@ -19,15 +19,15 @@
 namespace bb {
 
 class Goblin {
-    using GoblinUltraCircuitBuilder = bb::GoblinUltraCircuitBuilder;
-    using Commitment = GoblinUltraFlavor::Commitment;
-    using FF = GoblinUltraFlavor::FF;
+    using MegaCircuitBuilder = bb::MegaCircuitBuilder;
+    using Commitment = MegaFlavor::Commitment;
+    using FF = MegaFlavor::FF;
 
   public:
-    using Builder = GoblinUltraCircuitBuilder;
+    using Builder = MegaCircuitBuilder;
     using Fr = bb::fr;
     using Transcript = NativeTranscript;
-    using GoblinUltraProverInstance = ProverInstance_<GoblinUltraFlavor>;
+    using MegaProverInstance = ProverInstance_<MegaFlavor>;
     using OpQueue = bb::ECCOpQueue;
     using ECCVMFlavor = bb::ECCVMFlavor;
     using ECCVMBuilder = bb::ECCVMCircuitBuilder;
@@ -35,17 +35,17 @@ class Goblin {
     using TranslationEvaluations = ECCVMProver::TranslationEvaluations;
     using TranslatorBuilder = bb::TranslatorCircuitBuilder;
     using TranslatorProver = bb::TranslatorProver;
-    using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
-    using MergeProver = bb::MergeProver_<GoblinUltraFlavor>;
-    using MergeVerifier = bb::MergeVerifier_<GoblinUltraFlavor>;
-    using VerificationKey = GoblinUltraFlavor::VerificationKey;
+    using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<MegaCircuitBuilder>;
+    using MergeProver = bb::MergeProver_<MegaFlavor>;
+    using MergeVerifier = bb::MergeVerifier_<MegaFlavor>;
+    using VerificationKey = MegaFlavor::VerificationKey;
     /**
      * @brief Output of goblin::accumulate; an Ultra proof and the corresponding verification key
      *
      */
     struct AccumulationOutput {
         HonkProof proof;
-        std::shared_ptr<GoblinUltraFlavor::VerificationKey> verification_key;
+        std::shared_ptr<MegaFlavor::VerificationKey> verification_key;
     };
 
     struct Proof {
@@ -100,12 +100,12 @@ class Goblin {
         GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(op_queue);
     }
     /**
-     * @brief Construct a GUH proof and a merge proof for the present circuit.
+     * @brief Construct a MegaHonk proof and a merge proof for the present circuit.
      * @details If there is a previous merge proof, recursively verify it.
      *
      * @param circuit_builder
      */
-    AccumulationOutput accumulate(GoblinUltraCircuitBuilder& circuit_builder)
+    AccumulationOutput accumulate(MegaCircuitBuilder& circuit_builder)
     {
         // Complete the circuit logic by recursively verifying previous merge proof if it exists
         if (merge_proof_exists) {
@@ -114,8 +114,8 @@ class Goblin {
         }
 
         // Construct a Honk proof for the main circuit
-        auto instance = std::make_shared<GoblinUltraProverInstance>(circuit_builder);
-        GoblinUltraProver prover(instance);
+        auto instance = std::make_shared<MegaProverInstance>(circuit_builder);
+        MegaProver prover(instance);
         auto ultra_proof = prover.construct_proof();
         auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
 
@@ -138,7 +138,7 @@ class Goblin {
      *
      * @param circuit_builder
      */
-    void merge(GoblinUltraCircuitBuilder& circuit_builder)
+    void merge(MegaCircuitBuilder& circuit_builder)
     {
         BB_OP_COUNT_TIME_NAME("Goblin::merge");
         // Complete the circuit logic by recursively verifying previous merge proof if it exists
@@ -224,12 +224,12 @@ class Goblin {
     // there will be agreement and no acir-specific methods should be needed.
 
     /**
-     * @brief Construct a GUH proof for the given circuit. (No merge proof for now)
+     * @brief Construct a MegaHonk proof for the given circuit. (No merge proof for now)
      *
      * @param circuit_builder
      * @return std::vector<bb::fr>
      */
-    std::vector<bb::fr> accumulate_for_acir(GoblinUltraCircuitBuilder& circuit_builder)
+    std::vector<bb::fr> accumulate_for_acir(MegaCircuitBuilder& circuit_builder)
     {
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): no merge prover for now
         // // Complete the circuit logic by recursively verifying previous merge proof if it exists
@@ -239,8 +239,8 @@ class Goblin {
         // }
 
         // Construct a Honk proof for the main circuit
-        auto instance = std::make_shared<GoblinUltraProverInstance>(circuit_builder);
-        GoblinUltraProver prover(instance);
+        auto instance = std::make_shared<MegaProverInstance>(circuit_builder);
+        MegaProver prover(instance);
         auto ultra_proof = prover.construct_proof();
         auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
 
@@ -260,7 +260,7 @@ class Goblin {
     };
 
     /**
-     * @brief Verify a GUH proof
+     * @brief Verify a MegaHonk proof
      *
      * @param proof_buf
      * @return true
@@ -268,7 +268,7 @@ class Goblin {
      */
     bool verify_accumulator_for_acir(const std::vector<bb::fr>& proof_buf) const
     {
-        GoblinUltraVerifier verifier{ accumulator.verification_key };
+        MegaVerifier verifier{ accumulator.verification_key };
         HonkProof proof{ proof_buf };
         bool verified = verifier.verify_proof(proof);
 

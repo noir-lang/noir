@@ -19,14 +19,14 @@
 #include "barretenberg/relations/poseidon2_internal_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
 
-class GoblinUltraFlavor {
+class MegaFlavor {
   public:
-    using CircuitBuilder = GoblinUltraCircuitBuilder;
+    using CircuitBuilder = MegaCircuitBuilder;
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
     using GroupElement = Curve::Element;
@@ -52,7 +52,7 @@ class GoblinUltraFlavor {
     using GrandProductRelations = std::tuple<bb::UltraPermutationRelation<FF>, bb::LookupRelation<FF>>;
 
     // define the tuple of Relations that comprise the Sumcheck relation
-    // Note: made generic for use in GoblinUltraRecursive.
+    // Note: made generic for use in MegaRecursive.
     template <typename FF>
     using Relations_ = std::tuple<bb::UltraArithmeticRelation<FF>,
                                   bb::UltraPermutationRelation<FF>,
@@ -162,7 +162,7 @@ class GoblinUltraFlavor {
         auto get_table_polynomials() { return RefArray{ table_1, table_2, table_3, table_4 }; };
     };
 
-    // GoblinUltra needs to expose more public classes than most flavors due to GoblinUltraRecursive reuse, but these
+    // Mega needs to expose more public classes than most flavors due to MegaRecursive reuse, but these
     // are internal:
   public:
     // WireEntities for basic witness entities
@@ -428,18 +428,18 @@ class GoblinUltraFlavor {
          */
         void compute_grand_product_polynomials(RelationParameters<FF>& relation_parameters)
         {
-            auto public_input_delta = compute_public_input_delta<GoblinUltraFlavor>(this->public_inputs,
-                                                                                    relation_parameters.beta,
-                                                                                    relation_parameters.gamma,
-                                                                                    this->circuit_size,
-                                                                                    this->pub_inputs_offset);
+            auto public_input_delta = compute_public_input_delta<MegaFlavor>(this->public_inputs,
+                                                                             relation_parameters.beta,
+                                                                             relation_parameters.gamma,
+                                                                             this->circuit_size,
+                                                                             this->pub_inputs_offset);
             relation_parameters.public_input_delta = public_input_delta;
             auto lookup_grand_product_delta = compute_lookup_grand_product_delta(
                 relation_parameters.beta, relation_parameters.gamma, this->circuit_size);
             relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
 
             // Compute permutation and lookup grand product polynomials
-            compute_grand_products<GoblinUltraFlavor>(this->polynomials, relation_parameters);
+            compute_grand_products<MegaFlavor>(this->polynomials, relation_parameters);
         }
     };
 
@@ -702,7 +702,7 @@ class GoblinUltraFlavor {
     };
 
     /**
-     * Note: Made generic for use in GoblinUltraRecursive.
+     * Note: Made generic for use in MegaRecursive.
      **/
     template <typename Commitment, typename VerificationKey>
     class VerifierCommitments_ : public AllEntities<Commitment> {
@@ -763,12 +763,12 @@ class GoblinUltraFlavor {
             }
         }
     };
-    // Specialize for GoblinUltra (general case used in GoblinUltraRecursive).
+    // Specialize for Mega (general case used in MegaRecursive).
     using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
 
     /**
-     * @brief Derived class that defines proof structure for GoblinUltra proofs, as well as supporting functions.
-     * Note: Made generic for use in GoblinUltraRecursive.
+     * @brief Derived class that defines proof structure for Mega proofs, as well as supporting functions.
+     * Note: Made generic for use in MegaRecursive.
      * TODO(https://github.com/AztecProtocol/barretenberg/issues/877): Remove this Commitment template parameter
      */
     template <typename Commitment> class Transcript_ : public NativeTranscript {
@@ -904,7 +904,7 @@ class GoblinUltraFlavor {
             ASSERT(proof_data.size() == old_proof_length);
         }
     };
-    // Specialize for GoblinUltra (general case used in GoblinUltraRecursive).
+    // Specialize for Mega (general case used in MegaRecursive).
     using Transcript = Transcript_<Commitment>;
 };
 

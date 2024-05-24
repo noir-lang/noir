@@ -11,15 +11,15 @@
 #include "barretenberg/stdlib/honk_recursion/transcript/transcript.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 
 namespace bb {
 
 /**
- * @brief The recursive counterpart to the "native" Goblin Ultra flavor.
+ * @brief The recursive counterpart to the "native" Mega flavor.
  * @details This flavor can be used to instantiate a recursive Ultra Honk verifier for a proof created using the
- * GoblinUltra flavor. It is similar in structure to its native counterpart with two main differences: 1) the
+ * Mega flavor. It is similar in structure to its native counterpart with two main differences: 1) the
  * curve types are stdlib types (e.g. field_t instead of field) and 2) it does not specify any Prover related types
  * (e.g. Polynomial, ExtendedEdges, etc.) since we do not emulate prover computation in circuits, i.e. it only makes
  * sense to instantiate a Verifier with this flavor.
@@ -30,7 +30,7 @@ namespace bb {
  *
  * @tparam BuilderType Determines the arithmetization of the verifier circuit defined based on this flavor.
  */
-template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
+template <typename BuilderType> class MegaRecursiveFlavor_ {
   public:
     using CircuitBuilder = BuilderType; // Determines arithmetization of circuit instantiated with this flavor
     using Curve = stdlib::bn254<CircuitBuilder>;
@@ -38,26 +38,26 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
     using GroupElement = typename Curve::Element;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::Element;
-    using NativeFlavor = GoblinUltraFlavor;
+    using NativeFlavor = MegaFlavor;
     using NativeVerificationKey = NativeFlavor::VerificationKey;
 
     // Note(luke): Eventually this may not be needed at all
     using VerifierCommitmentKey = bb::VerifierCommitmentKey<NativeFlavor::Curve>;
 
-    static constexpr size_t NUM_WIRES = GoblinUltraFlavor::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = MegaFlavor::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
-    static constexpr size_t NUM_ALL_ENTITIES = GoblinUltraFlavor::NUM_ALL_ENTITIES;
+    static constexpr size_t NUM_ALL_ENTITIES = MegaFlavor::NUM_ALL_ENTITIES;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = GoblinUltraFlavor::NUM_PRECOMPUTED_ENTITIES;
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = MegaFlavor::NUM_PRECOMPUTED_ENTITIES;
     // The total number of witness entities not including shifts.
-    static constexpr size_t NUM_WITNESS_ENTITIES = GoblinUltraFlavor::NUM_WITNESS_ENTITIES;
+    static constexpr size_t NUM_WITNESS_ENTITIES = MegaFlavor::NUM_WITNESS_ENTITIES;
 
     // define the tuple of Relations that comprise the Sumcheck relation
-    // Reuse the Relations from GoblinUltra
-    using Relations = GoblinUltraFlavor::Relations_<FF>;
+    // Reuse the Relations from Mega
+    using Relations = MegaFlavor::Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
@@ -82,9 +82,9 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
      * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
      * at one point.
      */
-    class AllValues : public GoblinUltraFlavor::AllEntities<FF> {
+    class AllValues : public MegaFlavor::AllEntities<FF> {
       public:
-        using Base = GoblinUltraFlavor::AllEntities<FF>;
+        using Base = MegaFlavor::AllEntities<FF>;
         using Base::Base;
     };
     /**
@@ -94,10 +94,10 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
      * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to resolve
      * that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for portability of our
      * circuits.
-     * This differs from GoblinUltra in how we construct the commitments.
+     * This differs from Mega in how we construct the commitments.
      */
     class VerificationKey
-        : public VerificationKey_<GoblinUltraFlavor::PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
+        : public VerificationKey_<MegaFlavor::PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
         {
@@ -190,12 +190,12 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
     /**
      * @brief A container for the witness commitments.
      */
-    using WitnessCommitments = GoblinUltraFlavor::WitnessEntities<Commitment>;
+    using WitnessCommitments = MegaFlavor::WitnessEntities<Commitment>;
 
-    using CommitmentLabels = GoblinUltraFlavor::CommitmentLabels;
-    // Reuse the VerifierCommitments from GoblinUltra
-    using VerifierCommitments = GoblinUltraFlavor::VerifierCommitments_<Commitment, VerificationKey>;
-    // Reuse the transcript from GoblinUltra
+    using CommitmentLabels = MegaFlavor::CommitmentLabels;
+    // Reuse the VerifierCommitments from Mega
+    using VerifierCommitments = MegaFlavor::VerifierCommitments_<Commitment, VerificationKey>;
+    // Reuse the transcript from Mega
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<CircuitBuilder>>;
 };
 

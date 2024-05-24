@@ -33,7 +33,7 @@ template <typename Builder> class StdlibFieldConversionTests : public ::testing:
     }
 };
 
-using BuilderTypes = testing::Types<UltraCircuitBuilder, GoblinUltraCircuitBuilder>;
+using BuilderTypes = testing::Types<UltraCircuitBuilder, MegaCircuitBuilder>;
 
 TYPED_TEST_SUITE(StdlibFieldConversionTests, BuilderTypes);
 

@@ -2,7 +2,7 @@
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
@@ -54,6 +54,6 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
 };
 
 using UltraDeciderProver = DeciderProver_<UltraFlavor>;
-using GoblinUltraDeciderProver = DeciderProver_<GoblinUltraFlavor>;
+using MegaDeciderProver = DeciderProver_<MegaFlavor>;
 
 } // namespace bb

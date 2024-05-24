@@ -9,14 +9,14 @@ namespace bb {
 
 using namespace bb;
 
-template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBuilder_<UltraHonkArith<FF>> {
+template <typename FF> class MegaCircuitBuilder_ : public UltraCircuitBuilder_<UltraHonkArith<FF>> {
   private:
     DataBus databus; // Container for public calldata/returndata
 
   public:
     using Arithmetization = UltraHonkArith<FF>;
 
-    static constexpr std::string_view NAME_STRING = "GoblinUltraArithmetization";
+    static constexpr std::string_view NAME_STRING = "MegaArithmetization";
     static constexpr CircuitType CIRCUIT_TYPE = CircuitType::ULTRA;
     static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS =
         UltraCircuitBuilder_<UltraHonkArith<FF>>::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
@@ -42,16 +42,16 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     void apply_databus_selectors(BusId bus_idx);
 
   public:
-    GoblinUltraCircuitBuilder_(const size_t size_hint = 0,
-                               std::shared_ptr<ECCOpQueue> op_queue_in = std::make_shared<ECCOpQueue>())
+    MegaCircuitBuilder_(const size_t size_hint = 0,
+                        std::shared_ptr<ECCOpQueue> op_queue_in = std::make_shared<ECCOpQueue>())
         : UltraCircuitBuilder_<UltraHonkArith<FF>>(size_hint)
         , op_queue(op_queue_in)
     {
         // Set indices to constants corresponding to Goblin ECC op codes
         set_goblin_ecc_op_code_constant_variables();
     };
-    GoblinUltraCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in)
-        : GoblinUltraCircuitBuilder_(0, op_queue_in)
+    MegaCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in)
+        : MegaCircuitBuilder_(0, op_queue_in)
     {}
 
     /**
@@ -68,10 +68,10 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
      * number of variables/witnesses that might be present for a circuit generated from acir, since many gates will
      * depend on the details of the bberg implementation (or more generally on the backend used to process acir).
      */
-    GoblinUltraCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in,
-                               auto& witness_values,
-                               const std::vector<uint32_t>& public_inputs,
-                               size_t varnum)
+    MegaCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in,
+                        auto& witness_values,
+                        const std::vector<uint32_t>& public_inputs,
+                        size_t varnum)
         : UltraCircuitBuilder_<UltraHonkArith<FF>>(/*size_hint=*/0, witness_values, public_inputs, varnum)
         , op_queue(op_queue_in)
     {
@@ -137,7 +137,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
      */
     size_t get_num_gates_added_to_ensure_nonzero_polynomials()
     {
-        GoblinUltraCircuitBuilder_<FF> builder; // instantiate new builder
+        MegaCircuitBuilder_<FF> builder; // instantiate new builder
 
         size_t num_gates_prior = builder.get_num_gates();
         builder.add_gates_to_ensure_all_polys_are_non_zero();
@@ -214,5 +214,5 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
     void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);
 };
-using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<bb::fr>;
+using MegaCircuitBuilder = MegaCircuitBuilder_<bb::fr>;
 } // namespace bb

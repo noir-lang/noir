@@ -262,16 +262,16 @@ std::pair<uint_plookup<Builder, Native>, uint_plookup<Builder, Native>> uint_plo
     return std::make_pair(quotient, remainder);
 }
 template class uint_plookup<bb::UltraCircuitBuilder, uint8_t>;
-template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint8_t>;
+template class uint_plookup<bb::MegaCircuitBuilder, uint8_t>;
 template class uint_plookup<bb::CircuitSimulatorBN254, uint8_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint16_t>;
-template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint16_t>;
+template class uint_plookup<bb::MegaCircuitBuilder, uint16_t>;
 template class uint_plookup<bb::CircuitSimulatorBN254, uint16_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint32_t>;
-template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint32_t>;
+template class uint_plookup<bb::MegaCircuitBuilder, uint32_t>;
 template class uint_plookup<bb::CircuitSimulatorBN254, uint32_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint64_t>;
-template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint64_t>;
+template class uint_plookup<bb::MegaCircuitBuilder, uint64_t>;
 template class uint_plookup<bb::CircuitSimulatorBN254, uint64_t>;
 
 } // namespace bb::stdlib

@@ -23,7 +23,7 @@ void GoblinAcirComposer::create_circuit(acir_format::AcirFormat& constraint_syst
 
 std::vector<bb::fr> GoblinAcirComposer::accumulate_and_prove()
 {
-    // Construct one final GUH proof via the accumulate mechanism
+    // Construct one final MegaHonk proof via the accumulate mechanism
     std::vector<bb::fr> ultra_proof = goblin.accumulate_for_acir(builder_);
 
     // Construct a Goblin proof (ECCVM, Translator, Merge); result stored internally
@@ -34,7 +34,7 @@ std::vector<bb::fr> GoblinAcirComposer::accumulate_and_prove()
 
 bool GoblinAcirComposer::verify(std::vector<bb::fr> const& proof)
 {
-    // Verify the final GUH proof
+    // Verify the final MegaHonk proof
     bool ultra_verified = goblin.verify_accumulator_for_acir(proof);
 
     // Verify the Goblin proof (ECCVM, Translator, Merge)

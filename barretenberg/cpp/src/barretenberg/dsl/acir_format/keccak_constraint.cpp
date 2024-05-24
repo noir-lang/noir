@@ -65,10 +65,10 @@ template void create_keccak_constraints<UltraCircuitBuilder>(UltraCircuitBuilder
 template void create_keccak_permutations<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                               const Keccakf1600& constraint);
 
-template void create_keccak_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                   const KeccakConstraint& constraint);
+template void create_keccak_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                            const KeccakConstraint& constraint);
 
-template void create_keccak_permutations<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                    const Keccakf1600& constraint);
+template void create_keccak_permutations<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                             const Keccakf1600& constraint);
 
 } // namespace acir_format

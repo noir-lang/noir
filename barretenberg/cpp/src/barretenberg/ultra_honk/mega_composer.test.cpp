@@ -4,7 +4,7 @@
 
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/merge_prover.hpp"
 #include "barretenberg/ultra_honk/merge_verifier.hpp"
@@ -16,7 +16,7 @@ using namespace bb;
 namespace {
 auto& engine = numeric::get_debug_randomness();
 
-class GoblinUltraHonkComposerTests : public ::testing::Test {
+class MegaHonkComposerTests : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 
@@ -24,8 +24,8 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
     using FF = Curve::ScalarField;
     using Point = Curve::AffineElement;
     using CommitmentKey = bb::CommitmentKey<Curve>;
-    using MergeProver = MergeProver_<GoblinUltraFlavor>;
-    using MergeVerifier = MergeVerifier_<GoblinUltraFlavor>;
+    using MergeProver = MergeProver_<MegaFlavor>;
+    using MergeVerifier = MergeVerifier_<MegaFlavor>;
 
     /**
      * @brief Construct and a verify a Honk proof
@@ -33,10 +33,10 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
      */
     bool construct_and_verify_honk_proof(auto& builder)
     {
-        auto instance = std::make_shared<ProverInstance_<GoblinUltraFlavor>>(builder);
-        GoblinUltraProver prover(instance);
-        auto verification_key = std::make_shared<GoblinUltraFlavor::VerificationKey>(instance->proving_key);
-        GoblinUltraVerifier verifier(verification_key);
+        auto instance = std::make_shared<ProverInstance_<MegaFlavor>>(builder);
+        MegaProver prover(instance);
+        auto verification_key = std::make_shared<MegaFlavor::VerificationKey>(instance->proving_key);
+        MegaVerifier verifier(verification_key);
         auto proof = prover.construct_proof();
         bool verified = verifier.verify_proof(proof);
 
@@ -64,9 +64,9 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
  * gates
  *
  */
-TEST_F(GoblinUltraHonkComposerTests, Basic)
+TEST_F(MegaHonkComposerTests, Basic)
 {
-    GoblinUltraCircuitBuilder builder;
+    MegaCircuitBuilder builder;
 
     GoblinMockCircuits::construct_simple_circuit(builder);
 
@@ -79,18 +79,18 @@ TEST_F(GoblinUltraHonkComposerTests, Basic)
  * @brief Test proof construction/verification for a structured execution trace
  *
  */
-TEST_F(GoblinUltraHonkComposerTests, BasicStructured)
+TEST_F(MegaHonkComposerTests, BasicStructured)
 {
-    GoblinUltraCircuitBuilder builder;
+    MegaCircuitBuilder builder;
 
     GoblinMockCircuits::construct_simple_circuit(builder);
 
     // Construct and verify Honk proof using a structured trace
     bool structured = true;
-    auto instance = std::make_shared<ProverInstance_<GoblinUltraFlavor>>(builder, structured);
-    GoblinUltraProver prover(instance);
-    auto verification_key = std::make_shared<GoblinUltraFlavor::VerificationKey>(instance->proving_key);
-    GoblinUltraVerifier verifier(verification_key);
+    auto instance = std::make_shared<ProverInstance_<MegaFlavor>>(builder, structured);
+    MegaProver prover(instance);
+    auto verification_key = std::make_shared<MegaFlavor::VerificationKey>(instance->proving_key);
+    MegaVerifier verifier(verification_key);
     auto proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -102,12 +102,12 @@ TEST_F(GoblinUltraHonkComposerTests, BasicStructured)
  * with non-empty 'previous' data. This avoid complications with zero-commitments etc.
  *
  */
-TEST_F(GoblinUltraHonkComposerTests, SingleCircuit)
+TEST_F(MegaHonkComposerTests, SingleCircuit)
 {
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(op_queue);
-    auto builder = GoblinUltraCircuitBuilder{ op_queue };
+    auto builder = MegaCircuitBuilder{ op_queue };
 
     GoblinMockCircuits::construct_simple_circuit(builder);
 
@@ -125,7 +125,7 @@ TEST_F(GoblinUltraHonkComposerTests, SingleCircuit)
  * basic arithmetic gates
  *
  */
-TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
+TEST_F(MegaHonkComposerTests, MultipleCircuitsMergeOnly)
 {
     // Instantiate EccOpQueue. This will be shared across all circuits in the series
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
@@ -135,7 +135,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
     // Construct multiple test circuits that share an ECC op queue. Generate and verify a proof for each.
     size_t NUM_CIRCUITS = 3;
     for (size_t i = 0; i < NUM_CIRCUITS; ++i) {
-        auto builder = GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = MegaCircuitBuilder{ op_queue };
 
         GoblinMockCircuits::construct_simple_circuit(builder);
 
@@ -150,7 +150,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
  * basic arithmetic gates
  *
  */
-TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkOnly)
+TEST_F(MegaHonkComposerTests, MultipleCircuitsHonkOnly)
 {
     // Instantiate EccOpQueue. This will be shared across all circuits in the series
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
@@ -160,7 +160,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkOnly)
     // Construct multiple test circuits that share an ECC op queue. Generate and verify a proof for each.
     size_t NUM_CIRCUITS = 3;
     for (size_t i = 0; i < NUM_CIRCUITS; ++i) {
-        auto builder = GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = MegaCircuitBuilder{ op_queue };
 
         GoblinMockCircuits::construct_simple_circuit(builder);
 
@@ -175,7 +175,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkOnly)
  * and basic arithmetic gates
  *
  */
-TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
+TEST_F(MegaHonkComposerTests, MultipleCircuitsHonkAndMerge)
 {
     // Instantiate EccOpQueue. This will be shared across all circuits in the series
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
@@ -185,7 +185,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
     // Construct multiple test circuits that share an ECC op queue. Generate and verify a proof for each.
     size_t NUM_CIRCUITS = 3;
     for (size_t i = 0; i < NUM_CIRCUITS; ++i) {
-        auto builder = GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = MegaCircuitBuilder{ op_queue };
 
         GoblinMockCircuits::construct_simple_circuit(builder);
 

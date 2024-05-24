@@ -61,6 +61,6 @@ template <IsUltraFlavor Flavor> HonkProof UltraProver_<Flavor>::construct_proof(
 }
 
 template class UltraProver_<UltraFlavor>;
-template class UltraProver_<GoblinUltraFlavor>;
+template class UltraProver_<MegaFlavor>;
 
 } // namespace bb

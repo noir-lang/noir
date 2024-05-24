@@ -31,7 +31,7 @@ template <typename Builder> class RecursiveVeriferCommitmentKeyTest : public tes
     }
 };
 
-using Builders = testing::Types<UltraCircuitBuilder, GoblinUltraCircuitBuilder>;
+using Builders = testing::Types<UltraCircuitBuilder, MegaCircuitBuilder>;
 
 TYPED_TEST_SUITE(RecursiveVeriferCommitmentKeyTest, Builders);
 

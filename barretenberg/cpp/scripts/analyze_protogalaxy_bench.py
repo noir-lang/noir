@@ -3,7 +3,7 @@ from pathlib import Path
 
 PREFIX = Path("build-op-count-time")
 PROTOGALAXY_BENCH_JSON = Path("protogalaxy_bench.json")
-BENCHMARK = "fold_k<GoblinUltraFlavor, 3>/16"
+BENCHMARK = "fold_k<MegaFlavor, 3>/16"
 
 # Single out an independent set of functions accounting for most of BENCHMARK's real_time
 to_keep = [

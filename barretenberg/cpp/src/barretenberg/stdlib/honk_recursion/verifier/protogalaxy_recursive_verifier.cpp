@@ -221,14 +221,11 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
 
 template class ProtoGalaxyRecursiveVerifier_<
     RecursiveVerifierInstances_<UltraRecursiveFlavor_<UltraCircuitBuilder>, 2>>;
-template class ProtoGalaxyRecursiveVerifier_<
-    RecursiveVerifierInstances_<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 2>>;
-template class ProtoGalaxyRecursiveVerifier_<
-    RecursiveVerifierInstances_<UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 2>>;
-template class ProtoGalaxyRecursiveVerifier_<
-    RecursiveVerifierInstances_<GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances_<MegaRecursiveFlavor_<MegaCircuitBuilder>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances_<UltraRecursiveFlavor_<MegaCircuitBuilder>, 2>>;
+template class ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances_<MegaRecursiveFlavor_<UltraCircuitBuilder>, 2>>;
 template class ProtoGalaxyRecursiveVerifier_<
     RecursiveVerifierInstances_<UltraRecursiveFlavor_<CircuitSimulatorBN254>, 2>>;
 template class ProtoGalaxyRecursiveVerifier_<
-    RecursiveVerifierInstances_<GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>, 2>>;
+    RecursiveVerifierInstances_<MegaRecursiveFlavor_<CircuitSimulatorBN254>, 2>>;
 } // namespace bb::stdlib::recursion::honk

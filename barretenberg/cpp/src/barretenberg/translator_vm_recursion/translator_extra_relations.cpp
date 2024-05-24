@@ -5,15 +5,15 @@
 namespace bb {
 template class TranslatorOpcodeConstraintRelationImpl<stdlib::field_t<UltraCircuitBuilder>>;
 template class TranslatorAccumulatorTransferRelationImpl<stdlib::field_t<UltraCircuitBuilder>>;
-template class TranslatorOpcodeConstraintRelationImpl<stdlib::field_t<GoblinUltraCircuitBuilder>>;
-template class TranslatorAccumulatorTransferRelationImpl<stdlib::field_t<GoblinUltraCircuitBuilder>>;
+template class TranslatorOpcodeConstraintRelationImpl<stdlib::field_t<MegaCircuitBuilder>>;
+template class TranslatorAccumulatorTransferRelationImpl<stdlib::field_t<MegaCircuitBuilder>>;
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorOpcodeConstraintRelationImpl,
                                         TranslatorRecursiveFlavor_<UltraCircuitBuilder>);
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorOpcodeConstraintRelationImpl,
-                                        TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>);
+                                        TranslatorRecursiveFlavor_<MegaCircuitBuilder>);
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorAccumulatorTransferRelationImpl,
                                         TranslatorRecursiveFlavor_<UltraCircuitBuilder>);
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorAccumulatorTransferRelationImpl,
-                                        TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>);
+                                        TranslatorRecursiveFlavor_<MegaCircuitBuilder>);
 
 } // namespace bb

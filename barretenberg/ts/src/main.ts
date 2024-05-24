@@ -151,14 +151,14 @@ export async function proveAndVerifyUltraHonk(bytecodePath: string, witnessPath:
   /* eslint-enable camelcase */
 }
 
-export async function proveAndVerifyGoblinUltraHonk(bytecodePath: string, witnessPath: string, crsPath: string) {
+export async function proveAndVerifyMegaHonk(bytecodePath: string, witnessPath: string, crsPath: string) {
   /* eslint-disable camelcase */
   const { api } = await init(bytecodePath, crsPath);
   try {
     const bytecode = getBytecode(bytecodePath);
     const witness = getWitness(witnessPath);
 
-    const verified = await api.acirProveAndVerifyGoblinUltraHonk(bytecode, witness);
+    const verified = await api.acirProveAndVerifyMegaHonk(bytecode, witness);
     return verified;
   } finally {
     await api.destroy();
@@ -482,13 +482,13 @@ program
   });
 
 program
-  .command('prove_and_verify_goblin_ultra_honk')
-  .description('Generate a GUH proof and verify it. Process exits with success or failure code.')
+  .command('prove_and_verify_mega_honk')
+  .description('Generate a MegaHonk proof and verify it. Process exits with success or failure code.')
   .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/program.json')
   .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
   .action(async ({ bytecodePath, witnessPath, crsPath }) => {
     handleGlobalOptions();
-    const result = await proveAndVerifyGoblinUltraHonk(bytecodePath, witnessPath, crsPath);
+    const result = await proveAndVerifyMegaHonk(bytecodePath, witnessPath, crsPath);
     process.exit(result ? 0 : 1);
   });
 

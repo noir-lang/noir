@@ -550,7 +550,7 @@ template <typename Builder> bool_t<Builder> bool_t<Builder>::normalize() const
 
 template class bool_t<bb::StandardCircuitBuilder>;
 template class bool_t<bb::UltraCircuitBuilder>;
-template class bool_t<bb::GoblinUltraCircuitBuilder>;
+template class bool_t<bb::MegaCircuitBuilder>;
 template class bool_t<bb::CircuitSimulatorBN254>;
 
 } // namespace bb::stdlib

@@ -80,7 +80,7 @@ template <class Flavor> class InstanceTests : public testing::Test {
     };
 };
 
-using FlavorTypes = testing::Types<UltraFlavor, GoblinUltraFlavor>;
+using FlavorTypes = testing::Types<UltraFlavor, MegaFlavor>;
 TYPED_TEST_SUITE(InstanceTests, FlavorTypes);
 
 TYPED_TEST(InstanceTests, SortedListAccumulator)

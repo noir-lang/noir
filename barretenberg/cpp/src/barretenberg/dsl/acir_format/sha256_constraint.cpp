@@ -88,12 +88,12 @@ void create_sha256_compression_constraints(Builder& builder, const Sha256Compres
 
 template void create_sha256_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                              const Sha256Constraint& constraint);
-template void create_sha256_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                   const Sha256Constraint& constraint);
+template void create_sha256_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                            const Sha256Constraint& constraint);
 
 template void create_sha256_compression_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                          const Sha256Compression& constraint);
-template void create_sha256_compression_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                               const Sha256Compression& constraint);
+template void create_sha256_compression_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                        const Sha256Compression& constraint);
 
 } // namespace acir_format

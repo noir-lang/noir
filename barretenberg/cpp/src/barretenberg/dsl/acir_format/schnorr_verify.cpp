@@ -104,7 +104,7 @@ template <typename Builder> void create_schnorr_verify_constraints(Builder& buil
 
 template void create_schnorr_verify_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                                      const SchnorrConstraint& input);
-template void create_schnorr_verify_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                           const SchnorrConstraint& input);
+template void create_schnorr_verify_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                                    const SchnorrConstraint& input);
 
 } // namespace acir_format

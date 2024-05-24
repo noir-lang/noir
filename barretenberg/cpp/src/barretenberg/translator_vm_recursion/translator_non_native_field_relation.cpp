@@ -4,10 +4,10 @@
 
 namespace bb {
 template class TranslatorNonNativeFieldRelationImpl<stdlib::field_t<UltraCircuitBuilder>>;
-template class TranslatorNonNativeFieldRelationImpl<stdlib::field_t<GoblinUltraCircuitBuilder>>;
+template class TranslatorNonNativeFieldRelationImpl<stdlib::field_t<MegaCircuitBuilder>>;
 
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorNonNativeFieldRelationImpl,
                                         TranslatorRecursiveFlavor_<UltraCircuitBuilder>);
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorNonNativeFieldRelationImpl,
-                                        TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>);
+                                        TranslatorRecursiveFlavor_<MegaCircuitBuilder>);
 } // namespace bb

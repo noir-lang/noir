@@ -1,4 +1,4 @@
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 #include <gtest/gtest.h>
@@ -10,9 +10,9 @@ auto& engine = numeric::get_debug_randomness();
 }
 namespace bb {
 
-TEST(GoblinUltraCircuitBuilder, CopyConstructor)
+TEST(MegaCircuitBuilder, CopyConstructor)
 {
-    GoblinUltraCircuitBuilder circuit_constructor = GoblinUltraCircuitBuilder();
+    MegaCircuitBuilder circuit_constructor = MegaCircuitBuilder();
     fr a = fr::one();
     circuit_constructor.add_public_variable(a);
 
@@ -44,15 +44,15 @@ TEST(GoblinUltraCircuitBuilder, CopyConstructor)
     bool result = CircuitChecker::check(circuit_constructor);
     EXPECT_EQ(result, true);
 
-    GoblinUltraCircuitBuilder duplicate_circuit_constructor{ circuit_constructor };
+    MegaCircuitBuilder duplicate_circuit_constructor{ circuit_constructor };
 
     EXPECT_EQ(duplicate_circuit_constructor, circuit_constructor);
     EXPECT_TRUE(CircuitChecker::check(duplicate_circuit_constructor));
 }
 
-TEST(GoblinUltraCircuitBuilder, BaseCase)
+TEST(MegaCircuitBuilder, BaseCase)
 {
-    GoblinUltraCircuitBuilder circuit_constructor = GoblinUltraCircuitBuilder();
+    MegaCircuitBuilder circuit_constructor = MegaCircuitBuilder();
     fr a = fr::one();
     circuit_constructor.add_public_variable(a);
     bool result = CircuitChecker::check(circuit_constructor);
@@ -66,11 +66,11 @@ TEST(GoblinUltraCircuitBuilder, BaseCase)
  * encoded in the op_wires, i.e. the operands can be reconstructed as expected.
  *
  */
-TEST(GoblinUltraCircuitBuilder, GoblinSimple)
+TEST(MegaCircuitBuilder, GoblinSimple)
 {
     const size_t CHUNK_SIZE = stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
 
-    auto builder = GoblinUltraCircuitBuilder();
+    auto builder = MegaCircuitBuilder();
 
     // Compute a simple point accumulation natively
     auto P1 = g1::affine_element::random_element();
@@ -132,10 +132,10 @@ TEST(GoblinUltraCircuitBuilder, GoblinSimple)
  * @brief Check that the ultra ops are recorded correctly in the EccOpQueue
  *
  */
-TEST(GoblinUltraCircuitBuilder, GoblinEccOpQueueUltraOps)
+TEST(MegaCircuitBuilder, GoblinEccOpQueueUltraOps)
 {
     // Construct a simple circuit with op gates
-    auto builder = GoblinUltraCircuitBuilder();
+    auto builder = MegaCircuitBuilder();
 
     // Compute a simple point accumulation natively
     auto P1 = g1::affine_element::random_element();

@@ -19,13 +19,13 @@ namespace bb {
 class ClientIVC {
 
   public:
-    using Flavor = GoblinUltraFlavor;
+    using Flavor = MegaFlavor;
     using VerificationKey = Flavor::VerificationKey;
     using FF = Flavor::FF;
     using FoldProof = std::vector<FF>;
     using ProverInstance = ProverInstance_<Flavor>;
     using VerifierInstance = VerifierInstance_<Flavor>;
-    using ClientCircuit = GoblinUltraCircuitBuilder; // can only be GoblinUltra
+    using ClientCircuit = MegaCircuitBuilder; // can only be Mega
     using DeciderProver = DeciderProver_<Flavor>;
     using DeciderVerifier = DeciderVerifier_<Flavor>;
     using ProverInstances = ProverInstances_<Flavor>;
@@ -33,7 +33,7 @@ class ClientIVC {
     using VerifierInstances = VerifierInstances_<Flavor>;
     using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
 
-    using GURecursiveFlavor = GoblinUltraRecursiveFlavor_<bb::GoblinUltraCircuitBuilder>;
+    using GURecursiveFlavor = MegaRecursiveFlavor_<bb::MegaCircuitBuilder>;
     using RecursiveVerifierInstances = bb::stdlib::recursion::honk::RecursiveVerifierInstances_<GURecursiveFlavor, 2>;
     using FoldingRecursiveVerifier =
         bb::stdlib::recursion::honk::ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;

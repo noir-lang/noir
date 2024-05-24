@@ -4,9 +4,9 @@
 
 namespace bb {
 template class TranslatorPermutationRelationImpl<stdlib::field_t<UltraCircuitBuilder>>;
-template class TranslatorPermutationRelationImpl<stdlib::field_t<GoblinUltraCircuitBuilder>>;
+template class TranslatorPermutationRelationImpl<stdlib::field_t<MegaCircuitBuilder>>;
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorPermutationRelationImpl,
                                         TranslatorRecursiveFlavor_<UltraCircuitBuilder>);
 DEFINE_SUMCHECK_VERIFIER_RELATION_CLASS(TranslatorPermutationRelationImpl,
-                                        TranslatorRecursiveFlavor_<GoblinUltraCircuitBuilder>);
+                                        TranslatorRecursiveFlavor_<MegaCircuitBuilder>);
 } // namespace bb

@@ -122,5 +122,5 @@ template <typename Builder> field_t<Builder> rom_table<Builder>::operator[](cons
 }
 
 template class rom_table<bb::UltraCircuitBuilder>;
-template class rom_table<bb::GoblinUltraCircuitBuilder>;
+template class rom_table<bb::MegaCircuitBuilder>;
 } // namespace bb::stdlib

@@ -13,15 +13,15 @@ class UltraPlonkRAM : public ::testing::Test {
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 
-class UltraGoblinHonk : public ::testing::Test {
+class MegaHonk : public ::testing::Test {
   public:
-    using Flavor = GoblinUltraFlavor;
+    using Flavor = MegaFlavor;
     using Builder = Flavor::CircuitBuilder;
     using Prover = UltraProver_<Flavor>;
     using Verifier = UltraVerifier_<Flavor>;
     using VerificationKey = Flavor::VerificationKey;
 
-    // Construct and verify an UltraGoblinHonk proof for the provided circuit
+    // Construct and verify an MegaHonk proof for the provided circuit
     static bool prove_and_verify(Builder& circuit)
     {
         Prover prover{ circuit };
@@ -174,7 +174,7 @@ TEST_F(UltraPlonkRAM, TestBlockConstraint)
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
-TEST_F(UltraGoblinHonk, Databus)
+TEST_F(MegaHonk, Databus)
 {
     BlockConstraint block;
     WitnessVector witness_values;
@@ -219,7 +219,7 @@ TEST_F(UltraGoblinHonk, Databus)
     EXPECT_TRUE(prove_and_verify(circuit));
 }
 
-TEST_F(UltraGoblinHonk, DatabusReturn)
+TEST_F(MegaHonk, DatabusReturn)
 {
     BlockConstraint block;
     WitnessVector witness_values;

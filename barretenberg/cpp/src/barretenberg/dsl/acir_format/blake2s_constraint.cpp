@@ -38,7 +38,7 @@ template <typename Builder> void create_blake2s_constraints(Builder& builder, co
 
 template void create_blake2s_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                               const Blake2sConstraint& constraint);
-template void create_blake2s_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                    const Blake2sConstraint& constraint);
+template void create_blake2s_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                             const Blake2sConstraint& constraint);
 
 } // namespace acir_format

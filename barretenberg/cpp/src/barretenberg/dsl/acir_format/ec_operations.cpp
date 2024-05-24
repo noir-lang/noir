@@ -47,8 +47,8 @@ void create_ec_add_constraint(Builder& builder, const EcAdd& input, bool has_val
 template void create_ec_add_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
                                                             const EcAdd& input,
                                                             bool has_valid_witness_assignments);
-template void create_ec_add_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                  const EcAdd& input,
-                                                                  bool has_valid_witness_assignments);
+template void create_ec_add_constraint<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
+                                                           const EcAdd& input,
+                                                           bool has_valid_witness_assignments);
 
 } // namespace acir_format

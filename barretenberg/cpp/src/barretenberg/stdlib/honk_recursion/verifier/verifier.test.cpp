@@ -11,7 +11,7 @@
 namespace bb::stdlib::recursion::honk {
 
 /**
- * @brief Test suite for recursive verification of  Honk proofs for both Ultra and GoblinUltra arithmetisation.
+ * @brief Test suite for recursive verification of  Honk proofs for both Ultra and Mega arithmetisation.
  * @details `Inner*` types describe the type of circuits (and everything else required to generate a proof) that we aim
  * to recursively verify. `Outer*` describes the arithmetisation of the recursive verifier circuit and the types
  * required to ensure the recursive verifier circuit is correct (i.e. by producing a proof and verifying it).
@@ -33,7 +33,7 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
 
     // Defines types for the outer circuit, i.e. the circuit of the recursive verifier
     using OuterBuilder = typename RecursiveFlavor::CircuitBuilder;
-    using OuterFlavor = std::conditional_t<IsGoblinUltraBuilder<OuterBuilder>, GoblinUltraFlavor, UltraFlavor>;
+    using OuterFlavor = std::conditional_t<IsMegaBuilder<OuterBuilder>, MegaFlavor, UltraFlavor>;
     using OuterProver = UltraProver_<OuterFlavor>;
     using OuterVerifier = UltraVerifier_<OuterFlavor>;
     using OuterProverInstance = ProverInstance_<OuterFlavor>;
@@ -245,12 +245,12 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
 };
 
 // Run the recursive verifier tests with conventional Ultra builder and Goblin builder
-using Flavors = testing::Types<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
-                               GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>,
+using Flavors = testing::Types<MegaRecursiveFlavor_<MegaCircuitBuilder>,
+                               MegaRecursiveFlavor_<UltraCircuitBuilder>,
                                UltraRecursiveFlavor_<UltraCircuitBuilder>,
-                               UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>,
+                               UltraRecursiveFlavor_<MegaCircuitBuilder>,
                                UltraRecursiveFlavor_<CircuitSimulatorBN254>,
-                               GoblinUltraRecursiveFlavor_<CircuitSimulatorBN254>>;
+                               MegaRecursiveFlavor_<CircuitSimulatorBN254>>;
 
 TYPED_TEST_SUITE(RecursiveVerifierTest, Flavors);
 

@@ -8,7 +8,7 @@
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/fixed_base/fixed_base.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
@@ -299,14 +299,14 @@ TEST_F(UltraRelationCorrectnessTests, Ultra)
     check_relation<Flavor, std::tuple_element_t<5, Relations>>(circuit_size, prover_polynomials, params);
 }
 
-TEST_F(UltraRelationCorrectnessTests, GoblinUltra)
+TEST_F(UltraRelationCorrectnessTests, Mega)
 {
-    using Flavor = GoblinUltraFlavor;
+    using Flavor = MegaFlavor;
     using FF = typename Flavor::FF;
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
     // by each relation are non-trivially exercised.
-    auto builder = GoblinUltraCircuitBuilder();
+    auto builder = MegaCircuitBuilder();
 
     // Create an assortment of representative gates
     create_some_add_gates<Flavor>(builder);
