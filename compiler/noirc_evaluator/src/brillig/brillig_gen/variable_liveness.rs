@@ -580,33 +580,56 @@ mod test {
     }
 
     #[test]
-    fn unused_block_param() {
-        // brillig fn main f1 {
-        //     b0():
-        //       jmp b1(Field 0)
-        //     b1(v1: Field):
-        //       return
-        // }
+    fn block_params() {
+        // brillig fn main f0 {
+        //     b0(v0: u1):
+        //       jmpif v0 then: b1, else: b2
+        //     b1():
+        //       jmp b3(Field 27, Field 29)
+        //     b3(v1: Field, v2: Field):
+        //       return v1
+        //     b2():
+        //       jmp b3(Field 28, Field 40)
+        //   }
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig);
 
-        let b1 = builder.insert_block();
+        let v0 = builder.add_parameter(Type::bool());
 
-        let v0 = builder.numeric_constant(0u128, Type::field());
-        builder.terminate_with_jmp(b1, vec![v0]);
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+
+        builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
+        let twenty_seven = builder.field_constant(27_u128);
+        let twenty_nine = builder.field_constant(29_u128);
+        builder.terminate_with_jmp(b3, vec![twenty_seven, twenty_nine]);
 
-        let v1 = builder.add_block_parameter(b1, Type::field());
-        builder.terminate_with_return(vec![]);
+        builder.switch_to_block(b3);
+        let v1 = builder.add_block_parameter(b3, Type::field());
+        let v2 = builder.add_block_parameter(b3, Type::field());
+        builder.terminate_with_return(vec![v1]);
+
+        builder.switch_to_block(b2);
+        let twenty_eight = builder.field_constant(28_u128);
+        let forty = builder.field_constant(40_u128);
+        builder.terminate_with_jmp(b3, vec![twenty_eight, forty]);
 
         let ssa = builder.finish();
         let func = ssa.main();
         let liveness = VariableLiveness::from_function(func);
 
-        assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v1]);
-        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1].into_iter()));
+        // Entry point defines its own params and also b3's params.
+        assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v0, v1, v2]);
+        assert_eq!(liveness.defined_block_params(&b1), vec![]);
+        assert_eq!(liveness.defined_block_params(&b2), vec![]);
+        assert_eq!(liveness.defined_block_params(&b3), vec![]);
+
+        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1, v2].into_iter()));
+        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v1, v2].into_iter()));
     }
 }
