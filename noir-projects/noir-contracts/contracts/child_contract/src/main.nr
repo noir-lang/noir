@@ -1,19 +1,18 @@
 // A contract used along with `Parent` contract to test nested calls.
 contract Child {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, Deserialize};
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, Deserialize, Map};
 
     use dep::aztec::{
         context::gas::GasOpts,
         protocol_types::{abis::call_context::CallContext, grumpkin_point::GrumpkinPoint},
-        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        keys::getters::{get_npk_m_hash, get_ivpk_m}
+        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader}
     };
     use dep::value_note::value_note::ValueNote;
 
     #[aztec(storage)]
     struct Storage {
         current_value: PublicMutable<Field>,
-        a_private_value: PrivateSet<ValueNote>,
+        a_map_with_private_values: Map<AztecAddress, PrivateSet<ValueNote>>,
     }
 
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values.
@@ -52,26 +51,20 @@ contract Child {
 
     #[aztec(private)]
     fn private_set_value(new_value: Field, owner: AztecAddress) -> Field {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_private_value.insert(&mut note, true, owner_ivpk_m);
+        storage.a_map_with_private_values.at(owner).insert(&mut note, true, owner_ivpk_m);
         new_value
     }
 
     #[aztec(private)]
     fn private_get_value(amount: Field, owner: AztecAddress) -> Field {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-
-        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
         let mut options = NoteGetterOptions::new();
-        options = options.select(ValueNote::properties().value, amount, Option::none()).select(
-            ValueNote::properties().npk_m_hash,
-            owner_npk_m_hash,
-            Option::none()
-        ).set_limit(1);
-        let notes = storage.a_private_value.get_notes(options);
+        options = options.select(ValueNote::properties().value, amount, Option::none()).set_limit(1);
+        let notes = storage.a_map_with_private_values.at(owner).get_notes(options);
         notes[0].unwrap_unchecked().value
     }
 

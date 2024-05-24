@@ -1,7 +1,6 @@
 use dep::aztec::{
     context::PrivateContext, protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint},
-    note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet,
-    keys::getters::{get_npk_m_hash, get_ivpk_m}
+    note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet
 };
 use dep::value_note::{filter::filter_notes_min_sum, value_note::ValueNote};
 
@@ -23,8 +22,9 @@ impl<Context> EasyPrivateUint<Context> {
 impl<Context> EasyPrivateUint<&mut PrivateContext> {
     // Very similar to `value_note::utils::increment`.
     pub fn add(self, addend: u64, owner: AztecAddress) {
-        let owner_npk_m_hash = get_npk_m_hash(self.context, owner);
-        let owner_ivpk_m = get_ivpk_m(self.context, owner);
+        let header = self.context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(self.context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(self.context, owner);
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner_npk_m_hash);
 
@@ -36,8 +36,9 @@ impl<Context> EasyPrivateUint<&mut PrivateContext> {
 
     // Very similar to `value_note::utils::decrement`.
     pub fn sub(self, subtrahend: u64, owner: AztecAddress) {
-        let owner_npk_m_hash = get_npk_m_hash(self.context, owner);
-        let owner_ivpk_m = get_ivpk_m(self.context, owner);
+        let header = self.context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(self.context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(self.context, owner);
 
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
@@ -48,11 +49,6 @@ impl<Context> EasyPrivateUint<&mut PrivateContext> {
         for i in 0..maybe_notes.len() {
             if maybe_notes[i].is_some() {
                 let note = maybe_notes[i].unwrap_unchecked();
-
-                // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
-                // spending someone else's notes).
-                // TODO (#6312): This will break with key rotation. Fix this. Will not be able to pass this assert after rotating key
-                assert(note.npk_m_hash.eq(owner_npk_m_hash));
 
                 // Removes the note from the owner's set of notes.
                 // docs:start:remove

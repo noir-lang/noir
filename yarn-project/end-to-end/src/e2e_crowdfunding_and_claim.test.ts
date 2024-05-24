@@ -1,6 +1,8 @@
+import { createAccounts } from '@aztec/accounts/testing';
 import {
   type AccountWallet,
   type AztecAddress,
+  type AztecNode,
   type CheatCodes,
   type DebugLogger,
   ExtendedNote,
@@ -19,7 +21,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { jest } from '@jest/globals';
 
-import { setup } from './fixtures/utils.js';
+import { setup, setupPXEService } from './fixtures/utils.js';
 
 jest.setTimeout(200_000);
 
@@ -37,7 +39,10 @@ describe('e2e_crowdfunding_and_claim', () => {
     decimals: 18n,
   };
 
-  let teardown: () => Promise<void>;
+  let teardownA: () => Promise<void>;
+  let teardownB: () => Promise<void>;
+
+  let aztecNode: AztecNode;
   let operatorWallet: AccountWallet;
   let donorWallets: AccountWallet[];
   let wallets: AccountWallet[];
@@ -76,7 +81,7 @@ describe('e2e_crowdfunding_and_claim', () => {
   };
 
   beforeAll(async () => {
-    ({ cheatCodes, teardown, logger, pxe, wallets } = await setup(3));
+    ({ cheatCodes, teardown: teardownA, logger, pxe, wallets, aztecNode } = await setup(3));
     operatorWallet = wallets[0];
     donorWallets = wallets.slice(1);
 
@@ -130,7 +135,10 @@ describe('e2e_crowdfunding_and_claim', () => {
     await mintDNTToDonors();
   });
 
-  afterAll(() => teardown());
+  afterAll(async () => {
+    await teardownA();
+    await teardownB();
+  });
 
   const mintDNTToDonors = async () => {
     const secret = Fr.random();
@@ -262,7 +270,7 @@ describe('e2e_crowdfunding_and_claim', () => {
     ).rejects.toThrow();
   });
 
-  it('cannot claim with a different address than the one that donated', async () => {
+  it('cannot claim without access to the nsk_app tied to the npk_m specified in the proof note', async () => {
     const donationAmount = 1000n;
     {
       const action = donationToken
@@ -291,15 +299,27 @@ describe('e2e_crowdfunding_and_claim', () => {
     // Set the value note in a format which can be passed to claim function
     const anotherDonationNote = await processExtendedNote(notes![0]);
 
-    // 3) We claim the reward token via the Claim contract
+    // We create an unrelated pxe and wallet without access to the nsk_app that correlates to the npk_m specified in the proof note.
+    let unrelatedWallet: AccountWallet;
+    {
+      const { pxe: pxeB, teardown: _teardown } = await setupPXEService(aztecNode!, {}, undefined, true);
+      teardownB = _teardown;
+      [unrelatedWallet] = await createAccounts(pxeB, 1);
+      await pxeB.registerContract({
+        artifact: ClaimContract.artifact,
+        instance: claimContract.instance,
+      });
+    }
+
+    // 3) We try to claim the reward token via the Claim contract with the unrelated wallet
     {
       await expect(
         claimContract
-          .withWallet(donorWallets[0])
-          .methods.claim(anotherDonationNote, donorWallets[1].getAddress())
+          .withWallet(unrelatedWallet)
+          .methods.claim(anotherDonationNote, unrelatedWallet.getAddress())
           .send()
           .wait(),
-      ).rejects.toThrow('Note does not belong to the sender');
+      ).rejects.toThrow('Could not find key prefix.');
     }
   });
 

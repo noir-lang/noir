@@ -1,5 +1,4 @@
 use dep::aztec::{
-    keys::getters::get_ivpk_m,
     protocol_types::{
     address::AztecAddress, grumpkin_point::GrumpkinPoint, traits::{Deserialize, Serialize},
     constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash

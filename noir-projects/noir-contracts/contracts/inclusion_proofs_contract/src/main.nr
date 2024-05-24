@@ -6,7 +6,7 @@ contract InclusionProofs {
     };
 
     use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId, header::Header};
-    use dep::aztec::{note::note_getter_options::NoteStatus, keys::getters::{get_npk_m_hash, get_ivpk_m}};
+    use dep::aztec::{note::note_getter_options::NoteStatus};
     // docs:start:imports
     // Imports are not needed as inclusion / non_inclusion proofs are accessible on the header.
     // docs:end:imports
@@ -31,8 +31,9 @@ contract InclusionProofs {
     #[aztec(private)]
     fn create_note(owner: AztecAddress, value: Field) {
         let owner_private_values = storage.private_values.at(owner);
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(value, owner_npk_m_hash);
         owner_private_values.insert(&mut note, true, owner_ivpk_m);
@@ -46,18 +47,11 @@ contract InclusionProofs {
         block_number: u32, // The block at which we'll prove that the note exists
         nullified: bool
     ) {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-
-        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
         // docs:start:get_note_from_pxe
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
         let mut options = NoteGetterOptions::new();
-        options = options.select(
-            ValueNote::properties().npk_m_hash,
-            owner_npk_m_hash,
-            Option::none()
-        ).set_limit(1);
+        options = options.set_limit(1);
         if (nullified) {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
@@ -82,7 +76,8 @@ contract InclusionProofs {
         use_block_number: bool,
         block_number: u32 // The block at which we'll prove that the note exists
     ) {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
         let mut note = ValueNote::new(1, owner_npk_m_hash);
 
         let header = if (use_block_number) {
@@ -105,17 +100,10 @@ contract InclusionProofs {
         // because PXE performs note commitment inclusion check when you add a new note).
         fail_case: bool
     ) {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-
-        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
         // 1) Get the note from PXE
         let private_values = storage.private_values.at(owner);
         let mut options = NoteGetterOptions::new();
-        options = options.select(
-            ValueNote::properties().npk_m_hash,
-            owner_npk_m_hash,
-            Option::none()
-        ).set_limit(1);
+        options = options.set_limit(1);
         if (fail_case) {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
@@ -139,17 +127,10 @@ contract InclusionProofs {
         block_number: u32, // The block at which we'll prove that the note exists and is not nullified
         nullified: bool
     ) {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-
-        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
         let mut options = NoteGetterOptions::new();
-        options = options.select(
-            ValueNote::properties().npk_m_hash,
-            owner_npk_m_hash,
-            Option::none()
-        ).set_limit(1);
+        options = options.set_limit(1);
         if (nullified) {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
@@ -170,16 +151,9 @@ contract InclusionProofs {
     // docs:start:nullify_note
     #[aztec(private)]
     fn nullify_note(owner: AztecAddress) {
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-
-        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to find any notes after rotating key.
         let private_values = storage.private_values.at(owner);
         let mut options = NoteGetterOptions::new();
-        options = options.select(
-            ValueNote::properties().npk_m_hash,
-            owner_npk_m_hash,
-            Option::none()
-        ).set_limit(1);
+        options = options.set_limit(1);
         let notes = private_values.get_notes(options);
         let note = notes[0].unwrap();
 

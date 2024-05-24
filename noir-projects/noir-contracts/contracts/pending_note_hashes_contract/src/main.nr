@@ -6,7 +6,6 @@ contract PendingNoteHashes {
     // Libs
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet};
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
-    use dep::aztec::keys::getters::{get_npk_m_hash, get_ivpk_m};
     use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
     use dep::aztec::protocol_types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL};
 
@@ -25,8 +24,9 @@ contract PendingNoteHashes {
     fn test_insert_then_get_then_nullify_flat(amount: Field, owner: AztecAddress) -> Field {
         let owner_balance = storage.balances.at(owner);
 
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
@@ -58,8 +58,9 @@ contract PendingNoteHashes {
         assert(maybe_notes[0].is_none());
         assert(maybe_notes[1].is_none());
 
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         // Insert note
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
@@ -77,8 +78,9 @@ contract PendingNoteHashes {
     fn insert_note(amount: Field, owner: AztecAddress) {
         let owner_balance = storage.balances.at(owner);
 
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
@@ -280,8 +282,9 @@ contract PendingNoteHashes {
         context: &mut PrivateContext
     ) {
         let owner_balance = storage.balances.at(owner);
-        let owner_npk_m_hash = get_npk_m_hash(context, owner);
-        let owner_ivpk_m = get_ivpk_m(context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(context, owner);
 
         for i in 0..max_notes_per_call() {
             let mut note = ValueNote::new(i as Field, owner_npk_m_hash);

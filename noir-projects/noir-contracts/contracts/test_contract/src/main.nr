@@ -24,7 +24,6 @@ contract Test {
     use dep::aztec::state_vars::{shared_mutable::SharedMutablePrivateGetter};
 
     use dep::aztec::{
-        keys::getters::{get_npk_m, get_ivpk_m, get_npk_m_hash},
         context::inputs::private_context_inputs::PrivateContextInputs,
         hash::{pedersen_hash, compute_secret_hash, ArgsHasher},
         note::{
@@ -57,7 +56,8 @@ contract Test {
 
     #[aztec(private)]
     fn get_master_incoming_viewing_public_key(address: AztecAddress) -> [Field; 2] {
-        let pub_key = get_ivpk_m(&mut context, address);
+        let header = context.get_header();
+        let pub_key = header.get_ivpk_m(&mut context, address);
 
         [pub_key.x, pub_key.y]
     }
@@ -87,8 +87,9 @@ contract Test {
             storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
         );
 
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(value, owner_npk_m_hash);
         create_note(&mut context, storage_slot, &mut note, true, owner_ivpk_m);
@@ -248,7 +249,8 @@ contract Test {
     // For testing non-note encrypted logs
     #[aztec(private)]
     fn emit_array_as_encrypted_log(fields: [Field; 5], owner: AztecAddress, nest: bool) {
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
         context.encrypt_and_emit_log(
             context.this_address(),
             5, // testing only - this should be a secret random value to salt the addr
@@ -295,8 +297,9 @@ contract Test {
         Test::at(context.this_address()).call_create_note(value, owner, storage_slot).call(&mut context);
         storage_slot += 1;
 
-        let owner_npk_m_hash = get_npk_m_hash(&mut context, owner);
-        let owner_ivpk_m = get_ivpk_m(&mut context, owner);
+        let header = context.get_header();
+        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(value + 1, owner_npk_m_hash);
         create_note(&mut context, storage_slot, &mut note, true, owner_ivpk_m);
@@ -483,7 +486,7 @@ contract Test {
             storage_slot_of_shared_mutable
         );
 
-        let ret = test.get_current_value_in_private();
+        let ret = test.get_value_in_private(context.get_header());
 
         ret.to_field()
     }
@@ -504,12 +507,12 @@ contract Test {
             AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
             derived_slot
         );
-        registry_private_getter.get_current_value_in_private()
+        registry_private_getter.get_value_in_private(context.get_header())
     }
 
     #[aztec(private)]
     fn test_nullifier_key_freshness(address: AztecAddress, public_nullifying_key: GrumpkinPoint) {
-        assert_eq(get_npk_m(&mut context, address), public_nullifying_key);
+        assert_eq(context.get_header().get_npk_m(&mut context, address), public_nullifying_key);
     }
 
     // Purely exists for testing

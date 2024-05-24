@@ -2,9 +2,8 @@ contract EasyPrivateVoting {
     // docs:start:imports
     use dep::aztec::prelude::{
         AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext,
-        Map, PublicMutable
+        Map, PublicMutable, SharedImmutable
     };
-    use dep::aztec::keys::getters::get_npk_m_hash;
     // docs:end:imports
     // docs:start:storage_struct
     #[aztec(storage)]
@@ -12,6 +11,7 @@ contract EasyPrivateVoting {
         admin: PublicMutable<AztecAddress>, // admin can end vote
         tally: Map<Field, PublicMutable<Field>>, // we will store candidate as key and number of votes as value
         vote_ended: PublicMutable<bool>, // vote_ended is boolean
+        active_at_block: SharedImmutable<u32>, // when people can start voting
     }
     // docs:end:storage_struct
 
@@ -21,14 +21,18 @@ contract EasyPrivateVoting {
     fn constructor(admin: AztecAddress) {
         storage.admin.write(admin);
         storage.vote_ended.write(false);
+        storage.active_at_block.initialize(context.block_number() as u32);
     }
     // docs:end:constructor
 
     // docs:start:cast_vote
     #[aztec(private)] // annotation to mark function as private and expose private context
     fn cast_vote(candidate: Field) {
-        let msg_sender_npk_m_hash = get_npk_m_hash(&mut context, context.msg_sender());
-        // TODO (#6312): This will break with key rotation. Fix this. Can vote multiple times by rotating keys.
+        // Below, we make sure to get our nullifier public key at a specific block. By pinning the nullifier public key at a specific block,
+        // rotating keys will have no effect on the nullifier being produced, and voting again after will fail because the same nullifier is computed each time the user votes.
+        let header_at_active_at_block = context.get_header_at(storage.active_at_block.read_private());
+        let msg_sender_npk_m_hash = header_at_active_at_block.get_npk_m_hash(&mut context, context.msg_sender());
+
         let secret = context.request_nsk_app(msg_sender_npk_m_hash); // get secret key of caller of function
         let nullifier = dep::std::hash::pedersen_hash([context.msg_sender().to_field(), secret]); // derive nullifier from sender and secret
         context.push_new_nullifier(nullifier, 0); // push nullifier

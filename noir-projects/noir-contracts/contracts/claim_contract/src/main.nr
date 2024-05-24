@@ -1,7 +1,7 @@
 contract Claim {
     use dep::aztec::{
         protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
-        state_vars::SharedImmutable, keys::getters::get_npk_m_hash
+        state_vars::SharedImmutable
     };
     use dep::value_note::value_note::ValueNote;
     use dep::token::Token;
@@ -29,18 +29,14 @@ contract Claim {
             target_address == proof_note.header.contract_address, "Note does not correspond to the target contract"
         );
 
-        let msg_sender_npk_m_hash = get_npk_m_hash(&mut context, context.msg_sender());
-
-        // TODO (#6312): This will break with key rotation. Fix this. Will not be able to pass this assert after key rotation.
-        assert_eq(proof_note.npk_m_hash, msg_sender_npk_m_hash, "Note does not belong to the sender");
-
         // 2) Prove that the note hash exists in the note hash tree
         let header = context.get_header();
         header.prove_note_inclusion(proof_note);
 
         // 3) Compute and emit a nullifier which is unique to the note and this contract to ensure the reward can be
         // claimed only once with the given note.
-        // Note: The nullifier is unique to the note and THIS contract because the protocol siloes all nullifiers with
+        // Note: Only the owner of the npk_m will be able to produce the nsk_app and compute this nullifier.
+        // The nullifier is unique to the note and THIS contract because the protocol siloes all nullifiers with
         // the address of a contract it was emitted from.
         context.push_new_nullifier(proof_note.compute_nullifier(&mut context), 0);
 

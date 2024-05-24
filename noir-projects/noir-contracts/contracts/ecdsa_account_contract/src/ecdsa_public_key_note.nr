@@ -1,8 +1,7 @@
 use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext};
 
 use dep::aztec::{
-    keys::getters::get_ivpk_m, note::utils::compute_note_hash_for_consumption,
-    keys::getters::get_nsk_app,
+    note::utils::compute_note_hash_for_consumption, keys::getters::get_nsk_app,
     protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash}
 };
 

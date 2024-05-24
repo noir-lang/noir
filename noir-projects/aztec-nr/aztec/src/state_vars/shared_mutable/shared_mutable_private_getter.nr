@@ -1,4 +1,4 @@
-use dep::protocol_types::{hash::pedersen_hash, traits::FromField, address::AztecAddress};
+use dep::protocol_types::{hash::pedersen_hash, traits::FromField, address::AztecAddress, header::Header};
 
 use crate::context::PrivateContext;
 use crate::public_storage;
@@ -31,20 +31,25 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
         Self { context, other_contract_address, storage_slot, _dummy: [0; INITIAL_DELAY] }
     }
 
-    pub fn get_current_value_in_private(self) -> T where T: FromField {
-        let (value_change, delay_change, historical_block_number) = self.historical_read_from_public_storage(*self.context);
+    pub fn get_value_in_private(self, header: Header) -> T where T: FromField {
+        let (value_change, delay_change, historical_block_number) = self.historical_read_from_public_storage(header);
         let effective_minimum_delay = delay_change.get_effective_minimum_delay_at(historical_block_number);
         let block_horizon = value_change.get_block_horizon(historical_block_number, effective_minimum_delay);
 
-        self.context.set_tx_max_block_number(block_horizon);
+        // If our context has the same header as the one we pass in via the parameter, we are trying to read the "current" value
+        // and thus need to set the tx max block number below. If the context header is not the same as the one we pass in, this means
+        // we are trying to read a historical value and thus have no constraint on the max block number that this transaction can be included in.
+        if (self.context.historical_header.global_variables.block_number.eq(header.global_variables.block_number)) {
+            self.context.set_tx_max_block_number(block_horizon);
+        }
+
         value_change.get_current_at(historical_block_number)
     }
 
     fn historical_read_from_public_storage(
         self,
-        context: PrivateContext
+        header: Header
     ) -> (ScheduledValueChange<T>, ScheduledDelayChange<INITIAL_DELAY>, u32) where T: FromField {
-        let header = context.get_header();
         let value_change_slot = self.get_value_change_storage_slot();
         let mut raw_value_change_fields = [0; 3];
         for i in 0..3 {
@@ -60,7 +65,7 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
         let value_change = ScheduledValueChange::deserialize(raw_value_change_fields);
         let delay_change = ScheduledDelayChange::deserialize(raw_delay_change_fields);
 
-        let historical_block_number = context.historical_header.global_variables.block_number as u32;
+        let historical_block_number = header.global_variables.block_number as u32;
 
         (value_change, delay_change, historical_block_number)
     }
