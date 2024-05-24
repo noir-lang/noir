@@ -50,14 +50,6 @@ WASM_EXPORT void acir_prove_and_verify_goblin_ultra_honk(uint8_t const* constrai
                                                          bool* result);
 
 /**
- * @brief Fold and verify a set of circuits using ClientIvc
- *
- */
-WASM_EXPORT void acir_fold_and_verify_program_stack(uint8_t const* constraint_system_buf,
-                                                    uint8_t const* witness_buf,
-                                                    bool* result);
-
-/**
  * @brief Construct a full goblin proof
  * @details Makes a call to accumulate to a final circuit before constructing a Goblin proof
  *

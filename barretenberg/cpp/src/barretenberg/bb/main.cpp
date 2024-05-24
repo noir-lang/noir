@@ -1,5 +1,4 @@
 #include "barretenberg/bb/file_io.hpp"
-#include "barretenberg/client_ivc/client_ivc.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/dsl/types.hpp"
@@ -218,34 +217,6 @@ bool proveAndVerifyHonkProgram(const std::string& bytecodePath, const std::strin
         program_stack.pop_back();
     }
     return true;
-}
-
-bool foldAndVerifyProgram(const std::string& bytecodePath, const std::string& witnessPath)
-{
-    using Flavor = GoblinUltraFlavor; // This is the only option
-    using Builder = Flavor::CircuitBuilder;
-
-    init_bn254_crs(1 << 18);
-    init_grumpkin_crs(1 << 14);
-
-    ClientIVC ivc;
-    ivc.structured_flag = true;
-
-    auto program_stack = acir_format::get_acir_program_stack(bytecodePath, witnessPath);
-
-    // Accumulate the entire program stack into the IVC
-    while (!program_stack.empty()) {
-        auto stack_item = program_stack.back();
-
-        // Construct a bberg circuit from the acir representation
-        auto circuit = acir_format::create_circuit<Builder>(
-            stack_item.constraints, 0, stack_item.witness, false, ivc.goblin.op_queue);
-
-        ivc.accumulate(circuit);
-
-        program_stack.pop_back();
-    }
-    return ivc.prove_and_verify();
 }
 
 /**
@@ -860,12 +831,6 @@ int main(int argc, char* argv[])
         }
         if (command == "prove_and_verify_ultra_honk_program") {
             return proveAndVerifyHonkProgram<UltraFlavor>(bytecode_path, witness_path) ? 0 : 1;
-        }
-        if (command == "prove_and_verify_goblin_ultra_honk_program") {
-            return proveAndVerifyHonkProgram<GoblinUltraFlavor>(bytecode_path, witness_path) ? 0 : 1;
-        }
-        if (command == "fold_and_verify_program") {
-            return foldAndVerifyProgram(bytecode_path, witness_path) ? 0 : 1;
         }
         if (command == "prove_and_verify_goblin") {
             return proveAndVerifyGoblin(bytecode_path, witness_path) ? 0 : 1;

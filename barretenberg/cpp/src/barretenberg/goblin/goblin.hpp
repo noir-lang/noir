@@ -147,15 +147,6 @@ class Goblin {
             [[maybe_unused]] auto pairing_points = merge_verifier.verify_proof(merge_proof);
         }
 
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/993): Some circuits (particularly on the first call
-        // to accumulate) may not have any goblin ecc ops prior to the call to merge(), so the commitment to the new
-        // contribution (C_t_shift) in the merge prover will be the point at infinity. (Note: Some dummy ops are added
-        // in 'add_gates_to_ensure...' but not until instance construction which comes later). See issue for ideas about
-        // how to resolve.
-        if (circuit_builder.blocks.ecc_op.size() == 0) {
-            MockCircuits::construct_goblin_ecc_op_circuit(circuit_builder); // Add some arbitrary goblin ECC ops
-        }
-
         // Construct and store the merge proof to be recursively verified on the next call to accumulate
         MergeProver merge_prover{ circuit_builder.op_queue };
         merge_proof = merge_prover.construct_proof();
