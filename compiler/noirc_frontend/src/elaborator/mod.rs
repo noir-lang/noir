@@ -503,21 +503,20 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<TraitConstraint> {
         where_clause
             .iter()
-            .cloned()
             .filter_map(|constraint| self.resolve_trait_constraint(constraint))
             .collect()
     }
 
     pub fn resolve_trait_constraint(
         &mut self,
-        constraint: UnresolvedTraitConstraint,
+        constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
-        let typ = self.resolve_type(constraint.typ);
+        let typ = self.resolve_type(constraint.typ.clone());
         let trait_generics =
-            vecmap(constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ));
+            vecmap(&constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ.clone()));
 
         let span = constraint.trait_bound.trait_path.span();
-        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?;
+        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path.clone())?;
         let trait_id = the_trait.id;
 
         let expected_generics = the_trait.generics.len();
@@ -877,73 +876,11 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
-        let unresolved_type = trait_impl.object_type;
-        let self_type_span = unresolved_type.span;
         let old_generics_length = self.generics.len();
         self.generics = trait_impl.resolved_generics;
-
-        let trait_generics =
-            vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
-
-        let self_type = trait_impl.resolved_object_type.unwrap_or(Type::Error);
-
-        let impl_id =
-            trait_impl.impl_id.expect("An impl's id should be set during define_function_metas");
-
         self.current_trait_impl = trait_impl.impl_id;
 
-        let mut methods = trait_impl.methods.function_ids();
-
         self.elaborate_functions(trait_impl.methods);
-
-        if matches!(self_type, Type::MutableReference(_)) {
-            let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
-            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
-        }
-
-        if let Some(trait_id) = trait_impl.trait_id {
-            for func_id in &methods {
-                self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
-            }
-
-            let where_clause = trait_impl
-                .where_clause
-                .into_iter()
-                .flat_map(|item| self.resolve_trait_constraint(item))
-                .collect();
-
-            let resolved_trait_impl = Shared::new(TraitImpl {
-                ident: trait_impl.trait_path.last_segment().clone(),
-                typ: self_type.clone(),
-                trait_id,
-                trait_generics: trait_generics.clone(),
-                file: trait_impl.file_id,
-                where_clause,
-                methods,
-            });
-
-            let generics = vecmap(&self.generics, |(_, type_variable, _)| type_variable.clone());
-
-            if let Err((prev_span, prev_file)) = self.interner.add_trait_implementation(
-                self_type.clone(),
-                trait_id,
-                trait_generics,
-                impl_id,
-                generics,
-                resolved_trait_impl,
-            ) {
-                self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                    typ: self_type.clone(),
-                    span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
-                });
-
-                // The 'previous impl defined here' note must be a separate error currently
-                // since it may be in a different file and all errors have the same file id.
-                self.file = prev_file;
-                self.push_err(DefCollectorErrorKind::OverlappingImplNote { span: prev_span });
-                self.file = trait_impl.file_id;
-            }
-        }
 
         self.self_type = None;
         self.current_trait_impl = None;
@@ -971,14 +908,72 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
 
+        let self_type = trait_impl.methods.self_type.clone();
+        let self_type =
+            self_type.expect("Expected struct type to be set before collect_trait_impl");
+
+        let self_type_span = trait_impl.object_type.span;
+
+        if matches!(self_type, Type::MutableReference(_)) {
+            let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
+            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
+        }
+
+        assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
             self.collect_trait_impl_methods(trait_id, trait_impl);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
             self.generics = trait_impl.resolved_generics.clone();
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
-            self.generics.clear();
+
+            let methods = trait_impl.methods.function_ids();
+            for func_id in &methods {
+                self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
+            }
+
+            let where_clause = trait_impl
+                .where_clause
+                .iter()
+                .flat_map(|item| self.resolve_trait_constraint(item))
+                .collect();
+
+            let trait_generics = trait_impl.resolved_trait_generics.clone();
+
+            let resolved_trait_impl = Shared::new(TraitImpl {
+                ident: trait_impl.trait_path.last_segment().clone(),
+                typ: self_type.clone(),
+                trait_id,
+                trait_generics: trait_generics.clone(),
+                file: trait_impl.file_id,
+                where_clause,
+                methods,
+            });
+
+            let generics = vecmap(&self.generics, |(_, type_variable, _)| type_variable.clone());
+
+            if let Err((prev_span, prev_file)) = self.interner.add_trait_implementation(
+                self_type.clone(),
+                trait_id,
+                trait_generics,
+                trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
+                generics,
+                resolved_trait_impl,
+            ) {
+                self.push_err(DefCollectorErrorKind::OverlappingImpl {
+                    typ: self_type.clone(),
+                    span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
+                });
+
+                // The 'previous impl defined here' note must be a separate error currently
+                // since it may be in a different file and all errors have the same file id.
+                self.file = prev_file;
+                self.push_err(DefCollectorErrorKind::OverlappingImplNote { span: prev_span });
+                self.file = trait_impl.file_id;
+            }
         }
+
+        self.generics.clear();
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
@@ -992,10 +987,9 @@ impl<'context> Elaborator<'context> {
         functions: &mut UnresolvedFunctions,
         span: Span,
     ) {
-        let self_type = functions
-            .self_type
-            .as_ref()
-            .expect("Expected struct type to be set before declare_methods_on_struct");
+        let self_type = functions.self_type.as_ref();
+        let self_type =
+            self_type.expect("Expected struct type to be set before declare_methods_on_struct");
 
         let function_ids = functions.function_ids();
 
@@ -1291,9 +1285,12 @@ impl<'context> Elaborator<'context> {
             self.local_module = trait_impl.module_id;
 
             let unresolved_type = &trait_impl.object_type;
-            let self_type_span = unresolved_type.span;
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
+
+            let trait_generics =
+                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
+            trait_impl.resolved_trait_generics = trait_generics;
 
             let self_type = self.resolve_type(unresolved_type.clone());
 
