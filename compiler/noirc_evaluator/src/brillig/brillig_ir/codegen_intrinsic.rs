@@ -1,6 +1,6 @@
 use acvm::{
     acir::brillig::{BlackBoxOp, HeapArray},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use super::{

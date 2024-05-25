@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 

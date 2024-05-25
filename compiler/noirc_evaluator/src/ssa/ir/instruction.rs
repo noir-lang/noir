@@ -5,7 +5,7 @@ use acvm::{
         circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
         BlackBoxFunc,
     },
-    FieldElement,
+    AcirField, FieldElement,
 };
 use fxhash::FxHasher;
 use iter_extended::vecmap;

@@ -1,4 +1,4 @@
-use acir::{brillig::MemoryAddress, FieldElement};
+use acir::{brillig::MemoryAddress, AcirField, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 

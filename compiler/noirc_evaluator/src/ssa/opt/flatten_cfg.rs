@@ -134,7 +134,7 @@
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -791,6 +791,8 @@ impl<'f> Context<'f> {
 #[cfg(test)]
 mod test {
     use std::rc::Rc;
+
+    use acvm::AcirField;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,

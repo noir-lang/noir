@@ -1,7 +1,7 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    BlackBoxFunc, FieldElement,
+    AcirField, BlackBoxFunc, FieldElement,
 };
 
 use acvm_blackbox_solver::BigIntSolver;

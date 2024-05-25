@@ -627,6 +627,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
 
 #[cfg(test)]
 mod tests {
+    use acir::{AcirField, FieldElement};
     use acvm_blackbox_solver::StubbedBlackBoxSolver;
 
     use super::*;

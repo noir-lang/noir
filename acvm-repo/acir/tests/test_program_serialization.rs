@@ -19,7 +19,7 @@ use acir::{
     },
     native_types::{Expression, Witness},
 };
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use brillig::{HeapArray, HeapValueType, MemoryAddress, ValueOrArray};
 
 #[test]

@@ -445,6 +445,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 name = "aztec_macros"
 version = "0.30.0"
 dependencies = [
+ "acvm",
  "convert_case 0.6.0",
  "iter-extended",
  "noirc_errors",

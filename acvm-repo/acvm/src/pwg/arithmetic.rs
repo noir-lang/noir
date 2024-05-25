@@ -1,6 +1,6 @@
 use acir::{
     native_types::{Expression, Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use super::{insert_value, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError};

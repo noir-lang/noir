@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 
 use super::{
     DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,

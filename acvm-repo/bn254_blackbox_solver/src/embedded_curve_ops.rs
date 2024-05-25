@@ -3,7 +3,8 @@ use ark_ec::AffineRepr;
 use ark_ff::MontConfig;
 use num_bigint::BigUint;
 
-use acir::{BlackBoxFunc, FieldElement};
+use acir::BlackBoxFunc;
+use acir::{AcirField, FieldElement};
 
 use crate::BlackBoxResolutionError;
 

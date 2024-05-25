@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use acir::{
     circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use super::{
@@ -129,7 +129,7 @@ mod tests {
     use acir::{
         circuit::opcodes::MemOp,
         native_types::{Expression, Witness, WitnessMap},
-        FieldElement,
+        AcirField, FieldElement,
     };
 
     use super::MemoryOpSolver;

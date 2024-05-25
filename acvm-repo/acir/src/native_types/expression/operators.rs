@@ -1,5 +1,5 @@
 use crate::native_types::Witness;
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use std::{
     cmp::Ordering,
     ops::{Add, Mul, Neg, Sub},

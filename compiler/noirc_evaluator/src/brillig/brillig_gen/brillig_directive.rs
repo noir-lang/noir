@@ -1,6 +1,6 @@
 use acvm::{
     acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;

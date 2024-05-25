@@ -2,7 +2,7 @@
 
 use acvm::{
     acir::native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use js_sys::{JsString, Map};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
@@ -73,7 +73,7 @@ mod test {
 
     use acvm::{
         acir::native_types::{Witness, WitnessMap},
-        FieldElement,
+        AcirField, FieldElement,
     };
     use wasm_bindgen::JsValue;
 

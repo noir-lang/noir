@@ -8,7 +8,7 @@ use acir::{
         Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};

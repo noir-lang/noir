@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
 use super::Expression;

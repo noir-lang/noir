@@ -1,5 +1,5 @@
 use acir::brillig::{BinaryFieldOp, BinaryIntOp};
-use acir::FieldElement;
+use acir::{AcirField, FieldElement};
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use num_traits::{One, Zero};

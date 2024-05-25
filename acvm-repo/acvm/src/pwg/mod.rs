@@ -10,7 +10,7 @@ use acir::{
         STRING_ERROR_SELECTOR,
     },
     native_types::{Expression, Witness, WitnessMap},
-    BlackBoxFunc, FieldElement,
+    AcirField, BlackBoxFunc, FieldElement,
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 

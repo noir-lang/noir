@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 
 use crate::ssa::{
     ir::{

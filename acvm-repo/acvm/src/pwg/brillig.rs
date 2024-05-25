@@ -9,7 +9,7 @@ use acir::{
         STRING_ERROR_SELECTOR,
     },
     native_types::WitnessMap,
-    FieldElement,
+    AcirField, FieldElement,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};

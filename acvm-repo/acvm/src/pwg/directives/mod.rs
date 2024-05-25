@@ -1,4 +1,4 @@
-use acir::{circuit::directives::Directive, native_types::WitnessMap, FieldElement};
+use acir::{circuit::directives::Directive, native_types::WitnessMap, AcirField, FieldElement};
 use num_bigint::BigUint;
 
 use crate::OpcodeResolutionError;

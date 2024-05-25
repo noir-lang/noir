@@ -8,7 +8,7 @@ use acvm::{
         circuit::ErrorSelector,
         native_types::{Witness, WitnessMap},
     },
-    FieldElement,
+    AcirField, FieldElement,
 };
 use errors::AbiError;
 use input_parser::InputValue;
@@ -652,7 +652,7 @@ pub fn display_abi_error(
 mod test {
     use std::collections::BTreeMap;
 
-    use acvm::{acir::native_types::Witness, FieldElement};
+    use acvm::{acir::native_types::Witness, AcirField, FieldElement};
 
     use crate::{
         input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,

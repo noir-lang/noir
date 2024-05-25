@@ -1,7 +1,7 @@
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
-    FieldElement,
+    AcirField, FieldElement,
 };
 use nargo::{
     artifacts::debug::{DebugArtifact, DebugVars, StackFrame},

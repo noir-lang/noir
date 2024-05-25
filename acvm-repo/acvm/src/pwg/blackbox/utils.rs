@@ -1,4 +1,4 @@
-use acir::{circuit::opcodes::FunctionInput, native_types::WitnessMap};
+use acir::{circuit::opcodes::FunctionInput, native_types::WitnessMap, AcirField};
 
 use crate::pwg::{witness_to_value, OpcodeResolutionError};
 

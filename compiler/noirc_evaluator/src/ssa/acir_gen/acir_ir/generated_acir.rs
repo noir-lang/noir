@@ -18,7 +18,7 @@ use acvm::acir::{
 };
 use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;

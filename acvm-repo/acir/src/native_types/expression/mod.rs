@@ -1,8 +1,7 @@
 use crate::native_types::Witness;
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-
 mod operators;
 mod ordering;
 

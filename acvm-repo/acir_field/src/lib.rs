@@ -5,15 +5,16 @@
 
 use num_bigint::BigUint;
 use num_traits::Num;
+mod generic_ark;
+
+pub use generic_ark::AcirField;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "bn254")] {
-        mod generic_ark;
         pub type FieldElement = generic_ark::FieldElement<ark_bn254::Fr>;
         pub const CHOSEN_FIELD : FieldOptions = FieldOptions::BN254;
 
     } else if #[cfg(feature = "bls12_381")] {
-        mod generic_ark;
         pub type FieldElement = generic_ark::FieldElement<ark_bls12_381::Fr>;
         pub const CHOSEN_FIELD : FieldOptions = FieldOptions::BLS12_381;
     } else {

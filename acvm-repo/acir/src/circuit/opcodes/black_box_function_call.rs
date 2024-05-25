@@ -481,7 +481,7 @@ where
 mod tests {
 
     use crate::{circuit::Opcode, native_types::Witness};
-    use acir_field::FieldElement;
+    use acir_field::{AcirField, FieldElement};
 
     use super::{BlackBoxFuncCall, FunctionInput};
 

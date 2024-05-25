@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 
 use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, ValueId};
 

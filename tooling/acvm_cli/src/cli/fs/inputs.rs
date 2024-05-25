@@ -1,6 +1,6 @@
 use acir::{
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use toml::Table;
 

@@ -1,7 +1,7 @@
 use acir::{
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 

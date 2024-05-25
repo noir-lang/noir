@@ -5,7 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::acir::{
+    native_types::{WitnessMap, WitnessStack},
+    AcirField,
+};
 
 use crate::errors::{CliError, FilesystemError};
 

@@ -3,7 +3,7 @@ use acvm::{
         BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapValueType, MemoryAddress,
         Opcode as BrilligOpcode, ValueOrArray,
     },
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use super::{

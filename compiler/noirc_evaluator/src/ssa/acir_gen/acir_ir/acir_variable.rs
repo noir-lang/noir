@@ -19,7 +19,7 @@ use acvm::{
         native_types::{Expression, Witness},
         BlackBoxFunc,
     },
-    FieldElement,
+    AcirField, FieldElement,
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};

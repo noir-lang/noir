@@ -1,3 +1,4 @@
+use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast;

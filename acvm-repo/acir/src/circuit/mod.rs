@@ -365,7 +365,7 @@ mod tests {
         circuit::{ExpressionWidth, Program},
         native_types::Witness,
     };
-    use acir_field::FieldElement;
+    use acir_field::{AcirField, FieldElement};
 
     fn and_opcode() -> Opcode {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {

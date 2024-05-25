@@ -38,7 +38,7 @@ use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use fxhash::FxHashMap as HashMap;
 use im::Vector;

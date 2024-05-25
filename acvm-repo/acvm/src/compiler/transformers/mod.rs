@@ -1,7 +1,7 @@
 use acir::{
     circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, ExpressionWidth, Opcode},
     native_types::{Expression, Witness},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use indexmap::IndexMap;
 

@@ -1,3 +1,4 @@
+use acvm::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
     BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,

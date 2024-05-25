@@ -625,6 +625,7 @@ mod tests {
                 opcodes::BlockId,
             },
             native_types::Expression,
+            AcirField,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{

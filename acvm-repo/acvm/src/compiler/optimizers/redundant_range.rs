@@ -4,6 +4,7 @@ use acir::{
         Circuit, Opcode,
     },
     native_types::Witness,
+    AcirField,
 };
 use std::collections::{BTreeMap, HashSet};
 

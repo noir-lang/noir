@@ -3,7 +3,7 @@ use crate::OpcodeResolutionError;
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 /// Solves a [`BlackBoxFunc::And`][acir::circuit::black_box_functions::BlackBoxFunc::AND] opcode and inserts

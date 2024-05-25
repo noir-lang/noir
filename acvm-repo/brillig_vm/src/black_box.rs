@@ -1,5 +1,5 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
-use acir::{BlackBoxFunc, FieldElement};
+use acir::{AcirField, BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256,

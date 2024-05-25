@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str};
 
-use acvm::{brillig_vm::brillig::ForeignCallParam, FieldElement};
+use acvm::{brillig_vm::brillig::ForeignCallParam, AcirField, FieldElement};
 use iter_extended::vecmap;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};

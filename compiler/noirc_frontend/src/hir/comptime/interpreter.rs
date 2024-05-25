@@ -1,6 +1,6 @@
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
