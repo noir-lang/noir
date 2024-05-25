@@ -3,6 +3,7 @@
 #include "barretenberg/vm/avm_trace/constants.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
 
+using namespace bb;
 namespace tests_avm {
 using namespace bb;
 

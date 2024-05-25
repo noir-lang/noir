@@ -246,6 +246,12 @@ template <typename Builder, typename T> class bigfield {
 
     bigfield conditional_negate(const bool_t<Builder>& predicate) const;
     bigfield conditional_select(const bigfield& other, const bool_t<Builder>& predicate) const;
+    static bigfield conditional_assign(const bool_t<Builder>& predicate, const bigfield& lhs, const bigfield& rhs)
+    {
+        return rhs.conditional_select(lhs, predicate);
+    }
+
+    bool_t<Builder> operator==(const bigfield& other) const;
 
     void assert_is_in_field() const;
     void assert_less_than(const uint256_t upper_limit) const;

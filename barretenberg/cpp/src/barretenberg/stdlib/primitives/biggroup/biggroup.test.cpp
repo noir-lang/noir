@@ -10,11 +10,11 @@
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
 
+using namespace bb;
+
 namespace {
 auto& engine = numeric::get_debug_randomness();
 }
-
-using namespace bb;
 
 // One can only define a TYPED_TEST with a single template paramter.
 // Our workaround is to pass parameters of the following type.
@@ -41,6 +41,8 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
     using element = typename g1::element;
 
     using Builder = typename Curve::Builder;
+    using witness_ct = stdlib::witness_t<Builder>;
+    using bool_ct = stdlib::bool_t<Builder>;
 
     static constexpr auto EXPECT_CIRCUIT_CORRECTNESS = [](Builder& builder, bool expected_result = true) {
         info("num gates = ", builder.get_num_gates());
@@ -82,6 +84,45 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
+    static void test_add_points_at_infinity()
+    {
+        Builder builder;
+        size_t num_repetitions = 1;
+        for (size_t i = 0; i < num_repetitions; ++i) {
+            affine_element input_a(element::random_element());
+            affine_element input_b(element::random_element());
+            input_b.self_set_infinity();
+            element_ct a = element_ct::from_witness(&builder, input_a);
+            // create copy of a with different witness
+            element_ct a_alternate = element_ct::from_witness(&builder, input_a);
+            element_ct a_negated = element_ct::from_witness(&builder, -input_a);
+            element_ct b = element_ct::from_witness(&builder, input_b);
+
+            element_ct c = a + b;
+            element_ct d = b + a;
+            element_ct e = b + b;
+            element_ct f = a + a;
+            element_ct g = a + a_alternate;
+            element_ct h = a + a_negated;
+
+            affine_element c_expected = affine_element(element(input_a) + element(input_b));
+            affine_element d_expected = affine_element(element(input_b) + element(input_a));
+            affine_element e_expected = affine_element(element(input_b) + element(input_b));
+            affine_element f_expected = affine_element(element(input_a) + element(input_a));
+            affine_element g_expected = affine_element(element(input_a) + element(input_a));
+            affine_element h_expected = affine_element(element(input_a) + element(-input_a));
+
+            EXPECT_EQ(c.get_value(), c_expected);
+            EXPECT_EQ(d.get_value(), d_expected);
+            EXPECT_EQ(e.get_value(), e_expected);
+            EXPECT_EQ(f.get_value(), f_expected);
+            EXPECT_EQ(g.get_value(), g_expected);
+            EXPECT_EQ(h.get_value(), h_expected);
+        }
+
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
+    }
+
     static void test_sub()
     {
         Builder builder;
@@ -105,6 +146,45 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
 
             EXPECT_EQ(c_x_result, c_expected.x);
             EXPECT_EQ(c_y_result, c_expected.y);
+        }
+
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
+    }
+
+    static void test_sub_points_at_infinity()
+    {
+        Builder builder;
+        size_t num_repetitions = 1;
+        for (size_t i = 0; i < num_repetitions; ++i) {
+            affine_element input_a(element::random_element());
+            affine_element input_b(element::random_element());
+            input_b.self_set_infinity();
+            element_ct a = element_ct::from_witness(&builder, input_a);
+            // create copy of a with different witness
+            element_ct a_alternate = element_ct::from_witness(&builder, input_a);
+            element_ct a_negated = element_ct::from_witness(&builder, -input_a);
+            element_ct b = element_ct::from_witness(&builder, input_b);
+
+            element_ct c = a - b;
+            element_ct d = b - a;
+            element_ct e = b - b;
+            element_ct f = a - a;
+            element_ct g = a - a_alternate;
+            element_ct h = a - a_negated;
+
+            affine_element c_expected = affine_element(element(input_a) - element(input_b));
+            affine_element d_expected = affine_element(element(input_b) - element(input_a));
+            affine_element e_expected = affine_element(element(input_b) - element(input_b));
+            affine_element f_expected = affine_element(element(input_a) - element(input_a));
+            affine_element g_expected = affine_element(element(input_a) - element(input_a));
+            affine_element h_expected = affine_element(element(input_a) - element(-input_a));
+
+            EXPECT_EQ(c.get_value(), c_expected);
+            EXPECT_EQ(d.get_value(), d_expected);
+            EXPECT_EQ(e.get_value(), e_expected);
+            EXPECT_EQ(f.get_value(), f_expected);
+            EXPECT_EQ(g.get_value(), g_expected);
+            EXPECT_EQ(h.get_value(), h_expected);
         }
 
         EXPECT_CIRCUIT_CORRECTNESS(builder);
@@ -369,6 +449,107 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
+    static void test_batch_mul_edge_cases()
+    {
+        {
+            // batch P + P = 2P
+            std::vector<affine_element> points;
+            points.push_back(affine_element::one());
+            points.push_back(affine_element::one());
+            std::vector<fr> scalars;
+            scalars.push_back(1);
+            scalars.push_back(1);
+
+            Builder builder;
+            ASSERT(points.size() == scalars.size());
+            const size_t num_points = points.size();
+
+            std::vector<element_ct> circuit_points;
+            std::vector<scalar_ct> circuit_scalars;
+            for (size_t i = 0; i < num_points; ++i) {
+                circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+                circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+            }
+            element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
+
+            element expected_point = points[0] + points[1];
+            expected_point = expected_point.normalize();
+
+            fq result_x(result_point.x.get_value().lo);
+            fq result_y(result_point.y.get_value().lo);
+
+            EXPECT_EQ(result_x, expected_point.x);
+            EXPECT_EQ(result_y, expected_point.y);
+
+            EXPECT_CIRCUIT_CORRECTNESS(builder);
+        }
+        {
+            // batch oo + P = P
+            std::vector<affine_element> points;
+            points.push_back(affine_element::infinity());
+            points.push_back(affine_element(element::random_element()));
+            std::vector<fr> scalars;
+            scalars.push_back(1);
+            scalars.push_back(1);
+
+            Builder builder;
+            ASSERT(points.size() == scalars.size());
+            const size_t num_points = points.size();
+
+            std::vector<element_ct> circuit_points;
+            std::vector<scalar_ct> circuit_scalars;
+            for (size_t i = 0; i < num_points; ++i) {
+                circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+                circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+            }
+            element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
+
+            element expected_point = points[1];
+            expected_point = expected_point.normalize();
+
+            fq result_x(result_point.x.get_value().lo);
+            fq result_y(result_point.y.get_value().lo);
+
+            EXPECT_EQ(result_x, expected_point.x);
+            EXPECT_EQ(result_y, expected_point.y);
+
+            EXPECT_CIRCUIT_CORRECTNESS(builder);
+        }
+        {
+            // batch 0 * P1 + P2 = P2
+            std::vector<affine_element> points;
+            points.push_back(affine_element(element::random_element()));
+            points.push_back(affine_element(element::random_element()));
+            std::vector<fr> scalars;
+            scalars.push_back(0);
+            scalars.push_back(1);
+
+            Builder builder;
+            ASSERT(points.size() == scalars.size());
+            const size_t num_points = points.size();
+
+            std::vector<element_ct> circuit_points;
+            std::vector<scalar_ct> circuit_scalars;
+            for (size_t i = 0; i < num_points; ++i) {
+                circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+                circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+            }
+
+            element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
+
+            element expected_point = points[1];
+            expected_point = expected_point.normalize();
+
+            fq result_x(result_point.x.get_value().lo);
+            fq result_y(result_point.y.get_value().lo);
+
+            EXPECT_EQ(result_x, expected_point.x);
+            EXPECT_EQ(result_y, expected_point.y);
+
+            EXPECT_CIRCUIT_CORRECTNESS(builder);
+        }
+    }
+
     static void test_chain_add()
     {
         Builder builder = Builder();
@@ -484,6 +665,107 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         }
 
         EXPECT_CIRCUIT_CORRECTNESS(builder);
+    }
+
+    static void test_wnaf_batch_mul_edge_cases()
+    {
+        {
+            // batch P + P = 2P
+            std::vector<affine_element> points;
+            points.push_back(affine_element::one());
+            points.push_back(affine_element::one());
+            std::vector<fr> scalars;
+            scalars.push_back(1);
+            scalars.push_back(1);
+
+            Builder builder;
+            ASSERT(points.size() == scalars.size());
+            const size_t num_points = points.size();
+
+            std::vector<element_ct> circuit_points;
+            std::vector<scalar_ct> circuit_scalars;
+            for (size_t i = 0; i < num_points; ++i) {
+                circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+                circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+            }
+            element_ct result_point = element_ct::wnaf_batch_mul(circuit_points, circuit_scalars);
+
+            element expected_point = points[0] + points[1];
+            expected_point = expected_point.normalize();
+
+            fq result_x(result_point.x.get_value().lo);
+            fq result_y(result_point.y.get_value().lo);
+
+            EXPECT_EQ(result_x, expected_point.x);
+            EXPECT_EQ(result_y, expected_point.y);
+
+            EXPECT_CIRCUIT_CORRECTNESS(builder);
+        }
+        {
+            // batch oo + P = P
+            std::vector<affine_element> points;
+            points.push_back(affine_element::infinity());
+            points.push_back(affine_element(element::random_element()));
+            std::vector<fr> scalars;
+            scalars.push_back(1);
+            scalars.push_back(1);
+
+            Builder builder;
+            ASSERT(points.size() == scalars.size());
+            const size_t num_points = points.size();
+
+            std::vector<element_ct> circuit_points;
+            std::vector<scalar_ct> circuit_scalars;
+            for (size_t i = 0; i < num_points; ++i) {
+                circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+                circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+            }
+            element_ct result_point = element_ct::wnaf_batch_mul(circuit_points, circuit_scalars);
+
+            element expected_point = points[1];
+            expected_point = expected_point.normalize();
+
+            fq result_x(result_point.x.get_value().lo);
+            fq result_y(result_point.y.get_value().lo);
+
+            EXPECT_EQ(result_x, expected_point.x);
+            EXPECT_EQ(result_y, expected_point.y);
+
+            EXPECT_CIRCUIT_CORRECTNESS(builder);
+        }
+        {
+            // batch 0 * P1 + P2 = P2
+            std::vector<affine_element> points;
+            points.push_back(affine_element(element::random_element()));
+            points.push_back(affine_element(element::random_element()));
+            std::vector<fr> scalars;
+            scalars.push_back(0);
+            scalars.push_back(1);
+
+            Builder builder;
+            ASSERT(points.size() == scalars.size());
+            const size_t num_points = points.size();
+
+            std::vector<element_ct> circuit_points;
+            std::vector<scalar_ct> circuit_scalars;
+            for (size_t i = 0; i < num_points; ++i) {
+                circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+                circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+            }
+
+            element_ct result_point = element_ct::wnaf_batch_mul(circuit_points, circuit_scalars);
+
+            element expected_point = points[1];
+            expected_point = expected_point.normalize();
+
+            fq result_x(result_point.x.get_value().lo);
+            fq result_y(result_point.y.get_value().lo);
+
+            EXPECT_EQ(result_x, expected_point.x);
+            EXPECT_EQ(result_y, expected_point.y);
+
+            EXPECT_CIRCUIT_CORRECTNESS(builder);
+        }
     }
 
     static void test_batch_mul_short_scalars()
@@ -834,9 +1116,18 @@ TYPED_TEST(stdlib_biggroup, add)
 
     TestFixture::test_add();
 }
+TYPED_TEST(stdlib_biggroup, add_points_at_infinity)
+{
+    TestFixture::test_add_points_at_infinity();
+}
 TYPED_TEST(stdlib_biggroup, sub)
 {
     TestFixture::test_sub();
+}
+TYPED_TEST(stdlib_biggroup, sub_points_at_infinity)
+{
+
+    TestFixture::test_sub_points_at_infinity();
 }
 TYPED_TEST(stdlib_biggroup, dbl)
 {
@@ -886,6 +1177,14 @@ HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul)
 {
     TestFixture::test_batch_mul();
 }
+HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edge_cases)
+{
+    if constexpr (HasGoblinBuilder<TypeParam>) {
+        TestFixture::test_batch_mul_edge_cases();
+    } else {
+        GTEST_SKIP() << "https://github.com/AztecProtocol/barretenberg/issues/1000";
+    };
+}
 HEAVY_TYPED_TEST(stdlib_biggroup, chain_add)
 {
 
@@ -920,6 +1219,20 @@ HEAVY_TYPED_TEST(stdlib_biggroup, compute_naf)
 
 /* These tests only work for Ultra Circuit Constructor */
 HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
+{
+    if constexpr (HasPlookup<typename TypeParam::Curve::Builder>) {
+        if constexpr (HasGoblinBuilder<TypeParam>) {
+            GTEST_SKIP() << "https://github.com/AztecProtocol/barretenberg/issues/707";
+        } else {
+            TestFixture::test_compute_wnaf();
+        };
+    } else {
+        GTEST_SKIP();
+    }
+}
+
+/* These tests only work for Ultra Circuit Constructor */
+HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul_edge_cases)
 {
     if constexpr (HasPlookup<typename TypeParam::Curve::Builder>) {
         if constexpr (HasGoblinBuilder<TypeParam>) {

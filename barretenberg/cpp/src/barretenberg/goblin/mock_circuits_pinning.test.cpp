@@ -11,13 +11,13 @@ using namespace bb;
  * this, to the degree that matters for proof construction time, using these "pinning tests" that fix values.
  *
  */
-class MockCircuitsPinning : public ::testing::Test {
+class MegaMockCircuitsPinning : public ::testing::Test {
   protected:
     using ProverInstance = ProverInstance_<MegaFlavor>;
     static void SetUpTestSuite() { srs::init_crs_factory("../srs_db/ignition"); }
 };
 
-TEST_F(MockCircuitsPinning, FunctionSizes)
+TEST_F(MegaMockCircuitsPinning, FunctionSizes)
 {
     const auto run_test = [](bool large) {
         Goblin goblin;
@@ -34,7 +34,7 @@ TEST_F(MockCircuitsPinning, FunctionSizes)
     run_test(false);
 }
 
-TEST_F(MockCircuitsPinning, RecursionKernelSizes)
+TEST_F(MegaMockCircuitsPinning, RecursionKernelSizes)
 {
     const auto run_test = [](bool large) {
         {

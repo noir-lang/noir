@@ -17,6 +17,7 @@ struct UltraOp {
     Fr y_hi;
     Fr z_1;
     Fr z_2;
+    bool return_is_infinity;
 };
 
 /**
@@ -460,6 +461,7 @@ class ECCOpQueue {
         const size_t CHUNK_SIZE = 2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
         auto x_256 = uint256_t(point.x);
         auto y_256 = uint256_t(point.y);
+        ultra_op.return_is_infinity = point.is_point_at_infinity();
         ultra_op.x_lo = Fr(x_256.slice(0, CHUNK_SIZE));
         ultra_op.x_hi = Fr(x_256.slice(CHUNK_SIZE, CHUNK_SIZE * 2));
         ultra_op.y_lo = Fr(y_256.slice(0, CHUNK_SIZE));

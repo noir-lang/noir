@@ -10,11 +10,11 @@
 #include "barretenberg/numeric/random/engine.hpp"
 #include <memory>
 
+using namespace bb;
+
 namespace {
 auto& engine = numeric::get_debug_randomness();
 }
-
-using namespace bb;
 
 template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     using element_ct = typename Curve::Element;

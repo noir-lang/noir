@@ -1,22 +1,28 @@
 #pragma once
 
+#include "barretenberg/stdlib/primitives/biggroup/handle_points_at_infinity.hpp"
+#include <cstddef>
 namespace bb::stdlib {
 
 /**
- * only works for Plookup (otherwise falls back on batch_mul)! Multiscalar multiplication that utilizes 4-bit wNAF
- * lookup tables is more efficient than points-as-linear-combinations lookup tables, if the number of points is 3 or
- * fewer
+ * @brief Multiscalar multiplication that utilizes 4-bit wNAF lookup tables.
+ * @details This is more efficient than points-as-linear-combinations lookup tables, if the number of points is 3 or
+ * fewer. Only works for Plookup (otherwise falls back on batch_mul)!
+ * @todo : TODO(https://github.com/AztecProtocol/barretenberg/issues/1001) when we nuke standard and turbo plonk we
+ * should remove the fallback batch mul method!
  */
 template <typename C, class Fq, class Fr, class G>
 template <size_t max_num_bits>
-element<C, Fq, Fr, G> element<C, Fq, Fr, G>::wnaf_batch_mul(const std::vector<element>& points,
-                                                            const std::vector<Fr>& scalars)
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::wnaf_batch_mul(const std::vector<element>& _points,
+                                                            const std::vector<Fr>& _scalars)
 {
     constexpr size_t WNAF_SIZE = 4;
-    ASSERT(points.size() == scalars.size());
+    ASSERT(_points.size() == _scalars.size());
     if constexpr (!HasPlookup<C>) {
-        return batch_mul(points, scalars, max_num_bits);
+        return batch_mul(_points, _scalars, max_num_bits);
     }
+
+    const auto [points, scalars] = handle_points_at_infinity(_points, _scalars);
 
     std::vector<four_bit_table_plookup<>> point_tables;
     for (const auto& point : points) {
@@ -49,8 +55,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::wnaf_batch_mul(const std::vector<el
 
     for (size_t i = 0; i < points.size(); ++i) {
         element skew = accumulator - points[i];
-        Fq out_x = accumulator.x.conditional_select(skew.x, bool_t<C>(wnaf_entries[i][num_rounds]));
-        Fq out_y = accumulator.y.conditional_select(skew.y, bool_t<C>(wnaf_entries[i][num_rounds]));
+        Fq out_x = accumulator.x.conditional_select(skew.x, bool_ct(wnaf_entries[i][num_rounds]));
+        Fq out_y = accumulator.y.conditional_select(skew.y, bool_ct(wnaf_entries[i][num_rounds]));
         accumulator = element(out_x, out_y);
     }
     accumulator -= offset_generators.second;

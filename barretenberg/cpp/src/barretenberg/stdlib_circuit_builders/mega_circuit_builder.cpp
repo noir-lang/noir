@@ -144,6 +144,7 @@ template <typename FF> ecc_op_tuple MegaCircuitBuilder_<FF>::queue_ecc_eq()
 
     // Add corresponding gates for the operation
     ecc_op_tuple op_tuple = populate_ecc_op_wires(ultra_op);
+    op_tuple.return_is_infinity = ultra_op.return_is_infinity;
     return op_tuple;
 }
 

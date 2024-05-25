@@ -9,6 +9,7 @@
 using namespace bb;
 
 namespace tests_avm {
+using namespace bb;
 using namespace bb::avm_trace;
 
 class AvmInterTableTests : public ::testing::Test {

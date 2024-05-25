@@ -7,6 +7,8 @@
  * We use a special case algorithm to split bn254 scalar multipliers into endomorphism scalars
  *
  **/
+#include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 namespace bb::stdlib {
 
 /**
@@ -54,9 +56,9 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
         auto& big_table = big_table_pair.first;
         auto& endo_table = big_table_pair.second;
         batch_lookup_table small_table(small_points);
-        std::vector<std::vector<bool_t<C>>> big_naf_entries;
-        std::vector<std::vector<bool_t<C>>> endo_naf_entries;
-        std::vector<std::vector<bool_t<C>>> small_naf_entries;
+        std::vector<std::vector<bool_ct>> big_naf_entries;
+        std::vector<std::vector<bool_ct>> endo_naf_entries;
+        std::vector<std::vector<bool_ct>> small_naf_entries;
 
         const auto split_into_endomorphism_scalars = [ctx](const Fr& scalar) {
             bb::fr k = scalar.get_value();
@@ -99,9 +101,9 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
         element accumulator = element::chain_add_end(init_point);
 
         const auto get_point_to_add = [&](size_t naf_index) {
-            std::vector<bool_t<C>> small_nafs;
-            std::vector<bool_t<C>> big_nafs;
-            std::vector<bool_t<C>> endo_nafs;
+            std::vector<bool_ct> small_nafs;
+            std::vector<bool_ct> big_nafs;
+            std::vector<bool_ct> endo_nafs;
             for (size_t i = 0; i < small_points.size(); ++i) {
                 small_nafs.emplace_back(small_naf_entries[i][naf_index]);
             }
@@ -178,16 +180,16 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
         }
         {
             element skew = accumulator - generator_table[128];
-            Fq out_x = accumulator.x.conditional_select(skew.x, bool_t<C>(generator_wnaf[generator_wnaf.size() - 1]));
-            Fq out_y = accumulator.y.conditional_select(skew.y, bool_t<C>(generator_wnaf[generator_wnaf.size() - 1]));
+            Fq out_x = accumulator.x.conditional_select(skew.x, bool_ct(generator_wnaf[generator_wnaf.size() - 1]));
+            Fq out_y = accumulator.y.conditional_select(skew.y, bool_ct(generator_wnaf[generator_wnaf.size() - 1]));
             accumulator = element(out_x, out_y);
         }
         {
             element skew = accumulator - generator_endo_table[128];
             Fq out_x =
-                accumulator.x.conditional_select(skew.x, bool_t<C>(generator_endo_wnaf[generator_wnaf.size() - 1]));
+                accumulator.x.conditional_select(skew.x, bool_ct(generator_endo_wnaf[generator_wnaf.size() - 1]));
             Fq out_y =
-                accumulator.y.conditional_select(skew.y, bool_t<C>(generator_endo_wnaf[generator_wnaf.size() - 1]));
+                accumulator.y.conditional_select(skew.y, bool_ct(generator_endo_wnaf[generator_wnaf.size() - 1]));
             accumulator = element(out_x, out_y);
         }
 
@@ -320,7 +322,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
      **/
     const size_t num_rounds = max_num_small_bits;
     const size_t num_points = points.size();
-    std::vector<std::vector<bool_t<C>>> naf_entries;
+    std::vector<std::vector<bool_ct>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {
         naf_entries.emplace_back(compute_naf(scalars[i], max_num_small_bits));
     }
@@ -354,7 +356,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
      **/
     for (size_t i = 1; i < num_rounds / 2; ++i) {
         // `nafs` tracks the naf value for each point for the current round
-        std::vector<bool_t<C>> nafs;
+        std::vector<bool_ct> nafs;
         for (size_t j = 0; j < points.size(); ++j) {
             nafs.emplace_back(naf_entries[j][i * 2 - 1]);
         }
@@ -383,7 +385,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
 
     // we need to iterate 1 more time if the number of rounds is even
     if ((num_rounds & 0x01ULL) == 0x00ULL) {
-        std::vector<bool_t<C>> nafs;
+        std::vector<bool_ct> nafs;
         for (size_t j = 0; j < points.size(); ++j) {
             nafs.emplace_back(naf_entries[j][num_rounds - 1]);
         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 namespace bb::stdlib {
 
 /**
@@ -87,8 +88,12 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::goblin_batch_mul(const std::vector<
     auto y_hi = Fr::from_witness_index(builder, op_tuple.y_hi);
     Fq point_x(x_lo, x_hi);
     Fq point_y(y_lo, y_hi);
+    element result = element(point_x, point_y);
+    if (op_tuple.return_is_infinity) {
+        result.set_point_at_infinity(bool_ct(builder, true));
+    };
 
-    return element(point_x, point_y);
+    return result;
 }
 
 } // namespace bb::stdlib

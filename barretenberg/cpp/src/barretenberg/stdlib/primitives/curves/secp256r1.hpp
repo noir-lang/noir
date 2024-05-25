@@ -11,9 +11,9 @@ namespace bb::stdlib {
 template <typename CircuitType> struct secp256r1 {
     static constexpr bb::CurveType type = bb::CurveType::SECP256R1;
 
-    typedef ::secp256r1::fq fq;
-    typedef ::secp256r1::fr fr;
-    typedef ::secp256r1::g1 g1;
+    typedef bb::secp256r1::fq fq;
+    typedef bb::secp256r1::fr fr;
+    typedef bb::secp256r1::g1 g1;
 
     typedef CircuitType Builder;
     typedef witness_t<Builder> witness_ct;
@@ -23,8 +23,8 @@ template <typename CircuitType> struct secp256r1 {
     typedef bool_t<Builder> bool_ct;
     typedef stdlib::uint32<Builder> uint32_ct;
 
-    typedef bigfield<Builder, typename ::secp256r1::FqParams> fq_ct;
-    typedef bigfield<Builder, typename ::secp256r1::FrParams> bigfr_ct;
+    typedef bigfield<Builder, typename bb::secp256r1::FqParams> fq_ct;
+    typedef bigfield<Builder, typename bb::secp256r1::FrParams> bigfr_ct;
     typedef element<Builder, fq_ct, fr_ct, g1> g1_ct;
     typedef element<Builder, fq_ct, bigfr_ct, g1> g1_bigfr_ct;
 };

@@ -6,11 +6,12 @@
 #include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
+using namespace bb;
+using namespace bb::plonk;
+
 namespace {
 auto& engine = numeric::get_debug_randomness();
 } // namespace
-
-using namespace bb::plonk;
 
 /**
  * @brief A test fixture that will let us generate VK data and run tests
