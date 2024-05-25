@@ -152,6 +152,7 @@ pub fn compute_tx_effects_hash(
     let new_l2_to_l1_msgs = combined.new_l2_to_l1_msgs;
 
     // Public writes are the concatenation of all non-empty user update requests and protocol update requests, then padded with zeroes.
+    // The incoming all_public_data_update_requests may have empty update requests in the middle, so we move those to the end of the array.
     let public_data_update_requests = get_all_update_requests_for_tx_effects(all_public_data_update_requests);
     let note_logs_length = combined.note_encrypted_log_preimages_length;
     let encrypted_logs_length = combined.encrypted_log_preimages_length;

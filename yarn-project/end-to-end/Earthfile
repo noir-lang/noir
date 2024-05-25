@@ -148,6 +148,9 @@ e2e-fees-failures:
 e2e-fees-native-payments:
   DO +E2E_TEST --test=./src/e2e_fees/native_payments.test.ts
 
+e2e-fees-account-init:
+  DO +E2E_TEST --test=./src/e2e_fees/account_init.test.ts
+
 e2e-public-cross-chain-messaging:
   DO +E2E_TEST --test=./src/e2e_public_cross_chain_messaging
 

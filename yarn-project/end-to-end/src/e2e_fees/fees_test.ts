@@ -87,7 +87,6 @@ export class FeesTest {
   async setup() {
     const context = await this.snapshotManager.setup();
     await context.aztecNode.setConfig({ feeRecipient: this.sequencerAddress, coinbase: this.coinbase });
-    ({ pxe: this.pxe, aztecNode: this.aztecNode } = context);
     return this;
   }
 
@@ -95,31 +94,45 @@ export class FeesTest {
     await this.snapshotManager.teardown();
   }
 
-  /** Alice mints bananaCoin tokens privately to the target address. */
-  async mintPrivate(amount: bigint, address: AztecAddress) {
-    const secret = Fr.random();
-    const secretHash = computeSecretHash(secret);
-    const balanceBefore = await this.bananaCoin.methods.balance_of_private(this.aliceAddress).simulate();
-    this.logger.debug(`Minting ${amount} bananas privately for ${address} with secret ${secretHash.toString()}`);
-    const receipt = await this.bananaCoin.methods.mint_private(amount, secretHash).send().wait();
-
-    await this.addPendingShieldNoteToPXE(this.aliceWallet, amount, secretHash, receipt.txHash);
-    await this.bananaCoin.methods.redeem_shield(address, amount, secret).send().wait();
-    const balanceAfter = await this.bananaCoin.methods.balance_of_private(this.aliceAddress).simulate();
+  /** Alice mints bananaCoin tokens privately to the target address and redeems them. */
+  async mintPrivateBananas(amount: bigint, address: AztecAddress) {
+    const balanceBefore = await this.bananaCoin.methods.balance_of_private(address).simulate();
+    const secret = await this.mintShieldedBananas(amount, address);
+    await this.redeemShieldedBananas(amount, address, secret);
+    const balanceAfter = await this.bananaCoin.methods.balance_of_private(address).simulate();
     expect(balanceAfter).toEqual(balanceBefore + amount);
   }
 
-  async addPendingShieldNoteToPXE(wallet: AccountWallet, amount: bigint, secretHash: Fr, txHash: TxHash) {
+  /** Alice mints bananaCoin tokens privately to the target address but does not redeem them yet. */
+  async mintShieldedBananas(amount: bigint, address: AztecAddress) {
+    const secret = Fr.random();
+    const secretHash = computeSecretHash(secret);
+    this.logger.debug(`Minting ${amount} bananas privately for ${address} with secret ${secretHash.toString()}`);
+    const receipt = await this.bananaCoin.methods.mint_private(amount, secretHash).send().wait();
+    await this.addPendingShieldNoteToPXE(this.aliceAddress, amount, secretHash, receipt.txHash);
+    return secret;
+  }
+
+  /** Redeemer (defaults to Alice) redeems shielded bananas for the target address. */
+  async redeemShieldedBananas(amount: bigint, address: AztecAddress, secret: Fr, redeemer?: AccountWallet) {
+    this.logger.debug(`Redeeming ${amount} bananas for ${address}`);
+    const bananaCoin = redeemer ? this.bananaCoin.withWallet(redeemer) : this.bananaCoin;
+    await bananaCoin.methods.redeem_shield(address, amount, secret).send().wait();
+  }
+
+  /** Adds a pending shield transparent node for the banana coin token contract to the pxe. */
+  async addPendingShieldNoteToPXE(owner: AztecAddress | AccountWallet, amount: bigint, secretHash: Fr, txHash: TxHash) {
     const note = new Note([new Fr(amount), secretHash]);
+    const ownerAddress = 'getAddress' in owner ? owner.getAddress() : owner;
     const extendedNote = new ExtendedNote(
       note,
-      wallet.getAddress(),
+      ownerAddress,
       this.bananaCoin.address,
       BananaCoin.storage.pending_shields.slot,
       BananaCoin.notes.TransparentNote.id,
       txHash,
     );
-    await wallet.addNote(extendedNote);
+    await this.pxe.addNote(extendedNote);
   }
 
   public async applyBaseSnapshots() {
@@ -133,7 +146,9 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'initial_accounts',
       addAccounts(3, this.logger),
-      async ({ accountKeys }, { pxe }) => {
+      async ({ accountKeys }, { pxe, aztecNode }) => {
+        this.pxe = pxe;
+        this.aztecNode = aztecNode;
         const accountManagers = accountKeys.map(ak => getSchnorrAccount(pxe, ak[0], ak[1], 1));
         await Promise.all(accountManagers.map(a => a.register()));
         this.wallets = await Promise.all(accountManagers.map(a => a.getWallet()));
@@ -247,7 +262,7 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'fund_alice',
       async () => {
-        await this.mintPrivate(BigInt(this.ALICE_INITIAL_BANANAS), this.aliceAddress);
+        await this.mintPrivateBananas(BigInt(this.ALICE_INITIAL_BANANAS), this.aliceAddress);
         await this.bananaCoin.methods.mint_public(this.aliceAddress, this.ALICE_INITIAL_BANANAS).send().wait();
       },
       () => Promise.resolve(),
