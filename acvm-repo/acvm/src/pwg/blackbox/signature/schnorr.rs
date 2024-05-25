@@ -12,7 +12,7 @@ use acir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn schnorr_verify(
+pub(crate) fn schnorr_verify<F>(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     public_key_x: FunctionInput,
@@ -20,7 +20,7 @@ pub(crate) fn schnorr_verify(
     signature: &[FunctionInput; 64],
     message: &[FunctionInput],
     output: Witness,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let public_key_x: &FieldElement = witness_to_value(initial_witness, public_key_x.witness)?;
     let public_key_y: &FieldElement = witness_to_value(initial_witness, public_key_y.witness)?;
 

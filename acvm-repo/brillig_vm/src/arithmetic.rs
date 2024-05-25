@@ -19,11 +19,11 @@ pub(crate) enum BrilligArithmeticError {
 }
 
 /// Evaluate a binary operation on two FieldElement memory values.
-pub(crate) fn evaluate_binary_field_op(
+pub(crate) fn evaluate_binary_field_op<F>(
     op: &BinaryFieldOp,
-    lhs: MemoryValue,
-    rhs: MemoryValue,
-) -> Result<MemoryValue, BrilligArithmeticError> {
+    lhs: MemoryValue<F>,
+    rhs: MemoryValue<F>,
+) -> Result<MemoryValue<F>, BrilligArithmeticError> {
     let MemoryValue::Field(a) = lhs else {
         return Err(BrilligArithmeticError::MismatchedLhsBitSize {
             lhs_bit_size: lhs.bit_size(),
@@ -57,12 +57,12 @@ pub(crate) fn evaluate_binary_field_op(
 }
 
 /// Evaluate a binary operation on two unsigned big integers with a given bit size.
-pub(crate) fn evaluate_binary_int_op(
+pub(crate) fn evaluate_binary_int_op<F>(
     op: &BinaryIntOp,
-    lhs: MemoryValue,
-    rhs: MemoryValue,
+    lhs: MemoryValue<F>,
+    rhs: MemoryValue<F>,
     bit_size: u32,
-) -> Result<MemoryValue, BrilligArithmeticError> {
+) -> Result<MemoryValue<F>, BrilligArithmeticError> {
     let lhs = lhs.expect_integer_with_bit_size(bit_size).map_err(|err| match err {
         MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
             BrilligArithmeticError::MismatchedLhsBitSize {

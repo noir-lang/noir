@@ -10,17 +10,17 @@ use num_bigint::BigUint;
 use crate::memory::MemoryValue;
 use crate::Memory;
 
-fn read_heap_vector<'a>(memory: &'a Memory, vector: &HeapVector) -> &'a [MemoryValue] {
+fn read_heap_vector<'a, F>(memory: &'a Memory<F>, vector: &HeapVector) -> &'a [MemoryValue<F>] {
     let size = memory.read(vector.size);
     memory.read_slice(memory.read_ref(vector.pointer), size.to_usize())
 }
 
-fn read_heap_array<'a>(memory: &'a Memory, array: &HeapArray) -> &'a [MemoryValue] {
+fn read_heap_array<'a, F>(memory: &'a Memory<F>, array: &HeapArray) -> &'a [MemoryValue<F>] {
     memory.read_slice(memory.read_ref(array.pointer), array.size)
 }
 
 /// Extracts the last byte of every value
-fn to_u8_vec(inputs: &[MemoryValue]) -> Vec<u8> {
+fn to_u8_vec<F>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
     let mut result = Vec::with_capacity(inputs.len());
     for input in inputs {
         result.push(input.try_into().unwrap());
@@ -28,14 +28,14 @@ fn to_u8_vec(inputs: &[MemoryValue]) -> Vec<u8> {
     result
 }
 
-fn to_value_vec(input: &[u8]) -> Vec<MemoryValue> {
+fn to_value_vec<F>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()
 }
 
-pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
+pub(crate) fn evaluate_black_box<F, Solver: BlackBoxFunctionSolver>(
     op: &BlackBoxOp,
     solver: &Solver,
-    memory: &mut Memory,
+    memory: &mut Memory<F>,
     bigint_solver: &mut BigIntSolver,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {

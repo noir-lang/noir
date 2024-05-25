@@ -13,30 +13,26 @@ mod ordering;
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub struct Expression {
+pub struct Expression<F> {
     // To avoid having to create intermediate variables pre-optimization
     // We collect all of the multiplication terms in the assert-zero opcode
     // A multiplication term if of the form q_M * wL * wR
     // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
-    pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
+    pub mul_terms: Vec<(F, Witness, Witness)>,
 
-    pub linear_combinations: Vec<(FieldElement, Witness)>,
+    pub linear_combinations: Vec<(F, Witness)>,
     // TODO: rename q_c to `constant` moreover q_X is not clear to those who
     // TODO are not familiar with PLONK
-    pub q_c: FieldElement,
+    pub q_c: F,
 }
 
-impl Default for Expression {
-    fn default() -> Expression {
-        Expression {
-            mul_terms: Vec::new(),
-            linear_combinations: Vec::new(),
-            q_c: FieldElement::zero(),
-        }
+impl<F: AcirField> Default for Expression<F> {
+    fn default() -> Self {
+        Expression { mul_terms: Vec::new(), linear_combinations: Vec::new(), q_c: F::zero() }
     }
 }
 
-impl std::fmt::Display for Expression {
+impl<F: AcirField> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(witness) = self.to_witness() {
             write!(f, "x{}", witness.witness_index())
@@ -46,7 +42,7 @@ impl std::fmt::Display for Expression {
     }
 }
 
-impl Expression {
+impl<F: AcirField> Expression<F> {
     // TODO: possibly remove, and move to noir repo.
     pub const fn can_defer_constraint(&self) -> bool {
         false
@@ -57,30 +53,25 @@ impl Expression {
         self.mul_terms.len()
     }
 
-    pub fn from_field(q_c: FieldElement) -> Expression {
+    pub fn from_field(q_c: F) -> Self {
         Self { q_c, ..Default::default() }
     }
 
-    pub fn one() -> Expression {
-        Self::from_field(FieldElement::one())
+    pub fn one() -> Self {
+        Self::from_field(F::one())
     }
 
-    pub fn zero() -> Expression {
+    pub fn zero() -> Self {
         Self::default()
     }
 
     /// Adds a new linear term to the `Expression`.
-    pub fn push_addition_term(&mut self, coefficient: FieldElement, variable: Witness) {
+    pub fn push_addition_term(&mut self, coefficient: F, variable: Witness) {
         self.linear_combinations.push((coefficient, variable));
     }
 
     /// Adds a new quadratic term to the `Expression`.
-    pub fn push_multiplication_term(
-        &mut self,
-        coefficient: FieldElement,
-        lhs: Witness,
-        rhs: Witness,
-    ) {
+    pub fn push_multiplication_term(&mut self, coefficient: F, lhs: Witness, rhs: Witness) {
         self.mul_terms.push((coefficient, lhs, rhs));
     }
 
@@ -144,7 +135,7 @@ impl Expression {
     /// - f(x,y) = 2*y + 6 would return `None`
     /// - f(x,y) = x + y would return `None`
     /// - f(x,y) = 5 would return `FieldElement(5)`
-    pub fn to_const(&self) -> Option<FieldElement> {
+    pub fn to_const(&self) -> Option<F> {
         self.is_const().then_some(self.q_c)
     }
 
@@ -215,7 +206,7 @@ impl Expression {
         let mul_term = &self.mul_terms[0];
 
         // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
-        assert_ne!(mul_term.0, FieldElement::zero());
+        assert_ne!(mul_term.0, F::zero());
 
         let mut found_x = false;
         let mut found_y = false;
@@ -239,18 +230,19 @@ impl Expression {
     }
 
     /// Returns `self + k*b`
-    pub fn add_mul(&self, k: FieldElement, b: &Expression) -> Expression {
+    pub fn add_mul(&self, k: F, b: &Self) -> Self {
         if k.is_zero() {
             return self.clone();
         } else if self.is_const() {
-            return self.q_c + (k * b);
+            let kb = b * k;
+            return kb + self.q_c;
         } else if b.is_const() {
             return self.clone() + (k * b.q_c);
         }
 
-        let mut mul_terms: Vec<(FieldElement, Witness, Witness)> =
+        let mut mul_terms: Vec<(F, Witness, Witness)> =
             Vec::with_capacity(self.mul_terms.len() + b.mul_terms.len());
-        let mut linear_combinations: Vec<(FieldElement, Witness)> =
+        let mut linear_combinations: Vec<(F, Witness)> =
             Vec::with_capacity(self.linear_combinations.len() + b.linear_combinations.len());
         let q_c = self.q_c + k * b.q_c;
 
@@ -337,7 +329,7 @@ impl Expression {
         while i2 < b.mul_terms.len() {
             let (b_c, b_wl, b_wr) = b.mul_terms[i2];
             let coeff = b_c * k;
-            if coeff != FieldElement::zero() {
+            if coeff != F::zero() {
                 mul_terms.push((coeff, b_wl, b_wr));
             }
             i2 += 1;
@@ -347,22 +339,22 @@ impl Expression {
     }
 }
 
-impl From<FieldElement> for Expression {
-    fn from(constant: FieldElement) -> Expression {
+impl<F: AcirField> From<F> for Expression<F> {
+    fn from(constant: F) -> Self {
         Expression { q_c: constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
     }
 }
 
-impl From<Witness> for Expression {
+impl<F: AcirField> From<Witness> for Expression<F> {
     /// Creates an Expression from a Witness.
     ///
     /// This is infallible since an `Expression` is
     /// a multi-variate polynomial and a `Witness`
     /// can be seen as a univariate polynomial
-    fn from(wit: Witness) -> Expression {
+    fn from(wit: Witness) -> Self {
         Expression {
-            q_c: FieldElement::zero(),
-            linear_combinations: vec![(FieldElement::one(), wit)],
+            q_c: F::zero(),
+            linear_combinations: vec![(F::one(), wit)],
             mul_terms: Vec::new(),
         }
     }

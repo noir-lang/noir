@@ -4,10 +4,10 @@ use crate::{
 };
 use acir::{circuit::opcodes::FunctionInput, native_types::WitnessMap, AcirField};
 
-pub(crate) fn solve_range_opcode(
+pub(crate) fn solve_range_opcode<F>(
     initial_witness: &WitnessMap,
     input: &FunctionInput,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let w_value = witness_to_value(initial_witness, input.witness)?;
     if w_value.num_bits() > input.num_bits {
         return Err(OpcodeResolutionError::UnsatisfiedConstrain {

@@ -18,13 +18,13 @@ pub(crate) struct AcvmBigIntSolver {
 }
 
 impl AcvmBigIntSolver {
-    pub(crate) fn bigint_from_bytes(
+    pub(crate) fn bigint_from_bytes<F>(
         &mut self,
         inputs: &[FunctionInput],
         modulus: &[u8],
         output: u32,
         initial_witness: &mut WitnessMap,
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         let bytes = inputs
             .iter()
             .map(|input| initial_witness.get(&input.witness).unwrap().to_u128() as u8)
@@ -33,12 +33,12 @@ impl AcvmBigIntSolver {
         Ok(())
     }
 
-    pub(crate) fn bigint_to_bytes(
+    pub(crate) fn bigint_to_bytes<F>(
         &self,
         input: u32,
         outputs: &[Witness],
         initial_witness: &mut WitnessMap,
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         let mut bytes = self.bigint_solver.bigint_to_bytes(input)?;
         while bytes.len() < outputs.len() {
             bytes.push(0);
@@ -49,13 +49,13 @@ impl AcvmBigIntSolver {
         Ok(())
     }
 
-    pub(crate) fn bigint_op(
+    pub(crate) fn bigint_op<F>(
         &mut self,
         lhs: u32,
         rhs: u32,
         output: u32,
         func: BlackBoxFunc,
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         self.bigint_solver.bigint_op(lhs, rhs, output, func)?;
         Ok(())
     }

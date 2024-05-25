@@ -55,12 +55,12 @@ fn contains_all_inputs(witness_assignments: &WitnessMap, inputs: &[FunctionInput
     inputs.iter().all(|input| witness_assignments.contains_key(&input.witness))
 }
 
-pub(crate) fn solve(
+pub(crate) fn solve<F>(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     bb_func: &BlackBoxFuncCall,
     bigint_solver: &mut AcvmBigIntSolver,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
         let unassigned_witness = first_missing_assignment(initial_witness, &inputs)

@@ -39,7 +39,7 @@ pub enum FailureReason {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum VMStatus {
+pub enum VMStatus<F> {
     Finished {
         return_data_offset: usize,
         return_data_size: usize,
@@ -60,15 +60,15 @@ pub enum VMStatus {
         function: String,
         /// Input values
         /// Each input is a list of values as an input can be either a single value or a memory pointer
-        inputs: Vec<ForeignCallParam>,
+        inputs: Vec<ForeignCallParam<F>>,
     },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// VM encapsulates the state of the Brillig VM during execution.
-pub struct VM<'a, B: BlackBoxFunctionSolver> {
+pub struct VM<'a, F, B: BlackBoxFunctionSolver> {
     /// Calldata to the brillig function
-    calldata: Vec<FieldElement>,
+    calldata: Vec<F>,
     /// Instruction pointer
     program_counter: usize,
     /// A counter maintained throughout a Brillig process that determines
@@ -76,13 +76,13 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     foreign_call_counter: usize,
     /// Represents the outputs of all foreign calls during a Brillig process
     /// List is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait]
-    foreign_call_results: Vec<ForeignCallResult>,
+    foreign_call_results: Vec<ForeignCallResult<F>>,
     /// Executable opcodes
     bytecode: &'a [Opcode],
     /// Status of the VM
-    status: VMStatus,
+    status: VMStatus<F>,
     /// Memory of the VM
-    memory: Memory,
+    memory: Memory<F>,
     /// Call stack
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
@@ -91,12 +91,12 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     bigint_solver: BigIntSolver,
 }
 
-impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
+impl<'a, F: Clone, B: BlackBoxFunctionSolver> VM<'a, F, B> {
     /// Constructs a new VM instance
     pub fn new(
-        calldata: Vec<FieldElement>,
+        calldata: Vec<F>,
         bytecode: &'a [Opcode],
-        foreign_call_results: Vec<ForeignCallResult>,
+        foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
     ) -> Self {
         Self {
@@ -115,17 +115,17 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
 
     /// Updates the current status of the VM.
     /// Returns the given status.
-    fn status(&mut self, status: VMStatus) -> VMStatus {
+    fn status(&mut self, status: VMStatus<F>) -> VMStatus<F> {
         self.status = status.clone();
         status
     }
 
-    pub fn get_status(&self) -> VMStatus {
+    pub fn get_status(&self) -> VMStatus<F> {
         self.status.clone()
     }
 
     /// Sets the current status of the VM to Finished (completed execution).
-    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus {
+    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus<F> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
     }
 
@@ -134,12 +134,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     fn wait_for_foreign_call(
         &mut self,
         function: String,
-        inputs: Vec<ForeignCallParam>,
-    ) -> VMStatus {
+        inputs: Vec<ForeignCallParam<F>>,
+    ) -> VMStatus<F> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
-    pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
+    pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
         if self.foreign_call_counter < self.foreign_call_results.len() {
             panic!("No unresolved foreign calls");
         }
@@ -156,7 +156,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     /// Sets the current status of the VM to `fail`.
     /// Indicating that the VM encountered a `Trap` Opcode
     /// or an invalid state.
-    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus {
+    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_error_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
@@ -164,7 +164,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status.clone()
     }
 
-    fn fail(&mut self, message: String) -> VMStatus {
+    fn fail(&mut self, message: String) -> VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_error_stack(),
             reason: FailureReason::RuntimeError { message },
@@ -173,7 +173,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Loop over the bytecode and update the program counter
-    pub fn process_opcodes(&mut self) -> VMStatus {
+    pub fn process_opcodes(&mut self) -> VMStatus<F> {
         while !matches!(
             self.process_opcode(),
             VMStatus::Finished { .. } | VMStatus::Failure { .. } | VMStatus::ForeignCallWait { .. }
@@ -181,11 +181,11 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status.clone()
     }
 
-    pub fn get_memory(&self) -> &[MemoryValue] {
+    pub fn get_memory(&self) -> &[MemoryValue<F>] {
         self.memory.values()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue) {
+    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
         self.memory.write(MemoryAddress(ptr), value);
     }
 
@@ -196,7 +196,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Process a single opcode and modify the program counter.
-    pub fn process_opcode(&mut self) -> VMStatus {
+    pub fn process_opcode(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
@@ -360,14 +360,14 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Increments the program counter by 1.
-    fn increment_program_counter(&mut self) -> VMStatus {
+    fn increment_program_counter(&mut self) -> VMStatus<F> {
         self.set_program_counter(self.program_counter + 1)
     }
 
     /// Increments the program counter by `value`.
     /// If the program counter no longer points to an opcode
     /// in the bytecode, then the VMStatus reports halted.
-    fn set_program_counter(&mut self, value: usize) -> VMStatus {
+    fn set_program_counter(&mut self, value: usize) -> VMStatus<F> {
         assert!(self.program_counter < self.bytecode.len());
         self.program_counter = value;
         if self.program_counter >= self.bytecode.len() {
@@ -380,7 +380,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         &self,
         input: ValueOrArray,
         value_type: &HeapValueType,
-    ) -> ForeignCallParam {
+    ) -> ForeignCallParam<F> {
         match (input, value_type) {
             (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(_)) => {
                 self.memory.read(value_index).to_field().into()
@@ -421,7 +421,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         start: MemoryAddress,
         size: usize,
         value_types: &[HeapValueType],
-    ) -> Vec<MemoryValue> {
+    ) -> Vec<MemoryValue<F>> {
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
@@ -618,7 +618,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Casts a value to a different bit size.
-    fn cast(&self, bit_size: u32, source_value: MemoryValue) -> MemoryValue {
+    fn cast(&self, bit_size: u32, source_value: MemoryValue<F>) -> MemoryValue<F> {
         let lhs_big = source_value.to_integer();
         let mask = BigUint::from(2_u32).pow(bit_size) - 1_u32;
         MemoryValue::new_from_integer(lhs_big & mask, bit_size)
@@ -1011,7 +1011,7 @@ mod tests {
         ///         memory[i] = i as Value;
         ///         i += 1;
         ///     }
-        fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue> {
+        fn brillig_write_memory<F>(item_count: usize) -> Vec<MemoryValue<F>> {
             let bit_size = 64;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
@@ -1180,7 +1180,7 @@ mod tests {
         ///         recursive_write(memory, i + 1, len);
         ///     }
         /// Note we represent a 100% in-stack optimized form in brillig
-        fn brillig_recursive_write_memory(size: usize) -> Vec<MemoryValue> {
+        fn brillig_recursive_write_memory<F>(size: usize) -> Vec<MemoryValue<F>> {
             let bit_size = 64;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
@@ -1267,7 +1267,7 @@ mod tests {
         vm
     }
 
-    fn brillig_execute(vm: &mut VM<StubbedBlackBoxSolver>) {
+    fn brillig_execute(vm: &mut VM<F, StubbedBlackBoxSolver>) {
         loop {
             let status = vm.process_opcode();
             if matches!(status, VMStatus::Finished { .. } | VMStatus::ForeignCallWait { .. }) {

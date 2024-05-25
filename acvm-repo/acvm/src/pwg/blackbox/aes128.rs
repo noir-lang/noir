@@ -9,13 +9,13 @@ use crate::{pwg::insert_value, OpcodeResolutionError};
 
 use super::utils::{to_u8_array, to_u8_vec};
 
-pub(super) fn solve_aes128_encryption_opcode(
+pub(super) fn solve_aes128_encryption_opcode<F>(
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     iv: &[FunctionInput; 16],
     key: &[FunctionInput; 16],
     outputs: &[Witness],
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let scalars = to_u8_vec(initial_witness, inputs)?;
 
     let iv = to_u8_array(initial_witness, iv)?;

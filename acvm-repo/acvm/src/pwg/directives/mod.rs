@@ -11,10 +11,10 @@ use super::{get_value, insert_value, ErrorLocation};
 /// Returns `Ok(OpcodeResolution)` to signal whether the directive was successful solved.
 ///
 /// Returns `Err(OpcodeResolutionError)` if a circuit constraint is unsatisfied.
-pub(crate) fn solve_directives(
+pub(crate) fn solve_directives<F>(
     initial_witness: &mut WitnessMap,
-    directive: &Directive,
-) -> Result<(), OpcodeResolutionError> {
+    directive: &Directive<F>,
+) -> Result<(), OpcodeResolutionError<F>> {
     match directive {
         Directive::ToLeRadix { a, b, radix } => {
             let value_a = get_value(a, initial_witness)?;
@@ -36,8 +36,8 @@ pub(crate) fn solve_directives(
                 // If it is not available, which can happen when the decomposed integer
                 // list is shorter than the witness list, we return 0.
                 let value = match decomposed_integer.get(i) {
-                    Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
-                    None => FieldElement::zero(),
+                    Some(digit) => F::from_be_bytes_reduce(&[*digit]),
+                    None => F::zero(),
                 };
 
                 insert_value(witness, value, initial_witness)?;

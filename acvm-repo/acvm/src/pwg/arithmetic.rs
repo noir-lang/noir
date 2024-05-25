@@ -10,24 +10,24 @@ use super::{insert_value, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionErro
 pub(crate) struct ExpressionSolver;
 
 #[allow(clippy::enum_variant_names)]
-pub(super) enum OpcodeStatus {
-    OpcodeSatisfied(FieldElement),
-    OpcodeSolvable(FieldElement, (FieldElement, Witness)),
+pub(super) enum OpcodeStatus<F> {
+    OpcodeSatisfied(F),
+    OpcodeSolvable(F, (F, Witness)),
     OpcodeUnsolvable,
 }
 
-pub(crate) enum MulTerm {
-    OneUnknown(FieldElement, Witness), // (qM * known_witness, unknown_witness)
+pub(crate) enum MulTerm<F> {
+    OneUnknown(F, Witness), // (qM * known_witness, unknown_witness)
     TooManyUnknowns,
-    Solved(FieldElement),
+    Solved(F),
 }
 
 impl ExpressionSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    pub(crate) fn solve(
+    pub(crate) fn solve<F>(
         initial_witness: &mut WitnessMap,
-        opcode: &Expression,
-    ) -> Result<(), OpcodeResolutionError> {
+        opcode: &Expression<F>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
         let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
         // Evaluate multiplication term
         let mul_result =
@@ -133,10 +133,10 @@ impl ExpressionSolver {
     /// If the witness values are not known, then the function returns a None
     /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another opcode
     /// XXX: What about making a mul opcode = a constant 5xy + 7 = 0 ? This is the same as the above.
-    fn solve_mul_term(
-        arith_opcode: &Expression,
+    fn solve_mul_term<F>(
+        arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap,
-    ) -> Result<MulTerm, OpcodeStatus> {
+    ) -> Result<MulTerm<F>, OpcodeStatus<F>> {
         // First note that the mul term can only contain one/zero term
         // We are assuming it has been optimized.
         match arith_opcode.mul_terms.len() {
@@ -149,10 +149,10 @@ impl ExpressionSolver {
         }
     }
 
-    fn solve_mul_term_helper(
-        term: &(FieldElement, Witness, Witness),
+    fn solve_mul_term_helper<F>(
+        term: &(F, Witness, Witness),
         witness_assignments: &WitnessMap,
-    ) -> MulTerm {
+    ) -> MulTerm<F> {
         let (q_m, w_l, w_r) = term;
         // Check if these values are in the witness assignments
         let w_l_value = witness_assignments.get(w_l);
@@ -166,10 +166,10 @@ impl ExpressionSolver {
         }
     }
 
-    fn solve_fan_in_term_helper(
-        term: &(FieldElement, Witness),
+    fn solve_fan_in_term_helper<F>(
+        term: &(F, Witness),
         witness_assignments: &WitnessMap,
-    ) -> Option<FieldElement> {
+    ) -> Option<F> {
         let (q_l, w_l) = term;
         // Check if we have w_l
         let w_l_value = witness_assignments.get(w_l);
@@ -179,10 +179,10 @@ impl ExpressionSolver {
     /// Returns the summation of all of the variables, plus the unknown variable
     /// Returns None, if there is more than one unknown variable
     /// We cannot assign
-    pub(super) fn solve_fan_in_term(
-        arith_opcode: &Expression,
+    pub(super) fn solve_fan_in_term<F>(
+        arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap,
-    ) -> OpcodeStatus {
+    ) -> OpcodeStatus<F> {
         // This is assuming that the fan-in is more than 0
 
         // This is the variable that we want to assign the value to
@@ -215,7 +215,7 @@ impl ExpressionSolver {
     }
 
     // Partially evaluate the opcode using the known witnesses
-    pub(crate) fn evaluate(expr: &Expression, initial_witness: &WitnessMap) -> Expression {
+    pub(crate) fn evaluate<F>(expr: &Expression<F>, initial_witness: &WitnessMap) -> Expression<F> {
         let mut result = Expression::default();
         for &(c, w1, w2) in &expr.mul_terms {
             let mul_result = ExpressionSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);

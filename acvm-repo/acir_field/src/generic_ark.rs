@@ -4,7 +4,24 @@ use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-pub trait AcirField: std::marker::Sized {
+pub trait AcirField:
+    std::marker::Sized
+    + Display
+    + Debug
+    + Default
+    + Clone
+    + Copy
+    + Neg<Output = Self>
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + std::cmp::Eq
+    + Serialize
+    + for<'a> Deserialize<'a>
+{
     fn one() -> Self;
     fn zero() -> Self;
 
@@ -68,7 +85,7 @@ pub trait AcirField: std::marker::Sized {
 
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
-#[derive(Clone, Copy, Eq, PartialOrd, Ord)]
+#[derive(Default, Clone, Copy, Eq, PartialOrd, Ord)]
 pub struct FieldElement<F: PrimeField>(F);
 
 impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
@@ -445,6 +462,8 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 }
 
+use std::fmt::Debug;
+use std::fmt::Display;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 impl<F: PrimeField> Neg for FieldElement<F> {

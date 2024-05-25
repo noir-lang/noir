@@ -30,7 +30,7 @@ impl CSatTransformer {
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve(&mut self, opcode: &Expression) {
+    fn try_solve<F>(&mut self, opcode: &Expression<F>) {
         let mut unresolved = Vec::new();
         for (_, w1, w2) in &opcode.mul_terms {
             if !self.solvable_witness.contains(w1) {
@@ -64,12 +64,12 @@ impl CSatTransformer {
     // Still missing dead witness optimization.
     // To do this, we will need the whole set of assert-zero opcodes
     // I think it can also be done before the local optimization seen here, as dead variables will come from the user
-    pub(crate) fn transform(
+    pub(crate) fn transform<F>(
         &mut self,
-        opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (FieldElement, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full opcode
         let opcode =
             self.full_opcode_scan_optimization(opcode, intermediate_variables, num_witness);
@@ -107,12 +107,12 @@ impl CSatTransformer {
     // The polynomial now looks like so t + t2
     // We can no longer extract another full opcode, hence the algorithm terminates. Creating two intermediate variables t and t2.
     // This stage of preprocessing does not guarantee that all polynomials can fit into a opcode. It only guarantees that all full opcodes have been extracted from each polynomial
-    fn full_opcode_scan_optimization(
+    fn full_opcode_scan_optimization<F>(
         &mut self,
-        mut opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        mut opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (FieldElement, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // We pass around this intermediate variable IndexMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
 
@@ -245,7 +245,7 @@ impl CSatTransformer {
     /// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
     /// The function panic if the input expression is constant
-    fn normalize(mut expr: Expression) -> (FieldElement, Expression) {
+    fn normalize<F>(mut expr: Expression<F>) -> (F, Expression<F>) {
         expr.sort();
         let a = if !expr.linear_combinations.is_empty() {
             expr.linear_combinations[0].0
@@ -259,11 +259,11 @@ impl CSatTransformer {
     /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
-    fn get_or_create_intermediate_vars(
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
-        expr: Expression,
+    fn get_or_create_intermediate_vars<F>(
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
+        expr: Expression<F>,
         num_witness: &mut u32,
-    ) -> (FieldElement, Witness) {
+    ) -> (F, Witness) {
         let (k, normalized_expr) = Self::normalize(expr);
 
         if intermediate_variables.contains_key(&normalized_expr) {
@@ -274,7 +274,7 @@ impl CSatTransformer {
             *num_witness += 1;
             // Add intermediate opcode and variable to map
             intermediate_variables.insert(normalized_expr, (k, inter_var));
-            (FieldElement::one(), inter_var)
+            (F::one(), inter_var)
         }
     }
 
@@ -315,12 +315,12 @@ impl CSatTransformer {
     // Also remember that since we did full opcode scan, there is no way we can have a non-zero mul term along with the wL and wR terms being non-zero
     //
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
-    fn partial_opcode_scan_optimization(
+    fn partial_opcode_scan_optimization<F>(
         &mut self,
-        mut opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        mut opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
 

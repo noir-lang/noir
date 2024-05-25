@@ -12,10 +12,10 @@ pub(crate) use csat::CSatTransformer;
 use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn transform(
-    acir: Circuit,
+pub fn transform<F>(
+    acir: Circuit<F>,
     expression_width: ExpressionWidth,
-) -> (Circuit, AcirTransformationMap) {
+) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
@@ -34,11 +34,11 @@ pub fn transform(
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 #[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
-pub(super) fn transform_internal(
-    acir: Circuit,
+pub(super) fn transform_internal<F>(
+    acir: Circuit<F>,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
-) -> (Circuit, Vec<usize>) {
+) -> (Circuit<F>, Vec<usize>) {
     let mut transformer = match &expression_width {
         ExpressionWidth::Unbounded => {
             return (acir, acir_opcode_positions);

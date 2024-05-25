@@ -8,13 +8,13 @@ use crate::{
     BlackBoxFunctionSolver,
 };
 
-pub(super) fn pedersen(
+pub(super) fn pedersen<F>(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     domain_separator: u32,
     outputs: (Witness, Witness),
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let scalars: Result<Vec<_>, _> =
         inputs.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
     let scalars: Vec<_> = scalars?.into_iter().cloned().collect();
@@ -27,13 +27,13 @@ pub(super) fn pedersen(
     Ok(())
 }
 
-pub(super) fn pedersen_hash(
+pub(super) fn pedersen_hash<F>(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     domain_separator: u32,
     output: Witness,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let scalars: Result<Vec<_>, _> =
         inputs.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
     let scalars: Vec<_> = scalars?.into_iter().cloned().collect();

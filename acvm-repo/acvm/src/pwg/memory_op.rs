@@ -15,17 +15,17 @@ type MemoryIndex = u32;
 
 /// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
 #[derive(Default)]
-pub(crate) struct MemoryOpSolver {
-    pub(super) block_value: HashMap<MemoryIndex, FieldElement>,
+pub(crate) struct MemoryOpSolver<F> {
+    pub(super) block_value: HashMap<MemoryIndex, F>,
     pub(super) block_len: u32,
 }
 
-impl MemoryOpSolver {
+impl<F> MemoryOpSolver<F> {
     fn write_memory_index(
         &mut self,
         index: MemoryIndex,
-        value: FieldElement,
-    ) -> Result<(), OpcodeResolutionError> {
+        value: F,
+    ) -> Result<(), OpcodeResolutionError<F>> {
         if index >= self.block_len {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
@@ -37,7 +37,7 @@ impl MemoryOpSolver {
         Ok(())
     }
 
-    fn read_memory_index(&self, index: MemoryIndex) -> Result<FieldElement, OpcodeResolutionError> {
+    fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
             index,
@@ -50,7 +50,7 @@ impl MemoryOpSolver {
         &mut self,
         init: &[Witness],
         initial_witness: &WitnessMap,
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         self.block_len = init.len() as u32;
         for (memory_index, witness) in init.iter().enumerate() {
             self.write_memory_index(
@@ -63,10 +63,10 @@ impl MemoryOpSolver {
 
     pub(crate) fn solve_memory_op(
         &mut self,
-        op: &MemOp,
+        op: &MemOp<F>,
         initial_witness: &mut WitnessMap,
-        predicate: &Option<Expression>,
-    ) -> Result<(), OpcodeResolutionError> {
+        predicate: &Option<Expression<F>>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
         // Find the memory index associated with this memory operation.

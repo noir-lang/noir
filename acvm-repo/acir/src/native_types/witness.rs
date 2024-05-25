@@ -33,11 +33,3 @@ impl From<u32> for Witness {
         Self(value)
     }
 }
-
-impl Add<Witness> for Witness {
-    type Output = Expression;
-
-    fn add(self, rhs: Witness) -> Self::Output {
-        Expression::from(self).add_mul(FieldElement::one(), &Expression::from(rhs))
-    }
-}

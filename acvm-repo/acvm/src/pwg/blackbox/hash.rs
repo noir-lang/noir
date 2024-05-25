@@ -10,13 +10,13 @@ use crate::OpcodeResolutionError;
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
-pub(super) fn solve_generic_256_hash_opcode(
+pub(super) fn solve_generic_256_hash_opcode<F>(
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     var_message_size: Option<&FunctionInput>,
     outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let message_input = get_hash_input(initial_witness, inputs, var_message_size)?;
     let digest: [u8; 32] = hash_function(&message_input)?;
 
@@ -24,11 +24,11 @@ pub(super) fn solve_generic_256_hash_opcode(
 }
 
 /// Reads the hash function input from a [`WitnessMap`].
-fn get_hash_input(
+fn get_hash_input<F>(
     initial_witness: &WitnessMap,
     inputs: &[FunctionInput],
     message_size: Option<&FunctionInput>,
-) -> Result<Vec<u8>, OpcodeResolutionError> {
+) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
     let mut message_input = Vec::new();
     for input in inputs.iter() {
@@ -62,11 +62,11 @@ fn get_hash_input(
 }
 
 /// Writes a `digest` to the [`WitnessMap`] at witness indices `outputs`.
-fn write_digest_to_outputs(
+fn write_digest_to_outputs<F>(
     initial_witness: &mut WitnessMap,
     outputs: &[Witness; 32],
     digest: [u8; 32],
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     for (output_witness, value) in outputs.iter().zip(digest.into_iter()) {
         insert_value(
             output_witness,
@@ -78,10 +78,10 @@ fn write_digest_to_outputs(
     Ok(())
 }
 
-fn to_u32_array<const N: usize>(
+fn to_u32_array<const N: usize, F>(
     initial_witness: &WitnessMap,
     inputs: &[FunctionInput; N],
-) -> Result<[u32; N], OpcodeResolutionError> {
+) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
         let witness_value = witness_to_value(initial_witness, input.witness)?;
@@ -90,12 +90,12 @@ fn to_u32_array<const N: usize>(
     Ok(result)
 }
 
-pub(crate) fn solve_sha_256_permutation_opcode(
+pub(crate) fn solve_sha_256_permutation_opcode<F>(
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput; 16],
     hash_values: &[FunctionInput; 8],
     outputs: &[Witness; 8],
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let message = to_u32_array(initial_witness, inputs)?;
     let mut state = to_u32_array(initial_witness, hash_values)?;
 
@@ -108,13 +108,13 @@ pub(crate) fn solve_sha_256_permutation_opcode(
     Ok(())
 }
 
-pub(crate) fn solve_poseidon2_permutation_opcode(
+pub(crate) fn solve_poseidon2_permutation_opcode<F>(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     inputs: &[FunctionInput],
     outputs: &[Witness],
     len: u32,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     if len as usize != inputs.len() {
         return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
             acir::BlackBoxFunc::Poseidon2Permutation,

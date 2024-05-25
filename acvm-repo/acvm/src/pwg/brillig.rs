@@ -25,17 +25,17 @@ pub enum BrilligSolverStatus {
     ForeignCallWait(ForeignCallWaitInfo),
 }
 
-pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
+pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver, F> {
     vm: VM<'b, B>,
     acir_index: usize,
 }
 
-impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
+impl<'b, B: BlackBoxFunctionSolver, F> BrilligSolver<'b, B, F> {
     /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         for output in outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
@@ -55,12 +55,12 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     /// witness.
     pub(crate) fn new_call(
         initial_witness: &WitnessMap,
-        memory: &HashMap<BlockId, MemoryOpSolver>,
-        inputs: &'b [BrilligInputs],
+        memory: &HashMap<BlockId, MemoryOpSolver<F>>,
+        inputs: &'b [BrilligInputs<F>],
         brillig_bytecode: &'b [BrilligOpcode],
         bb_solver: &'b B,
         acir_index: usize,
-    ) -> Result<Self, OpcodeResolutionError> {
+    ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm =
             Self::setup_brillig_vm(initial_witness, memory, inputs, brillig_bytecode, bb_solver)?;
         Ok(Self { vm, acir_index })
@@ -68,11 +68,11 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 
     fn setup_brillig_vm(
         initial_witness: &WitnessMap,
-        memory: &HashMap<BlockId, MemoryOpSolver>,
-        inputs: &[BrilligInputs],
+        memory: &HashMap<BlockId, MemoryOpSolver<F>>,
+        inputs: &[BrilligInputs<F>],
         brillig_bytecode: &'b [BrilligOpcode],
         bb_solver: &'b B,
-    ) -> Result<VM<'b, B>, OpcodeResolutionError> {
+    ) -> Result<VM<'b, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<FieldElement> = Vec::new();
         // Each input represents an expression or array of expressions to evaluate.
@@ -135,12 +135,12 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         self.vm.get_call_stack()
     }
 
-    pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+    pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError<F>> {
         let status = self.vm.process_opcodes();
         self.handle_vm_status(status)
     }
 
-    pub fn step(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+    pub fn step(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError<F>> {
         let status = self.vm.process_opcode();
         self.handle_vm_status(status)
     }
@@ -152,7 +152,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     fn handle_vm_status(
         &self,
         vm_status: VMStatus,
-    ) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+    ) -> Result<BrilligSolverStatus, OpcodeResolutionError<F>> {
         // Check the status of the Brillig VM and return a resolution.
         // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
         // Return the "resolution" to the caller who may choose to make subsequent calls
@@ -229,7 +229,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         self,
         witness: &mut WitnessMap,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         // Finish the Brillig execution by writing the outputs to the witness map
         let vm_status = self.vm.get_status();
         match vm_status {
@@ -247,7 +247,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         return_data_offset: usize,
         return_data_size: usize,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         // Write VM execution results into the witness map
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
