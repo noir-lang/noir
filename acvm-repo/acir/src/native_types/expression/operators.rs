@@ -1,5 +1,5 @@
 use crate::native_types::Witness;
-use acir_field::{AcirField, FieldElement};
+use acir_field::AcirField;
 use std::{
     cmp::Ordering,
     ops::{Add, Mul, Neg, Sub},
@@ -205,62 +205,68 @@ fn single_mul<F: AcirField>(w: Witness, b: &Expression<F>) -> Expression<F> {
     }
 }
 
-#[test]
-fn add_smoke_test() {
-    let a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-        q_c: FieldElement::from(2u128),
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir_field::{AcirField, FieldElement};
 
-    let b = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-        q_c: FieldElement::one(),
-    };
-
-    assert_eq!(
-        &a + &b,
-        Expression {
+    #[test]
+    fn add_smoke_test() {
+        let a = Expression {
             mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::from(2u128), Witness(2)),
-                (FieldElement::from(4u128), Witness(4))
-            ],
-            q_c: FieldElement::from(3u128)
-        }
-    );
+            linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
+            q_c: FieldElement::from(2u128),
+        };
 
-    // Enforce commutativity
-    assert_eq!(&a + &b, &b + &a);
-}
+        let b = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
+            q_c: FieldElement::one(),
+        };
 
-#[test]
-fn mul_smoke_test() {
-    let a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-        q_c: FieldElement::from(2u128),
-    };
+        assert_eq!(
+            &a + &b,
+            Expression {
+                mul_terms: vec![],
+                linear_combinations: vec![
+                    (FieldElement::from(2u128), Witness(2)),
+                    (FieldElement::from(4u128), Witness(4))
+                ],
+                q_c: FieldElement::from(3u128)
+            }
+        );
 
-    let b = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-        q_c: FieldElement::one(),
-    };
+        // Enforce commutativity
+        assert_eq!(&a + &b, &b + &a);
+    }
 
-    assert_eq!(
-        (&a * &b).unwrap(),
-        Expression {
-            mul_terms: vec![(FieldElement::from(8u128), Witness(2), Witness(4)),],
-            linear_combinations: vec![
-                (FieldElement::from(2u128), Witness(2)),
-                (FieldElement::from(8u128), Witness(4))
-            ],
-            q_c: FieldElement::from(2u128)
-        }
-    );
+    #[test]
+    fn mul_smoke_test() {
+        let a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
+            q_c: FieldElement::from(2u128),
+        };
 
-    // Enforce commutativity
-    assert_eq!(&a * &b, &b * &a);
+        let b = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
+            q_c: FieldElement::one(),
+        };
+
+        assert_eq!(
+            (&a * &b).unwrap(),
+            Expression {
+                mul_terms: vec![(FieldElement::from(8u128), Witness(2), Witness(4)),],
+                linear_combinations: vec![
+                    (FieldElement::from(2u128), Witness(2)),
+                    (FieldElement::from(8u128), Witness(4))
+                ],
+                q_c: FieldElement::from(2u128)
+            }
+        );
+
+        // Enforce commutativity
+        assert_eq!(&a * &b, &b * &a);
+    }
 }

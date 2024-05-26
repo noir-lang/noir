@@ -93,8 +93,8 @@ fn debug_fn_id(value: &FieldElement) -> DebugFnId {
 impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError> {
+        foreign_call: &ForeignCallWaitInfo<FieldElement>,
+    ) -> Result<ForeignCallResult<FieldElement>, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match DebugForeignCall::lookup(foreign_call_name) {
             Some(DebugForeignCall::VarAssign) => {

@@ -1,5 +1,5 @@
 use crate::native_types::Witness;
-use acir_field::{AcirField, FieldElement};
+use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 mod operators;
@@ -360,36 +360,42 @@ impl<F: AcirField> From<Witness> for Expression<F> {
     }
 }
 
-#[test]
-fn add_mul_smoketest() {
-    let a = Expression {
-        mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
-        ..Default::default()
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir_field::{AcirField, FieldElement};
 
-    let k = FieldElement::from(10u128);
+    #[test]
+    fn add_mul_smoketest() {
+        let a = Expression {
+            mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
+            ..Default::default()
+        };
 
-    let b = Expression {
-        mul_terms: vec![
-            (FieldElement::from(3u128), Witness(0), Witness(2)),
-            (FieldElement::from(3u128), Witness(1), Witness(2)),
-            (FieldElement::from(4u128), Witness(4), Witness(5)),
-        ],
-        linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-        q_c: FieldElement::one(),
-    };
+        let k = FieldElement::from(10u128);
 
-    let result = a.add_mul(k, &b);
-    assert_eq!(
-        result,
-        Expression {
+        let b = Expression {
             mul_terms: vec![
-                (FieldElement::from(30u128), Witness(0), Witness(2)),
-                (FieldElement::from(32u128), Witness(1), Witness(2)),
-                (FieldElement::from(40u128), Witness(4), Witness(5)),
+                (FieldElement::from(3u128), Witness(0), Witness(2)),
+                (FieldElement::from(3u128), Witness(1), Witness(2)),
+                (FieldElement::from(4u128), Witness(4), Witness(5)),
             ],
-            linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
-            q_c: FieldElement::from(10u128)
-        }
-    );
+            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
+            q_c: FieldElement::one(),
+        };
+
+        let result = a.add_mul(k, &b);
+        assert_eq!(
+            result,
+            Expression {
+                mul_terms: vec![
+                    (FieldElement::from(30u128), Witness(0), Witness(2)),
+                    (FieldElement::from(32u128), Witness(1), Witness(2)),
+                    (FieldElement::from(40u128), Witness(4), Witness(5)),
+                ],
+                linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
+                q_c: FieldElement::from(10u128)
+            }
+        );
+    }
 }

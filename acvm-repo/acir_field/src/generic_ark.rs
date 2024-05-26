@@ -4,6 +4,7 @@ use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
+/// This trait is extremely unstable and WILL have breaking changes.
 pub trait AcirField:
     std::marker::Sized
     + Display
@@ -16,11 +17,18 @@ pub trait AcirField:
     + Sub<Self, Output = Self>
     + Mul<Self, Output = Self>
     + Div<Self, Output = Self>
+    + PartialOrd
     + AddAssign<Self>
     + SubAssign<Self>
+    + From<usize>
+    + From<u128>
+    // + From<u64>
+    // + From<u32>
+    // + From<u16>
+    // + From<u8>
+    + From<bool>
+    + Hash
     + std::cmp::Eq
-    + Serialize
-    + for<'a> Deserialize<'a>
 {
     fn one() -> Self;
     fn zero() -> Self;
@@ -48,8 +56,6 @@ pub trait AcirField:
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32;
 
-    fn fits_in_u128(&self) -> bool;
-
     fn to_u128(self) -> u128;
 
     fn try_into_u128(self) -> Option<u128>;
@@ -62,8 +68,6 @@ pub trait AcirField:
     /// Before using this FieldElement, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;
 
-    fn try_inverse(self) -> Option<Self>;
-
     fn to_hex(self) -> String;
 
     fn from_hex(hex_str: &str) -> Option<Self>;
@@ -72,8 +76,6 @@ pub trait AcirField:
 
     /// Converts bytes into a FieldElement and applies a reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> Self;
-
-    fn bits(&self) -> Vec<bool>;
 
     /// Returns the closest number of bytes to the bits specified
     /// This method truncates
@@ -254,6 +256,10 @@ impl<F: PrimeField> FieldElement<F> {
         self.neg().num_bits() < self.num_bits()
     }
 
+    fn fits_in_u128(&self) -> bool {
+        self.num_bits() <= 128
+    }
+
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.
@@ -274,6 +280,24 @@ impl<F: PrimeField> FieldElement<F> {
         let mut bytes = self.to_be_bytes();
         mask_vector_le(&mut bytes, num_bits as usize);
         bytes
+    }
+
+    fn bits(&self) -> Vec<bool> {
+        fn byte_to_bit(byte: u8) -> Vec<bool> {
+            let mut bits = Vec::with_capacity(8);
+            for index in (0..=7).rev() {
+                bits.push((byte & (1 << index)) >> index == 1);
+            }
+            bits
+        }
+
+        let bytes = self.to_be_bytes();
+        let mut bits = Vec::with_capacity(bytes.len() * 8);
+        for byte in bytes {
+            let _bits = byte_to_bit(byte);
+            bits.extend(_bits);
+        }
+        bits
     }
 
     fn and_xor(&self, rhs: &FieldElement<F>, num_bits: u32, is_xor: bool) -> FieldElement<F> {
@@ -355,10 +379,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         iter.count() as u32
     }
 
-    fn fits_in_u128(&self) -> bool {
-        self.num_bits() <= 128
-    }
-
     fn to_u128(self) -> u128 {
         let bytes = self.to_be_bytes();
         u128::from_be_bytes(bytes[16..32].try_into().unwrap())
@@ -383,10 +403,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     fn inverse(&self) -> FieldElement<F> {
         let inv = self.0.inverse().unwrap_or_else(F::zero);
         FieldElement(inv)
-    }
-
-    fn try_inverse(mut self) -> Option<Self> {
-        self.0.inverse_in_place().map(|f| FieldElement(*f))
     }
 
     fn to_hex(self) -> String {
@@ -420,24 +436,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         FieldElement(F::from_be_bytes_mod_order(bytes))
     }
 
-    fn bits(&self) -> Vec<bool> {
-        fn byte_to_bit(byte: u8) -> Vec<bool> {
-            let mut bits = Vec::with_capacity(8);
-            for index in (0..=7).rev() {
-                bits.push((byte & (1 << index)) >> index == 1);
-            }
-            bits
-        }
-
-        let bytes = self.to_be_bytes();
-        let mut bits = Vec::with_capacity(bytes.len() * 8);
-        for byte in bytes {
-            let _bits = byte_to_bit(byte);
-            bits.extend(_bits);
-        }
-        bits
-    }
-
     /// Returns the closest number of bytes to the bits specified
     /// This method truncates
     fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
@@ -464,6 +462,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::hash::Hash;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 impl<F: PrimeField> Neg for FieldElement<F> {

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use acir::{
     circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
-    AcirField, FieldElement,
+    AcirField,
 };
 
 use super::{
@@ -20,7 +20,7 @@ pub(crate) struct MemoryOpSolver<F> {
     pub(super) block_len: u32,
 }
 
-impl<F> MemoryOpSolver<F> {
+impl<F: AcirField> MemoryOpSolver<F> {
     fn write_memory_index(
         &mut self,
         index: MemoryIndex,
@@ -49,7 +49,7 @@ impl<F> MemoryOpSolver<F> {
     pub(crate) fn init(
         &mut self,
         init: &[Witness],
-        initial_witness: &WitnessMap,
+        initial_witness: &WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         self.block_len = init.len() as u32;
         for (memory_index, witness) in init.iter().enumerate() {
@@ -64,7 +64,7 @@ impl<F> MemoryOpSolver<F> {
     pub(crate) fn solve_memory_op(
         &mut self,
         op: &MemOp<F>,
-        initial_witness: &mut WitnessMap,
+        initial_witness: &mut WitnessMap<F>,
         predicate: &Option<Expression<F>>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
@@ -96,11 +96,8 @@ impl<F> MemoryOpSolver<F> {
 
             // A zero predicate indicates that we should skip the read operation
             // and zero out the operation's output.
-            let value_in_array = if skip_operation {
-                FieldElement::zero()
-            } else {
-                self.read_memory_index(memory_index)?
-            };
+            let value_in_array =
+                if skip_operation { F::zero() } else { self.read_memory_index(memory_index)? };
             insert_value(&value_read_witness, value_in_array, initial_witness)
         } else {
             // `arr[memory_index] = value_write`

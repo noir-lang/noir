@@ -1,4 +1,4 @@
-use acvm::AcirField;
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 

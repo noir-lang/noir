@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use acir::circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation};
+use acir::{
+    circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
+    AcirField,
+};
 
 // The various passes that we can use over ACIR
 mod optimizers;
@@ -53,7 +56,7 @@ impl AcirTransformationMap {
     }
 }
 
-fn transform_assert_messages<F>(
+fn transform_assert_messages<F: Clone>(
     assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
     map: &AcirTransformationMap,
 ) -> Vec<(OpcodeLocation, AssertionPayload<F>)> {
@@ -67,7 +70,7 @@ fn transform_assert_messages<F>(
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn compile<F>(
+pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
 ) -> (Circuit<F>, AcirTransformationMap) {

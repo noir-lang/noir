@@ -1,11 +1,12 @@
 use std::hash::{Hash, Hasher};
 
 use acvm::{
+    acir::AcirField,
     acir::{
         circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
         BlackBoxFunc,
     },
-    AcirField, FieldElement,
+    FieldElement,
 };
 use fxhash::FxHasher;
 use iter_extended::vecmap;

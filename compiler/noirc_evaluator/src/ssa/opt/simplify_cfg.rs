@@ -11,7 +11,7 @@
 //! Currently, 1 and 4 are unimplemented.
 use std::collections::HashSet;
 
-use acvm::AcirField;
+use acvm::acir::AcirField;
 
 use crate::ssa::{
     ir::{
@@ -161,7 +161,7 @@ mod test {
             types::Type,
         },
     };
-    use acvm::AcirField;
+    use acvm::acir::AcirField;
 
     #[test]
     fn inline_blocks() {

@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 pub(crate) struct GeneralOptimizer;
 
 impl GeneralOptimizer {
-    pub(crate) fn optimize<F>(opcode: Expression<F>) -> Expression<F> {
+    pub(crate) fn optimize<F: AcirField>(opcode: Expression<F>) -> Expression<F> {
         // XXX: Perhaps this optimization can be done on the fly
         let opcode = remove_zero_coefficients(opcode);
         let opcode = simplify_mul_terms(opcode);
@@ -19,7 +19,7 @@ impl GeneralOptimizer {
 }
 
 // Remove all terms with zero as a coefficient
-fn remove_zero_coefficients<F>(mut opcode: Expression<F>) -> Expression<F> {
+fn remove_zero_coefficients<F: AcirField>(mut opcode: Expression<F>) -> Expression<F> {
     // Check the mul terms
     opcode.mul_terms.retain(|(scale, _, _)| !scale.is_zero());
     // Check the linear combination terms
@@ -28,7 +28,7 @@ fn remove_zero_coefficients<F>(mut opcode: Expression<F>) -> Expression<F> {
 }
 
 // Simplifies all mul terms with the same bi-variate variables
-fn simplify_mul_terms<F>(mut gate: Expression<F>) -> Expression<F> {
+fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
 
     // Canonicalize the ordering of the multiplication, lets just order by variable name
@@ -45,7 +45,7 @@ fn simplify_mul_terms<F>(mut gate: Expression<F>) -> Expression<F> {
 }
 
 // Simplifies all linear terms with the same variables
-fn simplify_linear_terms<F>(mut gate: Expression<F>) -> Expression<F> {
+fn simplify_linear_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<Witness, F> = IndexMap::new();
 
     // Canonicalize the ordering of the terms, lets just order by variable name

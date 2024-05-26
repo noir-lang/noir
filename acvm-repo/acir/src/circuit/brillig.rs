@@ -24,6 +24,6 @@ pub enum BrilligOutputs {
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligPointer].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
-pub struct BrilligBytecode {
-    pub bytecode: Vec<BrilligOpcode>,
+pub struct BrilligBytecode<F> {
+    pub bytecode: Vec<BrilligOpcode<F>>,
 }

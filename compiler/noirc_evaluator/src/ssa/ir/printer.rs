@@ -5,7 +5,7 @@ use std::{
 };
 
 use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
-use acvm::AcirField;
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 use super::{

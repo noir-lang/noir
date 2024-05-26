@@ -331,7 +331,7 @@ impl Abi {
         &self,
         input_map: &InputMap,
         return_value: Option<InputValue>,
-    ) -> Result<WitnessMap, AbiError> {
+    ) -> Result<WitnessMap<FieldElement>, AbiError> {
         // Check that no extra witness values have been provided.
         let param_names = self.parameter_names();
         if param_names.len() < input_map.len() {
@@ -439,7 +439,7 @@ impl Abi {
     /// Decode a `WitnessMap` into the types specified in the ABI.
     pub fn decode(
         &self,
-        witness_map: &WitnessMap,
+        witness_map: &WitnessMap<FieldElement>,
     ) -> Result<(InputMap, Option<InputValue>), AbiError> {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {

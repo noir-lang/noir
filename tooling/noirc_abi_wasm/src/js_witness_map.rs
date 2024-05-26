@@ -25,8 +25,8 @@ impl Default for JsWitnessMap {
     }
 }
 
-impl From<WitnessMap> for JsWitnessMap {
-    fn from(witness_map: WitnessMap) -> Self {
+impl From<WitnessMap<FieldElement>> for JsWitnessMap {
+    fn from(witness_map: WitnessMap<FieldElement>) -> Self {
         let js_map = JsWitnessMap::new();
         for (key, value) in witness_map {
             js_map.set(
@@ -38,7 +38,7 @@ impl From<WitnessMap> for JsWitnessMap {
     }
 }
 
-impl From<JsWitnessMap> for WitnessMap {
+impl From<JsWitnessMap> for WitnessMap<FieldElement> {
     fn from(js_map: JsWitnessMap) -> Self {
         let mut witness_map = WitnessMap::new();
         js_map.for_each(&mut |value, key| {

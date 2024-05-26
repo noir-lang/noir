@@ -13,13 +13,14 @@ use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, Opcode};
 use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
+    acir::AcirField,
     acir::{
         brillig::Opcode as BrilligOpcode,
         circuit::opcodes::FunctionInput,
         native_types::{Expression, Witness},
         BlackBoxFunc,
     },
-    AcirField, FieldElement,
+    FieldElement,
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
@@ -269,7 +270,10 @@ impl AcirContext {
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
-    pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
+    pub(crate) fn var_to_expression(
+        &self,
+        var: AcirVar,
+    ) -> Result<Expression<FieldElement>, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {
@@ -498,7 +502,7 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        assert_message: Option<AssertionPayload>,
+        assert_message: Option<AssertionPayload<FieldElement>>,
     ) -> Result<(), RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -527,7 +531,7 @@ impl AcirContext {
     pub(crate) fn vars_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
-    ) -> Result<Vec<ExpressionOrMemory>, RuntimeError> {
+    ) -> Result<Vec<ExpressionOrMemory<FieldElement>>, RuntimeError> {
         let mut result = Vec::with_capacity(values.len());
         for value in values {
             match value {
@@ -901,7 +905,7 @@ impl AcirContext {
 
         // Optimization when rhs is const and fits within a u128
         let rhs_expr = self.var_to_expression(rhs)?;
-        if rhs_expr.is_const() && rhs_expr.q_c.fits_in_u128() {
+        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 {
             // We try to move the offset to rhs
             let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
                 lhs_offset = lhs;
@@ -1554,21 +1558,24 @@ impl AcirContext {
         brillig_function_index: u32,
         brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let brillig_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
-            match i {
-                AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
-                AcirValue::Array(vars) => {
-                    let mut var_expressions: Vec<Expression> = Vec::new();
-                    for var in vars {
-                        self.brillig_array_input(&mut var_expressions, var)?;
+        let brillig_inputs: Vec<BrilligInputs<FieldElement>> =
+            try_vecmap(inputs, |i| -> Result<_, InternalError> {
+                match i {
+                    AcirValue::Var(var, _) => {
+                        Ok(BrilligInputs::Single(self.var_to_expression(var)?))
                     }
-                    Ok(BrilligInputs::Array(var_expressions))
+                    AcirValue::Array(vars) => {
+                        let mut var_expressions: Vec<Expression<FieldElement>> = Vec::new();
+                        for var in vars {
+                            self.brillig_array_input(&mut var_expressions, var)?;
+                        }
+                        Ok(BrilligInputs::Array(var_expressions))
+                    }
+                    AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
+                        Ok(BrilligInputs::MemoryArray(block_id))
+                    }
                 }
-                AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
-                    Ok(BrilligInputs::MemoryArray(block_id))
-                }
-            }
-        })?;
+            })?;
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
@@ -1645,7 +1652,7 @@ impl AcirContext {
 
     fn brillig_array_input(
         &mut self,
-        var_expressions: &mut Vec<Expression>,
+        var_expressions: &mut Vec<Expression<FieldElement>>,
         input: AcirValue,
     ) -> Result<(), InternalError> {
         match input {
@@ -1704,8 +1711,8 @@ impl AcirContext {
 
     fn execute_brillig(
         &mut self,
-        code: &[BrilligOpcode],
-        inputs: &[BrilligInputs],
+        code: &[BrilligOpcode<FieldElement>],
+        inputs: &[BrilligInputs<FieldElement>],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
         let mut memory = (execute_brillig(code, inputs)?).into_iter();
@@ -1730,7 +1737,7 @@ impl AcirContext {
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory_iter: &mut impl Iterator<Item = MemoryValue>,
+        memory_iter: &mut impl Iterator<Item = MemoryValue<FieldElement>>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
@@ -1885,7 +1892,7 @@ impl AcirContext {
 #[derive(Debug, Eq, Clone)]
 enum AcirVarData {
     Witness(Witness),
-    Expr(Expression),
+    Expr(Expression<FieldElement>),
     Const(FieldElement),
 }
 
@@ -1917,7 +1924,7 @@ impl AcirVarData {
         None
     }
     /// Converts all enum variants to an Expression.
-    pub(crate) fn to_expression(&self) -> Cow<Expression> {
+    pub(crate) fn to_expression(&self) -> Cow<Expression<FieldElement>> {
         match self {
             AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
             AcirVarData::Expr(expr) => Cow::Borrowed(expr),
@@ -1938,8 +1945,8 @@ impl From<Witness> for AcirVarData {
     }
 }
 
-impl From<Expression> for AcirVarData {
-    fn from(expr: Expression) -> Self {
+impl From<Expression<FieldElement>> for AcirVarData {
+    fn from(expr: Expression<FieldElement>) -> Self {
         // Prefer simpler variants if possible.
         if let Some(constant) = expr.to_const() {
             AcirVarData::from(constant)
@@ -1960,7 +1967,10 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<MemoryValue>> {
+fn execute_brillig(
+    code: &[BrilligOpcode<FieldElement>],
+    inputs: &[BrilligInputs<FieldElement>],
+) -> Option<Vec<MemoryValue<FieldElement>>> {
     // Set input values
     let mut calldata: Vec<FieldElement> = Vec::new();
 

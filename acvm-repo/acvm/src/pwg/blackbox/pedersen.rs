@@ -1,6 +1,7 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
+    AcirField,
 };
 
 use crate::{
@@ -8,9 +9,9 @@ use crate::{
     BlackBoxFunctionSolver,
 };
 
-pub(super) fn pedersen<F>(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(super) fn pedersen<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     inputs: &[FunctionInput],
     domain_separator: u32,
     outputs: (Witness, Witness),
@@ -27,9 +28,9 @@ pub(super) fn pedersen<F>(
     Ok(())
 }
 
-pub(super) fn pedersen_hash<F>(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(super) fn pedersen_hash<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     inputs: &[FunctionInput],
     domain_separator: u32,
     output: Witness,

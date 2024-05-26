@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 

@@ -71,7 +71,7 @@ mod reflection {
         tracer.trace_simple_type::<BlackBoxFuncCall>().unwrap();
         tracer.trace_simple_type::<BrilligInputs<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligOutputs>().unwrap();
-        tracer.trace_simple_type::<BrilligOpcode>().unwrap();
+        tracer.trace_simple_type::<BrilligOpcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BinaryIntOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
         tracer.trace_simple_type::<Directive<FieldElement>>().unwrap();
@@ -111,8 +111,8 @@ mod reflection {
 
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Witness>().unwrap();
-        tracer.trace_simple_type::<WitnessMap>().unwrap();
-        tracer.trace_simple_type::<WitnessStack>().unwrap();
+        tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
 
         let registry = tracer.registry().unwrap();
 

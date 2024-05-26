@@ -1,9 +1,4 @@
-use std::ops::Add;
-
-use acir_field::{AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
-
-use super::Expression;
 
 // Witness might be a misnomer. This is an index that represents the position a witness will take
 #[derive(

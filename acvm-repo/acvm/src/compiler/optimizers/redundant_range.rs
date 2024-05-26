@@ -33,7 +33,7 @@ pub(crate) struct RangeOptimizer<F> {
     circuit: Circuit<F>,
 }
 
-impl<F> RangeOptimizer<F> {
+impl<F: AcirField> RangeOptimizer<F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
     pub(crate) fn new(circuit: Circuit<F>) -> Self {

@@ -4,7 +4,7 @@ pub mod directives;
 pub mod opcodes;
 
 use crate::native_types::{Expression, Witness};
-use acir_field::{AcirField, FieldElement};
+use acir_field::AcirField;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -40,7 +40,7 @@ pub enum ExpressionWidth {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Program<F> {
     pub functions: Vec<Circuit<F>>,
-    pub unconstrained_functions: Vec<BrilligBytecode>,
+    pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -127,15 +127,15 @@ impl<'de> Deserialize<'de> for ErrorSelector {
 pub const STRING_ERROR_SELECTOR: ErrorSelector = ErrorSelector(0);
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct RawAssertionPayload {
+pub struct RawAssertionPayload<F> {
     pub selector: ErrorSelector,
-    pub data: Vec<FieldElement>,
+    pub data: Vec<F>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ResolvedAssertionPayload {
+pub enum ResolvedAssertionPayload<F> {
     String(String),
-    Raw(RawAssertionPayload),
+    Raw(RawAssertionPayload<F>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -223,7 +223,7 @@ impl<F: AcirField> Circuit<F> {
     }
 }
 
-impl<F: AcirField> Program<F> {
+impl<F: Serialize> Program<F> {
     fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
@@ -232,22 +232,10 @@ impl<F: AcirField> Program<F> {
         Ok(())
     }
 
-    fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
-        let mut gz_decoder = flate2::read::GzDecoder::new(reader);
-        let mut buf_d = Vec::new();
-        gz_decoder.read_to_end(&mut buf_d)?;
-        bincode::deserialize(&buf_d)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
-    }
-
     pub fn serialize_program(program: &Self) -> Vec<u8> {
         let mut program_bytes: Vec<u8> = Vec::new();
         program.write(&mut program_bytes).expect("expected circuit to be serializable");
         program_bytes
-    }
-
-    pub fn deserialize_program(serialized_circuit: &[u8]) -> std::io::Result<Self> {
-        Program::read(serialized_circuit)
     }
 
     // Serialize and base64 encode program
@@ -258,6 +246,20 @@ impl<F: AcirField> Program<F> {
         let program_bytes = Program::serialize_program(program);
         let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(program_bytes);
         s.serialize_str(&encoded_b64)
+    }
+}
+
+impl<F: for<'a> Deserialize<'a>> Program<F> {
+    fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
+        let mut gz_decoder = flate2::read::GzDecoder::new(reader);
+        let mut buf_d = Vec::new();
+        gz_decoder.read_to_end(&mut buf_d)?;
+        bincode::deserialize(&buf_d)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+    }
+
+    pub fn deserialize_program(serialized_circuit: &[u8]) -> std::io::Result<Self> {
+        Program::read(serialized_circuit)
     }
 
     // Deserialize and base64 decode program
@@ -366,6 +368,7 @@ mod tests {
         native_types::Witness,
     };
     use acir_field::{AcirField, FieldElement};
+    use serde::{Deserialize, Serialize};
 
     fn and_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
@@ -422,7 +425,9 @@ mod tests {
         };
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
-        fn read_write<F: AcirField>(program: Program<F>) -> (Program<F>, Program<F>) {
+        fn read_write<F: AcirField + Serialize + for<'a> Deserialize<'a>>(
+            program: Program<F>,
+        ) -> (Program<F>, Program<F>) {
             let bytes = Program::serialize_program(&program);
             let got_program = Program::deserialize_program(&bytes).unwrap();
             (program, got_program)

@@ -1,7 +1,7 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField,
 };
 use acvm_blackbox_solver::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
 
@@ -13,8 +13,8 @@ use crate::{
     OpcodeResolutionError,
 };
 
-pub(crate) fn secp256k1_prehashed<F>(
-    initial_witness: &mut WitnessMap,
+pub(crate) fn secp256k1_prehashed<F: AcirField>(
+    initial_witness: &mut WitnessMap<F>,
     public_key_x_inputs: &[FunctionInput; 32],
     public_key_y_inputs: &[FunctionInput; 32],
     signature_inputs: &[FunctionInput; 64],
@@ -29,11 +29,11 @@ pub(crate) fn secp256k1_prehashed<F>(
 
     let is_valid = ecdsa_secp256k1_verify(&hashed_message, &pub_key_x, &pub_key_y, &signature)?;
 
-    insert_value(&output, FieldElement::from(is_valid), initial_witness)
+    insert_value(&output, F::from(is_valid), initial_witness)
 }
 
-pub(crate) fn secp256r1_prehashed<F>(
-    initial_witness: &mut WitnessMap,
+pub(crate) fn secp256r1_prehashed<F: AcirField>(
+    initial_witness: &mut WitnessMap<F>,
     public_key_x_inputs: &[FunctionInput; 32],
     public_key_y_inputs: &[FunctionInput; 32],
     signature_inputs: &[FunctionInput; 64],
@@ -48,5 +48,5 @@ pub(crate) fn secp256r1_prehashed<F>(
 
     let is_valid = ecdsa_secp256r1_verify(&hashed_message, &pub_key_x, &pub_key_y, &signature)?;
 
-    insert_value(&output, FieldElement::from(is_valid), initial_witness)
+    insert_value(&output, F::from(is_valid), initial_witness)
 }

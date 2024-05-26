@@ -1,4 +1,4 @@
-use acir::{circuit::directives::Directive, native_types::WitnessMap, AcirField, FieldElement};
+use acir::{circuit::directives::Directive, native_types::WitnessMap, AcirField};
 use num_bigint::BigUint;
 
 use crate::OpcodeResolutionError;
@@ -11,8 +11,8 @@ use super::{get_value, insert_value, ErrorLocation};
 /// Returns `Ok(OpcodeResolution)` to signal whether the directive was successful solved.
 ///
 /// Returns `Err(OpcodeResolutionError)` if a circuit constraint is unsatisfied.
-pub(crate) fn solve_directives<F>(
-    initial_witness: &mut WitnessMap,
+pub(crate) fn solve_directives<F: AcirField>(
+    initial_witness: &mut WitnessMap<F>,
     directive: &Directive<F>,
 ) -> Result<(), OpcodeResolutionError<F>> {
     match directive {

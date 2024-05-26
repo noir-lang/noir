@@ -1,6 +1,7 @@
 use acvm::{
+    acir::AcirField,
     brillig_vm::brillig::{HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray},
-    AcirField, FieldElement,
+    FieldElement,
 };
 use serde::{Deserialize, Serialize};
 

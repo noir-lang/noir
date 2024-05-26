@@ -123,7 +123,7 @@ fn inversion_brillig_oracle_equivalence() {
     );
     assert_eq!(acvm.instruction_pointer(), 0, "brillig should have been removed");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
@@ -268,7 +268,7 @@ fn double_inversion_brillig_oracle() {
     );
     assert_eq!(acvm.instruction_pointer(), 0, "should stall on brillig");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
@@ -405,7 +405,7 @@ fn oracle_dependent_execution() {
     );
     assert_eq!(acvm.instruction_pointer(), 1, "should stall on brillig");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
@@ -421,7 +421,7 @@ fn oracle_dependent_execution() {
     );
     assert_eq!(acvm.instruction_pointer(), 1, "should stall on brillig");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 

@@ -1,7 +1,7 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField, BlackBoxFunc, FieldElement,
+    AcirField, BlackBoxFunc,
 };
 
 use acvm_blackbox_solver::BigIntSolver;
@@ -18,12 +18,12 @@ pub(crate) struct AcvmBigIntSolver {
 }
 
 impl AcvmBigIntSolver {
-    pub(crate) fn bigint_from_bytes<F>(
+    pub(crate) fn bigint_from_bytes<F: AcirField>(
         &mut self,
         inputs: &[FunctionInput],
         modulus: &[u8],
         output: u32,
-        initial_witness: &mut WitnessMap,
+        initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let bytes = inputs
             .iter()
@@ -33,18 +33,18 @@ impl AcvmBigIntSolver {
         Ok(())
     }
 
-    pub(crate) fn bigint_to_bytes<F>(
+    pub(crate) fn bigint_to_bytes<F: AcirField>(
         &self,
         input: u32,
         outputs: &[Witness],
-        initial_witness: &mut WitnessMap,
+        initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let mut bytes = self.bigint_solver.bigint_to_bytes(input)?;
         while bytes.len() < outputs.len() {
             bytes.push(0);
         }
         bytes.iter().zip(outputs.iter()).for_each(|(byte, output)| {
-            initial_witness.insert(*output, FieldElement::from(*byte as u128));
+            initial_witness.insert(*output, F::from(*byte as u128));
         });
         Ok(())
     }

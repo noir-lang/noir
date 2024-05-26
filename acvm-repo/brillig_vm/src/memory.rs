@@ -1,4 +1,4 @@
-use acir::{brillig::MemoryAddress, AcirField, FieldElement};
+use acir::{brillig::MemoryAddress, AcirField};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -52,14 +52,14 @@ impl<F: AcirField> MemoryValue<F> {
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: BigUint, bit_size: u32) -> Self {
         assert!(
-            bit_size != FieldElement::max_num_bits(),
+            bit_size != F::max_num_bits(),
             "Tried to build a field memory value via new_integer"
         );
         MemoryValue::Integer(value, bit_size)
     }
 
     /// Extracts the field element from the memory value, if it is typed as field element.
-    pub fn extract_field(&self) -> Option<&FieldElement> {
+    pub fn extract_field(&self) -> Option<&F> {
         match self {
             MemoryValue::Field(value) => Some(value),
             _ => None,
@@ -78,9 +78,7 @@ impl<F: AcirField> MemoryValue<F> {
     pub fn to_field(&self) -> F {
         match self {
             MemoryValue::Field(value) => *value,
-            MemoryValue::Integer(value, _) => {
-                FieldElement::from_be_bytes_reduce(&value.to_bytes_be())
-            }
+            MemoryValue::Integer(value, _) => F::from_be_bytes_reduce(&value.to_bytes_be()),
         }
     }
 
@@ -94,7 +92,7 @@ impl<F: AcirField> MemoryValue<F> {
 
     pub fn bit_size(&self) -> u32 {
         match self {
-            MemoryValue::Field(_) => FieldElement::max_num_bits(),
+            MemoryValue::Field(_) => F::max_num_bits(),
             MemoryValue::Integer(_, bit_size) => *bit_size,
         }
     }
@@ -107,11 +105,11 @@ impl<F: AcirField> MemoryValue<F> {
         self.extract_integer().unwrap().0.try_into().unwrap()
     }
 
-    pub fn expect_field(&self) -> Result<&FieldElement, MemoryTypeError> {
+    pub fn expect_field(&self) -> Result<&F, MemoryTypeError> {
         match self {
             MemoryValue::Integer(_, bit_size) => Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: *bit_size,
-                expected_bit_size: FieldElement::max_num_bits(),
+                expected_bit_size: F::max_num_bits(),
             }),
             MemoryValue::Field(field) => Ok(field),
         }
@@ -132,14 +130,14 @@ impl<F: AcirField> MemoryValue<F> {
                 Ok(value)
             }
             MemoryValue::Field(_) => Err(MemoryTypeError::MismatchedBitSize {
-                value_bit_size: FieldElement::max_num_bits(),
+                value_bit_size: F::max_num_bits(),
                 expected_bit_size,
             }),
         }
     }
 }
 
-impl<F> std::fmt::Display for MemoryValue<F> {
+impl<F: std::fmt::Display> std::fmt::Display for MemoryValue<F> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             MemoryValue::Field(value) => write!(f, "{}: field", value),
@@ -155,58 +153,44 @@ impl<F> std::fmt::Display for MemoryValue<F> {
     }
 }
 
-impl<F> Default for MemoryValue<F> {
+impl<F: AcirField> Default for MemoryValue<F> {
     fn default() -> Self {
         MemoryValue::new_integer(BigUint::zero(), 0)
     }
 }
 
-impl<F: AcirField> From<F> for MemoryValue<F> {
-    fn from(field: FieldElement) -> Self {
-        MemoryValue::new_field(field)
-    }
-}
-
-impl<F> From<usize> for MemoryValue<F> {
+impl<F: AcirField> From<usize> for MemoryValue<F> {
     fn from(value: usize) -> Self {
         MemoryValue::new_integer(value.into(), MEMORY_ADDRESSING_BIT_SIZE)
     }
 }
 
-impl<F> From<u64> for MemoryValue<F> {
+impl<F: AcirField> From<u64> for MemoryValue<F> {
     fn from(value: u64) -> Self {
         MemoryValue::new_integer(value.into(), 64)
     }
 }
 
-impl<F> From<u32> for MemoryValue<F> {
+impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
         MemoryValue::new_integer(value.into(), 32)
     }
 }
 
-impl<F> From<u8> for MemoryValue<F> {
+impl<F: AcirField> From<u8> for MemoryValue<F> {
     fn from(value: u8) -> Self {
         MemoryValue::new_integer(value.into(), 8)
     }
 }
 
-impl<F> From<bool> for MemoryValue<F> {
+impl<F: AcirField> From<bool> for MemoryValue<F> {
     fn from(value: bool) -> Self {
         let value = if value { BigUint::one() } else { BigUint::zero() };
         MemoryValue::new_integer(value, 1)
     }
 }
 
-impl<F> TryFrom<MemoryValue<F>> for F {
-    type Error = MemoryTypeError;
-
-    fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
-        memory_value.expect_field().copied()
-    }
-}
-
-impl<F> TryFrom<MemoryValue<F>> for u64 {
+impl<F: AcirField> TryFrom<MemoryValue<F>> for u64 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -214,7 +198,7 @@ impl<F> TryFrom<MemoryValue<F>> for u64 {
     }
 }
 
-impl<F> TryFrom<MemoryValue<F>> for u32 {
+impl<F: AcirField> TryFrom<MemoryValue<F>> for u32 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -222,7 +206,7 @@ impl<F> TryFrom<MemoryValue<F>> for u32 {
     }
 }
 
-impl<F> TryFrom<MemoryValue<F>> for u8 {
+impl<F: AcirField> TryFrom<MemoryValue<F>> for u8 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -230,7 +214,7 @@ impl<F> TryFrom<MemoryValue<F>> for u8 {
     }
 }
 
-impl<F> TryFrom<MemoryValue<F>> for bool {
+impl<F: AcirField> TryFrom<MemoryValue<F>> for bool {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -246,15 +230,7 @@ impl<F> TryFrom<MemoryValue<F>> for bool {
     }
 }
 
-impl<F> TryFrom<&MemoryValue<F>> for FieldElement {
-    type Error = MemoryTypeError;
-
-    fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
-        memory_value.expect_field().copied()
-    }
-}
-
-impl<F> TryFrom<&MemoryValue<F>> for u64 {
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u64 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -264,7 +240,7 @@ impl<F> TryFrom<&MemoryValue<F>> for u64 {
     }
 }
 
-impl<F> TryFrom<&MemoryValue<F>> for u32 {
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u32 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -274,7 +250,7 @@ impl<F> TryFrom<&MemoryValue<F>> for u32 {
     }
 }
 
-impl<F> TryFrom<&MemoryValue<F>> for u8 {
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for u8 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -284,7 +260,7 @@ impl<F> TryFrom<&MemoryValue<F>> for u8 {
     }
 }
 
-impl<F> TryFrom<&MemoryValue<F>> for bool {
+impl<F: AcirField> TryFrom<&MemoryValue<F>> for bool {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: &MemoryValue<F>) -> Result<Self, Self::Error> {
@@ -307,7 +283,7 @@ pub struct Memory<F> {
     inner: Vec<MemoryValue<F>>,
 }
 
-impl<F> Memory<F> {
+impl<F: AcirField> Memory<F> {
     /// Gets the value at pointer
     pub fn read(&self, ptr: MemoryAddress) -> MemoryValue<F> {
         self.inner.get(ptr.to_usize()).cloned().unwrap_or_default()
