@@ -204,7 +204,7 @@ impl FromStr for OpcodeLocation {
     }
 }
 
-impl<F: AcirField> Circuit<F> {
+impl<F> Circuit<F> {
     pub fn num_vars(&self) -> u32 {
         self.current_witness_index + 1
     }
@@ -425,7 +425,7 @@ mod tests {
         };
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
-        fn read_write<F: AcirField + Serialize + for<'a> Deserialize<'a>>(
+        fn read_write<F: Serialize + for<'a> Deserialize<'a>>(
             program: Program<F>,
         ) -> (Program<F>, Program<F>) {
             let bytes = Program::serialize_program(&program);
