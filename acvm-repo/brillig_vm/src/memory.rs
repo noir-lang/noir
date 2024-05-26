@@ -16,6 +16,29 @@ pub enum MemoryTypeError {
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
 }
 
+impl<F> MemoryValue<F> {
+    /// Builds a field-typed memory value.
+    pub fn new_field(value: F) -> Self {
+        MemoryValue::Field(value)
+    }
+
+    /// Extracts the field element from the memory value, if it is typed as field element.
+    pub fn extract_field(&self) -> Option<&F> {
+        match self {
+            MemoryValue::Field(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Extracts the integer from the memory value, if it is typed as integer.
+    pub fn extract_integer(&self) -> Option<(&BigUint, u32)> {
+        match self {
+            MemoryValue::Integer(value, bit_size) => Some((value, *bit_size)),
+            _ => None,
+        }
+    }
+}
+
 impl<F: AcirField> MemoryValue<F> {
     /// Builds a memory value from a field element.
     pub fn new_from_field(value: F, bit_size: u32) -> Self {
@@ -44,11 +67,6 @@ impl<F: AcirField> MemoryValue<F> {
         Some(MemoryValue::new_from_field(value, bit_size))
     }
 
-    /// Builds a field-typed memory value.
-    pub fn new_field(value: F) -> Self {
-        MemoryValue::Field(value)
-    }
-
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: BigUint, bit_size: u32) -> Self {
         assert!(
@@ -56,22 +74,6 @@ impl<F: AcirField> MemoryValue<F> {
             "Tried to build a field memory value via new_integer"
         );
         MemoryValue::Integer(value, bit_size)
-    }
-
-    /// Extracts the field element from the memory value, if it is typed as field element.
-    pub fn extract_field(&self) -> Option<&F> {
-        match self {
-            MemoryValue::Field(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    /// Extracts the integer from the memory value, if it is typed as integer.
-    pub fn extract_integer(&self) -> Option<(&BigUint, u32)> {
-        match self {
-            MemoryValue::Integer(value, bit_size) => Some((value, *bit_size)),
-            _ => None,
-        }
     }
 
     /// Converts the memory value to a field element, independent of its type.
