@@ -1,10 +1,11 @@
-use acvm::acir::brillig::MemoryAddress;
+use acvm::{acir::brillig::MemoryAddress, AcirField};
 
 use super::{
-    brillig_variable::BrilligVariable, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+    brillig_variable::BrilligVariable, debug_show::DebugToString, BrilligBinaryOp, BrilligContext,
+    ReservedRegisters,
 };
 
-impl BrilligContext {
+impl<F: AcirField + DebugToString> BrilligContext<F> {
     /// Saves all of the registers that have been used up until this point.
     fn codegen_save_registers_of_vars(&mut self, vars: &[BrilligVariable]) -> Vec<MemoryAddress> {
         // Save all of the used registers at this point in memory

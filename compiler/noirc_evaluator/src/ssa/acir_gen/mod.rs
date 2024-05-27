@@ -50,7 +50,7 @@ struct SharedContext {
     /// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
-    generated_brillig: Vec<GeneratedBrillig>,
+    generated_brillig: Vec<GeneratedBrillig<FieldElement>>,
 
     /// Maps SSA function index -> Final generated Brillig artifact index.
     /// There can be Brillig functions specified in SSA which do not act as
@@ -78,7 +78,7 @@ impl SharedContext {
         self.brillig_generated_func_pointers.get(&(func_id, arguments))
     }
 
-    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig {
+    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig<FieldElement> {
         &self.generated_brillig[func_pointer]
     }
 
@@ -87,7 +87,7 @@ impl SharedContext {
         func_id: FunctionId,
         arguments: Vec<BrilligParameter>,
         generated_pointer: u32,
-        code: GeneratedBrillig,
+        code: GeneratedBrillig<FieldElement>,
     ) {
         self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
         self.generated_brillig.push(code);
@@ -127,7 +127,7 @@ impl SharedContext {
         generated_pointer: u32,
         func_id: FunctionId,
         opcode_location: OpcodeLocation,
-        code: GeneratedBrillig,
+        code: GeneratedBrillig<FieldElement>,
     ) {
         self.brillig_stdlib_func_pointer.insert(brillig_stdlib_func, generated_pointer);
         self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
@@ -922,7 +922,7 @@ impl<'a> Context<'a> {
         func: &Function,
         arguments: Vec<BrilligParameter>,
         brillig: &Brillig,
-    ) -> Result<GeneratedBrillig, InternalError> {
+    ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             arguments,

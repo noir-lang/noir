@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::{
@@ -32,7 +33,10 @@ pub(crate) struct FunctionContext {
 
 impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function, brillig_context: &mut BrilligContext) -> Self {
+    pub(crate) fn new(
+        function: &Function,
+        brillig_context: &mut BrilligContext<FieldElement>,
+    ) -> Self {
         let id = function.id();
 
         let mut reverse_post_order = Vec::new();

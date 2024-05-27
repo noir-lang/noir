@@ -83,7 +83,7 @@ pub(crate) enum BrilligStdlibFunc {
 }
 
 impl BrilligStdlibFunc {
-    pub(crate) fn get_generated_brillig(&self) -> GeneratedBrillig {
+    pub(crate) fn get_generated_brillig(&self) -> GeneratedBrillig<FieldElement> {
         match self {
             BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
             BrilligStdlibFunc::Quotient(bit_size) => {
@@ -597,7 +597,7 @@ impl GeneratedAcir {
     pub(crate) fn brillig_call(
         &mut self,
         predicate: Option<Expression<FieldElement>>,
-        generated_brillig: &GeneratedBrillig,
+        generated_brillig: &GeneratedBrillig<FieldElement>,
         inputs: Vec<BrilligInputs<FieldElement>>,
         outputs: Vec<BrilligOutputs>,
         brillig_function_index: u32,
