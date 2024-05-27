@@ -7,6 +7,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 impl Ssa {
@@ -31,7 +32,7 @@ impl Ssa {
 
 /// Returns the set of ArraySet instructions that can be made mutable
 /// because their input value is unused elsewhere afterward.
-fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<InstructionId> {
+fn analyze_last_uses(dfg: &DataFlowGraph<FieldElement>, block_id: BasicBlockId) -> FxHashSet<InstructionId<FieldElement>> {
     let block = &dfg[block_id];
     let mut array_to_last_use = HashMap::default();
     let mut instructions_that_can_be_made_mutable = FxHashSet::default();
@@ -74,9 +75,9 @@ fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<I
 
 /// Make each ArraySet instruction in `instructions_to_update` mutable.
 fn make_mutable(
-    dfg: &mut DataFlowGraph,
+    dfg: &mut DataFlowGraph<FieldElement>,
     block_id: BasicBlockId,
-    instructions_to_update: FxHashSet<InstructionId>,
+    instructions_to_update: FxHashSet<InstructionId<FieldElement>>,
 ) {
     if instructions_to_update.is_empty() {
         return;

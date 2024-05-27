@@ -16,7 +16,7 @@
 //! we remove reference count instructions because they are only used by Brillig bytecode
 use std::collections::HashSet;
 
-use acvm::acir::AcirField;
+use acvm::{acir::AcirField, FieldElement};
 
 use crate::{
     errors::RuntimeError,
@@ -243,7 +243,7 @@ fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
 ///
 /// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
 /// a Field value.
-fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
+fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId<FieldElement>, CallStack> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
@@ -269,7 +269,7 @@ fn unroll_loop_header<'a>(
     function: &'a mut Function,
     loop_: &'a Loop,
     unroll_into: BasicBlockId,
-    induction_value: ValueId,
+    induction_value: ValueId<FieldElement>,
 ) -> Result<Option<LoopIteration<'a>>, CallStack> {
     // We insert into a fresh block first and move instructions into the unroll_into block later
     // only once we verify the jmpif instruction has a constant condition. If it does not, we can
@@ -331,7 +331,7 @@ struct LoopIteration<'f> {
     /// the variable traditionally called `i` on each iteration of the loop.
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
-    induction_value: Option<(BasicBlockId, ValueId)>,
+    induction_value: Option<(BasicBlockId, ValueId<FieldElement>)>,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -359,7 +359,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId<FieldElement>) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -411,7 +411,7 @@ impl<'f> LoopIteration<'f> {
     /// constant and we can safely take only the given branch.
     fn handle_jmpif(
         &mut self,
-        condition: ValueId,
+        condition: ValueId<FieldElement>,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) -> Vec<BasicBlockId> {
@@ -486,11 +486,11 @@ impl<'f> LoopIteration<'f> {
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
     }
 
-    fn dfg(&self) -> &DataFlowGraph {
+    fn dfg(&self) -> &DataFlowGraph<FieldElement> {
         &self.inserter.function.dfg
     }
 
-    fn dfg_mut(&mut self) -> &mut DataFlowGraph {
+    fn dfg_mut(&mut self) -> &mut DataFlowGraph<FieldElement> {
         &mut self.inserter.function.dfg
     }
 }

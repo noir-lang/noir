@@ -11,10 +11,10 @@ use super::FunctionBuilder;
 /// Used to create a data bus, which is an array of private inputs
 /// replacing public inputs
 pub(crate) struct DataBusBuilder {
-    pub(crate) values: im::Vector<ValueId>,
+    pub(crate) values: im::Vector<ValueId<FieldElement>>,
     index: usize,
-    pub(crate) map: HashMap<ValueId, usize>,
-    pub(crate) databus: Option<ValueId>,
+    pub(crate) map: HashMap<ValueId<FieldElement>, usize>,
+    pub(crate) databus: Option<ValueId<FieldElement>>,
 }
 
 impl DataBusBuilder {
@@ -46,14 +46,14 @@ impl DataBusBuilder {
 
 #[derive(Clone, Default, Debug)]
 pub(crate) struct DataBus {
-    pub(crate) call_data: Option<ValueId>,
-    pub(crate) call_data_map: HashMap<ValueId, usize>,
-    pub(crate) return_data: Option<ValueId>,
+    pub(crate) call_data: Option<ValueId<FieldElement>>,
+    pub(crate) call_data_map: HashMap<ValueId<FieldElement>, usize>,
+    pub(crate) return_data: Option<ValueId<FieldElement>>,
 }
 
 impl DataBus {
     /// Updates the databus values with the provided function
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> DataBus {
+    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId<FieldElement>) -> ValueId<FieldElement>) -> DataBus {
         let mut call_data_map = HashMap::default();
         for (k, v) in self.call_data_map.iter() {
             call_data_map.insert(f(*k), *v);
@@ -77,7 +77,7 @@ impl DataBus {
 
 impl FunctionBuilder {
     /// Insert a value into a data bus builder
-    fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
+    fn add_to_data_bus(&mut self, value: ValueId<FieldElement>, databus: &mut DataBusBuilder) {
         assert!(databus.databus.is_none(), "initializing finalized call data");
         let typ = self.current_function.dfg[value].get_type().clone();
         match typ {
@@ -109,7 +109,7 @@ impl FunctionBuilder {
     /// Create a data bus builder from a list of values
     pub(crate) fn initialize_data_bus(
         &mut self,
-        values: &[ValueId],
+        values: &[ValueId<FieldElement>],
         mut databus: DataBusBuilder,
     ) -> DataBusBuilder {
         for value in values {

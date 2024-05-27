@@ -4,7 +4,7 @@ use std::{
     fmt::{Formatter, Result},
 };
 
-use acvm::acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR};
+use acvm::{acir::circuit::{ErrorSelector, STRING_ERROR_SELECTOR}, FieldElement};
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
@@ -62,7 +62,7 @@ pub(crate) fn display_block(
 
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
-fn value(function: &Function, id: ValueId) -> String {
+fn value(function: &Function, id: ValueId<FieldElement>) -> String {
     let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
@@ -81,7 +81,7 @@ fn value(function: &Function, id: ValueId) -> String {
 }
 
 /// Display each value along with its type. E.g. `v0: Field, v1: u64, v2: u1`
-fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
+fn value_list_with_types(function: &Function, values: &[ValueId<FieldElement>]) -> String {
     vecmap(values, |id| {
         let value = value(function, *id);
         let typ = function.dfg.type_of_value(*id);
@@ -91,7 +91,7 @@ fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
 }
 
 /// Display each value separated by a comma
-fn value_list(function: &Function, values: &[ValueId]) -> String {
+fn value_list(function: &Function, values: &[ValueId<FieldElement>]) -> String {
     vecmap(values, |id| value(function, *id)).join(", ")
 }
 
@@ -124,7 +124,7 @@ pub(crate) fn display_terminator(
 /// Display an arbitrary instruction
 pub(crate) fn display_instruction(
     function: &Function,
-    instruction: InstructionId,
+    instruction: InstructionId<FieldElement>,
     f: &mut Formatter,
 ) -> Result {
     // instructions are always indented within a function
@@ -140,7 +140,7 @@ pub(crate) fn display_instruction(
 
 fn display_instruction_inner(
     function: &Function,
-    instruction: &Instruction,
+    instruction: &Instruction<FieldElement>,
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(function, id);
@@ -209,8 +209,8 @@ fn display_instruction_inner(
 /// Tries to extract a constant string from an error payload.
 pub(crate) fn try_to_extract_string_from_error_payload(
     error_selector: ErrorSelector,
-    values: &[ValueId],
-    dfg: &DataFlowGraph,
+    values: &[ValueId<FieldElement>],
+    dfg: &DataFlowGraph<FieldElement>,
 ) -> Option<String> {
     ((error_selector == STRING_ERROR_SELECTOR) && (values.len() == 1))
         .then_some(())

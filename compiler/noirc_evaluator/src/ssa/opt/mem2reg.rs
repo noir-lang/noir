@@ -66,6 +66,8 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use acvm::FieldElement;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -110,7 +112,7 @@ struct PerFunctionContext<'f> {
     ///
     /// We avoid removing individual instructions as we go since removing elements
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
-    instructions_to_remove: BTreeSet<InstructionId>,
+    instructions_to_remove: BTreeSet<InstructionId<FieldElement>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -214,7 +216,7 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        mut instruction: InstructionId,
+        mut instruction: InstructionId<FieldElement>,
     ) {
         // If the instruction was simplified and optimized out of the program we shouldn't analyze
         // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
@@ -309,7 +311,7 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn check_array_aliasing(&self, references: &mut Block, array: ValueId) {
+    fn check_array_aliasing(&self, references: &mut Block, array: ValueId<FieldElement>) {
         if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
             if Self::contains_references(&typ) {
                 // TODO: Check if type directly holds references or holds arrays that hold references
@@ -335,14 +337,14 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
+    fn set_aliases(&self, references: &mut Block, address: ValueId<FieldElement>, new_aliases: AliasSet) {
         let expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(expression.clone()).or_default();
         *aliases = new_aliases;
     }
 
-    fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
+    fn mark_all_unknown(&self, values: &[ValueId<FieldElement>], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
                 let value = self.inserter.function.dfg.resolve(*value);
@@ -534,7 +536,7 @@ mod tests {
         assert_eq!(ret_val_id, allocate_id);
     }
 
-    fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+    fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph<FieldElement>) -> usize {
         dfg[block]
             .instructions()
             .iter()
@@ -542,7 +544,7 @@ mod tests {
             .count()
     }
 
-    fn count_loads(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+    fn count_loads(block: BasicBlockId, dfg: &DataFlowGraph<FieldElement>) -> usize {
         dfg[block]
             .instructions()
             .iter()

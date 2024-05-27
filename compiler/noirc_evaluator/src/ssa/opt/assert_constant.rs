@@ -1,3 +1,5 @@
+use acvm::FieldElement;
+
 use crate::{
     errors::RuntimeError,
     ssa::{
@@ -51,7 +53,7 @@ impl Ssa {
 /// Ok(false) if it should be removed.
 fn check_instruction(
     function: &mut Function,
-    instruction: InstructionId,
+    instruction: InstructionId<FieldElement>,
 ) -> Result<bool, RuntimeError> {
     let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
     match &function.dfg[instruction] {
@@ -72,8 +74,8 @@ fn check_instruction(
 /// since it has already been evaluated.
 fn evaluate_assert_constant(
     function: &Function,
-    instruction: InstructionId,
-    arguments: &[ValueId],
+    instruction: InstructionId<FieldElement>,
+    arguments: &[ValueId<FieldElement>],
 ) -> Result<bool, RuntimeError> {
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)

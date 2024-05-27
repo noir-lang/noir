@@ -11,6 +11,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
+use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
@@ -42,7 +43,7 @@ fn find_back_edges(
 }
 
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
+fn collect_variables_of_value(value_id: ValueId<FieldElement>, dfg: &DataFlowGraph<FieldElement>) -> Vec<ValueId<FieldElement>> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
@@ -72,7 +73,7 @@ fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<Val
     }
 }
 
-fn variables_used_in_instruction(instruction: &Instruction, dfg: &DataFlowGraph) -> Vec<ValueId> {
+fn variables_used_in_instruction(instruction: &Instruction<FieldElement>, dfg: &DataFlowGraph<FieldElement>) -> Vec<ValueId<FieldElement>> {
     let mut used = Vec::new();
 
     instruction.for_each_value(|value_id| {
@@ -83,8 +84,8 @@ fn variables_used_in_instruction(instruction: &Instruction, dfg: &DataFlowGraph)
     used
 }
 
-fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<ValueId> {
-    let mut used: Vec<ValueId> = block
+fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph<FieldElement>) -> Vec<ValueId<FieldElement>> {
+    let mut used: Vec<ValueId<FieldElement>> = block
         .instructions()
         .iter()
         .flat_map(|instruction_id| {
@@ -102,9 +103,9 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<Value
     used
 }
 
-type Variables = HashSet<ValueId>;
+type Variables = HashSet<ValueId<FieldElement>>;
 
-fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
+fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph<FieldElement>) -> Variables {
     let mut defined_vars = HashSet::default();
 
     for parameter in block.parameters() {
@@ -123,7 +124,7 @@ fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> Variabl
 
 fn compute_used_before_def(
     block: &BasicBlock,
-    dfg: &DataFlowGraph,
+    dfg: &DataFlowGraph<FieldElement>,
     defined_in_block: &Variables,
 ) -> Variables {
     variables_used_in_block(block, dfg)
@@ -132,7 +133,7 @@ fn compute_used_before_def(
         .collect()
 }
 
-type LastUses = HashMap<InstructionId, Variables>;
+type LastUses = HashMap<InstructionId<FieldElement>, Variables>;
 
 /// A struct representing the liveness of variables throughout a function.
 pub(crate) struct VariableLiveness {

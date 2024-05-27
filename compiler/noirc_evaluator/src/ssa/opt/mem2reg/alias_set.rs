@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
 
+use acvm::FieldElement;
+
 use crate::ssa::ir::value::ValueId;
 
 /// A set of possible aliases. Each ValueId in this set represents one possible value the reference
@@ -10,7 +12,7 @@ use crate::ssa::ir::value::ValueId;
 /// "unknown which aliases this may refer to" - `None`.
 #[derive(Debug, Default, Clone)]
 pub(super) struct AliasSet {
-    aliases: Option<BTreeSet<ValueId>>,
+    aliases: Option<BTreeSet<ValueId<FieldElement>>>,
 }
 
 impl AliasSet {
@@ -18,7 +20,7 @@ impl AliasSet {
         Self { aliases: None }
     }
 
-    pub(super) fn known(value: ValueId) -> AliasSet {
+    pub(super) fn known(value: ValueId<FieldElement>) -> AliasSet {
         let mut aliases = BTreeSet::new();
         aliases.insert(value);
         Self { aliases: Some(aliases) }
@@ -37,7 +39,7 @@ impl AliasSet {
 
     /// Return the single known alias if there is exactly one.
     /// Otherwise, return None.
-    pub(super) fn single_alias(&self) -> Option<ValueId> {
+    pub(super) fn single_alias(&self) -> Option<ValueId<FieldElement>> {
         self.aliases
             .as_ref()
             .and_then(|aliases| (aliases.len() == 1).then(|| *aliases.first().unwrap()))
@@ -54,7 +56,7 @@ impl AliasSet {
     }
 
     /// Inserts a new alias into this set if it is not unknown
-    pub(super) fn insert(&mut self, new_alias: ValueId) {
+    pub(super) fn insert(&mut self, new_alias: ValueId<FieldElement>) {
         if let Some(aliases) = &mut self.aliases {
             aliases.insert(new_alias);
         }
@@ -62,11 +64,11 @@ impl AliasSet {
 
     /// Returns `Some(true)` if `f` returns true for any known alias in this set.
     /// If this alias set is unknown, None is returned.
-    pub(super) fn any(&self, f: impl FnMut(ValueId) -> bool) -> Option<bool> {
+    pub(super) fn any(&self, f: impl FnMut(ValueId<FieldElement>) -> bool) -> Option<bool> {
         self.aliases.as_ref().map(|aliases| aliases.iter().copied().any(f))
     }
 
-    pub(super) fn for_each(&self, mut f: impl FnMut(ValueId)) {
+    pub(super) fn for_each(&self, mut f: impl FnMut(ValueId<FieldElement>)) {
         if let Some(aliases) = &self.aliases {
             for alias in aliases {
                 f(*alias);

@@ -105,7 +105,7 @@ impl Context {
         self.block_queue.extend(function.dfg[block].successors());
     }
 
-    fn responds_to_side_effects_var(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
+    fn responds_to_side_effects_var(dfg: &DataFlowGraph<FieldElement>, instruction: &Instruction<FieldElement>) -> bool {
         use Instruction::*;
         match instruction {
             Binary(binary) => match binary.operator {

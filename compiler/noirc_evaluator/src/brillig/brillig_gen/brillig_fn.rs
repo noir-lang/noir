@@ -22,9 +22,9 @@ use super::{brillig_block_variables::allocate_value, variable_liveness::Variable
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
-    pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
+    pub(crate) ssa_value_allocations: HashMap<ValueId<FieldElement>, BrilligVariable>,
     /// Block parameters are pre allocated at the function level.
-    pub(crate) block_parameters: HashMap<BasicBlockId, Vec<ValueId>>,
+    pub(crate) block_parameters: HashMap<BasicBlockId, Vec<ValueId<FieldElement>>>,
     /// The block ids of the function in reverse post order.
     pub(crate) blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
@@ -65,7 +65,7 @@ impl FunctionContext {
         }
     }
 
-    pub(crate) fn all_block_parameters(&self) -> HashSet<ValueId> {
+    pub(crate) fn all_block_parameters(&self) -> HashSet<ValueId<FieldElement>> {
         self.block_parameters.values().flat_map(|parameters| parameters.iter()).cloned().collect()
     }
 

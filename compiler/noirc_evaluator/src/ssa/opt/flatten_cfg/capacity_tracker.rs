@@ -9,20 +9,20 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 pub(crate) struct SliceCapacityTracker<'a> {
-    dfg: &'a DataFlowGraph,
+    dfg: &'a DataFlowGraph<FieldElement>,
 }
 
 impl<'a> SliceCapacityTracker<'a> {
-    pub(crate) fn new(dfg: &'a DataFlowGraph) -> Self {
+    pub(crate) fn new(dfg: &'a DataFlowGraph<FieldElement>) -> Self {
         SliceCapacityTracker { dfg }
     }
 
     /// Determine how the slice sizes map needs to be updated according to the provided instruction.
     pub(crate) fn collect_slice_information(
         &self,
-        instruction: &Instruction,
-        slice_sizes: &mut HashMap<ValueId, usize>,
-        results: &[ValueId],
+        instruction: &Instruction<FieldElement>,
+        slice_sizes: &mut HashMap<ValueId<FieldElement>, usize>,
+        results: &[ValueId<FieldElement>],
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
@@ -164,8 +164,8 @@ impl<'a> SliceCapacityTracker<'a> {
     /// Computes the starting capacity of a slice which is still a `Value::Array`
     pub(crate) fn compute_slice_capacity(
         &self,
-        array_id: ValueId,
-        slice_sizes: &mut HashMap<ValueId, usize>,
+        array_id: ValueId<FieldElement>,
+        slice_sizes: &mut HashMap<ValueId<FieldElement>, usize>,
     ) {
         if let Value::Array { array, typ } = &self.dfg[array_id] {
             // Compiler sanity check

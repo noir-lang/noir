@@ -1,3 +1,5 @@
+use acvm::FieldElement;
+
 use super::{
     dfg::CallStack,
     instruction::{InstructionId, TerminatorInstruction},
@@ -14,10 +16,10 @@ use super::{
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct BasicBlock {
     /// Parameters to the basic block.
-    parameters: Vec<ValueId>,
+    parameters: Vec<ValueId<FieldElement>>,
 
     /// Instructions in the basic block.
-    instructions: Vec<InstructionId>,
+    instructions: Vec<InstructionId<FieldElement>>,
 
     /// The terminating instruction for the basic block.
     ///
@@ -37,45 +39,45 @@ impl BasicBlock {
     }
 
     /// Returns the parameters of this block
-    pub(crate) fn parameters(&self) -> &[ValueId] {
+    pub(crate) fn parameters(&self) -> &[ValueId<FieldElement>] {
         &self.parameters
     }
 
     /// Removes all the parameters of this block
-    pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
+    pub(crate) fn take_parameters(&mut self) -> Vec<ValueId<FieldElement>> {
         std::mem::take(&mut self.parameters)
     }
 
     /// Adds a parameter to this BasicBlock.
     /// Expects that the ValueId given should refer to a Value::Param
     /// instance with its position equal to self.parameters.len().
-    pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
+    pub(crate) fn add_parameter(&mut self, parameter: ValueId<FieldElement>) {
         self.parameters.push(parameter);
     }
 
     /// Replace this block's current parameters with that of the given Vec.
     /// This does not perform any checks that any previous parameters were unused.
-    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId>) {
+    pub(crate) fn set_parameters(&mut self, parameters: Vec<ValueId<FieldElement>>) {
         self.parameters = parameters;
     }
 
     /// Insert an instruction at the end of this block
-    pub(crate) fn insert_instruction(&mut self, instruction: InstructionId) {
+    pub(crate) fn insert_instruction(&mut self, instruction: InstructionId<FieldElement>) {
         self.instructions.push(instruction);
     }
 
     /// Retrieve a reference to all instructions in this block.
-    pub(crate) fn instructions(&self) -> &[InstructionId] {
+    pub(crate) fn instructions(&self) -> &[InstructionId<FieldElement>] {
         &self.instructions
     }
 
     /// Retrieve a mutable reference to all instructions in this block.
-    pub(crate) fn instructions_mut(&mut self) -> &mut Vec<InstructionId> {
+    pub(crate) fn instructions_mut(&mut self) -> &mut Vec<InstructionId<FieldElement>> {
         &mut self.instructions
     }
 
     /// Take the instructions in this block, replacing it with an empty Vec
-    pub(crate) fn take_instructions(&mut self) -> Vec<InstructionId> {
+    pub(crate) fn take_instructions(&mut self) -> Vec<InstructionId<FieldElement>> {
         std::mem::take(&mut self.instructions)
     }
 
@@ -130,7 +132,7 @@ impl BasicBlock {
     /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
     ///
     /// If this block has no terminator, or a Return terminator this will be empty.
-    pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
+    pub(crate) fn terminator_arguments(&self) -> &[ValueId<FieldElement>] {
         match &self.terminator {
             Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
             _ => &[],

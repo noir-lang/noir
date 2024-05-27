@@ -6,10 +6,10 @@ use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value
 /// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 pub(super) fn simplify_cast(
-    value: ValueId,
+    value: ValueId<FieldElement>,
     dst_typ: &Type,
-    dfg: &mut DataFlowGraph,
-) -> SimplifyResult {
+    dfg: &mut DataFlowGraph<FieldElement>,
+) -> SimplifyResult<FieldElement> {
     use SimplifyResult::*;
     let value = dfg.resolve(value);
 

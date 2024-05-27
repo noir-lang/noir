@@ -10,7 +10,6 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::{CallStack, DataFlowGraph},
         instruction::Intrinsic,
-        map::Id,
         types::Type,
         value::{Value, ValueId},
     },
@@ -27,13 +26,13 @@ use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
 /// to the slice length, which requires inserting a binary instruction. This update instruction
 /// must be inserted into the same block that the call itself is being simplified into.
 pub(super) fn simplify_call(
-    func: ValueId,
-    arguments: &[ValueId],
-    dfg: &mut DataFlowGraph,
+    func: ValueId<FieldElement>,
+    arguments: &[ValueId<FieldElement>],
+    dfg: &mut DataFlowGraph<FieldElement>,
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
     call_stack: &CallStack,
-) -> SimplifyResult {
+) -> SimplifyResult<FieldElement> {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
         _ => return SimplifyResult::None,
@@ -306,11 +305,11 @@ pub(super) fn simplify_call(
 /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
 /// and not a flattened length used internally to represent arrays of tuples.
 fn update_slice_length(
-    slice_len: ValueId,
-    dfg: &mut DataFlowGraph,
+    slice_len: ValueId<FieldElement>,
+    dfg: &mut DataFlowGraph<FieldElement>,
     operator: BinaryOp,
     block: BasicBlockId,
-) -> ValueId {
+) -> ValueId<FieldElement> {
     let one = dfg.make_constant(FieldElement::one(), Type::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
@@ -318,12 +317,12 @@ fn update_slice_length(
 }
 
 fn simplify_slice_push_back(
-    mut slice: im::Vector<ValueId>,
+    mut slice: im::Vector<ValueId<FieldElement>>,
     element_type: Type,
-    arguments: &[ValueId],
-    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId<FieldElement>],
+    dfg: &mut DataFlowGraph<FieldElement>,
     block: BasicBlockId,
-) -> SimplifyResult {
+) -> SimplifyResult<FieldElement> {
     // The capacity must be an integer so that we can compare it against the slice length
     let capacity = dfg.make_constant((slice.len() as u128).into(), Type::length_type());
     let len_equals_capacity_instr =
@@ -381,10 +380,10 @@ fn simplify_slice_push_back(
 
 fn simplify_slice_pop_back(
     element_type: Type,
-    arguments: &[ValueId],
-    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId<FieldElement>],
+    dfg: &mut DataFlowGraph<FieldElement>,
     block: BasicBlockId,
-) -> SimplifyResult {
+) -> SimplifyResult<FieldElement> {
     let element_types = match element_type.clone() {
         Type::Slice(element_types) | Type::Array(element_types, _) => element_types,
         _ => {
@@ -431,9 +430,9 @@ fn simplify_slice_pop_back(
 /// that value is returned. Otherwise [`SimplifyResult::None`] is returned.
 fn simplify_black_box_func(
     bb_func: BlackBoxFunc,
-    arguments: &[ValueId],
-    dfg: &mut DataFlowGraph,
-) -> SimplifyResult {
+    arguments: &[ValueId<FieldElement>],
+    dfg: &mut DataFlowGraph<FieldElement>,
+) -> SimplifyResult<FieldElement> {
     match bb_func {
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
@@ -498,7 +497,7 @@ fn simplify_black_box_func(
     }
 }
 
-fn make_constant_array(dfg: &mut DataFlowGraph, results: Vec<FieldElement>, typ: Type) -> ValueId {
+fn make_constant_array(dfg: &mut DataFlowGraph<FieldElement>, results: Vec<FieldElement>, typ: Type) -> ValueId<FieldElement> {
     let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
 
     let typ = Type::Array(Rc::new(vec![typ]), result_constants.len());
@@ -506,10 +505,10 @@ fn make_constant_array(dfg: &mut DataFlowGraph, results: Vec<FieldElement>, typ:
 }
 
 fn make_constant_slice(
-    dfg: &mut DataFlowGraph,
+    dfg: &mut DataFlowGraph<FieldElement>,
     results: Vec<FieldElement>,
     typ: Type,
-) -> (ValueId, ValueId) {
+) -> (ValueId<FieldElement>, ValueId<FieldElement>) {
     let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
 
     let typ = Type::Slice(Rc::new(vec![typ]));
@@ -523,8 +522,8 @@ fn constant_to_radix(
     field: FieldElement,
     radix: u32,
     limb_count: u32,
-    dfg: &mut DataFlowGraph,
-) -> (ValueId, ValueId) {
+    dfg: &mut DataFlowGraph<FieldElement>,
+) -> (ValueId<FieldElement>, ValueId<FieldElement>) {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -542,7 +541,7 @@ fn constant_to_radix(
     make_constant_slice(dfg, limbs, Type::unsigned(bit_size))
 }
 
-fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
+fn to_u8_vec(dfg: &DataFlowGraph<FieldElement>, values: im::Vector<ValueId<FieldElement>>) -> Vec<u8> {
     values
         .iter()
         .map(|id| {
@@ -554,15 +553,15 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
         .collect()
 }
 
-fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
+fn array_is_constant(dfg: &DataFlowGraph<FieldElement>, values: &im::Vector<ValueId<FieldElement>>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 
 fn simplify_hash(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph<FieldElement>,
+    arguments: &[ValueId<FieldElement>],
     hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-) -> SimplifyResult {
+) -> SimplifyResult<FieldElement> {
     match dfg.get_array_constant(arguments[0]) {
         Some((input, _)) if array_is_constant(dfg, &input) => {
             let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
@@ -586,10 +585,10 @@ type ECDSASignatureVerifier = fn(
     signature: &[u8; 64],
 ) -> Result<bool, BlackBoxResolutionError>;
 fn simplify_signature(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph<FieldElement>,
+    arguments: &[ValueId<FieldElement>],
     signature_verifier: ECDSASignatureVerifier,
-) -> SimplifyResult {
+) -> SimplifyResult<FieldElement> {
     match (
         dfg.get_array_constant(arguments[0]),
         dfg.get_array_constant(arguments[1]),

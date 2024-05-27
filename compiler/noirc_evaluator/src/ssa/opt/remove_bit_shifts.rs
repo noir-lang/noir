@@ -43,7 +43,7 @@ fn remove_bit_shifts(function: &mut Function) {
 
 struct Context<'f> {
     function: &'f mut Function,
-    new_instructions: Vec<InstructionId>,
+    new_instructions: Vec<InstructionId<FieldElement>>,
 
     block: BasicBlockId,
     call_stack: CallStack,
@@ -89,10 +89,10 @@ impl Context<'_> {
     /// and truncate the result to bit_size
     pub(crate) fn insert_wrapping_shift_left(
         &mut self,
-        lhs: ValueId,
-        rhs: ValueId,
+        lhs: ValueId<FieldElement>,
+        rhs: ValueId<FieldElement>,
         bit_size: u32,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let base = self.field_constant(FieldElement::from(2_u128));
         let typ = self.function.dfg.type_of_value(lhs);
         let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
@@ -141,10 +141,10 @@ impl Context<'_> {
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     pub(crate) fn insert_shift_right(
         &mut self,
-        lhs: ValueId,
-        rhs: ValueId,
+        lhs: ValueId<FieldElement>,
+        rhs: ValueId<FieldElement>,
         bit_size: u32,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let lhs_typ = self.function.dfg.type_of_value(lhs);
         let base = self.field_constant(FieldElement::from(2_u128));
         // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
@@ -168,7 +168,7 @@ impl Context<'_> {
     ///     let b = rhs_bits[bit_size - i];
     ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
     /// }
-    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn pow(&mut self, lhs: ValueId<FieldElement>, rhs: ValueId<FieldElement>) -> ValueId<FieldElement> {
         let typ = self.function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
@@ -198,7 +198,7 @@ impl Context<'_> {
         }
     }
 
-    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
+    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId<FieldElement> {
         self.function.dfg.make_constant(constant, Type::field())
     }
 
@@ -207,7 +207,7 @@ impl Context<'_> {
         &mut self,
         value: impl Into<FieldElement>,
         typ: Type,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         self.function.dfg.make_constant(value.into(), typ)
     }
 
@@ -215,17 +215,17 @@ impl Context<'_> {
     /// Returns the result of the binary instruction.
     pub(crate) fn insert_binary(
         &mut self,
-        lhs: ValueId,
+        lhs: ValueId<FieldElement>,
         operator: BinaryOp,
-        rhs: ValueId,
-    ) -> ValueId {
+        rhs: ValueId<FieldElement>,
+    ) -> ValueId<FieldElement> {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
+    pub(crate) fn insert_not(&mut self, rhs: ValueId<FieldElement>) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
@@ -233,17 +233,17 @@ impl Context<'_> {
     /// Returns the result of the truncate instruction.
     pub(crate) fn insert_truncate(
         &mut self,
-        value: ValueId,
+        value: ValueId<FieldElement>,
         bit_size: u32,
         max_bit_size: u32,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
+    pub(crate) fn insert_cast(&mut self, value: ValueId<FieldElement>, typ: Type) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
@@ -251,29 +251,29 @@ impl Context<'_> {
     /// the results of the call.
     pub(crate) fn insert_call(
         &mut self,
-        func: ValueId,
-        arguments: Vec<ValueId>,
+        func: ValueId<FieldElement>,
+        arguments: Vec<ValueId<FieldElement>>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
+    ) -> Cow<[ValueId<FieldElement>]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
     /// Insert an instruction to extract an element from an array
     pub(crate) fn insert_array_get(
         &mut self,
-        array: ValueId,
-        index: ValueId,
+        array: ValueId<FieldElement>,
+        index: ValueId<FieldElement>,
         element_type: Type,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let element_type = Some(vec![element_type]);
         self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
     pub(crate) fn insert_instruction(
         &mut self,
-        instruction: Instruction,
+        instruction: Instruction<FieldElement>,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<FieldElement> {
         let result = self.function.dfg.insert_instruction_and_results(
             instruction,
             self.block,

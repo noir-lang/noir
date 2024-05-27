@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use std::{
     hash::Hash,
@@ -92,7 +93,7 @@ impl std::fmt::Display for Id<super::basic_block::BasicBlock> {
     }
 }
 
-impl std::fmt::Display for Id<super::value::Value> {
+impl std::fmt::Display for Id<super::value::Value<FieldElement>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "v{}", self.index)
     }
@@ -104,7 +105,7 @@ impl std::fmt::Display for Id<super::function::Function> {
     }
 }
 
-impl std::fmt::Display for Id<super::instruction::Instruction> {
+impl<F> std::fmt::Display for Id<super::instruction::Instruction<F>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "f{}", self.index)
     }

@@ -1,5 +1,3 @@
-use acvm::FieldElement;
-
 use crate::ssa::ir::basic_block::BasicBlockId;
 
 use super::{
@@ -9,12 +7,12 @@ use super::{
     types::Type,
 };
 
-pub(crate) type ValueId = Id<Value>;
+pub(crate) type ValueId<F> = Id<Value<F>>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub(crate) enum Value {
+pub(crate) enum Value<F> {
     /// This value was created due to an instruction
     ///
     /// instruction -- This is the instruction which defined it
@@ -24,7 +22,7 @@ pub(crate) enum Value {
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
-    Instruction { instruction: InstructionId, position: usize, typ: Type },
+    Instruction { instruction: InstructionId<F>, position: usize, typ: Type },
 
     /// This Value originates from a block parameter. Since function parameters
     /// are also represented as block parameters, this includes function parameters as well.
@@ -33,10 +31,10 @@ pub(crate) enum Value {
     Param { block: BasicBlockId, position: usize, typ: Type },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: Type },
+    NumericConstant { constant: F, typ: Type },
 
     /// Represents a constant array value
-    Array { array: im::Vector<ValueId>, typ: Type },
+    Array { array: im::Vector<ValueId<F>>, typ: Type },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -55,7 +53,7 @@ pub(crate) enum Value {
     ForeignFunction(String),
 }
 
-impl Value {
+impl<F> Value<F> {
     /// Retrieves the type of this Value
     pub(crate) fn get_type(&self) -> &Type {
         match self {

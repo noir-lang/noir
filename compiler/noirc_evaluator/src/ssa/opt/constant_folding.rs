@@ -92,7 +92,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
 
         // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
+        let mut cached_instruction_results: HashMap<Instruction<FieldElement>, Vec<ValueId<FieldElement>>> = HashMap::default();
 
         // Contains sets of values which are constrained to be equivalent to each other.
         //
@@ -101,7 +101,7 @@ impl Context {
         // We partition the maps of constrained values according to the side-effects flag at the point
         // at which the values are constrained. This prevents constraints which are only sometimes enforced
         // being used to modify the rest of the program.
-        let mut constraint_simplification_mappings: HashMap<ValueId, HashMap<ValueId, ValueId>> =
+        let mut constraint_simplification_mappings: HashMap<ValueId<FieldElement>, HashMap<ValueId<FieldElement>, ValueId<FieldElement>>> =
             HashMap::default();
         let mut side_effects_enabled_var =
             function.dfg.make_constant(FieldElement::one(), Type::bool());
@@ -121,12 +121,12 @@ impl Context {
 
     fn fold_constants_into_instruction(
         &self,
-        dfg: &mut DataFlowGraph,
+        dfg: &mut DataFlowGraph<FieldElement>,
         block: BasicBlockId,
-        id: InstructionId,
-        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
-        constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
-        side_effects_enabled_var: &mut ValueId,
+        id: InstructionId<FieldElement>,
+        instruction_result_cache: &mut HashMap<Instruction<FieldElement>, Vec<ValueId<FieldElement>>>,
+        constraint_simplification_mappings: &mut HashMap<ValueId<FieldElement>, HashMap<ValueId<FieldElement>, ValueId<FieldElement>>>,
+        side_effects_enabled_var: &mut ValueId<FieldElement>,
     ) {
         let constraint_simplification_mapping =
             constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
@@ -161,10 +161,10 @@ impl Context {
 
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     fn resolve_instruction(
-        instruction_id: InstructionId,
-        dfg: &DataFlowGraph,
-        constraint_simplification_mapping: &HashMap<ValueId, ValueId>,
-    ) -> Instruction {
+        instruction_id: InstructionId<FieldElement>,
+        dfg: &DataFlowGraph<FieldElement>,
+        constraint_simplification_mapping: &HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
+    ) -> Instruction<FieldElement> {
         let instruction = dfg[instruction_id].clone();
 
         // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
@@ -173,10 +173,10 @@ impl Context {
         // This allows us to reach a stable final `ValueId` for each instruction input as we add more
         // constraints to the cache.
         fn resolve_cache(
-            dfg: &DataFlowGraph,
-            cache: &HashMap<ValueId, ValueId>,
-            value_id: ValueId,
-        ) -> ValueId {
+            dfg: &DataFlowGraph<FieldElement>,
+            cache: &HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
+            value_id: ValueId<FieldElement>,
+        ) -> ValueId<FieldElement> {
             let resolved_id = dfg.resolve(value_id);
             match cache.get(&resolved_id) {
                 Some(cached_value) => resolve_cache(dfg, cache, *cached_value),
@@ -194,12 +194,12 @@ impl Context {
     ///
     /// This may result in the [`Instruction`] being optimized away or replaced with a constant value.
     fn push_instruction(
-        id: InstructionId,
-        instruction: Instruction,
-        old_results: &[ValueId],
+        id: InstructionId<FieldElement>,
+        instruction: Instruction<FieldElement>,
+        old_results: &[ValueId<FieldElement>],
         block: BasicBlockId,
-        dfg: &mut DataFlowGraph,
-    ) -> Vec<ValueId> {
+        dfg: &mut DataFlowGraph<FieldElement>,
+    ) -> Vec<ValueId<FieldElement>> {
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
             .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
@@ -221,11 +221,11 @@ impl Context {
 
     fn cache_instruction(
         &self,
-        instruction: Instruction,
-        instruction_results: Vec<ValueId>,
-        dfg: &DataFlowGraph,
-        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
-        constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
+        instruction: Instruction<FieldElement>,
+        instruction_results: Vec<ValueId<FieldElement>>,
+        dfg: &DataFlowGraph<FieldElement>,
+        instruction_result_cache: &mut HashMap<Instruction<FieldElement>, Vec<ValueId<FieldElement>>>,
+        constraint_simplification_mapping: &mut HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -265,9 +265,9 @@ impl Context {
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
     fn replace_result_ids(
-        dfg: &mut DataFlowGraph,
-        old_results: &[ValueId],
-        new_results: &[ValueId],
+        dfg: &mut DataFlowGraph<FieldElement>,
+        old_results: &[ValueId<FieldElement>],
+        new_results: &[ValueId<FieldElement>],
     ) {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             dfg.set_value_from_id(*old_result, *new_result);

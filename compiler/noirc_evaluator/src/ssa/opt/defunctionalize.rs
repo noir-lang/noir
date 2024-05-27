@@ -192,7 +192,7 @@ fn find_variants(ssa: &Ssa) -> BTreeMap<Signature, Vec<FunctionId>> {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    let mut process_value = |value_id: ValueId| {
+    let mut process_value = |value_id: ValueId<FieldElement>| {
         if let Value::Function(id) = func.dfg[value_id] {
             functions_as_values.insert(id);
         }

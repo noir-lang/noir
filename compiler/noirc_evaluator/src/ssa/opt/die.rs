@@ -2,6 +2,8 @@
 //! which the results are unused.
 use std::collections::HashSet;
 
+use acvm::FieldElement;
+
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
@@ -50,13 +52,13 @@ fn dead_instruction_elimination(function: &mut Function) {
 /// Per function context for tracking unused values and which instructions to remove.
 #[derive(Default)]
 struct Context {
-    used_values: HashSet<ValueId>,
-    instructions_to_remove: HashSet<InstructionId>,
+    used_values: HashSet<ValueId<FieldElement>>,
+    instructions_to_remove: HashSet<InstructionId<FieldElement>>,
 
     /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
-    rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+    rc_instructions: Vec<(InstructionId<FieldElement>, BasicBlockId)>,
 }
 
 impl Context {
@@ -105,7 +107,7 @@ impl Context {
     ///
     /// An instruction can be removed as long as it has no side-effects, and none of its result
     /// values have been referenced.
-    fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
+    fn is_unused(&self, instruction_id: InstructionId<FieldElement>, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
         if instruction.can_eliminate_if_unused(&function.dfg) {
@@ -126,7 +128,7 @@ impl Context {
 
     /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
     /// results as used.
-    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
+    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph<FieldElement>, value_id: ValueId<FieldElement>) {
         let value_id = dfg.resolve(value_id);
         match &dfg[value_id] {
             Value::Instruction { .. } => {
@@ -146,7 +148,7 @@ impl Context {
         }
     }
 
-    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
+    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph<FieldElement>) {
         for (rc, block) in self.rc_instructions {
             let value = match &dfg[rc] {
                 Instruction::IncrementRc { value } => *value,

@@ -2,6 +2,7 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use acvm::FieldElement;
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -158,7 +159,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
-    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<ValueId, RuntimeError> {
+    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<ValueId<FieldElement>, RuntimeError> {
         Ok(self.codegen_expression(expr)?.into_leaf().eval(self))
     }
 
@@ -391,11 +392,11 @@ impl<'a> FunctionContext<'a> {
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
         &mut self,
-        array: super::ir::value::ValueId,
-        index: super::ir::value::ValueId,
+        array: super::ir::value::ValueId<FieldElement>,
+        index: super::ir::value::ValueId<FieldElement>,
         element_type: &ast::Type,
         location: Location,
-        length: Option<super::ir::value::ValueId>,
+        length: Option<super::ir::value::ValueId<FieldElement>>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -434,8 +435,8 @@ impl<'a> FunctionContext<'a> {
     /// is less than the dynamic slice length.
     fn codegen_slice_access_check(
         &mut self,
-        index: super::ir::value::ValueId,
-        length: Option<super::ir::value::ValueId>,
+        index: super::ir::value::ValueId<FieldElement>,
+        length: Option<super::ir::value::ValueId<FieldElement>>,
     ) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
@@ -620,8 +621,8 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_intrinsic_call_checks(
         &mut self,
-        function: ValueId,
-        arguments: &[ValueId],
+        function: ValueId<FieldElement>,
+        arguments: &[ValueId<FieldElement>],
         location: Location,
     ) {
         if let Some(intrinsic) =

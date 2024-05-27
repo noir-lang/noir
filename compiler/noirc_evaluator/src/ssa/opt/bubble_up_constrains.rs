@@ -18,7 +18,7 @@ impl Ssa {
                 // Multiple constrains can bubble up to sit under a single instruction. We want to maintain the ordering of these constraints,
                 // so we need to keep track of how many constraints are attached to a given instruction.
                 // Some assertions don't operate on instruction results, so we use Option so we also track the None case
-                let mut inserted_at_instruction: HashMap<Option<InstructionId>, usize> =
+                let mut inserted_at_instruction: HashMap<Option<InstructionId<FieldElement>>, usize> =
                     HashMap::with_capacity(instructions.len());
 
                 let dfg = &function.dfg;

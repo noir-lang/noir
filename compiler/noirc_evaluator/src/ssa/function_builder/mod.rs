@@ -107,7 +107,7 @@ impl FunctionBuilder {
 
     /// Add a parameter to the current function with the given parameter type.
     /// Returns the newly-added parameter.
-    pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId {
+    pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId<FieldElement> {
         let entry = self.current_function.entry_block();
         self.current_function.dfg.add_block_parameter(entry, typ)
     }
@@ -117,27 +117,27 @@ impl FunctionBuilder {
         &mut self,
         value: impl Into<FieldElement>,
         typ: Type,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a numeric constant into the current function of type Field
-    pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
+    pub(crate) fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId<FieldElement> {
         self.numeric_constant(value.into(), Type::field())
     }
 
     /// Insert a numeric constant into the current function of type Type::length_type()
-    pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
+    pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId<FieldElement> {
         self.numeric_constant(value.into(), Type::length_type())
     }
 
     /// Insert an array constant into the current function with the given element values.
-    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
+    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId<FieldElement>>, typ: Type) -> ValueId<FieldElement> {
         self.current_function.dfg.make_array(elements, typ)
     }
 
     /// Returns the type of the given value.
-    pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
+    pub(crate) fn type_of_value(&self, value: ValueId<FieldElement>) -> Type {
         self.current_function.dfg.type_of_value(value)
     }
 
@@ -149,21 +149,21 @@ impl FunctionBuilder {
 
     /// Adds a parameter with the given type to the given block.
     /// Returns the newly-added parameter.
-    pub(crate) fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> ValueId {
+    pub(crate) fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> ValueId<FieldElement> {
         self.current_function.dfg.add_block_parameter(block, typ)
     }
 
     /// Returns the parameters of the given block in the current function.
-    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
+    pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId<FieldElement>] {
         self.current_function.dfg.block_parameters(block)
     }
 
     /// Inserts a new instruction at the end of the current block and returns its results
     pub(crate) fn insert_instruction(
         &mut self,
-        instruction: Instruction,
+        instruction: Instruction<FieldElement>,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<FieldElement> {
         let block = self.current_block();
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
@@ -188,7 +188,7 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
+    pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId<FieldElement> {
         let reference_type = Type::Reference(Rc::new(element_type));
         self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
@@ -211,14 +211,14 @@ impl FunctionBuilder {
     /// which should point to a previous Allocate instruction. Note that this is limited to loading
     /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
-    pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
+    pub(crate) fn insert_load(&mut self, address: ValueId<FieldElement>, type_to_load: Type) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points somewhere
     /// within a previous Allocate instruction.
-    pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
+    pub(crate) fn insert_store(&mut self, address: ValueId<FieldElement>, value: ValueId<FieldElement>) {
         self.insert_instruction(Instruction::Store { address, value }, None);
     }
 
@@ -226,10 +226,10 @@ impl FunctionBuilder {
     /// Returns the result of the binary instruction.
     pub(crate) fn insert_binary(
         &mut self,
-        lhs: ValueId,
+        lhs: ValueId<FieldElement>,
         operator: BinaryOp,
-        rhs: ValueId,
-    ) -> ValueId {
+        rhs: ValueId<FieldElement>,
+    ) -> ValueId<FieldElement> {
         let lhs_type = self.type_of_value(lhs);
         let rhs_type = self.type_of_value(rhs);
         if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
@@ -244,13 +244,13 @@ impl FunctionBuilder {
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
+    pub(crate) fn insert_not(&mut self, rhs: ValueId<FieldElement>) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
+    pub(crate) fn insert_cast(&mut self, value: ValueId<FieldElement>, typ: Type) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
@@ -258,10 +258,10 @@ impl FunctionBuilder {
     /// Returns the result of the truncate instruction.
     pub(crate) fn insert_truncate(
         &mut self,
-        value: ValueId,
+        value: ValueId<FieldElement>,
         bit_size: u32,
         max_bit_size: u32,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
@@ -269,8 +269,8 @@ impl FunctionBuilder {
     /// Insert a constrain instruction at the end of the current block.
     pub(crate) fn insert_constrain(
         &mut self,
-        lhs: ValueId,
-        rhs: ValueId,
+        lhs: ValueId<FieldElement>,
+        rhs: ValueId<FieldElement>,
         assert_message: Option<ConstrainError>,
     ) {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
@@ -279,7 +279,7 @@ impl FunctionBuilder {
     /// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
     pub(crate) fn insert_range_check(
         &mut self,
-        value: ValueId,
+        value: ValueId<FieldElement>,
         max_bit_size: u32,
         assert_message: Option<String>,
     ) {
@@ -293,20 +293,20 @@ impl FunctionBuilder {
     /// the results of the call.
     pub(crate) fn insert_call(
         &mut self,
-        func: ValueId,
-        arguments: Vec<ValueId>,
+        func: ValueId<FieldElement>,
+        arguments: Vec<ValueId<FieldElement>>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
+    ) -> Cow<[ValueId<FieldElement>]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
     /// Insert an instruction to extract an element from an array
     pub(crate) fn insert_array_get(
         &mut self,
-        array: ValueId,
-        index: ValueId,
+        array: ValueId<FieldElement>,
+        index: ValueId<FieldElement>,
         element_type: Type,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let element_type = Some(vec![element_type]);
         self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
@@ -314,29 +314,29 @@ impl FunctionBuilder {
     /// Insert an instruction to create a new array with the given index replaced with a new value
     pub(crate) fn insert_array_set(
         &mut self,
-        array: ValueId,
-        index: ValueId,
-        value: ValueId,
-    ) -> ValueId {
+        array: ValueId<FieldElement>,
+        index: ValueId<FieldElement>,
+        value: ValueId<FieldElement>,
+    ) -> ValueId<FieldElement> {
         self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
             .first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
-    pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
+    pub(crate) fn insert_inc_rc(&mut self, value: ValueId<FieldElement>) {
         self.insert_instruction(Instruction::IncrementRc { value }, None);
     }
 
     /// Insert an instruction to decrement an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
-    pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
+    pub(crate) fn insert_dec_rc(&mut self, value: ValueId<FieldElement>) {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
     }
 
     /// Insert an enable_side_effects_if instruction. These are normally only automatically
     /// inserted during the flattening pass when branching is removed.
-    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
+    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId<FieldElement>) {
         self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
     }
 
@@ -353,7 +353,7 @@ impl FunctionBuilder {
     pub(crate) fn terminate_with_jmp(
         &mut self,
         destination: BasicBlockId,
-        arguments: Vec<ValueId>,
+        arguments: Vec<ValueId<FieldElement>>,
     ) {
         let call_stack = self.call_stack.clone();
         self.terminate_block_with(TerminatorInstruction::Jmp {
@@ -367,7 +367,7 @@ impl FunctionBuilder {
     /// block with the given arguments.
     pub(crate) fn terminate_with_jmpif(
         &mut self,
-        condition: ValueId,
+        condition: ValueId<FieldElement>,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
@@ -379,35 +379,35 @@ impl FunctionBuilder {
     }
 
     /// Terminate the current block with a return instruction
-    pub(crate) fn terminate_with_return(&mut self, return_values: Vec<ValueId>) {
+    pub(crate) fn terminate_with_return(&mut self, return_values: Vec<ValueId<FieldElement>>) {
         let call_stack = self.call_stack.clone();
         self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
     /// Returns a ValueId pointing to the given function or imports the function
     /// into the current function if it was not already, and returns that ID.
-    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
+    pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId<FieldElement> {
         self.current_function.dfg.import_function(function)
     }
 
     /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
-    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId<FieldElement> {
         self.current_function.dfg.import_foreign_function(function)
     }
 
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
-    pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
+    pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId<FieldElement>> {
         Intrinsic::lookup(name).map(|intrinsic| self.import_intrinsic_id(intrinsic))
     }
 
     /// Retrieve a value reference to the given intrinsic operation.
-    pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId {
+    pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId<FieldElement> {
         self.current_function.dfg.import_intrinsic(intrinsic)
     }
 
-    pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
+    pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId<FieldElement>) -> Option<Intrinsic> {
         match self.current_function.dfg[value] {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
@@ -417,14 +417,14 @@ impl FunctionBuilder {
     /// Insert instructions to increment the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
-    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId<FieldElement>) {
         self.update_array_reference_count(value, true, None);
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
-    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId<FieldElement>) {
         self.update_array_reference_count(value, false, None);
     }
 
@@ -433,9 +433,9 @@ impl FunctionBuilder {
     /// are ignored outside of unconstrained code.
     fn update_array_reference_count(
         &mut self,
-        value: ValueId,
+        value: ValueId<FieldElement>,
         increment: bool,
-        load_address: Option<ValueId>,
+        load_address: Option<ValueId<FieldElement>>,
     ) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
@@ -488,18 +488,18 @@ impl FunctionBuilder {
     }
 }
 
-impl std::ops::Index<ValueId> for FunctionBuilder {
-    type Output = Value;
+impl std::ops::Index<ValueId<FieldElement>> for FunctionBuilder {
+    type Output = Value<FieldElement>;
 
-    fn index(&self, id: ValueId) -> &Self::Output {
+    fn index(&self, id: ValueId<FieldElement>) -> &Self::Output {
         &self.current_function.dfg[id]
     }
 }
 
-impl std::ops::Index<InstructionId> for FunctionBuilder {
-    type Output = Instruction;
+impl std::ops::Index<InstructionId<FieldElement>> for FunctionBuilder {
+    type Output = Instruction<FieldElement>;
 
-    fn index(&self, id: InstructionId) -> &Self::Output {
+    fn index(&self, id: InstructionId<FieldElement>) -> &Self::Output {
         &self.current_function.dfg[id]
     }
 }

@@ -79,7 +79,7 @@ pub(super) struct SharedContext {
 #[derive(Copy, Clone)]
 pub(super) struct Loop {
     pub(super) loop_entry: BasicBlockId,
-    pub(super) loop_index: ValueId,
+    pub(super) loop_index: ValueId<FieldElement>,
     pub(super) loop_end: BasicBlockId,
 }
 
@@ -165,7 +165,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId<FieldElement>) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -266,7 +266,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         value: impl Into<FieldElement>,
         typ: Type,
-    ) -> Result<ValueId, RuntimeError> {
+    ) -> Result<ValueId<FieldElement>, RuntimeError> {
         let value = value.into();
 
         if let Type::Numeric(typ) = typ {
@@ -283,7 +283,7 @@ impl<'a> FunctionContext<'a> {
 
     /// helper function which add instructions to the block computing the absolute value of the
     /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
-    fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
+    fn absolute_value_helper(&mut self, input: ValueId<FieldElement>, sign: ValueId<FieldElement>, bit_size: u32) -> ValueId<FieldElement> {
         assert_eq!(self.builder.type_of_value(sign), Type::bool());
 
         // We compute the absolute value of lhs
@@ -315,12 +315,12 @@ impl<'a> FunctionContext<'a> {
     /// overflow the bit size, however the operation is still valid (i.e it is not a signed overflow)
     fn check_overflow(
         &mut self,
-        result: ValueId,
-        lhs: ValueId,
-        rhs: ValueId,
+        result: ValueId<FieldElement>,
+        lhs: ValueId<FieldElement>,
+        rhs: ValueId<FieldElement>,
         operator: BinaryOpKind,
         location: Location,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let result_type = self.builder.current_function.dfg.type_of_value(result);
         match result_type {
             Type::Numeric(NumericType::Signed { bit_size }) => {
@@ -387,11 +387,11 @@ impl<'a> FunctionContext<'a> {
     /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
     fn check_shift_overflow(
         &mut self,
-        result: ValueId,
-        rhs: ValueId,
+        result: ValueId<FieldElement>,
+        rhs: ValueId<FieldElement>,
         bit_size: u32,
         location: Location,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
         assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
@@ -420,9 +420,9 @@ impl<'a> FunctionContext<'a> {
     ///                     then we check that the result has the proper sign, using the rule of signs
     fn check_signed_overflow(
         &mut self,
-        result: ValueId,
-        lhs: ValueId,
-        rhs: ValueId,
+        result: ValueId<FieldElement>,
+        lhs: ValueId<FieldElement>,
+        rhs: ValueId<FieldElement>,
         operator: BinaryOpKind,
         bit_size: u32,
         location: Location,
@@ -500,9 +500,9 @@ impl<'a> FunctionContext<'a> {
     /// For example, (a <= b) is represented as !(b < a)
     pub(super) fn insert_binary(
         &mut self,
-        mut lhs: ValueId,
+        mut lhs: ValueId<FieldElement>,
         operator: BinaryOpKind,
-        mut rhs: ValueId,
+        mut rhs: ValueId<FieldElement>,
         location: Location,
     ) -> Values {
         let op = convert_operator(operator);
@@ -536,8 +536,8 @@ impl<'a> FunctionContext<'a> {
     /// back into a Values tree of the proper shape.
     pub(super) fn insert_call(
         &mut self,
-        function: ValueId,
-        arguments: Vec<ValueId>,
+        function: ValueId<FieldElement>,
+        arguments: Vec<ValueId<FieldElement>>,
         result_type: &ast::Type,
         location: Location,
     ) -> Values {
@@ -561,10 +561,10 @@ impl<'a> FunctionContext<'a> {
     /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(
         &mut self,
-        mut value: ValueId,
+        mut value: ValueId<FieldElement>,
         typ: Type,
         location: Location,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         self.builder.set_location(location);
 
         // To ensure that `value` is a valid `typ`, we insert an `Instruction::Truncate` instruction beforehand if
@@ -579,7 +579,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+    pub(super) fn make_offset(&mut self, mut address: ValueId<FieldElement>, offset: u128) -> ValueId<FieldElement> {
         if offset != 0 {
             let offset = self.builder.numeric_constant(offset, self.builder.type_of_value(address));
             address = self.builder.insert_binary(address, BinaryOp::Add, offset);
@@ -588,7 +588,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Array indexes are u64s. This function casts values used as indexes to u64.
-    pub(super) fn make_array_index(&mut self, index: ValueId) -> ValueId {
+    pub(super) fn make_array_index(&mut self, index: ValueId<FieldElement>) -> ValueId<FieldElement> {
         self.builder.insert_cast(index, Type::unsigned(64))
     }
 
@@ -732,7 +732,7 @@ impl<'a> FunctionContext<'a> {
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+    ) -> Result<(ValueId<FieldElement>, ValueId<FieldElement>, LValue, Option<ValueId<FieldElement>>), RuntimeError> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
         let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
@@ -831,10 +831,10 @@ impl<'a> FunctionContext<'a> {
     fn assign_lvalue_index(
         &mut self,
         new_value: Values,
-        mut array: ValueId,
-        index: ValueId,
+        mut array: ValueId<FieldElement>,
+        index: ValueId<FieldElement>,
         location: Location,
-    ) -> ValueId {
+    ) -> ValueId<FieldElement> {
         let index = self.make_array_index(index);
         let element_size =
             self.builder.numeric_constant(self.element_size(array), Type::unsigned(64));
@@ -852,7 +852,7 @@ impl<'a> FunctionContext<'a> {
         array
     }
 
-    fn element_size(&self, array: ValueId) -> FieldElement {
+    fn element_size(&self, array: ValueId<FieldElement>) -> FieldElement {
         let size = self.builder.type_of_value(array).element_size();
         FieldElement::from(size as u128)
     }
@@ -899,7 +899,7 @@ impl<'a> FunctionContext<'a> {
     /// This will issue DecrementRc instructions for any arrays in the given starting scope
     /// block's parameters. Arrays that are also used in terminator instructions for the scope are
     /// ignored.
-    pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
+    pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId<FieldElement>]) {
         let mut dropped_parameters =
             self.builder.current_function.dfg.block_parameters(scope).to_vec();
 
@@ -913,7 +913,7 @@ impl<'a> FunctionContext<'a> {
     pub(crate) fn enter_loop(
         &mut self,
         loop_entry: BasicBlockId,
-        loop_index: ValueId,
+        loop_index: ValueId<FieldElement>,
         loop_end: BasicBlockId,
     ) {
         self.loops.push(Loop { loop_entry, loop_index, loop_end });
@@ -1013,8 +1013,8 @@ impl SharedContext {
 #[derive(Debug)]
 pub(super) enum LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
-    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue>, location: Location },
+    Index { old_array: ValueId<FieldElement>, index: ValueId<FieldElement>, array_lvalue: Box<LValue>, location: Location },
+    SliceIndex { old_slice: Values, index: ValueId<FieldElement>, slice_lvalue: Box<LValue>, location: Location },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
 }

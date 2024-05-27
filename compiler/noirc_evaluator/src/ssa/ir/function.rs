@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -51,7 +52,7 @@ pub(crate) struct Function {
 
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
-    pub(crate) dfg: DataFlowGraph,
+    pub(crate) dfg: DataFlowGraph<FieldElement>,
 }
 
 impl Function {
@@ -104,12 +105,12 @@ impl Function {
 
     /// Returns the parameters of this function.
     /// The parameters will always match that of this function's entry block.
-    pub(crate) fn parameters(&self) -> &[ValueId] {
+    pub(crate) fn parameters(&self) -> &[ValueId<FieldElement>] {
         self.dfg.block_parameters(self.entry_block)
     }
 
     /// Returns the return types of this function.
-    pub(crate) fn returns(&self) -> &[ValueId] {
+    pub(crate) fn returns(&self) -> &[ValueId<FieldElement>] {
         let blocks = self.reachable_blocks();
         let mut function_return_values = None;
         for block in blocks {

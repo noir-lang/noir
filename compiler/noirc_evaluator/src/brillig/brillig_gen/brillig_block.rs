@@ -37,7 +37,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
-    pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+    pub(crate) last_uses: HashMap<InstructionId<FieldElement>, HashSet<ValueId<FieldElement>>>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -46,7 +46,7 @@ impl<'block> BrilligBlock<'block> {
         function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement>,
         block_id: BasicBlockId,
-        dfg: &DataFlowGraph,
+        dfg: &DataFlowGraph<FieldElement>,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
         let variables =
@@ -67,7 +67,7 @@ impl<'block> BrilligBlock<'block> {
         brillig_block.convert_block(dfg);
     }
 
-    fn convert_block(&mut self, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, dfg: &DataFlowGraph<FieldElement>) {
         // Add a label for this block
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
@@ -113,7 +113,7 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_terminator(
         &mut self,
         terminator_instruction: &TerminatorInstruction,
-        dfg: &DataFlowGraph,
+        dfg: &DataFlowGraph<FieldElement>,
     ) {
         match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
@@ -207,7 +207,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts SSA Block parameters into Brillig Registers.
-    fn convert_block_params(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
+    fn convert_block_params(&mut self, block: &BasicBlock, dfg: &DataFlowGraph<FieldElement>) {
         for param_id in block.parameters() {
             let value = &dfg[*param_id];
             let param_type = match value {
@@ -233,7 +233,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
-    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
+    fn convert_ssa_instruction(&mut self, instruction_id: InstructionId<FieldElement>, dfg: &DataFlowGraph<FieldElement>) {
         let instruction = &dfg[instruction_id];
         self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
 
@@ -741,9 +741,9 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_function_call(
         &mut self,
         func_id: FunctionId,
-        arguments: &[ValueId],
-        dfg: &DataFlowGraph,
-        result_ids: &[ValueId],
+        arguments: &[ValueId<FieldElement>],
+        dfg: &DataFlowGraph<FieldElement>,
+        result_ids: &[ValueId<FieldElement>],
     ) {
         // Convert the arguments to registers casting those to the types of the receiving function
         let argument_registers: Vec<MemoryAddress> = arguments
@@ -988,10 +988,10 @@ impl<'block> BrilligBlock<'block> {
     /// Convert the SSA slice operations to brillig slice operations
     fn convert_ssa_slice_intrinsic_call(
         &mut self,
-        dfg: &DataFlowGraph,
-        intrinsic: &Value,
-        instruction_id: InstructionId,
-        arguments: &[ValueId],
+        dfg: &DataFlowGraph<FieldElement>,
+        intrinsic: &Value<FieldElement>,
+        instruction_id: InstructionId<FieldElement>,
+        arguments: &[ValueId<FieldElement>],
     ) {
         let slice_id = arguments[1];
         let element_size = dfg.type_of_value(slice_id).element_size();
@@ -1262,8 +1262,8 @@ impl<'block> BrilligBlock<'block> {
     fn update_slice_length(
         &mut self,
         target_len: MemoryAddress,
-        source_value: ValueId,
-        dfg: &DataFlowGraph,
+        source_value: ValueId<FieldElement>,
+        dfg: &DataFlowGraph<FieldElement>,
         binary_op: BrilligBinaryOp,
     ) {
         let source_len_variable = self.convert_ssa_value(source_value, dfg);
@@ -1285,7 +1285,7 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_binary(
         &mut self,
         binary: &Binary,
-        dfg: &DataFlowGraph,
+        dfg: &DataFlowGraph<FieldElement>,
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
@@ -1515,7 +1515,7 @@ impl<'block> BrilligBlock<'block> {
         right: SingleAddrVariable,
         result: SingleAddrVariable,
         binary: &Binary,
-        dfg: &DataFlowGraph,
+        dfg: &DataFlowGraph<FieldElement>,
         is_signed: bool,
     ) {
         let bit_size = left.bit_size;
@@ -1605,7 +1605,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
-    fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
+    fn convert_ssa_value(&mut self, value_id: ValueId<FieldElement>, dfg: &DataFlowGraph<FieldElement>) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
@@ -1709,8 +1709,8 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
     fn convert_ssa_single_addr_value(
         &mut self,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
+        value_id: ValueId<FieldElement>,
+        dfg: &DataFlowGraph<FieldElement>,
     ) -> SingleAddrVariable {
         let variable = self.convert_ssa_value(value_id, dfg);
         variable.extract_single_addr()
@@ -1718,8 +1718,8 @@ impl<'block> BrilligBlock<'block> {
 
     fn allocate_external_call_result(
         &mut self,
-        result: ValueId,
-        dfg: &DataFlowGraph,
+        result: ValueId<FieldElement>,
+        dfg: &DataFlowGraph<FieldElement>,
     ) -> BrilligVariable {
         let typ = dfg[result].get_type();
         match typ {
@@ -1771,9 +1771,9 @@ impl<'block> BrilligBlock<'block> {
     /// So we divide the length by the number of subitems in an item to get the user-facing length.
     fn convert_ssa_array_len(
         &mut self,
-        array_id: ValueId,
+        array_id: ValueId<FieldElement>,
         result_register: MemoryAddress,
-        dfg: &DataFlowGraph,
+        dfg: &DataFlowGraph<FieldElement>,
     ) {
         let array_variable = self.convert_ssa_value(array_id, dfg);
         let element_size = dfg.type_of_value(array_id).element_size();

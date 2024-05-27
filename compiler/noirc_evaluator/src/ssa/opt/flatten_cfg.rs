@@ -183,14 +183,14 @@ struct Context<'f> {
     /// Maps an address to the old and new value of the element at that address
     /// These only hold stores for one block at a time and is cleared
     /// between inlining of branches.
-    store_values: HashMap<ValueId, Store>,
+    store_values: HashMap<ValueId<FieldElement>, Store>,
 
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
     /// the other branch since there is no such value. The ValueId here is that which is returned
     /// by the allocate instruction.
-    local_allocations: HashSet<ValueId>,
+    local_allocations: HashSet<ValueId<FieldElement>>,
 
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
     /// When two branches are merged back into one, this constitutes a join point, and is analogous
@@ -202,18 +202,18 @@ struct Context<'f> {
 
     /// Maps SSA array values with a slice type to their size.
     /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<ValueId<FieldElement>, usize>,
 
     /// Stack of block arguments
     /// When processing a block, we pop this stack to get its arguments
     /// and at the end we push the arguments for his successor
-    arguments_stack: Vec<Vec<ValueId>>,
+    arguments_stack: Vec<Vec<ValueId<FieldElement>>>,
 }
 
 #[derive(Clone)]
 pub(crate) struct Store {
-    old_value: ValueId,
-    new_value: ValueId,
+    old_value: ValueId<FieldElement>,
+    new_value: ValueId<FieldElement>,
 }
 
 #[derive(Clone)]
@@ -221,18 +221,18 @@ struct ConditionalBranch {
     // Contains the last processed block during the processing of the branch.
     last_block: BasicBlockId,
     // The unresolved condition of the branch
-    old_condition: ValueId,
+    old_condition: ValueId<FieldElement>,
     // The condition of the branch
-    condition: ValueId,
+    condition: ValueId<FieldElement>,
     // The store values accumulated when processing the branch
-    store_values: HashMap<ValueId, Store>,
+    store_values: HashMap<ValueId<FieldElement>, Store>,
     // The allocations accumulated when processing the branch
-    local_allocations: HashSet<ValueId>,
+    local_allocations: HashSet<ValueId<FieldElement>>,
 }
 
 struct ConditionalContext {
     // Condition from the conditional statement
-    condition: ValueId,
+    condition: ValueId<FieldElement>,
     // Block containing the conditional statement
     entry_block: BasicBlockId,
     // First block of the then branch
@@ -284,7 +284,7 @@ impl<'f> Context<'f> {
 
     /// Returns the updated condition so that
     /// it is 'AND-ed' with the previous condition (if any)
-    fn link_condition(&mut self, condition: ValueId) -> ValueId {
+    fn link_condition(&mut self, condition: ValueId<FieldElement>) -> ValueId<FieldElement> {
         // Retrieve the previous condition
         if let Some(context) = self.condition_stack.last() {
             let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
@@ -296,7 +296,7 @@ impl<'f> Context<'f> {
     }
 
     /// Returns the current condition
-    fn get_last_condition(&self) -> Option<ValueId> {
+    fn get_last_condition(&self) -> Option<ValueId<FieldElement>> {
         self.condition_stack.last().map(|context| match &context.else_branch {
             Some(else_branch) => else_branch.condition,
             None => context.then_branch.condition,
@@ -366,7 +366,7 @@ impl<'f> Context<'f> {
     /// Process a conditional statement
     fn if_start(
         &mut self,
-        condition: &ValueId,
+        condition: &ValueId<FieldElement>,
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
         if_entry: &BasicBlockId,
@@ -546,7 +546,7 @@ impl<'f> Context<'f> {
     /// Insert a new instruction into the function's entry block.
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
-    fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStack) -> ValueId {
+    fn insert_instruction(&mut self, instruction: Instruction<FieldElement>, call_stack: CallStack) -> ValueId<FieldElement> {
         let block = self.inserter.function.entry_block();
         self.inserter
             .function
@@ -561,9 +561,9 @@ impl<'f> Context<'f> {
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction_with_typevars(
         &mut self,
-        instruction: Instruction,
+        instruction: Instruction<FieldElement>,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<FieldElement> {
         let block = self.inserter.function.entry_block();
         self.inserter.function.dfg.insert_instruction_and_results(
             instruction,
@@ -658,7 +658,7 @@ impl<'f> Context<'f> {
         }
     }
 
-    fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
+    fn remember_store(&mut self, address: ValueId<FieldElement>, new_value: ValueId<FieldElement>) {
         if !self.local_allocations.contains(&address) {
             if let Some(store_value) = self.store_values.get_mut(&address) {
                 store_value.new_value = new_value;
@@ -680,7 +680,7 @@ impl<'f> Context<'f> {
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId> {
+    fn push_instruction(&mut self, id: InstructionId<FieldElement>) -> Vec<ValueId<FieldElement>> {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
@@ -701,9 +701,9 @@ impl<'f> Context<'f> {
     /// to multiply them by the branch's condition (see optimization #1 in the module comment).
     fn handle_instruction_side_effects(
         &mut self,
-        instruction: Instruction,
+        instruction: Instruction<FieldElement>,
         call_stack: CallStack,
-    ) -> Instruction {
+    ) -> Instruction<FieldElement> {
         if let Some(condition) = self.get_last_condition() {
             match instruction {
                 Instruction::Constrain(lhs, rhs, message) => {
@@ -779,7 +779,7 @@ impl<'f> Context<'f> {
         }
     }
 
-    fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId, Store>) {
+    fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId<FieldElement>, Store>) {
         for (address, store) in store_values {
             let address = *address;
             let value = store.old_value;
@@ -792,7 +792,7 @@ impl<'f> Context<'f> {
 mod test {
     use std::rc::Rc;
 
-    use acvm::acir::AcirField;
+    use acvm::{acir::AcirField, FieldElement};
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -1037,7 +1037,7 @@ mod test {
         assert_eq!(store_count, 4);
     }
 
-    fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
+    fn count_instruction(function: &Function, f: impl Fn(&Instruction<FieldElement>) -> bool) -> usize {
         function.dfg[function.entry_block()]
             .instructions()
             .iter()
@@ -1289,8 +1289,8 @@ mod test {
     ///
     /// Calling this function on v3 will return [2, 6].
     fn get_all_constants_reachable_from_instruction(
-        dfg: &DataFlowGraph,
-        value: ValueId,
+        dfg: &DataFlowGraph<FieldElement>,
+        value: ValueId<FieldElement>,
     ) -> Vec<u128> {
         match dfg[value] {
             Value::Instruction { instruction, .. } => {

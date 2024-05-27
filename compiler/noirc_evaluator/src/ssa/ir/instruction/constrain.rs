@@ -5,11 +5,11 @@ use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
 /// all the values which are used to compute the values which were being constrained.
 pub(super) fn decompose_constrain(
-    lhs: ValueId,
-    rhs: ValueId,
+    lhs: ValueId<FieldElement>,
+    rhs: ValueId<FieldElement>,
     msg: &Option<ConstrainError>,
-    dfg: &mut DataFlowGraph,
-) -> Vec<Instruction> {
+    dfg: &mut DataFlowGraph<FieldElement>,
+) -> Vec<Instruction<FieldElement>> {
     let lhs = dfg.resolve(lhs);
     let rhs = dfg.resolve(rhs);
 

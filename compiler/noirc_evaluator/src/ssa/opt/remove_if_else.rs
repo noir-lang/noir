@@ -41,14 +41,14 @@ impl Ssa {
 
 #[derive(Default)]
 struct Context {
-    slice_sizes: HashMap<ValueId, usize>,
+    slice_sizes: HashMap<ValueId<FieldElement>, usize>,
 
     // Maps array_set result -> element that was overwritten by that instruction.
     // Used to undo array_sets while merging values
-    prev_array_set_elem_values: HashMap<ValueId, ValueId>,
+    prev_array_set_elem_values: HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
 
     // Maps array_set result -> enable_side_effects_if value which was active during it.
-    array_set_conditionals: HashMap<ValueId, ValueId>,
+    array_set_conditionals: HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
 }
 
 impl Context {
@@ -137,7 +137,7 @@ impl Context {
         }
     }
 
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> usize {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph<FieldElement>, value: ValueId<FieldElement>) -> usize {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
@@ -159,20 +159,20 @@ impl Context {
 
 enum SizeChange {
     None,
-    SetTo(ValueId, usize),
+    SetTo(ValueId<FieldElement>, usize),
 
     // These two variants store the old and new slice ids
     // not their lengths which should be old_len = new_len +/- 1
-    Inc { old: ValueId, new: ValueId },
-    Dec { old: ValueId, new: ValueId },
+    Inc { old: ValueId<FieldElement>, new: ValueId<FieldElement> },
+    Dec { old: ValueId<FieldElement>, new: ValueId<FieldElement> },
 }
 
 /// Find the change to a slice's capacity an instruction would have
 fn slice_capacity_change(
-    dfg: &DataFlowGraph,
+    dfg: &DataFlowGraph<FieldElement>,
     intrinsic: Intrinsic,
-    arguments: &[ValueId],
-    results: &[ValueId],
+    arguments: &[ValueId<FieldElement>],
+    results: &[ValueId<FieldElement>],
 ) -> SizeChange {
     match intrinsic {
         Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {

@@ -38,7 +38,7 @@ use constrain::decompose_constrain;
 /// may refer to the same Instruction data. This is because, although
 /// identical, instructions may have different results based on their
 /// placement within a block.
-pub(crate) type InstructionId = Id<Instruction>;
+pub(crate) type InstructionId<F> = Id<Instruction<F>>;
 
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
@@ -165,27 +165,27 @@ pub(crate) enum Endian {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
-pub(crate) enum Instruction {
+pub(crate) enum Instruction<F> {
     /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
 
     /// Converts `Value` into Typ
-    Cast(ValueId, Type),
+    Cast(ValueId<F>, Type),
 
     /// Computes a bit wise not
-    Not(ValueId),
+    Not(ValueId<F>),
 
     /// Truncates `value` to `bit_size`
-    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
+    Truncate { value: ValueId<F>, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<ConstrainError>),
+    Constrain(ValueId<F>, ValueId<F>, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
-    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+    RangeCheck { value: ValueId<F>, max_bit_size: u32, assert_message: Option<String> },
 
     /// Performs a function call with a list of its arguments.
-    Call { func: ValueId, arguments: Vec<ValueId> },
+    Call { func: ValueId<F>, arguments: Vec<ValueId<F>> },
 
     /// Allocates a region of memory. Note that this is not concerned with
     /// the type of memory, the type of element is determined when loading this memory.
@@ -193,10 +193,10 @@ pub(crate) enum Instruction {
     Allocate,
 
     /// Loads a value from memory.
-    Load { address: ValueId },
+    Load { address: ValueId<F> },
 
     /// Writes a value to memory.
-    Store { address: ValueId, value: ValueId },
+    Store { address: ValueId<F>, value: ValueId<F> },
 
     /// Provides a context for all instructions that follow up until the next
     /// `EnableSideEffects` is encountered, for stating a condition that determines whether
@@ -205,42 +205,42 @@ pub(crate) enum Instruction {
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffects { condition: ValueId },
+    EnableSideEffects { condition: ValueId<F> },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    ArrayGet { array: ValueId<F>, index: ValueId<F> },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    ArraySet { array: ValueId<F>, index: ValueId<F>, value: ValueId<F>, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
-    IncrementRc { value: ValueId },
+    IncrementRc { value: ValueId<F> },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    DecrementRc { value: ValueId<F> },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     IfElse {
-        then_condition: ValueId,
-        then_value: ValueId,
-        else_condition: ValueId,
-        else_value: ValueId,
+        then_condition: ValueId<F>,
+        then_value: ValueId<F>,
+        else_condition: ValueId<F>,
+        else_value: ValueId<F>,
     },
 }
 
-impl Instruction {
+impl<F> Instruction<F> {
     /// Returns a binary instruction with the given operator, lhs, and rhs
-    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId<F>, rhs: ValueId<F>) -> Instruction<F> {
         Instruction::Binary(Binary { lhs, operator, rhs })
     }
 
@@ -275,7 +275,7 @@ impl Instruction {
     }
 
     /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph<FieldElement>) -> bool {
         use Instruction::*;
 
         match self {
@@ -308,7 +308,7 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph<FieldElement>) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
@@ -356,7 +356,7 @@ impl Instruction {
     }
 
     /// If true the instruction will depends on enable_side_effects context during acir-gen
-    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph<F>) -> bool {
         match self {
             Instruction::Binary(binary)
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
@@ -391,8 +391,8 @@ impl Instruction {
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
     /// Note that the returned instruction is fresh and will not have an assigned InstructionId
-    /// until it is manually inserted in a DataFlowGraph later.
-    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
+    /// until it is manually inserted in a `DataFlowGraph` later.
+    pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId<F>) -> ValueId<F>) -> Instruction<F> {
         match self {
             Instruction::Binary(binary) => Instruction::Binary(Binary {
                 lhs: f(binary.lhs),
@@ -463,7 +463,7 @@ impl Instruction {
     }
 
     /// Applies a function to each input value this instruction holds.
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId<FieldElement>) -> T) {
         match self {
             Instruction::Binary(binary) => {
                 f(binary.lhs);
@@ -529,11 +529,11 @@ impl Instruction {
     /// after this call.
     pub(crate) fn simplify(
         &self,
-        dfg: &mut DataFlowGraph,
+        dfg: &mut DataFlowGraph<FieldElement>,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: &CallStack,
-    ) -> SimplifyResult {
+    ) -> SimplifyResult<F> {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
@@ -724,7 +724,7 @@ pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
     Intrinsic(String),
     // These are errors issued by the user
-    UserDefined(ErrorSelector, Vec<ValueId>),
+    UserDefined(ErrorSelector, Vec<ValueId<FieldElement>>),
 }
 
 impl From<String> for ConstrainError {
@@ -742,7 +742,7 @@ impl From<String> for Box<ConstrainError> {
 /// The possible return values for Instruction::return_types
 pub(crate) enum InstructionResultType {
     /// The result type of this instruction matches that of this operand
-    Operand(ValueId),
+    Operand(ValueId<FieldElement>),
 
     /// The result type of this instruction is known to be this type - independent of its operands.
     Known(Type),
@@ -769,14 +769,14 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
-    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+    JmpIf { condition: ValueId<FieldElement>, then_destination: BasicBlockId, else_destination: BasicBlockId },
 
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`.
     /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId<FieldElement>>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -785,14 +785,14 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId>, call_stack: CallStack },
+    Return { return_values: Vec<ValueId<FieldElement>>, call_stack: CallStack },
 }
 
 impl TerminatorInstruction {
     /// Map each ValueId in this terminator to a new value.
     pub(crate) fn map_values(
         &self,
-        mut f: impl FnMut(ValueId) -> ValueId,
+        mut f: impl FnMut(ValueId<FieldElement>) -> ValueId<FieldElement>,
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
@@ -814,7 +814,7 @@ impl TerminatorInstruction {
     }
 
     /// Mutate each ValueId to a new ValueId using the given mapping function
-    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId<FieldElement>) -> ValueId<FieldElement>) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -834,7 +834,7 @@ impl TerminatorInstruction {
     }
 
     /// Apply a function to each value
-    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
+    pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId<FieldElement>) -> T) {
         use TerminatorInstruction::*;
         match self {
             JmpIf { condition, .. } => {
@@ -871,21 +871,21 @@ impl TerminatorInstruction {
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
-pub(crate) enum SimplifyResult {
+pub(crate) enum SimplifyResult<F> {
     /// Replace this function's result with the given value
-    SimplifiedTo(ValueId),
+    SimplifiedTo(ValueId<F>),
 
     /// Replace this function's results with the given values
     /// Used for when there are multiple return values from
     /// a function such as a tuple
-    SimplifiedToMultiple(Vec<ValueId>),
+    SimplifiedToMultiple(Vec<ValueId<F>>),
 
     /// Replace this function with an simpler but equivalent instruction.
-    SimplifiedToInstruction(Instruction),
+    SimplifiedToInstruction(Instruction<F>),
 
     /// Replace this function with a set of simpler but equivalent instructions.
     /// This is currently only to be used for [`Instruction::Constrain`].
-    SimplifiedToInstructionMultiple(Vec<Instruction>),
+    SimplifiedToInstructionMultiple(Vec<Instruction<F>>),
 
     /// Remove the instruction, it is unnecessary
     Remove,
@@ -894,8 +894,8 @@ pub(crate) enum SimplifyResult {
     None,
 }
 
-impl SimplifyResult {
-    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
+impl<F> SimplifyResult<F> {
+    pub(crate) fn instructions(self) -> Option<Vec<Instruction<F>>> {
         match self {
             SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
             SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),

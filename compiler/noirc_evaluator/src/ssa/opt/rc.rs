@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use acvm::FieldElement;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -40,8 +42,8 @@ struct Context {
 }
 
 struct IncRc {
-    id: InstructionId,
-    array: ValueId,
+    id: InstructionId<FieldElement>,
+    array: ValueId<FieldElement>,
     possibly_mutated: bool,
 }
 
@@ -106,7 +108,7 @@ impl Context {
 
     /// Find each dec_rc instruction and if the most recent inc_rc instruction for the same value
     /// is not possibly mutated, then we can remove them both. Returns each such pair.
-    fn find_rcs_to_remove(&mut self, function: &Function) -> HashSet<InstructionId> {
+    fn find_rcs_to_remove(&mut self, function: &Function) -> HashSet<InstructionId<FieldElement>> {
         let last_block = Self::find_last_block(function);
         let mut to_remove = HashSet::new();
 
@@ -139,7 +141,7 @@ impl Context {
     }
 
     /// Finds and pops the IncRc for the given array value if possible.
-    fn pop_rc_for(&mut self, value: ValueId, function: &Function) -> Option<IncRc> {
+    fn pop_rc_for(&mut self, value: ValueId<FieldElement>, function: &Function) -> Option<IncRc> {
         let typ = function.dfg.type_of_value(value);
 
         let rcs = self.inc_rcs.get_mut(&typ)?;
@@ -149,7 +151,7 @@ impl Context {
     }
 }
 
-fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Function) {
+fn remove_instructions(to_remove: HashSet<InstructionId<FieldElement>>, function: &mut Function) {
     if !to_remove.is_empty() {
         for block in function.reachable_blocks() {
             function.dfg[block]
@@ -163,6 +165,8 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 mod test {
     use std::rc::Rc;
 
+    use acvm::FieldElement;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
@@ -171,7 +175,7 @@ mod test {
         },
     };
 
-    fn count_inc_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+    fn count_inc_rcs(block: BasicBlockId, dfg: &DataFlowGraph<FieldElement>) -> usize {
         dfg[block]
             .instructions()
             .iter()
@@ -181,7 +185,7 @@ mod test {
             .count()
     }
 
-    fn count_dec_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+    fn count_dec_rcs(block: BasicBlockId, dfg: &DataFlowGraph<FieldElement>) -> usize {
         dfg[block]
             .instructions()
             .iter()

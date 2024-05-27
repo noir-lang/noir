@@ -67,9 +67,9 @@ impl std::fmt::Display for BinaryOp {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct Binary {
     /// Left hand side of the binary operation
-    pub(crate) lhs: ValueId,
+    pub(crate) lhs: ValueId<FieldElement>,
     /// Right hand side of the binary operation
-    pub(crate) rhs: ValueId,
+    pub(crate) rhs: ValueId<FieldElement>,
     /// The binary operation to apply
     pub(crate) operator: BinaryOp,
 }
@@ -84,7 +84,7 @@ impl Binary {
     }
 
     /// Try to simplify this binary instruction, returning the new value if possible.
-    pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+    pub(super) fn simplify(&self, dfg: &mut DataFlowGraph<FieldElement>) -> SimplifyResult<FieldElement> {
         let lhs = dfg.get_numeric_constant(self.lhs);
         let rhs = dfg.get_numeric_constant(self.rhs);
         let operand_type = dfg.type_of_value(self.lhs);

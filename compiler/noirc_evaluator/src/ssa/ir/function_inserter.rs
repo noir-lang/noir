@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use super::{
@@ -15,7 +16,7 @@ use fxhash::FxHashMap as HashMap;
 pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
-    values: HashMap<ValueId, ValueId>,
+    values: HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
 }
 
 impl<'f> FunctionInserter<'f> {
@@ -26,7 +27,7 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&mut self, mut value: ValueId<FieldElement>) -> ValueId<FieldElement> {
         value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
@@ -45,7 +46,7 @@ impl<'f> FunctionInserter<'f> {
     }
 
     /// Insert a key, value pair if the key isn't already present in the map
-    pub(crate) fn try_map_value(&mut self, key: ValueId, value: ValueId) {
+    pub(crate) fn try_map_value(&mut self, key: ValueId<FieldElement>, value: ValueId<FieldElement>) {
         if key == value {
             // This case is technically not needed since try_map_value isn't meant to change
             // existing entries, but we should never have a value in the map referring to itself anyway.
@@ -56,7 +57,7 @@ impl<'f> FunctionInserter<'f> {
     }
 
     /// Insert a key, value pair in the map
-    pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
+    pub(crate) fn map_value(&mut self, key: ValueId<FieldElement>, value: ValueId<FieldElement>) {
         if key == value {
             self.values.remove(&key);
         } else {
@@ -64,7 +65,7 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
+    pub(crate) fn map_instruction(&mut self, id: InstructionId<FieldElement>) -> (Instruction<FieldElement>, CallStack) {
         (
             self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
             self.function.dfg.get_call_stack(id),
@@ -83,9 +84,9 @@ impl<'f> FunctionInserter<'f> {
     /// If the instruction was simplified out of the program, None is returned.
     pub(crate) fn push_instruction(
         &mut self,
-        id: InstructionId,
+        id: InstructionId<FieldElement>,
         block: BasicBlockId,
-    ) -> Option<InstructionId> {
+    ) -> Option<InstructionId<FieldElement>> {
         let (instruction, location) = self.map_instruction(id);
 
         match self.push_instruction_value(instruction, id, block, location) {
@@ -96,11 +97,11 @@ impl<'f> FunctionInserter<'f> {
 
     pub(crate) fn push_instruction_value(
         &mut self,
-        instruction: Instruction,
-        id: InstructionId,
+        instruction: Instruction<FieldElement>,
+        id: InstructionId<FieldElement>,
         block: BasicBlockId,
         call_stack: CallStack,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<FieldElement> {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
@@ -122,9 +123,9 @@ impl<'f> FunctionInserter<'f> {
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
     pub(crate) fn insert_new_instruction_results(
-        values: &mut HashMap<ValueId, ValueId>,
-        old_results: &[ValueId],
-        new_results: &InsertInstructionResult,
+        values: &mut HashMap<ValueId<FieldElement>, ValueId<FieldElement>>,
+        old_results: &[ValueId<FieldElement>],
+        new_results: &InsertInstructionResult<FieldElement>,
     ) {
         assert_eq!(old_results.len(), new_results.len());
 
@@ -146,7 +147,7 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
-    pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId]) {
+    pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId<FieldElement>]) {
         let old_parameters = self.function.dfg.block_parameters(block);
 
         for (param, new_param) in old_parameters.iter().zip(new_values) {
