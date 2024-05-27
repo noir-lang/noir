@@ -841,6 +841,19 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         EXPECT_NE(ret.get_context(), nullptr);
     }
 
+    static void test_inversion()
+    {
+        fq_ct a = fq_ct(-7);
+        fq_ct a_inverse = a.invert();
+        fq_ct a_inverse_division = fq_ct(1) / a;
+
+        fq a_native = fq(-7);
+        fq a_native_inverse = a_native.invert();
+        EXPECT_EQ(bb::fq((a.get_value() % uint512_t(bb::fq::modulus)).lo), a_native);
+        EXPECT_EQ(bb::fq((a_inverse.get_value() % uint512_t(bb::fq::modulus)).lo), a_native_inverse);
+        EXPECT_EQ(bb::fq((a_inverse_division.get_value() % uint512_t(bb::fq::modulus)).lo), a_native_inverse);
+    }
+
     static void test_assert_equal_not_equal()
     {
         auto builder = Builder();
@@ -966,6 +979,11 @@ TYPED_TEST(stdlib_bigfield, conditional_select_regression)
 TYPED_TEST(stdlib_bigfield, division_context)
 {
     TestFixture::test_division_context();
+}
+
+TYPED_TEST(stdlib_bigfield, inverse)
+{
+    TestFixture::test_inversion();
 }
 
 TYPED_TEST(stdlib_bigfield, assert_equal_not_equal)

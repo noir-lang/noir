@@ -14,8 +14,9 @@ namespace bb::stdlib {
 template <typename Builder, typename T> class bigfield {
 
   public:
-    typedef T TParams;
-    typedef bb::field<T> native;
+    using View = bigfield;
+    using TParams = T;
+    using native = bb::field<T>;
 
     struct Basis {
         uint512_t modulus;
@@ -60,6 +61,29 @@ template <typename Builder, typename T> class bigfield {
              const size_t maximum_bitlength = 0);
     bigfield(Builder* parent_context = nullptr);
     bigfield(Builder* parent_context, const uint256_t& value);
+
+    explicit bigfield(const uint256_t& value)
+        : bigfield(nullptr, uint256_t(value))
+    {}
+
+    /**
+     * @brief Constructs a new bigfield object from an int value. We first need to to construct a field element from the
+     * value to avoid bugs that have to do with the value being negative.
+     *
+     */
+    bigfield(const int value)
+        : bigfield(nullptr, uint256_t(native(value)))
+    {}
+
+    /**
+     * @brief Construct a new bigfield object from bb::fq. We first convert to uint256_t as field elements are in
+     * Montgomery form internally.
+     *
+     * @param value
+     */
+    bigfield(const bb::fq value)
+        : bigfield(nullptr, uint256_t(value))
+    {}
 
     // we assume the limbs have already been normalized!
     bigfield(const field_t<Builder>& a,
@@ -261,6 +285,13 @@ template <typename Builder, typename T> class bigfield {
     void self_reduce() const;
 
     bool is_constant() const { return prime_basis_limb.witness_index == IS_CONSTANT; }
+
+    /**
+     * @brief Inverting function with the assumption that the bigfield element we are calling invert on is not zero.
+     *
+     * @return bigfield
+     */
+    bigfield invert() const { return (bigfield(1) / bigfield(*this)); }
 
     /**
      * Create a public one constant

@@ -120,6 +120,7 @@ set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:dsl_objects>
     $<TARGET_OBJECTS:ecc_objects>
     $<TARGET_OBJECTS:eccvm_objects>
+     $<TARGET_OBJECTS:eccvm_recursion_objects>
     $<TARGET_OBJECTS:execution_trace_objects>
     $<TARGET_OBJECTS:simple_example_objects>
     $<TARGET_OBJECTS:flavor_objects>

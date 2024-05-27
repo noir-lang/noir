@@ -38,3 +38,7 @@
     PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, UnivariateAccumulator0, ExtendedEdge)  \
     PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)     \
     PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, ValueAccumulator0, EntityEdge)
+
+#define DEFINE_SUMCHECK_VERIFIER_PERMUTATION_CLASS(RelationImpl, Flavor)                                               \
+    PERMUTATION_METHOD(compute_grand_product_numerator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)       \
+    PERMUTATION_METHOD(compute_grand_product_denominator, RelationImpl, Flavor, ValueAccumulator0, EvaluationEdge)

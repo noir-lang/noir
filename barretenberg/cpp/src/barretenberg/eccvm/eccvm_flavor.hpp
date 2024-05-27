@@ -52,14 +52,15 @@ class ECCVMFlavor {
 
     using GrandProductRelations = std::tuple<ECCVMSetRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<ECCVMTranscriptRelation<FF>,
-                                 ECCVMPointTableRelation<FF>,
-                                 ECCVMWnafRelation<FF>,
-                                 ECCVMMSMRelation<FF>,
-                                 ECCVMSetRelation<FF>,
-                                 ECCVMLookupRelation<FF>,
-                                 ECCVMBoolsRelation<FF>>;
-
+    template <typename FF>
+    using Relations_ = std::tuple<ECCVMTranscriptRelation<FF>,
+                                  ECCVMPointTableRelation<FF>,
+                                  ECCVMWnafRelation<FF>,
+                                  ECCVMMSMRelation<FF>,
+                                  ECCVMSetRelation<FF>,
+                                  ECCVMLookupRelation<FF>,
+                                  ECCVMBoolsRelation<FF>>;
+    using Relations = Relations_<FF>;
     using LookupRelation = ECCVMLookupRelation<FF>;
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -75,7 +76,9 @@ class ECCVMFlavor {
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
-  private:
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/989): refine access specifiers in flavors, this is
+    // public as it is also used in the recursive flavor but the two could possibly me unified eventually
+  public:
     /**
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
      * @details Used to build the proving key and verification key.
@@ -313,12 +316,6 @@ class ECCVMFlavor {
 
   public:
     /**
-     * @brief A container for polynomials produced after the first round of sumcheck.
-     * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.
-     */
-    using FoldedPolynomials = AllEntities<std::vector<FF>>;
-
-    /**
      * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials
      * evaluated at one point.
      */
@@ -327,12 +324,6 @@ class ECCVMFlavor {
         using Base = AllEntities<FF>;
         using Base::Base;
     };
-
-    /**
-     * @brief A container for polynomials produced after the first round of sumcheck.
-     * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.
-     */
-    using RowPolynomials = AllEntities<FF>;
 
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.
@@ -670,14 +661,11 @@ class ECCVMFlavor {
      */
     class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
-        std::vector<FF> public_inputs;
-
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
             : VerificationKey_(circuit_size, num_public_inputs)
         {}
 
         VerificationKey(const std::shared_ptr<ProvingKey>& proving_key)
-            : public_inputs(proving_key->public_inputs)
         {
             this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>(proving_key->circuit_size);
             this->circuit_size = proving_key->circuit_size;
@@ -800,15 +788,18 @@ class ECCVMFlavor {
         };
     };
 
-    class VerifierCommitments : public AllEntities<Commitment> {
+    template <typename Commitment, typename VerificationKey>
+    class VerifierCommitments_ : public AllEntities<Commitment> {
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
+        VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key)
         {
             this->lagrange_first = verification_key->lagrange_first;
             this->lagrange_second = verification_key->lagrange_second;
             this->lagrange_last = verification_key->lagrange_last;
         }
     };
+
+    using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
 
     /**
      * @brief Derived class that defines proof structure for ECCVM proofs, as well as supporting functions.
