@@ -5,8 +5,9 @@ use std::{
 
 use acvm::acir::circuit::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
+use noirc_artifacts::debug::DebugArtifact;
 use nargo::{
-    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
+    insert_all_files_for_workspace_into_file_manager,
     ops::report_errors,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};

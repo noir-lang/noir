@@ -2472,7 +2472,6 @@ name = "nargo"
 version = "0.30.0"
 dependencies = [
  "acvm",
- "codespan-reporting",
  "fm",
  "iter-extended",
  "jsonrpc",
@@ -2486,7 +2485,6 @@ dependencies = [
  "noirc_frontend",
  "noirc_printable_type",
  "rayon",
- "serde",
  "tempfile",
  "thiserror",
  "tracing",
@@ -2518,6 +2516,7 @@ dependencies = [
  "noir_debugger",
  "noir_lsp",
  "noirc_abi",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
@@ -2647,6 +2646,7 @@ dependencies = [
  "easy-repl",
  "fm",
  "nargo",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
@@ -2683,6 +2683,7 @@ dependencies = [
  "nargo",
  "nargo_fmt",
  "nargo_toml",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
@@ -2708,6 +2709,7 @@ dependencies = [
  "gloo-utils",
  "js-sys",
  "nargo",
+ "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
@@ -2757,6 +2759,21 @@ dependencies = [
 [[package]]
 name = "noirc_arena"
 version = "0.30.0"
+
+[[package]]
+name = "noirc_artifacts"
+version = "0.30.0"
+dependencies = [
+ "acvm",
+ "codespan-reporting",
+ "fm",
+ "noirc_abi",
+ "noirc_driver",
+ "noirc_errors",
+ "noirc_printable_type",
+ "serde",
+ "tempfile",
+]
 
 [[package]]
 name = "noirc_driver"

@@ -24,7 +24,7 @@ use dap::types::{
     Breakpoint, DisassembledInstruction, Scope, Source, StackFrame, SteppingGranularity,
     StoppedEventReason, Thread, Variable,
 };
-use nargo::artifacts::debug::DebugArtifact;
+use noirc_artifacts::debug::DebugArtifact;
 
 use fm::FileId;
 use noirc_driver::CompiledProgram;
@@ -608,7 +608,10 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
 ) -> Result<(), ServerError> {
-    let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
+    let debug_artifact = DebugArtifact {
+        debug_symbols: program.debug,
+        file_map: program.file_map,
+    };
     let mut session = DapSession::new(
         server,
         solver,

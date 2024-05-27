@@ -10,7 +10,7 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::artifacts::debug::{DebugArtifact, StackFrame};
+use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
 use noirc_driver::DebugFile;
@@ -845,7 +845,8 @@ mod tests {
             Opcode::AssertZero(Expression::default()),
         ];
         let circuit = Circuit { opcodes, ..Circuit::default() };
-        let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
+        let debug_artifact =
+            DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
         let brillig_funcs = &vec![brillig_bytecode];
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,

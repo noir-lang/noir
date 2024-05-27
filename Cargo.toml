@@ -19,6 +19,7 @@ members = [
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
+    "tooling/noirc_artifacts",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
     "tooling/acvm_cli",
@@ -74,6 +75,7 @@ nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
+noirc_artifacts = { path = "tooling/noirc_artifacts" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
 

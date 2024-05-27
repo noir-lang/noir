@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use fm::FileManager;
-use nargo::artifacts::program::ProgramArtifact;
+use noirc_artifacts::program::ProgramArtifact;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;

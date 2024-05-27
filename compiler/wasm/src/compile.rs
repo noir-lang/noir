@@ -2,13 +2,11 @@ use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
-use nargo::{
-    artifacts::{
-        contract::{ContractArtifact, ContractFunctionArtifact},
-        program::ProgramArtifact,
-    },
-    parse_all,
+use noirc_artifacts::{
+    contract::{ContractArtifact, ContractFunctionArtifact},
+    program::ProgramArtifact,
 };
+use nargo::parse_all;
 use noirc_driver::{
     add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
     NOIR_ARTIFACT_VERSION_STRING,
