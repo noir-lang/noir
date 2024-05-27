@@ -155,7 +155,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext,
+    acir_context: AcirContext<FieldElement>,
 
     /// Track initialized acir dynamic arrays
     ///
