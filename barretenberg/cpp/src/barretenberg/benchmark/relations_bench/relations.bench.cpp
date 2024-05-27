@@ -117,6 +117,7 @@ BENCHMARK(execute_relation_for_values<ECCVMFlavor, ECCVMPointTableRelation<Fq>>)
 BENCHMARK(execute_relation_for_values<ECCVMFlavor, ECCVMSetRelation<Fq>>);
 BENCHMARK(execute_relation_for_values<ECCVMFlavor, ECCVMTranscriptRelation<Fq>>);
 BENCHMARK(execute_relation_for_values<ECCVMFlavor, ECCVMWnafRelation<Fq>>);
+BENCHMARK(execute_relation_for_values<ECCVMFlavor, ECCVMBoolsRelation<Fq>>);
 
 } // namespace bb::benchmark::relations
 

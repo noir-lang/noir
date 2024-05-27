@@ -176,7 +176,6 @@ void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
                    auto& selector,
                    auto& relation,
                    auto& collision_relation) {
-        // (L * (xb - xa) - yb - ya) * s = 0
         // L * (1 - s) = 0
         // (combine) (L * (xb - xa - 1) - yb - ya) * s + L = 0
         relation += selector * (lambda * (xb - xa - 1) - (yb - ya)) + lambda;
@@ -189,6 +188,43 @@ void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
         return std::array<Accumulator, 2>{ x_out, y_out };
     };
 
+    /**
+     * @brief First Addition relation
+     *
+     * The first add operation per row is treated differently.
+     * Normally we add the point xa/ya with an accumulator xb/yb,
+     * BUT, if this row STARTS a multiscalar multiplication,
+     * We need to add the point xa/ya with the "offset generator point" xo/yo
+     * The offset generator point's purpose is to ensure that no intermediate computations in the MSM will produce
+     * points at infinity, for an honest Prover.
+     * (we ensure soundness by validating the x-coordinates of xa/xb are not the same i.e. incomplete addition formula
+     * edge cases have not been hit)
+     * Note: this technique is only statistically complete, as there is a chance of an honest Prover creating a
+     * collision, but this probability is equivalent to solving the discrete logarithm problem
+     */
+    auto first_add = [&](auto& xb,
+                         auto& yb,
+                         auto& xa,
+                         auto& ya,
+                         auto& lambda,
+                         auto& selector,
+                         auto& relation,
+                         auto& collision_relation) {
+        // N.B. this is brittle - should be curve agnostic but we don't propagate the curve parameter into relations!
+        constexpr auto offset_generator = bb::g1::derive_generators("ECCVM_OFFSET_GENERATOR", 1)[0];
+        constexpr uint256_t oxu = offset_generator.x;
+        constexpr uint256_t oyu = offset_generator.y;
+        const Accumulator xo(oxu);
+        const Accumulator yo(oyu);
+
+        auto x = xo * selector + xb * (-selector + 1);
+        auto y = yo * selector + yb * (-selector + 1);
+        relation += lambda * (x - xa) - (y - ya); // degree 3
+        collision_relation += (xa - x);
+        auto x_out = lambda * lambda + (-x - xa);
+        auto y_out = lambda * (xa - x_out) - ya;
+        return std::array<Accumulator, 2>{ x_out, y_out };
+    };
     // ADD operations (if row represents ADD round, not SKEW or DOUBLE)
     Accumulator add_relation(0);
     Accumulator x1_collision_relation(0);
@@ -197,8 +233,7 @@ void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
     Accumulator x4_collision_relation(0);
     // If msm_transition = 1, we have started a new MSM. We need to treat the current value of [Acc] as the point at
     // infinity!
-    auto add_into_accumulator = -msm_transition + 1;
-    auto [x_t1, y_t1] = add(acc_x, acc_y, x1, y1, lambda1, add_into_accumulator, add_relation, x1_collision_relation);
+    auto [x_t1, y_t1] = first_add(acc_x, acc_y, x1, y1, lambda1, msm_transition, add_relation, x1_collision_relation);
     auto [x_t2, y_t2] = add(x2, y2, x_t1, y_t1, lambda2, add2, add_relation, x2_collision_relation);
     auto [x_t3, y_t3] = add(x3, y3, x_t2, y_t2, lambda3, add3, add_relation, x3_collision_relation);
     auto [x_t4, y_t4] = add(x4, y4, x_t3, y_t3, lambda4, add4, add_relation, x4_collision_relation);
@@ -285,7 +320,7 @@ void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
     // Check x-coordinates do not collide if row is an ADD row or a SKEW row
     // if either q_add or q_skew = 1, an inverse should exist for each computed relation
     // Step 1: construct boolean selectors that describe whether we added a point at the current row
-    const auto add_first_point = add_into_accumulator * q_add + q_skew * skew1_select;
+    const auto add_first_point = add1 * q_add + q_skew * skew1_select;
     const auto add_second_point = add2 * q_add + q_skew * skew2_select;
     const auto add_third_point = add3 * q_add + q_skew * skew3_select;
     const auto add_fourth_point = add4 * q_add + q_skew * skew4_select;

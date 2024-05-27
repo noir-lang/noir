@@ -14,8 +14,8 @@ template <typename FF_> class ECCVMSetRelationImpl {
     using FF = FF_;
 
     static constexpr std::array<size_t, 2> SUBRELATION_PARTIAL_LENGTHS{
-        19, // grand product construction sub-relation
-        19  // left-shiftable polynomial sub-relation
+        21, // grand product construction sub-relation
+        21  // left-shiftable polynomial sub-relation
     };
 
     template <typename Accumulator> static Accumulator convert_to_wnaf(const auto& s0, const auto& s1)

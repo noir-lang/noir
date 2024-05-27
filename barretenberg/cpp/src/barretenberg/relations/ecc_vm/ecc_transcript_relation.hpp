@@ -30,8 +30,8 @@ template <typename FF_> class ECCVMTranscriptRelationImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 35> SUBRELATION_PARTIAL_LENGTHS{
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+    static constexpr std::array<size_t, 25> SUBRELATION_PARTIAL_LENGTHS{
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
     };
 
     template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>

@@ -120,15 +120,10 @@ class ECCVMCircuitBuilder {
         // populate opqueue and mul indices
         for (const auto& op : raw_ops) {
             if (op.mul) {
-                if (op.z1 != 0 || op.z2 != 0) {
+                if ((op.z1 != 0 || op.z2 != 0) && !op.base_point.is_point_at_infinity()) {
                     msm_opqueue_index.push_back(op_idx);
                     msm_mul_index.emplace_back(msm_count, active_mul_count);
-                }
-                if (op.z1 != 0) {
-                    active_mul_count++;
-                }
-                if (op.z2 != 0) {
-                    active_mul_count++;
+                    active_mul_count += static_cast<size_t>(op.z1 != 0) + static_cast<size_t>(op.z2 != 0);
                 }
             } else if (active_mul_count > 0) {
                 msm_sizes.push_back(active_mul_count);
@@ -138,7 +133,7 @@ class ECCVMCircuitBuilder {
             op_idx++;
         }
         // if last op is a mul we have not correctly computed the total number of msms
-        if (raw_ops.back().mul) {
+        if (raw_ops.back().mul && active_mul_count > 0) {
             msm_sizes.push_back(active_mul_count);
             msm_count++;
         }
@@ -152,7 +147,7 @@ class ECCVMCircuitBuilder {
             for (size_t i = start; i < end; i++) {
                 const auto& op = raw_ops[msm_opqueue_index[i]];
                 auto [msm_index, mul_index] = msm_mul_index[i];
-                if (op.z1 != 0) {
+                if (op.z1 != 0 && !op.base_point.is_point_at_infinity()) {
                     ASSERT(result.size() > msm_index);
                     ASSERT(result[msm_index].size() > mul_index);
                     result[msm_index][mul_index] = (ScalarMul{
@@ -165,7 +160,7 @@ class ECCVMCircuitBuilder {
                     });
                     mul_index++;
                 }
-                if (op.z2 != 0) {
+                if (op.z2 != 0 && !op.base_point.is_point_at_infinity()) {
                     ASSERT(result.size() > msm_index);
                     ASSERT(result[msm_index].size() > mul_index);
                     auto endo_point = AffineElement{ op.base_point.x * FF::cube_root_of_unity(), -op.base_point.y };
