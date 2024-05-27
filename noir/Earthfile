@@ -60,7 +60,7 @@ examples:
 
   ENV BACKEND=/usr/src/barretenberg/cpp/build/bin/bb
 
-  WORKDIR noir-repo/examples/codegen-verifier
+  WORKDIR noir-repo/examples/codegen_verifier
   RUN ./test.sh
 
   WORKDIR ../prove_and_verify

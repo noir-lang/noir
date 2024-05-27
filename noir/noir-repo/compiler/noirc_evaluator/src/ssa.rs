@@ -56,6 +56,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
+        .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")

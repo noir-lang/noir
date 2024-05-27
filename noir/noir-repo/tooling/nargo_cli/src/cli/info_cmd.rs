@@ -94,7 +94,7 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
         })
         .collect();
 
-    let info_report = InfoReport { programs: program_info, contracts: Vec::new() };
+    let info_report = InfoReport { programs: program_info };
 
     if args.json {
         // Expose machine-readable JSON data.
@@ -102,7 +102,8 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Backend Circuit Size"]);
+            let mut program_table =
+                table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes"]);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();
@@ -169,7 +170,6 @@ fn byte_index(string: &str, index: u32) -> usize {
 #[derive(Debug, Default, Serialize)]
 struct InfoReport {
     programs: Vec<ProgramInfo>,
-    contracts: Vec<ContractInfo>,
 }
 
 #[derive(Debug, Serialize)]

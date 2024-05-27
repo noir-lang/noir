@@ -4,7 +4,10 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, UnresolvedTraitConstraint, UnresolvedTypeExpression},
+    ast::{
+        BinaryOpKind, IntegerBitSize, NoirTypeAlias, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedTypeExpression,
+    },
     hir::{
         def_map::ModuleDefId,
         resolution::{
@@ -26,7 +29,10 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    node_interner::{
+        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
+        TypeAliasId,
+    },
     Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
@@ -1433,6 +1439,29 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             }
+        }
+    }
+
+    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
+        assert_eq!(names.len(), generics.len());
+
+        for (name, typevar) in names.iter().zip(generics) {
+            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+        }
+    }
+
+    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
+        // Check for name collisions of this generic
+        let rc_name = Rc::new(name.to_owned());
+
+        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+            self.push_err(ResolverError::DuplicateDefinition {
+                name: name.to_owned(),
+                first_span: *first_span,
+                second_span: span,
+            });
+        } else {
+            self.generics.push((rc_name, typevar, span));
         }
     }
 }

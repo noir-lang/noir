@@ -117,11 +117,11 @@ async fn execute_program_with_native_program_and_return(
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
 ) -> Result<WitnessStack, Error> {
-    let solver = Bn254BlackBoxSolver::initialize().await;
+    let blackbox_solver = Bn254BlackBoxSolver;
     let executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
-        &solver,
+        &blackbox_solver,
         foreign_call_executor,
     );
     let witness_stack = executor.execute(initial_witness.into()).await?;

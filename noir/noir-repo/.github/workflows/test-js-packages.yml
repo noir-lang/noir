@@ -399,10 +399,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download bb binary
+      - name: Install `bb`
         run: |
-          # Adds `bb` to PATH
           ./scripts/install_bb.sh
+          echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -453,7 +453,7 @@ jobs:
   test-integration-browser:
     name: Integration Tests (Browser)
     runs-on: ubuntu-latest
-    needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
+    needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
     timeout-minutes: 30
 
     steps:
@@ -495,6 +495,46 @@ jobs:
         run: |
           yarn test:browser
   
+  test-examples:
+    name: Example scripts
+    runs-on: ubuntu-latest
+    needs: [build-nargo]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.2.0
+
+      - name: Install `bb`
+        run: |
+          ./scripts/install_bb.sh
+          echo "$HOME/.bb/" >> $GITHUB_PATH
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Run `prove_and_verify`
+        working-directory: ./examples/prove_and_verify
+        run: ./test.sh
+
+      - name: Run `codegen_verifier`
+        working-directory: ./examples/codegen_verifier
+        run: ./test.sh
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
@@ -512,6 +552,7 @@ jobs:
       - test-noir-codegen
       - test-integration-node
       - test-integration-browser
+      - test-examples
     
     steps:
         - name: Report overall success

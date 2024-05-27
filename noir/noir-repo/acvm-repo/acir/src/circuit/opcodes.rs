@@ -18,6 +18,12 @@ pub enum BlockType {
     ReturnData,
 }
 
+impl BlockType {
+    pub fn is_databus(&self) -> bool {
+        matches!(self, BlockType::CallData | BlockType::ReturnData)
+    }
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Opcode {

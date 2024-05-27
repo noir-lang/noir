@@ -10,7 +10,13 @@ use crate::{
         UnresolvedTraitConstraint, UnresolvedTypeExpression,
     },
     hir::{
-        def_collector::{dc_crate::CompilationError, errors::DuplicateType},
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CompilationError, UnresolvedGlobal, UnresolvedStruct,
+                UnresolvedTrait, UnresolvedTypeAlias,
+            },
+            errors::DuplicateType,
+        },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
@@ -22,15 +28,16 @@ use crate::{
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
+        stmt::HirLetStatement,
         traits::TraitConstraint,
     },
     macros_api::{
         BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, PrefixExpression, Statement,
-        StatementKind, StructId,
+        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, Pattern, PrefixExpression,
+        SecondaryAttribute, Statement, StatementKind, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId},
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
     Shared, StructType, Type, TypeVariable,
 };
 use crate::{
@@ -68,6 +75,7 @@ mod expressions;
 mod patterns;
 mod scope;
 mod statements;
+mod traits;
 mod types;
 
 use fm::FileId;
@@ -203,24 +211,48 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id);
 
-        // the resolver filters literal globals first
-        for global in items.globals {}
+        // We must first resolve and intern the globals before we can resolve any stmts inside each function.
+        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
+        //
+        // Additionally, we must resolve integer globals before structs since structs may refer to
+        // the values of integer globals as numeric generics.
+        let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
 
-        for alias in items.type_aliases {}
+        for global in literal_globals {
+            this.elaborate_global(global);
+        }
 
-        for trait_ in items.traits {}
+        for (alias_id, alias) in items.type_aliases {
+            this.define_type_alias(alias_id, alias);
+        }
 
-        for struct_ in items.types {}
+        this.collect_traits(items.traits);
 
+        // Must resolve structs before we resolve globals.
+        this.collect_struct_definitions(items.types);
+
+        // Bind trait impls to their trait. Collect trait functions, that have a
+        // default implementation, which hasn't been overridden.
         for trait_impl in &mut items.trait_impls {
             this.collect_trait_impl(trait_impl);
         }
 
+        // Before we resolve any function symbols we must go through our impls and
+        // re-collect the methods within into their proper module. This cannot be
+        // done during def collection since we need to be able to resolve the type of
+        // the impl since that determines the module we should collect into.
+        //
+        // These are resolved after trait impls so that struct methods are chosen
+        // over trait methods if there are name conflicts.
         for ((typ, module), impls) in &items.impls {
             this.collect_impls(typ, *module, impls);
         }
 
-        // resolver resolves non-literal globals here
+        // We must wait to resolve non-literal globals until after we resolve structs since struct
+        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        for global in non_literal_globals {
+            this.elaborate_global(global);
+        }
 
         for functions in items.functions {
             this.elaborate_functions(functions);
@@ -1099,5 +1131,102 @@ impl<'context> Elaborator<'context> {
                 span: trait_impl.object_type.span.expect("object type must have a span"),
             });
         }
+    }
+
+    fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
+        self.file = alias.file_id;
+        self.local_module = alias.module_id;
+
+        let generics = self.add_generics(&alias.type_alias_def.generics);
+        self.resolve_local_globals();
+        self.current_item = Some(DependencyId::Alias(alias_id));
+        let typ = self.resolve_type(alias.type_alias_def.typ);
+        self.interner.set_type_alias(alias_id, typ, generics);
+    }
+
+    fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
+        // This is necessary to avoid cloning the entire struct map
+        // when adding checks after each struct field is resolved.
+        let struct_ids = structs.keys().copied().collect::<Vec<_>>();
+
+        // Resolve each field in each struct.
+        // Each struct should already be present in the NodeInterner after def collection.
+        for (type_id, typ) in structs {
+            self.file = typ.file_id;
+            self.local_module = typ.module_id;
+            let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
+
+            self.interner.update_struct(type_id, |struct_def| {
+                struct_def.set_fields(fields);
+                struct_def.generics = generics;
+            });
+        }
+
+        // Check whether the struct fields have nested slices
+        // We need to check after all structs are resolved to
+        // make sure every struct's fields is accurately set.
+        for id in struct_ids {
+            let struct_type = self.interner.get_struct(id);
+            // Only handle structs without generics as any generics args will be checked
+            // after monomorphization when performing SSA codegen
+            if struct_type.borrow().generics.is_empty() {
+                let fields = struct_type.borrow().get_fields(&[]);
+                for (_, field_type) in fields.iter() {
+                    if field_type.is_nested_slice() {
+                        let location = struct_type.borrow().location;
+                        self.file = location.file;
+                        self.push_err(ResolverError::NestedSlices { span: location.span });
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn resolve_struct_fields(
+        &mut self,
+        unresolved: NoirStruct,
+        struct_id: StructId,
+    ) -> (Generics, Vec<(Ident, Type)>) {
+        let generics = self.add_generics(&unresolved.generics);
+
+        // Check whether the struct definition has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
+        self.current_item = Some(DependencyId::Struct(struct_id));
+
+        self.resolving_ids.insert(struct_id);
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        self.resolving_ids.remove(&struct_id);
+
+        (generics, fields)
+    }
+
+    fn elaborate_global(&mut self, global: UnresolvedGlobal) {
+        self.local_module = global.module_id;
+        self.file = global.file_id;
+
+        let global_id = global.global_id;
+        self.current_item = Some(DependencyId::Global(global_id));
+
+        let definition_kind = DefinitionKind::Global(global_id);
+        let let_stmt = global.stmt_def;
+
+        if !self.in_contract
+            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+        {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
+        }
+
+        if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::MutableGlobal { span });
+        }
+
+        let (let_statement, _typ) = self.elaborate_let(let_stmt);
+
+        let statement_id = self.interner.get_global(global_id).let_statement;
+        self.interner.get_global_definition_mut(global_id).kind = definition_kind;
+        self.interner.replace_statement(statement_id, let_statement);
     }
 }
