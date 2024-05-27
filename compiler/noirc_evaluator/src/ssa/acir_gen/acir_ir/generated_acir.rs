@@ -32,7 +32,7 @@ pub(crate) const PLACEHOLDER_BRILLIG_INDEX: u32 = 0;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
-pub(crate) struct GeneratedAcir {
+pub(crate) struct GeneratedAcir<F: AcirField> {
     /// The next witness index that may be declared.
     /// If witness index is `None` then we have not yet created a witness
     /// and thus next witness index that be declared is zero.
@@ -42,7 +42,7 @@ pub(crate) struct GeneratedAcir {
     current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    opcodes: Vec<AcirOpcode<FieldElement>>,
+    opcodes: Vec<AcirOpcode<F>>,
 
     /// All witness indices that comprise the final return value of the program
     ///
@@ -61,7 +61,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<FieldElement>>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<F>>,
 
     pub(crate) warnings: Vec<SsaReport>,
 
@@ -93,25 +93,25 @@ impl BrilligStdlibFunc {
     }
 }
 
-impl GeneratedAcir {
+impl<F: AcirField> GeneratedAcir<F> {
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
         Witness(self.current_witness_index.unwrap_or(0))
     }
 
     /// Adds a new opcode into ACIR.
-    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode<FieldElement>) {
+    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode<F>) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
             self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
         }
     }
 
-    pub(crate) fn opcodes(&self) -> &[AcirOpcode<FieldElement>] {
+    pub(crate) fn opcodes(&self) -> &[AcirOpcode<F>] {
         &self.opcodes
     }
 
-    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode<FieldElement>> {
+    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode<F>> {
         std::mem::take(&mut self.opcodes)
     }
 
@@ -130,7 +130,7 @@ impl GeneratedAcir {
     ///
     /// If `expr` can be represented as a `Witness` then this function will return it,
     /// else a new opcode will be added to create a `Witness` that is equal to `expr`.
-    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression<FieldElement>) -> Witness {
+    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression<F>) -> Witness {
         match expr.to_witness() {
             Some(witness) => witness,
             None => self.create_witness_for_expression(expr),
@@ -145,7 +145,7 @@ impl GeneratedAcir {
     /// which has degree-1 in order to be able to continue the multiplication chain.
     pub(crate) fn create_witness_for_expression(
         &mut self,
-        expression: &Expression<FieldElement>,
+        expression: &Expression<F>,
     ) -> Witness {
         let fresh_witness = self.next_witness_index();
 
@@ -171,15 +171,15 @@ impl GeneratedAcir {
     }
 }
 
-impl GeneratedAcir {
+impl<F: AcirField> GeneratedAcir<F> {
     /// Calls a black box function and returns the output
     /// of said blackbox function.
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
         inputs: &[Vec<FunctionInput>],
-        constant_inputs: Vec<FieldElement>,
-        constant_outputs: Vec<FieldElement>,
+        constant_inputs: Vec<F>,
+        constant_outputs: Vec<F>,
         output_count: usize,
     ) -> Result<Vec<Witness>, InternalError> {
         let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
@@ -396,7 +396,7 @@ impl GeneratedAcir {
     /// Only radix that are a power of two are supported
     pub(crate) fn radix_le_decompose(
         &mut self,
-        input_expr: &Expression<FieldElement>,
+        input_expr: &Expression<F>,
         radix: u32,
         limb_count: u32,
         bit_size: u32,
@@ -422,7 +422,7 @@ impl GeneratedAcir {
             self.range_constraint(*limb_witness, bit_size)?;
 
             composed_limbs = composed_limbs.add_mul(
-                FieldElement::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
+                F::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
                 &Expression::from(*limb_witness),
             );
 
@@ -442,7 +442,7 @@ impl GeneratedAcir {
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn brillig_inverse(&mut self, expr: Expression<FieldElement>) -> Witness {
+    pub(crate) fn brillig_inverse(&mut self, expr: Expression<F>) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
@@ -466,7 +466,7 @@ impl GeneratedAcir {
     ///
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
-    pub(crate) fn assert_is_zero(&mut self, expr: Expression<FieldElement>) {
+    pub(crate) fn assert_is_zero(&mut self, expr: Expression<F>) {
         self.push_opcode(AcirOpcode::AssertZero(expr));
     }
 
@@ -475,8 +475,8 @@ impl GeneratedAcir {
     /// - `0` otherwise
     pub(crate) fn is_equal(
         &mut self,
-        lhs: &Expression<FieldElement>,
-        rhs: &Expression<FieldElement>,
+        lhs: &Expression<F>,
+        rhs: &Expression<F>,
     ) -> Witness {
         let t = lhs - rhs;
 
@@ -535,13 +535,13 @@ impl GeneratedAcir {
     /// By setting `z` to be `0`, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
-    fn is_zero(&mut self, t_expr: &Expression<FieldElement>) -> Witness {
+    fn is_zero(&mut self, t_expr: &Expression<F>) -> Witness {
         // We're checking for equality with zero so we can negate the expression without changing the result.
         // This is useful as it will sometimes allow us to simplify an expression down to a witness.
         let t_witness = if let Some(witness) = t_expr.to_witness() {
             witness
         } else {
-            let negated_expr = t_expr * -FieldElement::one();
+            let negated_expr = t_expr * -F::one();
             self.get_or_create_witness(&negated_expr)
         };
 
@@ -553,17 +553,17 @@ impl GeneratedAcir {
 
         // Add constraint y == 1 - tz => y + tz - 1 == 0
         let y_is_boolean_constraint = Expression {
-            mul_terms: vec![(FieldElement::one(), t_witness, z)],
-            linear_combinations: vec![(FieldElement::one(), y)],
-            q_c: -FieldElement::one(),
+            mul_terms: vec![(F::one(), t_witness, z)],
+            linear_combinations: vec![(F::one(), y)],
+            q_c: -F::one(),
         };
         self.assert_is_zero(y_is_boolean_constraint);
 
         // Add constraint that y * t == 0;
         let ty_zero_constraint = Expression {
-            mul_terms: vec![(FieldElement::one(), t_witness, y)],
+            mul_terms: vec![(F::one(), t_witness, y)],
             linear_combinations: vec![],
-            q_c: FieldElement::zero(),
+            q_c: F::zero(),
         };
         self.assert_is_zero(ty_zero_constraint);
 
@@ -579,9 +579,9 @@ impl GeneratedAcir {
     ) -> Result<(), RuntimeError> {
         // We class this as an error because users should instead
         // do `as Field`.
-        if num_bits >= FieldElement::max_num_bits() {
+        if num_bits >= F::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
-                num_bits: FieldElement::max_num_bits(),
+                num_bits: F::max_num_bits(),
                 call_stack: self.call_stack.clone(),
             });
         };
@@ -596,9 +596,9 @@ impl GeneratedAcir {
 
     pub(crate) fn brillig_call(
         &mut self,
-        predicate: Option<Expression<FieldElement>>,
-        generated_brillig: &GeneratedBrillig<FieldElement>,
-        inputs: Vec<BrilligInputs<FieldElement>>,
+        predicate: Option<Expression<F>>,
+        generated_brillig: &GeneratedBrillig<F>,
+        inputs: Vec<BrilligInputs<F>>,
         outputs: Vec<BrilligOutputs>,
         brillig_function_index: u32,
         stdlib_func: Option<BrilligStdlibFunc>,

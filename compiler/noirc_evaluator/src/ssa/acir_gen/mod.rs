@@ -279,7 +279,7 @@ impl AcirValue {
 }
 
 pub(crate) type Artifacts =
-    (Vec<GeneratedAcir>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
+    (Vec<GeneratedAcir<FieldElement>>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -341,7 +341,7 @@ impl Ssa {
     }
 }
 
-fn generate_distinct_return_witnesses(acir: &mut GeneratedAcir) {
+fn generate_distinct_return_witnesses<F: AcirField>(acir: &mut GeneratedAcir<F>) {
     // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
     // layout for serializing those types as if they were being passed as inputs.
     //
@@ -386,7 +386,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
         brillig: &Brillig,
-    ) -> Result<Option<GeneratedAcir>, RuntimeError> {
+    ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -418,7 +418,7 @@ impl<'a> Context<'a> {
         main_func: &Function,
         ssa: &Ssa,
         brillig: &Brillig,
-    ) -> Result<GeneratedAcir, RuntimeError> {
+    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
@@ -437,7 +437,7 @@ impl<'a> Context<'a> {
         mut self,
         main_func: &Function,
         brillig: &Brillig,
-    ) -> Result<GeneratedAcir, RuntimeError> {
+    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
 
         let inputs = try_vecmap(dfg[main_func.entry_block()].parameters(), |param_id| {
@@ -1854,7 +1854,7 @@ impl<'a> Context<'a> {
         }
 
         let binary_type = AcirType::from(binary_type);
-        let bit_count = binary_type.bit_size();
+        let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
