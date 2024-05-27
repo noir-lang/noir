@@ -614,13 +614,44 @@ impl AcirContext {
                 expr.push_multiplication_term(FieldElement::one(), lhs_witness, rhs_witness);
                 self.add_data(AcirVarData::Expr(expr))
             }
-            (
-                AcirVarData::Expr(_) | AcirVarData::Witness(_),
-                AcirVarData::Expr(_) | AcirVarData::Witness(_),
-            ) => {
+            (AcirVarData::Expr(expression), AcirVarData::Witness(witness))
+            | (AcirVarData::Witness(witness), AcirVarData::Expr(expression))
+                if expression.is_linear() =>
+            {
+                let mut expr = Expression::default();
+                for term in expression.linear_combinations.iter() {
+                    expr.push_multiplication_term(term.0, term.1, witness);
+                }
+                expr.push_addition_term(expression.q_c, witness);
+                self.add_data(AcirVarData::Expr(expr))
+            }
+            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
+                let degree_one = if lhs_expr.is_linear() && rhs_expr.is_degree_one_univariate() {
+                    Some((lhs_expr, rhs_expr))
+                } else if rhs_expr.is_linear() && lhs_expr.is_degree_one_univariate() {
+                    Some((rhs_expr, lhs_expr))
+                } else {
+                    None
+                };
+                if let Some((lin, univariate)) = degree_one {
+                    let mut expr = Expression::default();
+                    let rhs_term = univariate.linear_combinations[0];
+                    for term in lin.linear_combinations.iter() {
+                        expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
+                    }
+                    expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
+                    expr.sort();
+                    expr = expr.add_mul(univariate.q_c, &lin);
+                    self.add_data(AcirVarData::Expr(expr))
+                } else {
+                    let lhs = self.get_or_create_witness_var(lhs)?;
+                    let rhs = self.get_or_create_witness_var(rhs)?;
+                    self.mul_var(lhs, rhs)?
+                }
+            }
+            _ => {
                 let lhs = self.get_or_create_witness_var(lhs)?;
                 let rhs = self.get_or_create_witness_var(rhs)?;
-
                 self.mul_var(lhs, rhs)?
             }
         };
