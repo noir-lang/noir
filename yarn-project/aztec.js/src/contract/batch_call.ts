@@ -38,9 +38,17 @@ export class BatchCall extends BaseContractInteraction {
   public async simulate(options: SimulateMethodOptions = {}): Promise<any> {
     const { calls, unconstrained } = this.calls.reduce<{
       /**
+       * Keep track of the number of private calls to retrieve the return values
+       */
+      privateIndex: 0;
+      /**
+       * Keep track of the number of private calls to retrieve the return values
+       */
+      publicIndex: 0;
+      /**
        * The public and private function calls in the batch
        */
-      calls: [FunctionCall, number][];
+      calls: [FunctionCall, number, number][];
       /**
        * The unconstrained function calls in the batch.
        */
@@ -50,29 +58,35 @@ export class BatchCall extends BaseContractInteraction {
         if (current.type === FunctionType.UNCONSTRAINED) {
           acc.unconstrained.push([current, index]);
         } else {
-          acc.calls.push([current, index]);
+          acc.calls.push([
+            current,
+            index,
+            current.type === FunctionType.PRIVATE ? acc.privateIndex++ : acc.publicIndex++,
+          ]);
         }
         return acc;
       },
-      { calls: [], unconstrained: [] },
-    );
-
-    const unconstrainedCalls = await Promise.all(
-      unconstrained.map(async indexedCall => {
-        const call = indexedCall[0];
-        return [await this.wallet.simulateUnconstrained(call.name, call.args, call.to, options?.from), indexedCall[1]];
-      }),
+      { calls: [], unconstrained: [], publicIndex: 0, privateIndex: 0 },
     );
 
     const txRequest = await this.wallet.createTxExecutionRequest({ calls: calls.map(indexedCall => indexedCall[0]) });
-    const simulatedTx = await this.wallet.simulateTx(txRequest, true, options?.from);
+
+    const unconstrainedCalls = unconstrained.map(async indexedCall => {
+      const call = indexedCall[0];
+      return [await this.wallet.simulateUnconstrained(call.name, call.args, call.to, options?.from), indexedCall[1]];
+    });
+
+    const [unconstrainedResults, simulatedTx] = await Promise.all([
+      Promise.all(unconstrainedCalls),
+      this.wallet.simulateTx(txRequest, true, options?.from),
+    ]);
 
     const results: any[] = [];
 
-    unconstrainedCalls.forEach(([result, index]) => {
+    unconstrainedResults.forEach(([result, index]) => {
       results[index] = result;
     });
-    calls.forEach(([call, callIndex], resultIndex) => {
+    calls.forEach(([call, callIndex, resultIndex]) => {
       // As account entrypoints are private, for private functions we retrieve the return values from the first nested call
       // since we're interested in the first set of values AFTER the account entrypoint
       // For public functions we retrieve the first values directly from the public output.

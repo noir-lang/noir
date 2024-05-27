@@ -76,39 +76,32 @@ contract Token {
     }
     // docs:end:set_admin
 
-    unconstrained fn un_get_name() -> pub [u8; 31] {
-        storage.name.read_public().to_bytes()
-    }
-
     #[aztec(public)]
+    #[aztec(view)]
     fn public_get_name() -> pub FieldCompressedString {
         storage.name.read_public()
     }
 
     #[aztec(private)]
+    #[aztec(view)]
     fn private_get_name() -> pub FieldCompressedString {
         storage.name.read_private()
     }
 
-    unconstrained fn un_get_symbol() -> pub [u8; 31] {
-        storage.symbol.read_public().to_bytes()
-    }
-
     #[aztec(public)]
+    #[aztec(view)]
     fn public_get_symbol() -> pub FieldCompressedString {
         storage.symbol.read_public()
     }
 
     #[aztec(private)]
+    #[aztec(view)]
     fn private_get_symbol() -> pub FieldCompressedString {
         storage.symbol.read_private()
     }
 
-    unconstrained fn un_get_decimals() -> pub u8 {
-        storage.decimals.read_public()
-    }
-
     #[aztec(public)]
+    #[aztec(view)]
     fn public_get_decimals() -> pub u8 {
         // docs:start:read_decimals_public
         storage.decimals.read_public()
@@ -116,11 +109,44 @@ contract Token {
     }
 
     #[aztec(private)]
+    #[aztec(view)]
     fn private_get_decimals() -> pub u8 {
         // docs:start:read_decimals_private
         storage.decimals.read_private()
         // docs:end:read_decimals_private
     }
+
+    // docs:start:admin
+    #[aztec(public)]
+    #[aztec(view)]
+    fn admin() -> Field {
+        storage.admin.read().to_field()
+    }
+    // docs:end:admin
+
+    // docs:start:is_minter
+    #[aztec(public)]
+    #[aztec(view)]
+    fn is_minter(minter: AztecAddress) -> bool {
+        storage.minters.at(minter).read()
+    }
+    // docs:end:is_minter
+
+    // docs:start:total_supply
+    #[aztec(public)]
+    #[aztec(view)]
+    fn total_supply() -> Field {
+        storage.total_supply.read().to_integer()
+    }
+    // docs:end:total_supply
+
+    // docs:start:balance_of_public
+    #[aztec(public)]
+    #[aztec(view)]
+    fn balance_of_public(owner: AztecAddress) -> Field {
+        storage.public_balances.at(owner).read().to_integer()
+    }
+    // docs:end:balance_of_public
 
     // docs:start:set_minter
     #[aztec(public)]
@@ -192,7 +218,7 @@ contract Token {
         let from_balance = storage.public_balances.at(from).read().sub(amount);
 
         let pending_shields = storage.pending_shields;
-        let mut note = TransparentNote::new(amount.to_integer(), secret_hash);
+        let mut note = TransparentNote::new(amount.to_field(), secret_hash);
 
         storage.public_balances.at(from).write(from_balance);
         pending_shields.insert_from_public(&mut note);
@@ -332,34 +358,10 @@ contract Token {
 
     /// Unconstrained ///
 
-    // docs:start:admin
-    unconstrained fn admin() -> pub Field {
-        storage.admin.read().to_field()
-    }
-    // docs:end:admin
-
-    // docs:start:is_minter
-    unconstrained fn is_minter(minter: AztecAddress) -> pub bool {
-        storage.minters.at(minter).read()
-    }
-    // docs:end:is_minter
-
-    // docs:start:total_supply
-    unconstrained fn total_supply() -> pub Field {
-        storage.total_supply.read().to_integer()
-    }
-    // docs:end:total_supply
-
     // docs:start:balance_of_private
     unconstrained fn balance_of_private(owner: AztecAddress) -> pub Field {
-        storage.balances.balance_of(owner).to_integer()
+        storage.balances.balance_of(owner).to_field()
     }
     // docs:end:balance_of_private
-
-    // docs:start:balance_of_public
-    unconstrained fn balance_of_public(owner: AztecAddress) -> pub Field {
-        storage.public_balances.at(owner).read().to_integer()
-    }
-    // docs:end:balance_of_public
 }
 // docs:end:token_all

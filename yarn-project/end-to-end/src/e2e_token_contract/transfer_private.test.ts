@@ -19,7 +19,7 @@ describe('e2e_token_contract transfer private', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check();
+    await t.tokenSim.check(wallets[0]);
   });
 
   it('transfer less than balance', async () => {

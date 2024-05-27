@@ -1,6 +1,8 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import { type AztecAddress, type DebugLogger } from '@aztec/aztec.js';
+import { type AztecAddress, BatchCall, type DebugLogger, type Wallet } from '@aztec/aztec.js';
 import { type TokenContract } from '@aztec/noir-contracts.js/Token';
+
+import chunk from 'lodash.chunk';
 
 export class TokenSimulator {
   private balancesPrivate: Map<string, bigint> = new Map();
@@ -80,15 +82,23 @@ export class TokenSimulator {
     return this.balancesPrivate.get(address.toString()) || 0n;
   }
 
-  public async check() {
-    expect(await this.token.methods.total_supply().simulate()).toEqual(this.totalSupply);
-
-    // Check that all our public matches
+  public async check(wallet: Wallet) {
+    const calls = [this.token.methods.total_supply().request()];
     for (const address of this.accounts) {
-      const actualPublicBalance = await this.token.methods.balance_of_public(address).simulate();
-      expect(actualPublicBalance).toEqual(this.balanceOfPublic(address));
-      const actualPrivateBalance = await this.token.methods.balance_of_private({ address }).simulate();
-      expect(actualPrivateBalance).toEqual(this.balanceOfPrivate(address));
+      calls.push(this.token.methods.balance_of_public(address).request());
+      calls.push(this.token.methods.balance_of_private(address).request());
+    }
+
+    const batchedCalls = chunk(calls, 4);
+
+    const results = (await Promise.all(batchedCalls.map(batch => new BatchCall(wallet, batch).simulate()))).flat();
+
+    expect(results[0]).toEqual(this.totalSupply);
+
+    // Check that all our balances match
+    for (let i = 0; i < this.accounts.length; i++) {
+      expect(results[i * 2 + 1]).toEqual(this.balanceOfPublic(this.accounts[i]));
+      expect(results[i * 2 + 2]).toEqual(this.balanceOfPrivate(this.accounts[i]));
     }
   }
 }

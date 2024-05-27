@@ -20,7 +20,7 @@ describe('e2e_token_contract unshielding', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check();
+    await t.tokenSim.check(wallets[0]);
   });
 
   it('on behalf of self', async () => {

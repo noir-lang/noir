@@ -386,6 +386,7 @@ __metadata:
     "@types/koa": ^2.13.9
     "@types/koa-static": ^4.0.2
     "@types/levelup": ^5.1.2
+    "@types/lodash.chunk": ^4.2.9
     "@types/lodash.every": ^4.6.7
     "@types/memdown": ^3.0.3
     "@types/node": ^18.7.23
@@ -402,6 +403,7 @@ __metadata:
     koa: ^2.14.2
     koa-static: ^5.0.0
     levelup: ^5.1.1
+    lodash.chunk: ^4.2.0
     lodash.compact: ^3.0.1
     lodash.every: ^4.6.0
     memdown: ^6.1.1

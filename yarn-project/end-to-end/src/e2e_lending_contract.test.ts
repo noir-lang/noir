@@ -82,7 +82,7 @@ describe('e2e_lending_contract', () => {
   afterAll(() => teardown());
 
   afterEach(async () => {
-    await lendingSim.check();
+    await lendingSim.check(wallet);
   });
 
   it('Mint assets for later usage', async () => {

@@ -2,10 +2,12 @@ import { TokenContractTest } from './token_contract_test.js';
 
 describe('e2e_token_contract access control', () => {
   const t = new TokenContractTest('access_control');
+  let { wallets } = t;
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
     await t.setup();
+    ({ wallets } = t);
   });
 
   afterAll(async () => {
@@ -13,7 +15,7 @@ describe('e2e_token_contract access control', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check();
+    await t.tokenSim.check(wallets[0]);
   });
 
   it('Set admin', async () => {
