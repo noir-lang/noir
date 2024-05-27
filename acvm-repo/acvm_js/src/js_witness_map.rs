@@ -114,7 +114,7 @@ mod test {
 
     use acvm::{
         acir::native_types::{Witness, WitnessMap},
-        FieldElement,
+        AcirField, FieldElement,
     };
     use wasm_bindgen::JsValue;
 

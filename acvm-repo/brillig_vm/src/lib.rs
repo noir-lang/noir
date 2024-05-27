@@ -505,7 +505,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) if size == type_size => {
-                    if HeapValueType::all_simple(&value_types) {
+                    if HeapValueType::all_simple(value_types) {
                         let bit_sizes_iterator = value_types.iter().map(|typ| match typ {
                             HeapValueType::Simple(bit_size) => *bit_size,
                             _ => unreachable!("Expected simple value type"),
@@ -541,7 +541,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     ValueOrArray::HeapVector(HeapVector {pointer: pointer_index, size: size_index }),
                     HeapValueType::Vector { value_types },
                 ) => {
-                    if HeapValueType::all_simple(&value_types) {
+                    if HeapValueType::all_simple(value_types) {
                         let bit_sizes_iterator = value_types.iter().map(|typ| match typ {
                             HeapValueType::Simple(bit_size) => *bit_size,
                             _ => unreachable!("Expected simple value type"),
