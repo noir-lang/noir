@@ -2,7 +2,10 @@
   "name": "@aztec/simulator",
   "version": "0.1.0",
   "type": "module",
-  "exports": { ".": "./dest/index.js", "./avm/fixtures": "./dest/avm/fixtures/index.js" },
+  "exports": {
+    ".": "./dest/index.js",
+    "./avm/fixtures": "./dest/avm/fixtures/index.js"
+  },
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"

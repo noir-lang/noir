@@ -3,10 +3,12 @@ import {
   CallRequest,
   GasSettings,
   LogHash,
+  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   Nullifier,
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
+  PublicAccumulatedDataBuilder,
   PublicCallRequest,
   computeContractClassId,
   getContractClassFromArtifact,
@@ -69,20 +71,34 @@ export const mockTx = (
     data.forRollup = undefined;
     data.forPublic = PartialPrivateTailPublicInputsForPublic.empty();
 
-    data.forPublic.endNonRevertibleData.newNullifiers[0] = firstNullifier;
-
     publicCallRequests = publicCallRequests.length
       ? publicCallRequests.slice().sort((a, b) => b.callContext.sideEffectCounter - a.callContext.sideEffectCounter)
       : times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x100 + i));
 
-    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-      i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
-    );
-    data.forPublic.endNonRevertibleData.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-      i < numberOfNonRevertiblePublicCallRequests
-        ? publicCallRequests[numberOfRevertiblePublicCallRequests + i].toCallRequest()
-        : CallRequest.empty(),
-    );
+    const revertibleBuilder = new PublicAccumulatedDataBuilder();
+    const nonRevertibleBuilder = new PublicAccumulatedDataBuilder();
+
+    const nonRevertibleNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Nullifier.empty);
+    nonRevertibleNullifiers[0] = firstNullifier;
+
+    data.forPublic.endNonRevertibleData = nonRevertibleBuilder
+      .withNewNullifiers(nonRevertibleNullifiers)
+      .withPublicCallStack(
+        makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
+          i < numberOfNonRevertiblePublicCallRequests
+            ? publicCallRequests[numberOfRevertiblePublicCallRequests + i].toCallRequest()
+            : CallRequest.empty(),
+        ),
+      )
+      .build();
+
+    data.forPublic.end = revertibleBuilder
+      .withPublicCallStack(
+        makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
+          i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
+        ),
+      )
+      .build();
 
     data.forPublic.publicTeardownCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, () => CallRequest.empty());
     data.forPublic.publicTeardownCallStack[0] = publicTeardownCallRequest.isEmpty()

@@ -3,11 +3,11 @@ use dep::types::{
     private_kernel_data::PrivateKernelData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder, PublicKernelCircuitPublicInputs},
     note_hash::ScopedNoteHash, nullifier::ScopedNullifier, side_effect::Ordered,
-    log_hash::{NoteLogHash, ScopedLogHash, ScopedEncryptedLogHash}, gas::Gas
+    log_hash::{NoteLogHash, ScopedLogHash, ScopedEncryptedLogHash}, gas::Gas, call_request::CallRequest
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
-    MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
+    MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX
 },
     hash::{
     compute_l2_to_l1_hash, compute_note_hash_nonce, compute_unique_note_hash, silo_note_hash,
@@ -18,6 +18,10 @@ use dep::types::{
 
 fn asc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {
     a.counter() < b.counter()
+}
+
+fn desc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {
+    a.counter() > b.counter()
 }
 
 // Builds:
@@ -92,10 +96,14 @@ impl KernelCircuitPublicInputsComposer {
         *self
     }
 
-    pub fn compose_public(&mut self) -> Self {
+    pub fn compose_public(
+        &mut self,
+        sorted_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+        sorted_call_requests_indexes: [u64; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX]
+    ) -> Self {
         let _ = self.compose();
 
-        self.propagate_sorted_public_call_requests();
+        self.propagate_sorted_public_call_requests(sorted_call_requests, sorted_call_requests_indexes);
         self.propagate_public_teardown_call_request();
 
         *self
@@ -249,9 +257,19 @@ impl KernelCircuitPublicInputsComposer {
         self.public_inputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(accumulated_data.new_l2_to_l1_msgs);
     }
 
-    fn propagate_sorted_public_call_requests(&mut self) {
+    fn propagate_sorted_public_call_requests(
+        &mut self,
+        sorted_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+        sorted_call_requests_indexes: [u64; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX]
+    ) {
         let accumulated_data = self.previous_kernel.public_inputs.end;
-        self.public_inputs.end.public_call_stack = array_to_bounded_vec(accumulated_data.public_call_stack);
+        assert_sorted_array(
+            accumulated_data.public_call_stack,
+            sorted_call_requests,
+            sorted_call_requests_indexes,
+            desc_sort_by_counters
+        );
+        self.public_inputs.end.public_call_stack = array_to_bounded_vec(sorted_call_requests);
     }
 
     fn propagate_public_teardown_call_request(&mut self) {

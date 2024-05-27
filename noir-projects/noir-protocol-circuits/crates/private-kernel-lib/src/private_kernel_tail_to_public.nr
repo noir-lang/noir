@@ -3,12 +3,13 @@ use dep::types::{
     abis::{
     private_kernel_data::PrivateKernelData,
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, note_hash::ScopedNoteHash,
-    nullifier::ScopedNullifier, log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}
+    nullifier::ScopedNullifier, log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash},
+    call_request::CallRequest
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
-    MAX_NOTE_ENCRYPTED_LOGS_PER_TX
+    MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length, traits::is_empty
 };
@@ -24,6 +25,8 @@ struct PrivateKernelTailToPublicHints {
     sorted_encrypted_log_hashes_indexes: [u64; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_log_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_log_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+    sorted_call_requests_indexes: [u64; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
 }
 
 struct PrivateKernelTailToPublicCircuitPrivateInputs {
@@ -55,7 +58,10 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
             self.hints.sorted_encrypted_log_hashes_indexes,
             self.hints.sorted_unencrypted_log_hashes,
             self.hints.sorted_unencrypted_log_hashes_indexes
-        ).compose_public().finish_to_public()
+        ).compose_public(
+            self.hints.sorted_call_requests,
+            self.hints.sorted_call_requests_indexes
+        ).finish_to_public()
     }
 }
 
@@ -76,6 +82,7 @@ mod tests {
     };
     use dep::types::{
         abis::{
+        call_request::CallRequest, side_effect::Ordered,
         kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, gas::Gas,
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
         log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}
@@ -178,6 +185,13 @@ mod tests {
             let sorted_unencrypted_log_hashes = sorted.sorted_array;
             let sorted_unencrypted_log_hashes_indexes = sorted.sorted_index_hints;
 
+            let sorted = sort_get_sorted_hints(
+                self.previous_kernel.public_call_stack.storage,
+                |a: CallRequest, b: CallRequest| a.counter() > b.counter()
+            );
+            let sorted_call_requests = sorted.sorted_array;
+            let sorted_call_requests_indexes = sorted.sorted_index_hints;
+
             let hints = PrivateKernelTailToPublicHints {
                 sorted_new_note_hashes,
                 sorted_new_note_hashes_indexes,
@@ -188,7 +202,9 @@ mod tests {
                 sorted_encrypted_log_hashes,
                 sorted_encrypted_log_hashes_indexes,
                 sorted_unencrypted_log_hashes,
-                sorted_unencrypted_log_hashes_indexes
+                sorted_unencrypted_log_hashes_indexes,
+                sorted_call_requests,
+                sorted_call_requests_indexes
             };
 
             let kernel = PrivateKernelTailToPublicCircuitPrivateInputs { previous_kernel: self.previous_kernel.to_private_kernel_data(), hints };

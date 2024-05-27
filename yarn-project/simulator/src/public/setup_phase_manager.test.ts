@@ -1,6 +1,5 @@
 import { mockTx } from '@aztec/circuit-types';
-import { CallRequest, GlobalVariables, Header, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '@aztec/circuits.js';
-import { makeTuple } from '@aztec/foundation/array';
+import { GlobalVariables, Header, PublicAccumulatedDataBuilder } from '@aztec/circuits.js';
 import { type PublicExecutor } from '@aztec/simulator';
 import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
 
@@ -50,11 +49,17 @@ describe('setup_phase_manager', () => {
 
   it('does not extract non-revertible calls when none exist', function () {
     const tx = mockTx();
-    tx.data.forPublic!.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty);
-    tx.data.forPublic!.endNonRevertibleData.publicCallStack = makeTuple(
-      MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-      CallRequest.empty,
-    );
+
+    tx.data.forPublic!.end = PublicAccumulatedDataBuilder.fromPublicAccumulatedData(tx.data.forPublic!.end)
+      .withPublicCallStack([])
+      .build();
+
+    tx.data.forPublic!.endNonRevertibleData = PublicAccumulatedDataBuilder.fromPublicAccumulatedData(
+      tx.data.forPublic!.endNonRevertibleData,
+    )
+      .withPublicCallStack([])
+      .build();
+
     const enqueuedNonRevertibleCalls = phaseManager.extractEnqueuedPublicCalls(tx);
 
     expect(enqueuedNonRevertibleCalls).toEqual([]);

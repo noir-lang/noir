@@ -41,6 +41,10 @@ export class CallRequest {
     );
   }
 
+  get counter() {
+    return this.startSideEffectCounter.toNumber();
+  }
+
   /**
    * Deserializes from a buffer or reader.
    * @param buffer - Buffer or reader to read from.

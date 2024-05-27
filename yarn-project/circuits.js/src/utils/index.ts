@@ -36,7 +36,10 @@ export function mergeAccumulatedData<T extends IsEmpty, N extends number>(
 }
 
 // Sort items by their counters in ascending order. All empty items (counter === 0) are padded to the right.
-export function sortByCounter<T extends Ordered & IsEmpty, N extends number>(arr: Tuple<T, N>): Tuple<T, N> {
+export function sortByCounter<T extends Ordered & IsEmpty, N extends number>(
+  arr: Tuple<T, N>,
+  ascending: boolean = true,
+): Tuple<T, N> {
   return [...arr].sort((a, b) => {
     if (a.counter === b.counter) {
       return 0;
@@ -47,13 +50,14 @@ export function sortByCounter<T extends Ordered & IsEmpty, N extends number>(arr
     if (b.isEmpty()) {
       return -1; // Move non-empty items to the left.
     }
-    return a.counter - b.counter;
+    return ascending ? a.counter - b.counter : b.counter - a.counter;
   }) as Tuple<T, N>;
 }
 
 export function sortByCounterGetSortedHints<T extends Ordered & IsEmpty, N extends number>(
   arr: Tuple<T, N>,
   length: N = arr.length as N, // Need this for ts to infer the return Tuple length.
+  ascending: boolean = true,
 ): [Tuple<T, N>, Tuple<number, N>] {
   const itemsWithIndexes = arr.map((item, i) => ({
     item,
@@ -61,7 +65,7 @@ export function sortByCounterGetSortedHints<T extends Ordered & IsEmpty, N exten
     counter: item.counter,
     isEmpty: () => item.isEmpty(),
   }));
-  const sorted = sortByCounter(itemsWithIndexes);
+  const sorted = sortByCounter(itemsWithIndexes, ascending);
   const items = sorted.map(({ item }) => item) as Tuple<T, N>;
 
   const indexHints = makeTuple(length, () => 0);

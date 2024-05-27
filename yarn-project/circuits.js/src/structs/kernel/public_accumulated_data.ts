@@ -58,7 +58,7 @@ export class PublicAccumulatedData {
     /**
      * Current public call stack.
      */
-    public publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public readonly publicCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
     /** Gas used so far by the transaction. */
     public gasUsed: Gas,

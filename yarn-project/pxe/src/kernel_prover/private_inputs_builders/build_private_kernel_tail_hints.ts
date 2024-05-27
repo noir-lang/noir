@@ -3,6 +3,7 @@ import {
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_UNENCRYPTED_LOGS_PER_TX,
   type PrivateKernelCircuitPublicInputs,
   PrivateKernelTailHints,
@@ -35,6 +36,12 @@ export function buildPrivateKernelTailHints(publicInputs: PrivateKernelCircuitPu
     MAX_UNENCRYPTED_LOGS_PER_TX,
   );
 
+  const [sortedCallRequests, sortedCallRequestsIndexes] = sortByCounterGetSortedHints(
+    publicInputs.end.publicCallStack,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    /* ascending */ false,
+  );
+
   return new PrivateKernelTailHints(
     sortedNoteHashes,
     sortedNoteHashesIndexes,
@@ -46,5 +53,7 @@ export function buildPrivateKernelTailHints(publicInputs: PrivateKernelCircuitPu
     sortedEncryptedLogHashesIndexes,
     sortedUnencryptedLogHashes,
     sortedUnencryptedLogHashesIndexes,
+    sortedCallRequests,
+    sortedCallRequestsIndexes,
   );
 }

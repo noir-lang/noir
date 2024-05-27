@@ -24,18 +24,13 @@ import {
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
-  CallRequest,
   type CompleteAddress,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   type PartialAddress,
-  type PrivateKernelTailCircuitPublicInputs,
-  type PublicCallRequest,
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { computeNoteHashNonce, siloNullifier } from '@aztec/circuits.js/hash';
 import { type ContractArtifact, type DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
-import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { type Fq, Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
@@ -655,10 +650,6 @@ export class PXEService implements PXE {
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
     const teardownPublicFunction = collectPublicTeardownFunctionCall(executionResult);
 
-    // HACK(#1639): Manually patches the ordering of the public call stack
-    // TODO(#757): Enforce proper ordering of enqueued public calls
-    await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
-
     const tx = new Tx(
       publicInputs,
       proof.binaryProof,
@@ -706,76 +697,6 @@ export class PXEService implements PXE {
           });
         }
       }),
-    );
-  }
-
-  // HACK(#1639): this is a hack to fix ordering of public calls enqueued in the call stack. Since the private kernel
-  // cannot keep track of side effects that happen after or before a nested call, we override the public call stack
-  // it emits with whatever we got from the simulator collected enqueued calls. As a sanity check, we at least verify
-  // that the elements are the same, so we are only tweaking their ordering.
-  // See yarn-project/end-to-end/src/e2e_ordering.test.ts
-  // See https://github.com/AztecProtocol/aztec-packages/issues/1615
-  // TODO(#757): Enforce proper ordering of enqueued public calls
-  private async patchPublicCallStackOrdering(
-    publicInputs: PrivateKernelTailCircuitPublicInputs,
-    enqueuedPublicCalls: PublicCallRequest[],
-  ) {
-    if (!publicInputs.forPublic) {
-      return;
-    }
-
-    const enqueuedPublicCallStackItems = await Promise.all(enqueuedPublicCalls.map(c => c.toCallRequest()));
-
-    // Validate all items in enqueued public calls are in the kernel emitted stack
-    const enqueuedRevertiblePublicCallStackItems = enqueuedPublicCallStackItems.filter(enqueued =>
-      publicInputs.forPublic!.end.publicCallStack.find(item => item.equals(enqueued)),
-    );
-
-    const revertibleStackSize = arrayNonEmptyLength(publicInputs.forPublic.end.publicCallStack, item => item.isEmpty());
-
-    if (enqueuedRevertiblePublicCallStackItems.length !== revertibleStackSize) {
-      throw new Error(
-        `Enqueued revertible public function calls and revertible public call stack do not match.\nEnqueued calls: ${enqueuedRevertiblePublicCallStackItems
-          .map(h => h.hash.toString())
-          .join(', ')}\nPublic call stack: ${publicInputs.forPublic.end.publicCallStack
-          .map(i => i.toString())
-          .join(', ')}`,
-      );
-    }
-
-    // Override kernel output
-    publicInputs.forPublic.end.publicCallStack = padArrayEnd(
-      enqueuedRevertiblePublicCallStackItems,
-      CallRequest.empty(),
-      MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    );
-
-    // Do the same for non-revertible
-
-    const enqueuedNonRevertiblePublicCallStackItems = enqueuedPublicCallStackItems.filter(enqueued =>
-      publicInputs.forPublic!.endNonRevertibleData.publicCallStack.find(item => item.equals(enqueued)),
-    );
-
-    const nonRevertibleStackSize = arrayNonEmptyLength(
-      publicInputs.forPublic.endNonRevertibleData.publicCallStack,
-      item => item.isEmpty(),
-    );
-
-    if (enqueuedNonRevertiblePublicCallStackItems.length !== nonRevertibleStackSize) {
-      throw new Error(
-        `Enqueued non-revertible public function calls and non-revertible public call stack do not match.\nEnqueued calls: ${enqueuedNonRevertiblePublicCallStackItems
-          .map(h => h.hash.toString())
-          .join(', ')}\nPublic call stack: ${publicInputs.forPublic.endNonRevertibleData.publicCallStack
-          .map(i => i.toString())
-          .join(', ')}`,
-      );
-    }
-
-    // Override kernel output
-    publicInputs.forPublic.endNonRevertibleData.publicCallStack = padArrayEnd(
-      enqueuedNonRevertiblePublicCallStackItems,
-      CallRequest.empty(),
-      MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     );
   }
 
