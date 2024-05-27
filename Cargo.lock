@@ -44,6 +44,7 @@ version = "0.46.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-bls12-381",
  "brillig_vm",
  "indexmap 1.9.3",
  "num-bigint",

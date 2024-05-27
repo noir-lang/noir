@@ -39,3 +39,4 @@ bls12_381 = [
 rand = "0.8.5"
 proptest = "1.2.0"
 paste = "1.0.14"
+ark-bls12-381 = { version = "^0.4.0", default-features = false, features = ["curve"] }
