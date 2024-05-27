@@ -1,24 +1,34 @@
 import { type AllowedFunction, Tx, type TxValidator } from '@aztec/circuit-types';
 import { type PublicCallRequest } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AbstractPhaseManager, PublicKernelPhase } from '@aztec/simulator';
+import { AbstractPhaseManager, ContractsDataSourcePublicDB, PublicKernelPhase } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
 
 export class PhasesTxValidator implements TxValidator<Tx> {
   #log = createDebugLogger('aztec:sequencer:tx_validator:tx_phases');
+  private contractDataSource: ContractsDataSourcePublicDB;
 
-  constructor(private contractDataSource: ContractDataSource, private setupAllowList: AllowedFunction[]) {}
+  constructor(contracts: ContractDataSource, private setupAllowList: AllowedFunction[]) {
+    this.contractDataSource = new ContractsDataSourcePublicDB(contracts);
+  }
 
   async validateTxs(txs: Tx[]): Promise<[validTxs: Tx[], invalidTxs: Tx[]]> {
     const validTxs: Tx[] = [];
     const invalidTxs: Tx[] = [];
 
     for (const tx of txs) {
+      // TODO(@spalladino): We add this just to handle public authwit-check calls during setup
+      // which are needed for public FPC flows, but fail if the account contract hasnt been deployed yet,
+      // which is what we're trying to do as part of the current txs.
+      await this.contractDataSource.addNewContracts(tx);
+
       if (await this.#validateTx(tx)) {
         validTxs.push(tx);
       } else {
         invalidTxs.push(tx);
       }
+
+      await this.contractDataSource.removeNewContracts(tx);
     }
 
     return Promise.resolve([validTxs, invalidTxs]);
@@ -65,7 +75,7 @@ export class PhasesTxValidator implements TxValidator<Tx> {
       }
     }
 
-    const contractClass = await this.contractDataSource.getContract(contractAddress);
+    const contractClass = await this.contractDataSource.getContractInstance(contractAddress);
     if (!contractClass) {
       throw new Error(`Contract not found: ${publicCall.contractAddress.toString()}`);
     }

@@ -96,7 +96,7 @@ describe('e2e_fees account_init', () => {
       await expect(t.gasBalances(bobsAddress)).resolves.toEqual([bobsInitialGas - tx.transactionFee!]);
     });
 
-    it.skip('pays natively in the gas token by bridging funds themselves', async () => {
+    it('pays natively in the gas token by bridging funds themselves', async () => {
       const { secret } = await t.gasBridgeTestHarness.prepareTokensOnL1(
         t.INITIAL_GAS_BALANCE,
         t.INITIAL_GAS_BALANCE,

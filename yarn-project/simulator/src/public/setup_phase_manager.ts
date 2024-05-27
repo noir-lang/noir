@@ -26,6 +26,9 @@ export class SetupPhaseManager extends AbstractPhaseManager {
 
   override async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
+    // TODO(#6464): Should we allow emitting contracts in the private setup phase?
+    // if so, this should only add contracts that were deployed during private app logic.
+    await this.publicContractsDB.addNewContracts(tx);
     const [kernelInputs, publicKernelOutput, newUnencryptedFunctionLogs, revertReason, _returnValues, gasUsed] =
       await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput).catch(
         // the abstract phase manager throws if simulation gives error in a non-revertible phase

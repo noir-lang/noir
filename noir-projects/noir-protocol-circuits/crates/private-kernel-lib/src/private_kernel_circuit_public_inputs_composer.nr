@@ -110,12 +110,21 @@ impl PrivateKernelCircuitPublicInputsComposer {
         self.propagate_public_call_requests(source);
         self.propagate_public_teardown_call_request(source);
         self.propagate_fee_payer(source);
+        self.propagate_min_revertible_side_effect_counter(source);
 
         *self
     }
 
     pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
         self.public_inputs.finish()
+    }
+
+    fn propagate_min_revertible_side_effect_counter(&mut self, source: DataSource) {
+        self.public_inputs.min_revertible_side_effect_counter = if self.public_inputs.min_revertible_side_effect_counter > 0 {
+            self.public_inputs.min_revertible_side_effect_counter
+        } else {
+            source.private_call_public_inputs.min_revertible_side_effect_counter
+        };
     }
 
     fn propagate_max_block_number(&mut self, source: DataSource) {
