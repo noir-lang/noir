@@ -24,7 +24,6 @@ acvm_blackbox_solver.workspace = true
 indexmap = "1.7.0"
 
 [features]
-default = ["bn254"]
 bn254 = [
     "acir/bn254",
     "brillig_vm/bn254",
