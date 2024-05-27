@@ -48,12 +48,12 @@ impl AcirType {
     }
 
     /// Returns the bit size of the underlying type
-    pub(crate) fn bit_size(&self) -> u32 {
+    pub(crate) fn bit_size<F: AcirField>(&self) -> u32 {
         match self {
             AcirType::NumericType(numeric_type) => match numeric_type {
                 NumericType::Signed { bit_size } => *bit_size,
                 NumericType::Unsigned { bit_size } => *bit_size,
-                NumericType::NativeField => FieldElement::max_num_bits(),
+                NumericType::NativeField => F::max_num_bits(),
             },
             AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
         }
@@ -121,7 +121,7 @@ pub(crate) struct AcirContext {
     /// For example, If one was to add two Variables together,
     /// then the `acir_ir` will be populated to assert this
     /// addition.
-    acir_ir: GeneratedAcir,
+    acir_ir: GeneratedAcir<FieldElement>,
 
     /// The BigIntContext, used to generate identifiers for BigIntegers
     big_int_ctx: BigIntContext,
@@ -418,7 +418,7 @@ impl AcirContext {
             return Ok(lhs);
         }
 
-        let bit_size = typ.bit_size();
+        let bit_size = typ.bit_size::<FieldElement>();
         if bit_size == 1 {
             // Operands are booleans.
             //
@@ -452,7 +452,7 @@ impl AcirContext {
             return Ok(zero);
         }
 
-        let bit_size = typ.bit_size();
+        let bit_size = typ.bit_size::<FieldElement>();
         if bit_size == 1 {
             // Operands are booleans.
             self.mul_var(lhs, rhs)
@@ -480,7 +480,7 @@ impl AcirContext {
             return Ok(lhs);
         }
 
-        let bit_size = typ.bit_size();
+        let bit_size = typ.bit_size::<FieldElement>();
         if bit_size == 1 {
             // Operands are booleans
             // a + b - ab
@@ -695,7 +695,7 @@ impl AcirContext {
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
-        let bit_size = typ.bit_size();
+        let bit_size = typ.bit_size::<FieldElement>();
         // Subtracting from max flips the bits
         let max = self.add_constant((1_u128 << bit_size) - 1);
         self.sub_var(max, x)
@@ -1419,7 +1419,7 @@ impl AcirContext {
                 // constants too.
                 let witness_var = self.get_or_create_witness_var(input)?;
                 let witness = self.var_to_witness(witness_var)?;
-                let num_bits = typ.bit_size();
+                let num_bits = typ.bit_size::<FieldElement>();
                 single_val_witnesses.push(FunctionInput { witness, num_bits });
             }
             witnesses.push(single_val_witnesses);
@@ -1529,7 +1529,7 @@ impl AcirContext {
         mut self,
         inputs: Vec<Witness>,
         warnings: Vec<SsaReport>,
-    ) -> GeneratedAcir {
+    ) -> GeneratedAcir<FieldElement> {
         self.acir_ir.input_witnesses = inputs;
         self.acir_ir.warnings = warnings;
         self.acir_ir
