@@ -19,7 +19,6 @@ use acvm::acir::{
 use acvm::{
     acir::AcirField,
     acir::{circuit::directives::Directive, native_types::Expression},
-    FieldElement,
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -83,7 +82,7 @@ pub(crate) enum BrilligStdlibFunc {
 }
 
 impl BrilligStdlibFunc {
-    pub(crate) fn get_generated_brillig(&self) -> GeneratedBrillig<FieldElement> {
+    pub(crate) fn get_generated_brillig<F: AcirField>(&self) -> GeneratedBrillig<F> {
         match self {
             BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
             BrilligStdlibFunc::Quotient(bit_size) => {
