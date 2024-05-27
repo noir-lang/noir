@@ -9,7 +9,7 @@ mod generic_ark;
 
 pub use generic_ark::AcirField;
 
-/// Temporarily exported generic field to aide migration to `AcirField`
+/// Temporarily exported generic field to aid migration to `AcirField`
 pub use generic_ark::FieldElement as GenericFieldElement;
 
 cfg_if::cfg_if! {
