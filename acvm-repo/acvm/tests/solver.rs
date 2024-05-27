@@ -1,11 +1,15 @@
 use std::collections::BTreeMap;
 
 use acir::{
-    acir_field::GenericFieldElement, brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray}, circuit::{
+    acir_field::GenericFieldElement,
+    brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
+    circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
         opcodes::{BlockId, BlockType, MemOp},
         Opcode, OpcodeLocation,
-    }, native_types::{Expression, Witness, WitnessMap}, AcirField, FieldElement
+    },
+    native_types::{Expression, Witness, WitnessMap},
+    AcirField, FieldElement,
 };
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
@@ -27,22 +31,15 @@ fn bls12_381_circuit() {
         ],
         q_c: Bls12FieldElement::zero(),
     });
-    let opcodes = [addition]; 
+    let opcodes = [addition];
 
     let witness_assignments = BTreeMap::from([
         (Witness(1), Bls12FieldElement::from(2u128)),
         (Witness(2), Bls12FieldElement::from(3u128)),
-
     ])
     .into();
 
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        witness_assignments,
-        &[],
-        &[],
-    );
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &[], &[]);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
