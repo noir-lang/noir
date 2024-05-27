@@ -1550,7 +1550,7 @@ impl AcirContext {
     pub(crate) fn brillig_call(
         &mut self,
         predicate: AcirVar,
-        generated_brillig: &GeneratedBrillig,
+        generated_brillig: &GeneratedBrillig<FieldElement>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
