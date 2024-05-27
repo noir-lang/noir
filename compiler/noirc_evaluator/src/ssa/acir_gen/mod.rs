@@ -46,11 +46,11 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 
 #[derive(Default)]
-struct SharedContext {
+struct SharedContext<F> {
     /// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
-    generated_brillig: Vec<GeneratedBrillig<FieldElement>>,
+    generated_brillig: Vec<GeneratedBrillig<F>>,
 
     /// Maps SSA function index -> Final generated Brillig artifact index.
     /// There can be Brillig functions specified in SSA which do not act as
@@ -69,7 +69,7 @@ struct SharedContext {
     brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, u32)>>,
 }
 
-impl SharedContext {
+impl<F: AcirField> SharedContext<F> {
     fn generated_brillig_pointer(
         &self,
         func_id: FunctionId,
@@ -78,7 +78,7 @@ impl SharedContext {
         self.brillig_generated_func_pointers.get(&(func_id, arguments))
     }
 
-    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig<FieldElement> {
+    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig<F> {
         &self.generated_brillig[func_pointer]
     }
 
@@ -87,7 +87,7 @@ impl SharedContext {
         func_id: FunctionId,
         arguments: Vec<BrilligParameter>,
         generated_pointer: u32,
-        code: GeneratedBrillig<FieldElement>,
+        code: GeneratedBrillig<F>,
     ) {
         self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
         self.generated_brillig.push(code);
@@ -127,7 +127,7 @@ impl SharedContext {
         generated_pointer: u32,
         func_id: FunctionId,
         opcode_location: OpcodeLocation,
-        code: GeneratedBrillig<FieldElement>,
+        code: GeneratedBrillig<F>,
     ) {
         self.brillig_stdlib_func_pointer.insert(brillig_stdlib_func, generated_pointer);
         self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
@@ -193,7 +193,7 @@ struct Context<'a> {
     data_bus: DataBus,
 
     /// Contains state that is generated and also used across ACIR functions
-    shared_context: &'a mut SharedContext,
+    shared_context: &'a mut SharedContext<FieldElement>,
 }
 
 #[derive(Clone)]
@@ -363,7 +363,7 @@ fn generate_distinct_return_witnesses<F: AcirField>(acir: &mut GeneratedAcir<F>)
 }
 
 impl<'a> Context<'a> {
-    fn new(shared_context: &'a mut SharedContext) -> Context<'a> {
+    fn new(shared_context: &'a mut SharedContext<FieldElement>) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
