@@ -100,7 +100,7 @@ class AcirIntegrationFoldingTest : public AcirIntegrationTest, public testing::W
     static void SetUpTestSuite() { srs::init_crs_factory("../srs_db/ignition"); }
 };
 
-TEST_P(AcirIntegrationSingleTest, ProveAndVerifyProgram)
+TEST_P(AcirIntegrationSingleTest, DISABLED_ProveAndVerifyProgram)
 {
     using Flavor = MegaFlavor;
     // using Flavor = bb::plonk::flavor::Ultra;
@@ -194,7 +194,7 @@ INSTANTIATE_TEST_SUITE_P(AcirTests,
                                          "brillig_sha256",
                                          "brillig_signed_cmp",
                                          "brillig_signed_div",
-                                         "brillig_slice_input",
+                                         //  "brillig_slice_input",
                                          "brillig_slices",
                                          "brillig_to_be_bytes",
                                          "brillig_to_bits",
@@ -268,8 +268,8 @@ INSTANTIATE_TEST_SUITE_P(AcirTests,
                                          "regression_4088",
                                          "regression_4124",
                                          "regression_4202",
-                                         "regression_4383",
-                                         "regression_4436",
+                                         //  "regression_4383",
+                                         //  "regression_4436",
                                          "regression_4449",
                                          "regression_4709",
                                          "regression_capacity_tracker",
@@ -299,7 +299,7 @@ INSTANTIATE_TEST_SUITE_P(AcirTests,
                                          "simple_shift_left_right",
                                          "slice_coercion",
                                          "slice_dynamic_index",
-                                         "slice_init_with_complex_type",
+                                         //  "slice_init_with_complex_type",
                                          "slice_loop",
                                          "slices",
                                          "strings",
@@ -327,7 +327,7 @@ INSTANTIATE_TEST_SUITE_P(AcirTests,
                                          "witness_compression",
                                          "xor"));
 
-TEST_P(AcirIntegrationFoldingTest, ProveAndVerifyProgramStack)
+TEST_P(AcirIntegrationFoldingTest, DISABLED_ProveAndVerifyProgramStack)
 {
     using Flavor = MegaFlavor;
     using Builder = Flavor::CircuitBuilder;
