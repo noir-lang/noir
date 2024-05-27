@@ -608,10 +608,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
     program: CompiledProgram,
     initial_witness: WitnessMap,
 ) -> Result<(), ServerError> {
-    let debug_artifact = DebugArtifact {
-        debug_symbols: program.debug,
-        file_map: program.file_map,
-    };
+    let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
     let mut session = DapSession::new(
         server,
         solver,
