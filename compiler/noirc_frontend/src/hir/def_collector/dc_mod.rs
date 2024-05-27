@@ -742,7 +742,7 @@ fn is_native_field(str: &str) -> bool {
     if let Ok(big_num) = big_num {
         big_num == FieldElement::modulus()
     } else {
-        CHOSEN_FIELD.to_string() == str
+        CHOSEN_FIELD == str
     }
 }
 
