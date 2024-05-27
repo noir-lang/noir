@@ -230,7 +230,7 @@ It would be incorrect to say that a Noir proof verification costs any gas at all
 
 ## A Note on EVM chains
 
-ZK-SNARK verification depends on some precompiled cryptographic primitives such as Elliptic Curve Pairings (if you like complex math, you can read about EC Pairings [here](https://medium.com/@VitalikButerin/exploring-elliptic-curve-pairings-c73c1864e627)). Not all EVM chains support EC Pairings, notably some of the ZK-EVMs. This means that you won't be able to use the verifier contract in all of them.
+Noir proof verification requires the ecMul, ecAdd and ecPairing precompiles. Not all EVM chains support EC Pairings, notably some of the ZK-EVMs. This means that you won't be able to use the verifier contract in all of them. You can find an incomplete list of which EVM chains support these precompiles [here](https://www.evmdiff.com/features?feature=precompiles).
 
 For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently support these precompiles, so proof verification via Solidity verifier contracts won't work. Here's a quick list of EVM chains that have been tested and are known to work:
 

@@ -5,6 +5,7 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::ERROR_IDENT,
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -330,9 +331,9 @@ impl<'context> Elaborator<'context> {
     ) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
-        let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics));
+        let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
         self.interner.push_expr_location(id, span, self.file);
-        let typ = self.type_check_variable(expr, id);
+        let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
@@ -384,14 +385,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn type_check_variable(&mut self, ident: HirIdent, expr_id: ExprId) -> Type {
+    pub(super) fn type_check_variable(
+        &mut self,
+        ident: HirIdent,
+        expr_id: ExprId,
+        generics: Option<Vec<Type>>,
+    ) -> Type {
         let mut bindings = TypeBindings::new();
 
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
+        if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
             let the_trait = self.interner.get_trait(constraint.trait_id);
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
@@ -401,6 +407,16 @@ impl<'context> Elaborator<'context> {
                     bindings.insert(param.id(), (param.clone(), arg.clone()));
                 }
             }
+
+            // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+            // Otherwise `self` will be replaced with a fresh type variable, which will require the user
+            // to specify a redundant type annotation.
+            if *assumed {
+                bindings.insert(
+                    the_trait.self_type_typevar_id,
+                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
+                );
+            }
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
@@ -409,10 +425,21 @@ impl<'context> Elaborator<'context> {
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
 
+        let definition = self.interner.try_definition(ident.id);
+        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
+            DefinitionKind::Function(function) => {
+                self.interner.function_modifiers(function).generic_count
+            }
+            _ => 0,
+        });
+
+        let span = self.interner.expr_span(&expr_id);
+        let location = self.interner.expr_location(&expr_id);
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
+        let (typ, bindings) =
+            self.instantiate(t, bindings, generics, function_generic_count, span, location);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
@@ -445,6 +472,39 @@ impl<'context> Elaborator<'context> {
 
         self.interner.store_instantiation_bindings(expr_id, bindings);
         typ
+    }
+
+    fn instantiate(
+        &mut self,
+        typ: Type,
+        bindings: TypeBindings,
+        turbofish_generics: Option<Vec<Type>>,
+        function_generic_count: usize,
+        span: Span,
+        location: Location,
+    ) -> (Type, TypeBindings) {
+        match turbofish_generics {
+            Some(turbofish_generics) => {
+                if turbofish_generics.len() != function_generic_count {
+                    let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+                        expected_count: function_generic_count,
+                        actual_count: turbofish_generics.len(),
+                        span,
+                    };
+                    self.errors.push((CompilationError::TypeError(type_check_err), location.file));
+                    typ.instantiate_with_bindings(bindings, self.interner)
+                } else {
+                    // Fetch the count of any implicit generics on the function, such as
+                    // for a method within a generic impl.
+                    let implicit_generic_count = match &typ {
+                        Type::Forall(generics, _) => generics.len() - function_generic_count,
+                        _ => 0,
+                    };
+                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
+                }
+            }
+            None => typ.instantiate_with_bindings(bindings, self.interner),
+        }
     }
 
     fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
