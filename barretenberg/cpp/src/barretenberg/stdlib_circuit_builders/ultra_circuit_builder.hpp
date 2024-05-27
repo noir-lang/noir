@@ -9,6 +9,7 @@
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/types.hpp"
 #include "circuit_builder_base.hpp"
 #include <optional>
+#include <unordered_set>
 
 namespace bb {
 

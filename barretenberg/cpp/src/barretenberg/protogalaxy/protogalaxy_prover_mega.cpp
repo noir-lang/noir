@@ -5,6 +5,4 @@
 namespace bb {
 
 template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 2>>;
-template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 3>>;
-template class ProtoGalaxyProver_<ProverInstances_<MegaFlavor, 4>>;
 } // namespace bb

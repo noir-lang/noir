@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/plonk_honk_shared/arithmetization/arithmetization.hpp"
 #include "barretenberg/plonk_honk_shared/arithmetization/gate_data.hpp"
-#include "barretenberg/serialize/cbind.hpp"
+#include <msgpack/sbuffer_decl.hpp>
 #include <utility>
 
 #include <unordered_map>
@@ -51,15 +51,7 @@ template <typename FF_> class CircuitBuilderBase {
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
     static constexpr uint32_t FIRST_VARIABLE_IN_CLASS = UINT32_MAX - 2;
 
-    CircuitBuilderBase(size_t size_hint = 0)
-    {
-        variables.reserve(size_hint * 3);
-        variable_names.reserve(size_hint * 3);
-        next_var_index.reserve(size_hint * 3);
-        prev_var_index.reserve(size_hint * 3);
-        real_variable_index.reserve(size_hint * 3);
-        real_variable_tags.reserve(size_hint * 3);
-    }
+    CircuitBuilderBase(size_t size_hint = 0);
 
     CircuitBuilderBase(const CircuitBuilderBase& other) = default;
     CircuitBuilderBase(CircuitBuilderBase&& other) noexcept = default;
@@ -69,9 +61,9 @@ template <typename FF_> class CircuitBuilderBase {
 
     bool operator==(const CircuitBuilderBase& other) const = default;
 
-    virtual size_t get_num_gates() const { return num_gates; }
-    virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
-    virtual size_t get_num_variables() const { return variables.size(); }
+    virtual size_t get_num_gates() const;
+    virtual void print_num_gates() const;
+    virtual size_t get_num_variables() const;
     // TODO(#216)(Adrian): Feels wrong to let the zero_idx be changed.
     uint32_t zero_idx = 0;
     uint32_t one_idx = 1;
@@ -89,31 +81,17 @@ template <typename FF_> class CircuitBuilderBase {
      *
      * @return The index of the first variable in the same class as the submitted index.
      * */
-    uint32_t get_first_variable_in_class(uint32_t index) const
-    {
-        while (prev_var_index[index] != FIRST_VARIABLE_IN_CLASS) {
-            index = prev_var_index[index];
-        }
-        return index;
-    }
+    uint32_t get_first_variable_in_class(uint32_t index) const;
     /**
      * Update all variables from index in equivalence class to have real variable new_real_index.
      *
      * @param index The index of a variable in the class we're updating.
      * @param new_real_index The index of the real variable to update to.
      * */
-    void update_real_variable_indices(uint32_t index, uint32_t new_real_index)
-    {
-        auto cur_index = index;
-        do {
-            real_variable_index[cur_index] = new_real_index;
-            cur_index = next_var_index[cur_index];
-        } while (cur_index != REAL_VARIABLE);
-    }
+    void update_real_variable_indices(uint32_t index, uint32_t new_real_index);
 
     /**
      * Get the value of the variable v_{index}.
-     * N.B. We should probably inline this.
      *
      * @param index The index of the variable.
      * @return The value of the variable.
@@ -138,29 +116,11 @@ template <typename FF_> class CircuitBuilderBase {
         return variables[real_variable_index[index]];
     }
 
-    uint32_t get_public_input_index(const uint32_t witness_index) const
-    {
-        uint32_t result = static_cast<uint32_t>(-1);
-        for (size_t i = 0; i < public_inputs.size(); ++i) {
-            if (real_variable_index[public_inputs[i]] == real_variable_index[witness_index]) {
-                result = static_cast<uint32_t>(i);
-                break;
-            }
-        }
-        ASSERT(result != static_cast<uint32_t>(-1));
-        return result;
-    }
+    uint32_t get_public_input_index(const uint32_t witness_index) const;
 
-    FF get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
+    FF get_public_input(const uint32_t index) const;
 
-    std::vector<FF> get_public_inputs() const
-    {
-        std::vector<FF> result;
-        for (uint32_t i = 0; i < get_num_public_inputs(); ++i) {
-            result.push_back(get_public_input(i));
-        }
-        return result;
-    }
+    std::vector<FF> get_public_inputs() const;
 
     /**
      * Add a variable to variables
@@ -168,19 +128,7 @@ template <typename FF_> class CircuitBuilderBase {
      * @param in The value of the variable
      * @return The index of the new variable in the variables vector
      */
-    virtual uint32_t add_variable(const FF& in)
-    {
-        variables.emplace_back(in);
-
-        // By default, we assume each new variable belongs in its own copy-cycle. These defaults can be modified later
-        // by `assert_equal`.
-        const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
-        real_variable_index.emplace_back(index);
-        next_var_index.emplace_back(REAL_VARIABLE);
-        prev_var_index.emplace_back(FIRST_VARIABLE_IN_CLASS);
-        real_variable_tags.emplace_back(DUMMY_TAG);
-        return index;
-    }
+    virtual uint32_t add_variable(const FF& in);
 
     /**
      * Assign a name to a variable(equivalence class). Should be one name per equivalence class.
@@ -189,17 +137,7 @@ template <typename FF_> class CircuitBuilderBase {
      * @param name  Name of the variable.
      *
      */
-    virtual void set_variable_name(uint32_t index, const std::string& name)
-    {
-        ASSERT(variables.size() > index);
-        uint32_t first_idx = get_first_variable_in_class(index);
-
-        if (variable_names.contains(first_idx)) {
-            failure("Attempted to assign a name to a variable that already has a name");
-            return;
-        }
-        variable_names.insert({ first_idx, name });
-    }
+    virtual void set_variable_name(uint32_t index, const std::string& name);
 
     /**
      * After assert_equal() merge two class names if present.
@@ -208,71 +146,21 @@ template <typename FF_> class CircuitBuilderBase {
      * @param index Index of the variable you have previously named and used in assert_equal.
      *
      */
-    virtual void update_variable_names(uint32_t index)
-    {
-        uint32_t first_idx = get_first_variable_in_class(index);
-
-        uint32_t cur_idx = next_var_index[first_idx];
-        while (cur_idx != REAL_VARIABLE && !variable_names.contains(cur_idx)) {
-            cur_idx = next_var_index[cur_idx];
-        }
-
-        if (variable_names.contains(first_idx)) {
-            if (cur_idx != REAL_VARIABLE) {
-                variable_names.extract(cur_idx);
-            }
-            return;
-        }
-
-        if (cur_idx != REAL_VARIABLE) {
-            std::string var_name = variable_names.find(cur_idx)->second;
-            variable_names.erase(cur_idx);
-            variable_names.insert({ first_idx, var_name });
-            return;
-        }
-        failure("No previously assigned names found");
-    }
+    virtual void update_variable_names(uint32_t index);
 
     /**
      * After finishing the circuit can be called for automatic merging
      * all existing collisions.
      *
      */
-    virtual void finalize_variable_names()
-    {
-        std::vector<uint32_t> keys;
-        std::vector<uint32_t> firsts;
-
-        for (auto& tup : variable_names) {
-            keys.push_back(tup.first);
-            firsts.push_back(get_first_variable_in_class(tup.first));
-        }
-
-        for (size_t i = 0; i < keys.size() - 1; i++) {
-            for (size_t j = i + 1; j < keys.size(); i++) {
-                uint32_t first_idx_a = firsts[i];
-                uint32_t first_idx_b = firsts[j];
-                if (first_idx_a == first_idx_b) {
-                    std::string substr1 = variable_names[keys[i]];
-                    std::string substr2 = variable_names[keys[j]];
-                    failure("Variables from the same equivalence class have separate names: " + substr2 + ", " +
-                            substr2);
-                    update_variable_names(first_idx_b);
-                }
-            }
-        }
-    }
+    virtual void finalize_variable_names();
 
     /**
      * Export the existing circuit as msgpack compatible buffer.
      *
      * @return msgpack compatible buffer
      */
-    virtual msgpack::sbuffer export_circuit()
-    {
-        info("not implemented");
-        return { 0 };
-    };
+    virtual msgpack::sbuffer export_circuit();
 
     /**
      * Add a public variable to variables
@@ -283,43 +171,19 @@ template <typename FF_> class CircuitBuilderBase {
      * @param in The value of the variable
      * @return The index of the new variable in the variables vector
      */
-    virtual uint32_t add_public_variable(const FF& in)
-    {
-        const uint32_t index = add_variable(in);
-        public_inputs.emplace_back(index);
-        return index;
-    }
+    virtual uint32_t add_public_variable(const FF& in);
 
     /**
      * Make a witness variable public.
      *
      * @param witness_index The index of the witness.
      * */
-    virtual void set_public_input(const uint32_t witness_index)
-    {
-        for (const uint32_t public_input : public_inputs) {
-            if (public_input == witness_index) {
-                if (!failed()) {
-                    failure("Attempted to set a public input that is already public!");
-                }
-                return;
-            }
-        }
-        public_inputs.emplace_back(witness_index);
-    }
-
-    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "assert_equal");
+    virtual void set_public_input(uint32_t witness_index);
+    virtual void assert_equal(uint32_t a_idx, uint32_t b_idx, std::string const& msg = "assert_equal");
 
     // TODO(#216)(Adrian): This method should belong in the ComposerHelper, where the number of reserved gates can be
     // correctly set.
-    size_t get_circuit_subgroup_size(const size_t num_gates) const
-    {
-        auto log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
-        if ((1UL << log2_n) != (num_gates)) {
-            ++log2_n;
-        }
-        return 1UL << log2_n;
-    }
+    size_t get_circuit_subgroup_size(size_t num_gates) const;
 
     size_t get_num_public_inputs() const { return public_inputs.size(); }
 
@@ -330,12 +194,7 @@ template <typename FF_> class CircuitBuilderBase {
     // This implicitly checks whether a variable index
     // is equal to IS_CONSTANT; assuming that we will never have
     // uint32::MAX number of variables
-    void assert_valid_variables(const std::vector<uint32_t>& variable_indices)
-    {
-        for (const auto& variable_index : variable_indices) {
-            ASSERT(is_valid_variable(variable_index));
-        }
-    }
+    void assert_valid_variables(const std::vector<uint32_t>& variable_indices);
     bool is_valid_variable(uint32_t variable_index) { return variable_index < variables.size(); };
 
     /**
@@ -345,20 +204,7 @@ template <typename FF_> class CircuitBuilderBase {
      * @param proof_output_witness_indices Witness indices that need to become public and stored as recurisve proof
      * specific
      */
-    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
-    {
-
-        if (contains_recursive_proof) {
-            failure("added recursive proof when one already exists");
-        }
-        contains_recursive_proof = true;
-
-        for (const auto& idx : proof_output_witness_indices) {
-            set_public_input(idx);
-            // Why is it adding the size of the public input instead of the idx?
-            recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
-        }
-    }
+    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices);
 
     /**
      * TODO: We can remove this and use `add_recursive_proof` once my question has been addressed
@@ -368,27 +214,13 @@ template <typename FF_> class CircuitBuilderBase {
      *
      * @param proof_output_witness_indices
      */
-    void set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
-    {
-        if (contains_recursive_proof) {
-            failure("added recursive proof when one already exists");
-        }
-        contains_recursive_proof = true;
-        for (size_t i = 0; i < proof_output_witness_indices.size(); ++i) {
-            recursive_proof_public_input_indices.push_back(
-                get_public_input_index(real_variable_index[proof_output_witness_indices[i]]));
-        }
-    }
+    void set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices);
 
-    bool failed() const { return _failed; };
-    const std::string& err() const { return _err; };
+    bool failed() const;
+    const std::string& err() const;
 
-    void set_err(std::string msg) { _err = std::move(msg); }
-    void failure(std::string msg)
-    {
-        _failed = true;
-        set_err(msg);
-    }
+    void set_err(std::string msg);
+    void failure(std::string msg);
 };
 
 } // namespace bb

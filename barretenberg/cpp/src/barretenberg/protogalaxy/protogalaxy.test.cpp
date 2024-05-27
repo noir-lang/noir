@@ -513,15 +513,8 @@ TYPED_TEST(ProtoGalaxyTests, TamperedAccumulatorPolynomial)
     TestFixture::test_tampered_accumulator_polynomial();
 }
 
+// We only fold one instance currently due to significant compile time added by multiple instances
 TYPED_TEST(ProtoGalaxyTests, Fold1Instance)
 {
     TestFixture::template test_fold_k_instances<1>();
-}
-TYPED_TEST(ProtoGalaxyTests, Fold2Instances)
-{
-    TestFixture::template test_fold_k_instances<2>();
-}
-TYPED_TEST(ProtoGalaxyTests, Fold3Instances)
-{
-    TestFixture::template test_fold_k_instances<3>();
 }
