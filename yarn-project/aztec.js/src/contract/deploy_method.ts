@@ -79,8 +79,6 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   public async create(options: DeployOptions = {}): Promise<TxExecutionRequest> {
     if (!this.txRequest) {
       this.txRequest = await this.wallet.createTxExecutionRequest(await this.request(options));
-      // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
-      await this.wallet.registerContract({ artifact: this.artifact, instance: this.instance! });
     }
     return this.txRequest;
   }
@@ -98,6 +96,14 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public async request(options: DeployOptions = {}): Promise<ExecutionRequestInit> {
     if (!this.functionCalls) {
+      // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
+      // Note that we need to run this registerContract here so it's available when computeFeeOptionsFromEstimatedGas
+      // runs, since it needs the contract to have been registered in order to estimate gas for its initialization,
+      // in case the initializer is public. This hints at the need of having "transient" contracts scoped to a
+      // simulation, so we can run the simulation with a set of contracts, but only "commit" them to the wallet
+      // once this tx has gone through.
+      await this.wallet.registerContract({ artifact: this.artifact, instance: this.getInstance(options) });
+
       const deployment = await this.getDeploymentFunctionCalls(options);
       const bootstrap = await this.getInitializeFunctionCalls(options);
 
@@ -113,7 +119,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       };
 
       if (options.estimateGas) {
-        request.fee = await this.getFeeOptions(request);
+        request.fee = await this.getFeeOptionsFromEstimatedGas(request);
       }
 
       this.functionCalls = request;
@@ -231,6 +237,14 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public override prove(options: DeployOptions): Promise<Tx> {
     return super.prove(options);
+  }
+
+  /**
+   * Estimates gas cost for this deployment operation.
+   * @param options - Options.
+   */
+  public override estimateGas(options?: Omit<DeployOptions, 'estimateGas' | 'skipPublicSimulation'>) {
+    return super.estimateGas(options);
   }
 
   /** Return this deployment address. */

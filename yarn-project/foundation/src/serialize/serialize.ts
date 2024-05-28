@@ -242,6 +242,8 @@ export function toFriendlyJSON(obj: object): string {
         ).toFriendlyJSON
       ) {
         return value.toFriendlyJSON();
+      } else if (value && value.type && ['Fr', 'Fq', 'AztecAddress'].includes(value.type)) {
+        return value.value;
       } else {
         return value;
       }

@@ -54,7 +54,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
     }
     if (!this.txRequest) {
       const calls = [this.request()];
-      const fee = opts?.estimateGas ? await this.getFeeOptions({ calls, fee: opts?.fee }) : opts?.fee;
+      const fee = opts?.estimateGas ? await this.getFeeOptionsFromEstimatedGas({ calls, fee: opts?.fee }) : opts?.fee;
       this.txRequest = await this.wallet.createTxExecutionRequest({ calls, fee });
     }
     return this.txRequest;

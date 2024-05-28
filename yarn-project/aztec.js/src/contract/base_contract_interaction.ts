@@ -95,7 +95,7 @@ export abstract class BaseContractInteraction {
    * @param request - Request to execute for this interaction.
    * @returns Fee options for the actual transaction.
    */
-  protected async getFeeOptions(request: ExecutionRequestInit) {
+  protected async getFeeOptionsFromEstimatedGas(request: ExecutionRequestInit) {
     const fee = request.fee;
     if (fee) {
       const txRequest = await this.wallet.createTxExecutionRequest(request);
