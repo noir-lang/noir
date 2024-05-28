@@ -225,7 +225,6 @@ pub(crate) fn debug_program(
     let debug_artifact = DebugArtifact {
         debug_symbols: compiled_program.debug.clone(),
         file_map: compiled_program.file_map.clone(),
-        warnings: compiled_program.warnings.clone(),
     };
 
     noir_debugger::debug_circuit(

@@ -679,8 +679,7 @@ mod tests {
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
-        let warnings = vec![];
-        let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+        let debug_artifact = &DebugArtifact { debug_symbols, file_map };
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
@@ -789,8 +788,7 @@ mod tests {
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
-        let warnings = vec![];
-        let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+        let debug_artifact = &DebugArtifact { debug_symbols, file_map };
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
@@ -847,8 +845,7 @@ mod tests {
             Opcode::AssertZero(Expression::default()),
         ];
         let circuit = Circuit { opcodes, ..Circuit::default() };
-        let debug_artifact =
-            DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
+        let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
         let brillig_funcs = &vec![brillig_bytecode];
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,

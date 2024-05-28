@@ -2484,7 +2484,6 @@ dependencies = [
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
- "noirc_evaluator",
  "noirc_frontend",
  "noirc_printable_type",
  "rayon",
