@@ -288,12 +288,6 @@ impl<'context> Elaborator<'context> {
         self.resolve_local_globals();
         self.trait_bounds = function.def.where_clause.clone();
 
-        let is_low_level_or_oracle = function
-            .attributes()
-            .function
-            .as_ref()
-            .map_or(false, |func| func.is_low_level() || func.is_oracle());
-
         if function.def.is_unconstrained {
             self.in_unconstrained_fn = true;
         }
