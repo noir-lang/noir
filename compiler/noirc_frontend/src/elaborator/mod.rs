@@ -325,9 +325,11 @@ impl<'context> Elaborator<'context> {
             .expect("FuncMetas should be declared before a function is elaborated")
             .clone();
 
-        for (parameter, param2) in function.def.parameters.iter().zip(&func_meta.parameters.0) {
-            let definition_kind = DefinitionKind::Local(None);
-            self.elaborate_pattern(parameter.pattern.clone(), param2.1.clone(), definition_kind);
+        // The DefinitionIds for each parameter were already created in define_function_meta
+        // so we need to reintroduce the same IDs into scope here.
+        for parameter in &func_meta.parameter_idents {
+            let name = self.interner.definition_name(parameter.id).to_owned();
+            self.add_existing_variable_to_scope(name, parameter.clone());
         }
 
         self.generics = func_meta.all_generics.clone();
@@ -590,8 +592,9 @@ impl<'context> Elaborator<'context> {
         self.add_generics(&func.def.generics);
 
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
-        let mut parameters = vec![];
-        let mut parameter_types = vec![];
+        let mut parameters = Vec::new();
+        let mut parameter_types = Vec::new();
+        let mut parameter_idents = Vec::new();
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
             if visibility == Visibility::Public && !self.pub_allowed(func) {
@@ -609,7 +612,12 @@ impl<'context> Elaborator<'context> {
                 has_inline_attribute,
                 type_span,
             );
-            let pattern = self.elaborate_pattern(pattern, typ.clone(), DefinitionKind::Local(None));
+            let pattern = self.elaborate_pattern_and_store_ids(
+                pattern,
+                typ.clone(),
+                DefinitionKind::Local(None),
+                &mut parameter_idents,
+            );
 
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -678,6 +686,7 @@ impl<'context> Elaborator<'context> {
             all_generics: self.generics.clone(),
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
+            parameter_idents,
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
