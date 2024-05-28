@@ -182,11 +182,19 @@ fn prune_unreachable_functions(ssa: &mut Ssa) {
 
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeSet;
+
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{function::RuntimeType, map::Id, types::Type},
+        ir::{
+            function::{Function, FunctionId, RuntimeType},
+            map::Id,
+            types::Type,
+        },
+        opt::runtime_separation::called_functions,
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -226,5 +234,88 @@ mod test {
         for func in separated.functions.values() {
             assert_eq!(func.runtime(), RuntimeType::Brillig);
         }
+    }
+
+    fn find_func_by_name<'ssa>(
+        ssa: &'ssa Ssa,
+        funcs: &BTreeSet<FunctionId>,
+        name: &str,
+    ) -> &'ssa Function {
+        funcs
+            .iter()
+            .find_map(|id| {
+                let func = ssa.functions.get(id).unwrap();
+                if func.name() == name {
+                    Some(func)
+                } else {
+                    None
+                }
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn same_function_shared_acir_brillig() {
+        // acir fn foo {
+        //   b0():
+        //     v0 = call bar()
+        //     v1 = call baz()
+        //     return v0, v1
+        // }
+        // brillig fn bar {
+        //   b0():
+        //     v0 = call baz()
+        //     return v0
+        // }
+        // acir fn baz {
+        //   b0():
+        //     return 72
+        // }
+        let foo_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+
+        let bar_id = Id::test_new(1);
+        let baz_id = Id::test_new(2);
+        let bar = builder.import_function(bar_id);
+        let baz = builder.import_function(baz_id);
+        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        let v1 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).to_vec();
+        builder.terminate_with_return(vec![v0[0], v1[0]]);
+
+        builder.new_brillig_function("bar".into(), bar_id);
+        let baz = builder.import_function(baz_id);
+        let v0 = builder.insert_call(baz, Vec::new(), vec![Type::field()]).to_vec();
+        builder.terminate_with_return(v0);
+
+        builder.new_function("baz".into(), baz_id, InlineType::default());
+        let expected_return = 72u128;
+        let seventy_two = builder.field_constant(expected_return);
+        builder.terminate_with_return(vec![seventy_two]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 3);
+
+        let separated = ssa.separate_runtime();
+
+        // The original baz function must have been duplicated
+        assert_eq!(separated.functions.len(), 4);
+
+        let main_function = separated.functions.get(&separated.main_id).unwrap();
+        assert_eq!(main_function.runtime(), RuntimeType::Acir(InlineType::Inline));
+
+        let main_calls = called_functions(main_function);
+        assert_eq!(main_calls.len(), 2);
+
+        let bar = find_func_by_name(&separated, &main_calls, "bar");
+        let baz_acir = find_func_by_name(&separated, &main_calls, "baz");
+
+        assert_eq!(baz_acir.runtime(), RuntimeType::Acir(InlineType::Inline));
+        assert_eq!(bar.runtime(), RuntimeType::Brillig);
+
+        let bar_calls = called_functions(bar);
+        assert_eq!(bar_calls.len(), 1);
+
+        let baz_brillig = find_func_by_name(&separated, &bar_calls, "baz");
+        assert_eq!(baz_brillig.runtime(), RuntimeType::Brillig);
     }
 }
