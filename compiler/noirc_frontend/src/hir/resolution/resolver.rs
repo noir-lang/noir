@@ -1109,6 +1109,7 @@ impl<'a> Resolver<'a> {
 
             // This is only used by the elaborator
             all_generics: Vec::new(),
+            is_trait_function: false,
         }
     }
 
