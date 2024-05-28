@@ -2,20 +2,18 @@ import { type Tx, type TxHash } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore } from '@aztec/kv-store';
-import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 
 import { ENR } from '@chainsafe/enr';
 import { type GossipsubEvents, gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
-import type { IncomingStreamData, PeerId, PubSub, Stream } from '@libp2p/interface';
+import type { PeerId, PubSub, Stream } from '@libp2p/interface';
 import '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
 import { peerIdFromString } from '@libp2p/peer-id';
 import { createFromJSON, createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { tcp } from '@libp2p/tcp';
-import { pipe } from 'it-pipe';
 import { type Libp2p, createLibp2p } from 'libp2p';
 
 import { type P2PConfig } from '../config.js';
@@ -23,7 +21,6 @@ import { type TxPool } from '../tx_pool/index.js';
 import { AztecDatastore } from './data_store.js';
 import { KnownTxLookup } from './known_txs.js';
 import { PeerManager } from './peer_manager.js';
-import { AztecPeerDb, type AztecPeerStore } from './peer_store.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
 import { AztecTxMessageCreator, fromTxMessage } from './tx_messages.js';
 
@@ -61,7 +58,6 @@ export class LibP2PService implements P2PService {
     private config: P2PConfig,
     private node: PubSubLibp2p,
     private peerDiscoveryService: PeerDiscoveryService,
-    private peerStore: AztecPeerStore,
     private protocolId: string,
     private txPool: TxPool,
     private bootstrapPeerIds: PeerId[] = [],
@@ -111,9 +107,6 @@ export class LibP2PService implements P2PService {
     this.jobQueue.start();
     await this.peerDiscoveryService.start();
     await this.node.start();
-    await this.node.handle(this.protocolId, (incoming: IncomingStreamData) =>
-      this.jobQueue.put(() => Promise.resolve(this.handleProtocolDial(incoming))),
-    );
     this.logger.info(`Started P2P client with Peer ID ${this.node.peerId.toString()}`);
 
     // Subscribe to standard topics by default
@@ -124,7 +117,7 @@ export class LibP2PService implements P2PService {
       const { msg } = e.detail;
       this.logger.debug(`Received PUBSUB message.`);
 
-      await this.handleNewGossipMessage(msg.topic, msg.data);
+      await this.jobQueue.put(() => this.handleNewGossipMessage(msg.topic, msg.data));
     });
   }
 
@@ -153,14 +146,7 @@ export class LibP2PService implements P2PService {
     txPool: TxPool,
     store: AztecKVStore,
   ) {
-    const {
-      tcpListenIp,
-      tcpListenPort,
-      minPeerCount,
-      maxPeerCount,
-      dataDirectory,
-      transactionProtocol: protocolId,
-    } = config;
+    const { tcpListenIp, tcpListenPort, minPeerCount, maxPeerCount, transactionProtocol: protocolId } = config;
     const bindAddrTcp = `/ip4/${tcpListenIp}/tcp/${tcpListenPort}`;
 
     // The autonat service seems quite problematic in that using it seems to cause a lot of attempts
@@ -177,7 +163,7 @@ export class LibP2PService implements P2PService {
     //   services.uPnPNAT = uPnPNATService();
     // }
 
-    const datastore = new AztecDatastore(AztecLmdbStore.open(dataDirectory));
+    const datastore = new AztecDatastore(store);
 
     const node = await createLibp2p({
       start: false,
@@ -213,9 +199,6 @@ export class LibP2PService implements P2PService {
       },
     });
 
-    // Create an LMDB peer store
-    const peerDb = new AztecPeerDb(store);
-
     // extract bootstrap node peer IDs
     let bootstrapPeerIds: PeerId[] = [];
     if (config.bootstrapNodes.length) {
@@ -224,7 +207,7 @@ export class LibP2PService implements P2PService {
       );
     }
 
-    return new LibP2PService(config, node, peerDiscoveryService, peerDb, protocolId, txPool, bootstrapPeerIds);
+    return new LibP2PService(config, node, peerDiscoveryService, protocolId, txPool, bootstrapPeerIds);
   }
 
   /**
@@ -307,11 +290,6 @@ export class LibP2PService implements P2PService {
       let stream: Stream | undefined;
       try {
         stream = await this.node.dialProtocol(peerMultiAddr, this.protocolId);
-
-        // dial successful, add to DB as well
-        if (!this.peerStore.getPeer(peerIdStr)) {
-          await this.peerStore.addPeer(peerIdStr, enr);
-        }
       } catch (err) {
         this.logger.error(`Failed to dial peer ${peerIdStr}`, err);
       } finally {
@@ -320,33 +298,6 @@ export class LibP2PService implements P2PService {
         }
       }
     }
-  }
-
-  private async handleProtocolDial(incomingStreamData: IncomingStreamData) {
-    try {
-      const { message, peer } = await this.consumeInboundStream(incomingStreamData);
-      if (!message.length) {
-        this.logger.verbose(`Ignoring 0 byte message from peer${peer.toString()}`);
-      }
-      // await this.processTransactionMessage(message, peer);
-    } catch (err) {
-      this.logger.error(
-        `Failed to handle received message from peer ${incomingStreamData.connection.remotePeer.toString()}`,
-        err,
-      );
-    }
-  }
-
-  private async consumeInboundStream(incomingStreamData: IncomingStreamData) {
-    let buffer = Buffer.alloc(0);
-    await pipe(incomingStreamData.stream, async source => {
-      for await (const msg of source) {
-        const payload = msg.subarray();
-        buffer = Buffer.concat([buffer, Buffer.from(payload)]);
-      }
-    });
-    await incomingStreamData.stream.close();
-    return { message: buffer, peer: incomingStreamData.connection.remotePeer };
   }
 
   private async handleNewConnection(peerId: PeerId) {
