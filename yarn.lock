@@ -221,18 +221,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@portal:../../../../barretenberg/ts::locator=%40noir-lang%2Fbackend_barretenberg%40workspace%3Atooling%2Fnoir_js_backend_barretenberg":
-  version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../../../../barretenberg/ts::locator=%40noir-lang%2Fbackend_barretenberg%40workspace%3Atooling%2Fnoir_js_backend_barretenberg"
+"@aztec/bb.js@npm:0.41.0":
+  version: 0.41.0
+  resolution: "@aztec/bb.js@npm:0.41.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
     debug: ^4.3.4
     tslib: ^2.4.0
   bin:
-    bb.js: ./dest/node/main.js
+    bb.js: dest/node/main.js
+  checksum: e5e0095eaff3de45726366726337b131bb6ff7cf2cb53be705572c7d6715dae4c948bf86a03cfad68bc98c0c2d83e64cbe3723cc72260c8dbfa262af8cb81f9b
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4, @babel/code-frame@npm:^7.12.11, @babel/code-frame@npm:^7.16.0, @babel/code-frame@npm:^7.22.13, @babel/code-frame@npm:^7.23.5, @babel/code-frame@npm:^7.8.3":
   version: 7.23.5
@@ -4395,7 +4396,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
-    "@aztec/bb.js": "portal:../../../../barretenberg/ts"
+    "@aztec/bb.js": 0.41.0
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
