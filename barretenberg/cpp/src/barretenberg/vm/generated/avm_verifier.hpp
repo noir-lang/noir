@@ -23,7 +23,7 @@ class AvmVerifier {
     AvmVerifier& operator=(const AvmVerifier& other) = delete;
     AvmVerifier& operator=(AvmVerifier&& other) noexcept;
 
-    bool verify_proof(const HonkProof& proof, const std::vector<FF>& public_inputs);
+    bool verify_proof(const HonkProof& proof, const std::vector<std::vector<FF>>& public_inputs);
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;

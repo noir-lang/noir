@@ -11,6 +11,17 @@ using Flavor = bb::AvmFlavor;
 using FF = Flavor::FF;
 using Row = bb::AvmFullRow<bb::fr>;
 
+// There are 4 public input columns, 1 for context inputs, and 3 for emitting side effects
+using VmPublicInputs = std::tuple<std::array<FF, KERNEL_INPUTS_LENGTH>,   // Input: Kernel context inputs
+                                  std::array<FF, KERNEL_OUTPUTS_LENGTH>,  // Output: Kernel outputs data
+                                  std::array<FF, KERNEL_OUTPUTS_LENGTH>,  // Output: Kernel outputs side effects
+                                  std::array<FF, KERNEL_OUTPUTS_LENGTH>>; // Output: Kernel outputs metadata
+// Constants for indexing into the tuple above
+static const size_t KERNEL_INPUTS = 0;
+static const size_t KERNEL_OUTPUTS_VALUE = 1;
+static const size_t KERNEL_OUTPUTS_SIDE_EFFECT_COUNTER = 2;
+static const size_t KERNEL_OUTPUTS_METADATA = 3;
+
 // Number of rows
 static const size_t AVM_TRACE_SIZE = 1 << 18;
 enum class IntermRegister : uint32_t { IA = 0, IB = 1, IC = 2, ID = 3 };

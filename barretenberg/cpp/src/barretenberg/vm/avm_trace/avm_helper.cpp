@@ -101,4 +101,33 @@ bool is_operand_indirect(uint8_t ind_value, uint8_t operand_idx)
     return static_cast<bool>((ind_value & (1 << operand_idx)) >> operand_idx);
 }
 
+std::vector<std::vector<FF>> copy_public_inputs_columns(VmPublicInputs public_inputs)
+{
+    // We convert to a vector as the pil generated verifier is generic and unaware of the KERNEL_INPUTS_LENGTH
+    // For each of the public input vectors
+    std::vector<FF> public_inputs_kernel_inputs(KERNEL_INPUTS_LENGTH);
+    std::vector<FF> public_inputs_kernel_value_outputs(KERNEL_OUTPUTS_LENGTH);
+    std::vector<FF> public_inputs_kernel_side_effect_outputs(KERNEL_OUTPUTS_LENGTH);
+    std::vector<FF> public_inputs_kernel_metadata_outputs(KERNEL_OUTPUTS_LENGTH);
+
+    std::copy(std::get<0>(public_inputs).begin(), std::get<0>(public_inputs).end(), public_inputs_kernel_inputs.data());
+    std::copy(std::get<1>(public_inputs).begin(),
+              std::get<1>(public_inputs).end(),
+              public_inputs_kernel_value_outputs.data());
+    std::copy(std::get<2>(public_inputs).begin(),
+              std::get<2>(public_inputs).end(),
+              public_inputs_kernel_side_effect_outputs.data());
+    std::copy(std::get<3>(public_inputs).begin(),
+              std::get<3>(public_inputs).end(),
+              public_inputs_kernel_metadata_outputs.data());
+
+    std::vector<std::vector<FF>> public_inputs_as_vec(4);
+    public_inputs_as_vec[0] = public_inputs_kernel_inputs;
+    public_inputs_as_vec[1] = public_inputs_kernel_value_outputs;
+    public_inputs_as_vec[2] = public_inputs_kernel_side_effect_outputs;
+    public_inputs_as_vec[3] = public_inputs_kernel_metadata_outputs;
+
+    return public_inputs_as_vec;
+}
+
 } // namespace bb::avm_trace

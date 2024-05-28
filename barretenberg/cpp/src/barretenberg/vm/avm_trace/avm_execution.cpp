@@ -2,7 +2,6 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
-#include "barretenberg/vm/avm_trace/avm_instructions.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
 #include "barretenberg/vm/generated/avm_circuit_builder.hpp"
@@ -56,8 +55,9 @@ bool Execution::verify(AvmFlavor::VerificationKey vk, HonkProof const& proof)
     // output_state.pcs_verification_key = std::move(pcs_verification_key);
 
     // TODO: We hardcode public inputs for now
-    std::vector<FF> public_inputs = {};
-    return verifier.verify_proof(proof, public_inputs);
+    VmPublicInputs public_inputs = {};
+    std::vector<std::vector<FF>> public_inputs_vec = copy_public_inputs_columns(public_inputs);
+    return verifier.verify_proof(proof, public_inputs_vec);
 }
 
 /**

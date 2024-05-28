@@ -1,7 +1,9 @@
 #include "barretenberg/vm/tests/helpers.test.hpp"
 #include "avm_common.test.hpp"
+#include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
+#include <bits/utility.h>
 
 using namespace bb;
 namespace tests_avm {
@@ -21,7 +23,7 @@ std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<ThreeOpParam> opera
  *
  * @param trace The execution trace
  */
-void validate_trace_check_circuit(std::vector<Row>&& trace, std::array<FF, KERNEL_INPUTS_LENGTH> public_inputs)
+void validate_trace_check_circuit(std::vector<Row>&& trace, VmPublicInputs public_inputs)
 {
     validate_trace(std::move(trace), public_inputs, false);
 };
@@ -32,7 +34,7 @@ void validate_trace_check_circuit(std::vector<Row>&& trace, std::array<FF, KERNE
  *
  * @param trace The execution trace
  */
-void validate_trace(std::vector<Row>&& trace, std::array<FF, KERNEL_INPUTS_LENGTH> public_inputs, bool with_proof)
+void validate_trace(std::vector<Row>&& trace, VmPublicInputs public_inputs, bool with_proof)
 {
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
@@ -45,9 +47,7 @@ void validate_trace(std::vector<Row>&& trace, std::array<FF, KERNEL_INPUTS_LENGT
 
         AvmVerifier verifier = composer.create_verifier(circuit_builder);
 
-        // We convert to a vector as the pil generated verifier is generic and unaware of the KERNEL_INPUTS_LENGTH
-        std::vector<FF> public_inputs_as_vec(KERNEL_INPUTS_LENGTH);
-        std::copy(public_inputs.begin(), public_inputs.end(), public_inputs_as_vec.data());
+        std::vector<std::vector<FF>> public_inputs_as_vec = bb::avm_trace::copy_public_inputs_columns(public_inputs);
 
         bool verified = verifier.verify_proof(proof, public_inputs_as_vec);
 

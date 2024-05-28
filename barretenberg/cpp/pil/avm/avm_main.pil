@@ -7,6 +7,12 @@ include "avm_kernel.pil";
 include "gadgets/avm_conversion.pil";
 
 namespace avm_main(256);
+    //===== CONSTANT POLYNOMIALS ==================================================
+    pol constant clk(i) { i };
+    pol constant first = [1] + [0]*; // Used mostly to toggle off the first row consisting
+                                     // only in first element of shifted polynomials.
+
+    //===== KERNEL INPUTS =========================================================
     // Kernel lookup selector opcodes
     pol commit q_kernel_lookup;
 
@@ -27,14 +33,23 @@ namespace avm_main(256);
     pol commit sel_op_coinbase;
     pol commit sel_op_timestamp;
 
+    //===== KERNEL OUTPUTS ========================================================
+    pol commit q_kernel_output_lookup;
+
+    pol commit sel_op_note_hash_exists;
+    pol commit sel_op_emit_note_hash;
+    pol commit sel_op_nullifier_exists;
+    pol commit sel_op_emit_nullifier;
+    pol commit sel_op_l1_to_l2_msg_exists;
+    pol commit sel_op_emit_unencrypted_log;
+    pol commit sel_op_emit_l2_to_l1_msg;
+
+    pol commit sel_op_sload;
+    pol commit sel_op_sstore;
+
     //===== Gadget Selectors ======================================================
     pol commit sel_op_radix_le;
     
-    //===== CONSTANT POLYNOMIALS ==================================================
-    pol constant clk(i) { i };
-    pol constant first = [1] + [0]*; // Used mostly to toggle off the first row consisting
-                                     // only in first element of shifted polynomials.
-
     //===== Fix Range Checks Selectors=============================================
     // We re-use the clk column for the lookup values of 8-bit resp. 16-bit range check.
     pol commit sel_rng_8;  // Boolean selector for the  8-bit range check lookup
@@ -177,6 +192,17 @@ namespace avm_main(256);
     sel_op_fee_per_da_gas * (1 - sel_op_fee_per_da_gas) = 0;
     sel_op_transaction_fee * (1 - sel_op_transaction_fee) = 0;
 
+    sel_op_note_hash_exists * (1 - sel_op_note_hash_exists) = 0;
+    sel_op_emit_note_hash * (1 - sel_op_emit_note_hash) = 0;
+    sel_op_nullifier_exists * (1 - sel_op_nullifier_exists) = 0;
+    sel_op_emit_nullifier * (1 - sel_op_emit_nullifier) = 0;
+    sel_op_l1_to_l2_msg_exists * (1 - sel_op_l1_to_l2_msg_exists) = 0;
+    sel_op_emit_unencrypted_log * (1 - sel_op_emit_unencrypted_log) = 0;
+    sel_op_emit_l2_to_l1_msg * (1 - sel_op_emit_l2_to_l1_msg) = 0;
+
+    sel_op_sload * (1 - sel_op_sload) = 0;
+    sel_op_sstore * (1 - sel_op_sstore) = 0;
+
     sel_op_radix_le * (1 - sel_op_radix_le) = 0;
 
     sel_op_add * (1 - sel_op_add) = 0;
@@ -281,13 +307,20 @@ namespace avm_main(256);
     // Drawback is the need to paralllelize the latter.
     
     //===== KERNEL LOOKUPS =======================================================
-    pol KERNEL_SELECTORS = (
-        sel_op_sender + sel_op_address + sel_op_portal + sel_op_chain_id + sel_op_version + sel_op_block_number + 
-        sel_op_coinbase + sel_op_timestamp + sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas + sel_op_transaction_fee
+    pol KERNEL_INPUT_SELECTORS = (
+        sel_op_sender + sel_op_address + sel_op_portal + sel_op_chain_id + sel_op_version + sel_op_block_number + sel_op_coinbase + 
+        sel_op_timestamp + sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas + sel_op_transaction_fee
     );
-    // Ensure that only one kernel lookup is active when the kernel_sel is active
-    #[KERNEL_ACTIVE_CHECK]
-    KERNEL_SELECTORS * (1 - q_kernel_lookup) = 0;
+    // Ensure that only one kernel lookup is active when the kernel_in_offset is active
+    #[KERNEL_INPUT_ACTIVE_CHECK]
+    KERNEL_INPUT_SELECTORS * (1 - q_kernel_lookup) = 0;
+
+    pol KERNEL_OUTPUT_SELECTORS = (
+        sel_op_note_hash_exists + sel_op_emit_note_hash + sel_op_nullifier_exists + sel_op_emit_nullifier + sel_op_l1_to_l2_msg_exists +
+        sel_op_emit_unencrypted_log + sel_op_emit_l2_to_l1_msg + sel_op_sload + sel_op_sstore
+    );
+    #[KERNEL_OUTPUT_ACTIVE_CHECK]
+    KERNEL_OUTPUT_SELECTORS * (1 - q_kernel_output_lookup) = 0;
 
     //===== CONTROL FLOW =======================================================
     //===== JUMP ===============================================================
@@ -324,7 +357,7 @@ namespace avm_main(256);
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
     pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_fdiv + sel_op_mul + sel_op_not
-                          + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor + sel_op_cast + KERNEL_SELECTORS);
+                          + sel_op_eq + sel_op_and + sel_op_or + sel_op_xor + sel_op_cast + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS);
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]
@@ -394,47 +427,93 @@ namespace avm_main(256);
     // The general pattern for environment lookups is as follows:
     //  Each kernel opcode related to some fixed positions in the `public kernel_inputs` polynomial
     //  We can lookup into a fixed index of this polynomial by including constraints that force the value
-    //  of kernel_sel to the value relevant to the given opcode that is active
+    //  of kernel_in_offset to the value relevant to the given opcode that is active
 
     // CALL CONTEXT
     #[SENDER_KERNEL]
-    sel_op_sender * (avm_kernel.kernel_sel - constants.SENDER_SELECTOR) = 0;
+    sel_op_sender * (avm_kernel.kernel_in_offset - constants.SENDER_SELECTOR) = 0;
 
     #[ADDRESS_KERNEL]
-    sel_op_address * (avm_kernel.kernel_sel - constants.ADDRESS_SELECTOR) = 0;
+    sel_op_address * (avm_kernel.kernel_in_offset - constants.ADDRESS_SELECTOR) = 0;
 
     #[PORTAL_KERNEL]
-    sel_op_portal * (avm_kernel.kernel_sel - constants.PORTAL_SELECTOR) = 0;
+    sel_op_portal * (avm_kernel.kernel_in_offset - constants.PORTAL_SELECTOR) = 0;
 
     // FEES
     #[FEE_DA_GAS_KERNEL]
-    sel_op_fee_per_da_gas  * (avm_kernel.kernel_sel - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
+    sel_op_fee_per_da_gas  * (avm_kernel.kernel_in_offset - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
 
     #[FEE_L2_GAS_KERNEL]
-    sel_op_fee_per_l2_gas  * (avm_kernel.kernel_sel - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
+    sel_op_fee_per_l2_gas  * (avm_kernel.kernel_in_offset - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
 
     #[FEE_TRANSACTION_FEE_KERNEL]
-    sel_op_transaction_fee  * (avm_kernel.kernel_sel - constants.TRANSACTION_FEE_SELECTOR) = 0;
+    sel_op_transaction_fee  * (avm_kernel.kernel_in_offset - constants.TRANSACTION_FEE_SELECTOR) = 0;
 
     // GLOBALS
     #[CHAIN_ID_KERNEL]
-    sel_op_chain_id * (avm_kernel.kernel_sel - constants.CHAIN_ID_SELECTOR) = 0;
+    sel_op_chain_id * (avm_kernel.kernel_in_offset - constants.CHAIN_ID_SELECTOR) = 0;
 
     #[VERSION_KERNEL]
-    sel_op_version * (avm_kernel.kernel_sel - constants.VERSION_SELECTOR) = 0;
+    sel_op_version * (avm_kernel.kernel_in_offset - constants.VERSION_SELECTOR) = 0;
 
     #[BLOCK_NUMBER_KERNEL]
-    sel_op_block_number * (avm_kernel.kernel_sel - constants.BLOCK_NUMBER_SELECTOR) = 0;
+    sel_op_block_number * (avm_kernel.kernel_in_offset - constants.BLOCK_NUMBER_SELECTOR) = 0;
 
     #[COINBASE_KERNEL]
-    sel_op_coinbase * (avm_kernel.kernel_sel - constants.COINBASE_SELECTOR) = 0;
+    sel_op_coinbase * (avm_kernel.kernel_in_offset - constants.COINBASE_SELECTOR) = 0;
 
     #[TIMESTAMP_KERNEL]
-    sel_op_timestamp * (avm_kernel.kernel_sel - constants.TIMESTAMP_SELECTOR) = 0;
+    sel_op_timestamp * (avm_kernel.kernel_in_offset - constants.TIMESTAMP_SELECTOR) = 0;
+
+    // OUTPUTS LOOKUPS
+    // Constrain the value of kernel_out_offset to be the correct offset for the operation being performed
+    #[NOTE_HASH_KERNEL_OUTPUT]
+    sel_op_note_hash_exists * (avm_kernel.kernel_out_offset - (avm_kernel.START_NOTE_HASH_EXISTS_WRITE_OFFSET + avm_kernel.note_hash_exist_write_offset)) = 0;
+    first * avm_kernel.note_hash_exist_write_offset = 0;
+    
+
+    #[EMIT_NOTE_HASH_KERNEL_OUTPUT]
+    sel_op_emit_note_hash * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_NOTE_HASH_WRITE_OFFSET + avm_kernel.emit_note_hash_write_offset)) = 0;
+    first * avm_kernel.emit_note_hash_write_offset = 0;
+
+    #[NULLIFIER_EXISTS_KERNEL_OUTPUT]
+    sel_op_nullifier_exists * (avm_kernel.kernel_out_offset - (avm_kernel.START_NULLIFIER_EXISTS_OFFSET + avm_kernel.nullifier_exists_write_offset)) = 0;
+    first * avm_kernel.nullifier_exists_write_offset = 0;
+
+    #[EMIT_NULLIFIER_KERNEL_OUTPUT]
+    sel_op_emit_nullifier * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_NULLIFIER_WRITE_OFFSET + avm_kernel.emit_nullifier_write_offset)) = 0;
+    first * avm_kernel.emit_nullifier_write_offset = 0;
+
+    #[L1_TO_L2_MSG_EXISTS_KERNEL_OUTPUT]
+    sel_op_l1_to_l2_msg_exists * (avm_kernel.kernel_out_offset - (avm_kernel.START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + avm_kernel.l1_to_l2_msg_exists_write_offset)) = 0;
+    first * avm_kernel.l1_to_l2_msg_exists_write_offset = 0;
+
+    #[EMIT_UNENCRYPTED_LOG_KERNEL_OUTPUT]
+    sel_op_emit_unencrypted_log * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + avm_kernel.emit_unencrypted_log_write_offset)) = 0;
+    first * avm_kernel.emit_unencrypted_log_write_offset = 0;
+
+    #[EMIT_L2_TO_L1_MSGS_KERNEL_OUTPUT]
+    sel_op_emit_l2_to_l1_msg * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_L2_TO_l1_MSG + avm_kernel.emit_l2_to_l1_msg_write_offset)) = 0;
+    first * avm_kernel.emit_l2_to_l1_msg_write_offset = 0;
+
+    #[SLOAD_KERNEL_OUTPUT]
+    sel_op_sload * (avm_kernel.kernel_out_offset - (avm_kernel.START_SLOAD_WRITE_OFFSET + avm_kernel.sload_write_offset)) = 0;
+    first * avm_kernel.sload_write_offset = 0;
+
+    #[SSTORE_KERNEL_OUTPUT]
+    sel_op_sstore * (avm_kernel.kernel_out_offset - (avm_kernel.START_SSTORE_WRITE_OFFSET + avm_kernel.sstore_write_offset)) = 0;
+    first * avm_kernel.sstore_write_offset = 0;
+
+    // When we encounter a state writing opcode
+    // We increment the side effect counter by 1
+    KERNEL_OUTPUT_SELECTORS * (avm_kernel.side_effect_counter' - (avm_kernel.side_effect_counter + 1)) = 0;
+
+    #[KERNEL_OUTPUT_LOOKUP]
+    q_kernel_output_lookup {avm_kernel.kernel_out_offset, ia, avm_kernel.side_effect_counter, ib} in avm_kernel.q_public_input_kernel_out_add_to_table {clk, avm_kernel.kernel_value_out__is_public, avm_kernel.kernel_side_effect_out__is_public, avm_kernel.kernel_metadata_out__is_public};
 
     #[LOOKUP_INTO_KERNEL]
     // TODO: FIX not having the trailing is_public breaking compilation :(
-    q_kernel_lookup { avm_main.ia, avm_kernel.kernel_sel } in avm_kernel.q_public_input_kernel_add_to_table { avm_kernel.kernel_inputs__is_public, clk };
+    q_kernel_lookup { avm_main.ia, avm_kernel.kernel_in_offset } in avm_kernel.q_public_input_kernel_add_to_table { avm_kernel.kernel_inputs__is_public, clk };
 
     //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]
