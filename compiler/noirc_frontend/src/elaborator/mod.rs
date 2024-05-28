@@ -1,19 +1,15 @@
-#![allow(unused)]
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
 use crate::{
-    ast::{
-        ArrayLiteral, ConstructorExpression, FunctionKind, IfExpression, InfixExpression, Lambda,
-        TraitItem, UnresolvedTraitConstraint, UnresolvedTypeExpression,
-    },
+    ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
-                UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
+                UnresolvedStruct, UnresolvedTypeAlias,
             },
             errors::DuplicateType,
         },
@@ -21,39 +17,21 @@ use crate::{
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
     },
-    hir_def::{
-        expr::{
-            HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
-        },
-        function::Parameters,
-        stmt::HirLetStatement,
-        traits::TraitConstraint,
-    },
+    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
-        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, Pattern, PrefixExpression,
-        SecondaryAttribute, Statement, StatementKind, StructId,
+        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
-    Shared, StructType, Type, TypeVariable,
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
+    Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
     graph::CrateId,
     hir::{
-        def_collector::{
-            dc_crate::{CollectedItems, DefCollector},
-            errors::DefCollectorErrorKind,
-        },
+        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
         resolution::{
-            errors::PubPosition,
-            import::{PathResolution, PathResolutionError},
-            path_resolver::StandardPathResolver,
+            errors::PubPosition, import::PathResolution, path_resolver::StandardPathResolver,
         },
         Context,
     },
@@ -81,9 +59,7 @@ mod types;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_arena::Index;
 use noirc_errors::{Location, Span};
-use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -261,8 +237,8 @@ impl<'context> Elaborator<'context> {
             this.elaborate_functions(functions);
         }
 
-        for ((typ, module), impls) in items.impls {
-            this.elaborate_impls(typ, module, impls);
+        for impls in items.impls.into_values() {
+            this.elaborate_impls(impls);
         }
 
         for trait_impl in items.trait_impls {
@@ -309,12 +285,6 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Function(id));
 
         self.trait_bounds = function.def.where_clause.clone();
-
-        let is_low_level_or_oracle = function
-            .attributes()
-            .function
-            .as_ref()
-            .map_or(false, |func| func.is_low_level() || func.is_oracle());
 
         if function.def.is_unconstrained {
             self.in_unconstrained_fn = true;
@@ -865,17 +835,10 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_impls(
-        &mut self,
-        typ: UnresolvedType,
-        module: LocalModuleId,
-        impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>,
-    ) {
-        for (generics, _, functions) in impls {
+    fn elaborate_impls(&mut self, impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>) {
+        for (_, _, functions) in impls {
             self.file = functions.file_id;
-            let old_generics_length = self.generics.len();
-            self.elaborate_functions(functions);
-            self.generics.truncate(old_generics_length);
+            self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
 
@@ -883,7 +846,6 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
-        let old_generics_length = self.generics.len();
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
@@ -891,7 +853,7 @@ impl<'context> Elaborator<'context> {
 
         self.self_type = None;
         self.current_trait_impl = None;
-        self.generics.truncate(old_generics_length);
+        self.generics.clear();
     }
 
     fn collect_impls(
@@ -1000,7 +962,7 @@ impl<'context> Elaborator<'context> {
 
         let function_ids = functions.function_ids();
 
-        if let Type::Struct(struct_type, generics) = &self_type {
+        if let Type::Struct(struct_type, _) = &self_type {
             let struct_ref = struct_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
@@ -1256,7 +1218,6 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
-        let name = let_stmt.pattern.name_ident().clone();
         let (let_statement, _typ) = self.elaborate_let(let_stmt);
 
         let statement_id = self.interner.get_global(global_id).let_statement;

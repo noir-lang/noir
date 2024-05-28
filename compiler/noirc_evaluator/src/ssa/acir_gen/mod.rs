@@ -1732,29 +1732,44 @@ impl<'a> Context<'a> {
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
-                (return_values, call_stack)
+                (return_values, call_stack.clone())
             }
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        // The return value may or may not be an array reference. Calling `flatten_value_list`
-        // will expand the array if there is one.
-        let return_acir_vars = self.flatten_value_list(return_values, dfg)?;
-        let mut warnings = Vec::new();
-        for (acir_var, is_databus) in return_acir_vars {
-            if self.acir_context.is_constant(&acir_var) {
-                warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
-                    call_stack: call_stack.clone(),
-                }));
-            }
-            if !is_databus {
-                // We do not return value for the data bus.
-                self.acir_context.return_var(acir_var)?;
-            } else {
-                self.check_array_is_initialized(self.data_bus.return_data.unwrap(), dfg)?;
+        let mut has_constant_return = false;
+        for value_id in return_values {
+            let is_databus = self
+                .data_bus
+                .return_data
+                .map_or(false, |return_databus| dfg[*value_id] == dfg[return_databus]);
+            let value = self.convert_value(*value_id, dfg);
+
+            // `value` may or may not be an array reference. Calling `flatten` will expand the array if there is one.
+            let acir_vars = self.acir_context.flatten(value)?;
+            for (acir_var, _) in acir_vars {
+                has_constant_return |= self.acir_context.is_constant(&acir_var);
+                if is_databus {
+                    // We do not return value for the data bus.
+                    self.check_array_is_initialized(
+                        self.data_bus.return_data.expect(
+                            "`is_databus == true` implies `data_bus.return_data` is `Some`",
+                        ),
+                        dfg,
+                    )?;
+                } else {
+                    self.acir_context.return_var(acir_var)?;
+                }
             }
         }
+
+        let warnings = if has_constant_return {
+            vec![SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
+        } else {
+            Vec::new()
+        };
+
         Ok(warnings)
     }
 
@@ -2677,34 +2692,6 @@ impl<'a> Context<'a> {
             }
             _ => unreachable!("Expected array type"),
         }
-    }
-
-    /// Maps an ssa value list, for which some values may be references to arrays, by inlining
-    /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
-    /// that correspond to other values.
-    fn flatten_value_list(
-        &mut self,
-        arguments: &[ValueId],
-        dfg: &DataFlowGraph,
-    ) -> Result<Vec<(AcirVar, bool)>, InternalError> {
-        let mut acir_vars = Vec::with_capacity(arguments.len());
-        for value_id in arguments {
-            let is_databus = if let Some(return_databus) = self.data_bus.return_data {
-                dfg[*value_id] == dfg[return_databus]
-            } else {
-                false
-            };
-            let value = self.convert_value(*value_id, dfg);
-            acir_vars.append(
-                &mut self
-                    .acir_context
-                    .flatten(value)?
-                    .iter()
-                    .map(|(var, _)| (*var, is_databus))
-                    .collect(),
-            );
-        }
-        Ok(acir_vars)
     }
 
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.

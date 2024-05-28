@@ -5,21 +5,15 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{FunctionKind, TraitItem, UnresolvedGenerics, UnresolvedTraitConstraint},
-    hir::{
-        def_collector::dc_crate::UnresolvedTrait, def_map::ModuleId,
-        resolution::path_resolver::StandardPathResolver,
-    },
-    hir_def::{
-        function::{FuncMeta, HirFunction},
-        traits::{TraitConstant, TraitFunction, TraitType},
-    },
+    hir::def_collector::dc_crate::UnresolvedTrait,
+    hir_def::traits::{TraitConstant, TraitFunction, TraitType},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
         NoirFunction, Param, Pattern, UnresolvedType, Visibility,
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Generics, Type, TypeVariable, TypeVariableKind,
+    Type, TypeVariableKind,
 };
 
 use super::Elaborator;
