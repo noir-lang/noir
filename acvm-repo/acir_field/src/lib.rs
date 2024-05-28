@@ -11,7 +11,6 @@ pub use generic_ark::FieldElement as GenericFieldElement;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "bls12_381")] {
-        mod generic_ark;
         pub type FieldElement = generic_ark::FieldElement<ark_bls12_381::Fr>;
     } else {
         pub type FieldElement = generic_ark::FieldElement<ark_bn254::Fr>;
