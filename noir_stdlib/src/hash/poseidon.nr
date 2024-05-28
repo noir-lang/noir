@@ -3,66 +3,146 @@ use crate::field::modulus_num_bits;
 use crate::hash::Hasher;
 use crate::default::Default;
 
-struct PoseidonConfig<M,N> {
+struct PoseidonConfig<M, N, X> { 
     t: Field, // Width, i.e. state size
     rf: u8, // Number of full rounds; should be even
     rp: u8, // Number of partial rounds
     alpha: Field, // S-box power; depends on the underlying field
-    ark: [Field; M], // Additive round keys
-    mds: [Field; N] // MDS Matrix in row-major order
+    C: [Field; N],
+    Mat: [[Field;M]; M], // Additive round keys
+    PMat: [[Field;M]; M],
+    S: [Field; X],
 }
 
-pub fn config<M, N>(
+pub fn config<M, N, X>(
     t: Field,
     rf: u8,
     rp: u8,
     alpha: Field,
-    ark: [Field; M],
-    mds: [Field; N]
-) -> PoseidonConfig<M,N> {
+    C: [Field; N],
+    Mat: [[Field; M]; M], // Additive round keys
+    PMat: [[Field; M]; M],
+    S: [Field; X]
+) -> PoseidonConfig<M,N,X> {
     // Input checks
-    let mul = crate::wrapping_mul(t as u8, (rf + rp));
-    assert(mul == ark.len() as u8);
-    assert(t * t == mds.len() as Field);
+    assert_eq((t as u8) * rf + rp, N);
+    assert_eq(t, M);
     assert(alpha != 0);
 
-    PoseidonConfig { t, rf, rp, alpha, ark, mds }
+    PoseidonConfig { t, rf, rp, alpha, C, Mat, PMat, S }
 }
-// General Poseidon permutation on elements of type Field
-fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [Field; O] {
-    let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
-    assert(t == state.len() as Field);
+pub fn permute<M, N, X, O>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field; O]) -> [Field; O] {
+    let PoseidonConfig {t, rf, rp, alpha, C: C, Mat: M, PMat: P, S } = pos_conf;
 
-    let mut count = 0;
-    // for r in 0..rf + rp
-    for r in 0..(ark.len() / state.len()) {
+    for i in 0..state.len() {
+        state[i] += C[i];
+    }
+
+    for _r in 0..rf / 2 - 1 {
+        state = sigma(state);
         for i in 0..state.len() {
-            state[i] = state[i] + ark[count + i];
-        } // Shift by round constants
+            state[i] = state[i] + C[state.len() * (_r + 1) as u64 + i as u64];
+        }
+        {
+            let mut out = state;
+            for i in 0..state.len() {
+                let mut val = 0;
+                for j in 0..state.len() {
+                    val += state[j] * M[j][i];
+                }
+                out[i] = val;
+            }
+            state = out;
+        }
+    }
+
+    state = sigma(state);
+    for i in 0..state.len() {
+        state[i] = state[i] + C[state.len() * (rf / 2) as u64 + i as u64];
+    }
+    {
+        let mut out = state;
+        for i in 0..state.len() {
+            let mut val = 0;
+            for j in 0..state.len() {
+                val += state[j] * P[j][i];
+            }
+            out[i] = val;
+        }
+        state = out;
+    }
+
+    for i in 0..state.len() {
+        crate::as_witness(state[i]);
+    }
+
+    for _r in 0..rp {
         state[0] = state[0].pow_32(alpha);
-        // Check whether we are in a full round
-        if (r as u8 < rf / 2) | (r as u8 >= rf / 2 + rp) {
-            for i in 1..state.len() {
-                state[i] = state[i].pow_32(alpha);
+        state[0] += C[(rf/2 + 1) as u64 * state.len() as u64 + _r as u64];
+        crate::as_witness(state[0]);
+        {
+            let mut newState0 = 0;
+            for j in 0..state.len() {
+                let mul = S[(state.len() * 2 - 1) * _r as u64 + j as u64] * state[j];
+                newState0 += mul;
+            }
+            for k in 1..state.len() {
+                state[k] = state[k] + state[0] * S[(t * 2 - 1) as u64 * _r as u64 + state.len() + k - 1];
+            }
+            state[0] = newState0;
+
+            if (_r & 1 == 0) {
+                for k in 1..state.len() {
+                    crate::as_witness(state[k]);
+                }
             }
         }
+    }
 
-        state = apply_matrix(mds, state); // Apply MDS matrix
-        count = count + t as u64;
+    for _r in 0..rf / 2 - 1 {
+        state = sigma(state);
+        for i in 0..state.len() {
+            state[i] = state[i] + C[(rf/2+1) as u64 * (state.len()) as u64 + rp as u64 + _r as u64 *state.len() as u64 + i as u64];
+        }
+        {
+            let mut out = state;
+            for i in 0..state.len() {
+                let mut val = 0;
+                for j in 0..state.len() {
+                    val += state[j] * M[j][i];
+                }
+                out[i] = val;
+            }
+            state = out;
+        }
+    }
+
+    state = sigma(state);
+    {
+        let mut out = state;
+        for i in 0..state.len() {
+            let mut val = 0;
+            for j in 0..state.len() {
+                val += state[j] * M[j][i];
+            }
+            out[i] = val;
+        }
+        state = out;
     }
 
     state
 }
-// Absorption. Fully absorbs input message.
-fn absorb<M, N, O, P>(
-    pos_conf: PoseidonConfig<M, N>,
+
+// Corresponding absorption.
+fn absorb<M, N, X, O, P>(
+    pos_conf: PoseidonConfig<M, N, X>,
     mut state: [Field; O], // Initial state; usually [0; O]
     rate: Field, // Rate
     capacity: Field, // Capacity; usually 1
-    msg: [Field; P]
+    msg: [Field; P] // Arbitrary length message
 ) -> [Field; O] {
-    assert(pos_conf.t == rate + capacity);
+    assert_eq(pos_conf.t, rate + capacity);
 
     let mut i = 0;
 
@@ -83,24 +163,29 @@ fn absorb<M, N, O, P>(
 
     state
 }
+
+// Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
+#[field(bn254)]
+pub fn sponge<N>(msg: [Field; N]) -> Field {
+    absorb(bn254::consts::x5_5_config(), [0; 5], 4, 1, msg)[1]
+}
+
+fn sigma<O>(x: [Field; O]) -> [Field; O] {
+    let mut y = x;
+    for i in 0..O {
+        let t = y[i];
+        let tt = t * t;
+        let tttt = tt * tt;
+        y[i] *= tttt;
+    }
+    y
+}
+
 // Check security of sponge instantiation
 fn check_security(rate: Field, width: Field, security: Field) -> bool {
     let n = modulus_num_bits();
 
     ((n - 1) as Field * (width - rate) / 2) as u8 > security as u8
-}
-// A*x where A is an n x n matrix in row-major order and x an n-vector
-fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {
-    let mut y = x;
-
-    for i in 0..x.len() {
-        y[i] = 0;
-        for j in 0..x.len() {
-            y[i] = y[i] + a[x.len()*i + j]* x[j];
-        }
-    }
-
-    y
 }
 
 struct PoseidonHasher{
@@ -171,6 +256,31 @@ impl Default for PoseidonHasher{
     fn default() -> Self{
         PoseidonHasher{
             _state: &[],
+        }
+    }
+}
+
+mod poseidon_tests {
+    use crate::hash::poseidon;
+
+    #[test]
+    fn reference_impl_test_vectors() {
+        // hardcoded test vectors from https://extgit.iaik.tugraz.at/krypto/hadeshash/-/blob/master/code/test_vectors.txt
+        {
+            let mut state = [0, 1, 2];
+            let mut expected = [
+                0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a, 0x0fca49b798923ab0239de1c9e7a4a9a2210312b6a2f616d18b5a87f9b628ae29, 0x0e7ae82e40091e63cbd4f16a6d16310b3729d4b6e138fcf54110e2867045a30c
+            ];
+            assert_eq(expected, poseidon::bn254::perm::x5_3(state), "Failed to reproduce output for [0, 1, 2]");
+        }
+        {
+            let mut state = [0, 1, 2, 3, 4];
+            let mut expected = [
+                0x299c867db6c1fdd79dcefa40e4510b9837e60ebb1ce0663dbaa525df65250465, 0x1148aaef609aa338b27dafd89bb98862d8bb2b429aceac47d86206154ffe053d, 0x24febb87fed7462e23f6665ff9a0111f4044c38ee1672c1ac6b0637d34f24907, 0x0eb08f6d809668a981c186beaf6110060707059576406b248e5d9cf6e78b3d3e, 0x07748bc6877c9b82c8b98666ee9d0626ec7f5be4205f79ee8528ef1c4a376fc7
+            ];
+            assert_eq(
+                expected, poseidon::bn254::perm::x5_5(state), "Failed to reproduce output for [0, 1, 2, 3, 4]"
+            );
         }
     }
 }
