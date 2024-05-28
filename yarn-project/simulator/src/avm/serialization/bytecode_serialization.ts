@@ -136,7 +136,7 @@ const INSTRUCTION_SET = () =>
     // Misc
     [DebugLog.opcode, DebugLog],
 
-    // //// Gadgets
+    // Gadgets
     [Keccak.opcode, Keccak],
     [Poseidon2.opcode, Poseidon2],
     [Sha256.opcode, Sha256],
