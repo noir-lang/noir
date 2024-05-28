@@ -164,12 +164,6 @@ fn absorb<M, N, X, O, P>(
     state
 }
 
-// Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
-#[field(bn254)]
-pub fn sponge<N>(msg: [Field; N]) -> Field {
-    absorb(bn254::consts::x5_5_config(), [0; 5], 4, 1, msg)[1]
-}
-
 fn sigma<O>(x: [Field; O]) -> [Field; O] {
     let mut y = x;
     for i in 0..O {
