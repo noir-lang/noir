@@ -11,6 +11,8 @@
 //! Currently, 1 and 4 are unimplemented.
 use std::collections::HashSet;
 
+use acvm::acir::AcirField;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::CallStack, function::Function,
@@ -159,6 +161,7 @@ mod test {
             types::Type,
         },
     };
+    use acvm::acir::AcirField;
 
     #[test]
     fn inline_blocks() {

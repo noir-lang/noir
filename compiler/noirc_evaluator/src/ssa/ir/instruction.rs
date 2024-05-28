@@ -1,6 +1,7 @@
 use std::hash::{Hash, Hasher};
 
 use acvm::{
+    acir::AcirField,
     acir::{
         circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
         BlackBoxFunc,

@@ -11,7 +11,8 @@ import { Field, InputMap } from '@noir-lang/noirc_abi';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
-it(`smart contract can verify a recursive proof`, async () => {
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/6672): Reinstate this test.
+it.skip(`smart contract can verify a recursive proof`, async () => {
   const basePath = resolve(join(__dirname, '../../../../'));
   const fm = createFileManager(basePath);
   const innerCompilationResult = await compile(

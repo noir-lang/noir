@@ -1,9 +1,6 @@
 import { expect } from 'chai';
 import {
-  createBlackBoxSolver,
   executeCircuit,
-  executeCircuitWithBlackBoxSolver,
-  WasmBlackBoxFunctionSolver,
   WitnessMap,
   ForeignCallHandler,
   executeProgram,
@@ -120,40 +117,18 @@ it('successfully executes a MemoryOp opcode', async () => {
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it('successfully executes two circuits with same backend', async function () {
-  this.timeout(10000);
-
-  // chose pedersen op here because it is the one with slow initialization
-  // that led to the decision to pull backend initialization into a separate
-  // function/wasmbind
-  const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
-
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  const solvedWitness0 = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  const solvedWitness1 = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness0).to.be.deep.eq(expectedWitnessMap);
-  expect(solvedWitness1).to.be.deep.eq(expectedWitnessMap);
-});
-
-it('successfully executes 500 circuits with same backend', async function () {
+it('successfully executes 500 pedersen circuits', async function () {
   this.timeout(100000);
 
-  // chose pedersen op here because it is the one with slow initialization
-  // that led to the decision to pull backend initialization into a separate
-  // function/wasmbind
-  const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
+  // Pedersen opcodes used to have a large upfront cost due to generator calculation
+  // so we'd need to pass around the blackbox solver in JS to avoid redoing this work.
+  //
+  // This test now shows that we don't need to do this anymore without a performance regression.
 
   const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
 
   for (let i = 0; i < 500; i++) {
-    const solvedWitness = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
+    const solvedWitness = await executeCircuit(bytecode, initialWitnessMap, () => {
       throw Error('unexpected oracle');
     });
 

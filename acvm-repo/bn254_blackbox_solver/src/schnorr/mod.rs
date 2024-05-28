@@ -65,7 +65,7 @@ fn schnorr_generate_challenge(
 
 #[cfg(test)]
 mod schnorr_tests {
-    use acir::FieldElement;
+    use acir::{AcirField, FieldElement};
 
     use super::verify_signature;
 
