@@ -48,6 +48,10 @@ pub enum ResolverError {
     InvalidArrayLengthExpr { span: Span },
     #[error("Expression invalid for generic arithmetic: only '+', '-', and '*' are allowed.")]
     InvalidGenericArithOp { span: Span },
+    #[error("impl's are not allowed on generic arithmetic")]
+    ImplOnGenericArith { span: Span },
+    #[error("impl's are not allowed to have generic arithmetic arguments")]
+    ImplWithGenericArith { span: Span },
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { span: Span },
     #[error("No global or generic type parameter found with the given name")]
@@ -243,7 +247,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Generic expressions can only have constants, variables, and simple integer operations: '+', '-', and '*'".into(),
                 *span,
             ),
-
+            ResolverError::ImplOnGenericArith { span } => Diagnostic::simple_error(
+                "impl's are not allowed on generic arithmetic".into(),
+                "For example, impl Foo for Bar<N + 1> contains the generic arithmetic \"N + 1\", which is not allowed".into(),
+                *span,
+            ),
+            ResolverError::ImplWithGenericArith { span } => Diagnostic::simple_error(
+                "impl's are not allowed to have generic arithmetic arguments".into(),
+                "For example, impl Foo<N + 1> for Bar contains the generic arithmetic \"N + 1\", which is not allowed".into(),
+                *span,
+            ),
             ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
                 "Integer too large to be evaluated to an array-length".into(),
                 "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),

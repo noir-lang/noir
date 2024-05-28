@@ -828,12 +828,23 @@ impl<'a> Resolver<'a> {
     fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
+                // TODO: need to intern this variable for generic arith?
+                // does resolving [unknown-var] vs. [generic-arith] work?
                 self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                     self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
                     Type::Constant(0)
                 })
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::Constant(int, span) => {
+                // we intern constants so that they can be resolved when during trait resolution
+                let arith_expr = ArithExpr::Constant(int);
+                let location = Location {
+                    span: span,
+                    file: self.file,
+                };
+                let _ = self.interner.push_arithmetic_expression(arith_expr, location);
+                Type::Constant(int)
+            },
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, op_span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
@@ -847,7 +858,14 @@ impl<'a> Resolver<'a> {
                 match (lhs, rhs) {
 
                     (ArithExpr::Constant(lhs), ArithExpr::Constant(rhs)) => {
-                        Type::Constant(op.function()(lhs, rhs))
+                        let int = op.function()(lhs, rhs);
+                        let arith_expr = ArithExpr::Constant(int);
+                        let op_location = Location {
+                            span: op_span,
+                            file: self.file,
+                        };
+                        let _ = self.interner.push_arithmetic_expression(arith_expr, op_location);
+                        Type::Constant(int)
                     }
 
                     (lhs, rhs) => {

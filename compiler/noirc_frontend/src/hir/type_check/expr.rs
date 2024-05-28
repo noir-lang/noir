@@ -445,6 +445,8 @@ impl<'interner> TypeChecker<'interner> {
                         .collect::<Option<Vec<_>>>();
 
                     if let Some(constraints) = constraints {
+                        // TODO cleanup
+                        dbg!("verify_trait_constraint", object_type, trait_generics, &constraints);
                         self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
                     }
                 }
@@ -1191,11 +1193,16 @@ impl<'interner> TypeChecker<'interner> {
                     }
                     return Err(TypeCheckError::InvalidShiftSize { span });
                 }
-                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs.clone(),
-                    actual: rhs.clone(),
-                    span: op.location.span,
-                    source: Source::Binary,
+                self.unify(lhs, rhs, || {
+                    // TODO: cleanup
+                    dbg!("infix_operand_type_rules", &lhs, &rhs);
+
+                    TypeCheckError::TypeMismatchWithSource {
+                        expected: lhs.clone(),
+                        actual: rhs.clone(),
+                        span: op.location.span,
+                        source: Source::Binary,
+                    }
                 });
                 Ok((lhs.clone(), true))
             }

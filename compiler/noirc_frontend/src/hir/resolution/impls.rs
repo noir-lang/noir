@@ -13,7 +13,7 @@ use crate::{
         def_map::{CrateDefMap, ModuleId},
         Context,
     },
-    node_interner::{ArithConstraints, FuncId, NodeInterner},
+    node_interner::{FuncId, NodeInterner},
     Type,
 };
 

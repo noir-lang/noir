@@ -1,0 +1,7 @@
+[package]
+name = "impl_with_generic_arith_args"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.29.0"
+
+[dependencies]

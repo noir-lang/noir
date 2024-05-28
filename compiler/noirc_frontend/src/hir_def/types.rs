@@ -8,7 +8,7 @@ use std::{
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
-    node_interner::{ArithConstraint, ArithConstraints, ArithId, ExprId, NodeInterner, TraitId, TypeAliasId},
+    node_interner::{ArithConstraint, ArithConstraints, ArithExpr, ArithId, ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -827,6 +827,26 @@ impl Type {
             other => (Cow::Owned(Generics::new()), other),
         }
     }
+
+    /// Is this type or any of its arguments (recursively) GenericArith?
+    pub fn contains_generic_arith(&self) -> bool {
+        match self {
+            Type::Array(_len, typ) => typ.contains_generic_arith(),
+            Type::Slice(typ) => typ.contains_generic_arith(),
+            Type::Struct(_s, args) => {
+                args.iter().any(|arg| arg.contains_generic_arith())
+            }
+            Type::Alias(_alias, args) => {
+                args.iter().any(|arg| arg.contains_generic_arith())
+            }
+            Type::Tuple(elements) => {
+                elements.iter().any(|element| element.contains_generic_arith())
+            }
+            Type::Forall(_typevars, typ) => typ.contains_generic_arith(),
+            Type::GenericArith(..) => true,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -1312,6 +1332,39 @@ impl Type {
                 arith_constraints.borrow_mut().push(ArithConstraint {
                     lhs: *lhs,
                     lhs_generics: lhs_generics.to_vec(),
+                    rhs: *rhs,
+                    rhs_generics: rhs_generics.to_vec(),
+                });
+
+                Ok(())
+            }
+
+            // TODO: add cases for (GenericArith, NamedGeneric), (NamedGeneric, GenericArith)
+            (GenericArith(lhs, lhs_generics), Constant(rhs)) => {
+                let rhs = ArithExpr::Constant(*rhs).to_id();
+                let rhs_generics = vec![];
+
+                // TODO: cleanup
+                dbg!("r-constant", lhs, lhs_generics, rhs, &rhs_generics);
+                arith_constraints.borrow_mut().push(ArithConstraint {
+                    lhs: *lhs,
+                    lhs_generics: lhs_generics.to_vec(),
+                    rhs,
+                    rhs_generics,
+                });
+
+                Ok(())
+            }
+
+            (Constant(lhs), GenericArith(rhs, rhs_generics)) => {
+                let lhs = ArithExpr::Constant(*lhs).to_id();
+                let lhs_generics = vec![];
+
+                // TODO: cleanup
+                dbg!("l-constant", lhs, &lhs_generics, rhs, rhs_generics);
+                arith_constraints.borrow_mut().push(ArithConstraint {
+                    lhs,
+                    lhs_generics,
                     rhs: *rhs,
                     rhs_generics: rhs_generics.to_vec(),
                 });
