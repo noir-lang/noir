@@ -2,10 +2,12 @@
 #include "barretenberg/eccvm_recursion/verifier_commitment_key.hpp"
 #include <gtest/gtest.h>
 namespace bb {
-template <typename Builder> class RecursiveVeriferCommitmentKeyTest : public testing::Test {
+template <typename Curve> class RecursiveVeriferCommitmentKeyTest : public testing::Test {
   public:
-    using native_VK = VerifierCommitmentKey<curve::Grumpkin>;
-    using VK = VerifierCommitmentKey<stdlib::bn254<Builder>>;
+    using Builder = typename Curve::Builder;
+    using NativeEmbeddedCurve = Builder::EmbeddedCurve;
+    using native_VK = VerifierCommitmentKey<NativeEmbeddedCurve>;
+    using VK = VerifierCommitmentKey<Curve>;
     static void SetUpTestSuite()
     {
         srs::init_crs_factory("../srs_db/ignition");
@@ -31,9 +33,9 @@ template <typename Builder> class RecursiveVeriferCommitmentKeyTest : public tes
     }
 };
 
-using Builders = testing::Types<UltraCircuitBuilder, MegaCircuitBuilder>;
+using Curves = testing::Types<stdlib::bn254<UltraCircuitBuilder>, stdlib::bn254<MegaCircuitBuilder>>;
 
-TYPED_TEST_SUITE(RecursiveVeriferCommitmentKeyTest, Builders);
+TYPED_TEST_SUITE(RecursiveVeriferCommitmentKeyTest, Curves);
 
 TYPED_TEST(RecursiveVeriferCommitmentKeyTest, EqualityTest)
 {

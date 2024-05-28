@@ -75,6 +75,16 @@ template <typename Builder, typename T> class bigfield {
         : bigfield(nullptr, uint256_t(native(value)))
     {}
 
+    // NOLINTNEXTLINE(google-runtime-int) intended behavior
+    bigfield(const unsigned long value)
+        : bigfield(nullptr, value)
+    {}
+
+    // NOLINTNEXTLINE(google-runtime-int) intended behavior
+    bigfield(const unsigned long long value)
+        : bigfield(nullptr, value)
+    {}
+
     /**
      * @brief Construct a new bigfield object from bb::fq. We first convert to uint256_t as field elements are in
      * Montgomery form internally.

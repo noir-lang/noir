@@ -376,8 +376,15 @@ template <typename Flavor> class SumcheckVerifierRound {
         // with a simulated builder.
         bool sumcheck_round_failed(false);
         if constexpr (IsRecursiveFlavor<Flavor>) {
+            if constexpr (IsECCVMRecursiveFlavor<Flavor>) {
+                // https://github.com/AztecProtocol/barretenberg/issues/998): Avoids the scenario where the assert_equal
+                // below fails because we are comparing a constant against a non-constant value and the non-constant
+                // value is in relaxed form. This happens at the first round when target_total_sum is initially set to
+                // 0.
+                total_sum.self_reduce();
+            }
             target_total_sum.assert_equal(total_sum);
-            sumcheck_round_failed = (target_total_sum != total_sum).get_value();
+            sumcheck_round_failed = (target_total_sum.get_value() != total_sum.get_value());
         } else {
             sumcheck_round_failed = (target_total_sum != total_sum);
         }

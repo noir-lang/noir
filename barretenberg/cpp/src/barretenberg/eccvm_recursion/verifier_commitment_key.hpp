@@ -9,20 +9,22 @@ namespace bb {
  *
  * @tparam Builder
  */
-template <typename Builder> class VerifierCommitmentKey<stdlib::bn254<Builder>> {
+template <typename Curve> class VerifierCommitmentKey {
+    using Builder = Curve::Builder;
     using Commitment = stdlib::cycle_group<Builder>;
+    using NativeEmbeddedCurve = typename Builder::EmbeddedCurve;
 
   public:
     /**
-     * @brief Construct a new Verifier Commitment Key object from its native counterpart. instantiated on Grumpkin. This
-     * will potentially be part of the ECCVMRecursiveFlavor once implemented.
+     * @brief Construct a new Verifier Commitment Key object from its native counterpart. instantiated on Grumpkin.
+     * This will potentially be part of the ECCVMRecursiveFlavor once implemented.
      *
-     * @details The Grumpkin SRS points will be initialised as constants in the circuit but might be subsequently turned
-     * into constant witnesses to make operations in the circuit more efficient.
+     * @details The Grumpkin SRS points will be initialised as constants in the circuit but might be subsequently
+     * turned into constant witnesses to make operations in the circuit more efficient.
      */
     VerifierCommitmentKey([[maybe_unused]] Builder* builder,
                           size_t num_points,
-                          std::shared_ptr<VerifierCommitmentKey<curve::Grumpkin>>& native_pcs_verification_key)
+                          std::shared_ptr<VerifierCommitmentKey<NativeEmbeddedCurve>>& native_pcs_verification_key)
         : first_g1(Commitment(native_pcs_verification_key->get_first_g1()))
     {
 

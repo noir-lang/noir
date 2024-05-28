@@ -26,7 +26,6 @@ class ECCVMVerifier {
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
-    std::map<std::string, FF> pcs_fr_elements;
     std::shared_ptr<Transcript> transcript;
 };
 } // namespace bb

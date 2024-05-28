@@ -14,6 +14,7 @@
 #include "barretenberg/relations/ecc_vm/ecc_wnaf_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/stdlib/honk_recursion/transcript/transcript.hpp"
+#include "barretenberg/stdlib/primitives/curves/grumpkin.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members) ?
 
@@ -22,8 +23,10 @@ namespace bb {
 template <typename BuilderType> class ECCVMRecursiveFlavor_ {
   public:
     using CircuitBuilder = BuilderType; // determines the arithmetisation of recursive verifier
-    using FF = stdlib::bigfield<CircuitBuilder, bb::Bn254FqParams>;
-    using BF = stdlib::field_t<CircuitBuilder>;
+    using Curve = stdlib::grumpkin<CircuitBuilder>;
+    using Commitment = Curve::AffineElement;
+    using FF = Curve::ScalarField;
+    using BF = Curve::BaseField;
     using RelationSeparator = FF;
     using NativeFlavor = ECCVMFlavor;
     using NativeVerificationKey = NativeFlavor::VerificationKey;
@@ -69,6 +72,59 @@ template <typename BuilderType> class ECCVMRecursiveFlavor_ {
         using Base = ECCVMFlavor::AllEntities<FF>;
         using Base::Base;
     };
+
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
+    /**
+     * @brief The verification key is responsible for storing the the commitments to the precomputed (non-witness)
+     * polynomials used by the verifier.
+     *
+     * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to
+     * resolve that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for
+     * portability of our circuits.
+     */
+    class VerificationKey
+        : public VerificationKey_<ECCVMFlavor::PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
+      public:
+        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
+        {
+            this->circuit_size = circuit_size;
+            this->log_circuit_size = numeric::get_msb(circuit_size);
+            this->num_public_inputs = num_public_inputs;
+        };
+
+        /**
+         * @brief Construct a new Verification Key with stdlib types from a provided native verification
+         * key
+         *
+         * @param builder
+         * @param native_key Native verification key from which to extract the precomputed commitments
+         */
+
+        VerificationKey(CircuitBuilder* builder, const std::shared_ptr<NativeVerificationKey>& native_key)
+        {
+            this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>(
+                builder, native_key->circuit_size, native_key->pcs_verification_key);
+            this->circuit_size = native_key->circuit_size;
+            this->log_circuit_size = numeric::get_msb(this->circuit_size);
+            this->num_public_inputs = native_key->num_public_inputs;
+            this->pub_inputs_offset = native_key->pub_inputs_offset;
+
+            for (auto [native_commitment, commitment] : zip_view(native_key->get_all(), this->get_all())) {
+                commitment = Commitment::from_witness(builder, native_commitment);
+            }
+        }
+    };
+
+    /**
+     * @brief A container for the witness commitments.
+     */
+    using WitnessCommitments = ECCVMFlavor::WitnessEntities<Commitment>;
+
+    using CommitmentLabels = ECCVMFlavor::CommitmentLabels;
+    // Reuse the VerifierCommitments from ECCVM
+    using VerifierCommitments = ECCVMFlavor::VerifierCommitments_<Commitment, VerificationKey>;
+    // Reuse the transcript from ECCVM
+    using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<CircuitBuilder>>;
 
 }; // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 

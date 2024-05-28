@@ -878,12 +878,6 @@ class TranslatorFlavor {
     using ProverPolynomialIds = AllEntities<size_t>;
 
     /**
-     * @brief A container for polynomials produced after the first round of sumcheck.
-     * @todo TODO(#394) Use polynomial classes for guaranteed memory alignment.
-     */
-    using RowPolynomials = AllEntities<FF>;
-
-    /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.
      */
     class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
