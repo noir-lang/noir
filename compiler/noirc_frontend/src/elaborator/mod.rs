@@ -876,7 +876,6 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
-        let old_generics_length = self.generics.len();
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
@@ -884,7 +883,7 @@ impl<'context> Elaborator<'context> {
 
         self.self_type = None;
         self.current_trait_impl = None;
-        self.generics.truncate(old_generics_length);
+        self.generics.clear();
     }
 
     fn collect_impls(
