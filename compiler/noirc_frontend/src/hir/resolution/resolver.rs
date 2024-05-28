@@ -1106,6 +1106,10 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+
+            // This is only used by the elaborator
+            all_generics: Vec::new(),
+            is_trait_function: false,
         }
     }
 

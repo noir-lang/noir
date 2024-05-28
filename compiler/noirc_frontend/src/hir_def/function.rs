@@ -109,6 +109,12 @@ pub struct FuncMeta {
     /// such as a trait's `Self` type variable.
     pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
 
+    /// All the generics used by this function, which includes any implicit generics or generics
+    /// from outer scopes, such as those introduced by an impl.
+    /// This is stored when the FuncMeta is first created to later be used to set the current
+    /// generics when the function's body is later resolved.
+    pub all_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+
     pub location: Location,
 
     // This flag is needed for the attribute check pass
@@ -123,6 +129,11 @@ pub struct FuncMeta {
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,
 
+    /// True if this function was defined within a trait (not a trait impl!).
+    /// Trait functions are just stubs and shouldn't have their return type checked
+    /// against their body type, nor should unused variables be checked.
+    pub is_trait_function: bool,
+
     /// True if this function is marked with an attribute
     /// that indicates it should be inlined differently than the default (inline everything).
     /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
@@ -130,12 +141,13 @@ pub struct FuncMeta {
 }
 
 impl FuncMeta {
-    /// Builtin, LowLevel and Oracle functions usually have the return type
-    /// declared, however their function bodies will be empty
-    /// So this method tells the type checker to ignore the return
-    /// of the empty function, which is unit
-    pub fn can_ignore_return_type(&self) -> bool {
-        self.kind.can_ignore_return_type()
+    /// A stub function does not have a body. This includes Builtin, LowLevel,
+    /// and Oracle functions in addition to method declarations within a trait.
+    ///
+    /// We don't check the return type of these functions since it will always have
+    /// an empty body, and we don't check for unused parameters.
+    pub fn is_stub(&self) -> bool {
+        self.kind.can_ignore_return_type() || self.is_trait_function
     }
 
     pub fn function_signature(&self) -> FunctionSignature {

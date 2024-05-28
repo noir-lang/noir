@@ -146,6 +146,7 @@ impl<'a> ModCollector<'a> {
                 file_id: self.file_id,
                 functions: Vec::new(),
                 trait_id: None,
+                self_type: None,
             };
 
             for (method, _) in r#impl.methods {
@@ -195,6 +196,7 @@ impl<'a> ModCollector<'a> {
                 trait_id: None,
                 impl_id: None,
                 resolved_object_type: None,
+                resolved_generics: Vec::new(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -207,8 +209,12 @@ impl<'a> ModCollector<'a> {
         trait_impl: &NoirTraitImpl,
         krate: CrateId,
     ) -> UnresolvedFunctions {
-        let mut unresolved_functions =
-            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
+        let mut unresolved_functions = UnresolvedFunctions {
+            file_id: self.file_id,
+            functions: Vec::new(),
+            trait_id: None,
+            self_type: None,
+        };
 
         let module = ModuleId { krate, local_id: self.module_id };
 
@@ -230,8 +236,12 @@ impl<'a> ModCollector<'a> {
         functions: Vec<NoirFunction>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut unresolved_functions =
-            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
+        let mut unresolved_functions = UnresolvedFunctions {
+            file_id: self.file_id,
+            functions: Vec::new(),
+            trait_id: None,
+            self_type: None,
+        };
         let mut errors = vec![];
 
         let module = ModuleId { krate, local_id: self.module_id };
@@ -404,6 +414,7 @@ impl<'a> ModCollector<'a> {
                 file_id: self.file_id,
                 functions: Vec::new(),
                 trait_id: None,
+                self_type: None,
             };
 
             let mut method_ids = HashMap::new();

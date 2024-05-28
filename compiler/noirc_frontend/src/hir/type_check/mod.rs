@@ -49,7 +49,7 @@ pub struct TypeChecker<'interner> {
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
-    let can_ignore_ret = meta.can_ignore_return_type();
+    let can_ignore_ret = meta.is_stub();
 
     let function_body_id = &interner.function(&func_id).as_expr();
 
@@ -549,7 +549,9 @@ pub mod test {
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
+            is_trait_function: false,
             has_inline_attribute: false,
+            all_generics: Vec::new(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
