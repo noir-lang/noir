@@ -852,9 +852,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_impls(&mut self, impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
             self.file = functions.file_id;
-            let old_generics_length = self.generics.len();
-            self.elaborate_functions(functions);
-            self.generics.truncate(old_generics_length);
+            self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
 
