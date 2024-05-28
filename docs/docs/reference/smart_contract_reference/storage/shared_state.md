@@ -42,7 +42,7 @@ There is a tradeoff between frequent and infrequent epochs: frequent epochs mean
 
 :::note
 Shared state variables do not allow selection of the value change block number, but there are plans to make this configurable.
-:::note
+:::
 
 Note that wallets can also warn users that a value change will soon take place and that sending a transaction at that time might result in reduced privacy, allowing them to choose to wait until after the epoch.
 
