@@ -140,47 +140,6 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_function_ids
 }
 
-/// Recursively explore the SSA to find the functions where we enter a brillig context.
-fn find_entry_points_to_brillig_context(
-    ssa: &Ssa,
-    current_function: FunctionId,
-    explored_functions: &mut HashSet<FunctionId>,
-    entry_points: &mut BTreeSet<FunctionId>,
-) {
-    if !explored_functions.insert(current_function) {
-        return;
-    }
-
-    let function = &ssa.functions[&current_function];
-    if function.runtime() == RuntimeType::Brillig {
-        entry_points.insert(current_function);
-        return;
-    }
-
-    let called_functions = called_functions(function);
-
-    for called_function in called_functions {
-        find_entry_points_to_brillig_context(
-            ssa,
-            called_function,
-            explored_functions,
-            entry_points,
-        );
-    }
-}
-
-fn find_all_entry_points_to_brillig_context(ssa: &Ssa) -> BTreeSet<FunctionId> {
-    let mut explored_functions = HashSet::default();
-    let mut entry_points = BTreeSet::default();
-    find_entry_points_to_brillig_context(
-        ssa,
-        ssa.main_id,
-        &mut explored_functions,
-        &mut entry_points,
-    );
-    entry_points
-}
-
 // Recursively explore the SSA to find the functions that end up calling themselves
 fn find_recursive_functions(
     ssa: &Ssa,
@@ -229,10 +188,30 @@ fn get_functions_to_inline_into(
     ssa: &Ssa,
     no_predicates_is_entry_point: bool,
 ) -> BTreeSet<FunctionId> {
-    let brillig_entry_points = find_all_entry_points_to_brillig_context(ssa);
-    let functions = ssa.functions.iter();
+    let brillig_entry_points: BTreeSet<_> = ssa
+        .functions
+        .iter()
+        .flat_map(|(_, function)| {
+            if function.runtime() != RuntimeType::Brillig {
+                called_functions(function)
+                    .into_iter()
+                    .filter(|called_function_id| {
+                        ssa.functions
+                            .get(called_function_id)
+                            .expect("Function should exist in SSA")
+                            .runtime()
+                            == RuntimeType::Brillig
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
+        })
+        .collect();
 
-    let acir_entry_points: BTreeSet<_> = functions
+    let acir_entry_points: BTreeSet<_> = ssa
+        .functions
+        .iter()
         .filter(|(_, function)| {
             // If we have not already finished the flattening pass, functions marked
             // to not have predicates should be marked as entry points.

@@ -28,8 +28,12 @@ impl Ssa {
 
 #[derive(Debug, Default)]
 struct RuntimeSeparatorContext {
+    // Original functions to clone to brillig
     acir_functions_called_from_brillig: BTreeSet<FunctionId>,
+    // Tracks the original => cloned version
     mapped_functions: HashMap<FunctionId, FunctionId>,
+    // Some original functions might not be called from ACIR at all, we store the ones that are to delete the others.
+    mapped_functions_called_from_acir: HashSet<FunctionId>,
 }
 
 impl RuntimeSeparatorContext {
@@ -44,17 +48,15 @@ impl RuntimeSeparatorContext {
             false,
             &mut processed_functions,
         );
+
         // Now we clone the relevant acir functions and change their runtime to brillig
         runtime_separator.convert_acir_functions_called_from_brillig_to_brillig(ssa);
 
-        // Now we update any calls within a brillig context to the mapped functions exploring the SSA recursively
-        let mut processed_functions = HashSet::default();
-        runtime_separator.replace_calls_to_mapped_functions(
-            ssa,
-            ssa.main_id,
-            false,
-            &mut processed_functions,
-        );
+        // Now we update any calls within a brillig context to the mapped functions
+        runtime_separator.replace_calls_to_mapped_functions(ssa);
+
+        // Some functions might be unreachable now (for example an acir function only called from brillig)
+        prune_unreachable_functions(ssa);
     }
 
     fn collect_acir_functions_called_from_brillig(
@@ -107,49 +109,20 @@ impl RuntimeSeparatorContext {
         }
     }
 
-    fn replace_calls_to_mapped_functions(
-        &mut self,
-        ssa: &mut Ssa,
-        current_func_id: FunctionId,
-        mut within_brillig: bool,
-        processed_functions: &mut HashSet<FunctionId>,
-    ) {
-        // Processed functions no longer needs the within brillig flag since we've already cloned the acir functions called from brillig
-        if processed_functions.contains(&current_func_id) {
-            return;
-        }
-        processed_functions.insert(current_func_id);
-
-        let func = ssa.functions.get_mut(&current_func_id).expect("Function should exist in SSA");
-        if func.runtime() == RuntimeType::Brillig {
-            within_brillig = true;
-        }
-
-        let called_functions_values = called_functions_values(func);
-
-        // If we are within brillig, swap the called functions with the mapped functions
-        if within_brillig {
-            for called_func_value_id in called_functions_values.iter() {
-                let Value::Function(called_func_id) = &func.dfg[*called_func_value_id] else {
-                    unreachable!("Value should be a function")
-                };
-                if let Some(mapped_func_id) = self.mapped_functions.get(called_func_id) {
-                    let new_target_value = Value::Function(*mapped_func_id);
-                    let mapped_value_id = func.dfg.make_value(new_target_value);
-                    func.dfg.set_value_from_id(*called_func_value_id, mapped_value_id);
+    fn replace_calls_to_mapped_functions(&mut self, ssa: &mut Ssa) {
+        for (_function_id, func) in ssa.functions.iter_mut() {
+            if func.runtime() == RuntimeType::Brillig {
+                for called_func_value_id in called_functions_values(func).iter() {
+                    let Value::Function(called_func_id) = &func.dfg[*called_func_value_id] else {
+                        unreachable!("Value should be a function")
+                    };
+                    if let Some(mapped_func_id) = self.mapped_functions.get(called_func_id) {
+                        let new_target_value = Value::Function(*mapped_func_id);
+                        let mapped_value_id = func.dfg.make_value(new_target_value);
+                        func.dfg.set_value_from_id(*called_func_value_id, mapped_value_id);
+                    }
                 }
             }
-        }
-
-        // Get the called functions again after the replacements
-        let called_functions = called_functions(func);
-        for called_func_id in called_functions.into_iter() {
-            self.replace_calls_to_mapped_functions(
-                ssa,
-                called_func_id,
-                within_brillig,
-                processed_functions,
-            );
         }
     }
 }
@@ -182,4 +155,29 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
             func_id
         })
         .collect()
+}
+
+fn collect_reachable_functions(
+    ssa: &Ssa,
+    current_func_id: FunctionId,
+    reachable_functions: &mut HashSet<FunctionId>,
+) {
+    if reachable_functions.contains(&current_func_id) {
+        return;
+    }
+    reachable_functions.insert(current_func_id);
+
+    let func = ssa.functions.get(&current_func_id).expect("Function should exist in SSA");
+    let called_functions = called_functions(func);
+
+    for called_func_id in called_functions.iter() {
+        collect_reachable_functions(ssa, *called_func_id, reachable_functions);
+    }
+}
+
+fn prune_unreachable_functions(ssa: &mut Ssa) {
+    let mut reachable_functions = HashSet::default();
+    collect_reachable_functions(ssa, ssa.main_id, &mut reachable_functions);
+
+    ssa.functions.retain(|id, _value| reachable_functions.contains(id));
 }
