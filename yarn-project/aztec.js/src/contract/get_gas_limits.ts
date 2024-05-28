@@ -6,8 +6,10 @@ import { Gas } from '@aztec/circuits.js';
  * Note that public gas usage is only accounted for if the publicOutput is present.
  * @param pad - Percentage to pad the suggested gas limits by, defaults to 10%.
  */
-export function getGasLimits(simulatedTx: SimulatedTx, pad = 0.1) {
-  const privateGasUsed = simulatedTx.tx.data.publicInputs.end.gasUsed;
+export function getGasLimits(simulatedTx: SimulatedTx, simulationTeardownGasLimits: Gas, pad = 0.1) {
+  const privateGasUsed = simulatedTx.tx.data.publicInputs.end.gasUsed
+    .sub(simulationTeardownGasLimits)
+    .add(simulatedTx.tx.data.forPublic?.endNonRevertibleData.gasUsed ?? Gas.empty());
   if (simulatedTx.publicOutput) {
     const publicGasUsed = Object.values(simulatedTx.publicOutput.gasUsed)
       .filter(Boolean)
@@ -19,6 +21,5 @@ export function getGasLimits(simulatedTx: SimulatedTx, pad = 0.1) {
       teardownGas: teardownGas.mul(1 + pad),
     };
   }
-
   return { totalGas: privateGasUsed.mul(1 + pad), teardownGas: Gas.empty() };
 }
