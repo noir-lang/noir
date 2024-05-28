@@ -189,8 +189,12 @@ impl<'a> ModCollector<'a> {
                 object_type: trait_impl.object_type,
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
-                trait_id: None, // will be filled later
                 trait_generics: trait_impl.trait_generics,
+
+                // These last fields are filled later on
+                trait_id: None,
+                impl_id: None,
+                resolved_object_type: None,
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -509,6 +513,7 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
+            context.def_interner.push_empty_trait(trait_id, &unresolved);
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors
