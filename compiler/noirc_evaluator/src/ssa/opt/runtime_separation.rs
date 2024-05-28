@@ -12,7 +12,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This SSA step separates the runtime of the functions in the SSA.
+    /// This optimization step separates the runtime of the functions in the SSA.
     /// After this step, all functions with runtime `Acir` will be converted to Acir and
     /// the functions with runtime `Brillig` will be converted to Brillig.
     /// It does so by cloning all ACIR functions called from a Brillig context
@@ -32,8 +32,6 @@ struct RuntimeSeparatorContext {
     acir_functions_called_from_brillig: BTreeSet<FunctionId>,
     // Tracks the original => cloned version
     mapped_functions: HashMap<FunctionId, FunctionId>,
-    // Some original functions might not be called from ACIR at all, we store the ones that are to delete the others.
-    mapped_functions_called_from_acir: HashSet<FunctionId>,
 }
 
 impl RuntimeSeparatorContext {
