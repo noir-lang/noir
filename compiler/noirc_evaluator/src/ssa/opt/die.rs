@@ -112,7 +112,7 @@ impl Context {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else {
-            // TODO: Gross hack for std::as_witness
+            // TODO: make this more general for instructions which don't have side effects but have side effects "sometimes" like `Intrinsic::AsWitness`
             let Instruction::Call { func, arguments } = instruction else {
                 return false;
             };
