@@ -224,13 +224,12 @@ fn get_functions_to_inline_into(
         .collect();
 
     let brillig_recursive_functions: BTreeSet<_> = find_all_recursive_functions(ssa)
-        .iter()
+        .into_iter()
         .filter(|recursive_function_id| {
             let function =
                 ssa.functions.get(recursive_function_id).expect("Function should exist in SSA");
             function.runtime() == RuntimeType::Brillig
         })
-        .copied()
         .collect();
 
     std::iter::once(ssa.main_id)
