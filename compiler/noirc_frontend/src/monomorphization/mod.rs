@@ -17,7 +17,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, ArithConstraints, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };

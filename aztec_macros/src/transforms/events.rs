@@ -11,7 +11,6 @@ use noirc_frontend::{
         NoirStruct, PathKind, StatementKind, StructId, StructType, Type, TypeImpl,
         UnresolvedTypeData,
     },
-    node_interner::ArithConstraints,
     token::SecondaryAttribute,
 };
 

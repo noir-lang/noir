@@ -12,7 +12,7 @@ pub enum MonomorphizationError {
     #[error("Type annotations needed")]
     TypeAnnotationsNeeded { location: Location },
 
-    #[error("Failed to proved generic arithmetic equivalent {error:?}")]
+    #[error("Failed to prove generic arithmetic equivalent:\n{error}")]
     ArithConstraintError { error: ArithConstraintError },
 }
 
@@ -24,12 +24,20 @@ impl MonomorphizationError {
             MonomorphizationError::ArithConstraintError { error } => error.location(),
         }
     }
+
+    fn other_locations(&self) -> Vec<Location> {
+        match self {
+            MonomorphizationError::UnknownArrayLength { .. }
+            | MonomorphizationError::TypeAnnotationsNeeded { .. } => vec![],
+            MonomorphizationError::ArithConstraintError { error } => error.other_locations(),
+        }
+    }
 }
 
 impl From<MonomorphizationError> for FileDiagnostic {
     fn from(error: MonomorphizationError) -> FileDiagnostic {
         let location = error.location();
-        let call_stack = vec![location];
+        let call_stack: Vec<_> = std::iter::once(location).chain(error.other_locations()).collect();
         let diagnostic = error.into_diagnostic();
         diagnostic.in_file(location.file).with_call_stack(call_stack)
     }

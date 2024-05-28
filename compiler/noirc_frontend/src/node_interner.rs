@@ -302,6 +302,19 @@ pub struct ArithConstraint {
 }
 
 impl ArithConstraint {
+
+
+    // TODO: relocate
+    fn evaluate_generics_to_u64(generics: &Vec<Type>, location: &Location) -> Result<HashMap<Type, u64>, ArithConstraintError> {
+        // TODO: cloned needed still?
+        generics.iter().cloned().map(|generic| {
+            match generic.evaluate_to_u64() {
+                Some(result) => Ok((generic.clone(), result)),
+                None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *location }),
+            }
+        }).collect::<Result<HashMap<_,_>, _>>()
+    }
+
     // TODO: better errors
     pub fn validate(&self, interner: &NodeInterner) -> Result<(), ArithConstraintError> {
         // TODO: cleanup
@@ -309,38 +322,80 @@ impl ArithConstraint {
         let (lhs_expr, lhs_location) = interner.get_arithmetic_expression(self.lhs);
         let (rhs_expr, rhs_location) = interner.get_arithmetic_expression(self.rhs);
 
-        let lhs_generics = self.lhs_generics.iter().cloned().map(|generic| {
-            match generic.evaluate_to_u64() {
-                Some(result) => Ok((generic.clone(), result)),
-                None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *lhs_location }),
+        // // simply ensure expressions are equivalent
+        // if self.lhs_generics == self.rhs_generics {
+        //
+        //     _
+        // }
+
+        dbg!("validating: loading", &self.lhs_generics, &self.rhs_generics);
+        // let lhs_generics = self.lhs_generics.iter().cloned().map(|generic| {
+        //     match generic.evaluate_to_u64() {
+        //         Some(result) => Ok((generic.clone(), result)),
+        //         None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *lhs_location }),
+        //     }
+        // }).collect::<Result<HashMap<_,_>, _>>()?;
+        //
+        // let rhs_generics = self.rhs_generics.iter().cloned().map(|generic| {
+        //     match generic.evaluate_to_u64() {
+        //         Some(result) => Ok((generic.clone(), result)),
+        //         None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *rhs_location }),
+        //     }
+        // }).collect::<Result<HashMap<_,_>, _>>()?;
+
+        match Self::evaluate_generics_to_u64(&self.lhs_generics, lhs_location).and_then(|lhs_generics| {
+            let rhs_generics= Self::evaluate_generics_to_u64(&self.rhs_generics, rhs_location)?;
+            Ok((lhs_generics, rhs_generics))
+        }) {
+            Ok((lhs_generics, rhs_generics)) => {
+                // all generics resolved
+
+                // TODO: cleanup
+                dbg!("validating: loaded", &lhs_generics, &rhs_generics);
+
+                match (lhs_expr.evaluate(&lhs_generics), rhs_expr.evaluate(&rhs_generics)) {
+                    (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
+                        if lhs_evaluated == rhs_evaluated {
+                            // TODO: cleanup
+                            dbg!("validating: evaluated", &lhs_evaluated, &rhs_evaluated);
+
+                            Ok(())
+                        } else {
+                            Err(ArithConstraintError::EvaluatedToDifferentValues { lhs_evaluated, rhs_evaluated, location: *rhs_location, other_location: *lhs_location })
+                        }
+                    }
+                    (lhs_expr, rhs_expr) => {
+                        Err(ArithConstraintError::FailedToEvaluate { lhs_expr, rhs_expr, location: *rhs_location, other_location: *lhs_location })
+                    }
+                }
+
             }
-        }).collect::<Result<HashMap<_,_>, _>>()?;
+            Err(err_result) => {
+                if self.lhs_generics == self.rhs_generics {
 
-        let rhs_generics = self.rhs_generics.iter().cloned().map(|generic| {
-            match generic.evaluate_to_u64() {
-                Some(result) => Ok((generic.clone(), result)),
-                None => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *rhs_location }),
-            }
-        }).collect::<Result<HashMap<_,_>, _>>()?;
-        
-        // TODO: cleanup
-        dbg!("validating: loaded", &lhs_generics, &rhs_generics);
+                    // dbg!(lhs_expr);
+                    // dbg!(rhs_expr);
+                    // panic!("ok!")
 
-        match (lhs_expr.evaluate(&lhs_generics), rhs_expr.evaluate(&rhs_generics)) {
-            (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
-                if lhs_evaluated == rhs_evaluated {
-                    // TODO: cleanup
-                    dbg!("validating: evaluated", &lhs_evaluated, &rhs_evaluated);
+                    if lhs_expr == rhs_expr {
+                        Ok(())
+                    } else {
+                        Err(ArithConstraintError::DistinctExpressions {
+                            lhs_expr: lhs_expr.clone(),
+                            rhs_expr: rhs_expr.clone(),
+                            generics: self.lhs_generics.clone(),
+                            location: *lhs_location,
+                            other_location: *rhs_location
+                        })
+                    }
 
-                    Ok(())
                 } else {
-                    Err(ArithConstraintError::EvaluatedToDifferentValues { lhs_evaluated, rhs_evaluated, location: *rhs_location })
+                    // unresolved generics are preventing resolution
+                    Err(err_result)
                 }
             }
-            (lhs_expr, rhs_expr) => {
-                Err(ArithConstraintError::FailedToEvaluate { lhs_expr, rhs_expr, location: *rhs_location })
-            }
         }
+
     }
 }
 
@@ -348,17 +403,20 @@ pub type ArithConstraints = RefCell<Vec<ArithConstraint>>;
 
 
 // TODO relocate/cleanup
+// TODO add proper messages
 #[derive(Debug, thiserror::Error)]
 pub enum ArithConstraintError {
     UnresolvedGeneric { generic: Type, location: Location },
-    EvaluatedToDifferentValues { lhs_evaluated: u64, rhs_evaluated: u64, location: Location },
-    FailedToEvaluate { lhs_expr: Result<u64, (TypeVariable, String)>, rhs_expr: Result<u64, (TypeVariable, String)>, location: Location },
+    EvaluatedToDifferentValues { lhs_evaluated: u64, rhs_evaluated: u64, location: Location, other_location: Location },
+    FailedToEvaluate { lhs_expr: Result<u64, (TypeVariable, String)>, rhs_expr: Result<u64, (TypeVariable, String)>, location: Location, other_location: Location },
+    DistinctExpressions { lhs_expr: ArithExpr, rhs_expr: ArithExpr, generics: Vec<Type>, location: Location, other_location: Location }
 }
 
 impl std::fmt::Display for ArithConstraintError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::UnresolvedGeneric { generic, .. } => {
+                // TODO: better error message
                 if let Type::NamedGeneric(_, name) = generic {
                     write!(f, "Unresolved generic value: {}", name)
                 } else {
@@ -366,11 +424,17 @@ impl std::fmt::Display for ArithConstraintError {
                 }
             }
             Self::EvaluatedToDifferentValues { lhs_evaluated, rhs_evaluated, .. } => {
+                // TODO: better error message
                 write!(f, "Generic arithmetic evaluated to different values: {} != {}", lhs_evaluated, rhs_evaluated)
             }
             Self::FailedToEvaluate { lhs_expr, rhs_expr, .. } => {
                 // TODO: better error message (this prints Result's)
                 write!(f, "Generic arithmetic evaluated differently: {:?} != {:?}", lhs_expr, rhs_expr)
+            }
+            Self::DistinctExpressions { lhs_expr, rhs_expr, generics, .. } => {
+                // TODO: better error message (this prints Result's)
+                // TODO: pretty print ArithExpr's
+                write!(f, "Generic arithmetic appears to be distinct: {:?} != {:?}, where the arguments are: {:?}", lhs_expr, rhs_expr, generics)
             }
         }
     }
@@ -383,7 +447,17 @@ impl ArithConstraintError {
         match self {
             Self::UnresolvedGeneric { location, .. }
             | Self::EvaluatedToDifferentValues { location, .. }
-            | Self::FailedToEvaluate { location, .. } => *location,
+            | Self::FailedToEvaluate { location, .. }
+            | Self::DistinctExpressions { location, .. } => *location,
+        }
+    }
+
+    pub fn other_locations(&self) -> Vec<Location> {
+        match self {
+            Self::UnresolvedGeneric { .. } => vec![],
+            Self::EvaluatedToDifferentValues { other_location, .. }
+            | Self::FailedToEvaluate { other_location, .. }
+            | Self::DistinctExpressions { other_location, .. } => vec![*other_location],
         }
     }
 }
