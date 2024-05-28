@@ -6,8 +6,8 @@ use crate::default::Default;
 // A config struct defining the parameters of the Poseidon instance to use.
 //
 // A thorough writeup of this method (along with an unoptimized method) can be found at: https://spec.filecoin.io/algorithms/crypto/poseidon/
-struct PoseidonConfig<M, N, X> { 
-    // State width, should be equal to `M`
+struct PoseidonConfig<T, N, X> { 
+    // State width, should be equal to `T`
     t: Field,
     // Number of full rounds. should be even
     rf: u8,
@@ -18,36 +18,36 @@ struct PoseidonConfig<M, N, X> {
     // The round constants for the
     round_constants: [Field; N],
     // The MDS matrix for the Poseidon instance
-    mds: [[Field; M]; M],
+    mds: [[Field; T]; T],
     // An MDS matrix which also applies a basis transformation which allows
     // sparse matrices to be used for the partial rounds.
     //
     // This should be applied instead of `mds` in the final full round.
-    presparse_mds: [[Field; M]; M],
+    presparse_mds: [[Field; T]; T],
     // A set of sparse matrices used for MDS mixing for the partial rounds.
     sparse_mds: [Field; X],
 }
 
-pub fn config<M, N, X>(
+pub fn config<T, N, X>(
     t: Field,
     rf: u8,
     rp: u8,
     alpha: Field,
     round_constants: [Field; N],
-    mds: [[Field; M]; M],
-    presparse_mds: [[Field; M]; M],
+    mds: [[Field; T]; T],
+    presparse_mds: [[Field; T]; T],
     sparse_mds: [Field; X]
-) -> PoseidonConfig<M, N, X> {
+) -> PoseidonConfig<T, N, X> {
     // Input checks
     assert_eq(rf & 1, 0);
     assert_eq((t as u8) * rf + rp, N);
-    assert_eq(t, M);
+    assert_eq(t, T);
     assert(alpha != 0);
 
     PoseidonConfig { t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds }
 }
 
-pub fn permute<M, N, X>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field; M]) -> [Field; M] {
+pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]) -> [Field; T] {
     let PoseidonConfig {t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds } = pos_conf;
 
     for i in 0..state.len() {
@@ -56,41 +56,40 @@ pub fn permute<M, N, X>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field; M]
 
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
-        for i in 0..state.len() {
-            state[i] = state[i] + round_constants[state.len() * (_r + 1) as u64 + i as u64];
+        for i in 0..T {
+            state[i] = state[i] + round_constants[T * (_r + 1) as u64 + i];
         }
         state = apply_matrix(mds, state);
     }
 
 
     state = sigma(state);
-    for i in 0..state.len() {
-        state[i] = state[i] + round_constants[state.len() * (rf / 2) as u64 + i as u64];
+    for i in 0..T {
+        state[i] = state[i] + round_constants[T * (rf / 2) as u64 + i];
     }
     state = apply_matrix(presparse_mds, state);
 
 
-    for i in 0..state.len() {
+    for i in 0..T {
         crate::as_witness(state[i]);
     }
 
     for _r in 0..rp {
         state[0] = state[0].pow_32(alpha);
-        state[0] += round_constants[(rf/2 + 1) as u64 * state.len() as u64 + _r as u64];
+        state[0] += round_constants[(rf/2 + 1) as u64 * T + _r as u64];
         crate::as_witness(state[0]);
         {
             let mut newState0 = 0;
-            for j in 0..state.len() {
-                let mul = sparse_mds[(state.len() * 2 - 1) * _r as u64 + j as u64] * state[j];
-                newState0 += mul;
+            for j in 0..T {
+                newState0 += sparse_mds[(T * 2 - 1) * _r as u64 + j as u64] * state[j];
             }
-            for k in 1..state.len() {
-                state[k] = state[k] + state[0] * sparse_mds[(t * 2 - 1) as u64 * _r as u64 + state.len() + k - 1];
+            for k in 1..T {
+                state[k] = state[k] + state[0] * sparse_mds[(t * 2 - 1) as u64 * _r as u64 + T + k - 1];
             }
             state[0] = newState0;
 
             if (_r & 1 == 0) {
-                for k in 1..state.len() {
+                for k in 1..T {
                     crate::as_witness(state[k]);
                 }
             }
@@ -100,7 +99,7 @@ pub fn permute<M, N, X>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field; M]
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..state.len() {
-            state[i] = state[i] + round_constants[(rf/2+1) as u64 * (state.len()) as u64 + rp as u64 + _r as u64 *state.len() as u64 + i as u64];
+            state[i] = state[i] + round_constants[(rf/2+1) as u64 * T + rp as u64 + (_r as u64) * T + i];
         }
         state = apply_matrix(mds, state);
     }
@@ -126,14 +125,14 @@ fn apply_matrix<N>(matrix: [[Field; N]; N], vec: [Field; N]) -> [Field; N] {
 }
 
 // Corresponding absorption.
-fn absorb<M, N, X, O>(
-    pos_conf: PoseidonConfig<M, N, X>,
+fn absorb<T, N, X, O>(
+    pos_conf: PoseidonConfig<T, N, X>,
     // Initial state; usually [0; O]
-    mut state: [Field; M], 
+    mut state: [Field; T], 
     rate: Field,
     capacity: Field,
     msg: [Field; O] // Arbitrary length message
-) -> [Field; M] {
+) -> [Field; T] {
     assert_eq(pos_conf.t, rate + capacity);
 
     let mut i = 0;
