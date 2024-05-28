@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use log::debug;
 
 use acvm::acir::brillig::Opcode as BrilligOpcode;
@@ -11,7 +12,7 @@ use crate::instructions::AvmInstruction;
 /// pointer opcode in ACIR that fetches those unconstrained functions from the main list.
 /// This function just extracts Brillig bytecode, with the assumption that the
 /// 0th unconstrained function in the full `Program` structure.
-pub fn extract_brillig_from_acir_program(program: &Program) -> &[BrilligOpcode] {
+pub fn extract_brillig_from_acir_program(program: &Program<FieldElement>) -> &[BrilligOpcode<FieldElement>] {
     assert_eq!(
         program.functions.len(),
         1,
@@ -37,7 +38,7 @@ pub fn extract_brillig_from_acir_program(program: &Program) -> &[BrilligOpcode] 
 }
 
 /// Print inputs, outputs, and instructions in a Brillig program
-pub fn dbg_print_brillig_program(brillig_bytecode: &[BrilligOpcode]) {
+pub fn dbg_print_brillig_program(brillig_bytecode: &[BrilligOpcode<FieldElement>]) {
     debug!("Printing Brillig program...");
     for (i, instruction) in brillig_bytecode.iter().enumerate() {
         debug!("\tPC:{0} {1:?}", i, instruction);

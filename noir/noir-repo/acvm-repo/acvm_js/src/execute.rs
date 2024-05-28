@@ -2,12 +2,12 @@ use std::{future::Future, pin::Pin};
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::ResolvedAssertionPayload;
-use acvm::BlackBoxFunctionSolver;
 use acvm::{
     acir::circuit::{Circuit, Program},
     acir::native_types::{WitnessMap, WitnessStack},
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
 use js_sys::Error;
@@ -56,7 +56,7 @@ pub async fn execute_circuit_with_return_witness(
 ) -> Result<JsSolvedAndReturnWitness, Error> {
     console_error_panic_hook::set_once();
 
-    let program: Program = Program::deserialize_program(&program)
+    let program: Program<FieldElement> = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None, None))?;
 
     let mut witness_stack = execute_program_with_native_program_and_return(
@@ -101,8 +101,8 @@ async fn execute_program_with_native_type_return(
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
-) -> Result<WitnessStack, Error> {
-    let program: Program = Program::deserialize_program(&program)
+) -> Result<WitnessStack<FieldElement>, Error> {
+    let program: Program<FieldElement> = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new(
         "Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), 
         None,
@@ -113,10 +113,10 @@ async fn execute_program_with_native_type_return(
 }
 
 async fn execute_program_with_native_program_and_return(
-    program: &Program,
+    program: &Program<FieldElement>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
-) -> Result<WitnessStack, Error> {
+) -> Result<WitnessStack<FieldElement>, Error> {
     let blackbox_solver = Bn254BlackBoxSolver;
     let executor = ProgramExecutor::new(
         &program.functions,
@@ -129,20 +129,20 @@ async fn execute_program_with_native_program_and_return(
     Ok(witness_stack)
 }
 
-struct ProgramExecutor<'a, B: BlackBoxFunctionSolver> {
-    functions: &'a [Circuit],
+struct ProgramExecutor<'a, B: BlackBoxFunctionSolver<FieldElement>> {
+    functions: &'a [Circuit<FieldElement>],
 
-    unconstrained_functions: &'a [BrilligBytecode],
+    unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 
     blackbox_solver: &'a B,
 
     foreign_call_handler: &'a ForeignCallHandler,
 }
 
-impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
+impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
     fn new(
-        functions: &'a [Circuit],
-        unconstrained_functions: &'a [BrilligBytecode],
+        functions: &'a [Circuit<FieldElement>],
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
         blackbox_solver: &'a B,
         foreign_call_handler: &'a ForeignCallHandler,
     ) -> Self {
@@ -154,7 +154,10 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
         }
     }
 
-    async fn execute(&self, initial_witness: WitnessMap) -> Result<WitnessStack, Error> {
+    async fn execute(
+        &self,
+        initial_witness: WitnessMap<FieldElement>,
+    ) -> Result<WitnessStack<FieldElement>, Error> {
         let main = &self.functions[0];
 
         let mut witness_stack = WitnessStack::default();
@@ -165,10 +168,10 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
 
     fn execute_circuit(
         &'a self,
-        circuit: &'a Circuit,
-        initial_witness: WitnessMap,
-        witness_stack: &'a mut WitnessStack,
-    ) -> Pin<Box<dyn Future<Output = Result<WitnessMap, Error>> + 'a>> {
+        circuit: &'a Circuit<FieldElement>,
+        initial_witness: WitnessMap<FieldElement>,
+        witness_stack: &'a mut WitnessStack<FieldElement>,
+    ) -> Pin<Box<dyn Future<Output = Result<WitnessMap<FieldElement>, Error>> + 'a>> {
         Box::pin(async {
             let mut acvm = ACVM::new(
                 self.blackbox_solver,

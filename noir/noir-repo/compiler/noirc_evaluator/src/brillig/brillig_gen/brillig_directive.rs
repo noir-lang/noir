@@ -1,5 +1,6 @@
 use acvm::{
     acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode},
+    acir::AcirField,
     FieldElement,
 };
 

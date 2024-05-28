@@ -12,7 +12,7 @@ license.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-acvm.workspace = true
+acvm = { workspace = true, features = ["bn254"] }
 noirc_abi.workspace = true
 iter-extended.workspace = true
 wasm-bindgen.workspace = true

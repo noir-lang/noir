@@ -324,6 +324,7 @@ dependencies = [
 name = "aztec_macros"
 version = "0.30.0"
 dependencies = [
+ "acvm",
  "convert_case",
  "iter-extended",
  "noirc_errors",

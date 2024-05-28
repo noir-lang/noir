@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
-use acvm::BlackBoxFunctionSolver;
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
@@ -31,7 +31,7 @@ use noirc_driver::CompiledProgram;
 
 type BreakpointId = i64;
 
-pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
+pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> {
     server: Server<R, W>,
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
@@ -57,14 +57,14 @@ impl From<i64> for ScopeReferences {
     }
 }
 
-impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
+impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<'a, R, W, B> {
     pub fn new(
         server: Server<R, W>,
         solver: &'a B,
-        circuit: &'a Circuit,
+        circuit: &'a Circuit<FieldElement>,
         debug_artifact: &'a DebugArtifact,
-        initial_witness: WitnessMap,
-        unconstrained_functions: &'a [BrilligBytecode],
+        initial_witness: WitnessMap<FieldElement>,
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let context = DebugContext::new(
             solver,
@@ -602,17 +602,13 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 }
 
-pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
+pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     server: Server<R, W>,
     solver: &B,
     program: CompiledProgram,
-    initial_witness: WitnessMap,
+    initial_witness: WitnessMap<FieldElement>,
 ) -> Result<(), ServerError> {
-    let debug_artifact = DebugArtifact {
-        debug_symbols: program.debug,
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
+    let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
     let mut session = DapSession::new(
         server,
         solver,

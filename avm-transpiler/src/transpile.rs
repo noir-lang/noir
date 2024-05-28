@@ -6,7 +6,7 @@ use acvm::acir::circuit::OpcodeLocation;
 use acvm::brillig_vm::brillig::{
     BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
 };
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::Location;
 
@@ -19,7 +19,7 @@ use crate::utils::{dbg_print_avm_program, dbg_print_brillig_program};
 
 /// Transpile a Brillig program to AVM bytecode
 pub fn brillig_to_avm(
-    brillig_bytecode: &[BrilligOpcode],
+    brillig_bytecode: &[BrilligOpcode<FieldElement>],
     brillig_pcs_to_avm_pcs: &Vec<usize>,
 ) -> Vec<u8> {
     dbg_print_brillig_program(brillig_bytecode);
@@ -838,7 +838,7 @@ fn handle_const(
     } else {
         // We can't fit a field in an instruction. This should've been handled in Brillig.
         let field = value;
-        if !field.fits_in_u128() {
+        if field.num_bits() > 128 {
             panic!("SET: Field value doesn't fit in 128 bits, that's not supported!");
         }
         avm_instrs.extend([
@@ -1250,7 +1250,7 @@ pub fn patch_debug_info_pcs(
 ///     brillig: the Brillig program
 /// returns: an array where each index is a Brillig pc,
 ///     and each value is the corresponding AVM pc.
-pub fn map_brillig_pcs_to_avm_pcs(brillig_bytecode: &[BrilligOpcode]) -> Vec<usize> {
+pub fn map_brillig_pcs_to_avm_pcs(brillig_bytecode: &[BrilligOpcode<FieldElement>]) -> Vec<usize> {
     let mut pc_map = vec![0; brillig_bytecode.len()];
 
     pc_map[0] = 0; // first PC is always 0 as there are no instructions inserted by AVM at start

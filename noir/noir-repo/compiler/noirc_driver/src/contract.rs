@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::acir::circuit::Program;
+use acvm::{acir::circuit::Program, FieldElement};
 use fm::FileId;
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_errors::debug_info::DebugInfo;
@@ -51,7 +51,7 @@ pub struct ContractFunction {
         serialize_with = "Program::serialize_program_base64",
         deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Program,
+    pub bytecode: Program<FieldElement>,
 
     pub debug: Vec<DebugInfo>,
 
