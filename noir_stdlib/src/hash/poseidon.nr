@@ -84,7 +84,7 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
                 newState0 += sparse_mds[(T * 2 - 1) * _r as u64 + j as u64] * state[j];
             }
             for k in 1..T {
-                state[k] = state[k] + state[0] * sparse_mds[(t * 2 - 1) as u64 * _r as u64 + T + k - 1];
+                state[k] += state[0] * sparse_mds[(t * 2 - 1) as u64 * _r as u64 + T + k - 1];
             }
             state[0] = newState0;
 
