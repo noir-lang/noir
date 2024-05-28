@@ -1,18 +1,15 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
 use crate::{
-    ast::{
-        ArrayLiteral, ConstructorExpression, FunctionKind, IfExpression, InfixExpression, Lambda,
-        TraitItem, UnresolvedTraitConstraint, UnresolvedTypeExpression,
-    },
+    ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
-                UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
+                UnresolvedStruct, UnresolvedTypeAlias,
             },
             errors::DuplicateType,
         },
@@ -20,17 +17,7 @@ use crate::{
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
     },
-    hir_def::{
-        expr::{
-            HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
-        },
-        function::Parameters,
-        stmt::HirLetStatement,
-        traits::TraitConstraint,
-    },
+    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
@@ -72,7 +59,6 @@ mod types;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_arena::Index;
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
@@ -251,8 +237,8 @@ impl<'context> Elaborator<'context> {
             this.elaborate_functions(functions);
         }
 
-        for ((typ, module), impls) in items.impls {
-            this.elaborate_impls(typ, module, impls);
+        for impls in items.impls.into_values() {
+            this.elaborate_impls(impls);
         }
 
         for trait_impl in items.trait_impls {
@@ -863,13 +849,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_impls(
-        &mut self,
-        typ: UnresolvedType,
-        module: LocalModuleId,
-        impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>,
-    ) {
-        for (generics, _, functions) in impls {
+    fn elaborate_impls(&mut self, impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>) {
+        for (_, _, functions) in impls {
             self.file = functions.file_id;
             let old_generics_length = self.generics.len();
             self.elaborate_functions(functions);
@@ -1006,7 +987,7 @@ impl<'context> Elaborator<'context> {
 
         let function_ids = functions.function_ids();
 
-        if let Type::Struct(struct_type, generics) = &self_type {
+        if let Type::Struct(struct_type, _) = &self_type {
             let struct_ref = struct_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
@@ -1301,7 +1282,6 @@ impl<'context> Elaborator<'context> {
             self.local_module = trait_impl.module_id;
 
             let unresolved_type = &trait_impl.object_type;
-            let self_type_span = unresolved_type.span;
             self.add_generics(&trait_impl.generics);
 
             let self_type = self.resolve_type(unresolved_type.clone());
