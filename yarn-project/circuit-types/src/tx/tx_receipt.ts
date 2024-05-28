@@ -66,6 +66,7 @@ export class TxReceipt {
       error: this.error,
       blockHash: this.blockHash?.toString('hex'),
       blockNumber: this.blockNumber,
+      transactionFee: this.transactionFee?.toString(),
     };
   }
 
@@ -78,7 +79,7 @@ export class TxReceipt {
     const txHash = TxHash.fromString(obj.txHash);
     const status = obj.status as TxStatus;
     const error = obj.error;
-    const transactionFee = obj.transactionFee;
+    const transactionFee = obj.transactionFee ? BigInt(obj.transactionFee) : undefined;
     const blockHash = obj.blockHash ? Buffer.from(obj.blockHash, 'hex') : undefined;
     const blockNumber = obj.blockNumber ? Number(obj.blockNumber) : undefined;
     return new TxReceipt(txHash, status, error, transactionFee, blockHash, blockNumber);

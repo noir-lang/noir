@@ -1,3 +1,4 @@
+import { randomBytes } from '@aztec/foundation/crypto';
 import { BufferReader, deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
 
 /**
@@ -104,5 +105,13 @@ export class TxHash {
    */
   public static fromString(str: string): TxHash {
     return new TxHash(Buffer.from(str, 'hex'));
+  }
+
+  /**
+   * Generates a random TxHash.
+   * @returns A new TxHash object.
+   */
+  public static random(): TxHash {
+    return new TxHash(Buffer.from(randomBytes(TxHash.SIZE)));
   }
 }
