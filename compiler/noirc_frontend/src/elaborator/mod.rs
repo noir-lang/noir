@@ -223,8 +223,8 @@ impl<'context> Elaborator<'context> {
         //
         // These are resolved after trait impls so that struct methods are chosen
         // over trait methods if there are name conflicts.
-        for ((typ, module), impls) in &mut items.impls {
-            this.collect_impls(typ, *module, impls);
+        for ((_self_type, module), impls) in &mut items.impls {
+            this.collect_impls(*module, impls);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
@@ -284,8 +284,6 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(id));
 
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
         self.trait_bounds = function.def.where_clause.clone();
 
         if function.def.is_unconstrained {
@@ -474,18 +472,6 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    fn resolve_local_globals(&mut self) {
-        let globals = vecmap(self.interner.get_all_globals(), |global| {
-            (global.id, global.local_id, global.ident.clone())
-        });
-        for (id, local_module_id, name) in globals {
-            if local_module_id == self.local_module {
-                let definition = DefinitionKind::Global(id);
-                self.add_global_variable_decl(name, definition);
-            }
-        }
-    }
-
     /// TODO: This is currently only respected for generic free functions
     /// there's a bunch of other places where trait constraints can pop up
     fn resolve_trait_constraints(
@@ -494,21 +480,20 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<TraitConstraint> {
         where_clause
             .iter()
-            .cloned()
             .filter_map(|constraint| self.resolve_trait_constraint(constraint))
             .collect()
     }
 
     pub fn resolve_trait_constraint(
         &mut self,
-        constraint: UnresolvedTraitConstraint,
+        constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
-        let typ = self.resolve_type(constraint.typ);
+        let typ = self.resolve_type(constraint.typ.clone());
         let trait_generics =
-            vecmap(constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ));
+            vecmap(&constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ.clone()));
 
         let span = constraint.trait_bound.trait_path.span();
-        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?;
+        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path.clone())?;
         let trait_id = the_trait.id;
 
         let expected_generics = the_trait.generics.len();
@@ -547,9 +532,6 @@ impl<'context> Elaborator<'context> {
 
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
-
-        // Check whether the function has globals in the local module and add them to the scope
-        self.resolve_local_globals();
 
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
@@ -864,39 +846,68 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
-        let unresolved_type = trait_impl.object_type;
-        let self_type_span = unresolved_type.span;
-        let old_generics_length = self.generics.len();
         self.generics = trait_impl.resolved_generics;
-
-        let trait_generics =
-            vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
-
-        let self_type = trait_impl.resolved_object_type.unwrap_or(Type::Error);
-        let impl_id =
-            trait_impl.impl_id.expect("An impls' id should be set during define_function_metas");
-
         self.current_trait_impl = trait_impl.impl_id;
 
-        let methods = trait_impl.methods.function_ids();
-
         self.elaborate_functions(trait_impl.methods);
+
+        self.self_type = None;
+        self.current_trait_impl = None;
+        self.generics.clear();
+    }
+
+    fn collect_impls(
+        &mut self,
+        module: LocalModuleId,
+        impls: &mut [(Vec<Ident>, Span, UnresolvedFunctions)],
+    ) {
+        self.local_module = module;
+
+        for (generics, span, unresolved) in impls {
+            self.file = unresolved.file_id;
+            let old_generic_count = self.generics.len();
+            self.add_generics(generics);
+            self.declare_methods_on_struct(false, unresolved, *span);
+            self.generics.truncate(old_generic_count);
+        }
+    }
+
+    fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
+        self.local_module = trait_impl.module_id;
+        self.file = trait_impl.file_id;
+        trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
+
+        let self_type = trait_impl.methods.self_type.clone();
+        let self_type =
+            self_type.expect("Expected struct type to be set before collect_trait_impl");
+
+        let self_type_span = trait_impl.object_type.span;
 
         if matches!(self_type, Type::MutableReference(_)) {
             let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
+        assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
+            self.collect_trait_impl_methods(trait_id, trait_impl);
+
+            let span = trait_impl.object_type.span.expect("All trait self types should have spans");
+            self.generics = trait_impl.resolved_generics.clone();
+            self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
+
+            let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
                 self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
             }
 
             let where_clause = trait_impl
                 .where_clause
-                .into_iter()
+                .iter()
                 .flat_map(|item| self.resolve_trait_constraint(item))
                 .collect();
+
+            let trait_generics = trait_impl.resolved_trait_generics.clone();
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_segment().clone(),
@@ -914,7 +925,7 @@ impl<'context> Elaborator<'context> {
                 self_type.clone(),
                 trait_id,
                 trait_generics,
-                impl_id,
+                trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
                 generics,
                 resolved_trait_impl,
             ) {
@@ -931,45 +942,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        self.self_type = None;
-        self.current_trait_impl = None;
-        self.generics.truncate(old_generics_length);
-    }
-
-    fn collect_impls(
-        &mut self,
-        self_type: &UnresolvedType,
-        module: LocalModuleId,
-        impls: &mut [(Vec<Ident>, Span, UnresolvedFunctions)],
-    ) {
-        self.local_module = module;
-
-        for (generics, span, unresolved) in impls {
-            self.file = unresolved.file_id;
-            self.recover_generics(|this| {
-                this.add_generics(generics);
-                this.declare_methods_on_struct(self_type, false, unresolved, *span);
-            });
-        }
-    }
-
-    fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
-        trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
-
-        if let Some(trait_id) = trait_impl.trait_id {
-            self.collect_trait_impl_methods(trait_id, trait_impl);
-
-            let span = trait_impl.object_type.span.expect("All trait self types should have spans");
-            let object_type = &trait_impl.object_type;
-
-            self.recover_generics(|this| {
-                this.add_generics(&trait_impl.generics);
-                trait_impl.resolved_generics = this.generics.clone();
-                this.declare_methods_on_struct(object_type, true, &mut trait_impl.methods, span);
-            });
-        }
+        self.generics.clear();
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
@@ -979,14 +952,13 @@ impl<'context> Elaborator<'context> {
 
     fn declare_methods_on_struct(
         &mut self,
-        self_type: &UnresolvedType,
         is_trait_impl: bool,
         functions: &mut UnresolvedFunctions,
         span: Span,
     ) {
-        let self_type = self.resolve_type(self_type.clone());
-
-        functions.self_type = Some(self_type.clone());
+        let self_type = functions.self_type.as_ref();
+        let self_type =
+            self_type.expect("Expected struct type to be set before declare_methods_on_struct");
 
         let function_ids = functions.function_ids();
 
@@ -1016,11 +988,11 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            self.declare_struct_methods(&self_type, &function_ids);
+            self.declare_struct_methods(self_type, &function_ids);
         // We can define methods on primitive types only if we're in the stdlib
-        } else if !is_trait_impl && self_type != Type::Error {
+        } else if !is_trait_impl && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
-                self.declare_struct_methods(&self_type, &function_ids);
+                self.declare_struct_methods(self_type, &function_ids);
             } else {
                 self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span });
             }
@@ -1145,8 +1117,8 @@ impl<'context> Elaborator<'context> {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
 
-        let object_crate = match self.resolve_type(trait_impl.object_type.clone()) {
-            Type::Struct(struct_type, _) => struct_type.borrow().id.krate(),
+        let object_crate = match &trait_impl.resolved_object_type {
+            Some(Type::Struct(struct_type, _)) => struct_type.borrow().id.krate(),
             _ => CrateId::Dummy,
         };
 
@@ -1163,7 +1135,6 @@ impl<'context> Elaborator<'context> {
         self.local_module = alias.module_id;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
-        self.resolve_local_globals();
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
@@ -1215,9 +1186,6 @@ impl<'context> Elaborator<'context> {
         self.recover_generics(|this| {
             let generics = this.add_generics(&unresolved.generics);
 
-            // Check whether the struct definition has globals in the local module and add them to the scope
-            this.resolve_local_globals();
-
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
@@ -1253,7 +1221,7 @@ impl<'context> Elaborator<'context> {
         let (let_statement, _typ) = self.elaborate_let(let_stmt);
 
         let statement_id = self.interner.get_global(global_id).let_statement;
-        self.interner.get_global_definition_mut(global_id).kind = definition_kind;
+        self.interner.get_global_definition_mut(global_id).kind = definition_kind.clone();
         self.interner.replace_statement(statement_id, let_statement);
     }
 
@@ -1286,6 +1254,11 @@ impl<'context> Elaborator<'context> {
 
             let unresolved_type = &trait_impl.object_type;
             self.add_generics(&trait_impl.generics);
+            trait_impl.resolved_generics = self.generics.clone();
+
+            let trait_generics =
+                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
+            trait_impl.resolved_trait_generics = trait_generics;
 
             let self_type = self.resolve_type(unresolved_type.clone());
 
