@@ -31,7 +31,7 @@ pub(crate) mod test {
 
     use super::*;
 
-    use acir::FieldElement;
+    use acir::{AcirField, FieldElement};
     use ark_std::One;
     use grumpkin::Fq;
 

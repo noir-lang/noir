@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path, vec};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_errors::Location;
 use num_bigint::BigUint;

@@ -42,7 +42,6 @@ tempfile.workspace = true
 lalrpop = "0.20.2"
 
 [features]
-default=["bn254"]
 experimental_parser = []
 bn254 = []
 bls12_381 = []

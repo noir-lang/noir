@@ -18,7 +18,7 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::brillig_vm::brillig::HeapVector;
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;

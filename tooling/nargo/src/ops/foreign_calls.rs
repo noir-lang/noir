@@ -1,7 +1,7 @@
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
-    FieldElement,
+    AcirField, FieldElement,
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
@@ -9,8 +9,8 @@ use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValue
 pub trait ForeignCallExecutor {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError>;
+        foreign_call: &ForeignCallWaitInfo<FieldElement>,
+    ) -> Result<ForeignCallResult<FieldElement>, ForeignCallError>;
 }
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
@@ -66,11 +66,11 @@ struct MockedCall {
     /// The oracle it's mocking
     name: String,
     /// Optionally match the parameters
-    params: Option<Vec<ForeignCallParam>>,
+    params: Option<Vec<ForeignCallParam<FieldElement>>>,
     /// The parameters with which the mock was last called
-    last_called_params: Option<Vec<ForeignCallParam>>,
+    last_called_params: Option<Vec<ForeignCallParam<FieldElement>>>,
     /// The result to return when this mock is called
-    result: ForeignCallResult,
+    result: ForeignCallResult<FieldElement>,
     /// How many times should this mock be called before it is removed
     times_left: Option<u64>,
 }
@@ -89,7 +89,7 @@ impl MockedCall {
 }
 
 impl MockedCall {
-    fn matches(&self, name: &str, params: &[ForeignCallParam]) -> bool {
+    fn matches(&self, name: &str, params: &[ForeignCallParam<FieldElement>]) -> bool {
         self.name == name && (self.params.is_none() || self.params.as_deref() == Some(params))
     }
 }
@@ -130,8 +130,8 @@ impl DefaultForeignCallExecutor {
 
 impl DefaultForeignCallExecutor {
     fn extract_mock_id(
-        foreign_call_inputs: &[ForeignCallParam],
-    ) -> Result<(usize, &[ForeignCallParam]), ForeignCallError> {
+        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
+    ) -> Result<(usize, &[ForeignCallParam<FieldElement>]), ForeignCallError> {
         let (id, params) =
             foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
         let id =
@@ -148,12 +148,14 @@ impl DefaultForeignCallExecutor {
         self.mocked_responses.iter_mut().find(|response| response.id == id)
     }
 
-    fn parse_string(param: &ForeignCallParam) -> String {
+    fn parse_string(param: &ForeignCallParam<FieldElement>) -> String {
         let fields: Vec<_> = param.fields().to_vec();
         decode_string_value(&fields)
     }
 
-    fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
+    fn execute_print(
+        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
+    ) -> Result<(), ForeignCallError> {
         let skip_newline = foreign_call_inputs[0].unwrap_field().is_zero();
 
         let foreign_call_inputs =
@@ -166,7 +168,7 @@ impl DefaultForeignCallExecutor {
     }
 
     fn format_printable_value(
-        foreign_call_inputs: &[ForeignCallParam],
+        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
         skip_newline: bool,
     ) -> Result<String, ForeignCallError> {
         let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
@@ -180,8 +182,8 @@ impl DefaultForeignCallExecutor {
 impl ForeignCallExecutor for DefaultForeignCallExecutor {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError> {
+        foreign_call: &ForeignCallWaitInfo<FieldElement>,
+    ) -> Result<ForeignCallResult<FieldElement>, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Print) => {
@@ -280,7 +282,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                     let response = external_resolver.send_request(req)?;
 
-                    let parsed_response: ForeignCallResult = response.result()?;
+                    let parsed_response: ForeignCallResult<FieldElement> = response.result()?;
 
                     Ok(parsed_response)
                 } else {
@@ -314,20 +316,32 @@ mod tests {
     #[rpc]
     pub trait OracleResolver {
         #[rpc(name = "echo")]
-        fn echo(&self, param: ForeignCallParam) -> RpcResult<ForeignCallResult>;
+        fn echo(
+            &self,
+            param: ForeignCallParam<FieldElement>,
+        ) -> RpcResult<ForeignCallResult<FieldElement>>;
 
         #[rpc(name = "sum")]
-        fn sum(&self, array: ForeignCallParam) -> RpcResult<ForeignCallResult>;
+        fn sum(
+            &self,
+            array: ForeignCallParam<FieldElement>,
+        ) -> RpcResult<ForeignCallResult<FieldElement>>;
     }
 
     struct OracleResolverImpl;
 
     impl OracleResolver for OracleResolverImpl {
-        fn echo(&self, param: ForeignCallParam) -> RpcResult<ForeignCallResult> {
+        fn echo(
+            &self,
+            param: ForeignCallParam<FieldElement>,
+        ) -> RpcResult<ForeignCallResult<FieldElement>> {
             Ok(vec![param].into())
         }
 
-        fn sum(&self, array: ForeignCallParam) -> RpcResult<ForeignCallResult> {
+        fn sum(
+            &self,
+            array: ForeignCallParam<FieldElement>,
+        ) -> RpcResult<ForeignCallResult<FieldElement>> {
             let mut res: FieldElement = 0_usize.into();
 
             for value in array.fields() {

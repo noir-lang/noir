@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};

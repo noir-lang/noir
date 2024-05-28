@@ -23,10 +23,7 @@ pub use build_info::build_info;
 pub use compression::{
     compress_witness, compress_witness_stack, decompress_witness, decompress_witness_stack,
 };
-pub use execute::{
-    create_black_box_solver, execute_circuit, execute_circuit_with_black_box_solver,
-    execute_circuit_with_return_witness, execute_program, execute_program_with_black_box_solver,
-};
+pub use execute::{execute_circuit, execute_circuit_with_return_witness, execute_program};
 pub use js_execution_error::JsExecutionError;
 pub use js_witness_map::JsSolvedAndReturnWitness;
 pub use js_witness_map::JsWitnessMap;
