@@ -5,19 +5,20 @@
 
 use num_bigint::BigUint;
 use num_traits::Num;
+mod generic_ark;
+
+pub use generic_ark::AcirField;
+
+/// Temporarily exported generic field to aid migration to `AcirField`
+pub use generic_ark::FieldElement as GenericFieldElement;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "bn254")] {
-        mod generic_ark;
-        pub type FieldElement = generic_ark::FieldElement<ark_bn254::Fr>;
-        pub const CHOSEN_FIELD : FieldOptions = FieldOptions::BN254;
-
-    } else if #[cfg(feature = "bls12_381")] {
-        mod generic_ark;
+    if #[cfg(feature = "bls12_381")] {
         pub type FieldElement = generic_ark::FieldElement<ark_bls12_381::Fr>;
         pub const CHOSEN_FIELD : FieldOptions = FieldOptions::BLS12_381;
     } else {
-        compile_error!("please specify a field to compile with");
+        pub type FieldElement = generic_ark::FieldElement<ark_bn254::Fr>;
+        pub const CHOSEN_FIELD : FieldOptions = FieldOptions::BN254;
     }
 }
 

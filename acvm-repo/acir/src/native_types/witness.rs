@@ -1,9 +1,4 @@
-use std::ops::Add;
-
-use acir_field::FieldElement;
 use serde::{Deserialize, Serialize};
-
-use super::Expression;
 
 // Witness might be a misnomer. This is an index that represents the position a witness will take
 #[derive(
@@ -31,13 +26,5 @@ impl Witness {
 impl From<u32> for Witness {
     fn from(value: u32) -> Self {
         Self(value)
-    }
-}
-
-impl Add<Witness> for Witness {
-    type Output = Expression;
-
-    fn add(self, rhs: Witness) -> Self::Output {
-        Expression::from(self).add_mul(FieldElement::one(), &Expression::from(rhs))
     }
 }

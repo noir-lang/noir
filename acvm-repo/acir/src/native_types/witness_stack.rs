@@ -20,28 +20,28 @@ pub struct WitnessStackError(#[from] SerializationError);
 
 /// An ordered set of witness maps for separate circuits
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct WitnessStack {
-    stack: Vec<StackItem>,
+pub struct WitnessStack<F> {
+    stack: Vec<StackItem<F>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct StackItem {
+pub struct StackItem<F> {
     /// Index into a [crate::circuit::Program] function list for which we have an associated witness
     pub index: u32,
     /// A full witness for the respective constraint system specified by the index
-    pub witness: WitnessMap,
+    pub witness: WitnessMap<F>,
 }
 
-impl WitnessStack {
-    pub fn push(&mut self, index: u32, witness: WitnessMap) {
+impl<F> WitnessStack<F> {
+    pub fn push(&mut self, index: u32, witness: WitnessMap<F>) {
         self.stack.push(StackItem { index, witness });
     }
 
-    pub fn pop(&mut self) -> Option<StackItem> {
+    pub fn pop(&mut self) -> Option<StackItem<F>> {
         self.stack.pop()
     }
 
-    pub fn peek(&self) -> Option<&StackItem> {
+    pub fn peek(&self) -> Option<&StackItem<F>> {
         self.stack.last()
     }
 
@@ -50,17 +50,17 @@ impl WitnessStack {
     }
 }
 
-impl From<WitnessMap> for WitnessStack {
-    fn from(witness: WitnessMap) -> Self {
+impl<F> From<WitnessMap<F>> for WitnessStack<F> {
+    fn from(witness: WitnessMap<F>) -> Self {
         let stack = vec![StackItem { index: 0, witness }];
         Self { stack }
     }
 }
 
-impl TryFrom<WitnessStack> for Vec<u8> {
+impl<F: Serialize> TryFrom<WitnessStack<F>> for Vec<u8> {
     type Error = WitnessStackError;
 
-    fn try_from(val: WitnessStack) -> Result<Self, Self::Error> {
+    fn try_from(val: WitnessStack<F>) -> Result<Self, Self::Error> {
         let buf = bincode::serialize(&val).unwrap();
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf_c = Vec::new();
@@ -69,7 +69,7 @@ impl TryFrom<WitnessStack> for Vec<u8> {
     }
 }
 
-impl TryFrom<&[u8]> for WitnessStack {
+impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessStack<F> {
     type Error = WitnessStackError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {

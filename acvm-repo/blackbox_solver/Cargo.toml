@@ -40,6 +40,5 @@ p256 = { version = "0.11.0", features = [
 libaes = "0.7.0"
 
 [features]
-default = ["bn254"]
 bn254 = ["acir/bn254"]
 bls12_381 = ["acir/bls12_381"]
