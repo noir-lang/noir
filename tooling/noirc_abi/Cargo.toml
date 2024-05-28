@@ -23,3 +23,13 @@ num-traits = "0.2"
 [dev-dependencies]
 strum = "0.24"
 strum_macros = "0.24"
+
+[features]
+bn254 = [
+    "acvm/bn254",
+    "noirc_frontend/bn254",
+]
+bls12_381 = [
+    "acvm/bls12_381",
+    "noirc_frontend/bls12_381",
+]
