@@ -179,3 +179,52 @@ fn prune_unreachable_functions(ssa: &mut Ssa) {
 
     ssa.functions.retain(|id, _value| reachable_functions.contains(id));
 }
+
+#[cfg(test)]
+mod test {
+    use noirc_frontend::monomorphization::ast::InlineType;
+
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{function::RuntimeType, map::Id, types::Type},
+    };
+
+    #[test]
+    fn basic_runtime_separation() {
+        // brillig fn foo {
+        //   b0():
+        //     v0 = call bar()
+        //     return v0
+        // }
+        // acir fn bar {
+        //   b0():
+        //     return 72
+        // }
+        let foo_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+        builder.current_function.set_runtime(RuntimeType::Brillig);
+
+        let bar_id = Id::test_new(1);
+        let bar = builder.import_function(bar_id);
+        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
+        builder.terminate_with_return(results);
+
+        builder.new_function("bar".into(), bar_id, InlineType::default());
+        let expected_return = 72u128;
+        let seventy_two = builder.field_constant(expected_return);
+        builder.terminate_with_return(vec![seventy_two]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 2);
+
+        let separated = ssa.separate_runtime();
+
+        // The original bar function must have been pruned
+        assert_eq!(separated.functions.len(), 2);
+
+        // All functions should be brillig now
+        for func in separated.functions.values() {
+            assert_eq!(func.runtime(), RuntimeType::Brillig);
+        }
+    }
+}
