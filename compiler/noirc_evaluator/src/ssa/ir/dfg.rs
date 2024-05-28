@@ -13,7 +13,7 @@ use super::{
     value::{Value, ValueId},
 };
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;

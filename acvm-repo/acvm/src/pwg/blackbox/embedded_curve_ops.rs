@@ -1,18 +1,19 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
+    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
 use crate::pwg::{insert_value, witness_to_value, OpcodeResolutionError};
 
-pub(super) fn multi_scalar_mul(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(super) fn multi_scalar_mul<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     points: &[FunctionInput],
     scalars: &[FunctionInput],
     outputs: (Witness, Witness, Witness),
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let points: Result<Vec<_>, _> =
         points.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
     let points: Vec<_> = points?.into_iter().cloned().collect();
@@ -39,13 +40,13 @@ pub(super) fn multi_scalar_mul(
     Ok(())
 }
 
-pub(super) fn embedded_curve_add(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(super) fn embedded_curve_add<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     input1: [FunctionInput; 3],
     input2: [FunctionInput; 3],
     outputs: (Witness, Witness, Witness),
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let input1_x = witness_to_value(initial_witness, input1[0].witness)?;
     let input1_y = witness_to_value(initial_witness, input1[1].witness)?;
     let input1_infinite = witness_to_value(initial_witness, input1[2].witness)?;

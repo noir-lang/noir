@@ -21,7 +21,7 @@ use crate::{
     token::FunctionAttribute,
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;

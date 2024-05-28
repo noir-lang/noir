@@ -1,6 +1,9 @@
-use acvm::acir::{
-    circuit::Program,
-    native_types::{Witness, WitnessMap},
+use acvm::{
+    acir::{
+        circuit::Program,
+        native_types::{Witness, WitnessMap},
+    },
+    FieldElement,
 };
 use js_sys::JsString;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -8,9 +11,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use crate::JsWitnessMap;
 
 pub(crate) fn extract_indices(
-    witness_map: &WitnessMap,
+    witness_map: &WitnessMap<FieldElement>,
     indices: Vec<Witness>,
-) -> Result<WitnessMap, String> {
+) -> Result<WitnessMap<FieldElement>, String> {
     let mut extracted_witness_map = WitnessMap::new();
     for witness in indices {
         let witness_value = witness_map.get(&witness).ok_or(format!(
@@ -36,7 +39,7 @@ pub fn get_return_witness(
     witness_map: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let program: Program =
+    let program: Program<FieldElement> =
         Program::deserialize_program(&program).expect("Failed to deserialize circuit");
     let circuit = match program.functions.len() {
         0 => return Ok(JsWitnessMap::from(WitnessMap::new())),
@@ -63,7 +66,7 @@ pub fn get_public_parameters_witness(
     solved_witness: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let program: Program =
+    let program: Program<FieldElement> =
         Program::deserialize_program(&program).expect("Failed to deserialize circuit");
     let circuit = match program.functions.len() {
         0 => return Ok(JsWitnessMap::from(WitnessMap::new())),
@@ -90,7 +93,7 @@ pub fn get_public_witness(
     solved_witness: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let program: Program =
+    let program: Program<FieldElement> =
         Program::deserialize_program(&program).expect("Failed to deserialize circuit");
     let circuit = match program.functions.len() {
         0 => return Ok(JsWitnessMap::from(WitnessMap::new())),

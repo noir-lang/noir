@@ -1,4 +1,4 @@
-use acvm::acir::native_types::WitnessStack;
+use acvm::{acir::native_types::WitnessStack, FieldElement};
 use js_sys::{Array, Map, Object};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
@@ -38,8 +38,8 @@ impl Default for JsWitnessStack {
     }
 }
 
-impl From<WitnessStack> for JsWitnessStack {
-    fn from(mut witness_stack: WitnessStack) -> Self {
+impl From<WitnessStack<FieldElement>> for JsWitnessStack {
+    fn from(mut witness_stack: WitnessStack<FieldElement>) -> Self {
         let js_witness_stack = JsWitnessStack::new();
         while let Some(stack_item) = witness_stack.pop() {
             let js_map = JsWitnessMap::from(stack_item.witness);
@@ -57,7 +57,7 @@ impl From<WitnessStack> for JsWitnessStack {
     }
 }
 
-impl From<JsWitnessStack> for WitnessStack {
+impl From<JsWitnessStack> for WitnessStack<FieldElement> {
     fn from(js_witness_stack: JsWitnessStack) -> Self {
         let mut witness_stack = WitnessStack::default();
         js_witness_stack.for_each(&mut |stack_item, _, _| {

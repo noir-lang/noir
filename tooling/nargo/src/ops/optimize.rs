@@ -1,4 +1,4 @@
-use acvm::acir::circuit::Program;
+use acvm::{acir::circuit::Program, FieldElement};
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 use noirc_errors::debug_info::DebugInfo;
@@ -18,7 +18,10 @@ pub fn optimize_contract(contract: CompiledContract) -> CompiledContract {
     CompiledContract { functions, ..contract }
 }
 
-fn optimize_program_internal(mut program: Program, debug: &mut [DebugInfo]) -> Program {
+fn optimize_program_internal(
+    mut program: Program<FieldElement>,
+    debug: &mut [DebugInfo],
+) -> Program<FieldElement> {
     let functions = std::mem::take(&mut program.functions);
 
     let optimized_functions = functions

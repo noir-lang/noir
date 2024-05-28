@@ -37,6 +37,7 @@ use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
+    acir::AcirField,
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
@@ -278,7 +279,7 @@ impl AcirValue {
 }
 
 pub(crate) type Artifacts =
-    (Vec<GeneratedAcir>, Vec<BrilligBytecode>, BTreeMap<ErrorSelector, ErrorType>);
+    (Vec<GeneratedAcir>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -3097,7 +3098,7 @@ mod test {
     }
 
     fn check_call_opcode(
-        opcode: &Opcode,
+        opcode: &Opcode<FieldElement>,
         expected_id: u32,
         expected_inputs: Vec<Witness>,
         expected_outputs: Vec<Witness>,
@@ -3425,7 +3426,7 @@ mod test {
 
     fn check_brillig_calls(
         brillig_stdlib_function_locations: &BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
-        opcodes: &[Opcode],
+        opcodes: &[Opcode<FieldElement>],
         num_normal_brillig_functions: u32,
         expected_num_stdlib_calls: u32,
         expected_num_normal_calls: u32,

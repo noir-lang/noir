@@ -20,6 +20,5 @@ num-traits.workspace = true
 thiserror.workspace = true
 
 [features]
-default = ["bn254"]
 bn254 = ["acir/bn254"]
 bls12_381 = ["acir/bls12_381"]

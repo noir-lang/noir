@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{

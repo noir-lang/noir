@@ -15,7 +15,7 @@ use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapValueType,
     HeapVector, MemoryAddress, Opcode, ValueOrArray,
 };
-use acir::FieldElement;
+use acir::AcirField;
 use acvm_blackbox_solver::{BigIntSolver, BlackBoxFunctionSolver};
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
 use black_box::evaluate_black_box;
@@ -39,7 +39,7 @@ pub enum FailureReason {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum VMStatus {
+pub enum VMStatus<F> {
     Finished {
         return_data_offset: usize,
         return_data_size: usize,
@@ -60,15 +60,15 @@ pub enum VMStatus {
         function: String,
         /// Input values
         /// Each input is a list of values as an input can be either a single value or a memory pointer
-        inputs: Vec<ForeignCallParam>,
+        inputs: Vec<ForeignCallParam<F>>,
     },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// VM encapsulates the state of the Brillig VM during execution.
-pub struct VM<'a, B: BlackBoxFunctionSolver> {
+pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     /// Calldata to the brillig function
-    calldata: Vec<FieldElement>,
+    calldata: Vec<F>,
     /// Instruction pointer
     program_counter: usize,
     /// A counter maintained throughout a Brillig process that determines
@@ -76,13 +76,13 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     foreign_call_counter: usize,
     /// Represents the outputs of all foreign calls during a Brillig process
     /// List is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait]
-    foreign_call_results: Vec<ForeignCallResult>,
+    foreign_call_results: Vec<ForeignCallResult<F>>,
     /// Executable opcodes
-    bytecode: &'a [Opcode],
+    bytecode: &'a [Opcode<F>],
     /// Status of the VM
-    status: VMStatus,
+    status: VMStatus<F>,
     /// Memory of the VM
-    memory: Memory,
+    memory: Memory<F>,
     /// Call stack
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
@@ -91,12 +91,12 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     bigint_solver: BigIntSolver,
 }
 
-impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
+impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Constructs a new VM instance
     pub fn new(
-        calldata: Vec<FieldElement>,
-        bytecode: &'a [Opcode],
-        foreign_call_results: Vec<ForeignCallResult>,
+        calldata: Vec<F>,
+        bytecode: &'a [Opcode<F>],
+        foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
     ) -> Self {
         Self {
@@ -115,17 +115,17 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
 
     /// Updates the current status of the VM.
     /// Returns the given status.
-    fn status(&mut self, status: VMStatus) -> VMStatus {
+    fn status(&mut self, status: VMStatus<F>) -> VMStatus<F> {
         self.status = status.clone();
         status
     }
 
-    pub fn get_status(&self) -> VMStatus {
+    pub fn get_status(&self) -> VMStatus<F> {
         self.status.clone()
     }
 
     /// Sets the current status of the VM to Finished (completed execution).
-    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus {
+    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus<F> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
     }
 
@@ -134,12 +134,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     fn wait_for_foreign_call(
         &mut self,
         function: String,
-        inputs: Vec<ForeignCallParam>,
-    ) -> VMStatus {
+        inputs: Vec<ForeignCallParam<F>>,
+    ) -> VMStatus<F> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
-    pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
+    pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
         if self.foreign_call_counter < self.foreign_call_results.len() {
             panic!("No unresolved foreign calls");
         }
@@ -156,7 +156,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     /// Sets the current status of the VM to `fail`.
     /// Indicating that the VM encountered a `Trap` Opcode
     /// or an invalid state.
-    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus {
+    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_error_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
@@ -164,7 +164,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status.clone()
     }
 
-    fn fail(&mut self, message: String) -> VMStatus {
+    fn fail(&mut self, message: String) -> VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_error_stack(),
             reason: FailureReason::RuntimeError { message },
@@ -173,7 +173,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Loop over the bytecode and update the program counter
-    pub fn process_opcodes(&mut self) -> VMStatus {
+    pub fn process_opcodes(&mut self) -> VMStatus<F> {
         while !matches!(
             self.process_opcode(),
             VMStatus::Finished { .. } | VMStatus::Failure { .. } | VMStatus::ForeignCallWait { .. }
@@ -181,11 +181,11 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status.clone()
     }
 
-    pub fn get_memory(&self) -> &[MemoryValue] {
+    pub fn get_memory(&self) -> &[MemoryValue<F>] {
         self.memory.values()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue) {
+    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
         self.memory.write(MemoryAddress(ptr), value);
     }
 
@@ -196,7 +196,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Process a single opcode and modify the program counter.
-    pub fn process_opcode(&mut self) -> VMStatus {
+    pub fn process_opcode(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
@@ -360,14 +360,14 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Increments the program counter by 1.
-    fn increment_program_counter(&mut self) -> VMStatus {
+    fn increment_program_counter(&mut self) -> VMStatus<F> {
         self.set_program_counter(self.program_counter + 1)
     }
 
     /// Increments the program counter by `value`.
     /// If the program counter no longer points to an opcode
     /// in the bytecode, then the VMStatus reports halted.
-    fn set_program_counter(&mut self, value: usize) -> VMStatus {
+    fn set_program_counter(&mut self, value: usize) -> VMStatus<F> {
         assert!(self.program_counter < self.bytecode.len());
         self.program_counter = value;
         if self.program_counter >= self.bytecode.len() {
@@ -380,10 +380,10 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         &self,
         input: ValueOrArray,
         value_type: &HeapValueType,
-    ) -> ForeignCallParam {
+    ) -> ForeignCallParam<F> {
         match (input, value_type) {
             (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(_)) => {
-                self.memory.read(value_index).to_field().into()
+                ForeignCallParam::Single(self.memory.read(value_index).to_field())
             }
             (
                 ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
@@ -421,7 +421,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         start: MemoryAddress,
         size: usize,
         value_types: &[HeapValueType],
-    ) -> Vec<MemoryValue> {
+    ) -> Vec<MemoryValue<F>> {
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
@@ -618,7 +618,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 
     /// Casts a value to a different bit size.
-    fn cast(&self, bit_size: u32, source_value: MemoryValue) -> MemoryValue {
+    fn cast(&self, bit_size: u32, source_value: MemoryValue<F>) -> MemoryValue<F> {
         let lhs_big = source_value.to_integer();
         let mask = BigUint::from(2_u32).pow(bit_size) - 1_u32;
         MemoryValue::new_from_integer(lhs_big & mask, bit_size)
@@ -627,6 +627,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
 
 #[cfg(test)]
 mod tests {
+    use acir::{AcirField, FieldElement};
     use acvm_blackbox_solver::StubbedBlackBoxSolver;
 
     use super::*;
@@ -664,7 +665,7 @@ mod tests {
 
     #[test]
     fn jmpif_opcode() {
-        let mut calldata = vec![];
+        let mut calldata: Vec<FieldElement> = vec![];
         let mut opcodes = vec![];
 
         let lhs = {
@@ -709,7 +710,7 @@ mod tests {
 
     #[test]
     fn jmpifnot_opcode() {
-        let calldata = vec![1u128.into(), 2u128.into()];
+        let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
 
         let calldata_copy = Opcode::CalldataCopy {
             destination_address: MemoryAddress::from(0),
@@ -779,7 +780,7 @@ mod tests {
 
     #[test]
     fn cast_opcode() {
-        let calldata = vec![((2_u128.pow(32)) - 1).into()];
+        let calldata: Vec<FieldElement> = vec![((2_u128.pow(32)) - 1).into()];
 
         let opcodes = &[
             Opcode::CalldataCopy {
@@ -813,7 +814,7 @@ mod tests {
 
     #[test]
     fn mov_opcode() {
-        let calldata = vec![(1u128).into(), (2u128).into(), (3u128).into()];
+        let calldata: Vec<FieldElement> = vec![(1u128).into(), (2u128).into(), (3u128).into()];
 
         let calldata_copy = Opcode::CalldataCopy {
             destination_address: MemoryAddress::from(0),
@@ -844,7 +845,8 @@ mod tests {
 
     #[test]
     fn cmov_opcode() {
-        let calldata = vec![(0u128).into(), (1u128).into(), (2u128).into(), (3u128).into()];
+        let calldata: Vec<FieldElement> =
+            vec![(0u128).into(), (1u128).into(), (2u128).into(), (3u128).into()];
 
         let calldata_copy = Opcode::CalldataCopy {
             destination_address: MemoryAddress::from(0),
@@ -910,7 +912,7 @@ mod tests {
     #[test]
     fn cmp_binary_ops() {
         let bit_size = 32;
-        let calldata =
+        let calldata: Vec<FieldElement> =
             vec![(2u128).into(), (2u128).into(), (0u128).into(), (5u128).into(), (6u128).into()];
         let calldata_size = calldata.len();
 
@@ -1010,14 +1012,14 @@ mod tests {
         ///         memory[i] = i as Value;
         ///         i += 1;
         ///     }
-        fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue> {
+        fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue<FieldElement>> {
             let bit_size = 64;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_tmp = MemoryAddress::from(2);
             let r_pointer = MemoryAddress::from(3);
 
-            let start = [
+            let start: [Opcode<FieldElement>; 3] = [
                 // i = 0
                 Opcode::Const { destination: r_i, value: 0u128.into(), bit_size },
                 // len = memory.len() (approximation)
@@ -1091,7 +1093,7 @@ mod tests {
             let r_tmp = MemoryAddress::from(3);
             let r_pointer = MemoryAddress::from(4);
 
-            let start = [
+            let start: [Opcode<FieldElement>; 5] = [
                 // sum = 0
                 Opcode::Const {
                     destination: r_sum,
@@ -1179,18 +1181,18 @@ mod tests {
         ///         recursive_write(memory, i + 1, len);
         ///     }
         /// Note we represent a 100% in-stack optimized form in brillig
-        fn brillig_recursive_write_memory(size: usize) -> Vec<MemoryValue> {
+        fn brillig_recursive_write_memory<F: AcirField>(size: usize) -> Vec<MemoryValue<F>> {
             let bit_size = 64;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_tmp = MemoryAddress::from(2);
             let r_pointer = MemoryAddress::from(3);
 
-            let start = [
+            let start: [Opcode<F>; 5] = [
                 // i = 0
                 Opcode::Const { destination: r_i, value: 0u128.into(), bit_size },
                 // len = size
-                Opcode::Const { destination: r_len, value: size.into(), bit_size },
+                Opcode::Const { destination: r_len, value: (size as u128).into(), bit_size },
                 // pointer = free_memory_ptr
                 Opcode::Const { destination: r_pointer, value: 4u128.into(), bit_size },
                 // call recursive_fn
@@ -1245,28 +1247,28 @@ mod tests {
             vm.get_memory()[4..].to_vec()
         }
 
-        let memory = brillig_recursive_write_memory(5);
+        let memory = brillig_recursive_write_memory::<FieldElement>(5);
         let expected =
             vec![(0u64).into(), (1u64).into(), (2u64).into(), (3u64).into(), (4u64).into()];
         assert_eq!(memory, expected);
 
-        let memory = brillig_recursive_write_memory(1024);
+        let memory = brillig_recursive_write_memory::<FieldElement>(1024);
         let expected: Vec<_> = (0..1024).map(|i: u64| i.into()).collect();
         assert_eq!(memory, expected);
     }
 
     /// Helper to execute brillig code
-    fn brillig_execute_and_get_vm(
-        calldata: Vec<FieldElement>,
-        opcodes: &[Opcode],
-    ) -> VM<'_, StubbedBlackBoxSolver> {
+    fn brillig_execute_and_get_vm<F: AcirField>(
+        calldata: Vec<F>,
+        opcodes: &[Opcode<F>],
+    ) -> VM<'_, F, StubbedBlackBoxSolver> {
         let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
         brillig_execute(&mut vm);
         assert_eq!(vm.call_stack, vec![]);
         vm
     }
 
-    fn brillig_execute(vm: &mut VM<StubbedBlackBoxSolver>) {
+    fn brillig_execute<F: AcirField>(vm: &mut VM<F, StubbedBlackBoxSolver>) {
         loop {
             let status = vm.process_opcode();
             if matches!(status, VMStatus::Finished { .. } | VMStatus::ForeignCallWait { .. }) {
@@ -1330,7 +1332,8 @@ mod tests {
         let r_output = MemoryAddress::from(1);
 
         // Define a simple 2x2 matrix in memory
-        let initial_matrix = vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
+        let initial_matrix: Vec<FieldElement> =
+            vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
 
         // Transpose of the matrix (but arbitrary for this test, the 'correct value')
         let expected_result: Vec<FieldElement> =
@@ -1505,7 +1508,8 @@ mod tests {
         let r_output = MemoryAddress::from(1);
 
         // Define a simple 2x2 matrix in memory
-        let initial_matrix = vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
+        let initial_matrix: Vec<FieldElement> =
+            vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
 
         // Transpose of the matrix (but arbitrary for this test, the 'correct value')
         let expected_result: Vec<FieldElement> =
@@ -1592,9 +1596,11 @@ mod tests {
         let r_output = MemoryAddress::from(2);
 
         // Define a simple 2x2 matrix in memory
-        let matrix_a = vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
+        let matrix_a: Vec<FieldElement> =
+            vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
 
-        let matrix_b = vec![(10u128).into(), (11u128).into(), (12u128).into(), (13u128).into()];
+        let matrix_b: Vec<FieldElement> =
+            vec![(10u128).into(), (11u128).into(), (12u128).into(), (13u128).into()];
 
         // Transpose of the matrix (but arbitrary for this test, the 'correct value')
         let expected_result: Vec<FieldElement> =
@@ -1678,17 +1684,19 @@ mod tests {
     fn foreign_call_opcode_nested_arrays_and_slices_input() {
         // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
 
-        let v2: Vec<MemoryValue> = vec![
-            MemoryValue::from(FieldElement::from(2u128)),
-            MemoryValue::from(FieldElement::from(3u128)),
+        let v2: Vec<MemoryValue<FieldElement>> = vec![
+            MemoryValue::new_field(FieldElement::from(2u128)),
+            MemoryValue::new_field(FieldElement::from(3u128)),
         ];
-        let a4: Vec<MemoryValue> = vec![FieldElement::from(4u128).into()];
-        let v6: Vec<MemoryValue> = vec![
-            MemoryValue::from(FieldElement::from(6u128)),
-            MemoryValue::from(FieldElement::from(7u128)),
-            MemoryValue::from(FieldElement::from(8u128)),
+        let a4: Vec<MemoryValue<FieldElement>> =
+            vec![MemoryValue::new_field(FieldElement::from(4u128))];
+        let v6: Vec<MemoryValue<FieldElement>> = vec![
+            MemoryValue::new_field(FieldElement::from(6u128)),
+            MemoryValue::new_field(FieldElement::from(7u128)),
+            MemoryValue::new_field(FieldElement::from(8u128)),
         ];
-        let a9: Vec<MemoryValue> = vec![FieldElement::from(9u128).into()];
+        let a9: Vec<MemoryValue<FieldElement>> =
+            vec![MemoryValue::new_field(FieldElement::from(9u128))];
 
         // construct memory by declaring all inner arrays/vectors first
         let v2_ptr: usize = 0usize;
@@ -1710,11 +1718,11 @@ mod tests {
         // finally we add the contents of the outer array
         let outer_ptr = memory.len();
         let outer_array = vec![
-            MemoryValue::from(FieldElement::from(1u128)),
+            MemoryValue::new_field(FieldElement::from(1u128)),
             MemoryValue::from(v2.len()),
             MemoryValue::from(v2_start),
             MemoryValue::from(a4_start),
-            MemoryValue::from(FieldElement::from(5u128)),
+            MemoryValue::new_field(FieldElement::from(5u128)),
             MemoryValue::from(v6.len()),
             MemoryValue::from(v6_start),
             MemoryValue::from(a9_start),
@@ -1801,7 +1809,7 @@ mod tests {
 
         // Check result
         let result_value = vm.memory.read(r_output);
-        assert_eq!(result_value, MemoryValue::from(FieldElement::from(45u128)));
+        assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(45u128)));
 
         // Ensure the foreign call counter has been incremented
         assert_eq!(vm.foreign_call_counter, 1);
