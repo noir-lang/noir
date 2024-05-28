@@ -54,7 +54,6 @@ export async function executePrivateFunction(
     appCircuitName: functionName,
   } satisfies CircuitWitnessGenerationStats);
 
-  context.chopNoteEncryptedLogs();
   const noteEncryptedLogs = context.getNoteEncryptedLogs();
   const encryptedLogs = context.getEncryptedLogs();
   const unencryptedLogs = context.getUnencryptedLogs();

@@ -970,9 +970,8 @@ describe('Private Execution test suite', () => {
 
       const [encryptedLog] = newEncryptedLogs;
       expect(encryptedLog.noteHashCounter).toEqual(newNoteHashes[0].counter);
-      // We expect the note log to be chopped in ts.
-      // (note logs are chopped in kernel tail, so will still exist in the call stack item)
-      expect(result.noteEncryptedLogs).toHaveLength(0);
+      expect(encryptedLog.noteHashCounter).toEqual(result.noteEncryptedLogs[0].noteHashCounter);
+      expect(encryptedLog.value).toEqual(Fr.fromBuffer(result.noteEncryptedLogs[0].log.hash()));
 
       // read request should match innerNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
       const readRequest = getNonEmptyItems(result.callStackItem.publicInputs.noteHashReadRequests)[0];
@@ -1049,9 +1048,8 @@ describe('Private Execution test suite', () => {
 
       const [encryptedLog] = newEncryptedLogs;
       expect(encryptedLog.noteHashCounter).toEqual(newNoteHashes[0].counter);
-      // We expect the note log to be chopped in ts.
-      // (note logs are chopped in kernel tail, so will still exist in the call stack item)
-      expect(execInsert.noteEncryptedLogs).toHaveLength(0);
+      expect(encryptedLog.noteHashCounter).toEqual(execInsert.noteEncryptedLogs[0].noteHashCounter);
+      expect(encryptedLog.value).toEqual(Fr.fromBuffer(execInsert.noteEncryptedLogs[0].log.hash()));
 
       // read request should match innerNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
       const readRequest = execGetThenNullify.callStackItem.publicInputs.noteHashReadRequests[0];

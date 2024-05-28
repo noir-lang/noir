@@ -32,6 +32,11 @@ export class CountedLog<TLog extends UnencryptedL2Log | EncryptedL2NoteLog | Enc
   }
 }
 
+export class CountedNoteLog extends CountedLog<EncryptedL2NoteLog> {
+  constructor(log: EncryptedL2NoteLog, counter: number, public noteHashCounter: number) {
+    super(log, counter);
+  }
+}
 /**
  * The result of executing a private function.
  */
@@ -64,7 +69,7 @@ export interface ExecutionResult {
    * Encrypted note logs emitted during execution of this function call.
    * Note: These are preimages to `noteEncryptedLogsHashes`.
    */
-  noteEncryptedLogs: CountedLog<EncryptedL2NoteLog>[];
+  noteEncryptedLogs: CountedNoteLog[];
   /**
    * Encrypted logs emitted during execution of this function call.
    * Note: These are preimages to `encryptedLogsHashes`.
@@ -94,8 +99,14 @@ export function collectNullifiedNoteHashCounters(execResult: ExecutionResult, ac
  * @param execResult - The topmost execution result.
  * @returns All encrypted logs.
  */
-function collectNoteEncryptedLogs(execResult: ExecutionResult): CountedLog<EncryptedL2NoteLog>[] {
-  return [execResult.noteEncryptedLogs, ...execResult.nestedExecutions.flatMap(collectNoteEncryptedLogs)].flat();
+function collectNoteEncryptedLogs(
+  execResult: ExecutionResult,
+  nullifiedNoteHashCounters: Map<number, number>,
+): CountedLog<EncryptedL2NoteLog>[] {
+  return [
+    execResult.noteEncryptedLogs.filter(noteLog => !nullifiedNoteHashCounters.has(noteLog.noteHashCounter)),
+    ...execResult.nestedExecutions.flatMap(res => collectNoteEncryptedLogs(res, nullifiedNoteHashCounters)),
+  ].flat();
 }
 
 /**
@@ -104,7 +115,8 @@ function collectNoteEncryptedLogs(execResult: ExecutionResult): CountedLog<Encry
  * @returns All encrypted logs.
  */
 export function collectSortedNoteEncryptedLogs(execResult: ExecutionResult): EncryptedNoteFunctionL2Logs {
-  const allLogs = collectNoteEncryptedLogs(execResult);
+  const nullifiedNoteHashCounters = collectNullifiedNoteHashCounters(execResult);
+  const allLogs = collectNoteEncryptedLogs(execResult, nullifiedNoteHashCounters);
   const sortedLogs = sortByCounter(allLogs);
   return new EncryptedNoteFunctionL2Logs(sortedLogs.map(l => l.log));
 }

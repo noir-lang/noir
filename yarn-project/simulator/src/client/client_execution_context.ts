@@ -2,7 +2,6 @@ import {
   type AuthWitness,
   type AztecNode,
   EncryptedL2Log,
-  EncryptedL2NoteLog,
   L1NotePayload,
   Note,
   type NoteStatus,
@@ -29,7 +28,7 @@ import { type NoteData, toACVMWitness } from '../acvm/index.js';
 import { type PackedValuesCache } from '../common/packed_values_cache.js';
 import { type DBOracle } from './db_oracle.js';
 import { type ExecutionNoteCache } from './execution_note_cache.js';
-import { CountedLog, type ExecutionResult, type NoteAndSlot } from './execution_result.js';
+import { CountedLog, type CountedNoteLog, type ExecutionResult, type NoteAndSlot } from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -57,7 +56,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    */
   private noteHashLeafIndexMap: Map<bigint, bigint> = new Map();
   private nullifiedNoteHashCounters: Map<number, number> = new Map();
-  private noteEncryptedLogs: CountedLog<EncryptedL2NoteLog>[] = [];
+  private noteEncryptedLogs: CountedNoteLog[] = [];
   private encryptedLogs: CountedLog<EncryptedL2Log>[] = [];
   private unencryptedLogs: CountedLog<UnencryptedL2Log>[] = [];
   private nestedExecutions: ExecutionResult[] = [];
@@ -135,33 +134,6 @@ export class ClientExecutionContext extends ViewDataOracle {
    */
   public getNoteEncryptedLogs() {
     return this.noteEncryptedLogs;
-  }
-
-  /**
-   * Sometimes notes can be chopped after a nested execution is complete.
-   * This means finished nested executions still hold transient logs. This method removes them.
-   * TODO(Miranda): is there a cleaner solution?
-   */
-  public chopNoteEncryptedLogs() {
-    // Do not return logs that have been chopped in the cache
-    const allNoteLogs = this.noteCache.getLogs();
-    this.noteEncryptedLogs = this.noteEncryptedLogs.filter(l => allNoteLogs.includes(l));
-    const chop = (thing: any) =>
-      thing.nestedExecutions.forEach((result: ExecutionResult) => {
-        if (!result.noteEncryptedLogs[0]?.isEmpty()) {
-          // The execution has note logs
-          result.noteEncryptedLogs = result.noteEncryptedLogs.filter(l => allNoteLogs.includes(l));
-        }
-        chop(result);
-      });
-    chop(this);
-  }
-
-  /**
-   * Return the note encrypted logs emitted during this execution and nested executions.
-   */
-  public getAllNoteEncryptedLogs() {
-    return this.noteCache.getLogs();
   }
 
   /**
@@ -382,9 +354,8 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param counter - The effects counter.
    */
   public override emitEncryptedNoteLog(noteHash: Fr, encryptedNote: Buffer, counter: number) {
-    const encryptedLog = new CountedLog(new EncryptedL2NoteLog(encryptedNote), counter);
+    const encryptedLog = this.noteCache.addNewLog(encryptedNote, counter, noteHash);
     this.noteEncryptedLogs.push(encryptedLog);
-    this.noteCache.addNewLog(encryptedLog, noteHash);
   }
 
   /**
