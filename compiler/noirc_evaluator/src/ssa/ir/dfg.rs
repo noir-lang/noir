@@ -22,7 +22,7 @@ use noirc_errors::Location;
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,

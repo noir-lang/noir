@@ -318,6 +318,9 @@ impl Memory {
     }
 
     pub fn read_slice(&self, addr: MemoryAddress, len: usize) -> &[MemoryValue] {
+        if len == 0 {
+            return &[];
+        }
         &self.inner[addr.to_usize()..(addr.to_usize() + len)]
     }
 
