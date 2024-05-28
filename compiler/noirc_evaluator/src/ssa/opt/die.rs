@@ -111,14 +111,13 @@ impl Context {
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
-        } else {
+        } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have side effects but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let Instruction::Call { func, arguments } = instruction else {
-                return false;
-            };
-
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
             as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+        } else {
+            // If the instruction has side effects we should never remove it.
+            false
         }
     }
 
