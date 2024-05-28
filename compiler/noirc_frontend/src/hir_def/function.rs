@@ -95,6 +95,10 @@ pub struct FuncMeta {
 
     pub parameters: Parameters,
 
+    /// The HirIdent of each identifier within the parameter list.
+    /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
+    pub parameter_idents: Vec<HirIdent>,
+
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,

@@ -552,6 +552,7 @@ pub mod test {
             is_trait_function: false,
             has_inline_attribute: false,
             all_generics: Vec::new(),
+            parameter_idents: Vec::new(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
