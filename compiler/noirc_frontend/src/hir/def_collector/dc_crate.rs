@@ -117,7 +117,7 @@ pub struct UnresolvedTraitImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    // These fields are filled in later
+    // These fields are filled in later during elaboration
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
