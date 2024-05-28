@@ -62,13 +62,11 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
         state = apply_matrix(mds, state);
     }
 
-
     state = sigma(state);
     for i in 0..T {
         state[i] += round_constants[T * (rf / 2) as u64 + i];
     }
     state = apply_matrix(presparse_mds, state);
-
 
     for i in 0..T {
         crate::as_witness(state[i]);
@@ -106,7 +104,6 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
 
     state = sigma(state);
     state = apply_matrix(mds, state);
-    
 
     state
 }
@@ -128,7 +125,7 @@ fn apply_matrix<N>(matrix: [[Field; N]; N], vec: [Field; N]) -> [Field; N] {
 fn absorb<T, N, X, O>(
     pos_conf: PoseidonConfig<T, N, X>,
     // Initial state; usually [0; O]
-    mut state: [Field; T], 
+    mut state: [Field; T],
     rate: Field,
     capacity: Field,
     msg: [Field; O] // Arbitrary length message
