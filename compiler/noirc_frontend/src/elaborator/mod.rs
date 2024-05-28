@@ -344,8 +344,15 @@ impl<'context> Elaborator<'context> {
         }
 
         // Verify any remaining trait constraints arising from the function body
-        for (constraint, expr_id) in std::mem::take(&mut self.trait_constraints) {
+        for (mut constraint, expr_id) in std::mem::take(&mut self.trait_constraints) {
             let span = self.interner.expr_span(&expr_id);
+
+            if matches!(&constraint.typ, Type::MutableReference(_)) {
+                let (_, dereferenced_typ) =
+                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
+                constraint.typ = dereferenced_typ;
+            }
+
             self.verify_trait_constraint(
                 &constraint.typ,
                 constraint.trait_id,
