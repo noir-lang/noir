@@ -66,7 +66,6 @@ it.skip(`smart contract can verify a recursive proof`, async () => {
     key_hash: vkHash,
   };
 
-
   const recursion_proof = await recursion.generateProof(recursion_inputs);
   expect(await recursion.verifyProof(recursion_proof)).to.be.true;
 

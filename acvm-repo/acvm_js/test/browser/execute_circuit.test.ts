@@ -1,10 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import initACVM, {
-  executeCircuit,
-  WitnessMap,
-  initLogLevel,
-  ForeignCallHandler,
-} from '@noir-lang/acvm_js';
+import initACVM, { executeCircuit, WitnessMap, initLogLevel, ForeignCallHandler } from '@noir-lang/acvm_js';
 
 beforeEach(async () => {
   await initACVM();
@@ -119,4 +114,3 @@ it('successfully executes a MemoryOp opcode', async () => {
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
-
