@@ -28,13 +28,13 @@ AvmVerifier& AvmVerifier::operator=(AvmVerifier&& other) noexcept
 using FF = AvmFlavor::FF;
 
 // Evaluate the given public input column over the multivariate challenge points
-[[maybe_unused]] inline FF evaluate_public_input_column(std::vector<FF> points,
+[[maybe_unused]] inline FF evaluate_public_input_column(const std::vector<FF>& points,
                                                         const size_t circuit_size,
                                                         std::vector<FF> challenges)
 {
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6361): we pad the points to the circuit size in order
-    // to get the correct evaluation This is not efficient, and will not be valid in production
+    // to get the correct evaluation. This is not efficient, and will not be valid in production.
     std::vector<FF> new_points(circuit_size, 0);
     std::copy(points.begin(), points.end(), new_points.data());
 
@@ -410,8 +410,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_nullifier_exists);
     commitments.avm_main_sel_op_or =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_or);
-    commitments.avm_main_sel_op_portal =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_portal);
     commitments.avm_main_sel_op_radix_le =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_radix_le);
     commitments.avm_main_sel_op_sender =

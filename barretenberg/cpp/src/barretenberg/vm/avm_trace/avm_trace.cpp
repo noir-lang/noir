@@ -1128,15 +1128,6 @@ void AvmTraceBuilder::op_address(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_portal(uint32_t dst_offset)
-{
-    FF ia_value = kernel_trace_builder.op_portal();
-    Row row = create_kernel_lookup_opcode(dst_offset, PORTAL_SELECTOR, ia_value, AvmMemoryTag::FF);
-    row.avm_main_sel_op_portal = FF(1);
-
-    main_trace.push_back(row);
-}
-
 void AvmTraceBuilder::op_fee_per_da_gas(uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_fee_per_da_gas();

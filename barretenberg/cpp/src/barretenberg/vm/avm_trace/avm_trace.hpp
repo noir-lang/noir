@@ -82,7 +82,6 @@ class AvmTraceBuilder {
     // Call Context
     void op_sender(uint32_t dst_offset);
     void op_address(uint32_t dst_offset);
-    void op_portal(uint32_t dst_offset);
 
     // Fees
     void op_fee_per_da_gas(uint32_t dst_offset);

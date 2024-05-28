@@ -106,13 +106,13 @@ void SpikeProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-HonkProof& SpikeProver::export_proof()
+HonkProof SpikeProver::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-HonkProof& SpikeProver::construct_proof()
+HonkProof SpikeProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

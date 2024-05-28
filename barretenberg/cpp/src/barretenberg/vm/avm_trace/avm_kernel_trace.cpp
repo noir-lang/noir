@@ -57,11 +57,6 @@ FF AvmKernelTraceBuilder::op_address()
     return perform_kernel_input_lookup(ADDRESS_SELECTOR);
 }
 
-FF AvmKernelTraceBuilder::op_portal()
-{
-    return perform_kernel_input_lookup(PORTAL_SELECTOR);
-}
-
 FF AvmKernelTraceBuilder::op_fee_per_da_gas()
 {
     return perform_kernel_input_lookup(FEE_PER_DA_GAS_SELECTOR);

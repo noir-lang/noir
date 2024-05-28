@@ -212,7 +212,6 @@
     [[maybe_unused]] auto avm_main_sel_op_note_hash_exists = View(new_term.avm_main_sel_op_note_hash_exists);          \
     [[maybe_unused]] auto avm_main_sel_op_nullifier_exists = View(new_term.avm_main_sel_op_nullifier_exists);          \
     [[maybe_unused]] auto avm_main_sel_op_or = View(new_term.avm_main_sel_op_or);                                      \
-    [[maybe_unused]] auto avm_main_sel_op_portal = View(new_term.avm_main_sel_op_portal);                              \
     [[maybe_unused]] auto avm_main_sel_op_radix_le = View(new_term.avm_main_sel_op_radix_le);                          \
     [[maybe_unused]] auto avm_main_sel_op_sender = View(new_term.avm_main_sel_op_sender);                              \
     [[maybe_unused]] auto avm_main_sel_op_shl = View(new_term.avm_main_sel_op_shl);                                    \

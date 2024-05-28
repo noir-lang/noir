@@ -274,7 +274,6 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_main_sel_op_nullifier_exists =
         commitment_key->commit(key->avm_main_sel_op_nullifier_exists);
     witness_commitments.avm_main_sel_op_or = commitment_key->commit(key->avm_main_sel_op_or);
-    witness_commitments.avm_main_sel_op_portal = commitment_key->commit(key->avm_main_sel_op_portal);
     witness_commitments.avm_main_sel_op_radix_le = commitment_key->commit(key->avm_main_sel_op_radix_le);
     witness_commitments.avm_main_sel_op_sender = commitment_key->commit(key->avm_main_sel_op_sender);
     witness_commitments.avm_main_sel_op_shl = commitment_key->commit(key->avm_main_sel_op_shl);
@@ -609,7 +608,6 @@ void AvmProver::execute_wire_commitments_round()
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_nullifier_exists,
                                  witness_commitments.avm_main_sel_op_nullifier_exists);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_or, witness_commitments.avm_main_sel_op_or);
-    transcript->send_to_verifier(commitment_labels.avm_main_sel_op_portal, witness_commitments.avm_main_sel_op_portal);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_radix_le,
                                  witness_commitments.avm_main_sel_op_radix_le);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_sender, witness_commitments.avm_main_sel_op_sender);
@@ -860,13 +858,13 @@ void AvmProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-HonkProof& AvmProver::export_proof()
+HonkProof AvmProver::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-HonkProof& AvmProver::construct_proof()
+HonkProof AvmProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

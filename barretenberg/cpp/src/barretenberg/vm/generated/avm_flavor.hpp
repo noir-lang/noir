@@ -87,11 +87,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 328;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 327;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 392;
+    static constexpr size_t NUM_ALL_ENTITIES = 391;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
@@ -423,7 +423,6 @@ class AvmFlavor {
                               avm_main_sel_op_note_hash_exists,
                               avm_main_sel_op_nullifier_exists,
                               avm_main_sel_op_or,
-                              avm_main_sel_op_portal,
                               avm_main_sel_op_radix_le,
                               avm_main_sel_op_sender,
                               avm_main_sel_op_shl,
@@ -754,7 +753,6 @@ class AvmFlavor {
                      avm_main_sel_op_note_hash_exists,
                      avm_main_sel_op_nullifier_exists,
                      avm_main_sel_op_or,
-                     avm_main_sel_op_portal,
                      avm_main_sel_op_radix_le,
                      avm_main_sel_op_sender,
                      avm_main_sel_op_shl,
@@ -1090,7 +1088,6 @@ class AvmFlavor {
                               avm_main_sel_op_note_hash_exists,
                               avm_main_sel_op_nullifier_exists,
                               avm_main_sel_op_or,
-                              avm_main_sel_op_portal,
                               avm_main_sel_op_radix_le,
                               avm_main_sel_op_sender,
                               avm_main_sel_op_shl,
@@ -1485,7 +1482,6 @@ class AvmFlavor {
                      avm_main_sel_op_note_hash_exists,
                      avm_main_sel_op_nullifier_exists,
                      avm_main_sel_op_or,
-                     avm_main_sel_op_portal,
                      avm_main_sel_op_radix_le,
                      avm_main_sel_op_sender,
                      avm_main_sel_op_shl,
@@ -1880,7 +1876,6 @@ class AvmFlavor {
                      avm_main_sel_op_note_hash_exists,
                      avm_main_sel_op_nullifier_exists,
                      avm_main_sel_op_or,
-                     avm_main_sel_op_portal,
                      avm_main_sel_op_radix_le,
                      avm_main_sel_op_sender,
                      avm_main_sel_op_shl,
@@ -2616,7 +2611,6 @@ class AvmFlavor {
             Base::avm_main_sel_op_note_hash_exists = "AVM_MAIN_SEL_OP_NOTE_HASH_EXISTS";
             Base::avm_main_sel_op_nullifier_exists = "AVM_MAIN_SEL_OP_NULLIFIER_EXISTS";
             Base::avm_main_sel_op_or = "AVM_MAIN_SEL_OP_OR";
-            Base::avm_main_sel_op_portal = "AVM_MAIN_SEL_OP_PORTAL";
             Base::avm_main_sel_op_radix_le = "AVM_MAIN_SEL_OP_RADIX_LE";
             Base::avm_main_sel_op_sender = "AVM_MAIN_SEL_OP_SENDER";
             Base::avm_main_sel_op_shl = "AVM_MAIN_SEL_OP_SHL";
@@ -2963,7 +2957,6 @@ class AvmFlavor {
         Commitment avm_main_sel_op_note_hash_exists;
         Commitment avm_main_sel_op_nullifier_exists;
         Commitment avm_main_sel_op_or;
-        Commitment avm_main_sel_op_portal;
         Commitment avm_main_sel_op_radix_le;
         Commitment avm_main_sel_op_sender;
         Commitment avm_main_sel_op_shl;
@@ -3329,7 +3322,6 @@ class AvmFlavor {
             avm_main_sel_op_nullifier_exists =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_or = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            avm_main_sel_op_portal = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_radix_le = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_sender = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_shl = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3680,7 +3672,6 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_sel_op_note_hash_exists, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_nullifier_exists, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_or, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(avm_main_sel_op_portal, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_radix_le, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_sender, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_shl, Transcript::proof_data);

@@ -272,7 +272,6 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_note_hash_exists{};
     FF avm_main_sel_op_nullifier_exists{};
     FF avm_main_sel_op_or{};
-    FF avm_main_sel_op_portal{};
     FF avm_main_sel_op_radix_le{};
     FF avm_main_sel_op_sender{};
     FF avm_main_sel_op_shl{};
@@ -478,8 +477,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 392;
-    static constexpr size_t num_polys = 330;
+    static constexpr size_t num_fixed_columns = 391;
+    static constexpr size_t num_polys = 329;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -697,7 +696,6 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_note_hash_exists[i] = rows[i].avm_main_sel_op_note_hash_exists;
             polys.avm_main_sel_op_nullifier_exists[i] = rows[i].avm_main_sel_op_nullifier_exists;
             polys.avm_main_sel_op_or[i] = rows[i].avm_main_sel_op_or;
-            polys.avm_main_sel_op_portal[i] = rows[i].avm_main_sel_op_portal;
             polys.avm_main_sel_op_radix_le[i] = rows[i].avm_main_sel_op_radix_le;
             polys.avm_main_sel_op_sender[i] = rows[i].avm_main_sel_op_sender;
             polys.avm_main_sel_op_shl[i] = rows[i].avm_main_sel_op_shl;

@@ -32,8 +32,8 @@ class AvmProver {
     void execute_relation_check_rounds();
     void execute_zeromorph_rounds();
 
-    HonkProof& export_proof();
-    HonkProof& construct_proof();
+    HonkProof export_proof();
+    HonkProof construct_proof();
 
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 

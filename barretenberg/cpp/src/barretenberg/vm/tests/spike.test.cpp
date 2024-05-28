@@ -26,7 +26,7 @@ class SpikePublicColumnsTests : public ::testing::Test {
 //
 // The first test runs the verification with the same public inputs in the verifier and in the prover, prover inputs are
 // set in the below function The second failure test runs the verification with the different public inputs
-bool verify_spike_with_public_with_public_inputs(std::vector<SpikeFlavor::FF> verifier_public__inputs)
+bool verify_spike_with_public_with_public_inputs(std::vector<SpikeFlavor::FF> verifier_public_inputs)
 {
     using Builder = SpikeCircuitBuilder;
     using Row = Builder::Row;
@@ -53,7 +53,8 @@ bool verify_spike_with_public_with_public_inputs(std::vector<SpikeFlavor::FF> ve
 
     auto verifier = composer.create_verifier(circuit_builder);
 
-    return verifier.verify_proof(proof, verifier_public__inputs);
+    std::vector<std::vector<SpikeFlavor::FF>> public_inputs = { verifier_public_inputs };
+    return verifier.verify_proof(proof, public_inputs);
 }
 
 TEST(SpikePublicColumnsTests, VerificationSuccess)
