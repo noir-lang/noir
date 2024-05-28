@@ -1201,10 +1201,6 @@ impl<'context> Elaborator<'context> {
             other => match self.interner.lookup_primitive_method(&other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
-                    panic!(
-                        "Unresolved method call on other/primitive! {:?}::{}",
-                        object_type, method_name
-                    );
                     self.push_err(TypeCheckError::UnresolvedMethodCall {
                         method_name: method_name.to_string(),
                         object_type: object_type.clone(),
