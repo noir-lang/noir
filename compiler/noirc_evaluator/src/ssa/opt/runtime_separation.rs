@@ -107,7 +107,7 @@ impl RuntimeSeparatorContext {
         }
     }
 
-    fn replace_calls_to_mapped_functions(&mut self, ssa: &mut Ssa) {
+    fn replace_calls_to_mapped_functions(&self, ssa: &mut Ssa) {
         for (_function_id, func) in ssa.functions.iter_mut() {
             if func.runtime() == RuntimeType::Brillig {
                 for called_func_value_id in called_functions_values(func).iter() {
