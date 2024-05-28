@@ -71,7 +71,7 @@
       "displayName": "Debugging build with Clang-16",
       "description": "Build with globally installed Clang-16 in debug mode",
       "inherits": "clang16",
-      "binaryDir": "build",
+      "binaryDir": "build-debug",
       "environment": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CFLAGS": "-gdwarf-4",
@@ -88,6 +88,7 @@
       "displayName": "Optimized debug build with Clang-16",
       "description": "Build with globally installed Clang-16 in optimized debug mode",
       "inherits": "clang16-dbg",
+      "binaryDir": "build-debug-fast",
       "environment": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CFLAGS": "-O2 -gdwarf",
@@ -97,6 +98,7 @@
     },
     {
       "name": "clang16-assert",
+      "binaryDir": "build-assert",
       "displayName": "Build with Clang-16 using RelWithAssert",
       "description": "Build with globally installed Clang-16 in release with ASSERTs mode",
       "inherits": "clang16",
