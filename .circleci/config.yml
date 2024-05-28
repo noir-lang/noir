@@ -105,18 +105,6 @@ jobs:
           command: cond_spot_run_build barretenberg-wasm-linux-clang 128
           aztec_manifest_key: barretenberg-wasm-linux-clang
 
-  barretenberg-x86_64-linux-gcc:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build barretenberg-x86_64-linux-gcc 128
-          aztec_manifest_key: barretenberg-x86_64-linux-gcc
-
   barretenberg-x86_64-linux-clang:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -505,7 +493,6 @@ workflows:
       - avm-transpiler: *defaults
 
       # Barretenberg
-      - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
       - barretenberg-x86_64-linux-clang-assert: *defaults
       # - barretenberg-x86_64-linux-clang-fuzzing: *defaults
@@ -555,7 +542,6 @@ workflows:
       # Everything that must complete before deployment.
       - end:
           requires:
-            - barretenberg-x86_64-linux-gcc
             - barretenberg-x86_64-linux-clang
             - barretenberg-x86_64-linux-clang-assert
             # - barretenberg-x86_64-linux-clang-fuzzing

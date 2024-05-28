@@ -84,12 +84,6 @@ barretenberg-x86_64-linux-clang-fuzzing:
   dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-fuzzing
   rebuildPatterns: .rebuild_patterns
 
-# Builds all of barretenberg with gcc. Ensures compiler compatibility.
-barretenberg-x86_64-linux-gcc:
-  buildDir: barretenberg/cpp
-  dockerfile: dockerfiles/Dockerfile.x86_64-linux-gcc
-  rebuildPatterns: .rebuild_patterns
-
 # Builds barretenberg.wasm (single and multithreaded builds).
 barretenberg-wasm-linux-clang:
   buildDir: barretenberg/cpp
