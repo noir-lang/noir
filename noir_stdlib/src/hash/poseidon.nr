@@ -3,15 +3,29 @@ use crate::field::modulus_num_bits;
 use crate::hash::Hasher;
 use crate::default::Default;
 
+// A config struct defining the parameters of the Poseidon instance to use.
+//
+// A thorough writeup of this method (along with an unoptimized method) can be found at: https://spec.filecoin.io/algorithms/crypto/poseidon/
 struct PoseidonConfig<M, N, X> { 
-    t: Field, // Width, i.e. state size
-    rf: u8, // Number of full rounds; should be even
-    rp: u8, // Number of partial rounds
-    alpha: Field, // S-box power; depends on the underlying field
-    C: [Field; N],
-    Mat: [[Field; M]; M], // Additive round keys
-    PMat: [[Field; M]; M],
-    S: [Field; X],
+    // State width, should be equal to `M`
+    t: Field,
+    // Number of full rounds. should be even
+    rf: u8,
+    // Number of partial rounds
+    rp: u8,
+     // S-box power; depends on the underlying field
+    alpha: Field,
+    // The round constants for the
+    round_constants: [Field; N],
+    // The MDS matrix for the Poseidon instance
+    mds: [[Field; M]; M],
+    // An MDS matrix which also applies a basis transformation which allows
+    // sparse matrices to be used for the partial rounds.
+    //
+    // This should be applied instead of `mds` in the final full round.
+    presparse_mds: [[Field; M]; M],
+    // A set of sparse matrices used for MDS mixing for the partial rounds.
+    sparse_mds: [Field; X],
 }
 
 pub fn config<M, N, X>(
@@ -19,59 +33,42 @@ pub fn config<M, N, X>(
     rf: u8,
     rp: u8,
     alpha: Field,
-    C: [Field; N],
-    Mat: [[Field; M]; M], // Additive round keys
-    PMat: [[Field; M]; M],
-    S: [Field; X]
+    round_constants: [Field; N],
+    mds: [[Field; M]; M],
+    presparse_mds: [[Field; M]; M],
+    sparse_mds: [Field; X]
 ) -> PoseidonConfig<M, N, X> {
     // Input checks
+    assert_eq(rf & 1, 0);
     assert_eq((t as u8) * rf + rp, N);
     assert_eq(t, M);
     assert(alpha != 0);
 
-    PoseidonConfig { t, rf, rp, alpha, C, Mat, PMat, S }
+    PoseidonConfig { t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds }
 }
 
-pub fn permute<M, N, X, O>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field; O]) -> [Field; O] {
-    let PoseidonConfig {t, rf, rp, alpha, C: C, Mat: M, PMat: P, S } = pos_conf;
+pub fn permute<M, N, X>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field; M]) -> [Field; M] {
+    let PoseidonConfig {t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds } = pos_conf;
 
     for i in 0..state.len() {
-        state[i] += C[i];
+        state[i] += round_constants[i];
     }
 
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..state.len() {
-            state[i] = state[i] + C[state.len() * (_r + 1) as u64 + i as u64];
+            state[i] = state[i] + round_constants[state.len() * (_r + 1) as u64 + i as u64];
         }
-        {
-            let mut out = state;
-            for i in 0..state.len() {
-                let mut val = 0;
-                for j in 0..state.len() {
-                    val += state[j] * M[j][i];
-                }
-                out[i] = val;
-            }
-            state = out;
-        }
+        state = apply_matrix(mds, state);
     }
+
 
     state = sigma(state);
     for i in 0..state.len() {
-        state[i] = state[i] + C[state.len() * (rf / 2) as u64 + i as u64];
+        state[i] = state[i] + round_constants[state.len() * (rf / 2) as u64 + i as u64];
     }
-    {
-        let mut out = state;
-        for i in 0..state.len() {
-            let mut val = 0;
-            for j in 0..state.len() {
-                val += state[j] * P[j][i];
-            }
-            out[i] = val;
-        }
-        state = out;
-    }
+    state = apply_matrix(presparse_mds, state);
+
 
     for i in 0..state.len() {
         crate::as_witness(state[i]);
@@ -79,16 +76,16 @@ pub fn permute<M, N, X, O>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field;
 
     for _r in 0..rp {
         state[0] = state[0].pow_32(alpha);
-        state[0] += C[(rf/2 + 1) as u64 * state.len() as u64 + _r as u64];
+        state[0] += round_constants[(rf/2 + 1) as u64 * state.len() as u64 + _r as u64];
         crate::as_witness(state[0]);
         {
             let mut newState0 = 0;
             for j in 0..state.len() {
-                let mul = S[(state.len() * 2 - 1) * _r as u64 + j as u64] * state[j];
+                let mul = sparse_mds[(state.len() * 2 - 1) * _r as u64 + j as u64] * state[j];
                 newState0 += mul;
             }
             for k in 1..state.len() {
-                state[k] = state[k] + state[0] * S[(t * 2 - 1) as u64 * _r as u64 + state.len() + k - 1];
+                state[k] = state[k] + state[0] * sparse_mds[(t * 2 - 1) as u64 * _r as u64 + state.len() + k - 1];
             }
             state[0] = newState0;
 
@@ -103,45 +100,40 @@ pub fn permute<M, N, X, O>(pos_conf: PoseidonConfig<M, N, X>, mut state: [Field;
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..state.len() {
-            state[i] = state[i] + C[(rf/2+1) as u64 * (state.len()) as u64 + rp as u64 + _r as u64 *state.len() as u64 + i as u64];
+            state[i] = state[i] + round_constants[(rf/2+1) as u64 * (state.len()) as u64 + rp as u64 + _r as u64 *state.len() as u64 + i as u64];
         }
-        {
-            let mut out = state;
-            for i in 0..state.len() {
-                let mut val = 0;
-                for j in 0..state.len() {
-                    val += state[j] * M[j][i];
-                }
-                out[i] = val;
-            }
-            state = out;
-        }
+        state = apply_matrix(mds, state);
     }
 
     state = sigma(state);
-    {
-        let mut out = state;
-        for i in 0..state.len() {
-            let mut val = 0;
-            for j in 0..state.len() {
-                val += state[j] * M[j][i];
-            }
-            out[i] = val;
-        }
-        state = out;
-    }
+    state = apply_matrix(mds, state);
+    
 
     state
 }
 
+// Performs matrix multiplication on a vector
+fn apply_matrix<N>(matrix: [[Field; N]; N], vec: [Field; N]) -> [Field; N] {
+    let mut out = [0; N];
+
+    for i in 0..N {
+        for j in 0..N {
+            out[i] += vec[j] * matrix[j][i];
+        }
+    }
+
+    out
+}
+
 // Corresponding absorption.
-fn absorb<M, N, X, O, P>(
+fn absorb<M, N, X, O>(
     pos_conf: PoseidonConfig<M, N, X>,
-    mut state: [Field; O], // Initial state; usually [0; O]
-    rate: Field, // Rate
-    capacity: Field, // Capacity; usually 1
-    msg: [Field; P] // Arbitrary length message
-) -> [Field; O] {
+    // Initial state; usually [0; O]
+    mut state: [Field; M], 
+    rate: Field,
+    capacity: Field,
+    msg: [Field; O] // Arbitrary length message
+) -> [Field; M] {
     assert_eq(pos_conf.t, rate + capacity);
 
     let mut i = 0;
