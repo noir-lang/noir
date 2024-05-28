@@ -944,10 +944,10 @@ impl<'context> Elaborator<'context> {
 
         for (generics, span, unresolved) in impls {
             self.file = unresolved.file_id;
-            let old_generic_count = self.generics.len();
-            self.add_generics(generics);
-            self.declare_methods_on_struct(self_type, false, unresolved, *span);
-            self.generics.truncate(old_generic_count);
+            self.recover_generics(|this| {
+                 this.add_generics(generics);
+                 this.declare_methods_on_struct(self_type, false, unresolved, *span);
+            });
         }
     }
 
