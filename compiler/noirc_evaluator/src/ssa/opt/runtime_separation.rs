@@ -225,6 +225,16 @@ mod test {
         let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 2);
 
+        // Expected result
+        // brillig fn foo {
+        //   b0():
+        //     v0 = call bar()
+        //     return v0
+        // }
+        // brillig fn bar {
+        //   b0():
+        //     return 72
+        // }
         let separated = ssa.separate_runtime();
 
         // The original bar function must have been pruned
@@ -295,6 +305,26 @@ mod test {
         let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 3);
 
+        // Expected result
+        // acir fn foo {
+        //   b0():
+        //     v0 = call bar()
+        //     v1 = call baz() <- baz_acir
+        //     return v0, v1
+        // }
+        // brillig fn bar {
+        //   b0():
+        //     v0 = call baz() <- baz_brillig
+        //     return v0
+        // }
+        // acir fn baz {
+        //   b0():
+        //     return 72
+        // }
+        // brillig fn baz {
+        //   b0():
+        //     return 72
+        // }
         let separated = ssa.separate_runtime();
 
         // The original baz function must have been duplicated
