@@ -88,7 +88,6 @@ impl<'context> Elaborator<'context> {
                     let name_span = the_trait.name.span();
 
                     this.add_existing_generic("Self", name_span, self_typevar);
-                    this.add_generics(generics);
                     this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
@@ -101,8 +100,10 @@ impl<'context> Elaborator<'context> {
                         func_id,
                     );
 
-                    let arguments = vecmap(parameters, |param| this.resolve_type(param.1.clone()));
-                    let return_type = this.resolve_type(return_type.get_type().into_owned());
+                    let func_meta = this.interner.function_meta(&func_id);
+
+                    let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
+                    let return_type = func_meta.return_type().clone();
 
                     let generics = vecmap(&this.generics, |(_, type_var, _)| type_var.clone());
 
