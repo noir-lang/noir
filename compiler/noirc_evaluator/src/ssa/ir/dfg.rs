@@ -284,7 +284,7 @@ impl DataFlowGraph {
         intrinsic_value_id
     }
 
-    pub(crate) fn get_intrinsic(&mut self, intrinsic: Intrinsic) -> Option<&ValueId> {
+    pub(crate) fn get_intrinsic(&self, intrinsic: Intrinsic) -> Option<&ValueId> {
         self.intrinsics.get(&intrinsic)
     }
 
