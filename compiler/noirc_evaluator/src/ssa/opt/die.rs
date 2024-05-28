@@ -261,7 +261,6 @@ mod test {
         assert_eq!(main.dfg[b1].instructions().len(), 6);
     }
 
-
     #[test]
     fn as_witness_die() {
         // fn main f0 {
