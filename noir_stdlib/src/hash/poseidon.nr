@@ -9,8 +9,8 @@ struct PoseidonConfig<M, N, X> {
     rp: u8, // Number of partial rounds
     alpha: Field, // S-box power; depends on the underlying field
     C: [Field; N],
-    Mat: [[Field;M]; M], // Additive round keys
-    PMat: [[Field;M]; M],
+    Mat: [[Field; M]; M], // Additive round keys
+    PMat: [[Field; M]; M],
     S: [Field; X],
 }
 
@@ -23,7 +23,7 @@ pub fn config<M, N, X>(
     Mat: [[Field; M]; M], // Additive round keys
     PMat: [[Field; M]; M],
     S: [Field; X]
-) -> PoseidonConfig<M,N,X> {
+) -> PoseidonConfig<M, N, X> {
     // Input checks
     assert_eq((t as u8) * rf + rp, N);
     assert_eq(t, M);
