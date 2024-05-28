@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::{hint::black_box, time::Duration};
 
-use acir::FieldElement;
+use acir::{AcirField, FieldElement};
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use bn254_blackbox_solver::{poseidon2_permutation, Bn254BlackBoxSolver};
 

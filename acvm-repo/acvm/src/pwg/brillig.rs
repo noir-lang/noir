@@ -9,7 +9,7 @@ use acir::{
         STRING_ERROR_SELECTOR,
     },
     native_types::WitnessMap,
-    FieldElement,
+    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};
@@ -19,31 +19,31 @@ use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 use super::{get_value, insert_value, memory_op::MemoryOpSolver};
 
 #[derive(Debug)]
-pub enum BrilligSolverStatus {
+pub enum BrilligSolverStatus<F> {
     Finished,
     InProgress,
-    ForeignCallWait(ForeignCallWaitInfo),
+    ForeignCallWait(ForeignCallWaitInfo<F>),
 }
 
-pub struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
-    vm: VM<'b, B>,
+pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
+    vm: VM<'b, F, B>,
     acir_index: usize,
 }
 
-impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
+impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
     pub(super) fn zero_out_brillig_outputs(
-        initial_witness: &mut WitnessMap,
+        initial_witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         for output in outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, FieldElement::zero(), initial_witness)?;
+                    insert_value(witness, F::zero(), initial_witness)?;
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     for witness in witness_arr {
-                        insert_value(witness, FieldElement::zero(), initial_witness)?;
+                        insert_value(witness, F::zero(), initial_witness)?;
                     }
                 }
             }
@@ -54,27 +54,27 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     /// Constructs a solver for a Brillig block given the bytecode and initial
     /// witness.
     pub(crate) fn new_call(
-        initial_witness: &WitnessMap,
-        memory: &HashMap<BlockId, MemoryOpSolver>,
-        inputs: &'b [BrilligInputs],
-        brillig_bytecode: &'b [BrilligOpcode],
+        initial_witness: &WitnessMap<F>,
+        memory: &HashMap<BlockId, MemoryOpSolver<F>>,
+        inputs: &'b [BrilligInputs<F>],
+        brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         acir_index: usize,
-    ) -> Result<Self, OpcodeResolutionError> {
+    ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm =
             Self::setup_brillig_vm(initial_witness, memory, inputs, brillig_bytecode, bb_solver)?;
         Ok(Self { vm, acir_index })
     }
 
     fn setup_brillig_vm(
-        initial_witness: &WitnessMap,
-        memory: &HashMap<BlockId, MemoryOpSolver>,
-        inputs: &[BrilligInputs],
-        brillig_bytecode: &'b [BrilligOpcode],
+        initial_witness: &WitnessMap<F>,
+        memory: &HashMap<BlockId, MemoryOpSolver<F>>,
+        inputs: &[BrilligInputs<F>],
+        brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
-    ) -> Result<VM<'b, B>, OpcodeResolutionError> {
+    ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
-        let mut calldata: Vec<FieldElement> = Vec::new();
+        let mut calldata: Vec<F> = Vec::new();
         // Each input represents an expression or array of expressions to evaluate.
         // Iterate over each input and evaluate the expression(s) associated with it.
         // Push the results into memory.
@@ -123,11 +123,11 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(vm)
     }
 
-    pub fn get_memory(&self) -> &[MemoryValue] {
+    pub fn get_memory(&self) -> &[MemoryValue<F>] {
         self.vm.get_memory()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue) {
+    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
         self.vm.write_memory_at(ptr, value);
     }
 
@@ -135,12 +135,12 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         self.vm.get_call_stack()
     }
 
-    pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+    pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
         let status = self.vm.process_opcodes();
         self.handle_vm_status(status)
     }
 
-    pub fn step(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+    pub fn step(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
         let status = self.vm.process_opcode();
         self.handle_vm_status(status)
     }
@@ -151,8 +151,8 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 
     fn handle_vm_status(
         &self,
-        vm_status: VMStatus,
-    ) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+        vm_status: VMStatus<F>,
+    ) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
         // Check the status of the Brillig VM and return a resolution.
         // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
         // Return the "resolution" to the caller who may choose to make subsequent calls
@@ -227,9 +227,9 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 
     pub(crate) fn finalize(
         self,
-        witness: &mut WitnessMap,
+        witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         // Finish the Brillig execution by writing the outputs to the witness map
         let vm_status = self.vm.get_status();
         match vm_status {
@@ -243,11 +243,11 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 
     fn write_brillig_outputs(
         &self,
-        witness_map: &mut WitnessMap,
+        witness_map: &mut WitnessMap<F>,
         return_data_offset: usize,
         return_data_size: usize,
         outputs: &[BrilligOutputs],
-    ) -> Result<(), OpcodeResolutionError> {
+    ) -> Result<(), OpcodeResolutionError<F>> {
         // Write VM execution results into the witness map
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
@@ -274,7 +274,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(())
     }
 
-    pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
+    pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
         match self.vm.get_status() {
             VMStatus::ForeignCallWait { .. } => self.vm.resolve_foreign_call(foreign_call_result),
             _ => unreachable!("Brillig VM is not waiting for a foreign call"),
@@ -287,9 +287,9 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
 ///
 /// The caller must resolve this opcode externally based upon the information in the request.
 #[derive(Debug, PartialEq, Clone)]
-pub struct ForeignCallWaitInfo {
+pub struct ForeignCallWaitInfo<F> {
     /// An identifier interpreted by the caller process
     pub function: String,
     /// Resolved inputs to a foreign call computed in the previous steps of a Brillig VM process
-    pub inputs: Vec<ForeignCallParam>,
+    pub inputs: Vec<ForeignCallParam<F>>,
 }
