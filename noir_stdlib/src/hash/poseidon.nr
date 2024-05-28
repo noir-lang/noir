@@ -57,7 +57,7 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..T {
-            state[i] = state[i] + round_constants[T * (_r + 1) as u64 + i];
+            state[i] += round_constants[T * (_r + 1) as u64 + i];
         }
         state = apply_matrix(mds, state);
     }
@@ -65,7 +65,7 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
 
     state = sigma(state);
     for i in 0..T {
-        state[i] = state[i] + round_constants[T * (rf / 2) as u64 + i];
+        state[i] += round_constants[T * (rf / 2) as u64 + i];
     }
     state = apply_matrix(presparse_mds, state);
 
@@ -99,7 +99,7 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..state.len() {
-            state[i] = state[i] + round_constants[(rf/2+1) as u64 * T + rp as u64 + (_r as u64) * T + i];
+            state[i] += round_constants[(rf/2+1) as u64 * T + rp as u64 + (_r as u64) * T + i];
         }
         state = apply_matrix(mds, state);
     }
