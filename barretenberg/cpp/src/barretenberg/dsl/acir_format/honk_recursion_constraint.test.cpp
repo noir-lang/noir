@@ -1,16 +1,20 @@
 #include "honk_recursion_constraint.hpp"
 #include "acir_format.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
-#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
 
 using namespace acir_format;
-using namespace bb::plonk;
+using namespace bb;
 
 class AcirHonkRecursionConstraint : public ::testing::Test {
+
   public:
+    using ProverInstance = ProverInstance_<UltraFlavor>;
+    using Prover = bb::UltraProver;
+    using VerificationKey = UltraFlavor::VerificationKey;
+    using Verifier = bb::UltraVerifier;
+
     Builder create_inner_circuit()
     {
         /**
@@ -133,46 +137,55 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
 
         for (auto& inner_circuit : inner_circuits) {
 
-            auto inner_composer = Composer();
-            auto inner_prover = inner_composer.create_prover(inner_circuit);
-            auto inner_proof = inner_prover.construct_proof();
-            auto inner_verifier = inner_composer.create_verifier(inner_circuit);
+            auto instance = std::make_shared<ProverInstance>(inner_circuit);
+            Prover prover(instance);
+            auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+            Verifier verifier(verification_key);
+            auto inner_proof = prover.construct_proof();
 
             const size_t num_inner_public_inputs = inner_circuit.get_public_inputs().size();
-            transcript::StandardTranscript transcript(inner_proof.proof_data,
-                                                      Composer::create_manifest(num_inner_public_inputs),
-                                                      transcript::HashType::PedersenBlake3s,
-                                                      16);
 
-            std::vector<fr> proof_witnesses = export_honk_transcript_in_recursion_format(transcript);
+            std::vector<fr> proof_witnesses = inner_proof;
+            // where the inner public inputs start (after circuit_size, num_pub_inputs, pub_input_offset)
+            const size_t inner_public_input_offset = 3;
             // - Save the public inputs so that we can set their values.
             // - Then truncate them from the proof because the ACIR API expects proofs without public inputs
             std::vector<fr> inner_public_input_values(
-                proof_witnesses.begin(),
-                proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs -
-                                                                      RecursionConstraint::AGGREGATION_OBJECT_SIZE));
+                proof_witnesses.begin() + static_cast<std::ptrdiff_t>(inner_public_input_offset),
+                proof_witnesses.begin() +
+                    static_cast<std::ptrdiff_t>(inner_public_input_offset + num_inner_public_inputs -
+                                                RecursionConstraint::AGGREGATION_OBJECT_SIZE));
 
             // We want to make sure that we do not remove the nested aggregation object.
-            proof_witnesses.erase(proof_witnesses.begin(),
+            proof_witnesses.erase(proof_witnesses.begin() + static_cast<std::ptrdiff_t>(inner_public_input_offset),
                                   proof_witnesses.begin() +
-                                      static_cast<std::ptrdiff_t>(num_inner_public_inputs -
+                                      static_cast<std::ptrdiff_t>(inner_public_input_offset + num_inner_public_inputs -
                                                                   RecursionConstraint::AGGREGATION_OBJECT_SIZE));
 
-            std::vector<bb::fr> key_witnesses = export_honk_key_in_recursion_format(inner_verifier.key);
-            bb::fr key_hash = key_witnesses.back();
-            key_witnesses.pop_back();
+            std::vector<bb::fr> key_witnesses = verification_key->to_field_elements();
 
-            const uint32_t key_hash_start_idx = static_cast<uint32_t>(witness_offset);
-            const uint32_t public_input_start_idx = key_hash_start_idx + 1;
-            const uint32_t proof_indices_start_idx = static_cast<uint32_t>(
-                public_input_start_idx + num_inner_public_inputs - RecursionConstraint::AGGREGATION_OBJECT_SIZE);
+            // This is the structure of proof_witnesses and key_witnesses concatenated, which is what we end up putting
+            // in witness:
+            // [ circuit size, num_pub_inputs, pub_input_offset, public_input_0, public_input_1, agg_obj_0,
+            // agg_obj_1, ..., agg_obj_15, rest of proof..., vkey_0, vkey_1, vkey_2, vkey_3...]
+            const uint32_t public_input_start_idx =
+                static_cast<uint32_t>(inner_public_input_offset + witness_offset); // points to public_input_0
+            const uint32_t proof_indices_start_idx =
+                static_cast<uint32_t>(public_input_start_idx + num_inner_public_inputs -
+                                      RecursionConstraint::AGGREGATION_OBJECT_SIZE); // points to agg_obj_0
             const uint32_t key_indices_start_idx =
-                static_cast<uint32_t>(proof_indices_start_idx + proof_witnesses.size());
+                static_cast<uint32_t>(proof_indices_start_idx + proof_witnesses.size() -
+                                      inner_public_input_offset); // would point to vkey_3 without the -
+                                                                  // inner_public_input_offset, points to vkey_0
 
             std::vector<uint32_t> proof_indices;
             std::vector<uint32_t> key_indices;
             std::vector<uint32_t> inner_public_inputs;
-            for (size_t i = 0; i < proof_witnesses.size(); ++i) {
+            for (size_t i = 0; i < inner_public_input_offset; ++i) { // go over circuit size, num_pub_inputs, pub_offset
+                proof_indices.emplace_back(static_cast<uint32_t>(i + witness_offset));
+            }
+            for (size_t i = 0; i < proof_witnesses.size() - inner_public_input_offset;
+                 ++i) { // goes over agg_obj_0, agg_obj_1, ..., agg_obj_15 and rest of proof
                 proof_indices.emplace_back(static_cast<uint32_t>(i + proof_indices_start_idx));
             }
             const size_t key_size = key_witnesses.size();
@@ -190,16 +203,24 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
                 .key = key_indices,
                 .proof = proof_indices,
                 .public_inputs = inner_public_inputs,
-                .key_hash = key_hash_start_idx,
             };
             honk_recursion_constraints.push_back(honk_recursion_constraint);
 
-            witness.emplace_back(key_hash);
-            for (size_t i = 0; i < proof_indices_start_idx - public_input_start_idx; ++i) {
-                witness.emplace_back(0);
-            }
+            // Setting the witness vector which just appends proof witnesses and key witnesses.
+            // We need to reconstruct the proof witnesses in the same order as the proof indices, with this structure:
+            // [ circuit size, num_pub_inputs, pub_input_offset, public_input_0, public_input_1, agg_obj_0,
+            // agg_obj_1, ..., agg_obj_15, rest of proof..., vkey_0, vkey_1, vkey_2, vkey_3...]
+            size_t idx = 0;
             for (const auto& wit : proof_witnesses) {
                 witness.emplace_back(wit);
+                idx++;
+                if (idx ==
+                    inner_public_input_offset) { // before this is true, the loop adds the first three into witness
+                    for (size_t i = 0; i < proof_indices_start_idx - public_input_start_idx;
+                         ++i) { // adds the inner public inputs
+                        witness.emplace_back(0);
+                    }
+                } // after this, it adds the agg obj and rest of proof
             }
 
             for (const auto& wit : key_witnesses) {
@@ -270,11 +291,12 @@ TEST_F(AcirHonkRecursionConstraint, TestBasicDoubleHonkRecursionConstraints)
 
     info("circuit gates = ", layer_2_circuit.get_num_gates());
 
-    auto layer_2_composer = Composer();
-    auto prover = layer_2_composer.create_ultra_with_keccak_prover(layer_2_circuit);
-    info("prover gates = ", prover.circuit_size);
+    auto instance = std::make_shared<ProverInstance>(layer_2_circuit);
+    Prover prover(instance);
+    info("prover gates = ", instance->proving_key.circuit_size);
     auto proof = prover.construct_proof();
-    auto verifier = layer_2_composer.create_ultra_with_keccak_verifier(layer_2_circuit);
+    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+    Verifier verifier(verification_key);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
@@ -327,11 +349,12 @@ TEST_F(AcirHonkRecursionConstraint, TestOneOuterRecursiveCircuit)
     info("created second outer circuit");
     info("number of gates in layer 3 = ", layer_3_circuit.get_num_gates());
 
-    auto layer_3_composer = Composer();
-    auto prover = layer_3_composer.create_ultra_with_keccak_prover(layer_3_circuit);
-    info("prover gates = ", prover.circuit_size);
+    auto instance = std::make_shared<ProverInstance>(layer_3_circuit);
+    Prover prover(instance);
+    info("prover gates = ", instance->proving_key.circuit_size);
     auto proof = prover.construct_proof();
-    auto verifier = layer_3_composer.create_ultra_with_keccak_verifier(layer_3_circuit);
+    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+    Verifier verifier(verification_key);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
@@ -356,10 +379,11 @@ TEST_F(AcirHonkRecursionConstraint, TestFullRecursiveComposition)
     info("created third outer circuit");
     info("number of gates in layer 3 circuit = ", layer_3_circuit.get_num_gates());
 
-    auto layer_3_composer = Composer();
-    auto prover = layer_3_composer.create_ultra_with_keccak_prover(layer_3_circuit);
-    info("prover gates = ", prover.circuit_size);
+    auto instance = std::make_shared<ProverInstance>(layer_3_circuit);
+    Prover prover(instance);
+    info("prover gates = ", instance->proving_key.circuit_size);
     auto proof = prover.construct_proof();
-    auto verifier = layer_3_composer.create_ultra_with_keccak_verifier(layer_3_circuit);
+    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+    Verifier verifier(verification_key);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }

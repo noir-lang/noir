@@ -9,4 +9,6 @@ barretenberg_module(
     stdlib_poseidon2
     crypto_merkle_tree
     stdlib_schnorr
+    ultra_honk
+    stdlib_honk_recursion
 )

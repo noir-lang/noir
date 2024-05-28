@@ -1,11 +1,10 @@
 #pragma once
 #include "barretenberg/dsl/types.hpp"
-#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include <vector>
 
 namespace acir_format {
 
-using namespace bb::plonk;
+using namespace bb;
 
 /**
  * @brief HonkRecursionConstraint struct contains information required to recursively verify a proof!
@@ -20,7 +19,7 @@ using namespace bb::plonk;
  *
  * @param verification_key_data The inner circuit vkey. Is converted into circuit witness values (internal to the
  * backend)
- * @param proof The plonk proof. Is converted into circuit witness values (internal to the backend)
+ * @param proof The honk proof. Is converted into circuit witness values (internal to the backend)
  * @param is_aggregation_object_nonzero A flag to tell us whether the circuit has already recursively verified proofs
  * (and therefore an aggregation object is present)
  * @param public_input The index of the single public input
@@ -41,18 +40,20 @@ using namespace bb::plonk;
  * aggregation object in B’s public inputs as well as an input aggregation object that points to the object produced by
  * the previous recursion constraint in the circuit (the one that verifies A)
  *
+ * TODO(https://github.com/AztecProtocol/barretenberg/issues/996): Update these comments for Honk.
  */
 struct HonkRecursionConstraint {
+    // In Honk, the proof starts with circuit_size, num_public_inputs, and pub_input_offset. We use this offset to keep
+    // track of where the public inputs start.
+    static constexpr size_t inner_public_input_offset = 3;
     // An aggregation state is represented by two G1 affine elements. Each G1 point has
     // two field element coordinates (x, y). Thus, four field elements
     static constexpr size_t NUM_AGGREGATION_ELEMENTS = 4;
     // Four limbs are used when simulating a non-native field using the bigfield class
-    static constexpr size_t AGGREGATION_OBJECT_SIZE =
-        NUM_AGGREGATION_ELEMENTS * NUM_QUOTIENT_PARTS; // 16 field elements
+    static constexpr size_t AGGREGATION_OBJECT_SIZE = NUM_AGGREGATION_ELEMENTS * fq_ct::NUM_LIMBS; // 16 field elements
     std::vector<uint32_t> key;
     std::vector<uint32_t> proof;
     std::vector<uint32_t> public_inputs;
-    uint32_t key_hash;
 
     friend bool operator==(HonkRecursionConstraint const& lhs, HonkRecursionConstraint const& rhs) = default;
 };
@@ -63,14 +64,5 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object,
     std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
     bool has_valid_witness_assignments = false);
-
-std::vector<bb::fr> export_honk_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey);
-std::vector<bb::fr> export_dummy_honk_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
-                                                              bool contains_recursive_proof = 0);
-
-std::vector<bb::fr> export_honk_transcript_in_recursion_format(const transcript::StandardTranscript& transcript);
-std::vector<bb::fr> export_dummy_honk_transcript_in_recursion_format(const transcript::Manifest& manifest,
-                                                                     const bool contains_recursive_proof);
-size_t recursion_honk_proof_size_without_public_inputs();
 
 } // namespace acir_format

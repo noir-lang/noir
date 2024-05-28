@@ -332,22 +332,22 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
             size_t num_frs_Comm = bb::stdlib::field_conversion::calc_num_bn254_frs<CircuitBuilder, Commitment>();
 
             this->circuit_size = uint64_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
-                                              builder, elements.subspan(num_frs_read, num_frs_read + num_frs_FF))
+                                              builder, elements.subspan(num_frs_read, num_frs_FF))
                                               .get_value());
             num_frs_read += num_frs_FF;
             this->num_public_inputs = uint64_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
-                                                   builder, elements.subspan(num_frs_read, num_frs_read + num_frs_FF))
+                                                   builder, elements.subspan(num_frs_read, num_frs_FF))
                                                    .get_value());
             num_frs_read += num_frs_FF;
 
             this->pub_inputs_offset = uint64_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
-                                                   builder, elements.subspan(num_frs_read, num_frs_read + num_frs_FF))
+                                                   builder, elements.subspan(num_frs_read, num_frs_FF))
                                                    .get_value());
             num_frs_read += num_frs_FF;
 
             for (Commitment& comm : this->get_all()) {
                 comm = bb::stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, Commitment>(
-                    builder, elements.subspan(num_frs_read, num_frs_read + num_frs_Comm));
+                    builder, elements.subspan(num_frs_read, num_frs_Comm));
                 num_frs_read += num_frs_Comm;
             }
         }

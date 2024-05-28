@@ -13,12 +13,30 @@ UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(
     , builder(builder)
 {}
 
+template <typename Flavor>
+UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(Builder* builder, const std::shared_ptr<VerificationKey>& vkey)
+    : key(vkey)
+    , builder(builder)
+{}
+
 /**
- * @brief This function constructs a recursive verifier circuit for an Ultra Honk proof of a given flavor.
+ * @brief This function constructs a recursive verifier circuit for a native Ultra Honk proof of a given flavor.
  *
  */
 template <typename Flavor>
 std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::verify_proof(const HonkProof& proof)
+{
+    StdlibProof<Builder> stdlib_proof = bb::convert_proof_to_witness(builder, proof);
+    return verify_proof(stdlib_proof);
+}
+
+/**
+ * @brief This function constructs a recursive verifier circuit for a native Ultra Honk proof of a given flavor.
+ *
+ */
+template <typename Flavor>
+std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::verify_proof(
+    const StdlibProof<Builder>& proof)
 {
     using Sumcheck = ::bb::SumcheckVerifier<Flavor>;
     using PCS = typename Flavor::PCS;
@@ -28,11 +46,9 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     using RelationParams = ::bb::RelationParameters<FF>;
     using Transcript = typename Flavor::Transcript;
 
+    transcript = std::make_shared<Transcript>(proof);
+
     RelationParams relation_parameters;
-
-    StdlibProof<Builder> stdlib_proof = bb::convert_proof_to_witness(builder, proof);
-    transcript = std::make_shared<Transcript>(stdlib_proof);
-
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;
 

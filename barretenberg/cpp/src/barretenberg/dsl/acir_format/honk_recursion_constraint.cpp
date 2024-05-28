@@ -1,23 +1,37 @@
 #include "honk_recursion_constraint.hpp"
-#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "barretenberg/plonk/transcript/transcript_wrappers.hpp"
-#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
-#include "barretenberg/stdlib/plonk_recursion/verifier/verifier.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 #include "recursion_constraint.hpp"
 
 namespace acir_format {
 
-using namespace bb::plonk;
+using namespace bb;
+using namespace bb::stdlib::recursion::honk;
+
+std::array<bn254::Group, 2> agg_points_from_witness_indicies(
+    Builder& builder, const std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE>& obj_witness_indices)
+{
+    std::array<bn254::BaseField, 4> aggregation_elements;
+    for (size_t i = 0; i < 4; ++i) {
+        aggregation_elements[i] =
+            bn254::BaseField(field_ct::from_witness_index(&builder, obj_witness_indices[4 * i]),
+                             field_ct::from_witness_index(&builder, obj_witness_indices[4 * i + 1]),
+                             field_ct::from_witness_index(&builder, obj_witness_indices[4 * i + 2]),
+                             field_ct::from_witness_index(&builder, obj_witness_indices[4 * i + 3]));
+        aggregation_elements[i].assert_is_in_field();
+    }
+
+    return { bn254::Group(aggregation_elements[0], aggregation_elements[1]),
+             bn254::Group(aggregation_elements[2], aggregation_elements[3]) };
+}
 
 /**
- * @brief Add constraints required to recursively verify an UltraPlonk proof
+ * @brief Add constraints required to recursively verify an UltraHonk proof
  *
  * @param builder
  * @param input
- * @tparam has_valid_witness_assignment. Do we have witnesses or are we just generating keys?
- * @tparam inner_proof_contains_recursive_proof. Do we expect the inner proof to also have performed recursive
- * verification? We need to know this at circuit-compile time.
+ * @param input_aggregation_object. The aggregation object coming from previous Honk recursion constraints.
+ * @param nested_aggregation_object. The aggregation object coming from the inner proof.
+ * @param has_valid_witness_assignment. Do we have witnesses or are we just generating keys?
  *
  * @note We currently only support HonkRecursionConstraint where inner_proof_contains_recursive_proof = false.
  *       We would either need a separate ACIR opcode where inner_proof_contains_recursive_proof = true,
@@ -30,87 +44,49 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
     bool has_valid_witness_assignments)
 {
-    const auto& nested_aggregation_indices = nested_aggregation_object;
-    const bool inner_proof_contains_recursive_proof = true;
+    using Flavor = UltraRecursiveFlavor_<Builder>;
+    using RecursiveVerificationKey = Flavor::VerificationKey;
+    using RecursiveVerifier = UltraRecursiveVerifier_<Flavor>;
 
-    // If we do not have a witness, we must ensure that our dummy witness will not trigger
-    // on-curve errors and inverting-zero errors
-    {
-        // get a fake key/proof that satisfies on-curve + inversion-zero checks
-        const std::vector<fr> dummy_key = export_dummy_honk_key_in_recursion_format(
-            PolynomialManifest(Builder::CIRCUIT_TYPE), inner_proof_contains_recursive_proof);
-        const auto manifest = Composer::create_manifest(input.public_inputs.size());
-        std::vector<bb::fr> dummy_proof =
-            export_dummy_honk_transcript_in_recursion_format(manifest, inner_proof_contains_recursive_proof);
+    // Ignore the case of invalid witness assignments for now.
+    static_cast<void>(has_valid_witness_assignments);
 
-        for (size_t i = 0; i < input.public_inputs.size(); ++i) {
-            const auto public_input_idx = input.public_inputs[i];
-            // if we do NOT have a witness assignment (i.e. are just building the proving/verification keys),
-            // we add our dummy public input values as Builder variables.
-            // if we DO have a valid witness assignment, we use the real witness assignment
-            bb::fr dummy_field =
-                has_valid_witness_assignments ? builder.get_variable(public_input_idx) : dummy_proof[i];
-            // Create a copy constraint between our dummy field and the witness index provided by
-            // HonkRecursionConstraint. This will make the HonkRecursionConstraint idx equal to `dummy_field`. In the
-            // case of a valid witness assignment, this does nothing (as dummy_field = real value) In the case of no
-            // valid witness assignment, this makes sure that the HonkRecursionConstraint witness indices will not
-            // trigger basic errors (check inputs are on-curve, check we are not inverting 0)
-            //
-            // Failing to do these copy constraints on public inputs will trigger these basic errors
-            // in the case of a nested proof, as an aggregation object is expected to be two G1 points even
-            // in the case of no valid witness assignments.
-            builder.assert_equal(builder.add_variable(dummy_field), public_input_idx);
-        }
-        // Remove the public inputs from the dummy proof
-        // The proof supplied to the recursion constraint will already be stripped of public inputs
-        // while the barretenberg API works with public inputs prepended to the proof.
-        dummy_proof.erase(dummy_proof.begin(),
-                          dummy_proof.begin() + static_cast<std::ptrdiff_t>(input.public_inputs.size()));
-        for (size_t i = 0; i < input.proof.size(); ++i) {
-            const auto proof_field_idx = input.proof[i];
-            bb::fr dummy_field = has_valid_witness_assignments ? builder.get_variable(proof_field_idx) : dummy_proof[i];
-            builder.assert_equal(builder.add_variable(dummy_field), proof_field_idx);
-        }
-        for (size_t i = 0; i < input.key.size(); ++i) {
-            const auto key_field_idx = input.key[i];
-            bb::fr dummy_field = has_valid_witness_assignments ? builder.get_variable(key_field_idx) : dummy_key[i];
-            builder.assert_equal(builder.add_variable(dummy_field), key_field_idx);
-        }
-    }
+    // Construct aggregation points from the nested aggregation witness indices
+    std::array<bn254::Group, 2> nested_aggregation_points =
+        agg_points_from_witness_indicies(builder, nested_aggregation_object);
 
     // Construct an in-circuit representation of the verification key.
     // For now, the v-key is a circuit constant and is fixed for the circuit.
     // (We may need a separate recursion opcode for this to vary, or add more config witnesses to this opcode)
     const auto& aggregation_input = input_aggregation_object;
-    aggregation_state_ct previous_aggregation;
+    aggregation_state_ct cur_aggregation_object;
+    cur_aggregation_object.P0 = nested_aggregation_points[0];
+    cur_aggregation_object.P1 = nested_aggregation_points[1];
+    cur_aggregation_object.has_data = true; // the nested aggregation object always exists
 
-    // If we have previously recursively verified proofs, `inner_aggregation_object_nonzero = true`
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/995): generate this challenge properly.
+    field_ct recursion_separator = bb::stdlib::witness_t<Builder>(&builder, 2);
+
+    // If we have previously recursively verified proofs, `previous_aggregation_object_nonzero = true`
     // For now this is a complile-time constant i.e. whether this is true/false is fixed for the circuit!
-    bool inner_aggregation_indices_all_zero = true;
+    bool previous_aggregation_indices_all_zero = true;
     for (const auto& idx : aggregation_input) {
-        inner_aggregation_indices_all_zero &= (idx == 0);
+        previous_aggregation_indices_all_zero &= (idx == 0);
     }
 
-    if (!inner_aggregation_indices_all_zero) {
-        std::array<bn254::BaseField, 4> aggregation_elements;
-        for (size_t i = 0; i < 4; ++i) {
-            aggregation_elements[i] =
-                bn254::BaseField(field_ct::from_witness_index(&builder, aggregation_input[4 * i]),
-                                 field_ct::from_witness_index(&builder, aggregation_input[4 * i + 1]),
-                                 field_ct::from_witness_index(&builder, aggregation_input[4 * i + 2]),
-                                 field_ct::from_witness_index(&builder, aggregation_input[4 * i + 3]));
-            aggregation_elements[i].assert_is_in_field();
-        }
-        // If we have a previous aggregation object, assign it to `previous_aggregation` so that it is included
-        // in stdlib::recursion::verify_proof
-        previous_aggregation.P0 = bn254::Group(aggregation_elements[0], aggregation_elements[1]);
-        previous_aggregation.P1 = bn254::Group(aggregation_elements[2], aggregation_elements[3]);
-        previous_aggregation.has_data = true;
-    } else {
-        previous_aggregation.has_data = false;
+    // Aggregate the aggregation object if it exists. It exists if we have previously verified proofs, i.e. if this is
+    // not the first recursion constraint.
+    if (!previous_aggregation_indices_all_zero) {
+        std::array<bn254::Group, 2> inner_agg_points = agg_points_from_witness_indicies(builder, aggregation_input);
+        // If we have a previous aggregation object, aggregate it into the current aggregation object.
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/995): Verify that using challenge and challenge
+        // squared is safe.
+        cur_aggregation_object.P0 += inner_agg_points[0] * recursion_separator;
+        cur_aggregation_object.P1 += inner_agg_points[1] * recursion_separator;
+        recursion_separator =
+            recursion_separator *
+            recursion_separator; // update the challenge to be challenge squared for the next aggregation
     }
-
-    transcript::Manifest manifest = Composer::create_manifest(input.public_inputs.size());
 
     std::vector<field_ct> key_fields;
     key_fields.reserve(input.key.size());
@@ -120,36 +96,55 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     }
 
     std::vector<field_ct> proof_fields;
-    // Prepend the public inputs to the proof fields because this is how the
-    // core barretenberg library processes proofs (with the public inputs first and not separated)
+    // Insert the public inputs in the middle the proof fields after 'inner_public_input_offset' because this is how the
+    // core barretenberg library processes proofs (with the public inputs starting at the third element and not
+    // separate from the rest of the proof)
     proof_fields.reserve(input.proof.size() + input.public_inputs.size());
-    for (const auto& idx : input.public_inputs) {
-        auto field = field_ct::from_witness_index(&builder, idx);
-        proof_fields.emplace_back(field);
-    }
+    size_t i = 0;
     for (const auto& idx : input.proof) {
         auto field = field_ct::from_witness_index(&builder, idx);
         proof_fields.emplace_back(field);
+        i++;
+        if (i == HonkRecursionConstraint::inner_public_input_offset) {
+            for (const auto& idx : input.public_inputs) {
+                auto field = field_ct::from_witness_index(&builder, idx);
+                proof_fields.emplace_back(field);
+            }
+        }
     }
 
-    // recursively verify the proof
-    std::shared_ptr<verification_key_ct> vkey = verification_key_ct::from_field_elements(
-        &builder, key_fields, inner_proof_contains_recursive_proof, nested_aggregation_indices);
-    vkey->program_width = noir_recursive_settings::program_width;
+    // Recursively verify the proof
+    auto vkey = std::make_shared<RecursiveVerificationKey>(builder, key_fields);
+    RecursiveVerifier verifier(&builder, vkey);
+    std::array<typename Flavor::GroupElement, 2> pairing_points = verifier.verify_proof(proof_fields);
 
-    Transcript_ct transcript(&builder, manifest, proof_fields, input.public_inputs.size());
-    aggregation_state_ct result = bb::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
-        &builder, vkey, transcript, previous_aggregation);
+    // Aggregate the current aggregation object with these pairing points from verify_proof
+    cur_aggregation_object.P0 += pairing_points[0] * recursion_separator;
+    cur_aggregation_object.P1 += pairing_points[1] * recursion_separator;
 
-    // Assign correct witness value to the verification key hash
-    vkey->hash().assert_equal(field_ct::from_witness_index(&builder, input.key_hash));
+    std::vector<uint32_t> proof_witness_indices = {
+        cur_aggregation_object.P0.x.binary_basis_limbs[0].element.normalize().witness_index,
+        cur_aggregation_object.P0.x.binary_basis_limbs[1].element.normalize().witness_index,
+        cur_aggregation_object.P0.x.binary_basis_limbs[2].element.normalize().witness_index,
+        cur_aggregation_object.P0.x.binary_basis_limbs[3].element.normalize().witness_index,
+        cur_aggregation_object.P0.y.binary_basis_limbs[0].element.normalize().witness_index,
+        cur_aggregation_object.P0.y.binary_basis_limbs[1].element.normalize().witness_index,
+        cur_aggregation_object.P0.y.binary_basis_limbs[2].element.normalize().witness_index,
+        cur_aggregation_object.P0.y.binary_basis_limbs[3].element.normalize().witness_index,
+        cur_aggregation_object.P1.x.binary_basis_limbs[0].element.normalize().witness_index,
+        cur_aggregation_object.P1.x.binary_basis_limbs[1].element.normalize().witness_index,
+        cur_aggregation_object.P1.x.binary_basis_limbs[2].element.normalize().witness_index,
+        cur_aggregation_object.P1.x.binary_basis_limbs[3].element.normalize().witness_index,
+        cur_aggregation_object.P1.y.binary_basis_limbs[0].element.normalize().witness_index,
+        cur_aggregation_object.P1.y.binary_basis_limbs[1].element.normalize().witness_index,
+        cur_aggregation_object.P1.y.binary_basis_limbs[2].element.normalize().witness_index,
+        cur_aggregation_object.P1.y.binary_basis_limbs[3].element.normalize().witness_index,
+    };
+    auto result = cur_aggregation_object;
+    result.proof_witness_indices = proof_witness_indices;
 
-    ASSERT(result.public_inputs.size() == input.public_inputs.size());
-
-    // Assign the `public_input` field to the public input of the inner proof
-    for (size_t i = 0; i < input.public_inputs.size(); ++i) {
-        result.public_inputs[i].assert_equal(field_ct::from_witness_index(&builder, input.public_inputs[i]));
-    }
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/996): investigate whether assert_equal on public inputs
+    // is important, like what the plonk recursion constraint does.
 
     // We want to return an array, so just copy the vector into the array
     ASSERT(result.proof_witness_indices.size() == HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE);
@@ -159,212 +154,6 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
               resulting_output_aggregation_object.begin());
 
     return resulting_output_aggregation_object;
-}
-
-/**
- * @brief When recursively verifying proofs, we represent the verification key using field elements.
- *        This method exports the key formatted in the manner our recursive verifier expects.
- *        NOTE: only used by the dsl at the moment. Might be cleaner to make this a dsl function?
- *
- * @return std::vector<bb::fr>
- */
-std::vector<bb::fr> export_honk_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey)
-{
-    std::vector<fr> output;
-    output.emplace_back(vkey->domain.root);
-    output.emplace_back(vkey->domain.domain);
-    output.emplace_back(vkey->domain.generator);
-    output.emplace_back(vkey->circuit_size);
-    output.emplace_back(vkey->num_public_inputs);
-    output.emplace_back(vkey->contains_recursive_proof);
-    for (size_t i = 0; i < HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
-        if (vkey->recursive_proof_public_input_indices.size() > i) {
-            output.emplace_back(vkey->recursive_proof_public_input_indices[i]);
-        } else {
-            output.emplace_back(0);
-            ASSERT(vkey->contains_recursive_proof == false);
-        }
-    }
-    for (const auto& descriptor : vkey->polynomial_manifest.get()) {
-        if (descriptor.source == PolynomialSource::SELECTOR || descriptor.source == PolynomialSource::PERMUTATION) {
-            const auto element = vkey->commitments.at(std::string(descriptor.commitment_label));
-            auto g1_as_fields = export_g1_affine_element_as_fields(element);
-            output.emplace_back(g1_as_fields.x_lo);
-            output.emplace_back(g1_as_fields.x_hi);
-            output.emplace_back(g1_as_fields.y_lo);
-            output.emplace_back(g1_as_fields.y_hi);
-        }
-    }
-
-    verification_key_data vkey_data{
-        .circuit_type = static_cast<uint32_t>(vkey->circuit_type),
-        .circuit_size = static_cast<uint32_t>(vkey->circuit_size),
-        .num_public_inputs = static_cast<uint32_t>(vkey->num_public_inputs),
-        .commitments = vkey->commitments,
-        .contains_recursive_proof = vkey->contains_recursive_proof,
-        .recursive_proof_public_input_indices = vkey->recursive_proof_public_input_indices,
-    };
-    output.emplace_back(vkey_data.hash_native(0)); // key_hash
-    return output;
-}
-
-/**
- * @brief When recursively verifying proofs, we represent the verification key using field elements.
- *        This method exports the key formatted in the manner our recursive verifier expects.
- *        A dummy key is used when building a circuit without a valid witness assignment.
- *        We want the transcript to contain valid G1 points to prevent on-curve errors being thrown.
- *        We want a non-zero circuit size as this element will be inverted by the circuit
- *        and we do not want an "inverting 0" error thrown
- *
- * @return std::vector<bb::fr>
- */
-std::vector<bb::fr> export_dummy_honk_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
-                                                              const bool contains_recursive_proof)
-{
-    std::vector<fr> output;
-    output.emplace_back(1); // domain.domain (will be inverted)
-    output.emplace_back(1); // domain.root (will be inverted)
-    output.emplace_back(1); // domain.generator (will be inverted)
-
-    output.emplace_back(1); // circuit size
-    output.emplace_back(1); // num public inputs
-
-    output.emplace_back(contains_recursive_proof); // contains_recursive_proof
-    for (size_t i = 0; i < HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
-        output.emplace_back(0); // recursive_proof_public_input_indices
-    }
-
-    for (const auto& descriptor : polynomial_manifest.get()) {
-        if (descriptor.source == PolynomialSource::SELECTOR || descriptor.source == PolynomialSource::PERMUTATION) {
-            // the std::biggroup class creates unsatisfiable constraints when identical points are added/subtracted.
-            // (when verifying zk proofs this is acceptable as we make sure verification key points are not identical.
-            // And prover points should contain randomness for an honest Prover).
-            // This check can also trigger a runtime error due to causing 0 to be inverted.
-            // When creating dummy verification key points we must be mindful of the above and make sure that each
-            // transcript point is unique.
-            auto scalar = bb::fr::random_element();
-            const auto element = bb::g1::affine_element(bb::g1::one * scalar);
-            auto g1_as_fields = export_g1_affine_element_as_fields(element);
-            output.emplace_back(g1_as_fields.x_lo);
-            output.emplace_back(g1_as_fields.x_hi);
-            output.emplace_back(g1_as_fields.y_lo);
-            output.emplace_back(g1_as_fields.y_hi);
-        }
-    }
-
-    output.emplace_back(0); // key_hash
-
-    return output;
-}
-
-/**
- * @brief Returns transcript represented as a vector of bb::fr.
- *        Used to represent recursive proofs (i.e. proof represented as circuit-native field elements)
- *
- * @return std::vector<bb::fr>
- */
-std::vector<bb::fr> export_honk_transcript_in_recursion_format(const transcript::StandardTranscript& transcript)
-{
-    std::vector<bb::fr> fields;
-    const auto num_rounds = transcript.get_manifest().get_num_rounds();
-    for (size_t i = 0; i < num_rounds; ++i) {
-        for (const auto& manifest_element : transcript.get_manifest().get_round_manifest(i).elements) {
-            if (!manifest_element.derived_by_verifier) {
-                if (manifest_element.num_bytes == 32 && manifest_element.name != "public_inputs") {
-                    fields.emplace_back(transcript.get_field_element(manifest_element.name));
-                } else if (manifest_element.num_bytes == 64 && manifest_element.name != "public_inputs") {
-                    const auto group_element = transcript.get_group_element(manifest_element.name);
-                    auto g1_as_fields = export_g1_affine_element_as_fields(group_element);
-                    fields.emplace_back(g1_as_fields.x_lo);
-                    fields.emplace_back(g1_as_fields.x_hi);
-                    fields.emplace_back(g1_as_fields.y_lo);
-                    fields.emplace_back(g1_as_fields.y_hi);
-                } else {
-                    ASSERT(manifest_element.name == "public_inputs");
-                    const auto public_inputs_vector = transcript.get_field_element_vector(manifest_element.name);
-                    for (const auto& ele : public_inputs_vector) {
-                        fields.emplace_back(ele);
-                    }
-                }
-            }
-        }
-    }
-    return fields;
-}
-
-/**
- * @brief Get a dummy fake proof for recursion. All elliptic curve group elements are still valid points to prevent
- * errors being thrown.
- *
- * @param manifest
- * @return std::vector<bb::fr>
- */
-std::vector<bb::fr> export_dummy_honk_transcript_in_recursion_format(const transcript::Manifest& manifest,
-                                                                     const bool contains_recursive_proof)
-{
-    std::vector<bb::fr> fields;
-    const auto num_rounds = manifest.get_num_rounds();
-    for (size_t i = 0; i < num_rounds; ++i) {
-        for (const auto& manifest_element : manifest.get_round_manifest(i).elements) {
-            if (!manifest_element.derived_by_verifier) {
-                if (manifest_element.num_bytes == 32 && manifest_element.name != "public_inputs") {
-                    // auto scalar = bb::fr::random_element();
-                    fields.emplace_back(0);
-                } else if (manifest_element.num_bytes == 64 && manifest_element.name != "public_inputs") {
-                    // the std::biggroup class creates unsatisfiable constraints when identical points are
-                    // added/subtracted.
-                    // (when verifying zk proofs this is acceptable as we make sure verification key points are not
-                    // identical. And prover points should contain randomness for an honest Prover). This check can
-                    // also trigger a runtime error due to causing 0 to be inverted. When creating dummy proof
-                    // points we must be mindful of the above and make sure that each point is unique.
-                    auto scalar = bb::fr::random_element();
-                    const auto group_element = bb::g1::affine_element(bb::g1::one * scalar);
-                    auto g1_as_fields = export_g1_affine_element_as_fields(group_element);
-                    fields.emplace_back(g1_as_fields.x_lo);
-                    fields.emplace_back(g1_as_fields.x_hi);
-                    fields.emplace_back(g1_as_fields.y_lo);
-                    fields.emplace_back(g1_as_fields.y_hi);
-                } else {
-                    ASSERT(manifest_element.name == "public_inputs");
-                    const size_t num_public_inputs = manifest_element.num_bytes / 32;
-                    // If we have a recursive proofs the public inputs must describe an aggregation object that
-                    // is composed of two valid G1 points on the curve. Without this conditional we will get a
-                    // runtime error that we are attempting to invert 0.
-                    if (contains_recursive_proof) {
-                        // When setting up the ACIR we emplace back the nested aggregation object
-                        // fetched from the proof onto the public inputs. Thus, we can expect the
-                        // nested aggregation object to always be at the end of the public inputs.
-                        for (size_t k = 0; k < num_public_inputs - HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE;
-                             ++k) {
-                            fields.emplace_back(0);
-                        }
-                        for (size_t k = 0; k < HonkRecursionConstraint::NUM_AGGREGATION_ELEMENTS; ++k) {
-                            auto scalar = bb::fr::random_element();
-                            const auto group_element = bb::g1::affine_element(bb::g1::one * scalar);
-                            auto g1_as_fields = export_g1_affine_element_as_fields(group_element);
-                            fields.emplace_back(g1_as_fields.x_lo);
-                            fields.emplace_back(g1_as_fields.x_hi);
-                            fields.emplace_back(g1_as_fields.y_lo);
-                            fields.emplace_back(g1_as_fields.y_hi);
-                        }
-                    } else {
-                        for (size_t j = 0; j < num_public_inputs; ++j) {
-                            // auto scalar = bb::fr::random_element();
-                            fields.emplace_back(0);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return fields;
-}
-
-size_t recursion_honk_proof_size_without_public_inputs()
-{
-    const auto manifest = Composer::create_manifest(0);
-    auto dummy_transcript = export_dummy_honk_transcript_in_recursion_format(manifest, false);
-    return dummy_transcript.size();
 }
 
 } // namespace acir_format
