@@ -112,7 +112,7 @@ impl Context {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
-            // TODO: make this more general for instructions which don't have side effects but have side effects "sometimes" like `Intrinsic::AsWitness`
+            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
             as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
         } else {
