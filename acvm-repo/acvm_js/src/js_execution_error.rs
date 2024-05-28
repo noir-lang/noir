@@ -1,4 +1,7 @@
-use acvm::acir::circuit::{OpcodeLocation, RawAssertionPayload};
+use acvm::{
+    acir::circuit::{OpcodeLocation, RawAssertionPayload},
+    FieldElement,
+};
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{Array, Error, JsString, Reflect};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
@@ -34,7 +37,7 @@ impl JsExecutionError {
     pub fn new(
         message: String,
         call_stack: Option<Vec<OpcodeLocation>>,
-        assertion_payload: Option<RawAssertionPayload>,
+        assertion_payload: Option<RawAssertionPayload<FieldElement>>,
     ) -> Self {
         let mut error = JsExecutionError::constructor(JsString::from(message));
         let js_call_stack = match call_stack {

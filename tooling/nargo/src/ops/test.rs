@@ -1,6 +1,6 @@
 use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},
-    BlackBoxFunctionSolver,
+    BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions};
@@ -23,7 +23,7 @@ impl TestStatus {
     }
 }
 
-pub fn run_test<B: BlackBoxFunctionSolver>(
+pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
@@ -76,7 +76,7 @@ fn test_status_program_compile_pass(
     test_function: &TestFunction,
     abi: Abi,
     debug: Vec<DebugInfo>,
-    circuit_execution: Result<WitnessStack, NargoError>,
+    circuit_execution: Result<WitnessStack<FieldElement>, NargoError>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints

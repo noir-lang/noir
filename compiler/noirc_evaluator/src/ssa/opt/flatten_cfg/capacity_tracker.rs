@@ -5,7 +5,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 pub(crate) struct SliceCapacityTracker<'a> {

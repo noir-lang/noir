@@ -17,5 +17,6 @@ mod rc;
 mod remove_bit_shifts;
 mod remove_enable_side_effects;
 mod remove_if_else;
+mod resolve_is_unconstrained;
 mod simplify_cfg;
 mod unrolling;
