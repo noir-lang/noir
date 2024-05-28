@@ -119,6 +119,11 @@ struct AcirProgramStack {
     std::vector<AcirFormat> constraint_systems;
     WitnessVectorStack witness_stack;
 
+    AcirProgramStack(std::vector<AcirFormat>& constraint_systems_in, WitnessVectorStack& witness_stack_in)
+        : constraint_systems(constraint_systems_in)
+        , witness_stack(witness_stack_in)
+    {}
+
     size_t size() const { return witness_stack.size(); }
     bool empty() const { return witness_stack.empty(); }
 
@@ -138,7 +143,8 @@ template <typename Builder = UltraCircuitBuilder>
 Builder create_circuit(const AcirFormat& constraint_system,
                        size_t size_hint = 0,
                        WitnessVector const& witness = {},
-                       bool honk_recursion = false);
+                       bool honk_recursion = false,
+                       std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>());
 
 template <typename Builder>
 void build_constraints(Builder& builder,

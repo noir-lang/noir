@@ -1,6 +1,7 @@
 #include "c_bind.hpp"
 #include "../acir_format/acir_to_constraint_buf.hpp"
 #include "acir_composer.hpp"
+#include "barretenberg/client_ivc/client_ivc.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/net.hpp"
 #include "barretenberg/common/serialize.hpp"
@@ -76,6 +77,33 @@ WASM_EXPORT void acir_prove_and_verify_ultra_honk(uint8_t const* acir_vec, uint8
     UltraVerifier verifier{ verification_key };
 
     *result = verifier.verify_proof(proof);
+}
+
+WASM_EXPORT void acir_fold_and_verify_program_stack(uint8_t const* acir_vec, uint8_t const* witness_vec, bool* result)
+{
+    using ProgramStack = acir_format::AcirProgramStack;
+    using Builder = MegaCircuitBuilder;
+
+    auto constraint_systems = acir_format::program_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec));
+    auto witness_stack = acir_format::witness_buf_to_witness_stack(from_buffer<std::vector<uint8_t>>(witness_vec));
+
+    ProgramStack program_stack{ constraint_systems, witness_stack };
+
+    ClientIVC ivc;
+    ivc.structured_flag = true;
+
+    while (!program_stack.empty()) {
+        auto stack_item = program_stack.back();
+
+        // Construct a bberg circuit from the acir representation
+        auto builder = acir_format::create_circuit<Builder>(
+            stack_item.constraints, 0, stack_item.witness, false, ivc.goblin.op_queue);
+
+        ivc.accumulate(builder);
+
+        program_stack.pop_back();
+    }
+    *result = ivc.prove_and_verify();
 }
 
 WASM_EXPORT void acir_prove_and_verify_mega_honk(uint8_t const* acir_vec, uint8_t const* witness_vec, bool* result)

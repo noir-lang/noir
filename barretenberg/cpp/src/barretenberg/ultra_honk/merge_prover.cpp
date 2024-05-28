@@ -43,6 +43,7 @@ template <typename Flavor> HonkProof MergeProver_<Flavor>::construct_proof()
     auto T_prev = op_queue->get_previous_aggregate_transcript();
     // TODO(#723): Cannot currently support an empty T_{i-1}. Need to be able to properly handle zero commitment.
     ASSERT(T_prev[0].size() > 0);
+    ASSERT(T_current[0].size() > T_prev[0].size()); // Must have some new ops to accumulate otherwise C_t_shift = 0
 
     // Construct t_i^{shift} as T_i - T_{i-1}
     std::array<Polynomial, NUM_WIRES> t_shift;

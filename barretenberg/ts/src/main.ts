@@ -166,6 +166,21 @@ export async function proveAndVerifyMegaHonk(bytecodePath: string, witnessPath: 
   /* eslint-enable camelcase */
 }
 
+export async function foldAndVerifyProgram(bytecodePath: string, witnessPath: string, crsPath: string) {
+  /* eslint-disable camelcase */
+  const { api } = await init(bytecodePath, crsPath);
+  try {
+    const bytecode = getBytecode(bytecodePath);
+    const witness = getWitness(witnessPath);
+
+    const verified = await api.acirFoldAndVerifyProgramStack(bytecode, witness);
+    return verified;
+  } finally {
+    await api.destroy();
+  }
+  /* eslint-enable camelcase */
+}
+
 export async function proveAndVerifyGoblin(bytecodePath: string, witnessPath: string, crsPath: string) {
   /* eslint-disable camelcase */
   const acir_test = path.basename(process.cwd());
@@ -489,6 +504,17 @@ program
   .action(async ({ bytecodePath, witnessPath, crsPath }) => {
     handleGlobalOptions();
     const result = await proveAndVerifyMegaHonk(bytecodePath, witnessPath, crsPath);
+    process.exit(result ? 0 : 1);
+  });
+
+program
+  .command('fold_and_verify_program')
+  .description('Accumulate a set of circuits using ClientIvc then verify. Process exits with success or failure code.')
+  .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/program.json')
+  .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
+  .action(async ({ bytecodePath, witnessPath, crsPath }) => {
+    handleGlobalOptions();
+    const result = await foldAndVerifyProgram(bytecodePath, witnessPath, crsPath);
     process.exit(result ? 0 : 1);
   });
 

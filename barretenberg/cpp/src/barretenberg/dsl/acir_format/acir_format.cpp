@@ -340,7 +340,8 @@ template <>
 UltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
                                    size_t size_hint,
                                    WitnessVector const& witness,
-                                   bool honk_recursion)
+                                   bool honk_recursion,
+                                   [[maybe_unused]] std::shared_ptr<ECCOpQueue>)
 {
     Builder builder{
         size_hint, witness, constraint_system.public_inputs, constraint_system.varnum, constraint_system.recursive
@@ -365,10 +366,10 @@ template <>
 MegaCircuitBuilder create_circuit(const AcirFormat& constraint_system,
                                   [[maybe_unused]] size_t size_hint,
                                   WitnessVector const& witness,
-                                  bool honk_recursion)
+                                  bool honk_recursion,
+                                  std::shared_ptr<ECCOpQueue> op_queue)
 {
     // Construct a builder using the witness and public input data from acir and with the goblin-owned op_queue
-    auto op_queue = std::make_shared<ECCOpQueue>(); // instantiate empty op_queue
     auto builder = MegaCircuitBuilder{ op_queue, witness, constraint_system.public_inputs, constraint_system.varnum };
 
     // Populate constraints in the builder via the data in constraint_system
