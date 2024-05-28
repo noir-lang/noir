@@ -1,4 +1,3 @@
-#![allow(unused)]
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
@@ -33,27 +32,19 @@ use crate::{
         traits::TraitConstraint,
     },
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
-        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
-        MethodCallExpression, NodeInterner, NoirFunction, NoirStruct, Pattern, PrefixExpression,
-        SecondaryAttribute, Statement, StatementKind, StructId,
+        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId, TypeAliasId},
-    Shared, StructType, Type, TypeVariable,
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
+    Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
     graph::CrateId,
     hir::{
-        def_collector::{
-            dc_crate::{CollectedItems, DefCollector},
-            errors::DefCollectorErrorKind,
-        },
+        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
         resolution::{
-            errors::PubPosition,
-            import::{PathResolution, PathResolutionError},
-            path_resolver::StandardPathResolver,
+            errors::PubPosition, import::PathResolution, path_resolver::StandardPathResolver,
         },
         Context,
     },
@@ -83,7 +74,6 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::Index;
 use noirc_errors::{Location, Span};
-use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -362,8 +352,15 @@ impl<'context> Elaborator<'context> {
         }
 
         // Verify any remaining trait constraints arising from the function body
-        for (constraint, expr_id) in std::mem::take(&mut self.trait_constraints) {
+        for (mut constraint, expr_id) in std::mem::take(&mut self.trait_constraints) {
             let span = self.interner.expr_span(&expr_id);
+
+            if matches!(&constraint.typ, Type::MutableReference(_)) {
+                let (_, dereferenced_typ) =
+                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
+                constraint.typ = dereferenced_typ;
+            }
+
             self.verify_trait_constraint(
                 &constraint.typ,
                 constraint.trait_id,
@@ -898,7 +895,7 @@ impl<'context> Elaborator<'context> {
 
         self.current_trait_impl = trait_impl.impl_id;
 
-        let mut methods = trait_impl.methods.function_ids();
+        let methods = trait_impl.methods.function_ids();
 
         self.elaborate_functions(trait_impl.methods);
 

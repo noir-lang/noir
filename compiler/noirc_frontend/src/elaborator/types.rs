@@ -1,18 +1,18 @@
 use std::rc::Rc;
 
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        BinaryOpKind, IntegerBitSize, NoirTypeAlias, UnresolvedGenerics, UnresolvedTraitConstraint,
+        BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
         UnresolvedTypeExpression,
     },
     hir::{
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
-            import::PathResolution,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
         },
         type_check::{Source, TypeCheckError},
@@ -23,17 +23,14 @@ use crate::{
             HirPrefixExpression,
         },
         function::FuncMeta,
-        traits::{Trait, TraitConstraint},
+        traits::TraitConstraint,
     },
     macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
-        TypeAliasId,
-    },
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
+    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -635,7 +632,7 @@ impl<'context> Elaborator<'context> {
         rhs_type: &Type,
         span: Span,
     ) -> Type {
-        let mut unify = |this: &mut Self, expected| {
+        let unify = |this: &mut Self, expected| {
             this.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
                 expr_typ: rhs_type.to_string(),
                 expected_typ: expected.to_string(),

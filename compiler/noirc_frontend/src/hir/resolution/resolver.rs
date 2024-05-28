@@ -11,6 +11,8 @@
 // XXX: Change mentions of intern to resolve. In regards to the above comment
 //
 // XXX: Resolver does not check for unused functions
+use acvm::acir::AcirField;
+
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,

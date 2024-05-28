@@ -15,9 +15,9 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
+            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -194,7 +194,7 @@ impl<'context> Elaborator<'context> {
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 let ident = old_value.ident.clone();
-                let typ = self.type_check_variable(ident, expr_id);
+                let typ = self.type_check_variable(ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
@@ -291,16 +291,25 @@ impl<'context> Elaborator<'context> {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
-                if let HirMethodReference::FuncId(func_id) = &method_ref {
-                    if *func_id != FuncId::dummy_id() {
-                        let function_type = self.interner.function_meta(func_id).typ.clone();
-
-                        self.try_add_mutable_reference_to_object(
-                            &function_type,
-                            &mut object_type,
-                            &mut object,
-                        );
+                let func_id = match &method_ref {
+                    HirMethodReference::FuncId(func_id) => *func_id,
+                    HirMethodReference::TraitMethodId(method_id, _) => {
+                        let id = self.interner.trait_method_id(*method_id);
+                        let definition = self.interner.definition(id);
+                        let DefinitionKind::Function(func_id) = definition.kind else {
+                            unreachable!("Expected trait function to be a DefinitionKind::Function")
+                        };
+                        func_id
                     }
+                };
+
+                if func_id != FuncId::dummy_id() {
+                    let function_type = self.interner.function_meta(&func_id).typ.clone();
+                    self.try_add_mutable_reference_to_object(
+                        &function_type,
+                        &mut object_type,
+                        &mut object,
+                    );
                 }
 
                 // These arguments will be given to the desugared function call.
@@ -322,6 +331,7 @@ impl<'context> Elaborator<'context> {
                 let generics = method_call.generics.map(|option_inner| {
                     option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
                 });
+                let turbofish_generics = generics.clone();
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
@@ -335,7 +345,8 @@ impl<'context> Elaborator<'context> {
                     self.interner,
                 );
 
-                let func_type = self.type_check_variable(function_name, function_id);
+                let func_type =
+                    self.type_check_variable(function_name, function_id, turbofish_generics);
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.

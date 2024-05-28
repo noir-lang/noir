@@ -9,7 +9,7 @@ pub mod circuit;
 pub mod native_types;
 
 pub use acir_field;
-pub use acir_field::FieldElement;
+pub use acir_field::{AcirField, FieldElement};
 pub use brillig;
 pub use circuit::black_box_functions::BlackBoxFunc;
 
@@ -31,6 +31,7 @@ mod reflection {
         path::{Path, PathBuf},
     };
 
+    use acir_field::FieldElement;
     use brillig::{
         BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapValueType, Opcode as BrilligOpcode,
         ValueOrArray,
@@ -61,23 +62,23 @@ mod reflection {
 
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<BlockType>().unwrap();
-        tracer.trace_simple_type::<Program>().unwrap();
-        tracer.trace_simple_type::<Circuit>().unwrap();
+        tracer.trace_simple_type::<Program<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<Circuit<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ExpressionWidth>().unwrap();
-        tracer.trace_simple_type::<Opcode>().unwrap();
+        tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxFuncCall>().unwrap();
-        tracer.trace_simple_type::<BrilligInputs>().unwrap();
+        tracer.trace_simple_type::<BrilligInputs<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligOutputs>().unwrap();
-        tracer.trace_simple_type::<BrilligOpcode>().unwrap();
+        tracer.trace_simple_type::<BrilligOpcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BinaryIntOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
-        tracer.trace_simple_type::<Directive>().unwrap();
+        tracer.trace_simple_type::<Directive<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ValueOrArray>().unwrap();
         tracer.trace_simple_type::<HeapValueType>().unwrap();
-        tracer.trace_simple_type::<AssertionPayload>().unwrap();
-        tracer.trace_simple_type::<ExpressionOrMemory>().unwrap();
+        tracer.trace_simple_type::<AssertionPayload<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<ExpressionOrMemory<FieldElement>>().unwrap();
 
         let registry = tracer.registry().unwrap();
 
@@ -110,8 +111,8 @@ mod reflection {
 
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Witness>().unwrap();
-        tracer.trace_simple_type::<WitnessMap>().unwrap();
-        tracer.trace_simple_type::<WitnessStack>().unwrap();
+        tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
 
         let registry = tracer.registry().unwrap();
 
