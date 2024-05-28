@@ -121,11 +121,15 @@ pub struct UnresolvedTraitImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
-    // These fields are filled in later
+    // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+
+    // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
+    // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
+    pub resolved_trait_generics: Vec<Type>,
 }
 
 #[derive(Clone)]

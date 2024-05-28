@@ -1,36 +1,37 @@
 #!/usr/bin/env bash
 set -e
 
+BACKEND=${BACKEND:-bb}
+
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "workspace_default_member" "double_verify_nested_proof")
 
-# These tests cause failures in CI with a stack overflow for some reason.
-ci_excluded_dirs=("eddsa")
-
 current_dir=$(pwd)
-base_path="$current_dir/execution_success"
-test_dirs=$(ls $base_path)
+artifacts_path="$current_dir/acir_artifacts"
+test_dirs=$(ls $artifacts_path)
 
-# We generate a Noir workspace which contains all of the test cases
-# This allows us to generate a gates report using `nargo info` for all of them at once.
+echo "{\"programs\": [" > gates_report.json
 
-echo "[workspace]" > Nargo.toml
-echo "members = [" >> Nargo.toml
+# Bound for checking where to place last parentheses 
+NUM_ARTIFACTS=$(ls -1q "$artifacts_path" | wc -l)
 
-for dir in $test_dirs; do
-    if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
-      continue
+ITER="1"
+for pathname in $test_dirs; do    
+    ARTIFACT_NAME=$(basename "$pathname")
+
+    GATES_INFO=$($BACKEND gates -b "$artifacts_path/$ARTIFACT_NAME/target/program.json")
+    MAIN_FUNCTION_INFO=$(echo $GATES_INFO | jq -r '.functions[0] | .name = "main"')
+    echo "{\"package_name\": \"$ARTIFACT_NAME\", \"functions\": [$MAIN_FUNCTION_INFO]" >> gates_report.json
+
+    if (($ITER == $NUM_ARTIFACTS)); then
+        echo "}" >> gates_report.json
+    else 
+        echo "}, " >> gates_report.json
     fi
 
-    if [[ ${CI-false} = "true" ]] && [[ " ${ci_excluded_dirs[@]} " =~ " ${dir} " ]]; then
-      continue
-    fi
-
-    echo "  \"execution_success/$dir\"," >> Nargo.toml
+    ITER=$(( $ITER + 1 ))
 done
 
-echo "]" >> Nargo.toml
+echo "]}" >> gates_report.json 
 
-nargo info --json > gates_report.json
 
-rm Nargo.toml
