@@ -55,7 +55,7 @@ fn foo<N>(_x: [Field; N]) -> [Field; N + 1] {
 fn main() {
 
     let input_array: [Field; 2] = [1, 2];
-    let foo_result = foo(input_array);
+    let foo_result: [Field; 3] = foo(input_array);
     assert(foo_result == [0, 0, 0]);
 
     // assert(tail([1,2,3]) == [2, 3]);

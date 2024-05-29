@@ -23,6 +23,7 @@ use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVaria
 use noirc_frontend::ast::Visibility;
 use noirc_frontend::{
     hir_def::{function::FunctionSignature, types::Type as HirType},
+    node_interner::NodeInterner,
     monomorphization::ast::Program,
 };
 use tracing::{span, Level};
@@ -273,7 +274,8 @@ fn split_public_and_private_inputs(
         .0
         .iter()
         .map(|(_, typ, visibility)| {
-            let num_field_elements_needed = typ.field_count() as usize;
+            let dummy_interner = NodeInterner::default();
+            let num_field_elements_needed = typ.field_count(&dummy_interner) as usize;
             let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;
             (visibility, witnesses)

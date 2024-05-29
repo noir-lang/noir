@@ -425,17 +425,28 @@ pub struct ArithConstraint {
 
 impl ArithConstraint {
 
-
-    // TODO: relocate
-    fn evaluate_generics_to_u64(generics: &Vec<Type>, location: &Location) -> Result<HashMap<Rc<String>, u64>, ArithConstraintError> {
+    // TODO: relocate to ArithExpr
+    pub(crate) fn evaluate_generics_to_u64(generics: &Vec<Type>, location: &Location, interner: &NodeInterner) -> Result<HashMap<Rc<String>, u64>, ArithConstraintError> {
         // TODO: put the inner type variable in as well and unify once it's looked up to ensure
         // they match
         //
         // TODO: cloned needed still?
         generics.iter().cloned().map(|generic| {
-            match (generic.get_named_generic_name(), generic.evaluate_to_u64()) {
+            match (generic.get_named_generic_name(), generic.evaluate_to_u64(interner)) {
                 (Some(name), Some(result)) => Ok((name, result)),
-                _ => return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *location }),
+                _ => {
+                    // TODO: cleanup
+                    if generic.evaluate_to_u64(interner).is_some() && generic.get_named_generic_name().is_none() {
+
+                        // "TODO: the name is not always present,"
+                        // "e.g. once resolved to a constant,"
+                        // "i.e. Type::TypeVariable(_, TypeVariableKind::Constant)"
+                        dbg!("evaluate_generics_to_u64", generic);
+                        panic!("TODO: this is where to continue");
+
+                    }
+                    return Err(ArithConstraintError::UnresolvedGeneric { generic, location: *location })
+                }
             }
         }).collect::<Result<HashMap<_,_>, _>>()
     }
@@ -456,8 +467,8 @@ impl ArithConstraint {
         dbg!("validating: post-follow_bindings", &lhs_expr, &rhs_expr);
 
         dbg!("validating: loading", &self.lhs_generics, &self.rhs_generics);
-        match Self::evaluate_generics_to_u64(&self.lhs_generics, lhs_location).and_then(|lhs_generics| {
-            let rhs_generics= Self::evaluate_generics_to_u64(&self.rhs_generics, rhs_location)?;
+        match Self::evaluate_generics_to_u64(&self.lhs_generics, lhs_location, interner).and_then(|lhs_generics| {
+            let rhs_generics= Self::evaluate_generics_to_u64(&self.rhs_generics, rhs_location, interner)?;
             Ok((lhs_generics, rhs_generics))
         }) {
             // all generics resolved

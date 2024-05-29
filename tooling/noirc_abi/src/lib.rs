@@ -15,6 +15,7 @@ use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
+use noirc_frontend::node_interner::NodeInterner;
 use noirc_printable_type::{
     decode_value as printable_type_decode_value, PrintableType, PrintableValue,
     PrintableValueDisplay,
@@ -131,13 +132,14 @@ pub enum Sign {
 
 impl AbiType {
     pub fn from_type(context: &Context, typ: &Type) -> Self {
+        let dummy_interner = NodeInterner::default();
         // Note; use strict_eq instead of partial_eq when comparing field types
         // in this method, you most likely want to distinguish between public and private
         match typ {
             Type::FieldElement => Self::Field,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u64(&dummy_interner)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
@@ -160,7 +162,7 @@ impl AbiType {
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u64(&dummy_interner)
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
@@ -608,7 +610,8 @@ impl AbiErrorType {
     pub fn from_type(context: &Context, typ: &Type) -> Self {
         match typ {
             Type::FmtString(len, item_types) => {
-                let length = len.evaluate_to_u64().expect("Cannot evaluate fmt length");
+                let dummy_interner = NodeInterner::default();
+                let length = len.evaluate_to_u64(&dummy_interner).expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
                 };

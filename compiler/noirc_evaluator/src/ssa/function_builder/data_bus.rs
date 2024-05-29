@@ -5,6 +5,7 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
+use noirc_frontend::node_interner::NodeInterner;
 
 use super::FunctionBuilder;
 
@@ -37,7 +38,8 @@ impl DataBusBuilder {
                 ast::Visibility::Public | ast::Visibility::Private => false,
                 ast::Visibility::DataBus => true,
             };
-            let len = param.1.field_count() as usize;
+            let dummy_interner = NodeInterner::default();
+            let len = param.1.field_count(&dummy_interner) as usize;
             params_is_databus.extend(vec![is_databus; len]);
         }
         params_is_databus

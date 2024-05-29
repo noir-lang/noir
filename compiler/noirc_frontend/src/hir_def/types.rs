@@ -118,28 +118,28 @@ pub enum Type {
 
 impl Type {
     /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self) -> u32 {
+    pub fn field_count(&self, interner: &NodeInterner) -> u32 {
         match self {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u64(interner)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                (length as u32) * typ.field_count()
+                (length as u32) * typ.field_count(interner)
             }
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(interner))
             }
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
+            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(interner),
             Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(interner))
             }
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u64(interner)
                     .expect("Cannot have variable sized strings as a parameter to main");
                 size as u32
             }
@@ -503,6 +503,9 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
+            // TODO: cleanup
+            dbg!("try_bind error", &binding);
+
             Err(TypeCheckError::TypeAnnotationsNeeded { span })
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
@@ -1600,18 +1603,49 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u64.
-    pub fn evaluate_to_u64(&self) -> Option<u64> {
+    pub fn evaluate_to_u64(&self, interner: &NodeInterner) -> Option<u64> {
         if let Some(binding) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                return binding.evaluate_to_u64();
+
+                // TODO: cleanup
+                dbg!("evaluate_to_u64: binding found:", binding, binding.evaluate_to_u64(interner));
+                return binding.evaluate_to_u64(interner);
             }
         }
 
         match self {
             Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
-            Type::Array(len, _elem) => len.evaluate_to_u64(),
+            Type::Array(len, _elem) => len.evaluate_to_u64(interner),
             Type::Constant(x) => Some(*x),
-            _ => None,
+            Type::GenericArith(arith_id, generics) => {
+                // TODO: cleanup
+                dbg!("evaluate_to_u64 case for GenericArith began", generics);
+
+                let (expr, location) = interner.get_arithmetic_expression(*arith_id);
+
+                if let Ok(generics) = ArithConstraint::evaluate_generics_to_u64(&generics, location, interner) {
+                    // TODO: cleanup
+                    dbg!("evaluate_to_u64: evaluate_generics_to_u64", &generics);
+                    match expr.evaluate(&generics) {
+                        Ok(result) => return Some(result),
+                        Err(err) => {
+                            // TODO: cleanup
+                            dbg!("evaluate_to_u64 case for GenericArith failed", err);
+                        }
+                    }
+                } else {
+
+                    // TODO: cleanup
+                    dbg!(ArithConstraint::evaluate_generics_to_u64(&generics, location, interner));
+
+                } 
+                None
+            }
+            _ => {
+                // TODO: cleanup
+                dbg!("evaluate_to_u64: leftover case");
+                None
+            },
         }
     }
 
@@ -2011,7 +2045,8 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
+                let interner = NodeInterner::default();
+                let length = size.evaluate_to_u64(&interner).expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -2037,7 +2072,8 @@ impl From<&Type> for PrintableType {
             }
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
-                let size = size.evaluate_to_u64().expect("Cannot print variable sized strings");
+                let interner = NodeInterner::default();
+                let size = size.evaluate_to_u64(&interner).expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),

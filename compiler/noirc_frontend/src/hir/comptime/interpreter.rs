@@ -348,7 +348,7 @@ impl<'a> Interpreter<'a> {
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => None,
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(self.interner),
                 };
 
                 if let Some(value) = value {
@@ -501,7 +501,7 @@ impl<'a> Interpreter<'a> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
-                if let Some(length) = length.evaluate_to_u64() {
+                if let Some(length) = length.evaluate_to_u64(self.interner) {
                     let elements = (0..length).map(|_| element.clone()).collect();
                     Ok(Value::Array(elements, typ))
                 } else {
