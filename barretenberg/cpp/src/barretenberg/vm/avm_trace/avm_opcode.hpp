@@ -1,7 +1,10 @@
 #pragma once
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -100,9 +103,10 @@ enum class OpCode : uint8_t {
     POSEIDON2,
     SHA256,
     PEDERSEN,
-
     // Conversions
     TORADIXLE,
+    // Future Gadgets -- pending changes in noir
+    SHA256COMPRESSION,
 
     // Sentinel
     LAST_OPCODE_SENTINEL,
@@ -113,6 +117,18 @@ class Bytecode {
     static bool is_valid(uint8_t byte);
 };
 
+// Look into whether we can do something with concepts here to enable OpCode as a parameter
+template <typename T>
+    requires(std::unsigned_integral<T>)
+std::string to_hex(T value)
+{
+    std::ostringstream stream;
+    auto num_bytes = static_cast<uint64_t>(sizeof(T));
+    uint64_t mask = (static_cast<uint64_t>(1) << (num_bytes * 8)) - 1;
+    auto padding = static_cast<int>(num_bytes * 2);
+    stream << std::setfill('0') << std::setw(padding) << std::hex << (value & mask);
+    return stream.str();
+}
 std::string to_hex(OpCode opcode);
 
 } // namespace bb::avm_trace

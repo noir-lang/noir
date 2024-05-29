@@ -240,4 +240,5 @@ void clear_range_check_counters(std::vector<Row>& trace, uint256_t previous_valu
     trace.at(lookup_value + 1).lookup_u16_14_counts = trace.at(lookup_value + 1).lookup_u16_14_counts - 1;
     previous_value >>= 16;
 }
+
 } // namespace tests_avm

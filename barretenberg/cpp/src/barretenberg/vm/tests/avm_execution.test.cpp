@@ -692,6 +692,101 @@ TEST_F(AvmExecutionTests, toRadixLeOpcode)
 
     validate_trace(std::move(trace));
 }
+
+// // Positive test with SHA256COMPRESSION.
+TEST_F(AvmExecutionTests, sha256CompressionOpcode)
+{
+    std::string bytecode_preamble;
+    // Set operations for sha256 state
+    // Test vectors taken from noir black_box_solver
+    // State = Uint32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+    for (uint32_t i = 1; i <= 8; i++) {
+        bytecode_preamble += to_hex(OpCode::SET) + // opcode SET
+                             "00"                  // Indirect flag
+                             "03" +                // U32
+                             to_hex<uint32_t>(i) + // val i
+                             to_hex<uint32_t>(i);  // val i
+                                                   // to_hex(i) +           // val i
+                                                   // to_hex(i);            // dst offset
+    }
+    // Set operations for sha256 input
+    // Test vectors taken from noir black_box_solver
+    // Input = Uint32Array.from([1, 2, 3, 4, 5, 6, 7, 8]),
+    for (uint32_t i = 1; i <= 16; i++) {
+        bytecode_preamble += to_hex(OpCode::SET) +    // opcode SET
+                             "00"                     // Indirect flag
+                             "03" +                   // U32
+                             to_hex<uint32_t>(i) +    // val i
+                             to_hex<uint32_t>(i + 8); // val i
+                                                      // to_hex(i) +           // val i
+                                                      // to_hex(i + 8);        // dst offset
+    }
+    std::string bytecode_hex = bytecode_preamble       // Initial SET operations to store state and input
+                               + to_hex(OpCode::SET) + // opcode SET for indirect dst (output)
+                               "00"                    // Indirect flag
+                               "03"                    // U32
+                               "00000100"              // value 256 (i.e. where the dst will be written to)
+                               "00000024"              // dst_offset 36
+                               + to_hex(OpCode::SET) + // opcode SET for indirect state
+                               "00"                    // Indirect flag
+                               "03"                    // U32
+                               "00000001"              // value 1 (i.e. where the state will be read from)
+                               "00000022"              // dst_offset 34
+                               + to_hex(OpCode::SET) + // opcode SET for indirect input
+                               "00"                    // Indirect flag
+                               "03"                    // U32
+                               "00000009"              // value 9 (i.e. where the input will be read from)
+                               "00000023"              // dst_offset 35
+                               + to_hex(OpCode::SHA256COMPRESSION) + // opcode SHA256COMPRESSION
+                               "07"                                  // Indirect flag (first 3 operands indirect)
+                               "00000024"                            // output offset (indirect 36)
+                               "00000022"                            // state offset (indirect 34)
+                               "00000023"                            // input offset (indirect 35)
+                               + to_hex(OpCode::RETURN) +            // opcode RETURN
+                               "00"                                  // Indirect flag
+                               "00000100"                            // ret offset 256
+                               "00000008";                           // ret size 8
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    // 8 SET for state + 16 SET for input + 3 SET for setting up indirects + 1 SHA256COMPRESSION + 1 RETURN
+    ASSERT_THAT(instructions, SizeIs(29));
+
+    // SHA256COMPRESSION
+    EXPECT_THAT(instructions.at(27),
+                AllOf(Field(&Instruction::op_code, OpCode::SHA256COMPRESSION),
+                      Field(&Instruction::operands,
+                            ElementsAre(VariantWith<uint8_t>(7),
+                                        VariantWith<uint32_t>(36),
+                                        VariantWith<uint32_t>(34),
+                                        VariantWith<uint32_t>(35)))));
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata = std::vector<FF>();
+    // Test vector output taken from noir black_box_solver
+    // Uint32Array.from([1862536192, 526086805, 2067405084, 593147560, 726610467, 813867028, 4091010797,3974542186]),
+    std::vector<FF> expected_output = { 1862536192, 526086805, 2067405084,    593147560,
+                                        726610467,  813867028, 4091010797ULL, 3974542186ULL };
+
+    auto trace = Execution::gen_trace(instructions, returndata);
+
+    // Find the first row enabling the Sha256Compression selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sha256 == 1; });
+    EXPECT_EQ(row->avm_main_ind_a, 34);
+    EXPECT_EQ(row->avm_main_ind_b, 35);
+    EXPECT_EQ(row->avm_main_ind_c, 36);
+    EXPECT_EQ(row->avm_main_mem_idx_a, 1);   // Indirect(34) -> 9
+    EXPECT_EQ(row->avm_main_mem_idx_b, 9);   // Indirect(35) -> 9
+    EXPECT_EQ(row->avm_main_mem_idx_c, 256); // Indirect(36) -> 256
+    EXPECT_EQ(row->avm_main_ia, 1);          // Trivially contains 0. (See avm_trace for explanation why)
+    EXPECT_EQ(row->avm_main_ib, 1);          // Contains first element of the state
+    EXPECT_EQ(row->avm_main_ic, 0);          // Contains first element of the input
+
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace));
+}
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmExecutionTests, invalidOpcode)
 {

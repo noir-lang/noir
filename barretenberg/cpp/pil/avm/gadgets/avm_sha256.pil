@@ -1,0 +1,14 @@
+include "../avm_main.pil";
+
+namespace avm_sha256(256);
+
+    pol commit clk;
+
+    // Selector for Radix Operation
+    pol commit sha256_compression_sel;
+    sha256_compression_sel * (1 - sha256_compression_sel) = 0;
+
+    // These will all be arrays, but we just store the first element for permutation to the main trace for now
+    pol commit state;
+    pol commit input;
+    pol commit output;

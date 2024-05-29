@@ -1905,15 +1905,13 @@ void AvmTraceBuilder::internal_return()
 }
 
 // TODO(ilyas: #6383): Temporary way to bulk write slices
-void write_slice_to_memory(uint8_t space_id,
-                           AvmMemTraceBuilder& mem_trace,
-                           std::vector<Row>& main_trace,
-                           uint32_t clk,
-                           uint32_t dst_offset,
-                           AvmMemoryTag r_tag,
-                           AvmMemoryTag w_tag,
-                           FF internal_return_ptr,
-                           std::vector<FF> const& slice)
+void AvmTraceBuilder::write_slice_to_memory(uint8_t space_id,
+                                            uint32_t clk,
+                                            uint32_t dst_offset,
+                                            AvmMemoryTag r_tag,
+                                            AvmMemoryTag w_tag,
+                                            FF internal_return_ptr,
+                                            std::vector<FF> const& slice)
 {
     // We have 4 registers that we are able to use to write to memory within a single main trace row
     auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
@@ -1924,6 +1922,7 @@ void write_slice_to_memory(uint8_t space_id,
         Row main_row{
             .avm_main_clk = clk + i,
             .avm_main_internal_return_ptr = FF(internal_return_ptr),
+            .avm_main_pc = FF(pc),
             .avm_main_r_in_tag = FF(static_cast<uint32_t>(r_tag)),
             .avm_main_w_in_tag = FF(static_cast<uint32_t>(w_tag)),
         };
@@ -1934,7 +1933,7 @@ void write_slice_to_memory(uint8_t space_id,
             if (offset >= slice.size()) {
                 break;
             }
-            mem_trace.write_into_memory(
+            mem_trace_builder.write_into_memory(
                 space_id, clk + i, register_order[j], dst_offset + offset, slice.at(offset), r_tag, w_tag);
             // This looks a bit gross, but it is fine for now.
             if (j == 0) {
@@ -1963,6 +1962,60 @@ void write_slice_to_memory(uint8_t space_id,
     }
 }
 
+// TODO(ilyas: #6383): Temporary way to bulk read slices
+template <typename MEM, size_t T>
+void AvmTraceBuilder::read_slice_to_memory(uint8_t space_id,
+                                           uint32_t clk,
+                                           uint32_t src_offset,
+                                           AvmMemoryTag r_tag,
+                                           AvmMemoryTag w_tag,
+                                           FF internal_return_ptr,
+                                           std::array<MEM, T>& slice)
+{
+    // We have 4 registers that we are able to use to read from memory within a single main trace row
+    auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
+    // If the slice size isnt a multiple of 4, we still need an extra row to write the remainder
+    uint32_t const num_main_rows = static_cast<uint32_t>(T) / 4 + static_cast<uint32_t>(T % 4 != 0);
+    for (uint32_t i = 0; i < num_main_rows; i++) {
+        Row main_row{
+            .avm_main_clk = clk + i,
+            .avm_main_internal_return_ptr = FF(internal_return_ptr),
+            .avm_main_pc = FF(pc),
+            .avm_main_r_in_tag = FF(static_cast<uint32_t>(r_tag)),
+            .avm_main_w_in_tag = FF(static_cast<uint32_t>(w_tag)),
+        };
+        // Write 4 values to memory in each_row
+        for (uint32_t j = 0; j < 4; j++) {
+            auto offset = i * 4 + j;
+            // If we exceed the slice size, we break
+            if (offset >= T) {
+                break;
+            }
+            auto mem_read = mem_trace_builder.read_and_load_from_memory(
+                space_id, clk + i, register_order[j], src_offset + offset, r_tag, w_tag);
+            slice.at(offset) = MEM(mem_read.val);
+            // This looks a bit gross, but it is fine for now.
+            if (j == 0) {
+                main_row.avm_main_ia = slice.at(offset);
+                main_row.avm_main_mem_idx_a = FF(src_offset + offset);
+                main_row.avm_main_mem_op_a = FF(1);
+            } else if (j == 1) {
+                main_row.avm_main_ib = slice.at(offset);
+                main_row.avm_main_mem_idx_b = FF(src_offset + offset);
+                main_row.avm_main_mem_op_b = FF(1);
+            } else if (j == 2) {
+                main_row.avm_main_ic = slice.at(offset);
+                main_row.avm_main_mem_idx_c = FF(src_offset + offset);
+                main_row.avm_main_mem_op_c = FF(1);
+            } else {
+                main_row.avm_main_id = slice.at(offset);
+                main_row.avm_main_mem_idx_d = FF(src_offset + offset);
+                main_row.avm_main_mem_op_d = FF(1);
+            }
+        }
+        main_trace.emplace_back(main_row);
+    }
+}
 /**
  * @brief To_Radix_LE with direct or indirect memory access.
  *
@@ -2044,15 +2097,106 @@ void AvmTraceBuilder::op_to_radix_le(
     for (auto const& limb : res) {
         ff_res.emplace_back(limb);
     }
-    write_slice_to_memory(call_ptr,
-                          mem_trace_builder,
-                          main_trace,
-                          clk,
-                          direct_dst_offset,
-                          AvmMemoryTag::FF,
-                          AvmMemoryTag::U8,
-                          FF(internal_return_ptr),
-                          ff_res);
+    write_slice_to_memory(
+        call_ptr, clk, direct_dst_offset, AvmMemoryTag::FF, AvmMemoryTag::U8, FF(internal_return_ptr), ff_res);
+}
+
+/**
+ * @brief SHA256 Compression with direct or indirect memory access.
+ *
+ * @param indirect byte encoding information about indirect/direct memory access.
+ * @param h_init_offset An index in memory pointing to the first U32 value of the state array to be used in the next
+ * instance of sha256 compression.
+ * @param input_offset An index in memory pointing to the first U32 value of the input array to be used in the next
+ * instance of sha256 compression.
+ * @param output_offset An index in memory pointing to where the first U32 value of the output array should be stored.
+ */
+void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
+                                            uint32_t output_offset,
+                                            uint32_t h_init_offset,
+                                            uint32_t input_offset)
+{
+
+    // The clk plays a crucial role in this function as we attempt to write across multiple lines in the main trace.
+    auto clk = static_cast<uint32_t>(main_trace.size());
+
+    // Resolve the indirect flags, the results of this function are used to determine the memory offsets
+    // that point to the starting memory addresses for the input, output and h_init values
+    // Note::This function will add memory reads at clk in the mem_trace_builder
+    auto const res = resolve_ind_three(call_ptr, clk, indirect, h_init_offset, input_offset, output_offset);
+
+    auto read_a = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, res.direct_a_offset, AvmMemoryTag::U32, AvmMemoryTag::U32);
+    auto read_b = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, res.direct_b_offset, AvmMemoryTag::U32, AvmMemoryTag::U32);
+    auto read_c = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IC, res.direct_c_offset, AvmMemoryTag::U32, AvmMemoryTag::U32);
+
+    // Since the above adds mem_reads in the mem_trace_builder at clk, we need to follow up resolving the reads in the
+    // main trace at the same clk cycle to preserve the cross-table permutation
+    //
+    // TODO<#6383>: We put the first value of each of the input, output (which is 0 at this point) and h_init arrays
+    // into the main trace at the intermediate registers simply for the permutation check, in the future this will
+    // change.
+    // Note: we could avoid output being zero if we loaded the input and state beforehand (with a new function that did
+    // not lay down constraints), but this is a simplification
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = read_a.val, // First element of output (trivially 0)
+        .avm_main_ib = read_b.val, // First element of state
+        .avm_main_ic = read_c.val, // First element of input
+        .avm_main_ind_a = res.indirect_flag_a ? FF(h_init_offset) : FF(0),
+        .avm_main_ind_b = res.indirect_flag_b ? FF(input_offset) : FF(0),
+        .avm_main_ind_c = res.indirect_flag_a ? FF(output_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(res.indirect_flag_a)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(res.indirect_flag_b)),
+        .avm_main_ind_op_c = FF(static_cast<uint32_t>(res.indirect_flag_c)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(res.direct_a_offset),
+        .avm_main_mem_idx_b = FF(res.direct_b_offset),
+        .avm_main_mem_idx_c = FF(res.direct_c_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+        .avm_main_sel_op_sha256 = FF(1),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+    });
+    // We store the current clk this main trace row occurred so that we can line up the sha256 gadget operation at the
+    // same clk later.
+    auto sha_op_clk = clk;
+    // We need to increment the clk
+    clk++;
+    // State array input is fixed to 256 bits
+    std::array<uint32_t, 8> h_init;
+    // Input for hash is expanded to 512 bits
+    std::array<uint32_t, 16> input;
+    // Read results are written to h_init array.
+    read_slice_to_memory<uint32_t, 8>(
+        call_ptr, clk, res.direct_a_offset, AvmMemoryTag::U32, AvmMemoryTag::U32, FF(internal_return_ptr), h_init);
+
+    // Increment the clock by 2 since (8 reads / 4 reads per row = 2)
+    clk += 2;
+    // Read results are written to input array
+    read_slice_to_memory<uint32_t, 16>(
+        call_ptr, clk, res.direct_b_offset, AvmMemoryTag::U32, AvmMemoryTag::U32, FF(internal_return_ptr), input);
+    // Increment the clock by 4 since (16 / 4 = 4)
+    clk += 4;
+
+    // Now that we have read all the values, we can perform the operation to get the resulting witness.
+    // Note: We use the sha_op_clk to ensure that the sha256 operation is performed at the same clock cycle as the main
+    // trace that has the selector
+    std::array<uint32_t, 8> result = sha256_trace_builder.sha256_compression(h_init, input, sha_op_clk);
+    // We convert the results to field elements here
+    std::vector<FF> ff_result;
+    for (uint32_t i = 0; i < 8; i++) {
+        ff_result.emplace_back(result[i]);
+    }
+
+    // Write the result to memory after
+    write_slice_to_memory(
+        call_ptr, clk, res.direct_c_offset, AvmMemoryTag::U32, AvmMemoryTag::U32, FF(internal_return_ptr), ff_result);
 }
 
 // Finalise Lookup Counts
@@ -2178,11 +2322,13 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     auto mem_trace = mem_trace_builder.finalize();
     auto alu_trace = alu_trace_builder.finalize();
     auto conv_trace = conversion_trace_builder.finalize();
+    auto sha256_trace = sha256_trace_builder.finalize();
     auto bin_trace = bin_trace_builder.finalize();
     size_t mem_trace_size = mem_trace.size();
     size_t main_trace_size = main_trace.size();
     size_t alu_trace_size = alu_trace.size();
     size_t conv_trace_size = conv_trace.size();
+    size_t sha256_trace_size = sha256_trace.size();
     size_t bin_trace_size = bin_trace.size();
 
     // Get tag_err counts from the mem_trace_builder
@@ -2200,8 +2346,9 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     // 2**16 long)
     size_t const lookup_table_size = (bin_trace_size > 0 && range_check_required) ? 3 * (1 << 16) : 0;
     size_t const range_check_size = range_check_required ? UINT16_MAX + 1 : 0;
-    std::vector<size_t> trace_sizes = { mem_trace_size,   main_trace_size, alu_trace_size,        lookup_table_size,
-                                        range_check_size, conv_trace_size, KERNEL_OUTPUTS_LENGTH, min_trace_size };
+    std::vector<size_t> trace_sizes = { mem_trace_size,    main_trace_size,       alu_trace_size,
+                                        lookup_table_size, range_check_size,      conv_trace_size,
+                                        sha256_trace_size, KERNEL_OUTPUTS_LENGTH, min_trace_size };
     auto trace_size = std::max_element(trace_sizes.begin(), trace_sizes.end());
 
     // We only need to pad with zeroes to the size to the largest trace here, pow_2 padding is handled in the
@@ -2547,6 +2694,18 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         dest.avm_conversion_num_limbs = FF(src.num_limbs);
     }
 
+    // Add SHA256 Gadget table
+    for (size_t i = 0; i < sha256_trace_size; i++) {
+        auto const& src = sha256_trace.at(i);
+        auto& dest = main_trace.at(i);
+        dest.avm_sha256_clk = FF(src.clk);
+        dest.avm_sha256_input = src.input[0];
+        // TODO: This will need to be enabled later
+        // dest.avm_sha256_output = src.output[0];
+        dest.avm_sha256_sha256_compression_sel = FF(1);
+        dest.avm_sha256_state = src.state[0];
+    }
+
     // Add Binary Trace table
     for (size_t i = 0; i < bin_trace_size; i++) {
         auto const& src = bin_trace.at(i);
@@ -2766,7 +2925,6 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
             dest.avm_kernel_side_effect_counter = prev.avm_kernel_side_effect_counter;
         }
     }
-
     // Adding extra row for the shifted values at the top of the execution trace.
     Row first_row = Row{ .avm_main_first = FF(1), .avm_mem_lastAccess = FF(1) };
     main_trace.insert(main_trace.begin(), first_row);
