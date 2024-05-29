@@ -1,7 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
 use noirc_errors::{debug_info::DebugInfo, Location};
-use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -9,6 +8,7 @@ use std::{
 };
 
 pub use super::debug_vars::{DebugVars, StackFrame};
+use super::{contract::ContractArtifact, program::ProgramArtifact};
 use fm::{FileId, FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
@@ -17,7 +17,6 @@ use fm::{FileId, FileManager, PathString};
 pub struct DebugArtifact {
     pub debug_symbols: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
-    pub warnings: Vec<SsaReport>,
 }
 
 impl DebugArtifact {
@@ -44,7 +43,7 @@ impl DebugArtifact {
             );
         }
 
-        Self { debug_symbols, file_map, warnings: Vec::new() }
+        Self { debug_symbols, file_map }
     }
 
     /// Given a location, returns its file's source code
@@ -120,10 +119,15 @@ impl DebugArtifact {
 
 impl From<CompiledProgram> for DebugArtifact {
     fn from(compiled_program: CompiledProgram) -> Self {
+        DebugArtifact { debug_symbols: compiled_program.debug, file_map: compiled_program.file_map }
+    }
+}
+
+impl From<ProgramArtifact> for DebugArtifact {
+    fn from(program_artifact: ProgramArtifact) -> Self {
         DebugArtifact {
-            debug_symbols: compiled_program.debug,
-            file_map: compiled_program.file_map,
-            warnings: compiled_program.warnings,
+            debug_symbols: program_artifact.debug_symbols.debug_infos,
+            file_map: program_artifact.file_map,
         }
     }
 }
@@ -136,11 +140,19 @@ impl From<CompiledContract> for DebugArtifact {
             .flat_map(|contract_function| contract_function.debug)
             .collect();
 
-        DebugArtifact {
-            debug_symbols: all_functions_debug,
-            file_map: compiled_artifact.file_map,
-            warnings: compiled_artifact.warnings,
-        }
+        DebugArtifact { debug_symbols: all_functions_debug, file_map: compiled_artifact.file_map }
+    }
+}
+
+impl From<ContractArtifact> for DebugArtifact {
+    fn from(compiled_artifact: ContractArtifact) -> Self {
+        let all_functions_debug: Vec<DebugInfo> = compiled_artifact
+            .functions
+            .into_iter()
+            .flat_map(|contract_function| contract_function.debug_symbols.debug_infos)
+            .collect();
+
+        DebugArtifact { debug_symbols: all_functions_debug, file_map: compiled_artifact.file_map }
     }
 }
 

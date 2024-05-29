@@ -11,7 +11,7 @@ use nargo::{
 };
 
 #[test]
-fn stdlib_noir_tests() {
+fn run_stdlib_tests() {
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
     file_manager.add_file_with_source_canonical_path(&PathBuf::from("main.nr"), "".to_owned());
     let parsed_files = parse_all(&file_manager);
@@ -30,7 +30,7 @@ fn stdlib_noir_tests() {
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let result = check_crate(&mut context, dummy_crate_id, true, false);
+    let result = check_crate(&mut context, dummy_crate_id, true, false, false);
     report_errors(result, &context.file_manager, true, false)
         .expect("Error encountered while compiling standard library");
 

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str};
 
-use acvm::{brillig_vm::brillig::ForeignCallParam, FieldElement};
+use acvm::{acir::AcirField, brillig_vm::brillig::ForeignCallParam, FieldElement};
 use iter_extended::vecmap;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum PrintableType {
     Field,
     Array {
-        length: Option<u64>,
+        length: u64,
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
@@ -81,10 +81,12 @@ pub enum ForeignCallError {
     ResolvedAssertMessage(String),
 }
 
-impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
+impl TryFrom<&[ForeignCallParam<FieldElement>]> for PrintableValueDisplay {
     type Error = ForeignCallError;
 
-    fn try_from(foreign_call_inputs: &[ForeignCallParam]) -> Result<Self, Self::Error> {
+    fn try_from(
+        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
+    ) -> Result<Self, Self::Error> {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
@@ -97,7 +99,7 @@ impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
 }
 
 fn convert_string_inputs(
-    foreign_call_inputs: &[ForeignCallParam],
+    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
 ) -> Result<PrintableValueDisplay, ForeignCallError> {
     // Fetch the PrintableType from the foreign call input
     // The remaining input values should hold what is to be printed
@@ -114,7 +116,7 @@ fn convert_string_inputs(
 }
 
 fn convert_fmt_string_inputs(
-    foreign_call_inputs: &[ForeignCallParam],
+    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
 ) -> Result<PrintableValueDisplay, ForeignCallError> {
     let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
@@ -143,7 +145,7 @@ fn convert_fmt_string_inputs(
 }
 
 fn fetch_printable_type(
-    printable_type: &ForeignCallParam,
+    printable_type: &ForeignCallParam<FieldElement>,
 ) -> Result<PrintableType, ForeignCallError> {
     let printable_type_as_fields = printable_type.fields();
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
@@ -186,7 +188,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
         }
-        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. }) => {
+        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
+        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
             if *is_slice {
                 output.push('&')
             }
@@ -317,19 +320,7 @@ pub fn decode_value(
 
             PrintableValue::Field(field_element)
         }
-        PrintableType::Array { length: None, typ } => {
-            let length = field_iterator
-                .next()
-                .expect("not enough data to decode variable array length")
-                .to_u128() as usize;
-            let mut array_elements = Vec::with_capacity(length);
-            for _ in 0..length {
-                array_elements.push(decode_value(field_iterator, typ));
-            }
-
-            PrintableValue::Vec { array_elements, is_slice: false }
-        }
-        PrintableType::Array { length: Some(length), typ } => {
+        PrintableType::Array { length, typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {

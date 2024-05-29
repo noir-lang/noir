@@ -1,0 +1,7 @@
+[package]
+name = "ecdsa_secp256r1_3x"
+description = "Three ECDSA secp256r1 verifications"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 
 /// A numeric type in the Intermediate representation
@@ -164,6 +164,14 @@ impl Type {
         match self {
             Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
             other => panic!("element_types: Expected array or slice, found {other}"),
+        }
+    }
+
+    pub(crate) fn first(&self) -> Type {
+        match self {
+            Type::Numeric(_) | Type::Function => self.clone(),
+            Type::Reference(typ) => typ.first(),
+            Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
 }

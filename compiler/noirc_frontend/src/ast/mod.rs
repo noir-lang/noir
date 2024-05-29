@@ -26,12 +26,14 @@ use crate::{
     token::IntType,
     BinaryTypeOperator,
 };
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
     One,
     Eight,
+    Sixteen,
     ThirtyTwo,
     SixtyFour,
 }
@@ -48,6 +50,7 @@ impl From<IntegerBitSize> for u32 {
         match size {
             One => 1,
             Eight => 8,
+            Sixteen => 16,
             ThirtyTwo => 32,
             SixtyFour => 64,
         }
@@ -64,6 +67,7 @@ impl TryFrom<u32> for IntegerBitSize {
         match value {
             1 => Ok(One),
             8 => Ok(Eight),
+            16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
             64 => Ok(SixtyFour),
             _ => Err(InvalidIntegerBitSizeError(value)),
@@ -128,6 +132,10 @@ pub struct UnresolvedType {
     //  let x = 100; --- type is UnresolvedType::Unspecified without a span
     pub span: Option<Span>,
 }
+
+/// Type wrapper for a member access
+pub(crate) type UnaryRhsMemberAccess =
+    (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
 
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
@@ -307,7 +315,7 @@ impl UnresolvedTypeExpression {
                     None => Err(expr),
                 }
             }
-            ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
+            ExpressionKind::Variable(path, _) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);

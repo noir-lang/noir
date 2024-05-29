@@ -1,23 +1,24 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{OpcodeLocation, Program, ResolvedOpcodeLocation};
+use acvm::acir::circuit::{
+    OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
+};
 use acvm::acir::native_types::WitnessStack;
-use acvm::brillig_vm::brillig::ForeignCallResult;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
-use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use crate::errors::ExecutionError;
 use crate::NargoError;
 
-use super::foreign_calls::{ForeignCallExecutor, NargoForeignCallResult};
+use super::foreign_calls::ForeignCallExecutor;
 
-struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
-    functions: &'a [Circuit],
+struct ProgramExecutor<'a, B: BlackBoxFunctionSolver<FieldElement>, F: ForeignCallExecutor> {
+    functions: &'a [Circuit<FieldElement>],
 
-    unconstrained_functions: &'a [BrilligBytecode],
+    unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 
     // This gets built as we run through the program looking at each function call
-    witness_stack: WitnessStack,
+    witness_stack: WitnessStack<FieldElement>,
 
     blackbox_solver: &'a B,
 
@@ -33,10 +34,12 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
     current_function_index: usize,
 }
 
-impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, B, F> {
+impl<'a, B: BlackBoxFunctionSolver<FieldElement>, F: ForeignCallExecutor>
+    ProgramExecutor<'a, B, F>
+{
     fn new(
-        functions: &'a [Circuit],
-        unconstrained_functions: &'a [BrilligBytecode],
+        functions: &'a [Circuit<FieldElement>],
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut F,
     ) -> Self {
@@ -51,22 +54,24 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
         }
     }
 
-    fn finalize(self) -> WitnessStack {
+    fn finalize(self) -> WitnessStack<FieldElement> {
         self.witness_stack
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn execute_circuit(&mut self, initial_witness: WitnessMap) -> Result<WitnessMap, NargoError> {
+    fn execute_circuit(
+        &mut self,
+        initial_witness: WitnessMap<FieldElement>,
+    ) -> Result<WitnessMap<FieldElement>, NargoError> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
             &circuit.opcodes,
             initial_witness,
             self.unconstrained_functions,
+            &circuit.assert_messages,
         );
 
-        // This message should be resolved by a nargo foreign call only when we have an unsatisfied assertion.
-        let mut assert_message: Option<String> = None;
         loop {
             let solver_status = acvm.solve();
 
@@ -79,6 +84,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     let call_stack = match &error {
                         OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
+                            ..
                         }
                         | OpcodeResolutionError::IndexOutOfBounds {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
@@ -103,55 +109,26 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                         _ => None,
                     };
 
-                    return Err(NargoError::ExecutionError(match call_stack {
-                        Some(call_stack) => {
-                            // First check whether we have a runtime assertion message that should be resolved on an ACVM failure
-                            // If we do not have a runtime assertion message, we check whether the error is a brillig error with a user-defined message,
-                            // and finally we should check whether the circuit has any hardcoded messages associated with a specific `OpcodeLocation`.
-                            // Otherwise return the provided opcode resolution error.
-                            if let Some(assert_message) = assert_message {
-                                ExecutionError::AssertionFailed(
-                                    assert_message.to_owned(),
-                                    call_stack,
-                                )
-                            } else if let OpcodeResolutionError::BrilligFunctionFailed {
-                                message: Some(message),
-                                ..
-                            } = &error
-                            {
-                                ExecutionError::AssertionFailed(message.to_owned(), call_stack)
-                            } else if let Some(assert_message) = circuit.get_assert_message(
-                                call_stack
-                                    .last()
-                                    .expect("Call stacks should not be empty")
-                                    .opcode_location,
-                            ) {
-                                ExecutionError::AssertionFailed(
-                                    assert_message.to_owned(),
-                                    call_stack,
-                                )
-                            } else {
-                                ExecutionError::SolvingError(error, Some(call_stack))
+                    let assertion_payload: Option<ResolvedAssertionPayload<FieldElement>> =
+                        match &error {
+                            OpcodeResolutionError::BrilligFunctionFailed { payload, .. }
+                            | OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => {
+                                payload.clone()
                             }
-                        }
-                        None => ExecutionError::SolvingError(error, None),
+                            _ => None,
+                        };
+
+                    return Err(NargoError::ExecutionError(match assertion_payload {
+                        Some(payload) => ExecutionError::AssertionFailed(
+                            payload,
+                            call_stack.expect("Should have call stack for an assertion failure"),
+                        ),
+                        None => ExecutionError::SolvingError(error, call_stack),
                     }));
                 }
                 ACVMStatus::RequiresForeignCall(foreign_call) => {
                     let foreign_call_result = self.foreign_call_executor.execute(&foreign_call)?;
-                    match foreign_call_result {
-                        NargoForeignCallResult::BrilligOutput(foreign_call_result) => {
-                            acvm.resolve_pending_foreign_call(foreign_call_result);
-                        }
-                        NargoForeignCallResult::ResolvedAssertMessage(message) => {
-                            if assert_message.is_some() {
-                                unreachable!("Resolving an assert message should happen only once as the VM should have failed");
-                            }
-                            assert_message = Some(message);
-
-                            acvm.resolve_pending_foreign_call(ForeignCallResult::default());
-                        }
-                    }
+                    acvm.resolve_pending_foreign_call(foreign_call_result);
                 }
                 ACVMStatus::RequiresAcirCall(call_info) => {
                     // Store the parent function index whose context we are currently executing
@@ -197,12 +174,12 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
 }
 
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn execute_program<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
-    program: &Program,
-    initial_witness: WitnessMap,
+pub fn execute_program<B: BlackBoxFunctionSolver<FieldElement>, F: ForeignCallExecutor>(
+    program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
     blackbox_solver: &B,
     foreign_call_executor: &mut F,
-) -> Result<WitnessStack, NargoError> {
+) -> Result<WitnessStack<FieldElement>, NargoError> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,

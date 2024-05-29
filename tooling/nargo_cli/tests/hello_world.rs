@@ -34,22 +34,11 @@ fn hello_world_example() {
         .stdout(predicate::str::contains("Constraint system successfully built!"));
 
     project_dir.child("Prover.toml").assert(predicate::path::is_file());
-    project_dir.child("Verifier.toml").assert(predicate::path::is_file());
 
-    // `nargo prove`
+    // `nargo execute`
     project_dir.child("Prover.toml").write_str("x = 1\ny = 2").unwrap();
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("prove");
-    cmd.assert().success();
-
-    project_dir
-        .child("proofs")
-        .child(format!("{project_name}.proof"))
-        .assert(predicate::path::is_file());
-
-    // `nargo verify p`
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("verify");
+    cmd.arg("execute");
     cmd.assert().success();
 }

@@ -97,7 +97,7 @@ impl NodeInterner {
         return_type_location_instead: bool,
     ) -> Option<Location> {
         match expression {
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition_info = self.definition(ident.id);
                 match definition_info.kind {
                     DefinitionKind::Function(func_id) => {
@@ -157,11 +157,11 @@ impl NodeInterner {
         self.trait_implementations
             .iter()
             .find(|shared_trait_impl| {
-                let trait_impl = shared_trait_impl.borrow();
+                let trait_impl = shared_trait_impl.1.borrow();
                 trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
             })
             .and_then(|shared_trait_impl| {
-                let trait_impl = shared_trait_impl.borrow();
+                let trait_impl = shared_trait_impl.1.borrow();
                 self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
             })
     }

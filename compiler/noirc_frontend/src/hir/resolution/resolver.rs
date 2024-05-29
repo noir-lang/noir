@@ -11,6 +11,8 @@
 // XXX: Change mentions of intern to resolve. In regards to the above comment
 //
 // XXX: Resolver does not check for unused functions
+use acvm::acir::AcirField;
+
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
@@ -56,17 +58,17 @@ use crate::hir_def::{
 use super::errors::{PubPosition, ResolverError};
 use super::import::PathResolution;
 
-const SELF_TYPE_NAME: &str = "Self";
+pub const SELF_TYPE_NAME: &str = "Self";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 pub struct LambdaContext {
-    captures: Vec<HirCapturedVar>,
+    pub captures: Vec<HirCapturedVar>,
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
-    scope_index: usize,
+    pub scope_index: usize,
 }
 
 /// The primary jobs of the Resolver are to validate that every variable found refers to exactly 1
@@ -1104,6 +1106,11 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+
+            // This is only used by the elaborator
+            all_generics: Vec::new(),
+            is_trait_function: false,
+            parameter_idents: Vec::new(),
         }
     }
 
@@ -1292,15 +1299,14 @@ impl<'a> Resolver<'a> {
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {
-                let span = constrain_stmt.0.span;
-                let assert_msg_call_expr_id =
-                    self.resolve_assert_message(constrain_stmt.1, span, constrain_stmt.0.clone());
                 let expr_id = self.resolve_expression(constrain_stmt.0);
+                let assert_message_expr_id =
+                    constrain_stmt.1.map(|assert_expr_id| self.resolve_expression(assert_expr_id));
 
                 HirStatement::Constrain(HirConstrainStatement(
                     expr_id,
                     self.file,
-                    assert_msg_call_expr_id,
+                    assert_message_expr_id,
                 ))
             }
             StatementKind::Expression(expr) => {
@@ -1346,7 +1352,7 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt, for_loop.span)
+                        self.resolve_stmt(for_stmt.kind, for_loop.span)
                     }
                 }
             }
@@ -1362,58 +1368,16 @@ impl<'a> Resolver<'a> {
             StatementKind::Comptime(statement) => {
                 let hir_statement = self.resolve_stmt(statement.kind, statement.span);
                 let statement_id = self.interner.push_stmt(hir_statement);
-                self.interner.push_statement_location(statement_id, statement.span, self.file);
+                self.interner.push_stmt_location(statement_id, statement.span, self.file);
                 HirStatement::Comptime(statement_id)
             }
         }
     }
 
-    fn resolve_assert_message(
-        &mut self,
-        assert_message_expr: Option<Expression>,
-        span: Span,
-        condition: Expression,
-    ) -> Option<ExprId> {
-        let assert_message_expr = assert_message_expr?;
-
-        if matches!(
-            assert_message_expr,
-            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
-        ) {
-            return Some(self.resolve_expression(assert_message_expr));
-        }
-
-        let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
-        let assert_msg_call_path = if is_in_stdlib {
-            ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("internal"), Ident::from("resolve_assert_message")],
-                kind: PathKind::Crate,
-                span,
-            })
-        } else {
-            ExpressionKind::Variable(Path {
-                segments: vec![
-                    Ident::from("std"),
-                    Ident::from("internal"),
-                    Ident::from("resolve_assert_message"),
-                ],
-                kind: PathKind::Dep,
-                span,
-            })
-        };
-        let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
-        let assert_msg_call_expr = Expression::call(
-            Expression { kind: assert_msg_call_path, span },
-            assert_msg_call_args,
-            span,
-        );
-        Some(self.resolve_expression(assert_msg_call_expr))
-    }
-
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         let id = self.interner.push_stmt(hir_stmt);
-        self.interner.push_statement_location(id, stmt.span, self.file);
+        self.interner.push_stmt_location(id, stmt.span, self.file);
         id
     }
 
@@ -1518,14 +1482,20 @@ impl<'a> Resolver<'a> {
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
-            ExpressionKind::Variable(path) => {
+            ExpressionKind::Variable(path, generics) => {
+                let generics =
+                    generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
                 {
-                    HirExpression::Ident(HirIdent {
-                        location: Location::new(expr.span, self.file),
-                        id: self.interner.trait_method_id(method),
-                        impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
-                    })
+                    HirExpression::Ident(
+                        HirIdent {
+                            location: Location::new(expr.span, self.file),
+                            id: self.interner.trait_method_id(method),
+                            impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                        },
+                        generics,
+                    )
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1562,7 +1532,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    HirExpression::Ident(hir_ident)
+                    HirExpression::Ident(hir_ident, generics)
                 }
             }
             ExpressionKind::Prefix(prefix) => {
@@ -1600,12 +1570,20 @@ impl<'a> Resolver<'a> {
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
+
+                // Cannot verify the generic count here equals the expected count since we don't
+                // know which definition `method` refers to until it is resolved during type checking.
+                let generics = call_expr
+                    .generics
+                    .map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::MethodCall(HirMethodCallExpression {
-                    arguments,
                     method,
                     object,
+                    generics,
+                    arguments,
                     location,
                 })
             }
@@ -2081,7 +2059,7 @@ impl<'a> Resolver<'a> {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
                 match definition.kind {
                     DefinitionKind::Global(global_id) => {
@@ -2135,7 +2113,7 @@ impl<'a> Resolver<'a> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let ident = HirExpression::Ident(old_value.ident.clone());
+                let ident = HirExpression::Ident(old_value.ident.clone(), None);
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 fmt_str_idents.push(expr_id);
@@ -2175,7 +2153,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             let span = interner.expr_span(&rhs);
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
-        HirExpression::Ident(ident) => {
+        HirExpression::Ident(ident, _) => {
             if let Some(definition) = interner.try_definition(ident.id) {
                 if !definition.mutable {
                     return Err(ResolverError::MutableReferenceToImmutableVariable {

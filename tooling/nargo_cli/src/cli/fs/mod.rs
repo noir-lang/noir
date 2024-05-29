@@ -4,11 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::errors::FilesystemError;
-
 pub(super) mod inputs;
 pub(super) mod program;
-pub(super) mod proof;
 pub(super) mod witness;
 
 pub(super) fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
@@ -30,13 +27,4 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
-}
-
-pub(super) fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FilesystemError> {
-    let hex_data: Vec<_> = std::fs::read(&path)
-        .map_err(|_| FilesystemError::PathNotValid(path.as_ref().to_path_buf()))?;
-
-    let raw_bytes = hex::decode(hex_data).map_err(FilesystemError::HexArtifactNotValid)?;
-
-    Ok(raw_bytes)
 }

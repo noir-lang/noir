@@ -1,0 +1,7 @@
+[package]
+name = "regression_struct_array_conditional"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

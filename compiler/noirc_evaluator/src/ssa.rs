@@ -7,23 +7,33 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::errors::{RuntimeError, SsaReport};
-use acvm::acir::{
-    circuit::{
-        brillig::BrilligBytecode, Circuit, ExpressionWidth, Program as AcirProgram, PublicInputs,
+use acvm::{
+    acir::{
+        circuit::{
+            brillig::BrilligBytecode, Circuit, ErrorSelector, ExpressionWidth,
+            Program as AcirProgram, PublicInputs,
+        },
+        native_types::Witness,
     },
-    native_types::Witness,
+    FieldElement,
 };
 
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
 use noirc_frontend::ast::Visibility;
-use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+use noirc_frontend::{
+    hir_def::{function::FunctionSignature, types::Type as HirType},
+    monomorphization::ast::Program,
+};
 use tracing::{span, Level};
 
-use self::{acir_gen::GeneratedAcir, ssa_gen::Ssa};
+use self::{
+    acir_gen::{Artifacts, GeneratedAcir},
+    ssa_gen::Ssa,
+};
 
 mod acir_gen;
 pub(super) mod function_builder;
@@ -42,12 +52,14 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
     force_brillig_output: bool,
     print_timings: bool,
-) -> Result<(Vec<GeneratedAcir>, Vec<BrilligBytecode>), RuntimeError> {
+) -> Result<Artifacts, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
+        .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
+        .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
@@ -94,16 +106,20 @@ fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
 
 #[derive(Default)]
 pub struct SsaProgramArtifact {
-    pub program: AcirProgram,
+    pub program: AcirProgram<FieldElement>,
     pub debug: Vec<DebugInfo>,
     pub warnings: Vec<SsaReport>,
     pub main_input_witnesses: Vec<Witness>,
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
+    pub error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
 impl SsaProgramArtifact {
-    fn new(unconstrained_functions: Vec<BrilligBytecode>) -> Self {
+    fn new(
+        unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
+        error_types: BTreeMap<ErrorSelector, HirType>,
+    ) -> Self {
         let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
         Self {
             program,
@@ -112,6 +128,7 @@ impl SsaProgramArtifact {
             main_input_witnesses: Vec::default(),
             main_return_witnesses: Vec::default(),
             names: Vec::default(),
+            error_types,
         }
     }
 
@@ -146,7 +163,7 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let (generated_acirs, generated_brillig) = optimize_into_acir(
+    let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(
         program,
         enable_ssa_logging,
         enable_brillig_logging,
@@ -159,7 +176,7 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let mut program_artifact = SsaProgramArtifact::new(generated_brillig);
+    let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
@@ -181,7 +198,7 @@ pub fn create_program(
 
 pub struct SsaCircuitArtifact {
     name: String,
-    circuit: Circuit,
+    circuit: Circuit<FieldElement>,
     debug_info: DebugInfo,
     warnings: Vec<SsaReport>,
     input_witnesses: Vec<Witness>,
@@ -202,7 +219,7 @@ fn convert_generated_acir_into_circuit(
         return_witnesses,
         locations,
         input_witnesses,
-        assert_messages,
+        assertion_payloads: assert_messages,
         warnings,
         name,
         ..

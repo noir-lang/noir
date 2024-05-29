@@ -11,8 +11,8 @@ use pprof::criterion::{Output, PProfProfiler};
 
 const SIZES: [usize; 9] = [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000];
 
-fn sample_program(num_opcodes: usize) -> Program {
-    let assert_zero_opcodes: Vec<Opcode> = (0..num_opcodes)
+fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
+    let assert_zero_opcodes: Vec<Opcode<_>> = (0..num_opcodes)
         .map(|i| {
             Opcode::AssertZero(Expression {
                 mul_terms: vec![(
@@ -33,13 +33,14 @@ fn sample_program(num_opcodes: usize) -> Program {
         functions: vec![Circuit {
             current_witness_index: 4000,
             opcodes: assert_zero_opcodes.to_vec(),
-            expression_width: ExpressionWidth::Bounded { width: 3 },
+            expression_width: ExpressionWidth::Bounded { width: 4 },
             private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3), Witness(4)]),
             public_parameters: PublicInputs(BTreeSet::from([Witness(5)])),
             return_values: PublicInputs(BTreeSet::from([Witness(6)])),
             assert_messages: Vec::new(),
             recursive: false,
         }],
+        unconstrained_functions: Vec::new(),
     }
 }
 
@@ -82,7 +83,7 @@ fn bench_deserialization(c: &mut Criterion) {
             BenchmarkId::from_parameter(size),
             &serialized_program,
             |b, program| {
-                b.iter(|| Program::deserialize_program(program));
+                b.iter(|| Program::<FieldElement>::deserialize_program(program));
             },
         );
     }
@@ -106,7 +107,7 @@ fn bench_deserialization(c: &mut Criterion) {
             |b, program| {
                 b.iter(|| {
                     let mut deserializer = serde_json::Deserializer::from_slice(program);
-                    Program::deserialize_program_base64(&mut deserializer)
+                    Program::<FieldElement>::deserialize_program_base64(&mut deserializer)
                 });
             },
         );

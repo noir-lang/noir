@@ -114,13 +114,8 @@ impl DebugShow {
     }
 
     /// Emits a `trap` instruction.
-    pub(crate) fn trap_instruction(&self, revert_data_offset: usize, revert_data_size: usize) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  TRAP {}..{}",
-            revert_data_offset,
-            revert_data_offset + revert_data_size
-        );
+    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+        debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 
     /// Emits a `mov` instruction.
@@ -271,6 +266,16 @@ impl DebugShow {
     /// Debug function for black_box_op
     pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
+            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  AES128 ENCRYPT {} {} {}  -> {}",
+                    inputs,
+                    iv,
+                    key,
+                    outputs
+                );
+            }
             BlackBoxOp::Sha256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
             }
@@ -320,16 +325,18 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
+            BlackBoxOp::MultiScalarMul { points, scalars, outputs } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  FIXED_BASE_SCALAR_MUL {} {} -> {}",
-                    low,
-                    high,
-                    result
+                    "  MULTI_SCALAR_MUL {} {} -> {}",
+                    points,
+                    scalars,
+                    outputs
                 );
             }
-            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
+            BlackBoxOp::EmbeddedCurveAdd {
+                input1_x, input1_y, input2_x, input2_y, result, ..
+            } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
@@ -443,6 +450,15 @@ impl DebugShow {
                     "  SHA256COMPRESSION {} {} -> {}",
                     input,
                     hash_values,
+                    output
+                );
+            }
+            BlackBoxOp::ToRadix { input, radix, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  TO_RADIX {} {} -> {}",
+                    input,
+                    radix,
                     output
                 );
             }

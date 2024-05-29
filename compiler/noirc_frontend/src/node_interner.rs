@@ -111,7 +111,9 @@ pub struct NodeInterner {
     // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
     //
     // Indexed by TraitImplIds
-    pub(crate) trait_implementations: Vec<Shared<TraitImpl>>,
+    pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
+
+    next_trait_implementation_id: usize,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -244,6 +246,8 @@ pub struct FunctionModifiers {
 
     pub is_unconstrained: bool,
 
+    pub generic_count: usize,
+
     pub is_comptime: bool,
 }
 
@@ -257,6 +261,7 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            generic_count: 0,
             is_comptime: false,
         }
     }
@@ -482,7 +487,8 @@ impl Default for NodeInterner {
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
-            trait_implementations: Vec::new(),
+            trait_implementations: HashMap::new(),
+            next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
             operator_traits: HashMap::new(),
@@ -532,7 +538,7 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    /// Store the type for an interned expression
+    /// Store the type for a definition
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.definition_to_type.insert(definition_id, typ);
     }
@@ -696,7 +702,7 @@ impl NodeInterner {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
         let id = self.push_global(name, local_id, statement, file, attributes, mutable);
-        self.push_statement_location(statement, span, file);
+        self.push_stmt_location(statement, span, file);
         id
     }
 
@@ -775,6 +781,7 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
@@ -912,6 +919,13 @@ impl NodeInterner {
         &self.definitions[id.0]
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
+    pub fn definition_mut(&mut self, id: DefinitionId) -> &mut DefinitionInfo {
+        &mut self.definitions[id.0]
+    }
+
     /// Tries to retrieve the given id's definition.
     /// This function should be used during name resolution or type checking when we cannot be sure
     /// all variables have corresponding definitions (in case of an error in the user's code).
@@ -942,7 +956,7 @@ impl NodeInterner {
         self.id_location(stmt_id)
     }
 
-    pub fn push_statement_location(&mut self, id: StmtId, span: Span, file: FileId) {
+    pub fn push_stmt_location(&mut self, id: StmtId, span: Span, file: FileId) {
         self.id_to_location.insert(id.into(), Location::new(span, file));
     }
 
@@ -991,6 +1005,11 @@ impl NodeInterner {
     pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
         let global = self.get_global(global_id);
         self.definition(global.definition_id)
+    }
+
+    pub fn get_global_definition_mut(&mut self, global_id: GlobalId) -> &mut DefinitionInfo {
+        let global = self.get_global(global_id);
+        self.definition_mut(global.definition_id)
     }
 
     pub fn get_all_globals(&self) -> &[GlobalInfo] {
@@ -1127,7 +1146,7 @@ impl NodeInterner {
     }
 
     pub fn get_trait_implementation(&self, id: TraitImplId) -> Shared<TraitImpl> {
-        self.trait_implementations[id.0].clone()
+        self.trait_implementations[&id].clone()
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -1362,9 +1381,7 @@ impl NodeInterner {
         impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
-        assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
-
-        self.trait_implementations.push(trait_impl.clone());
+        self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
@@ -1467,10 +1484,10 @@ impl NodeInterner {
     }
 
     /// Returns what the next trait impl id is expected to be.
-    /// Note that this does not actually reserve the slot so care should
-    /// be taken that the next trait impl added matches this ID.
-    pub fn next_trait_impl_id(&self) -> TraitImplId {
-        TraitImplId(self.trait_implementations.len())
+    pub fn next_trait_impl_id(&mut self) -> TraitImplId {
+        let next_id = self.next_trait_implementation_id;
+        self.next_trait_implementation_id += 1;
+        TraitImplId(next_id)
     }
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait

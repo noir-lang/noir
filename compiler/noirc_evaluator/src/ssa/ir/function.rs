@@ -64,6 +64,13 @@ impl Function {
         Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir(InlineType::default()) }
     }
 
+    /// Creates a new function as a clone of the one passed in with the passed in id.
+    pub(crate) fn clone_with_id(id: FunctionId, another: &Function) -> Self {
+        let dfg = another.dfg.clone();
+        let entry_block = another.entry_block;
+        Self { name: another.name.clone(), id, entry_block, dfg, runtime: another.runtime }
+    }
+
     /// The name of the function.
     /// Used exclusively for debugging purposes.
     pub(crate) fn name(&self) -> &str {

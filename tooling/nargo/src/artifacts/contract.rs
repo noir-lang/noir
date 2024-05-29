@@ -1,4 +1,4 @@
-use acvm::acir::circuit::Program;
+use acvm::{acir::circuit::Program, FieldElement};
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ContractOutputsArtifact {
     pub structs: HashMap<String, Vec<AbiType>>,
     pub globals: HashMap<String, Vec<AbiValue>>,
@@ -21,7 +21,7 @@ impl From<CompiledContractOutputs> for ContractOutputsArtifact {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ContractArtifact {
     /// Version of noir used to compile this contract
     pub noir_version: String,
@@ -51,7 +51,7 @@ impl From<CompiledContract> for ContractArtifact {
 ///
 /// A contract function unlike a regular Noir program however can have additional properties.
 /// One of these being a function type.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractFunctionArtifact {
     pub name: String,
 
@@ -65,7 +65,7 @@ pub struct ContractFunctionArtifact {
         serialize_with = "Program::serialize_program_base64",
         deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Program,
+    pub bytecode: Program<FieldElement>,
 
     #[serde(
         serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",

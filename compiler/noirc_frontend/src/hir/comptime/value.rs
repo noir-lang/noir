@@ -22,9 +22,11 @@ pub enum Value {
     Bool(bool),
     Field(FieldElement),
     I8(i8),
+    I16(i16),
     I32(i32),
     I64(i64),
     U8(u8),
+    U16(u16),
     U32(u32),
     U64(u64),
     String(Rc<String>),
@@ -45,9 +47,11 @@ impl Value {
             Value::Bool(_) => Type::Bool,
             Value::Field(_) => Type::FieldElement,
             Value::I8(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
+            Value::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
             Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+            Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
@@ -87,6 +91,12 @@ impl Value {
                 let value = (value as u128).into();
                 HirExpression::Literal(HirLiteral::Integer(value, negative))
             }
+            Value::I16(value) => {
+                let negative = value < 0;
+                let value = value.abs();
+                let value = (value as u128).into();
+                HirExpression::Literal(HirLiteral::Integer(value, negative))
+            }
             Value::I32(value) => {
                 let negative = value < 0;
                 let value = value.abs();
@@ -102,6 +112,9 @@ impl Value {
             Value::U8(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
+            Value::U16(value) => {
+                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+            }
             Value::U32(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
@@ -112,7 +125,7 @@ impl Value {
             Value::Function(id, _typ) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
-                HirExpression::Ident(HirIdent { location, id, impl_kind })
+                HirExpression::Ident(HirIdent { location, id, impl_kind }, None)
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?

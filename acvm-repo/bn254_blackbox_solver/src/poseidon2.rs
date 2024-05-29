@@ -1,4 +1,4 @@
-use acir::FieldElement;
+use acir::{AcirField, FieldElement};
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use lazy_static::lazy_static;
 
@@ -543,7 +543,7 @@ impl<'a> Poseidon2<'a> {
 
 #[cfg(test)]
 mod test {
-    use acir::FieldElement;
+    use acir::{AcirField, FieldElement};
 
     use super::{field_from_hex, poseidon2_permutation};
 

@@ -8,7 +8,6 @@ use noir_lsp::NargoLspService;
 use tower::ServiceBuilder;
 
 use super::NargoConfig;
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 /// Starts the Noir LSP server
@@ -19,20 +18,14 @@ use crate::errors::CliError;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct LspCommand;
 
-pub(crate) fn run(
-    // Backend is currently unused, but we might want to use it to inform the lsp in the future
-    _backend: &Backend,
-    _args: LspCommand,
-    _config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliError> {
     use tokio::runtime::Builder;
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     runtime.block_on(async {
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
-            let blackbox_solver = Bn254BlackBoxSolver::new();
-            let router = NargoLspService::new(&client, blackbox_solver);
+            let router = NargoLspService::new(&client, Bn254BlackBoxSolver);
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())
