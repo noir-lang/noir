@@ -894,11 +894,19 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
-                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs.clone(),
-                    actual: rhs.clone(),
-                    span: op.location.span,
-                    source: Source::Binary,
+                self.unify(lhs, rhs, || {
+                    // TODO: cleanup
+                    // let mut test_bindings = std::collections::HashMap::new();
+                    // let test_arith_constraints = &Default::default();
+                    // dbg!("comparator_operand_type_rules", &lhs, &rhs, lhs.try_unify(rhs, &mut test_bindings, test_arith_constraints));
+                    dbg!("comparator_operand_type_rules", &lhs, &rhs);
+
+                    TypeCheckError::TypeMismatchWithSource {
+                        expected: lhs.clone(),
+                        actual: rhs.clone(),
+                        span: op.location.span,
+                        source: Source::Binary,
+                    }
                 });
                 Ok((Bool, true))
             }
@@ -1073,11 +1081,15 @@ impl<'interner> TypeChecker<'interner> {
         rhs_type: &Type,
         span: Span,
     ) -> bool {
-        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
-            expected: lhs_type.clone(),
-            actual: rhs_type.clone(),
-            source: Source::Binary,
-            span,
+        self.unify(lhs_type, rhs_type, || {
+            // TODO cleanup
+            dbg!("bind_type_variables_for_infix");
+            TypeCheckError::TypeMismatchWithSource {
+                expected: lhs_type.clone(),
+                actual: rhs_type.clone(),
+                source: Source::Binary,
+                span,
+            }
         });
 
         let use_impl = !lhs_type.is_numeric();

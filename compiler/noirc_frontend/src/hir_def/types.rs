@@ -617,7 +617,7 @@ impl Type {
         use TypeVariableKind as K;
         matches!(
             self.follow_bindings(),
-            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
+            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField) | GenericArith(..)
         )
     }
 
@@ -985,6 +985,7 @@ impl std::fmt::Display for TypeBinding {
     }
 }
 
+#[derive(Debug)]
 pub struct UnificationError;
 
 impl Type {
@@ -1043,7 +1044,16 @@ impl Type {
                     },
                 }
             }
-            _ => Err(UnificationError),
+            Type::GenericArith(..) => {
+                // TODO: main binding done in try_unify in copy/paste block
+                Ok(())
+            }
+            _ => {
+                // TODO: cleanup
+                dbg!("try_bind_to_maybe_constant", self);
+
+                Err(UnificationError)
+            }
         }
     }
 
@@ -1127,7 +1137,16 @@ impl Type {
                     }
                 }
             }
-            _ => Err(UnificationError),
+            Type::GenericArith(..) => {
+                // all done in try_unify with copy/paste block
+                Ok(())
+            }
+            _ => {
+                // TODO: cleanup
+                dbg!("try_bind_to_polymorphic_int", self);
+
+                Err(UnificationError)
+            }
         }
     }
 
@@ -1142,6 +1161,11 @@ impl Type {
         var: &TypeVariable,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
+
+        // TODO: cleanup
+        dbg!("try_bind_to", self, var);
+
+
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
@@ -1161,6 +1185,9 @@ impl Type {
         // Check if the target id occurs within `this` before binding. Otherwise this could
         // cause infinitely recursive types
         if this.occurs(target_id) {
+
+            // TODO: cleanup
+            panic!("try_bind_to this.occurs()");
             Err(UnificationError)
         } else {
             bindings.insert(target_id, (var.clone(), this.clone()));
@@ -1177,9 +1204,6 @@ impl Type {
 
     fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
         self.get_outer_type_variable().map(|var| var.1)
-        //     Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.1.clone()),
-        //     _ => None,
-        // }
     }
 
     pub(crate) fn get_named_generic_name(&self) -> Option<Rc<String>> {
@@ -1233,6 +1257,27 @@ impl Type {
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
+
+                    // TODO: reduce copy/paste, see below
+                    match other {
+                        Self::GenericArith(lhs, lhs_generics) => {
+                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
+                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_generics = vec![];
+             
+                            // TODO: cleanup
+                            dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
+                            arith_constraints.borrow_mut().push(ArithConstraint {
+                                lhs: *lhs,
+                                lhs_generics: lhs_generics.to_vec(),
+                                rhs,
+                                rhs_generics,
+                            });
+             
+                        }
+                        _ => (),
+                    }
+
                     let only_integer = false;
                     other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                 })
@@ -1241,6 +1286,27 @@ impl Type {
             (TypeVariable(var, Kind::Integer), other)
             | (other, TypeVariable(var, Kind::Integer)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
+
+                    // TODO: reduce copy/paste, see below and above
+                    match other {
+                        Self::GenericArith(lhs, lhs_generics) => {
+                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
+                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_generics = vec![];
+             
+                            // TODO: cleanup
+                            dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
+                            arith_constraints.borrow_mut().push(ArithConstraint {
+                                lhs: *lhs,
+                                lhs_generics: lhs_generics.to_vec(),
+                                rhs,
+                                rhs_generics,
+                            });
+             
+                        }
+                        _ => (),
+                    }
+
                     let only_integer = true;
                     other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                 })
@@ -1248,13 +1314,59 @@ impl Type {
 
             (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-                    other.try_bind_to(var, bindings)
+
+                    // TODO: reduce copy/paste, see above
+                    match other {
+                        Self::GenericArith(lhs, lhs_generics) => {
+                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
+                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_generics = vec![];
+             
+                            // TODO: cleanup
+                            dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
+                            arith_constraints.borrow_mut().push(ArithConstraint {
+                                lhs: *lhs,
+                                lhs_generics: lhs_generics.to_vec(),
+                                rhs,
+                                rhs_generics,
+                            });
+             
+                        }
+                        _ => (),
+                    }
+
+                    // TODO: cleanup
+                    let tt = other.try_bind_to(var, bindings);
+                    dbg!("try_bind_to(result)", &tt);
+                    tt
+
                 })
             }
 
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
                 .try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
+
+                    // TODO: reduce copy/paste, see above
+                    match other {
+                        Self::GenericArith(lhs, lhs_generics) => {
+                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
+                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_generics = vec![];
+             
+                            // TODO: cleanup
+                            dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
+                            arith_constraints.borrow_mut().push(ArithConstraint {
+                                lhs: *lhs,
+                                lhs_generics: lhs_generics.to_vec(),
+                                rhs,
+                                rhs_generics,
+                            });
+             
+                        }
+                        _ => (),
+                    }
+
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
 
@@ -1419,7 +1531,12 @@ impl Type {
                     Some((_, binding)) => binding.clone().try_unify(self, bindings, arith_constraints),
 
                     // Otherwise, bind it
-                    None => bind_variable(bindings),
+                    None => {
+
+                        // TODO: cleanup
+                        dbg!("try_unify_to_type_variable", self, type_variable);
+                        bind_variable(bindings)
+                    },
                 }
             }
         }

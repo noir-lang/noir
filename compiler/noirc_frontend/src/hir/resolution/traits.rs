@@ -480,11 +480,6 @@ pub(crate) fn resolve_trait_impls(
         let impl_generics = resolver.get_generics().to_vec();
         let impl_id = interner.next_trait_impl_id();
 
-        dbg!("impl_generics", &impl_generics, &self_type);
-        dbg!("impl_generics", &impl_generics, &self_type);
-        dbg!("impl_generics", &impl_generics, &self_type);
-        dbg!("impl_generics", &impl_generics, &self_type);
-
         let mut impl_methods = functions::resolve_function_set(
             interner,
             crate_id,

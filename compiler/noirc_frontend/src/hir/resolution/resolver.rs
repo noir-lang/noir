@@ -748,6 +748,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    // returns a Type::NamedGeneric or a Type::Constant
     fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
@@ -820,7 +821,6 @@ impl<'a> Resolver<'a> {
                 (ArithExpr::Constant(0), vec![])
             }
 
-
         }
 
     }
@@ -830,13 +830,29 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeExpression::Variable(path) => {
                 // TODO: need to intern this variable for generic arith?
                 // does resolving [unknown-var] vs. [generic-arith] work?
-                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                let var_or_constant = self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
+                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path: path.clone() });
                     Type::Constant(0)
-                })
+                });
+                match var_or_constant {
+                    Type::NamedGeneric(ref binding, ref name) => {
+                        // we intern variables so that they can be resolved during trait resolution
+                        let arith_expr = ArithExpr::Variable(binding.clone(), name.clone(), Default::default());
+                        let location = Location {
+                            span: path.span,
+                            file: self.file,
+                        };
+                        let _ = self.interner.push_arithmetic_expression(arith_expr, location);
+                    }
+                    // expect Type::Constant's to be interned at their declarations
+                    _ => (),
+
+                }
+
+                var_or_constant
             }
             UnresolvedTypeExpression::Constant(int, span) => {
-                // we intern constants so that they can be resolved when during trait resolution
+                // we intern constants so that they can be resolved during trait resolution
                 let arith_expr = ArithExpr::Constant(int);
                 let location = Location {
                     span: span,
