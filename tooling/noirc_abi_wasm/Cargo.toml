@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 acvm = { workspace = true, features = ["bn254"] }
-noirc_abi.workspace = true
+noirc_abi = { workspace = true, features = ["bn254"] }
 iter-extended.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true
