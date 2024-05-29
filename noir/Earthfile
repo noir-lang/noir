@@ -235,11 +235,17 @@ barretenberg-acir-benches-bb:
 
   WORKDIR /usr/src/barretenberg/acir_tests
 
+bench-acir-bb:
+  # This target is used for debugging the benchmarking target.
+  # For precise benchmarks in CI use `bench-publish-acir-bb`
+  FROM +barretenberg-acir-benches-bb
+  RUN ./bench_acir_tests.sh
+
 export-bench-acir-bb:
   ARG EARTHLY_GIT_HASH
   FROM +barretenberg-acir-benches-bb
   SAVE IMAGE aztecprotocol/barretenberg-acir-benches:$EARTHLY_GIT_HASH
- 
+
 bench-publish-acir-bb:
   ARG PULL_REQUEST
   ARG BRANCH
@@ -256,6 +262,6 @@ bench-publish-acir-bb:
   END
 
   RUN mkdir -p ./log
-  RUN docker run -v "$(pwd)/log":/log -e LOG_FILE=/log/bench-acir.jsonl --rm aztecprotocol/barretenberg-acir-benches:$AZTEC_DOCKER_TAG ./bench_acir_tests.sh sha256
+  RUN docker run -v "$(pwd)/log":/log -e LOG_FILE=/log/bench-acir.jsonl --rm aztecprotocol/barretenberg-acir-benches:$AZTEC_DOCKER_TAG ./bench_acir_tests.sh
 
   DO ../+UPLOAD_LOGS --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH

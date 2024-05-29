@@ -26,7 +26,43 @@ export interface Metric {
 /** Metric definitions to track from benchmarks. */
 export const Metrics = [
   {
-    name: 'proof_construction_time_sha256',
+    name: 'proof_construction_time_sha256_ms',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
+  {
+    name: 'proof_construction_time_sha256_30_ms',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
+  {
+    name: 'proof_construction_time_sha256_100_ms',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
+  {
+    name: 'proof_construction_time_poseidon_hash_ms',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
+  {
+    name: 'proof_construction_time_poseidon_hash_30_ms',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
+  {
+    name: 'proof_construction_time_poseidon_hash_100_ms',
+    groupBy: 'threads',
+    description: 'Time needed to generate a proof of an ACIR program.',
+    events: ['proof_construction_time'],
+  },
+  {
+    name: 'proof_construction_time_eddsa_poseidon_ms',
     groupBy: 'threads',
     description: 'Time needed to generate a proof of an ACIR program.',
     events: ['proof_construction_time'],
