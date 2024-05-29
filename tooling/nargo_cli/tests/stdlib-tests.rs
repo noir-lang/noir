@@ -10,7 +10,8 @@ use nargo::{
     parse_all, prepare_package,
 };
 
-fn run_stdlib_tests(use_elaborator: bool) {
+#[test]
+fn run_stdlib_tests() {
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
     file_manager.add_file_with_source_canonical_path(&PathBuf::from("main.nr"), "".to_owned());
     let parsed_files = parse_all(&file_manager);
@@ -29,7 +30,7 @@ fn run_stdlib_tests(use_elaborator: bool) {
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let result = check_crate(&mut context, dummy_crate_id, true, false, use_elaborator);
+    let result = check_crate(&mut context, dummy_crate_id, true, false, false);
     report_errors(result, &context.file_manager, true, false)
         .expect("Error encountered while compiling standard library");
 
@@ -58,16 +59,4 @@ fn run_stdlib_tests(use_elaborator: bool) {
 
     assert!(!test_report.is_empty(), "Could not find any tests within the stdlib");
     assert!(test_report.iter().all(|(_, status)| !status.failed()));
-}
-
-#[test]
-fn stdlib_noir_tests() {
-    run_stdlib_tests(false)
-}
-
-// Once this no longer panics we can use the elaborator by default and remove the old passes
-#[test]
-#[should_panic]
-fn stdlib_elaborator_tests() {
-    run_stdlib_tests(true)
 }
