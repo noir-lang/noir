@@ -1,4 +1,0 @@
-error:
-  - not_existing_path/**/*
-any:
-  - "**/*"
