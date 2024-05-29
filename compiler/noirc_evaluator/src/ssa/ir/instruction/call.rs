@@ -1,7 +1,10 @@
 use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
-use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use acvm::{
+    acir::{AcirField, BlackBoxFunc},
+    BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement,
+};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -434,6 +437,13 @@ fn simplify_black_box_func(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "bn254")] {
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
+        } else {
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+        }
+    };
     match bb_func {
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
@@ -466,10 +476,11 @@ fn simplify_black_box_func(
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
 
+        BlackBoxFunc::PedersenCommitment => simplify_pedersen_commitment(dfg, solver, arguments),
+        BlackBoxFunc::PedersenHash => simplify_pedersen_hash(dfg, solver, arguments),
+
         BlackBoxFunc::MultiScalarMul
         | BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
         | BlackBoxFunc::EmbeddedCurveAdd => {
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
@@ -556,6 +567,63 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
 
 fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
+}
+
+fn simplify_pedersen_commitment(
+    dfg: &mut DataFlowGraph,
+    solver: impl BlackBoxFunctionSolver<FieldElement>,
+    arguments: &[ValueId],
+) -> SimplifyResult {
+    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
+        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
+            let input_fields: Vec<_> = inputs
+                .iter()
+                .map(|id| {
+                    dfg.get_numeric_constant(*id)
+                        .expect("value id from array should point at constant")
+                })
+                .collect();
+
+            let (result_x, result_y) = solver
+                .pedersen_commitment(&input_fields, domain_separator.to_u128() as u32)
+                .expect("Rust solvable black box function should not fail");
+
+            let result_x = dfg.make_constant(result_x, Type::field());
+            let result_y = dfg.make_constant(result_y, Type::field());
+
+            let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
+            let result_array = dfg.make_array(im::vector![result_x, result_y], typ);
+
+            SimplifyResult::SimplifiedTo(result_array)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
+fn simplify_pedersen_hash(
+    dfg: &mut DataFlowGraph,
+    solver: impl BlackBoxFunctionSolver<FieldElement>,
+    arguments: &[ValueId],
+) -> SimplifyResult {
+    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
+        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
+            let input_fields: Vec<_> = inputs
+                .iter()
+                .map(|id| {
+                    dfg.get_numeric_constant(*id)
+                        .expect("value id from array should point at constant")
+                })
+                .collect();
+
+            let hash = solver
+                .pedersen_hash(&input_fields, domain_separator.to_u128() as u32)
+                .expect("Rust solvable black box function should not fail");
+
+            let hash_value = dfg.make_constant(hash, Type::field());
+            SimplifyResult::SimplifiedTo(hash_value)
+        }
+        _ => SimplifyResult::None,
+    }
 }
 
 fn simplify_hash(
