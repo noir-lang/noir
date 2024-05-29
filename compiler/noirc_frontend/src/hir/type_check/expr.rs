@@ -207,7 +207,7 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let span = self.interner.expr_span(expr_id);
-                let return_type = self.bind_function_type(function.clone(), args, span);
+                let return_type = self.bind_function_type(function, args, span);
 
                 // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
                 if is_current_func_constrained && is_unconstrained_call {
