@@ -272,8 +272,6 @@ This setting enables us to skip the first `offset` notes. It's particularly usef
 
 Developers have the option to provide a custom filter. This allows specific logic to be applied to notes that meet the criteria outlined above. The filter takes the notes returned from the oracle and `filter_args` as its parameters.
 
-It's important to note that the process of applying the custom filter to get the final notes is not constrained. It's crucial to verify the returned notes even if certain assumptions are made in the custom filter.
-
 ### `filter_args: FILTER_ARGS`
 
 `filter_args` provides a means to furnish additional data or context to the custom filter.

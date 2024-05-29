@@ -1,5 +1,5 @@
 use dep::protocol_types::address::AztecAddress;
-use dep::protocol_types::traits::{Empty, Serialize};
+use dep::protocol_types::traits::{Empty, Eq, Serialize};
 
 struct NoteHeader {
     contract_address: AztecAddress,
@@ -13,6 +13,15 @@ struct NoteHeader {
 impl Empty for NoteHeader {
     fn empty() -> Self {
         NoteHeader { contract_address: AztecAddress::zero(), nonce: 0, storage_slot: 0, is_transient: false }
+    }
+}
+
+impl Eq for NoteHeader {
+    fn eq(self, other: Self) -> bool {
+        (self.contract_address == other.contract_address) & 
+        (self.nonce == other.nonce) & 
+        (self.storage_slot == other.storage_slot)& 
+        (self.is_transient == other.is_transient)
     }
 }
 

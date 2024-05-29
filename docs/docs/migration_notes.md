@@ -6,6 +6,12 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### [Aztec.nr] Filtering is now constrained
+
+The `filter` argument of `NoteGetterOptions` (typically passed via the `with_filter()` function) is now applied in a constraining environment, meaning any assertions made during the filtering are guaranteed to hold. This mirrors the behavior of the `select()` function.
+
 ## 0.42.0
 
 ### [Aztec.nr] Emitting encrypted notes and logs
@@ -17,6 +23,7 @@ The `emit_encrypted_log` context function is now `encrypt_and_emit_log` or `encr
 + context.encrypt_and_emit_log(log1);
 + context.encrypt_and_emit_note(note1);
 ```
+
 Broadcasting a note will call `encrypt_and_emit_note` in the background. To broadcast a generic event, use `encrypt_and_emit_log`
 with the same encryption parameters as notes require. Currently, only fields and arrays of fields are supported as events.
 
