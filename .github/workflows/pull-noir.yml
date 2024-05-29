@@ -101,6 +101,7 @@ jobs:
               git commit -am "[$LINES changes] $COMMIT_MESSAGE"
 
               # There's various changes which we need to make to account for CI differences so we run this script to apply them.
+              git checkout origin/master -- noir/scripts/sync-fixup.sh
               noir/scripts/sync-fixup.sh
               git commit -am "chore: apply sync fixes"
 
