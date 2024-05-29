@@ -3,29 +3,20 @@ title: Core Components
 sidebar_position: 1
 ---
 
-Aztec Labs is building a layer 2 rollup on Ethereum focused on 3 things:
 
-- Data privacy
-- Confidentiality
-- Trustlessness
+## Private Smart Contracts
 
-## Data privacy
+A smart contract on Aztec is a collection of functions, written as ZK-SNARK circuits. These circuits can have different modes of execution:
 
-Data privacy refers to the ability of Aztec smart contract to have private (encrypted) state. Aztec abstracts away many of the complexities associated with managing private state, providing developers with an interface that feels familiar, but is much more powerful.
+1. Private Functions -- can read and write private state, read historical public state, consume or send messages to / from Ethereum, and read Ethereum state. They can call other private functions in the same contract, or other contracts, and can call public functions.
+2. Public Functions -- can read and write public state, write private state, consume or send messages to / from Ethereum and read Ethereum state. They can call other public functions on the same or other contracts.
+3. Portal Contracts -- these are contracts on Ethereum that can receive messages from Aztec or send messages to Aztec from Ethereum contracts.
 
-## Confidentiality
+Using these different modes of execution, developers can build applications with user privacy, data privacy and code privacy.
 
-Confidentiality is the ability of Aztec smart contracts to execute private functions and transactions. Aztec provides a secure, private environment for the execution of sensitive operations, ensuring private information and decrypted data are not accessible to unauthorized applications.
-
-When a user sends a private transaction on the network, the only information that an external observer can infer is that a transaction was sent. Transaction data, the sender, and the recipient can all be obfuscated.
-
-Aztec achieved this level of privacy by leveraging a Private eXecution Environment (PXE). This software runs client-side, for example in a browser, and is responsible for managing private keys, encrypting and decrypting data, and executing private functions. The PXE is also responsible for generating proofs of private function execution, which are then sent to the sequencer for inclusion in the rollup.
-
-## Trustlessness
-
-Aztec is building a permissionless, censorship resistant, peer-to-peer network. It aims to be credibly neutral, where the same transparent rules apply to everyone, enforced by the protocol.
-
-Aztec will have a network of sequencers that stake tokens to participate in the network. Sequencers are responsible for aggregating transactions into a block, generating proofs of the state updates (or delegating proof generation to the prover network) and posting it to the rollup contract on Ethereum, along with any required public data for data availability.
+- User privacy - transactions may not reveal information about the sender or the recipient.
+- Data privacy - transactions may not reveal information about the payload of the transaction, e.g., the asset or value being transacted.
+- Code privacy - transactions may not reveal the program logic.
 
 ## High level network architecture
 

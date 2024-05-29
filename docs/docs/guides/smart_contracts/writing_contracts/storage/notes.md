@@ -50,7 +50,7 @@ By virtue of being append only, notes are not edited. If two transactions amend 
 :::info
 - Only those with appropriate keys/information will be able to successfully read private values that they have permission to
 - Notes can be read outside of a transaction or "off-chain" with no changes to data structures on-chain
-:::info
+:::
 
 When a note is read in a transaction, a subsequent read from another transaction of the same note would reveal a link between the two. So to preserve privacy, notes that are read in a transaction are said to be "consumed" (defined below), and new note(s) are then created with a unique hash (includes transaction identifier).
 
@@ -63,7 +63,7 @@ When interpreting a value, the local private execution checks that its notes (of
 ### Updating
 :::note
 Only those with appropriate keys/information will be able to successfully nullify a value that they have permission to.
-:::note
+:::
 
 To update a value, its previous note hash(es) are nullified. The new note value is updated in the PXE, and the updated note hash inserted into the note hash tree.
 

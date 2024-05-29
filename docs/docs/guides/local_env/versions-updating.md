@@ -11,7 +11,7 @@ When developing and referring to example .nr files/snippets, it is helpful to ve
 
 :::note
 The `aztec-nargo` versions follow `nargo` versions, which is different to the Aztec tool versions.
-:::note
+:::
 
 The latest version of the Aztec tooling is currently `#include_aztec_version` , updating roughly every week.
 
@@ -23,7 +23,7 @@ Check the `git=` github url, tag, and directory.
 
 :::note
 The folder structure changed at **0.24.0** from `yarn-project/aztec-nr` to `noir-projects/aztec-nr`.  More details [here](https://docs.aztec.network/misc/migration_notes#aztecnr-aztec-nr-contracts-location-change-in-nargotoml)
-:::note
+:::
 
 ### Example contract versions
 Example contracts serve as a helpful reference between versions of the aztec-nr framework since they are strictly maintained with each release.
@@ -42,7 +42,7 @@ diff ~/nargo/github.com/AztecProtocol/aztec-packages-v0.23.0/yarn-project/noir-c
 57a58
 >         note_type_id: Field,
 ```
-:::tip
+:::
 
 ### Language server version (aztec-nargo)
 The [Noir LSP](https://docs.aztec.network/developers/contracts/main.md#install-noir-lsp-recommended) uses your local version of `aztec-nargo`, and thus also `aztec-nargo compile`.
@@ -50,7 +50,7 @@ The path of the former (once installed) can be seen by hovering over "Nargo" in 
 
 :::caution
 For Aztec contract files, this should be `aztec-nargo` and for noir-only files this should be `nargo`. Mismatching tools and file types will generate misleading syntax and compiler errors.
-:::caution
+:::
 
 This can present confusion when opening older contracts (and dependencies) written in older version of noir, such as:
 - Logs filled with errors from the dependencies

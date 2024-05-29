@@ -55,6 +55,7 @@ const config = {
             );
           },
           routeBasePath: "/",
+          include: ["**/*.{md,mdx}"],
           remarkPlugins: [math],
           rehypePlugins: [
             [
