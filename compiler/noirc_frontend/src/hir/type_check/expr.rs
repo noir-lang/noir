@@ -193,8 +193,8 @@ impl<'interner> TypeChecker<'interner> {
                 let object = method_call.object;
                 let object_span = self.interner.expr_span(&method_call.object);
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();
-                let method_name = method_call.method.0.contents.to_owned();
-                match self.lookup_method(&object_type, &method_name, expr_id) {
+                let method_name = method_call.method.0.contents.as_str();
+                match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
