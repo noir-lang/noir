@@ -99,6 +99,11 @@ jobs:
               # We don't really need the sync commit on our side, and don't need .gitrepo at all except just in time for the command.
               git checkout origin/master -- noir/noir-repo/.aztec-sync-commit noir/noir-repo/.gitrepo
               git commit -am "[$LINES changes] $COMMIT_MESSAGE"
+
+              # There's various changes which we need to make to account for CI differences so we run this script to apply them.
+              noir/scripts/sync-fixup.sh
+              git commit -am "chore: apply sync fixes"
+
               git push origin $STAGING_BRANCH --force
             else
               echo "Problems syncing noir. Needs manual attention, might be a merge conflict."
