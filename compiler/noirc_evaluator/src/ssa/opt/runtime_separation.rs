@@ -21,7 +21,6 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn separate_runtime(mut self) -> Self {
         RuntimeSeparatorContext::separate_runtime(&mut self);
-
         self
     }
 }
@@ -70,7 +69,7 @@ impl RuntimeSeparatorContext {
         }
         processed_functions.insert((within_brillig, current_func_id));
 
-        let func = ssa.functions.get(&current_func_id).expect("Function should exist in SSA");
+        let func = &ssa.functions[&current_func_id];
         if func.runtime() == RuntimeType::Brillig {
             within_brillig = true;
         }
@@ -79,8 +78,7 @@ impl RuntimeSeparatorContext {
 
         if within_brillig {
             for called_func_id in called_functions.iter() {
-                let called_func =
-                    ssa.functions.get(called_func_id).expect("Function should exist in SSA");
+                let called_func = &ssa.functions[&called_func_id];
                 if matches!(called_func.runtime(), RuntimeType::Acir(_)) {
                     self.acir_functions_called_from_brillig.insert(*called_func_id);
                 }
@@ -164,7 +162,7 @@ fn collect_reachable_functions(
     }
     reachable_functions.insert(current_func_id);
 
-    let func = ssa.functions.get(&current_func_id).expect("Function should exist in SSA");
+    let func = &ssa.functions[&current_func_id];
     let called_functions = called_functions(func);
 
     for called_func_id in called_functions.iter() {

@@ -152,9 +152,7 @@ fn find_recursive_functions(
         return;
     }
 
-    let called_functions = called_functions(
-        ssa.functions.get(&current_function).expect("Function should exist in SSA"),
-    );
+    let called_functions = called_functions(&ssa.functions[&current_function]);
 
     explored_functions.insert(current_function);
 
@@ -209,8 +207,7 @@ fn get_functions_to_inline_into(
     let brillig_recursive_functions: BTreeSet<_> = find_all_recursive_functions(ssa)
         .into_iter()
         .filter(|recursive_function_id| {
-            let function =
-                ssa.functions.get(recursive_function_id).expect("Function should exist in SSA");
+            let function = &ssa.functions[&recursive_function_id];
             function.runtime() == RuntimeType::Brillig
         })
         .collect();
@@ -478,34 +475,34 @@ impl<'function> PerFunctionContext<'function> {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
-                        let function = &ssa.functions[&func_id];
-
-                        let should_retain_call =
-                            if let RuntimeType::Acir(inline_type) = function.runtime() {
-                                // If the called function is acir, we inline if it's not an entry point
-
-                                // If we have not already finished the flattening pass, functions marked
-                                // to not have predicates should be marked as entry points.
-                                let no_predicates_is_entry_point =
-                                    self.context.no_predicates_is_entry_point
-                                        && function.is_no_predicates();
-                                inline_type.is_entry_point() || no_predicates_is_entry_point
-                            } else {
-                                // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
-                                ssa.functions[&self.context.entry_point].runtime()
-                                    != RuntimeType::Brillig
-                                    || self.context.recursive_functions.contains(&func_id)
-                            };
-                        if should_retain_call {
-                            self.push_instruction(*id);
-                        } else {
+                        if self.should_inline_call(ssa, func_id) {
                             self.inline_function(ssa, *id, func_id, arguments);
+                        } else {
+                            self.push_instruction(*id);
                         }
                     }
                     None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
             }
+        }
+    }
+
+    fn should_inline_call(&self, ssa: &Ssa, called_func_id: FunctionId) -> bool {
+        let function = &ssa.functions[&called_func_id];
+
+        if let RuntimeType::Acir(inline_type) = function.runtime() {
+            // If the called function is acir, we inline if it's not an entry point
+
+            // If we have not already finished the flattening pass, functions marked
+            // to not have predicates should be marked as entry points.
+            let no_predicates_is_entry_point =
+                self.context.no_predicates_is_entry_point && function.is_no_predicates();
+            !inline_type.is_entry_point() && !no_predicates_is_entry_point
+        } else {
+            // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
+            ssa.functions[&self.context.entry_point].runtime() == RuntimeType::Brillig
+                && !self.context.recursive_functions.contains(&called_func_id)
         }
     }
 
