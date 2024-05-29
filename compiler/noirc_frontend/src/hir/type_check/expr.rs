@@ -182,7 +182,6 @@ impl<'interner> TypeChecker<'interner> {
 
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
-
                     (typ, *arg, self.interner.expr_span(arg))
                 });
 
