@@ -19,7 +19,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
-use im::HashSet as ImmutableHashSet;
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -145,7 +144,7 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
 fn find_recursive_functions(
     ssa: &Ssa,
     current_function: FunctionId,
-    mut explored_functions: ImmutableHashSet<FunctionId>,
+    mut explored_functions: im::HashSet<FunctionId>,
     recursive_functions: &mut BTreeSet<FunctionId>,
 ) {
     if explored_functions.contains(&current_function) {
@@ -171,12 +170,7 @@ fn find_recursive_functions(
 
 fn find_all_recursive_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
     let mut recursive_functions = BTreeSet::default();
-    find_recursive_functions(
-        ssa,
-        ssa.main_id,
-        ImmutableHashSet::default(),
-        &mut recursive_functions,
-    );
+    find_recursive_functions(ssa, ssa.main_id, im::HashSet::default(), &mut recursive_functions);
     recursive_functions
 }
 
@@ -189,40 +183,28 @@ fn get_functions_to_inline_into(
     ssa: &Ssa,
     no_predicates_is_entry_point: bool,
 ) -> BTreeSet<FunctionId> {
-    let brillig_entry_points: BTreeSet<_> = ssa
-        .functions
-        .iter()
-        .flat_map(|(_, function)| {
-            if function.runtime() != RuntimeType::Brillig {
-                called_functions(function)
-                    .into_iter()
-                    .filter(|called_function_id| {
-                        ssa.functions
-                            .get(called_function_id)
-                            .expect("Function should exist in SSA")
-                            .runtime()
-                            == RuntimeType::Brillig
-                    })
-                    .collect()
-            } else {
-                vec![]
-            }
-        })
-        .collect();
+    let mut brillig_entry_points = BTreeSet::default();
+    let mut acir_entry_points = BTreeSet::default();
 
-    let acir_entry_points: BTreeSet<_> = ssa
-        .functions
-        .iter()
-        .filter(|(_, function)| {
-            // If we have not already finished the flattening pass, functions marked
-            // to not have predicates should be marked as entry points.
-            let no_predicates_is_entry_point =
-                no_predicates_is_entry_point && function.is_no_predicates();
-            function.runtime() != RuntimeType::Brillig && function.runtime().is_entry_point()
-                || no_predicates_is_entry_point
-        })
-        .map(|(id, _)| *id)
-        .collect();
+    for (func_id, function) in ssa.functions.iter() {
+        if function.runtime() == RuntimeType::Brillig {
+            continue;
+        }
+
+        // If we have not already finished the flattening pass, functions marked
+        // to not have predicates should be marked as entry points.
+        let no_predicates_is_entry_point =
+            no_predicates_is_entry_point && function.is_no_predicates();
+        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
+            acir_entry_points.insert(*func_id);
+        }
+
+        for called_function_id in called_functions(function) {
+            if ssa.functions[&called_function_id].runtime() == RuntimeType::Brillig {
+                brillig_entry_points.insert(called_function_id);
+            }
+        }
+    }
 
     let brillig_recursive_functions: BTreeSet<_> = find_all_recursive_functions(ssa)
         .into_iter()
