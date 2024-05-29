@@ -176,10 +176,6 @@ pub enum BlackBoxFunc {
     /// - key_hash: one (FieldElement, 254). It should be the hash of the
     ///   verification key. Barretenberg expects the Pedersen hash of the
     ///   verification key
-    /// - input_aggregation_object: an optional vector of (FieldElement, 254).
-    ///   It is a blob of data specific to the proving system.
-    /// - output_aggregation_object: Some witnesses returned by the function,
-    ///   representing some data internal to the proving system.
     ///
     /// This black box function does not fully verify a proof, what it does is
     /// verifying that the key_hash is indeed a hash of verification_key,
