@@ -37,8 +37,8 @@ use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    ArithExpr, ArithOpKind, DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
-    StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
+    ArithExpr, ArithOpKind, DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId,
+    GlobalId, NodeInterner, StmtId, StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;
@@ -865,6 +865,8 @@ impl<'a> Resolver<'a> {
                             file: self.file,
                         };
                         let _ = self.interner.push_arithmetic_expression(arith_expr, op_location);
+                        assert!(lhs_generics.is_empty(), "constant generics expected to be empty");
+                        assert!(rhs_generics.is_empty(), "constant generics expected to be empty");
                         Type::Constant(int)
                     }
 
@@ -875,6 +877,10 @@ impl<'a> Resolver<'a> {
                             // return a valid ArithOpKind when erroring
                             ArithOpKind::Add
                         });
+
+                        // TODO cleanup
+                        // // offset GenericIndex's in rhs to prevent overlap
+                        // let rhs = rhs.offset_generic_indices(lhs_generics.len());
 
                         let arith_expr = ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
                         let op_location = Location {

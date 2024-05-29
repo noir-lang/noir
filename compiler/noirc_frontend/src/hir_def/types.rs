@@ -1168,9 +1168,23 @@ impl Type {
         }
     }
 
-    fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
+    pub(crate) fn get_outer_type_variable(&self) -> Option<TypeVariable> {
         match self {
-            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.1.clone()),
+            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.clone()),
+            _ => None,
+        }
+    }
+
+    fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
+        self.get_outer_type_variable().map(|var| var.1)
+        //     Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.1.clone()),
+        //     _ => None,
+        // }
+    }
+
+    pub(crate) fn get_named_generic_name(&self) -> Option<Rc<String>> {
+        match self {
+            Type::NamedGeneric(_var, name) => Some(name.clone()),
             _ => None,
         }
     }
