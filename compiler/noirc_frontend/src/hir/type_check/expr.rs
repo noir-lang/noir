@@ -455,9 +455,6 @@ impl<'interner> TypeChecker<'interner> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                // self.trait_constraints.push((constraint, *expr_id));
-                // self.trait_constraints.insert((constraint.trait_id, *expr_id), constraint);
-                // self.trait_constraints.entry((constraint.trait_id, *expr_id)).or_default().push(constraint);
                 self.trait_constraints.entry(*expr_id).or_default().push(constraint);
             }
         }
