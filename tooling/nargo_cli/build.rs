@@ -81,7 +81,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         write!(
             test_file,
             r#"
-
 #[test]
 fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
