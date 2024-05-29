@@ -67,6 +67,9 @@ examples:
   WORKDIR ../prove_and_verify
   RUN ./test.sh
 
+  WORKDIR ../recursion
+  RUN ./test.sh
+
 format:
   FROM +nargo
   ENV PATH=$PATH:/usr/src/noir-repo/target/release
