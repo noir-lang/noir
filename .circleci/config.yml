@@ -243,6 +243,18 @@ jobs:
           command: cond_spot_run_build avm-transpiler 32
           aztec_manifest_key: avm-transpiler
 
+  aztec-nargo:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build aztec-nargo 32
+          aztec_manifest_key: aztec-nargo
+
   l1-contracts:
     machine:
       image: default
@@ -381,7 +393,7 @@ jobs:
           name: "Release to dockerhub"
           command: |
             should_release || exit 0
-            deploy_dockerhub noir
+            deploy_dockerhub aztec-nargo
             deploy_dockerhub aztec
             deploy_dockerhub aztec-builder
       - run:
@@ -491,6 +503,9 @@ workflows:
 
       # Transpiler
       - avm-transpiler: *defaults
+
+      # aztec-nargo (nargo & transpiler)
+      - aztec-nargo: *defaults
 
       # Barretenberg
       - barretenberg-x86_64-linux-clang: *defaults

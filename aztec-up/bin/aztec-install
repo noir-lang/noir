@@ -105,8 +105,8 @@ export DOCKER_CLI_HINTS=false
 
 if [ -z "${SKIP_PULL:-}" ]; then
   info "Pulling aztec version $VERSION..."
+  pull_container aztec-nargo
   pull_container aztec
-  pull_container noir
   pull_container aztec-builder
 fi
 

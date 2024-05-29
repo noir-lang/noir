@@ -5,7 +5,7 @@ set -euo pipefail
 if [ -n "${1-}" ] && [ "$1" != "--help" ]; then
   if [ "$1" == "cli" ]; then
     shift
-    $(dirname $0)/.aztec-run aztecprotocol/cli "$@"
+    SKIP_PORT_ASSIGNMENT=1 $(dirname $0)/.aztec-run aztecprotocol/cli "$@"
   elif [ "$1" == "sandbox" ]; then
     $(dirname $0)/aztec-sandbox
   else

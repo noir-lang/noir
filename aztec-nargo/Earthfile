@@ -1,0 +1,17 @@
+VERSION 0.8
+
+run:
+    FROM ubuntu:noble
+    # Install Tini as nargo doesn't handle signals properly.
+    # Install git as nargo needs it to clone.
+    RUN apt-get update && apt-get install -y git tini && rm -rf /var/lib/apt/lists/* && apt-get clean
+
+    # Copy binaries to /usr/bin
+    COPY ../noir+nargo/nargo /usr/bin/nargo
+    COPY ../avm-transpiler+build/avm-transpiler /usr/bin/avm-transpiler
+    # Copy in script that calls both binaries
+    COPY ../avm-transpiler+build/compile_then_transpile.sh /usr/bin/compile_then_transpile.sh
+
+    ENV PATH "/usr/bin:${PATH}"
+    ENTRYPOINT ["/usr/bin/tini", "--", "/usr/bin/compile_then_transpile.sh"]
+    SAVE IMAGE aztecprotocol/aztec-nargo

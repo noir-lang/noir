@@ -48,6 +48,19 @@ avm-transpiler:
   rebuildPatterns:
     - ^avm-transpiler/
     - ^noir/
+  dependencies:
+    - noir
+
+aztec-nargo:
+  buildDir: .
+  dockerfile: aztec-nargo/Dockerfile
+  rebuildPatterns:
+    - ^aztec-nargo/
+    - ^avm-transpiler/
+    - ^noir/
+  dependencies:
+    - avm-transpiler
+    - noir
 
 # Compiles all aztec noir projects using nargo and the avm-transpiler.
 noir-projects:

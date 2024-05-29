@@ -200,15 +200,6 @@ packages-test:
     BUILD +packages-test-node
     BUILD +packages-test-browser
 
-run:
-    # When running the container, mount the users home directory to same location.
-    FROM ubuntu:noble
-    # Install Tini as nargo doesn't handle signals properly.
-    # Install git as nargo needs it to clone.
-    RUN apt-get update && apt-get install -y git tini && rm -rf /var/lib/apt/lists/* && apt-get clean
-    COPY +build/. /usr/src
-    ENTRYPOINT ["/usr/bin/tini", "--", "/usr/src/nargo"]
-
 build-acir-tests:
     LOCALLY
     # Prepare our exact dependency formula, this avoids problems with copied empty folders or build artifacts
