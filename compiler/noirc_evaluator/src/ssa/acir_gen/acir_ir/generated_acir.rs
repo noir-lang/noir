@@ -142,10 +142,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     /// This means you cannot multiply an infinite amount of `Expression`s together.
     /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    pub(crate) fn create_witness_for_expression(
-        &mut self,
-        expression: &Expression<F>,
-    ) -> Witness {
+    pub(crate) fn create_witness_for_expression(&mut self, expression: &Expression<F>) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
@@ -472,11 +469,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     /// Returns a `Witness` that is constrained to be:
     /// - `1` if `lhs == rhs`
     /// - `0` otherwise
-    pub(crate) fn is_equal(
-        &mut self,
-        lhs: &Expression<F>,
-        rhs: &Expression<F>,
-    ) -> Witness {
+    pub(crate) fn is_equal(&mut self, lhs: &Expression<F>, rhs: &Expression<F>) -> Witness {
         let t = lhs - rhs;
 
         self.is_zero(&t)

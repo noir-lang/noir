@@ -269,10 +269,7 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
-    pub(crate) fn var_to_expression(
-        &self,
-        var: AcirVar,
-    ) -> Result<Expression<F>, InternalError> {
+    pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression<F>, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {
@@ -680,12 +677,7 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the expression `lhs + k * rhs`
-    fn add_mul_var(
-        &mut self,
-        lhs: AcirVar,
-        k: F,
-        rhs: AcirVar,
-    ) -> Result<AcirVar, RuntimeError> {
+    fn add_mul_var(&mut self, lhs: AcirVar, k: F, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
         let k_var = self.add_constant(k);
 
         let intermediate = self.mul_var(k_var, rhs)?;
@@ -944,9 +936,8 @@ impl<F: AcirField> AcirContext<F> {
         leading: AcirVar,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        let max_power_of_two = self.add_constant(
-            F::from(2_u128).pow(&F::from(max_bit_size as u128 - 1)),
-        );
+        let max_power_of_two =
+            self.add_constant(F::from(2_u128).pow(&F::from(max_bit_size as u128 - 1)));
 
         let intermediate = self.sub_var(max_power_of_two, lhs)?;
         let intermediate = self.mul_var(intermediate, leading)?;
@@ -975,9 +966,8 @@ impl<F: AcirField> AcirContext<F> {
         assert_ne!(bit_size, 0, "signed integer should have at least one bit");
 
         // 2^{max_bit size-1}
-        let max_power_of_two = self.add_constant(
-            F::from(2_u128).pow(&F::from(bit_size as u128 - 1)),
-        );
+        let max_power_of_two =
+            self.add_constant(F::from(2_u128).pow(&F::from(bit_size as u128 - 1)));
         let one = self.add_constant(F::one());
 
         // Get the sign bit of rhs by computing rhs / max_power_of_two
@@ -1069,8 +1059,7 @@ impl<F: AcirField> AcirContext<F> {
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
-        let divisor =
-            self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
+        let divisor = self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
         let one = self.add_constant(F::one());
 
         //  Computes lhs = 2^{rhs} * q + r
@@ -1163,8 +1152,7 @@ impl<F: AcirField> AcirContext<F> {
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < F::max_num_bits());
 
-        let two_max_bits = self
-            .add_constant(F::from(2_u128).pow(&F::from(max_bits as u128)));
+        let two_max_bits = self.add_constant(F::from(2_u128).pow(&F::from(max_bits as u128)));
         let diff = self.sub_var(lhs, rhs)?;
         let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
@@ -1357,8 +1345,7 @@ impl<F: AcirField> AcirContext<F> {
                 output_count = 0;
 
                 let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);
-                let result_id =
-                    self.big_int_ctx.new_big_int(F::from(modulus_id as u128));
+                let result_id = self.big_int_ctx.new_big_int(F::from(modulus_id as u128));
                 (modulus, vec![result_id.bigint_id::<F>(), result_id.modulus_id::<F>()])
             }
             BlackBoxFunc::AES128Encrypt => {

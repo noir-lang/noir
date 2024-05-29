@@ -278,8 +278,11 @@ impl AcirValue {
     }
 }
 
-pub(crate) type Artifacts =
-    (Vec<GeneratedAcir<FieldElement>>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
+pub(crate) type Artifacts = (
+    Vec<GeneratedAcir<FieldElement>>,
+    Vec<BrilligBytecode<FieldElement>>,
+    BTreeMap<ErrorSelector, ErrorType>,
+);
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
