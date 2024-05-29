@@ -21,23 +21,55 @@ preset-darwin-arm64:
     LET OSX_SDK="MacOSX14.0.sdk"
     LET OSX_SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.0/${OSX_SDK}.tar.xz"
     RUN curl -sSL "$OSX_SDK_URL" | tar -xJ -C /opt/osxcross/SDK && rm -rf /opt/osxcross/SDK/$OSX_SDK/System
-    RUN cmake --preset darwin-arm64 -Bbuild && cmake --build build --target bb
+    RUN cmake --preset darwin-arm64 -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin AS LOCAL build-darwin-arm64/bin
 
 preset-release:
     FROM +source
-    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb
+    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-release-assert:
     FROM +source
-    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb
+    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-debug:
     FROM +source
-    RUN cmake --preset clang16-dbg -Bbuild && cmake --build build --target bb
+    RUN cmake --preset clang16-dbg -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
+
+preset-msan-check:
+    FROM aztecprotocol/bb-ubuntu-lunar
+    RUN git clone --depth 1 -b release/16.x https://github.com/llvm/llvm-project
+    RUN cd llvm-project
+    RUN mkdir llvm-project/build
+
+    ENV CXX=clang++-16
+    ENV CC=clang-16
+    RUN cmake -G Ninja -S llvm-project/runtimes -B llvm-project/build \
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
+        -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+        -DCMAKE_INSTALL_PREFIX=/opt
+
+    RUN ninja -C llvm-project/build cxx cxxabi
+    RUN ninja -C llvm-project/build install-cxx install-cxxabi
+
+    ENV MSAN_CFLAGS="-std=c++20 -fsanitize=memory -fsanitize-memory-track-origins -nostdinc++ -I/opt/include -I/opt/include/c++/v1"
+    ENV MSAN_LFLAGS="-fsanitize=memory -fsanitize-memory-track-origins -stdlib=libc++ -L/opt/lib -lc++abi -Wl,-rpath,/opt/lib"
+
+    WORKDIR /usr/src/barretenberg
+    # cpp source
+    COPY --dir src/barretenberg src/CMakeLists.txt src
+    # cmake source
+    COPY --dir cmake CMakeLists.txt CMakePresets.json .
+
+    # We never fail this as test-listing targets can timeout. Just pragmatically go on to see if the binary exists.
+    RUN cmake --preset msan -Bbuild && cmake --build build --target client_ivc_tests || true
+    # install SRS needed for proving
+    COPY --dir ./srs_db/+build/. srs_db
+    RUN echo "Warning: If ./bin/client_ivc_tests is not found, there may be build failures above."
+    RUN cd build && ./bin/client_ivc_tests --gtest_also_run_disabled_tests
 
 preset-wasm:
     ARG TARGETARCH
@@ -47,7 +79,7 @@ preset-wasm:
         FROM +preset-wasm-threads
         SAVE ARTIFACT build/bin
     ELSE
-        RUN cmake --preset wasm -Bbuild && cmake --build build --target barretenberg.wasm
+        RUN cmake --preset wasm -Bbuild && cmake --build build --target barretenberg.wasm && rm -rf build/{deps,lib,src}
         RUN /opt/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
         SAVE ARTIFACT build/bin
         SAVE IMAGE --cache-hint
@@ -55,29 +87,29 @@ preset-wasm:
 
 preset-sol:
     FROM +source
-    RUN cmake --preset clang16  && cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen
+    RUN cmake --preset clang16  && cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-wasm-threads:
     FROM +source
-    RUN cmake --preset wasm-threads -Bbuild && cmake --build build --target barretenberg.wasm
+    RUN cmake --preset wasm-threads -Bbuild && cmake --build build --target barretenberg.wasm && rm -rf build/{deps,lib,src}
     # TODO(https://github.com/AztecProtocol/barretenberg/issues/941) We currently do not strip barretenberg threaded wasm, for stack traces.
     # RUN /opt/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
     SAVE ARTIFACT build/bin
 
 preset-gcc:
     FROM +source
-    RUN cmake --preset gcc -Bbuild && cmake --build build
+    RUN cmake --preset gcc -Bbuild && cmake --build build && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-fuzzing:
     FROM +source
-    RUN cmake --preset fuzzing -Bbuild && cmake --build build
+    RUN cmake --preset fuzzing -Bbuild && cmake --build build && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-clang-assert:
     FROM +source
-    RUN cmake --preset clang16-assert -Bbuild && cmake --build build --target bb
+    RUN cmake --preset clang16-assert -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 # benchmarking images
@@ -85,29 +117,29 @@ preset-clang-assert:
 # or build the binaries we need for benchmarking
 preset-op-count-bench:
     FROM +source
-    RUN cmake --preset op-count -DCMAKE_BUILD_TYPE=RelWithAssert -Bbuild && cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    RUN cmake --preset op-count -DCMAKE_BUILD_TYPE=RelWithAssert -Bbuild && cmake --build build --target ultra_honk_bench --target client_ivc_bench && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-op-count-time-bench:
     FROM +source
-    RUN cmake --preset op-count-time -Bbuild && cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    RUN cmake --preset op-count-time -Bbuild && cmake --build build --target ultra_honk_bench --target client_ivc_bench && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-release-bench:
     FROM +preset-release
-    RUN cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    RUN cmake --build build --target ultra_honk_bench --target client_ivc_bench && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-wasm-bench:
     FROM +preset-wasm-threads
-    RUN cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    RUN cmake --build build --target ultra_honk_bench --target client_ivc_bench && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 # test images
 preset-release-assert-test:
     FROM +preset-release-assert
     # build all targets for tests
-    RUN cmake --build build
+    RUN cmake --build build && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 # Sent to the bench runner using a earthly --push +bench-binaries
@@ -137,11 +169,10 @@ bench-ultra-honk:
     COPY --dir +bench-binaries/* .
     # install SRS needed for proving
     COPY --dir ./srs_db/+build/. srs_db
-    RUN cd release && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
-    RUN cd op-count && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
-    RUN cd op-count-time && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+    RUN cd release && ./bin/ultra_honk_bench --benchmark_out=../ultra_honk_release.json --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
     COPY +wasmtime/wasmtime /usr/bin/wasmtime
-    RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+    RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/ultra_honk_bench --benchmark_out=../ultra_honk_wasm.json --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+    SAVE ARTIFACT ultra_honk*.json
 
 bench-client-ivc:
     BUILD +wasmtime # prefetch
@@ -149,11 +180,32 @@ bench-client-ivc:
     COPY --dir +bench-binaries/* .
     # install SRS needed for proving
     COPY --dir ./srs_db/+build/. srs_db
-    RUN cd release && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
-    RUN cd op-count && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
-    RUN cd op-count-time && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
+    RUN cd release && ./bin/client_ivc_bench --benchmark_out=../client_ivc_release.json --benchmark_filter="ClientIVCBench/Full/6$"
+    RUN cd op-count && ./bin/client_ivc_bench --benchmark_out=../client_ivc_op_count.json --benchmark_filter="ClientIVCBench/Full/6$"
+    RUN cd op-count-time && ./bin/client_ivc_bench --benchmark_out=../client_ivc_op_count_time.json --benchmark_filter="ClientIVCBench/Full/6$"
     COPY +wasmtime/wasmtime /usr/bin/wasmtime
-    RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
+    RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/client_ivc_bench --benchmark_out=../client_ivc_wasm.json --benchmark_filter="ClientIVCBench/Full/6$"
+    SAVE ARTIFACT client_ivc*.json
+
+bench:
+    FROM aztecprotocol/bb-ubuntu-lunar
+    # for sequential running
+    WAIT
+    COPY +bench-ultra-honk/* .
+    END
+    WAIT
+    COPY +bench-client-ivc/* .
+    END
+    COPY ./scripts/ci/combine_benchmarks.py ./scripts/ci/combine_benchmarks.py
+    RUN ./scripts/ci/combine_benchmarks.py \
+        native client_ivc_release.json \
+        native ultra_honk_release.json \
+        wasm client_ivc_wasm.json \
+        wasm ultra_honk_wasm.json \
+        "" client_ivc_op_count.json \
+        "" client_ivc_op_count_time.json \
+        > bench.json
+    SAVE ARTIFACT bench.json
 
 # Sent to the bench runner using a earthly --push +test-binaries
 # then we can run earthly +test --test_mode=cache
@@ -194,3 +246,8 @@ test:
         ENV HARDWARE_CONCURRENCY=$hardware_concurrency
     END
     RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
+
+build:
+    BUILD +preset-wasm
+    BUILD +preset-wasm-threads
+    BUILD +preset-release

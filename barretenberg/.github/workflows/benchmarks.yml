@@ -33,19 +33,19 @@ jobs:
       - name: Download SRS elements
         working-directory: cpp/srs_db
         run: ./download_ignition.sh 3 # only download first 4 transcript files
-        
+
       - name: Build Honk benchmarks
         working-directory: cpp
         run: |
           cmake --preset bench
           cmake --build --preset bench --target ultra_honk_bench
-      
+
       - name: Run Honk benchmarks
         working-directory: cpp/build-bench
         run: |
           bin/ultra_honk_bench --benchmark_format=json > ../src/barretenberg/benchmark/ultra_bench/bench_results.json
-      
-      # Utilize github-action-benchmark to automatically update the plots at 
+
+      # Utilize github-action-benchmark to automatically update the plots at
       # https://aztecprotocol.github.io/barretenberg/dev/bench/ with new benchmark data.
       # This also creates an alert if benchmarks exceed the threshold specified below.
       - name: Store benchmark result
@@ -66,4 +66,3 @@ jobs:
           fail-on-alert: false
           alert-comment-cc-users: '@ledwards2225'
 
-                

@@ -56,9 +56,9 @@ for key in ['commit(t)', 'compute_combiner(t)', 'compute_perturbator(t)', 'compu
 
 print('\nBreakdown of ProtogalaxyProver::fold_instances:')
 protogalaxy_round_labels = [
-    "ProtoGalaxyProver_::preparation_round(t)", 
-    "ProtoGalaxyProver_::perturbator_round(t)", 
-    "ProtoGalaxyProver_::combiner_quotient_round(t)", 
+    "ProtoGalaxyProver_::preparation_round(t)",
+    "ProtoGalaxyProver_::perturbator_round(t)",
+    "ProtoGalaxyProver_::combiner_quotient_round(t)",
     "ProtoGalaxyProver_::accumulator_update_round(t)"
 ]
 max_label_length = max(len(label) for label in protogalaxy_round_labels)

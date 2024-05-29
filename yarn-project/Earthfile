@@ -31,7 +31,8 @@ deps:
 
 build:
     # Prefetch targets to not wait for +deps.
-    BUILD ../barretenberg/cpp/+preset-release
+    BUILD ../barretenberg/cpp/+build
+    BUILD ../barretenberg/ts/+build
     BUILD ../noir/+nargo
     BUILD ../noir-projects/+build
     BUILD ../l1-contracts/+build

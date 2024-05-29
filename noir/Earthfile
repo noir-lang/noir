@@ -36,7 +36,8 @@ nargo:
     FROM +nargo-src
     RUN ./noir-repo/.github/scripts/wasm-bindgen-install.sh
     COPY ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
-    RUN ./scripts/bootstrap_native.sh
+    # build noir nargo & acvm, and make sure the big build and deps folders don't hit cache
+    RUN ./scripts/bootstrap_native.sh && rm -rf /usr/src/noir-repo/target/release/{build,deps}
     SAVE ARTIFACT /usr/src/noir-repo/target/release/nargo nargo
     SAVE ARTIFACT /usr/src/noir-repo/target/release/acvm acvm
     SAVE IMAGE aztecprotocol/nargo
@@ -48,7 +49,7 @@ test:
 
   # Some of the debugger tests are a little flaky wrt to timeouts so we allow a couple of retries.
   ENV NEXTEST_RETRIES=2
-  
+
   RUN ./scripts/test_native.sh
 
 examples:
@@ -251,7 +252,7 @@ bench-publish-acir-bb:
   ARG BRANCH
   ARG COMMIT_HASH
   LOCALLY
-  
+
   # Let docker compose know about the pushed tags above
   ENV AZTEC_DOCKER_TAG=$(git rev-parse HEAD)
   # Optimize to not cause serial behavior if image already exists
