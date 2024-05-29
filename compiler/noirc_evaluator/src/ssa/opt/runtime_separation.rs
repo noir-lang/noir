@@ -115,8 +115,7 @@ impl RuntimeSeparatorContext {
                         unreachable!("Value should be a function")
                     };
                     if let Some(mapped_func_id) = self.mapped_functions.get(called_func_id) {
-                        let new_target_value = Value::Function(*mapped_func_id);
-                        let mapped_value_id = func.dfg.make_value(new_target_value);
+                        let mapped_value_id = func.dfg.import_function(*mapped_func_id);
                         func.dfg.set_value_from_id(*called_func_value_id, mapped_value_id);
                     }
                 }
