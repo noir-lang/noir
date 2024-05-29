@@ -49,26 +49,28 @@ jobs:
       non-misc-ci: ${{ steps.filter.outputs.non-misc-ci }}
     steps:
     # For pull requests it's not necessary to checkout the code
-    - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
-      id: filter
-      with:
-        filters: |
-          barretenberg:
-            - 'barretenberg/**'
-          barretenberg-cpp:
-            - 'barretenberg/cpp/**'
-          noir:
-            - 'noir/**'
-          l1-contracts:
-            - 'l1-contracts/**'
-          noir-projects:
-            - 'noir-projects/**'
-          non-docs:
-            - '!(docs/**)'
-          non-misc-ci:
-            - '!(.github/**)'
-            # Always rebuild when this file changes
-            - .github/workflows/ci.yml
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
+        id: filter
+        with:
+          filters: |
+            barretenberg:
+              - 'barretenberg/**'
+            barretenberg-cpp:
+              - 'barretenberg/cpp/**'
+            noir:
+              - 'noir/**'
+            l1-contracts:
+              - 'l1-contracts/**'
+            noir-projects:
+              - 'noir-projects/**'
+            non-docs:
+              - '!(docs/**)'
+            non-misc-ci:
+              - '!(.github/**)'
+              # Always rebuild when this file changes
+              - .github/workflows/ci.yml
 
   build:
     needs: [setup, changes]
