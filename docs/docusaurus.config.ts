@@ -155,8 +155,8 @@ export default {
       {
         redirects: [
           {
-            to: 'docs/',
-            from: '/',
+            to: '/docs/:match*',
+            from: '/:match*',
           },
         ],
       },
