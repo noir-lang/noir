@@ -1,6 +1,0 @@
-[package]
-name = "brillig_signed_cmp"
-type = "bin"
-authors = [""]
-
-[dependencies]

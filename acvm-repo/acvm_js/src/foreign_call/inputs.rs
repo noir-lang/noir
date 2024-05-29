@@ -1,9 +1,9 @@
-use acvm::brillig_vm::brillig::ForeignCallParam;
+use acvm::{brillig_vm::brillig::ForeignCallParam, FieldElement};
 
 use crate::js_witness_map::field_element_to_js_string;
 
 pub(super) fn encode_foreign_call_inputs(
-    foreign_call_inputs: &[ForeignCallParam],
+    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
 ) -> js_sys::Array {
     let inputs = js_sys::Array::default();
     for input in foreign_call_inputs {

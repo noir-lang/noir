@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use acir::{
+    acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
@@ -8,7 +9,7 @@ use acir::{
         Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
@@ -16,6 +17,38 @@ use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
+
+#[test]
+fn bls12_381_circuit() {
+    type Bls12FieldElement = GenericFieldElement<ark_bls12_381::Fr>;
+
+    let addition = Opcode::AssertZero(Expression {
+        mul_terms: Vec::new(),
+        linear_combinations: vec![
+            (Bls12FieldElement::one(), Witness(1)),
+            (Bls12FieldElement::one(), Witness(2)),
+            (-Bls12FieldElement::one(), Witness(3)),
+        ],
+        q_c: Bls12FieldElement::zero(),
+    });
+    let opcodes = [addition];
+
+    let witness_assignments = BTreeMap::from([
+        (Witness(1), Bls12FieldElement::from(2u128)),
+        (Witness(2), Bls12FieldElement::from(3u128)),
+    ])
+    .into();
+
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &[], &[]);
+    // use the partial witness generation solver with our acir program
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
+
+    // ACVM should be able to be finalized in `Solved` state.
+    let witness_stack = acvm.finalize();
+
+    assert_eq!(witness_stack.get(&Witness(3)).unwrap(), &Bls12FieldElement::from(5u128));
+}
 
 #[test]
 fn inversion_brillig_oracle_equivalence() {
@@ -123,7 +156,7 @@ fn inversion_brillig_oracle_equivalence() {
     );
     assert_eq!(acvm.instruction_pointer(), 0, "brillig should have been removed");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
@@ -268,7 +301,7 @@ fn double_inversion_brillig_oracle() {
     );
     assert_eq!(acvm.instruction_pointer(), 0, "should stall on brillig");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
@@ -405,7 +438,7 @@ fn oracle_dependent_execution() {
     );
     assert_eq!(acvm.instruction_pointer(), 1, "should stall on brillig");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
@@ -421,7 +454,7 @@ fn oracle_dependent_execution() {
     );
     assert_eq!(acvm.instruction_pointer(), 1, "should stall on brillig");
 
-    let foreign_call_wait_info: &ForeignCallWaitInfo =
+    let foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement> =
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 

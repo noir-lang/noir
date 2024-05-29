@@ -26,6 +26,7 @@ use crate::{
     token::IntType,
     BinaryTypeOperator,
 };
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
