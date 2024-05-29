@@ -193,16 +193,16 @@ pub enum ArithId {
 }
 
 
-// // TODO: relocate
-// // TODO: rename
-// #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
-// pub struct GenericIndex(usize);
-//
-// impl GenericIndex {
-//     fn offset(&self, offset_amount: usize) -> Self {
-//         GenericIndex(self.0 + offset_amount)
-//     }
-// }
+// TODO: relocate
+// TODO: rename
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
+pub struct GenericIndex(usize);
+
+impl GenericIndex {
+    fn offset(&self, offset_amount: usize) -> Self {
+        GenericIndex(self.0 + offset_amount)
+    }
+}
 
 // TODO: relocate
 // TODO: docs
@@ -213,7 +213,7 @@ pub enum ArithExpr {
         lhs: Box<ArithExpr>,
         rhs: Box<ArithExpr>,
     },
-    Variable(TypeVariable, Rc<String>),
+    Variable(TypeVariable, Rc<String>, GenericIndex),
     Constant(u64),
 }
 
@@ -238,7 +238,7 @@ impl ArithExpr {
                 let rhs = rhs.evaluate(arguments)?;
                 Ok(kind.evaluate(lhs, rhs))
             }
-            Self::Variable(binding, name) => {
+            Self::Variable(binding, name, _index) => {
                 if let Some(result) = arguments.get(name) {
                     Ok(*result)
                 } else {
@@ -257,9 +257,9 @@ impl ArithExpr {
                 let rhs = Box::new(rhs.follow_bindings());
                 Self::Op { kind: *kind, lhs, rhs }
             }
-            Self::Variable(binding, name) => {
+            Self::Variable(binding, name, index) => {
                 match Type::NamedGeneric(binding.clone(), name.clone()).follow_bindings() {
-                    Type::NamedGeneric(new_binding, new_name) => Self::Variable(new_binding, new_name),
+                    Type::NamedGeneric(new_binding, new_name) => Self::Variable(new_binding, new_name, *index),
                     _ => panic!("ICE: follow_bindings on Type::NamedGeneric produced non-NamedGeneric result"),
                 }
             }
@@ -270,7 +270,7 @@ impl ArithExpr {
     /// map over Self::Variable's
     fn map_variables<F>(&self, f: &mut F) -> Self
     where
-        F: FnMut(&TypeVariable, &Rc<String>) -> (TypeVariable, Rc<String>),
+        F: FnMut(&TypeVariable, &Rc<String>, GenericIndex) -> (TypeVariable, Rc<String>, GenericIndex),
     {
         match self {
             Self::Op { kind, lhs, rhs } => {
@@ -278,33 +278,15 @@ impl ArithExpr {
                 let rhs = Box::new(rhs.map_variables(f));
                 Self::Op { kind: *kind, lhs, rhs }
             }
-            Self::Variable(binding, name) => {
-                let (new_binding, new_name) = f(binding, name);
-                Self::Variable(new_binding, new_name)
+            Self::Variable(binding, name, index) => {
+                let (new_binding, new_name, new_index) = f(binding, name, *index);
+                Self::Variable(new_binding, new_name, new_index)
             }
             Self::Constant(result) => Self::Constant(*result),
         }
     }
 
-    /// TODO unused
-    /// Weak normal form: normalize top node of expression
-    fn wnf(&self) -> Self {
-        match self {
-            Self::Op { kind, lhs, rhs } => {
-                let mut lhs_rhs = vec![lhs, rhs];
-                lhs_rhs.sort_by(|x, y| {
-                    let id_x = x.to_id();
-                    let id_y = y.to_id();
-                    id_x.cmp(&id_y)
-                });
-                let [lhs, rhs] = lhs_rhs[..] else { panic!("two element list produced a different number of elements when sorted") };
-                Self::Op { kind: *kind, lhs: lhs.clone(), rhs: rhs.clone() }
-            }
-            other => other.clone(),
-        }
-    }
-
-    /// sort nodes at each branch
+    /// normal form: sort nodes at each branch
     fn nf(&self) -> Self {
         match self {
             Self::Op { kind, lhs, rhs } => {
@@ -327,19 +309,19 @@ impl ArithExpr {
         ArithId::Hash(hasher.finish())
     }
 
-    // pub(crate) fn offset_generic_indices(&self, offset_amount: usize) -> Self {
-    //     match self {
-    //         Self::Op { kind, lhs, rhs } => {
-    //             let lhs = Box::new(lhs.offset_generic_indices(offset_amount));
-    //             let rhs = Box::new(rhs.offset_generic_indices(offset_amount));
-    //             Self::Op { kind: *kind, lhs, rhs }
-    //         }
-    //         Self::Variable(binding, name) => {
-    //             Self::Variable(binding.clone(), name.clone(), index.offset(offset_amount))
-    //         }
-    //         Self::Constant(result) => Self::Constant(*result),
-    //     }
-    // }
+    pub(crate) fn offset_generic_indices(&self, offset_amount: usize) -> Self {
+        match self {
+            Self::Op { kind, lhs, rhs } => {
+                let lhs = Box::new(lhs.offset_generic_indices(offset_amount));
+                let rhs = Box::new(rhs.offset_generic_indices(offset_amount));
+                Self::Op { kind: *kind, lhs, rhs }
+            }
+            Self::Variable(binding, name, index) => {
+                Self::Variable(binding.clone(), name.clone(), index.offset(offset_amount))
+            }
+            Self::Constant(result) => Self::Constant(*result),
+        }
+    }
 
     // "TODO: zip_variables prepares for try_unify at each individual variable inside"
     //     "i.e. the type variables inside the aRITHeXPR'S are not resolving like the ones outside"
@@ -379,7 +361,7 @@ impl std::fmt::Display for ArithExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ArithExpr::Op { kind, lhs, rhs } => write!(f, "{lhs} {kind} {rhs}"),
-            ArithExpr::Variable(binding, name) => match &*binding.borrow() {
+            ArithExpr::Variable(binding, name, _index) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.fmt(f),
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
@@ -524,23 +506,34 @@ impl ArithConstraint {
                     // get all generics from lhs, rhs
                     //     - ensure that name overlaps iff typevariable overlaps
 
-                    let id_to_generic: HashMap<TypeVariableId, TypeVariable> =
-                        self.lhs_generics.iter().map(|lhs_generic| {
-                            let var = lhs_generic.get_outer_type_variable()
-                                .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
-                            (var.id(), var)
-                        }).collect();
+                    // let id_to_generic: HashMap<GenericIndex, TypeVariable> =
+                    //     self.lhs_generics.iter().map(|lhs_generic| {
+                    //         let var = lhs_generic.get_outer_type_variable()
+                    //             .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
+                    //         (var.id(), var)
+                    //     }).collect();
 
-                    let lhs_expr = lhs_expr.map_variables(&mut |var: &TypeVariable, name: &Rc<String>| {
-                        // TODO: cleanup
-                        dbg!(var, var.id(), &id_to_generic);
-
-                        let new_var = id_to_generic
-                            .get(&var.id())
+                    let lhs_expr = lhs_expr.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: GenericIndex| {
+                        let new_var = self.lhs_generics
+                            .get(index.0)
+                            // .get(&var.id())
                             // TODO: better error needed?
-                            .expect("all variables in a GenericArith ArithExpr to be in the included Vec");
-                        (new_var.clone(), name.clone())
-                    });
+                            .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
+                            .get_outer_type_variable()
+                            .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
+                        (new_var, name.clone(), index)
+                    }).nf();
+
+                    let rhs_expr = rhs_expr.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: GenericIndex| {
+                        let new_var = self.lhs_generics
+                            .get(index.0)
+                            // .get(&var.id())
+                            // TODO: better error needed?
+                            .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
+                            .get_outer_type_variable()
+                            .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
+                        (new_var, name.clone(), index)
+                    }).nf();
 
                     // let rhs_expr = rhs_expr.map_variables(&mut |_, name: &Rc<String>| {
                     //     let var = lhs_name_to_generic
@@ -549,9 +542,6 @@ impl ArithConstraint {
                     //         .expect("all variables in a GenericArith ArithExpr to be in the included Vec");
                     //     (var.clone(), name.clone())
                     // });
-
-                    panic!("hi");
-                    let rhs_expr = lhs_expr;
 
                     if lhs_expr == rhs_expr {
                         Ok(())

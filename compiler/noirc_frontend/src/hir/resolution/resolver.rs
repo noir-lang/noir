@@ -802,7 +802,7 @@ impl<'a> Resolver<'a> {
                 (ArithExpr::Constant(value), vec![])
             }
             Type::NamedGeneric(typevar, name) => {
-                (ArithExpr::Variable(typevar.clone(), name.clone()), vec![Type::NamedGeneric(typevar, name)])
+                (ArithExpr::Variable(typevar.clone(), name.clone(), Default::default()), vec![Type::NamedGeneric(typevar, name)])
             }
             Type::GenericArith(arith_id, generics) => {
 
@@ -878,9 +878,8 @@ impl<'a> Resolver<'a> {
                             ArithOpKind::Add
                         });
 
-                        // TODO cleanup
-                        // // offset GenericIndex's in rhs to prevent overlap
-                        // let rhs = rhs.offset_generic_indices(lhs_generics.len());
+                        // offset GenericIndex's in rhs to prevent overlap
+                        let rhs = rhs.offset_generic_indices(lhs_generics.len());
 
                         let arith_expr = ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
                         let op_location = Location {
