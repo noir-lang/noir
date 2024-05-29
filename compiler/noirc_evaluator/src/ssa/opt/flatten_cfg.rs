@@ -799,7 +799,7 @@ mod test {
         ir::{
             dfg::DataFlowGraph,
             function::Function,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
             value::{Value, ValueId},
@@ -1360,8 +1360,7 @@ mod test {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
         // fn main f1 {
-        //   b0():
-        //     v4 = call pedersen([Field 0], u32 0)
+        //   b0(v4: [Field; 2]):
         //     v5 = array_get v4, index Field 0
         //     v6 = cast v5 as u32
         //     v8 = mod v6, u32 2
@@ -1393,15 +1392,7 @@ mod test {
         let array_type = Type::Array(element_type.clone(), 1);
 
         let zero = builder.field_constant(0_u128);
-        let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
-        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
-        let pedersen = builder
-            .import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::PedersenCommitment));
-        let v4 = builder.insert_call(
-            pedersen,
-            vec![zero_array, i_zero],
-            vec![Type::Array(element_type, 2)],
-        )[0];
+        let v4 = builder.add_parameter(array_type);
         let v5 = builder.insert_array_get(v4, zero, Type::field());
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
