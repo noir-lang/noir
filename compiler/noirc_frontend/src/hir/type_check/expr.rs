@@ -165,7 +165,6 @@ impl<'interner> TypeChecker<'interner> {
                                 trait_generics: Vec::new(),
                             };
                             self.trait_constraints.push((constraint, *expr_id));
-
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
