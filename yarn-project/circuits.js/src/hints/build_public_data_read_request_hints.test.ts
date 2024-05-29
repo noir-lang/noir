@@ -23,9 +23,11 @@ describe('buildPublicDataReadRequestHints', () => {
   let expectedStatuses: Tuple<ReadRequestStatus, typeof MAX_PUBLIC_DATA_READS_PER_TX>;
   let expectedPendingHints: Tuple<PendingReadHint, typeof MAX_PUBLIC_DATA_READS_PER_TX>;
   let expectedLeafDataHints: Tuple<LeafDataReadHint, typeof MAX_PUBLIC_DATA_READS_PER_TX>;
+  let counter = 0;
+  const nextCounter = () => counter++;
 
   const makePublicDataWrite = (leafSlot: number, value: number) =>
-    new PublicDataUpdateRequest(new Fr(leafSlot), new Fr(value));
+    new PublicDataUpdateRequest(new Fr(leafSlot), new Fr(value), nextCounter());
   const makePublicDataHint = (slot: number, value: number) => {
     const hint = PublicDataHint.empty();
     hint.leafSlot = new Fr(slot);

@@ -102,12 +102,12 @@ export const makeBloatedProcessedTx = async (builderDb: MerkleTreeOperations, se
   kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
   kernelOutput.end.publicDataUpdateRequests = makeTuple(
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    i => new PublicDataUpdateRequest(fr(i), fr(i + 10)),
+    i => new PublicDataUpdateRequest(fr(i), fr(i + 10), i + 20),
     seed + 0x500,
   );
   kernelOutput.end.publicDataUpdateRequests = makeTuple(
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    i => new PublicDataUpdateRequest(fr(i), fr(i + 10)),
+    i => new PublicDataUpdateRequest(fr(i), fr(i + 10), i + 20),
     seed + 0x600,
   );
 

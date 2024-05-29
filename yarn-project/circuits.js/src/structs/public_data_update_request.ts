@@ -1,6 +1,8 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { inspect } from 'util';
+
 /**
  * Write operations on the public data tree including the previous value.
  */
@@ -15,9 +17,9 @@ export class PublicDataUpdateRequest {
      */
     public readonly newValue: Fr,
     /**
-     * Optional side effect counter tracking position of this event in tx execution.
+     * Side effect counter tracking position of this event in tx execution.
      */
-    public readonly sideEffectCounter?: number,
+    public readonly sideEffectCounter: number,
   ) {}
 
   static from(args: {
@@ -29,12 +31,21 @@ export class PublicDataUpdateRequest {
      * New value of the leaf.
      */
     newValue: Fr;
+
+    /**
+     * Side effect counter tracking position of this event in tx execution.
+     */
+    sideEffectCounter: number;
   }) {
-    return new PublicDataUpdateRequest(args.leafIndex, args.newValue);
+    return new PublicDataUpdateRequest(args.leafIndex, args.newValue, args.sideEffectCounter);
+  }
+
+  get counter() {
+    return this.sideEffectCounter;
   }
 
   toBuffer() {
-    return serializeToBuffer(this.leafSlot, this.newValue);
+    return serializeToBuffer(this.leafSlot, this.newValue, this.sideEffectCounter);
   }
 
   isEmpty() {
@@ -43,7 +54,7 @@ export class PublicDataUpdateRequest {
 
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
-    return new PublicDataUpdateRequest(reader.readField(), reader.readField());
+    return new PublicDataUpdateRequest(reader.readField(), reader.readField(), reader.readU32());
   }
 
   static isEmpty(x: PublicDataUpdateRequest) {
@@ -56,14 +67,22 @@ export class PublicDataUpdateRequest {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PublicDataUpdateRequest(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
+    return new PublicDataUpdateRequest(Fr.fromBuffer(reader), Fr.fromBuffer(reader), reader.readNumber());
   }
 
   static empty() {
-    return new PublicDataUpdateRequest(Fr.ZERO, Fr.ZERO);
+    return new PublicDataUpdateRequest(Fr.ZERO, Fr.ZERO, 0);
   }
 
   toFriendlyJSON() {
-    return `Leaf=${this.leafSlot.toFriendlyJSON()}: ${this.newValue.toFriendlyJSON()}`;
+    return `Leaf=${this.leafSlot.toFriendlyJSON()}: ${this.newValue.toFriendlyJSON()}, SideEffectCounter=${
+      this.sideEffectCounter
+    }`;
+  }
+
+  [inspect.custom]() {
+    return `PublicDataUpdateRequest { leafSlot: ${this.leafSlot.toFriendlyJSON()}, newValue: ${this.newValue.toFriendlyJSON()}, sideEffectCounter: ${
+      this.sideEffectCounter
+    } }`;
   }
 }

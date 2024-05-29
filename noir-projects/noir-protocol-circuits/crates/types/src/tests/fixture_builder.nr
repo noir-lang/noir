@@ -344,7 +344,7 @@ impl FixtureBuilder {
     }
 
     pub fn add_public_data_update_request(&mut self, leaf_slot: Field, value: Field) {
-        let update_request = PublicDataUpdateRequest { leaf_slot, new_value: value };
+        let update_request = PublicDataUpdateRequest { leaf_slot, new_value: value, counter: self.next_counter() };
         self.public_data_update_requests.push(update_request);
     }
 

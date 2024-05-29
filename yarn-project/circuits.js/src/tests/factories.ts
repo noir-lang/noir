@@ -21,6 +21,7 @@ import {
   CallContext,
   CallRequest,
   CallerContext,
+  CombineHints,
   CombinedAccumulatedData,
   CombinedConstantData,
   ConstantRollupData,
@@ -249,7 +250,7 @@ function makeScopedKeyValidationRequestAndGenerators(seed: number): ScopedKeyVal
  * @returns A public data update request.
  */
 export function makePublicDataUpdateRequest(seed = 1): PublicDataUpdateRequest {
-  return new PublicDataUpdateRequest(fr(seed), fr(seed + 1));
+  return new PublicDataUpdateRequest(fr(seed), fr(seed + 1), seed + 2);
 }
 
 /**
@@ -257,7 +258,7 @@ export function makePublicDataUpdateRequest(seed = 1): PublicDataUpdateRequest {
  * @returns An empty public data update request.
  */
 export function makeEmptyPublicDataUpdateRequest(): PublicDataUpdateRequest {
-  return new PublicDataUpdateRequest(fr(0), fr(0));
+  return new PublicDataUpdateRequest(fr(0), fr(0), 0);
 }
 
 /**
@@ -283,7 +284,7 @@ export function makeEmptyPublicDataRead(): PublicDataRead {
  * @returns A contract storage update request.
  */
 export function makeContractStorageUpdateRequest(seed = 1): ContractStorageUpdateRequest {
-  return new ContractStorageUpdateRequest(fr(seed), fr(seed + 1));
+  return new ContractStorageUpdateRequest(fr(seed), fr(seed + 1), seed + 2);
 }
 
 /**
@@ -669,6 +670,21 @@ export function makePublicKernelCircuitPrivateInputs(seed = 1): PublicKernelCirc
   return new PublicKernelCircuitPrivateInputs(makePublicKernelData(seed), makePublicCallData(seed + 0x1000));
 }
 
+export function makeCombineHints(seed = 1): CombineHints {
+  return CombineHints.from({
+    sortedNoteHashes: makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x100),
+    sortedNoteHashesIndexes: makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, i => i, seed + 0x200),
+    sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x300),
+    sortedUnencryptedLogsHashesIndexes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, i => i, seed + 0x400),
+    sortedPublicDataUpdateRequests: makeTuple(
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+      makePublicDataUpdateRequest,
+      seed + 0x300,
+    ),
+    sortedPublicDataUpdateRequestsIndexes: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x400),
+  });
+}
+
 /**
  * Makes arbitrary public kernel tail inputs.
  * @param seed - The seed to use for generating the public kernel inputs.
@@ -682,6 +698,7 @@ export function makePublicKernelTailCircuitPrivateInputs(seed = 1): PublicKernel
     makeTuple(MAX_PUBLIC_DATA_HINTS, PublicDataHint.empty, seed + 0x100),
     PublicDataReadRequestHintsBuilder.empty(),
     makePartialStateReference(seed + 0x200),
+    makeCombineHints(seed + 0x300),
   );
 }
 

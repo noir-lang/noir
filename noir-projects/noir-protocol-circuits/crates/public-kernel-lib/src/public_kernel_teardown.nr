@@ -548,23 +548,32 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn correctly_updates_revert_code() {
+    unconstrained fn correctly_updates_revert_code_0() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         let public_inputs = builder.execute();
         assert_eq(public_inputs.revert_code, 0);
+    }
 
+    #[test]
+    unconstrained fn correctly_updates_revert_code_1() {
         // Case where we carry forward a revert code from app logic
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.previous_kernel.revert_code = 1;
         let public_inputs = builder.execute();
         assert_eq(public_inputs.revert_code, 1);
+    }
 
+    #[test]
+    unconstrained fn correctly_updates_revert_code_2() {
         // Case where there is a new error in teardown
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.revert_code = 1;
         let public_inputs = builder.execute();
         assert_eq(public_inputs.revert_code, 2);
+    }
 
+    #[test]
+    unconstrained fn correctly_updates_revert_code_3() {
         // Case where there is an error in both app logic and teardown
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.previous_kernel.revert_code = 1;

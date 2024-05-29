@@ -70,10 +70,8 @@ async function executeTopLevelPublicFunctionAvm(
     executionContext.commitmentsDb,
   );
 
-  // TODO(6207): add sideEffectCounter to persistableState construction
-  // or modify the PersistableStateManager to manage rollbacks across enqueued-calls and transactions.
+  const startSideEffectCounter = executionContext.sideEffectCounter.current();
   const worldStateJournal = new AvmPersistableStateManager(hostStorage);
-  const startSideEffectCounter = executionContext.execution.callContext.sideEffectCounter;
   for (const nullifier of executionContext.pendingNullifiers) {
     worldStateJournal.nullifiers.cache.appendSiloed(nullifier.value);
   }

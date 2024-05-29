@@ -138,10 +138,10 @@ mod tests {
     }
 
     global data_writes = [
-        PublicDataUpdateRequest { leaf_slot: 22, new_value: 200 },
-        PublicDataUpdateRequest { leaf_slot: 11, new_value: 100 },
-        PublicDataUpdateRequest { leaf_slot: 33, new_value: 300 },
-        PublicDataUpdateRequest { leaf_slot: 44, new_value: 400 }
+        PublicDataUpdateRequest { leaf_slot: 22, new_value: 200, counter: 0 },
+        PublicDataUpdateRequest { leaf_slot: 11, new_value: 100, counter: 1 },
+        PublicDataUpdateRequest { leaf_slot: 33, new_value: 300, counter: 2 },
+        PublicDataUpdateRequest { leaf_slot: 44, new_value: 400, counter: 3 }
     ];
 
     global leaf_data_hints = [

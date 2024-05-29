@@ -207,7 +207,7 @@ export class PublicProcessor {
 
     finalPublicDataUpdateRequests[
       existingBalanceWriteIndex > -1 ? existingBalanceWriteIndex : MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-    ] = new PublicDataUpdateRequest(leafSlot, updatedBalance);
+    ] = new PublicDataUpdateRequest(leafSlot, updatedBalance, 0);
 
     return finalPublicDataUpdateRequests;
   }

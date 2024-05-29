@@ -168,7 +168,7 @@ describe('L1Publisher integration', () => {
     return tx;
   };
 
-  const makeBloatedProcessedTx = (seed = 0x1) => {
+  const makeBloatedProcessedTx = (seed = 0x1): ProcessedTx => {
     const tx = mockTx(seed);
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.txContext.chainId = fr(chainId);
@@ -176,7 +176,7 @@ describe('L1Publisher integration', () => {
     kernelOutput.constants.historicalHeader = prevHeader;
     kernelOutput.end.publicDataUpdateRequests = makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-      i => new PublicDataUpdateRequest(fr(i), fr(i + 10)),
+      i => new PublicDataUpdateRequest(fr(i), fr(i + 10), i + 20),
       seed + 0x500,
     );
 
@@ -192,7 +192,7 @@ describe('L1Publisher integration', () => {
     return processedTx;
   };
 
-  const sendToL2 = async (content: Fr, recipientAddress: AztecAddress) => {
+  const sendToL2 = async (content: Fr, recipientAddress: AztecAddress): Promise<Fr> => {
     // @todo @LHerskind version hardcoded here (update to bigint or field)
     const recipient = new L2Actor(recipientAddress, 1);
     // getting the 32 byte hex string representation of the content
@@ -233,7 +233,7 @@ describe('L1Publisher integration', () => {
     l1ToL2Content: Fr[],
     recipientAddress: AztecAddress,
     deployerAddress: `0x${string}`,
-  ) => {
+  ): void => {
     if (!AZTEC_GENERATE_TEST_DATA) {
       return;
     }

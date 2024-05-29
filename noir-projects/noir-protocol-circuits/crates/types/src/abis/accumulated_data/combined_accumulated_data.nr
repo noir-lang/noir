@@ -3,14 +3,25 @@ use crate::{
     abis::{
     accumulated_data::public_accumulated_data::PublicAccumulatedData, note_hash::NoteHash,
     nullifier::Nullifier, public_data_update_request::PublicDataUpdateRequest,
-    log_hash::{LogHash, NoteLogHash}, gas::Gas
+    log_hash::{LogHash, NoteLogHash}, gas::Gas, side_effect::Ordered
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH,
+    MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    utils::{arrays::array_merge, reader::Reader}, traits::{Empty, Serialize, Deserialize}
+    utils::{arrays::{array_merge, assert_sorted_array}, reader::Reader},
+    traits::{Empty, Serialize, Deserialize}
 };
+
+struct CombineHints {
+    sorted_note_hashes: [NoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
+    sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
+    sorted_unencrypted_logs_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_logs_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    sorted_public_data_update_requests_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+}
 
 struct CombinedAccumulatedData {
     new_note_hashes: [Field; MAX_NEW_NOTE_HASHES_PER_TX],
@@ -32,8 +43,35 @@ struct CombinedAccumulatedData {
     gas_used: Gas,
 }
 
+fn asc_sort_by_counters<T>(a: T, b: T) -> bool where T: Ordered {
+    a.counter() <= b.counter()
+}
+
 impl CombinedAccumulatedData {
-    pub fn combine(non_revertible: PublicAccumulatedData, revertible: PublicAccumulatedData) -> Self {
+    pub fn combine(
+        non_revertible: PublicAccumulatedData,
+        revertible: PublicAccumulatedData,
+        combine_hints: CombineHints
+    ) -> Self {
+        let merged_note_hashes = array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes);
+        assert_sorted_array(
+            merged_note_hashes,
+            combine_hints.sorted_note_hashes,
+            combine_hints.sorted_note_hashes_indexes,
+            asc_sort_by_counters
+        );
+
+        let merged_public_data_update_requests = array_merge(
+            non_revertible.public_data_update_requests,
+            revertible.public_data_update_requests
+        );
+        assert_sorted_array(
+            merged_public_data_update_requests,
+            combine_hints.sorted_public_data_update_requests,
+            combine_hints.sorted_public_data_update_requests_indexes,
+            asc_sort_by_counters
+        );
+
         // TODO(Miranda): Hash here or elsewhere?
         let note_encrypted_logs_hash = compute_tx_note_logs_hash(
             array_merge(
@@ -47,12 +85,19 @@ impl CombinedAccumulatedData {
                 revertible.encrypted_logs_hashes
             )
         );
-        let unencrypted_logs_hash = compute_tx_logs_hash(
-            array_merge(
-                non_revertible.unencrypted_logs_hashes,
-                revertible.unencrypted_logs_hashes
-            )
+
+        let merged_unencrypted_logs_hashes = array_merge(
+            non_revertible.unencrypted_logs_hashes,
+            revertible.unencrypted_logs_hashes
         );
+        assert_sorted_array(
+            merged_unencrypted_logs_hashes,
+            combine_hints.sorted_unencrypted_logs_hashes,
+            combine_hints.sorted_unencrypted_logs_hashes_indexes,
+            asc_sort_by_counters
+        );
+        let unencrypted_logs_hash = compute_tx_logs_hash(combine_hints.sorted_unencrypted_logs_hashes);
+
         let note_encrypted_log_preimages_length = non_revertible.note_encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
             + revertible.note_encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
         let encrypted_log_preimages_length = non_revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
@@ -60,7 +105,7 @@ impl CombinedAccumulatedData {
         let unencrypted_log_preimages_length = non_revertible.unencrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
             + revertible.unencrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
         CombinedAccumulatedData {
-            new_note_hashes: array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes).map(|n: NoteHash| n.value),
+            new_note_hashes: combine_hints.sorted_note_hashes.map(|n: NoteHash| n.value),
             new_nullifiers: array_merge(non_revertible.new_nullifiers, revertible.new_nullifiers).map(|n: Nullifier| n.value),
             new_l2_to_l1_msgs: array_merge(
                 non_revertible.new_l2_to_l1_msgs,
@@ -72,10 +117,7 @@ impl CombinedAccumulatedData {
             note_encrypted_log_preimages_length,
             encrypted_log_preimages_length,
             unencrypted_log_preimages_length,
-            public_data_update_requests: array_merge(
-                non_revertible.public_data_update_requests,
-                revertible.public_data_update_requests
-            ),
+            public_data_update_requests: combine_hints.sorted_public_data_update_requests,
             gas_used: revertible.gas_used + non_revertible.gas_used
         }
     }

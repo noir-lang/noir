@@ -27,7 +27,7 @@ export class PublicAccumulatedData {
     /**
      * The new note hashes made in this transaction.
      */
-    public newNoteHashes: Tuple<NoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
+    public readonly newNoteHashes: Tuple<NoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
     /**
      * The new nullifiers made in this transaction.
      */
@@ -50,11 +50,14 @@ export class PublicAccumulatedData {
      * Accumulated unencrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
+    public readonly unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     /**
      * All the public data update requests made in this transaction.
      */
-    public publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+    public readonly publicDataUpdateRequests: Tuple<
+      PublicDataUpdateRequest,
+      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    >,
     /**
      * Current public call stack.
      */

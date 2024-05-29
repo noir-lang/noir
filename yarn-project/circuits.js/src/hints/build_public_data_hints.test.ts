@@ -30,6 +30,9 @@ describe('buildPublicDataHints', () => {
   let publicDataReads: Tuple<PublicDataRead, typeof MAX_PUBLIC_DATA_READS_PER_TX>;
   let publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>;
   let expectedHints: Tuple<ExpectedHint, typeof MAX_PUBLIC_DATA_HINTS>;
+  let sideEffectCounter = 0;
+
+  const nextSideEffectCounter = () => sideEffectCounter++;
 
   const publicDataLeaves = [
     new PublicDataTreeLeafPreimage(new Fr(22), new Fr(200), new Fr(33), 0n),
@@ -39,7 +42,7 @@ describe('buildPublicDataHints', () => {
 
   const makePublicDataRead = (leafSlot: number, value: number) => new PublicDataRead(new Fr(leafSlot), new Fr(value));
   const makePublicDataWrite = (leafSlot: number, value: number) =>
-    new PublicDataUpdateRequest(new Fr(leafSlot), new Fr(value));
+    new PublicDataUpdateRequest(new Fr(leafSlot), new Fr(value), nextSideEffectCounter());
 
   const oracle = {
     getMatchOrLowPublicDataMembershipWitness: (leafSlot: bigint) => {

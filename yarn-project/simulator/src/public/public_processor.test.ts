@@ -884,8 +884,8 @@ describe('public_processor', () => {
         PublicExecutionResultBuilder.fromPublicCallRequest({
           request: publicCallRequests[1],
           contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 14, baseContractAddress),
-            new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 15, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 10, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 11, baseContractAddress),
           ],
         }).build({
           startGasLeft: afterSetupGas,
@@ -900,16 +900,16 @@ describe('public_processor', () => {
               from: teardown!.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 11, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 12, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x103), 14, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15, baseContractAddress),
               ],
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
             PublicExecutionResultBuilder.fromFunctionCall({
               from: teardown!.contractAddress,
               tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x103), 13, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 15, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 13, baseContractAddress),
               ],
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
           ],
@@ -973,13 +973,13 @@ describe('public_processor', () => {
       const txEffect = toTxEffect(processed[0], GasFees.default());
       expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(3);
       expect(txEffect.publicDataWrites[0]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotC), fr(0x201)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x152)),
       );
       expect(txEffect.publicDataWrites[1]).toEqual(
         new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x103)),
       );
       expect(txEffect.publicDataWrites[2]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x152)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotC), fr(0x201)),
       );
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(0);
       expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);
@@ -1021,6 +1021,7 @@ describe('public_processor', () => {
           PublicDataUpdateRequest.from({
             leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
             newValue: new Fr(initialBalance - inclusionFee),
+            sideEffectCounter: 0,
           }),
         );
 
@@ -1071,6 +1072,7 @@ describe('public_processor', () => {
           PublicDataUpdateRequest.from({
             leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
             newValue: new Fr(initialBalance - inclusionFee),
+            sideEffectCounter: 0,
           }),
         );
 
@@ -1110,6 +1112,7 @@ describe('public_processor', () => {
         tx.data.publicInputs.end.publicDataUpdateRequests[0] = PublicDataUpdateRequest.from({
           leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
           newValue: new Fr(initialBalance),
+          sideEffectCounter: 0,
         });
 
         const [processed, failed] = await processor.process([tx], 1, prover);
@@ -1126,6 +1129,7 @@ describe('public_processor', () => {
           PublicDataUpdateRequest.from({
             leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
             newValue: new Fr(initialBalance - inclusionFee),
+            sideEffectCounter: 0,
           }),
         );
 

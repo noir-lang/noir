@@ -1,21 +1,15 @@
 import { type PublicKernelRequest, PublicKernelType, type Tx } from '@aztec/circuit-types';
 import {
-  type Fr,
+  CombineHints,
   type GlobalVariables,
   type Header,
   type KernelCircuitPublicInputs,
-  type LogHash,
-  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  type MAX_UNENCRYPTED_LOGS_PER_TX,
-  type NoteHash,
   type PublicKernelCircuitPublicInputs,
   PublicKernelTailCircuitPrivateInputs,
   mergeAccumulatedData,
-  sortByCounter,
 } from '@aztec/circuits.js';
-import { type Tuple } from '@aztec/foundation/serialize';
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
@@ -39,7 +33,7 @@ export class TailPhaseManager extends AbstractPhaseManager {
 
   override async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
-    const [inputs, finalKernelOutput] = await this.runTailKernelCircuit(previousPublicKernelOutput).catch(
+    const [inputs, finalKernelOutput] = await this.simulate(previousPublicKernelOutput).catch(
       // the abstract phase manager throws if simulation gives error in non-revertible phase
       async err => {
         await this.publicStateDB.rollbackToCommit();
@@ -68,26 +62,6 @@ export class TailPhaseManager extends AbstractPhaseManager {
     };
   }
 
-  private async runTailKernelCircuit(
-    previousOutput: PublicKernelCircuitPublicInputs,
-  ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
-    // Temporary hack. Should sort them in the tail circuit.
-    previousOutput.end.unencryptedLogsHashes = this.sortLogsHashes<typeof MAX_UNENCRYPTED_LOGS_PER_TX>(
-      previousOutput.end.unencryptedLogsHashes,
-    );
-    const [inputs, output] = await this.simulate(previousOutput);
-
-    // Temporary hack. Should sort them in the tail circuit.
-    const noteHashes = mergeAccumulatedData(
-      previousOutput.endNonRevertibleData.newNoteHashes,
-      previousOutput.end.newNoteHashes,
-      MAX_NEW_NOTE_HASHES_PER_TX,
-    );
-    output.end.newNoteHashes = this.sortNoteHashes<typeof MAX_NEW_NOTE_HASHES_PER_TX>(noteHashes);
-
-    return [inputs, output];
-  }
-
   private async simulate(
     previousOutput: PublicKernelCircuitPublicInputs,
   ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
@@ -99,11 +73,11 @@ export class TailPhaseManager extends AbstractPhaseManager {
   private async buildPrivateInputs(previousOutput: PublicKernelCircuitPublicInputs) {
     const previousKernel = this.getPreviousKernelData(previousOutput);
 
-    const { validationRequests, endNonRevertibleData, end } = previousOutput;
+    const { validationRequests, endNonRevertibleData: nonRevertibleData, end: revertibleData } = previousOutput;
 
     const pendingNullifiers = mergeAccumulatedData(
-      endNonRevertibleData.newNullifiers,
-      end.newNullifiers,
+      nonRevertibleData.newNullifiers,
+      revertibleData.newNullifiers,
       MAX_NEW_NULLIFIERS_PER_TX,
     );
 
@@ -118,8 +92,8 @@ export class TailPhaseManager extends AbstractPhaseManager {
     );
 
     const pendingPublicDataWrites = mergeAccumulatedData(
-      endNonRevertibleData.publicDataUpdateRequests,
-      end.publicDataUpdateRequests,
+      nonRevertibleData.publicDataUpdateRequests,
+      revertibleData.publicDataUpdateRequests,
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     );
 
@@ -136,6 +110,8 @@ export class TailPhaseManager extends AbstractPhaseManager {
 
     const currentState = await this.db.getStateReference();
 
+    const hints = CombineHints.fromPublicData({ nonRevertibleData, revertibleData });
+
     return new PublicKernelTailCircuitPrivateInputs(
       previousKernel,
       nullifierReadRequestHints,
@@ -143,15 +119,7 @@ export class TailPhaseManager extends AbstractPhaseManager {
       publicDataHints,
       publicDataReadRequestHints,
       currentState.partial,
+      hints,
     );
-  }
-
-  private sortNoteHashes<N extends number>(noteHashes: Tuple<NoteHash, N>): Tuple<Fr, N> {
-    return sortByCounter(noteHashes).map(n => n.value) as Tuple<Fr, N>;
-  }
-
-  private sortLogsHashes<N extends number>(unencryptedLogsHashes: Tuple<LogHash, N>): Tuple<LogHash, N> {
-    // TODO(6052): logs here may have duplicate counters from nested calls
-    return sortByCounter(unencryptedLogsHashes);
   }
 }

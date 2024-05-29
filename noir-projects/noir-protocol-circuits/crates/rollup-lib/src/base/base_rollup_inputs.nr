@@ -273,7 +273,7 @@ impl BaseRollupInputs {
                 );
 
                 let new_value = compute_public_data_tree_value(existing_update.new_value - tx_fee);
-                let protocol_update_request = PublicDataUpdateRequest { leaf_slot, new_value };
+                let protocol_update_request = PublicDataUpdateRequest { leaf_slot, new_value, counter: 0 };
                 (protocol_update_request, existing_update_index as u64)
             } else {
                 // Otherwise, build a new one to be inserted into the protocol update requests at the end of the array.
@@ -284,7 +284,7 @@ impl BaseRollupInputs {
                 assert(!balance.lt(tx_fee), "Not enough balance for fee payer to pay for transaction");
 
                 let new_value = compute_public_data_tree_value(balance - tx_fee);
-                let protocol_update_request = PublicDataUpdateRequest { leaf_slot, new_value };
+                let protocol_update_request = PublicDataUpdateRequest { leaf_slot, new_value, counter: 0 };
                 (protocol_update_request, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX)
             }
         } else {
@@ -505,6 +505,7 @@ mod tests {
                 kernel_data.public_inputs.end.public_data_update_requests[i] = PublicDataUpdateRequest {
                     leaf_slot : leaf.slot,
                     new_value : leaf.value,
+                    counter : 0
                 };
             }
         }

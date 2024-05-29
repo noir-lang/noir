@@ -1,4 +1,4 @@
-import { makeTuple } from '@aztec/foundation/array';
+import { type FieldsOf, makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -67,20 +67,28 @@ export class CombinedAccumulatedData {
     public gasUsed: Gas,
   ) {}
 
+  static getFields(fields: FieldsOf<CombinedAccumulatedData>) {
+    return [
+      fields.newNoteHashes,
+      fields.newNullifiers,
+      fields.newL2ToL1Msgs,
+      fields.noteEncryptedLogsHash,
+      fields.encryptedLogsHash,
+      fields.unencryptedLogsHash,
+      fields.noteEncryptedLogPreimagesLength,
+      fields.encryptedLogPreimagesLength,
+      fields.unencryptedLogPreimagesLength,
+      fields.publicDataUpdateRequests,
+      fields.gasUsed,
+    ] as const;
+  }
+
+  static from(fields: FieldsOf<CombinedAccumulatedData>): CombinedAccumulatedData {
+    return new CombinedAccumulatedData(...CombinedAccumulatedData.getFields(fields));
+  }
+
   toBuffer() {
-    return serializeToBuffer(
-      this.newNoteHashes,
-      this.newNullifiers,
-      this.newL2ToL1Msgs,
-      this.noteEncryptedLogsHash,
-      this.encryptedLogsHash,
-      this.unencryptedLogsHash,
-      this.noteEncryptedLogPreimagesLength,
-      this.encryptedLogPreimagesLength,
-      this.unencryptedLogPreimagesLength,
-      this.publicDataUpdateRequests,
-      this.gasUsed,
-    );
+    return serializeToBuffer(...CombinedAccumulatedData.getFields(this));
   }
 
   toString() {

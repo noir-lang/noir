@@ -14,6 +14,7 @@ export * from './gas_fees.js';
 export * from './gas_settings.js';
 export * from './global_variables.js';
 export * from './header.js';
+export * from './kernel/combine_hints.js';
 export * from './kernel/combined_accumulated_data.js';
 export * from './kernel/combined_constant_data.js';
 export * from './kernel/kernel_circuit_public_inputs.js';

@@ -1,26 +1,26 @@
-import { mockTx } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
+import { makePublicKernelCircuitPublicInputs } from '@aztec/circuits.js/testing';
 
 import { lastSideEffectCounter } from './utils.js';
 
 describe('sequencer utils', () => {
   describe('lastSideEffectCounter', () => {
     it('correctly identifies the highest side effect counter in a transaction', () => {
-      const tx = mockTx();
-      // mockTx creates a Tx with side effect counts of all 0
-      expect(lastSideEffectCounter(tx)).toBe(0);
+      const inputs = makePublicKernelCircuitPublicInputs();
 
-      tx.data.forPublic!.endNonRevertibleData.newNoteHashes.at(-1)!.counter = 8;
-      expect(lastSideEffectCounter(tx)).toBe(8);
+      const startingCounter = lastSideEffectCounter(inputs);
 
-      tx.data.forPublic!.endNonRevertibleData.publicCallStack.at(-1)!.startSideEffectCounter = new Fr(9);
-      expect(lastSideEffectCounter(tx)).toBe(9);
+      inputs.endNonRevertibleData.newNoteHashes.at(-1)!.counter = startingCounter + 1;
+      expect(lastSideEffectCounter(inputs)).toBe(startingCounter + 1);
 
-      tx.data.forPublic!.end.newNoteHashes.at(-1)!.counter = 10;
-      expect(lastSideEffectCounter(tx)).toBe(10);
+      inputs.endNonRevertibleData.publicCallStack.at(-1)!.startSideEffectCounter = new Fr(startingCounter + 2);
+      expect(lastSideEffectCounter(inputs)).toBe(startingCounter + 2);
 
-      tx.data.forPublic!.end.newNullifiers.at(-1)!.counter = 11;
-      expect(lastSideEffectCounter(tx)).toBe(11);
+      inputs.end.newNoteHashes.at(-1)!.counter = startingCounter + 3;
+      expect(lastSideEffectCounter(inputs)).toBe(startingCounter + 3);
+
+      inputs.end.newNullifiers.at(-1)!.counter = startingCounter + 4;
+      expect(lastSideEffectCounter(inputs)).toBe(startingCounter + 4);
     });
   });
 });

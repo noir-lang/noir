@@ -133,6 +133,10 @@ abstract class BaseField {
     return this.toBuffer().equals(ZERO_BUFFER);
   }
 
+  isEmpty(): boolean {
+    return this.isZero();
+  }
+
   toFriendlyJSON(): string {
     return this.toString();
   }
