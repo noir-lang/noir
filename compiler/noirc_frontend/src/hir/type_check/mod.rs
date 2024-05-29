@@ -13,7 +13,6 @@ mod stmt;
 
 pub use errors::TypeCheckError;
 use noirc_errors::Span;
-use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     hir_def::{
@@ -37,7 +36,7 @@ pub struct TypeChecker<'interner> {
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
-    trait_constraints: HashMap<ExprId, Vec<TraitConstraint>>,
+    trait_constraints: Vec<(TraitConstraint, ExprId)>,
 
     /// All type variables created in the current function.
     /// This map is used to default any integer type variables at the end of
@@ -142,24 +141,22 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     // Verify any remaining trait constraints arising from the function body
-    for (expr_id, constraints) in std::mem::take(&mut type_checker.trait_constraints) {
-        for mut constraint in constraints {
-            let span = type_checker.interner.expr_span(&expr_id);
+    for (mut constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+        let span = type_checker.interner.expr_span(&expr_id);
 
-            if matches!(&constraint.typ, Type::MutableReference(_)) {
-                let (_, dereferenced_typ) =
-                    type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
-            }
-
-            type_checker.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_id,
-                &constraint.trait_generics,
-                expr_id,
-                span,
-            );
+        if matches!(&constraint.typ, Type::MutableReference(_)) {
+            let (_, dereferenced_typ) =
+                type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
+            constraint.typ = dereferenced_typ;
         }
+
+        type_checker.verify_trait_constraint(
+            &constraint.typ,
+            constraint.trait_id,
+            &constraint.trait_generics,
+            expr_id,
+            span,
+        );
     }
 
     // Now remove all the `where` clause constraints we added
@@ -361,7 +358,7 @@ impl<'interner> TypeChecker<'interner> {
         Self {
             interner,
             errors: Vec::new(),
-            trait_constraints: HashMap::default(),
+            trait_constraints: Vec::new(),
             type_variables: Vec::new(),
             current_function: None,
         }
@@ -378,7 +375,7 @@ impl<'interner> TypeChecker<'interner> {
         let mut this = Self {
             interner,
             errors: Vec::new(),
-            trait_constraints: HashMap::default(),
+            trait_constraints: Vec::new(),
             type_variables: Vec::new(),
             current_function: None,
         };
