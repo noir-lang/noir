@@ -1,6 +1,6 @@
 use crate::{
-    abis::side_effect::Ordered, traits::{Empty, Serialize, Deserialize}, address::AztecAddress,
-    constants::{READ_REQUEST_LENGTH, SCOPED_READ_REQUEST_LEN},
+    abis::side_effect::{Ordered, Scoped}, traits::{Empty, Serialize, Deserialize},
+    address::AztecAddress, constants::{READ_REQUEST_LENGTH, SCOPED_READ_REQUEST_LEN},
     utils::{arrays::array_concat, reader::Reader}
 };
 use dep::std::cmp::Eq;
@@ -56,6 +56,15 @@ impl ReadRequest {
 struct ScopedReadRequest {
     read_request: ReadRequest,
     contract_address: AztecAddress,
+}
+
+impl Scoped<ReadRequest> for ScopedReadRequest {
+    fn inner(self) -> ReadRequest {
+        self.read_request
+    }
+    fn contract_address(self) -> AztecAddress {
+        self.contract_address
+    }
 }
 
 impl Eq for ScopedReadRequest {

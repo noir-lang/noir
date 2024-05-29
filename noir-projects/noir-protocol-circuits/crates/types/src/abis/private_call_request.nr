@@ -1,7 +1,7 @@
 use dep::std::cmp::Eq;
 use crate::{
-    abis::{caller_context::CallerContext, side_effect::{Ordered, RangeOrdered}}, address::AztecAddress,
-    constants::{PRIVATE_CALL_REQUEST_LENGTH, SCOPED_PRIVATE_CALL_REQUEST_LENGTH},
+    abis::{caller_context::CallerContext, side_effect::{Ordered, RangeOrdered, Scoped}},
+    address::AztecAddress, constants::{PRIVATE_CALL_REQUEST_LENGTH, SCOPED_PRIVATE_CALL_REQUEST_LENGTH},
     traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
 };
 
@@ -85,6 +85,15 @@ impl PrivateCallRequest {
 struct ScopedPrivateCallRequest {
     call_request: PrivateCallRequest,
     contract_address: AztecAddress,
+}
+
+impl Scoped<PrivateCallRequest> for ScopedPrivateCallRequest {
+    fn inner(self) -> PrivateCallRequest {
+        self.call_request
+    }
+    fn contract_address(self) -> AztecAddress {
+        self.contract_address
+    }
 }
 
 impl Ordered for ScopedPrivateCallRequest {

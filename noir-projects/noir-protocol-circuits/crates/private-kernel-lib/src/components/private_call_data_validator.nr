@@ -1,15 +1,23 @@
 use dep::types::{
     abis::{
     call_context::CallContext, call_request::CallRequest, caller_context::CallerContext,
-    kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
-    private_call_request::ScopedPrivateCallRequest, private_call_stack_item::PrivateCallStackItem,
+    kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, log_hash::NoteLogHash,
+    note_hash::ScopedNoteHash, private_call_request::ScopedPrivateCallRequest,
+    private_call_stack_item::PrivateCallStackItem,
     private_circuit_public_inputs::PrivateCircuitPublicInputsArrayLengths,
     private_kernel::private_call_data::PrivateCallData, side_effect::{Ordered, RangeOrdered}
 },
     address::{AztecAddress, PartialAddress}, contract_class_id::ContractClassId,
     hash::{private_functions_root_from_siblings, stdlib_recursion_verification_key_compress_native_vk},
-    traits::is_empty, transaction::tx_request::TxRequest
+    traits::is_empty, transaction::tx_request::TxRequest, utils::arrays::find_index
 };
+
+unconstrained fn match_log_to_note<N>(note_log: NoteLogHash, accumulated_note_hashes: [ScopedNoteHash; N]) -> u64 {
+    find_index(
+        accumulated_note_hashes,
+        |n: ScopedNoteHash| n.counter() == note_log.note_hash_counter
+    )
+}
 
 fn validate_caller_context(caller_context: CallerContext, this_context: CallContext) {
     let matching_caller_context = caller_context.msg_sender.eq(this_context.msg_sender)
@@ -107,13 +115,14 @@ impl PrivateCallDataValidator {
         PrivateCallDataValidator { data, array_lengths }
     }
 
-    pub fn validate(self) {
+    pub fn validate<N>(self, accumulated_note_hashes: [ScopedNoteHash; N]) {
         self.validate_contract_address();
         self.validate_call();
         self.validate_private_call_requests();
         self.validate_public_call_requests();
         self.validate_teardown_call_request();
         self.validate_counters();
+        self.validate_note_logs(accumulated_note_hashes);
     }
 
     pub fn validate_as_first_call(self, first_revertible_private_call_request_index: u64) {
@@ -188,8 +197,7 @@ impl PrivateCallDataValidator {
         let public_inputs = self.data.call_stack_item.public_inputs;
         assert_eq(public_inputs.historical_header, constants.historical_header, "mismatch historical header");
         assert_eq(public_inputs.tx_context, constants.tx_context, "mismatch tx context");
-        // constants.global_variables refers to the states shared among all txs in a block.
-        // It should be empty when executing private functions (initialized in PrivateKernelCircuitPublicInputsComposer.new_from_tx_request()).
+        // constants.global_variables is not relevant to private functions and is ensured to be empty in PrivateKernelCircuitOutputValidator.
     }
 
     fn validate_contract_address(self) {
@@ -251,6 +259,9 @@ impl PrivateCallDataValidator {
             assert_eq(self.array_lengths.new_nullifiers, 0, "new_nullifiers must be empty for static calls");
             assert_eq(
                 self.array_lengths.new_l2_to_l1_msgs, 0, "new_l2_to_l1_msgs must be empty for static calls"
+            );
+            assert_eq(
+                self.array_lengths.note_encrypted_logs_hashes, 0, "note_encrypted_logs_hashes must be empty for static calls"
             );
             assert_eq(
                 self.array_lengths.encrypted_logs_hashes, 0, "encrypted_logs_hashes must be empty for static calls"
@@ -367,5 +378,26 @@ impl PrivateCallDataValidator {
             [self.data.public_teardown_call_request],
             teardown_call_request_count
         );
+    }
+
+    fn validate_note_logs<N>(self, accumulated_note_hashes: [ScopedNoteHash; N]) {
+        let note_logs = self.data.call_stack_item.public_inputs.note_encrypted_logs_hashes;
+        let num_logs = self.array_lengths.note_encrypted_logs_hashes;
+        let storage_contract_address = self.data.call_stack_item.public_inputs.call_context.storage_contract_address;
+        let mut should_check = true;
+        for i in 0..note_logs.len() {
+            should_check &= i != num_logs;
+            if should_check {
+                let note_index = match_log_to_note(note_logs[i], accumulated_note_hashes);
+                assert(note_index != N, "could not find note hash linked to note log");
+                assert_eq(
+                    note_logs[i].note_hash_counter, accumulated_note_hashes[note_index].counter(), "could not find note hash linked to note log"
+                );
+                // If the note_index points to an empty note hash, the following check will fail.
+                assert_eq(
+                    accumulated_note_hashes[note_index].contract_address, storage_contract_address, "could not link a note log to a note hash in another contract"
+                );
+            }
+        }
     }
 }

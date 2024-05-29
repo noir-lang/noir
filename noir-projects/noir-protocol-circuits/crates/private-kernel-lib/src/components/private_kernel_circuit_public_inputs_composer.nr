@@ -2,9 +2,8 @@ use dep::types::{
     abis::{
     call_request::CallRequest, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
-    max_block_number::MaxBlockNumber, nullifier::Nullifier, note_hash::ScopedNoteHash,
-    log_hash::NoteLogHash,
-    private_circuit_public_inputs::{PrivateCircuitPublicInputs, PrivateCircuitPublicInputsArrayLengths}
+    max_block_number::MaxBlockNumber, nullifier::{Nullifier, ScopedNullifier},
+    private_circuit_public_inputs::PrivateCircuitPublicInputs
 },
     address::AztecAddress,
     constants::{
@@ -12,17 +11,20 @@ use dep::types::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
     traits::is_empty, transaction::tx_request::TxRequest,
-    utils::arrays::{array_to_bounded_vec, find_index}
+    utils::arrays::{array_length, array_to_bounded_vec}
 };
 
 struct DataSource {
     private_call_public_inputs: PrivateCircuitPublicInputs,
-    array_lengths: PrivateCircuitPublicInputsArrayLengths,
     contract_address: AztecAddress,
     storage_contract_address: AztecAddress,
     note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
     public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     public_teardown_call_request: CallRequest,
+}
+
+pub fn create_first_nullifier(tx_request: TxRequest) -> ScopedNullifier {
+    Nullifier { value: tx_request.hash(), note_hash: 0, counter: 0 }.scope(AztecAddress::zero())
 }
 
 struct PrivateKernelCircuitPublicInputsComposer {
@@ -38,10 +40,8 @@ impl PrivateKernelCircuitPublicInputsComposer {
             tx_request.tx_context,
         );
 
-        public_inputs.min_revertible_side_effect_counter = private_call_public_inputs.min_revertible_side_effect_counter;
-
-        // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
-        public_inputs.end.new_nullifiers.push(Nullifier { value: tx_request.hash(), note_hash: 0, counter: 0 }.scope(AztecAddress::zero()));
+        // Since it's the first iteration, we need to push the tx hash nullifier into the `new_nullifiers` array
+        public_inputs.end.new_nullifiers.push(create_first_nullifier(tx_request));
         // Note that we do not need to nullify the transaction request nonce anymore.
         // Should an account want to additionally use nonces for replay protection or handling cancellations,
         // they will be able to do so in the account contract logic:
@@ -81,7 +81,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
     pub fn compose(
         &mut self,
         private_call_public_inputs: PrivateCircuitPublicInputs,
-        array_lengths: PrivateCircuitPublicInputsArrayLengths,
         contract_address: AztecAddress,
         note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
         public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
@@ -90,14 +89,22 @@ impl PrivateKernelCircuitPublicInputsComposer {
         let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
         let source = DataSource {
             private_call_public_inputs,
-            array_lengths,
             contract_address,
             storage_contract_address,
             note_hash_nullifier_counters,
             public_call_requests,
             public_teardown_call_request
         };
+        self.propagate_from_private_call(source);
 
+        *self
+    }
+
+    pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
+        self.public_inputs.finish()
+    }
+
+    fn propagate_from_private_call(&mut self, source: DataSource) {
         self.propagate_max_block_number(source);
         self.propagate_note_hash_read_requests(source);
         self.propagate_nullifier_read_requests(source);
@@ -111,19 +118,15 @@ impl PrivateKernelCircuitPublicInputsComposer {
         self.propagate_public_teardown_call_request(source);
         self.propagate_fee_payer(source);
         self.propagate_min_revertible_side_effect_counter(source);
-
-        *self
-    }
-
-    pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
-        self.public_inputs.finish()
     }
 
     fn propagate_min_revertible_side_effect_counter(&mut self, source: DataSource) {
-        self.public_inputs.min_revertible_side_effect_counter = if self.public_inputs.min_revertible_side_effect_counter > 0 {
-            self.public_inputs.min_revertible_side_effect_counter
+        if self.public_inputs.min_revertible_side_effect_counter != 0 {
+            assert(
+                source.private_call_public_inputs.min_revertible_side_effect_counter == 0, "cannot overwrite non-zero min_revertible_side_effect_counter"
+            );
         } else {
-            source.private_call_public_inputs.min_revertible_side_effect_counter
+            self.public_inputs.min_revertible_side_effect_counter = source.private_call_public_inputs.min_revertible_side_effect_counter;
         };
     }
 
@@ -204,6 +207,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
                 self.public_inputs.end.encrypted_logs_hashes.push(log.scope(source.storage_contract_address));
             }
         }
+
         let unencrypted_logs = source.private_call_public_inputs.unencrypted_logs_hashes;
         for i in 0..unencrypted_logs.len() {
             let log = unencrypted_logs[i];
@@ -215,29 +219,14 @@ impl PrivateKernelCircuitPublicInputsComposer {
         let note_logs = source.private_call_public_inputs.note_encrypted_logs_hashes;
         for i in 0..note_logs.len() {
             if !is_empty(note_logs[i]) {
-                let note_index = self.match_log_to_note(note_logs[i]);
-                assert(
-                    note_index < MAX_NEW_NOTE_HASHES_PER_TX, "Could not find note hash linked to note log."
-                );
-                assert(
-                    note_logs[i].note_hash_counter
-                    == self.public_inputs.end.new_note_hashes.get_unchecked(note_index).counter(), "Could not find note hash linked to note log."
-                );
                 self.public_inputs.end.note_encrypted_logs_hashes.push(note_logs[i]);
             }
         }
     }
 
-    unconstrained fn match_log_to_note(self, note_log: NoteLogHash) -> u64 {
-        find_index(
-            self.public_inputs.end.new_note_hashes.storage,
-            |n: ScopedNoteHash| n.counter() == note_log.note_hash_counter
-        )
-    }
-
     fn propagate_private_call_requests(&mut self, source: DataSource) {
         let call_requests = source.private_call_public_inputs.private_call_requests;
-        let num_requests = source.array_lengths.private_call_requests;
+        let num_requests = array_length(call_requests);
         let mut proceed = true;
         for i in 0..call_requests.len() {
             proceed &= i != num_requests;

@@ -1,5 +1,5 @@
 use crate::{
-    abis::{side_effect::{Ordered, OrderedValue, Readable}, read_request::ScopedReadRequest},
+    abis::{side_effect::{Ordered, OrderedValue, Readable, Scoped}, read_request::ScopedReadRequest},
     address::AztecAddress, constants::{NULLIFIER_LENGTH, SCOPED_NULLIFIER_LENGTH}, hash::silo_nullifier,
     traits::{Empty, Hash, Serialize, Deserialize}, utils::{arrays::array_concat, reader::Reader}
 };
@@ -80,6 +80,15 @@ impl Nullifier {
 struct ScopedNullifier {
     nullifier: Nullifier,
     contract_address: AztecAddress,
+}
+
+impl Scoped<Nullifier> for ScopedNullifier {
+    fn inner(self) -> Nullifier {
+        self.nullifier
+    }
+    fn contract_address(self) -> AztecAddress {
+        self.contract_address
+    }
 }
 
 impl Ordered for ScopedNullifier {

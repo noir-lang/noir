@@ -5,7 +5,7 @@ use dep::types::abis::caller_context::CallerContext;
 fn validate_against_call_request_succeeds() {
     let builder = PrivateCallDataValidatorBuilder::new();
 
-    let request = builder.private_call.build_call_request();
+    let request = builder.private_call.build_private_call_request();
 
     builder.validate_against_call_request(request);
 }
@@ -14,7 +14,7 @@ fn validate_against_call_request_succeeds() {
 fn validate_against_call_request_delegate_call_succeeds() {
     let builder = PrivateCallDataValidatorBuilder::new().is_delegate_call();
 
-    let request = builder.private_call.build_call_request();
+    let request = builder.private_call.build_private_call_request();
 
     builder.validate_against_call_request(request);
 }
@@ -23,7 +23,7 @@ fn validate_against_call_request_delegate_call_succeeds() {
 fn validate_against_call_request_static_call_succeeds() {
     let builder = PrivateCallDataValidatorBuilder::new().is_static_call();
 
-    let request = builder.private_call.build_call_request();
+    let request = builder.private_call.build_private_call_request();
 
     builder.validate_against_call_request(request);
 }
@@ -32,7 +32,7 @@ fn validate_against_call_request_static_call_succeeds() {
 fn validate_against_call_request_mismatch_hash_fails() {
     let builder = PrivateCallDataValidatorBuilder::new();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the hash to be a different value.
     request.call_request.hash += 1;
 
@@ -43,7 +43,7 @@ fn validate_against_call_request_mismatch_hash_fails() {
 fn validate_against_call_request_empty_caller_context_for_delegate_calls_fails() {
     let builder = PrivateCallDataValidatorBuilder::new().is_delegate_call();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     request.call_request.caller_context = CallerContext::empty();
 
     builder.validate_against_call_request(request);
@@ -53,7 +53,7 @@ fn validate_against_call_request_empty_caller_context_for_delegate_calls_fails()
 fn validate_against_call_request_incorrect_msg_sender_for_delegate_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new().is_delegate_call();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the msg_sender to be a different value.
     request.call_request.caller_context.msg_sender.inner += 1;
 
@@ -64,7 +64,7 @@ fn validate_against_call_request_incorrect_msg_sender_for_delegate_call_fails() 
 fn validate_against_call_request_incorrect_storage_contract_address_for_delegate_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new().is_delegate_call();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the storage contract address to be a different value.
     request.call_request.caller_context.storage_contract_address.inner += 1;
 
@@ -75,7 +75,7 @@ fn validate_against_call_request_incorrect_storage_contract_address_for_delegate
 fn validate_against_call_request_incorrect_msg_sender_for_regular_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the caller's contract address to be a different value.
     request.contract_address.inner += 1;
 
@@ -86,7 +86,7 @@ fn validate_against_call_request_incorrect_msg_sender_for_regular_call_fails() {
 fn validate_against_call_request_non_empty_caller_for_regular_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the caller's msg_sender to be non-empty.
     request.call_request.caller_context.msg_sender.inner = 1234;
 
@@ -97,7 +97,7 @@ fn validate_against_call_request_non_empty_caller_for_regular_call_fails() {
 fn validate_against_call_request_non_empty_caller_for_static_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new().is_static_call();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the caller's msg_sender to be non-empty.
     request.call_request.caller_context.msg_sender.inner = 1234;
 
@@ -108,7 +108,7 @@ fn validate_against_call_request_non_empty_caller_for_static_call_fails() {
 fn validate_against_call_request_static_call_regular_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the caller to be making a static call.
     request.call_request.caller_context.is_static_call = true;
 
@@ -119,7 +119,7 @@ fn validate_against_call_request_static_call_regular_call_fails() {
 fn validate_against_call_request_static_call_delegate_call_fails() {
     let builder = PrivateCallDataValidatorBuilder::new().is_delegate_call();
 
-    let mut request = builder.private_call.build_call_request();
+    let mut request = builder.private_call.build_private_call_request();
     // Tweak the caller to be making a static call.
     request.call_request.caller_context.is_static_call = true;
 

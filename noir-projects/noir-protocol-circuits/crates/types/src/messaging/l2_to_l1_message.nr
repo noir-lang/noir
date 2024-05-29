@@ -1,7 +1,8 @@
 use crate::{
     address::{AztecAddress, EthAddress},
-    constants::{L2_TO_L1_MESSAGE_LENGTH, SCOPED_L2_TO_L1_MESSAGE_LENGTH}, abis::side_effect::Ordered,
-    traits::{Deserialize, Empty, Serialize}, utils::{arrays::array_concat, reader::Reader}
+    constants::{L2_TO_L1_MESSAGE_LENGTH, SCOPED_L2_TO_L1_MESSAGE_LENGTH},
+    abis::side_effect::{Ordered, Scoped}, traits::{Deserialize, Empty, Serialize},
+    utils::{arrays::array_concat, reader::Reader}
 };
 
 // Note: Not to be confused with L2ToL1Msg in Solidity
@@ -58,6 +59,15 @@ impl L2ToL1Message {
 struct ScopedL2ToL1Message {
     message: L2ToL1Message,
     contract_address: AztecAddress,
+}
+
+impl Scoped<L2ToL1Message> for ScopedL2ToL1Message {
+    fn inner(self) -> L2ToL1Message {
+        self.message
+    }
+    fn contract_address(self) -> AztecAddress {
+        self.contract_address
+    }
 }
 
 impl Ordered for ScopedL2ToL1Message {

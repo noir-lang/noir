@@ -1,12 +1,10 @@
-mod kernel_circuit_public_inputs_composer;
-mod private_call_data_validator;
-mod private_kernel_circuit_public_inputs_composer;
+mod components;
 mod private_kernel_init;
 mod private_kernel_inner;
 mod private_kernel_tail;
 mod private_kernel_tail_to_public;
-mod tests;
 mod private_kernel_reset;
+mod tests;
 
 use private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
 use private_kernel_inner::PrivateKernelInnerCircuitPrivateInputs;

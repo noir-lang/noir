@@ -50,7 +50,7 @@ mod tests {
         abis::{
         function_data::FunctionData, function_selector::FunctionSelector, note_hash::NoteHash,
         public_circuit_public_inputs::PublicCircuitPublicInputs,
-        public_call_stack_item::PublicCallStackItem, side_effect::SideEffect
+        public_call_stack_item::PublicCallStackItem
     },
         address::AztecAddress, constants::GENERATOR_INDEX__CALL_STACK_ITEM, traits::Hash
     };

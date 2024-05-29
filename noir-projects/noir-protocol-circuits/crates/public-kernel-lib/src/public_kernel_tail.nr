@@ -375,15 +375,15 @@ mod tests {
         let prev_encrypted_log_preimages_length = 13;
         let prev_unencrypted_logs_hash = 956;
         let prev_unencrypted_log_preimages_length = 24;
-        builder.previous_revertible.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
-        builder.previous_revertible.set_unencrypted_logs(
+        builder.previous_revertible.add_encrypted_log_hash(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+        builder.previous_revertible.add_unencrypted_log_hash(
             prev_unencrypted_logs_hash,
             prev_unencrypted_log_preimages_length
         );
         // Logs for the current call stack.
         let unencrypted_logs_hash = 26;
         let unencrypted_log_preimages_length = 50;
-        builder.previous_revertible.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
+        builder.previous_revertible.add_unencrypted_log_hash(unencrypted_logs_hash, unencrypted_log_preimages_length);
 
         let public_inputs = builder.execute();
 

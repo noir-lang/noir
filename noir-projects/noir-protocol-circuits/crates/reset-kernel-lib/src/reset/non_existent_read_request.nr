@@ -90,10 +90,30 @@ mod tests {
 
     use dep::types::{
         address::AztecAddress,
-        abis::{read_request::{ReadRequest, ScopedReadRequest}, side_effect::SideEffect},
+        abis::{read_request::{ReadRequest, ScopedReadRequest}, side_effect::OrderedValue},
         merkle_tree::{leaf_preimage::IndexedTreeLeafPreimage, membership::MembershipWitness},
         tests::merkle_tree_utils::NonEmptyMerkleTree
     };
+
+    struct TestValue {
+        value: Field,
+        counter: u32,
+    }
+
+    impl OrderedValue<Field> for TestValue {
+        fn value(self) -> Field {
+            self.value
+        }
+        fn counter(self) -> u32 {
+            self.counter
+        }
+    }
+
+    impl TestValue {
+        fn empty() -> Self {
+            TestValue { value: 0, counter: 0 }
+        }
+    }
 
     struct TestLeafPreimage {
         value: Field,
@@ -131,11 +151,11 @@ mod tests {
 
     global sorted_pending_values = BoundedVec {
         storage: [
-        SideEffect { value: 5, counter: 17 },
-        SideEffect { value: 15, counter: 8 },
-        SideEffect { value: 25, counter: 11 },
-        SideEffect::empty(),
-        SideEffect::empty(),
+        TestValue { value: 5, counter: 17 },
+        TestValue { value: 15, counter: 8 },
+        TestValue { value: 25, counter: 11 },
+        TestValue::empty(),
+        TestValue::empty(),
     ],
     len: 3,
     };

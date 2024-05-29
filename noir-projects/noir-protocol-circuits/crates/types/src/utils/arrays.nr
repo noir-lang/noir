@@ -55,20 +55,33 @@ pub fn validate_array<T, N>(array: [T; N]) -> u64 where T: Empty + Eq {
     length
 }
 
-// Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array)
-// should be true).
-pub fn array_length<T, N>(array: [T; N]) -> u64 where T: Empty + Eq {
+unconstrained fn count_non_empty_elements<T, N>(array: [T; N]) -> u64 where T: Empty + Eq {
     let mut length = 0;
-    let mut end = false;
+    let mut seen_empty = false;
     for elem in array {
-        end |= is_empty(elem);
-        if !end {
+        if is_empty(elem) {
+            seen_empty = true;
+        } else if !seen_empty {
             length += 1;
         }
     }
     length
 }
 
+// Helper function to count the number of non-empty elements in a validated array.
+// Important: Only use it for validated arrays: validate_array(array) should be true.
+pub fn array_length<T, N>(array: [T; N]) -> u64 where T: Empty + Eq {
+    let length = count_non_empty_elements(array);
+    if length != 0 {
+        assert(!is_empty(array[length - 1]));
+    }
+    if length != N {
+        assert(is_empty(array[length]));
+    }
+    length
+}
+
+// Deprecated. Use tests/utils/assert_array_eq instead.
 pub fn array_eq<T, N, S>(array: [T; N], expected: [T; S]) -> bool where T: Empty + Eq {
     let mut eq = array_length(array) == S;
 
@@ -207,8 +220,6 @@ fn smoke_validate_array_invalid_case2() {
 
 #[test]
 fn test_empty_array_length() {
-    let empty_array: [Field; 0] = [];
-    assert_eq(array_length(empty_array), 0);
     assert_eq(array_length([0]), 0);
     assert_eq(array_length([0, 0, 0]), 0);
 }
@@ -216,10 +227,18 @@ fn test_empty_array_length() {
 #[test]
 fn test_array_length() {
     assert_eq(array_length([123]), 1);
+    assert_eq(array_length([123, 0, 0]), 1);
     assert_eq(array_length([123, 456]), 2);
     assert_eq(array_length([123, 456, 0]), 2);
+}
+
+#[test]
+fn test_array_length_invalid_arrays() {
+    // Result can be misleading (but correct) for invalid arrays.
+    assert_eq(array_length([0, 0, 123]), 0);
+    assert_eq(array_length([0, 123, 0]), 0);
+    assert_eq(array_length([0, 123, 456]), 0);
     assert_eq(array_length([123, 0, 456]), 1);
-    assert_eq(array_length([0, 123, 0, 456]), 0);
 }
 
 #[test]

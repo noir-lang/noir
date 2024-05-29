@@ -7,7 +7,7 @@ fn validate_contract_address_zero_storage_contract_address_fails() {
 
     // Set (storage) contract_address to 0
     builder.private_call.contract_address = AztecAddress::zero();
-    builder.private_call.public_inputs.call_context.storage_contract_address = AztecAddress::zero();
+    builder.private_call.storage_contract_address = AztecAddress::zero();
 
     builder.validate();
 }

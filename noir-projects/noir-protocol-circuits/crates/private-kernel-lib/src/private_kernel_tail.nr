@@ -1,4 +1,4 @@
-use crate::kernel_circuit_public_inputs_composer::KernelCircuitPublicInputsComposer;
+use crate::components::kernel_circuit_public_inputs_composer::KernelCircuitPublicInputsComposer;
 use dep::types::{
     abis::{
     private_kernel_data::PrivateKernelData, kernel_circuit_public_inputs::KernelCircuitPublicInputs,
@@ -88,7 +88,7 @@ mod tests {
         silo_nullifier, silo_unencrypted_log, silo_encrypted_log
     },
         tests::{fixture_builder::FixtureBuilder, sort::sort_get_sorted_hints},
-        utils::{arrays::{array_eq, array_length}}, traits::{Empty, is_empty, is_empty_array},
+        utils::{arrays::array_length}, traits::{Empty, is_empty, is_empty_array},
         grumpkin_point::GrumpkinPoint
     };
 
@@ -219,15 +219,15 @@ mod tests {
         let prev_encrypted_log_preimages_length = 13;
         let prev_unencrypted_logs_hash = 956;
         let prev_unencrypted_log_preimages_length = 24;
-        builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
-        builder.previous_kernel.set_unencrypted_logs(
+        builder.previous_kernel.add_encrypted_log_hash(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+        builder.previous_kernel.add_unencrypted_log_hash(
             prev_unencrypted_logs_hash,
             prev_unencrypted_log_preimages_length
         );
         // Logs for the current call stack.
         let unencrypted_logs_hash = 26;
         let unencrypted_log_preimages_length = 50;
-        builder.previous_kernel.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
+        builder.previous_kernel.add_unencrypted_log_hash(unencrypted_logs_hash, unencrypted_log_preimages_length);
 
         let public_inputs = builder.execute();
 
@@ -275,14 +275,14 @@ mod tests {
         // Logs for the previous call stack.
         let prev_encrypted_logs_hash = 80;
         let prev_encrypted_log_preimages_length = 13;
-        builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+        builder.previous_kernel.add_encrypted_log_hash(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
 
         // Set the randomness to 0 to signal not masking the address to silo with
         builder.previous_kernel.encrypted_logs_hashes.storage[0].log_hash.randomness = 0;
 
         let new_encrypted_logs_hash = 26;
         let new_encrypted_log_preimages_length = 50;
-        builder.previous_kernel.set_encrypted_logs(new_encrypted_logs_hash, new_encrypted_log_preimages_length);
+        builder.previous_kernel.add_encrypted_log_hash(new_encrypted_logs_hash, new_encrypted_log_preimages_length);
 
         let public_inputs = builder.execute();
 
@@ -318,7 +318,7 @@ mod tests {
     unconstrained fn ordering_of_note_hashes_and_nullifiers() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
 
-        builder.previous_kernel.append_new_note_hashes(10, false);
+        builder.previous_kernel.append_new_note_hashes(10);
         builder.previous_kernel.append_new_nullifiers(10);
 
         let sorted_note_hashes = builder.previous_kernel.new_note_hashes.storage;
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     unconstrained fn native_empty_nullified_note_hash_means_persistent_nullifier_0() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_note_hashes(2, false);
+        builder.previous_kernel.append_new_note_hashes(2);
         builder.previous_kernel.append_new_nullifiers(2);
         let public_inputs = builder.execute();
         assert_eq(array_length(public_inputs.end.new_note_hashes), 2);
@@ -360,7 +360,7 @@ mod tests {
     #[test(should_fail_with="Private call stack must be empty when executing the tail circuit")]
     unconstrained fn non_empty_private_call_stack_should_fail() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.push_private_call_request(1, false);
+        builder.previous_kernel.add_private_call_request(1, false);
         builder.failed();
     }
 
@@ -381,7 +381,7 @@ mod tests {
     #[test(should_fail_with="Non empty note hash read requests")]
     unconstrained fn non_empty_note_hash_read_requests() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_note_hashes(3, false);
+        builder.previous_kernel.append_new_note_hashes(3);
         let _void = builder.previous_kernel.add_read_request_for_pending_note_hash(1);
         builder.failed();
     }

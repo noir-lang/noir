@@ -3,20 +3,20 @@ use dep::types::constants::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL;
 
 impl PrivateCallDataValidatorBuilder {
     pub fn new_first_call() -> Self {
-        PrivateCallDataValidatorBuilder::new_with_counter(0)
+        PrivateCallDataValidatorBuilder::new_from_counter(0)
     }
 
     pub fn split_calls(&mut self, counter: u32) {
-        self.private_call.public_inputs.min_revertible_side_effect_counter = counter;
-        self.first_revertible_private_call_request_index = self.private_call.public_inputs.private_call_requests.len();
+        self.private_call.min_revertible_side_effect_counter = counter;
+        self.first_revertible_private_call_request_index = self.private_call.private_call_requests.len();
     }
 
     pub fn add_private_call_request(&mut self, counter_start: u32, counter_end: u32) {
-        let index = self.private_call.public_inputs.private_call_requests.len();
-        self.private_call.public_inputs.append_private_call_requests(1, false);
-        self.private_call.public_inputs.private_call_requests.storage[index].start_side_effect_counter = counter_start;
-        self.private_call.public_inputs.private_call_requests.storage[index].end_side_effect_counter = counter_end;
-        self.private_call.public_inputs.counter_end = counter_end + 1;
+        let index = self.private_call.private_call_requests.len();
+        self.private_call.append_private_call_requests(1);
+        self.private_call.private_call_requests.storage[index].call_request.start_side_effect_counter = counter_start;
+        self.private_call.private_call_requests.storage[index].call_request.end_side_effect_counter = counter_end;
+        self.private_call.counter = counter_end + 1;
     }
 }
 
@@ -80,8 +80,8 @@ fn validate_as_first_call_split_private_empty_non_revertible_succeeds() {
 fn validate_as_first_call_split_private_full_non_revertible_succeeds() {
     let mut builder = PrivateCallDataValidatorBuilder::new_first_call();
 
-    builder.private_call.public_inputs.append_private_call_requests(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, false);
-    builder.split_calls(builder.private_call.public_inputs.counter_end);
+    builder.private_call.append_private_call_requests(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL);
+    builder.split_calls(builder.private_call.counter);
 
     builder.validate_as_first_call();
 }

@@ -1,0 +1,119 @@
+use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder;
+
+fn unshift_empty_item<T, N>(vec: &mut BoundedVec<T, N>) {
+    let len = vec.len();
+    let empty_item = vec.storage[len];
+    let first_item = vec.get(0);
+    vec.push(first_item);
+    vec.storage[0] = empty_item;
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_note_hash_read_requests_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_note_hash_read_requests(1);
+    unshift_empty_item(&mut builder.private_call.note_hash_read_requests);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_nullifier_read_requests_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_nullifier_read_requests(1);
+    unshift_empty_item(&mut builder.private_call.nullifier_read_requests);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_key_validation_requests_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_key_validation_requests(1);
+    unshift_empty_item(&mut builder.private_call.scoped_key_validation_requests_and_generators);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_note_hashes_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_new_note_hashes(1);
+    unshift_empty_item(&mut builder.private_call.new_note_hashes);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_nullifiers_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_new_nullifiers(1);
+    unshift_empty_item(&mut builder.private_call.new_nullifiers);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_l2_to_l1_msgs_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_new_l2_to_l1_msgs(1);
+    unshift_empty_item(&mut builder.private_call.new_l2_to_l1_msgs);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_private_call_requests_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_private_call_requests(1);
+    unshift_empty_item(&mut builder.private_call.private_call_requests);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_public_call_stack_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_public_call_requests(1);
+    unshift_empty_item(&mut builder.private_call.public_call_requests);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_note_encrypted_logs_hashes() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_note_encrypted_log_hashes(1);
+    unshift_empty_item(&mut builder.private_call.note_encrypted_logs_hashes);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_encrypted_logs_hashes_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_encrypted_log_hashes(1);
+    unshift_empty_item(&mut builder.private_call.encrypted_logs_hashes);
+
+    builder.validate();
+}
+
+#[test(should_fail_with="invalid array")]
+fn validate_arrays_malformed_unencrypted_logs_hashes_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    builder.private_call.append_unencrypted_log_hashes(1);
+    unshift_empty_item(&mut builder.private_call.unencrypted_logs_hashes);
+
+    builder.validate();
+}

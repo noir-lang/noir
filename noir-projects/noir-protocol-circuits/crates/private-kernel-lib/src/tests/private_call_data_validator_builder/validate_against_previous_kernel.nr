@@ -1,5 +1,5 @@
 use crate::{
-    private_call_data_validator::PrivateCallDataValidator,
+    components::private_call_data_validator::PrivateCallDataValidator,
     tests::private_call_data_validator_builder::PrivateCallDataValidatorBuilder
 };
 use dep::types::{
@@ -9,7 +9,7 @@ use dep::types::{
 
 impl PrivateCallDataValidatorBuilder {
     pub fn validate_against_previous_kernel(self, previous_kernel: PrivateKernelCircuitPublicInputs) {
-        let private_call = self.private_call.finish();
+        let private_call = self.private_call.to_private_call_data();
         PrivateCallDataValidator::new(private_call).validate_against_previous_kernel(previous_kernel);
     }
 }

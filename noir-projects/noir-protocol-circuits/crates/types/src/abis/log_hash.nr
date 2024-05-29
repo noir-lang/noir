@@ -1,5 +1,5 @@
 use crate::{
-    abis::side_effect::{Ordered, OrderedValue}, address::AztecAddress,
+    abis::side_effect::{Ordered, OrderedValue, Scoped}, address::AztecAddress,
     constants::{
     LOG_HASH_LENGTH, NOTE_LOG_HASH_LENGTH, ENCRYPTED_LOG_HASH_LENGTH, SCOPED_LOG_HASH_LENGTH,
     SCOPED_ENCRYPTED_LOG_HASH_LENGTH
@@ -71,6 +71,15 @@ impl LogHash {
 struct ScopedLogHash {
     log_hash: LogHash,
     contract_address: AztecAddress,
+}
+
+impl Scoped<LogHash> for ScopedLogHash {
+    fn inner(self) -> LogHash {
+        self.log_hash
+    }
+    fn contract_address(self) -> AztecAddress {
+        self.contract_address
+    }
 }
 
 impl Ordered for ScopedLogHash {
@@ -190,6 +199,15 @@ impl EncryptedLogHash {
 struct ScopedEncryptedLogHash {
     log_hash: EncryptedLogHash,
     contract_address: AztecAddress,
+}
+
+impl Scoped<EncryptedLogHash> for ScopedEncryptedLogHash {
+    fn inner(self) -> EncryptedLogHash {
+        self.log_hash
+    }
+    fn contract_address(self) -> AztecAddress {
+        self.contract_address
+    }
 }
 
 impl ScopedEncryptedLogHash {
