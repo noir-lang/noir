@@ -13,7 +13,7 @@ namespace {
 
 class GoblinBench : public benchmark::Fixture {
   public:
-    Goblin::AccumulationOutput kernel_accum;
+    GoblinAccumulationOutput kernel_accum;
 
     // Number of function circuits to accumulate(based on Zacs target numbers)
     static constexpr size_t NUM_ITERATIONS_MEDIUM_COMPLEXITY = 6;
@@ -34,7 +34,7 @@ class GoblinBench : public benchmark::Fixture {
      *
      * @param state
      */
-    void perform_goblin_accumulation_rounds(State& state, Goblin& goblin)
+    void perform_goblin_accumulation_rounds(State& state, GoblinProver& goblin)
     {
         auto NUM_CIRCUITS = static_cast<size_t>(state.range(0));
         for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
@@ -63,7 +63,7 @@ class GoblinBench : public benchmark::Fixture {
  */
 BENCHMARK_DEFINE_F(GoblinBench, GoblinFull)(benchmark::State& state)
 {
-    Goblin goblin;
+    GoblinProver goblin;
 
     for (auto _ : state) {
         BB_REPORT_OP_COUNT_IN_BENCH(state);
@@ -81,7 +81,7 @@ BENCHMARK_DEFINE_F(GoblinBench, GoblinFull)(benchmark::State& state)
  */
 BENCHMARK_DEFINE_F(GoblinBench, GoblinAccumulate)(benchmark::State& state)
 {
-    Goblin goblin;
+    GoblinProver goblin;
 
     // Perform a specified number of iterations of function/kernel accumulation
     for (auto _ : state) {
@@ -95,7 +95,7 @@ BENCHMARK_DEFINE_F(GoblinBench, GoblinAccumulate)(benchmark::State& state)
  */
 BENCHMARK_DEFINE_F(GoblinBench, GoblinECCVMProve)(benchmark::State& state)
 {
-    Goblin goblin;
+    GoblinProver goblin;
 
     // Perform a specified number of iterations of function/kernel accumulation
     perform_goblin_accumulation_rounds(state, goblin);
@@ -112,7 +112,7 @@ BENCHMARK_DEFINE_F(GoblinBench, GoblinECCVMProve)(benchmark::State& state)
  */
 BENCHMARK_DEFINE_F(GoblinBench, TranslatorProve)(benchmark::State& state)
 {
-    Goblin goblin;
+    GoblinProver goblin;
 
     // Perform a specified number of iterations of function/kernel accumulation
     perform_goblin_accumulation_rounds(state, goblin);

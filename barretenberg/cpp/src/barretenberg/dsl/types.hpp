@@ -27,7 +27,7 @@
 namespace acir_format {
 
 using Builder = bb::UltraCircuitBuilder;
-using GoblinBuilder = bb::Goblin::Builder;
+using GoblinBuilder = bb::GoblinProver::Builder;
 using Composer = plonk::UltraComposer;
 
 using Prover =

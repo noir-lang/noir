@@ -20,7 +20,7 @@ class MegaMockCircuitsPinning : public ::testing::Test {
 TEST_F(MegaMockCircuitsPinning, FunctionSizes)
 {
     const auto run_test = [](bool large) {
-        Goblin goblin;
+        GoblinProver goblin;
         MegaCircuitBuilder app_circuit{ goblin.op_queue };
         GoblinMockCircuits::construct_mock_function_circuit(app_circuit, large);
         auto instance = std::make_shared<ProverInstance>(app_circuit);
@@ -38,8 +38,8 @@ TEST_F(MegaMockCircuitsPinning, RecursionKernelSizes)
 {
     const auto run_test = [](bool large) {
         {
-            Goblin goblin;
-            Goblin::AccumulationOutput kernel_accum;
+            GoblinProver goblin;
+            GoblinAccumulationOutput kernel_accum;
             MegaCircuitBuilder app_circuit{ goblin.op_queue };
             GoblinMockCircuits::construct_mock_function_circuit(app_circuit, large);
             auto function_accum = goblin.accumulate(app_circuit);

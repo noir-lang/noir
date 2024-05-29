@@ -5,6 +5,7 @@
 #include "barretenberg/eccvm/eccvm_trace_checker.hpp"
 #include "barretenberg/eccvm/eccvm_verifier.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
+#include "barretenberg/goblin/types.hpp"
 #include "barretenberg/plonk_honk_shared/instance_inspector.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
@@ -19,7 +20,7 @@
 
 namespace bb {
 
-class Goblin {
+class GoblinProver {
     using MegaCircuitBuilder = bb::MegaCircuitBuilder;
     using Commitment = MegaFlavor::Commitment;
     using FF = MegaFlavor::FF;
@@ -33,56 +34,29 @@ class Goblin {
     using ECCVMFlavor = bb::ECCVMFlavor;
     using ECCVMBuilder = bb::ECCVMCircuitBuilder;
     using ECCVMProver = bb::ECCVMProver;
+    using ECCVMProvingKey = ECCVMFlavor::ProvingKey;
     using TranslationEvaluations = ECCVMProver::TranslationEvaluations;
     using TranslatorBuilder = bb::TranslatorCircuitBuilder;
     using TranslatorProver = bb::TranslatorProver;
+    using TranslatorProvingKey = bb::TranslatorFlavor::ProvingKey;
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<MegaCircuitBuilder>;
     using MergeProver = bb::MergeProver_<MegaFlavor>;
-    using MergeVerifier = bb::MergeVerifier_<MegaFlavor>;
     using VerificationKey = MegaFlavor::VerificationKey;
     /**
      * @brief Output of goblin::accumulate; an Ultra proof and the corresponding verification key
      *
      */
-    struct AccumulationOutput {
-        HonkProof proof;
-        std::shared_ptr<MegaFlavor::VerificationKey> verification_key;
-    };
-
-    struct Proof {
-        HonkProof merge_proof;
-        HonkProof eccvm_proof;
-        HonkProof translator_proof;
-        TranslationEvaluations translation_evaluations;
-
-        size_t size() const
-        {
-            return merge_proof.size() + eccvm_proof.size() + translator_proof.size() + TranslationEvaluations::size();
-        };
-
-        std::vector<Fr> to_buffer() const
-        {
-            // ACIRHACK: so much copying and duplication added here and elsewhere
-            std::vector<Fr> result;
-            result.reserve(size());
-            const auto insert = [&result](const std::vector<Fr>& buf) {
-                result.insert(result.end(), buf.begin(), buf.end());
-            };
-            insert(merge_proof);
-            insert(eccvm_proof);
-            insert(translator_proof);
-            insert(translation_evaluations.to_buffer());
-            return result;
-        }
-    };
 
     std::shared_ptr<OpQueue> op_queue = std::make_shared<OpQueue>();
 
     HonkProof merge_proof;
-    Proof goblin_proof;
+    GoblinProof goblin_proof;
 
     // on the first call to accumulate there is no merge proof to verify
     bool merge_proof_exists{ false };
+
+    std::shared_ptr<ECCVMProvingKey> get_eccvm_proving_key() const { return eccvm_prover->key; }
+    std::shared_ptr<TranslatorProvingKey> get_translator_proving_key() const { return translator_prover->key; }
 
   private:
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/798) unique_ptr use is a hack
@@ -91,10 +65,10 @@ class Goblin {
     std::unique_ptr<TranslatorProver> translator_prover;
     std::unique_ptr<ECCVMProver> eccvm_prover;
 
-    AccumulationOutput accumulator; // Used only for ACIR methods for now
+    GoblinAccumulationOutput accumulator; // Used only for ACIR methods for now
 
   public:
-    Goblin()
+    GoblinProver()
     { // Mocks the interaction of a first circuit with the op queue due to the inability to currently handle zero
       // commitments (https://github.com/AztecProtocol/barretenberg/issues/871) which would otherwise appear in the
       // first round of the merge protocol. To be removed once the issue has been resolved.
@@ -106,7 +80,7 @@ class Goblin {
      *
      * @param circuit_builder
      */
-    AccumulationOutput accumulate(MegaCircuitBuilder& circuit_builder)
+    GoblinAccumulationOutput accumulate(MegaCircuitBuilder& circuit_builder)
     {
         // Complete the circuit logic by recursively verifying previous merge proof if it exists
         if (merge_proof_exists) {
@@ -197,13 +171,31 @@ class Goblin {
      *
      * @return Proof
      */
-    Proof prove()
+    GoblinProof prove()
     {
         goblin_proof.merge_proof = std::move(merge_proof);
         prove_eccvm();
         prove_translator();
         return goblin_proof;
     };
+};
+
+class GoblinVerifier {
+  public:
+    using ECCVMVerificationKey = ECCVMFlavor::VerificationKey;
+    using TranslatorVerificationKey = bb::TranslatorFlavor::VerificationKey;
+    using MergeVerifier = bb::MergeVerifier_<MegaFlavor>;
+
+  private:
+    std::shared_ptr<ECCVMVerificationKey> eccvm_verification_key;
+    std::shared_ptr<TranslatorVerificationKey> translator_verification_key;
+
+  public:
+    GoblinVerifier(std::shared_ptr<ECCVMVerificationKey> eccvm_verification_key,
+                   std::shared_ptr<TranslatorVerificationKey> translator_verification_key)
+        : eccvm_verification_key(eccvm_verification_key)
+        , translator_verification_key(translator_verification_key)
+    {}
 
     /**
      * @brief Verify a full Goblin proof (ECCVM, Translator, merge)
@@ -212,15 +204,15 @@ class Goblin {
      * @return true
      * @return false
      */
-    bool verify(const Proof& proof)
+    bool verify(const GoblinProof& proof)
     {
         MergeVerifier merge_verifier;
         bool merge_verified = merge_verifier.verify_proof(proof.merge_proof);
 
-        ECCVMVerifier eccvm_verifier(eccvm_prover->key);
+        ECCVMVerifier eccvm_verifier(eccvm_verification_key);
         bool eccvm_verified = eccvm_verifier.verify_proof(proof.eccvm_proof);
 
-        TranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
+        TranslatorVerifier translator_verifier(translator_verification_key, eccvm_verifier.transcript);
 
         bool accumulator_construction_verified = translator_verifier.verify_proof(proof.translator_proof);
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/799): Ensure translation_evaluations are passed
@@ -228,95 +220,6 @@ class Goblin {
         bool translation_verified = translator_verifier.verify_translation(proof.translation_evaluations);
 
         return merge_verified && eccvm_verified && accumulator_construction_verified && translation_verified;
-    };
-
-    // The methods below this point are to be used only for ACIR. They exist while the interface is in flux. Eventually
-    // there will be agreement and no acir-specific methods should be needed.
-
-    /**
-     * @brief Construct a MegaHonk proof for the given circuit. (No merge proof for now)
-     *
-     * @param circuit_builder
-     * @return std::vector<bb::fr>
-     */
-    std::vector<bb::fr> accumulate_for_acir(MegaCircuitBuilder& circuit_builder)
-    {
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): no merge prover for now
-        // // Complete the circuit logic by recursively verifying previous merge proof if it exists
-        // if (merge_proof_exists) {
-        //     RecursiveMergeVerifier merge_verifier{ &circuit_builder };
-        //     [[maybe_unused]] auto pairing_points = merge_verifier.verify_proof(merge_proof);
-        // }
-
-        // Construct a Honk proof for the main circuit
-        auto instance = std::make_shared<MegaProverInstance>(circuit_builder);
-        MegaProver prover(instance);
-        auto ultra_proof = prover.construct_proof();
-        auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
-
-        accumulator = { ultra_proof, verification_key };
-
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): no merge prover for now since we're not
-        // mocking the first set of ecc ops
-        // // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        // MergeProver merge_prover{ op_queue };
-        // merge_proof = merge_prover.construct_proof();
-
-        // if (!merge_proof_exists) {
-        //     merge_proof_exists = true;
-        // }
-
-        return ultra_proof;
-    };
-
-    /**
-     * @brief Verify a MegaHonk proof
-     *
-     * @param proof_buf
-     * @return true
-     * @return false
-     */
-    bool verify_accumulator_for_acir(const std::vector<bb::fr>& proof_buf) const
-    {
-        MegaVerifier verifier{ accumulator.verification_key };
-        HonkProof proof{ proof_buf };
-        bool verified = verifier.verify_proof(proof);
-
-        return verified;
-    }
-
-    /**
-     * @brief Construct a Goblin proof
-     *
-     * @return Proof
-     */
-    Proof prove_for_acir() { return prove(); };
-
-    /**
-     * @brief Verify a Goblin proof (excluding the merge proof for now)
-     *
-     * @return true
-     * @return false
-     */
-    bool verify_for_acir() const
-    {
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): No merge proof for now
-        // MergeVerifier merge_verifier;
-        // bool merge_verified = merge_verifier.verify_proof(goblin_proof.merge_proof);
-
-        ECCVMVerifier eccvm_verifier(eccvm_prover->key);
-        bool eccvm_verified = eccvm_verifier.verify_proof(goblin_proof.eccvm_proof);
-
-        TranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
-
-        bool translation_accumulator_construction_verified =
-            translator_verifier.verify_proof(goblin_proof.translator_proof);
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/799): Ensure translation_evaluations are passed
-        // correctly
-        bool translation_verified = translator_verifier.verify_translation(goblin_proof.translation_evaluations);
-
-        return /* merge_verified && */ eccvm_verified && translation_accumulator_construction_verified &&
-               translation_verified;
     };
 };
 } // namespace bb

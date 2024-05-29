@@ -65,7 +65,10 @@ ClientIVC::Proof ClientIVC::prove()
 bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances)
 {
     // Goblin verification (merge, eccvm, translator)
-    bool goblin_verified = goblin.verify(proof.goblin_proof);
+    auto eccvm_vkey = std::make_shared<ECCVMVerificationKey>(goblin.get_eccvm_proving_key());
+    auto translator_vkey = std::make_shared<TranslatorVerificationKey>(goblin.get_translator_proving_key());
+    GoblinVerifier goblin_verifier{ eccvm_vkey, translator_vkey };
+    bool goblin_verified = goblin_verifier.verify(proof.goblin_proof);
 
     // Decider verification
     ClientIVC::FoldingVerifier folding_verifier({ verifier_instances[0], verifier_instances[1] });

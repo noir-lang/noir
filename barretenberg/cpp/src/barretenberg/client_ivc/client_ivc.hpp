@@ -32,6 +32,8 @@ class ClientIVC {
     using FoldingProver = ProtoGalaxyProver_<ProverInstances>;
     using VerifierInstances = VerifierInstances_<Flavor>;
     using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
+    using ECCVMVerificationKey = bb::ECCVMFlavor::VerificationKey;
+    using TranslatorVerificationKey = bb::TranslatorFlavor::VerificationKey;
 
     using GURecursiveFlavor = MegaRecursiveFlavor_<bb::MegaCircuitBuilder>;
     using RecursiveVerifierInstances = bb::stdlib::recursion::honk::RecursiveVerifierInstances_<GURecursiveFlavor, 2>;
@@ -42,7 +44,7 @@ class ClientIVC {
     struct Proof {
         FoldProof folding_proof; // final fold proof
         HonkProof decider_proof;
-        Goblin::Proof goblin_proof;
+        GoblinProof goblin_proof;
 
         std::vector<FF> to_buffer() const
         {
@@ -66,7 +68,7 @@ class ClientIVC {
     // be needed in the real IVC as they are provided as inputs
 
   public:
-    Goblin goblin;
+    GoblinProver goblin;
     ProverFoldOutput fold_output;
     std::shared_ptr<ProverInstance> prover_accumulator;
     std::shared_ptr<VerifierInstance> verifier_accumulator;
