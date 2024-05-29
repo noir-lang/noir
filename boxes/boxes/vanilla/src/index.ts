@@ -20,7 +20,16 @@ const setWait = (state: boolean): void =>
 document.querySelector('#deploy').addEventListener('click', async ({ target }: any) => {
   setWait(true);
   wallet = await account.register();
-  contract = await VanillaContract.deploy(wallet, Fr.random(), wallet.getCompleteAddress().address, wallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash(), wallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey)
+  const { masterNullifierPublicKey, masterIncomingViewingPublicKey, masterOutgoingViewingPublicKey } =
+    wallet.getCompleteAddress().publicKeys;
+  contract = await VanillaContract.deploy(
+    wallet,
+    Fr.random(),
+    wallet.getCompleteAddress().address,
+    masterNullifierPublicKey.hash(),
+    masterOutgoingViewingPublicKey,
+    masterIncomingViewingPublicKey,
+  )
     .send({ contractAddressSalt: Fr.random() })
     .deployed();
   alert(`Contract deployed at ${contract.address}`);
@@ -36,7 +45,17 @@ document.querySelector('#set').addEventListener('submit', async (e: Event) => {
 
   const { value } = document.querySelector('#number') as HTMLInputElement;
   const { address: owner, publicKeys } = wallet.getCompleteAddress();
-  await contract.methods.setNumber(parseInt(value), owner, publicKeys.masterNullifierPublicKey.hash(), publicKeys.masterIncomingViewingPublicKey).send().wait();
+  const { masterNullifierPublicKey, masterIncomingViewingPublicKey, masterOutgoingViewingPublicKey } = publicKeys;
+  await contract.methods
+    .setNumber(
+      parseInt(value),
+      owner,
+      masterNullifierPublicKey.hash(),
+      masterOutgoingViewingPublicKey,
+      masterIncomingViewingPublicKey,
+    )
+    .send()
+    .wait();
 
   setWait(false);
   alert('Number set!');

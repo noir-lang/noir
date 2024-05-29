@@ -310,12 +310,23 @@ impl PrivateContext {
         contract_address: AztecAddress,
         randomness: Field, // Secret random value used later for masked_contract_address
         event_type_id: Field,
+        ovpk_m: GrumpkinPoint,
         ivpk_m: GrumpkinPoint,
         preimage: [Field; N]
     ) where [Field; N]: LensForEncryptedLog<N, M> {
+        let ovsk_app = self.request_ovsk_app(ovpk_m.hash());
+
         // We are currently just encrypting it EXACTLY the same way as if it was a note.
         let counter = self.next_counter();
-        let encrypted_log: [u8; M] = compute_encrypted_log(contract_address, randomness, event_type_id, ivpk_m, preimage);
+        let encrypted_log: [u8; M] = compute_encrypted_log(
+            contract_address,
+            randomness,
+            event_type_id,
+            ovsk_app,
+            ovpk_m,
+            ivpk_m,
+            preimage
+        );
         emit_encrypted_log(contract_address, randomness, encrypted_log, counter);
         let len = 32 + 32 + 64 + 48 + 48 + 176 + 64 + (preimage.len() as Field * 32) + 16 + 4;
         let log_hash = sha256_to_field(encrypted_log);
@@ -328,6 +339,7 @@ impl PrivateContext {
         contract_address: AztecAddress,
         storage_slot: Field,
         note_type_id: Field,
+        ovpk_m: GrumpkinPoint,
         ivpk_m: GrumpkinPoint,
         note: Note
     ) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
@@ -343,8 +355,18 @@ impl PrivateContext {
         let preimage = note.serialize_content();
         let counter = self.next_counter();
 
+        let ovsk_app = self.request_ovsk_app(ovpk_m.hash());
+
         // TODO(#1139 | #6408): perform encryption in the circuit
-        let encrypted_log: [u8; M] = compute_encrypted_log(contract_address, storage_slot, note_type_id, ivpk_m, preimage);
+        let encrypted_log: [u8; M] = compute_encrypted_log(
+            contract_address,
+            storage_slot,
+            note_type_id,
+            ovsk_app,
+            ovpk_m,
+            ivpk_m,
+            preimage
+        );
         emit_encrypted_note_log(note_hash, encrypted_log, counter);
 
         // Current unoptimized size of the encrypted log
@@ -696,6 +718,7 @@ impl Empty for PrivateContext {
     }
 }
 
+// TODO(#6640)): This should be in its own file
 struct PackedReturns {
   packed_returns: Field,
 }
@@ -725,6 +748,7 @@ impl PackedReturns {
     }
 }
 
+// TODO(#6640)): This should not be here but in oracle folder
 #[oracle(emitUnencryptedLog)]
 fn emit_unencrypted_log_oracle_private<T>(
     _contract_address: AztecAddress,

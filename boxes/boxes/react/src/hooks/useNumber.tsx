@@ -25,11 +25,25 @@ export function useNumber({ contract }: { contract: Contract }) {
 
       const value = BigInt(el.value);
       const deployerWallet = await deployerEnv.getWallet();
-      await toast.promise(contract!.methods.setNumber(value, deployerWallet.getCompleteAddress().address, deployerWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash(), deployerWallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey).send().wait(), {
-        pending: 'Setting number...',
-        success: `Number set to: ${value}`,
-        error: 'Error setting number',
-      });
+      const { masterNullifierPublicKey, masterIncomingViewingPublicKey, masterOutgoingViewingPublicKey } =
+        deployerWallet.getCompleteAddress().publicKeys;
+      await toast.promise(
+        contract!.methods
+          .setNumber(
+            value,
+            deployerWallet.getCompleteAddress().address,
+            masterNullifierPublicKey.hash(),
+            masterOutgoingViewingPublicKey,
+            masterIncomingViewingPublicKey,
+          )
+          .send()
+          .wait(),
+        {
+          pending: 'Setting number...',
+          success: `Number set to: ${value}`,
+          error: 'Error setting number',
+        },
+      );
       setWait(false);
     }
   };

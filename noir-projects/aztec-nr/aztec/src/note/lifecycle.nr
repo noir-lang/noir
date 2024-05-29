@@ -11,6 +11,7 @@ pub fn create_note<Note, N, M>(
     storage_slot: Field,
     note: &mut Note,
     broadcast: bool,
+    ovpk_m: GrumpkinPoint,
     ivpk_m: GrumpkinPoint
 ) where Note: NoteInterface<N, M> {
     let contract_address = (*context).this_address();
@@ -38,7 +39,7 @@ pub fn create_note<Note, N, M>(
     context.push_new_note_hash(inner_note_hash);
 
     if broadcast {
-        Note::broadcast(*note, context, storage_slot, ivpk_m);
+        Note::broadcast(*note, context, storage_slot, ovpk_m, ivpk_m);
     }
 }
 

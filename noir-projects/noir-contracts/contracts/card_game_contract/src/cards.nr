@@ -106,12 +106,13 @@ impl Deck<&mut PrivateContext> {
     pub fn add_cards<N>(&mut self, cards: [Card; N], owner: AztecAddress) -> [CardNote] {
         let header = self.set.context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(self.set.context, owner);
+        let msg_sender_ovpk_m = header.get_ovpk_m(self.set.context, self.set.context.msg_sender());
         let owner_ivpk_m = header.get_ivpk_m(self.set.context, owner);
 
         let mut inserted_cards = &[];
         for card in cards {
             let mut card_note = CardNote::from_card(card, owner_npk_m_hash);
-            self.set.insert(&mut card_note.note, true, owner_ivpk_m);
+            self.set.insert(&mut card_note.note, true, msg_sender_ovpk_m, owner_ivpk_m);
             inserted_cards = inserted_cards.push_back(card_note);
         }
 

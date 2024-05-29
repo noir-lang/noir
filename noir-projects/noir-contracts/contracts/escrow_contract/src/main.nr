@@ -17,10 +17,11 @@ contract Escrow {
     fn constructor(owner: AztecAddress) {
         let header = context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = AddressNote::new(owner, owner_npk_m_hash);
-        storage.owner.initialize(&mut note, true, owner_ivpk_m);
+        storage.owner.initialize(&mut note, true, msg_sender_ovpk_m, owner_ivpk_m);
     }
 
     // Withdraws balance. Requires that msg.sender is the owner.

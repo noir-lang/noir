@@ -83,7 +83,11 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     const deployedContract = await deployContract();
 
-    await deployedContract.methods.test_insert_then_get_then_nullify_flat(mintAmount, owner).send().wait();
+    const outgoingViewer = owner;
+    await deployedContract.methods
+      .test_insert_then_get_then_nullify_flat(mintAmount, owner, outgoingViewer)
+      .send()
+      .wait();
   });
 
   it('Squash! Aztec.nr function can "create" and "nullify" note in the same TX', async () => {
@@ -93,10 +97,12 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     const deployedContract = await deployContract();
 
+    const outgoingViewer = owner;
     await deployedContract.methods
       .test_insert_then_get_then_nullify_all_in_nested_calls(
         mintAmount,
         owner,
+        outgoingViewer,
         deployedContract.methods.insert_note.selector,
         deployedContract.methods.get_then_nullify_note.selector,
       )
@@ -118,10 +124,12 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     const deployedContract = await deployContract();
 
+    const outgoingViewer = owner;
     await deployedContract.methods
       .test_insert2_then_get2_then_nullify2_all_in_nested_calls(
         mintAmount,
         owner,
+        outgoingViewer,
         deployedContract.methods.insert_note.selector,
         deployedContract.methods.get_then_nullify_note.selector,
       )
@@ -141,10 +149,12 @@ describe('e2e_pending_note_hashes_contract', () => {
 
     const deployedContract = await deployContract();
 
+    const outgoingViewer = owner;
     await deployedContract.methods
       .test_insert2_then_get2_then_nullify1_all_in_nested_calls(
         mintAmount,
         owner,
+        outgoingViewer,
         deployedContract.methods.insert_note.selector,
         deployedContract.methods.get_then_nullify_note.selector,
       )
@@ -167,7 +177,8 @@ describe('e2e_pending_note_hashes_contract', () => {
     const deployedContract = await deployContract();
 
     // create persistent note
-    await deployedContract.methods.insert_note(mintAmount, owner).send().wait();
+    const outgoingViewer = owner;
+    await deployedContract.methods.insert_note(mintAmount, owner, outgoingViewer).send().wait();
 
     await expectNoteHashesSquashedExcept(1); // first TX just creates 1 persistent note
     await expectNullifiersSquashedExcept(0);
@@ -178,6 +189,7 @@ describe('e2e_pending_note_hashes_contract', () => {
       .test_insert1_then_get2_then_nullify2_all_in_nested_calls(
         mintAmount,
         owner,
+        outgoingViewer,
         deployedContract.methods.insert_note.selector,
         deployedContract.methods.get_then_nullify_note.selector,
       )
@@ -204,7 +216,8 @@ describe('e2e_pending_note_hashes_contract', () => {
     const mintAmount = 65n;
 
     const deployedContract = await deployContract();
-    await deployedContract.methods.insert_note(mintAmount, owner).send().wait();
+    const outgoingViewer = owner;
+    await deployedContract.methods.insert_note(mintAmount, owner, outgoingViewer).send().wait();
 
     // There is a single new note hash.
     await expectNoteHashesSquashedExcept(1);
@@ -214,6 +227,7 @@ describe('e2e_pending_note_hashes_contract', () => {
       .test_insert_then_get_then_nullify_all_in_nested_calls(
         mintAmount,
         owner,
+        outgoingViewer,
         deployedContract.methods.dummy.selector,
         deployedContract.methods.get_then_nullify_note.selector,
       )
@@ -225,11 +239,13 @@ describe('e2e_pending_note_hashes_contract', () => {
   });
 
   it('Should handle overflowing the kernel data structures in nested calls', async () => {
+    // Setting the outgoing viewer to owner not have to bother with setting up another account.
+    const outgoingViewer = owner;
     const notesPerIteration = Math.min(MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
     const minToNeedReset = Math.min(MAX_NEW_NOTE_HASHES_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX) + 1;
     const deployedContract = await deployContract();
     await deployedContract.methods
-      .test_recursively_create_notes(owner, Math.ceil(minToNeedReset / notesPerIteration))
+      .test_recursively_create_notes(owner, outgoingViewer, Math.ceil(minToNeedReset / notesPerIteration))
       .send()
       .wait();
   });

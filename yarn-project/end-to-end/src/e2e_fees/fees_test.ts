@@ -284,7 +284,10 @@ export class FeesTest {
       'setup_subscription',
       async () => {
         // Deploy counter contract for testing with Bob as owner
-        const counterContract = await CounterContract.deploy(this.bobWallet, 0, this.bobAddress).send().deployed();
+        // Emitting the outgoing logs to Bob below since we need someone to emit them to.
+        const counterContract = await CounterContract.deploy(this.bobWallet, 0, this.bobAddress, this.bobAddress)
+          .send()
+          .deployed();
 
         // Deploy subscription contract, that allows subscriptions for SUBSCRIPTION_AMOUNT of bananas
         const subscriptionContract = await AppSubscriptionContract.deploy(

@@ -26,6 +26,7 @@ import {
   StateReference,
   TxContext,
   computeAppNullifierSecretKey,
+  computeOvskApp,
   deriveKeys,
   getContractInstanceFromDeployParams,
   getNonEmptyItems,
@@ -82,8 +83,10 @@ describe('Private Execution test suite', () => {
   let ownerCompleteAddress: CompleteAddress;
   let recipientCompleteAddress: CompleteAddress;
 
-  let ownerMasterNullifierSecretKey: GrumpkinPrivateKey;
-  let recipientMasterNullifierSecretKey: GrumpkinPrivateKey;
+  let ownerNskM: GrumpkinPrivateKey;
+  let ownerOvskM: GrumpkinPrivateKey;
+  let recipientNskM: GrumpkinPrivateKey;
+  let recipientOvskM: GrumpkinPrivateKey;
 
   const treeHeights: { [name: string]: number } = {
     noteHash: NOTE_HASH_TREE_HEIGHT,
@@ -178,11 +181,12 @@ describe('Private Execution test suite', () => {
 
     const ownerPartialAddress = Fr.random();
     ownerCompleteAddress = CompleteAddress.fromSecretKeyAndPartialAddress(ownerSk, ownerPartialAddress);
-    ownerMasterNullifierSecretKey = deriveKeys(ownerSk).masterNullifierSecretKey;
+    ({ masterNullifierSecretKey: ownerNskM, masterOutgoingViewingSecretKey: ownerOvskM } = deriveKeys(ownerSk));
 
     const recipientPartialAddress = Fr.random();
     recipientCompleteAddress = CompleteAddress.fromSecretKeyAndPartialAddress(recipientSk, recipientPartialAddress);
-    recipientMasterNullifierSecretKey = deriveKeys(recipientSk).masterNullifierSecretKey;
+    ({ masterNullifierSecretKey: recipientNskM, masterOutgoingViewingSecretKey: recipientOvskM } =
+      deriveKeys(recipientSk));
 
     owner = ownerCompleteAddress.address;
     recipient = recipientCompleteAddress.address;
@@ -190,25 +194,44 @@ describe('Private Execution test suite', () => {
 
   beforeEach(async () => {
     trees = {};
+    // TODO(#6640) most of the oracles bellow seem to be stateless - move to beforeAll
     oracle = mock<DBOracle>();
-    oracle.getKeyValidationRequest.mockImplementation((npkMHash: Fr, contractAddress: AztecAddress) => {
-      if (npkMHash.equals(ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
+    oracle.getKeyValidationRequest.mockImplementation((pkMHash: Fr, contractAddress: AztecAddress) => {
+      if (pkMHash.equals(ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
         return Promise.resolve(
           new KeyValidationRequest(
             ownerCompleteAddress.publicKeys.masterNullifierPublicKey,
-            computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
+            computeAppNullifierSecretKey(ownerNskM, contractAddress),
           ),
         );
       }
-      if (npkMHash.equals(recipientCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
+      if (pkMHash.equals(ownerCompleteAddress.publicKeys.masterOutgoingViewingPublicKey.hash())) {
+        return Promise.resolve(
+          new KeyValidationRequest(
+            ownerCompleteAddress.publicKeys.masterOutgoingViewingPublicKey,
+            // TODO(#6640)): nuke this ugly conversion
+            Fr.fromBuffer(computeOvskApp(ownerOvskM, contractAddress).toBuffer()),
+          ),
+        );
+      }
+      if (pkMHash.equals(recipientCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
         return Promise.resolve(
           new KeyValidationRequest(
             recipientCompleteAddress.publicKeys.masterNullifierPublicKey,
-            computeAppNullifierSecretKey(recipientMasterNullifierSecretKey, contractAddress),
+            computeAppNullifierSecretKey(recipientNskM, contractAddress),
           ),
         );
       }
-      throw new Error(`Unknown master nullifier public key hash: ${npkMHash}`);
+      if (pkMHash.equals(recipientCompleteAddress.publicKeys.masterOutgoingViewingPublicKey.hash())) {
+        return Promise.resolve(
+          new KeyValidationRequest(
+            recipientCompleteAddress.publicKeys.masterOutgoingViewingPublicKey,
+            // TODO(#6640)): nuke this ugly conversion
+            Fr.fromBuffer(computeOvskApp(recipientOvskM, contractAddress).toBuffer()),
+          ),
+        );
+      }
+      throw new Error(`Unknown master public key hash: ${pkMHash}`);
     });
 
     // We call insertLeaves here with no leaves to populate empty public data tree root --> this is necessary to be
@@ -223,7 +246,7 @@ describe('Private Execution test suite', () => {
       if (address.equals(recipient)) {
         return Promise.resolve(recipientCompleteAddress);
       }
-      throw new Error(`Unknown address: ${address}`);
+      throw new Error(`Unknown address: ${address}. Recipient: ${recipient}, Owner: ${owner}`);
     });
     // This oracle gets called when reading ivpk_m from key registry --> we return zero witness indicating that
     // the keys were not registered. This triggers non-registered keys flow in which getCompleteAddress oracle
@@ -279,7 +302,9 @@ describe('Private Execution test suite', () => {
       // NB: this test does NOT cover correct enc/dec of values, just whether
       // the kernels correctly populate non-note encrypted logs
       const artifact = getFunctionArtifact(TestContractArtifact, 'emit_array_as_encrypted_log');
-      const args = [times(5, () => Fr.random()), owner, false];
+      // We emit the outgoing here to recipient for no reason at all
+      const outgoingViewer = recipient;
+      const args = [times(5, () => Fr.random()), owner, outgoingViewer, false];
       const result = await runSimulator({ artifact, msgSender: owner, args });
 
       const newEncryptedLogs = getNonEmptyItems(result.callStackItem.publicInputs.encryptedLogsHashes);
@@ -338,7 +363,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should have a constructor with arguments that inserts notes', async () => {
-      const initArgs = [owner, 140];
+      const initArgs = [owner, owner, 140];
       const instance = getContractInstanceFromDeployParams(StatefulTestContractArtifact, { constructorArgs: initArgs });
       oracle.getContractInstance.mockResolvedValue(instance);
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'constructor');
@@ -348,6 +373,7 @@ describe('Private Execution test suite', () => {
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
+      // TODO(#6640)): update the constants here
       expect(newNote.noteTypeId).toEqual(new Fr(869710811710178111116101n)); // ValueNote
 
       const newNoteHashes = getNonEmptyItems(result.callStackItem.publicInputs.newNoteHashes);
@@ -373,11 +399,12 @@ describe('Private Execution test suite', () => {
     it('should run the create_note function', async () => {
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'create_note_no_init_check');
 
-      const result = await runSimulator({ args: [owner, 140], artifact });
+      const result = await runSimulator({ args: [owner, owner, 140], artifact });
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
+      // TODO(#6640): update the constants here
       expect(newNote.noteTypeId).toEqual(new Fr(869710811710178111116101n)); // ValueNote
 
       const newNoteHashes = getNonEmptyItems(result.callStackItem.publicInputs.newNoteHashes);
@@ -934,7 +961,8 @@ describe('Private Execution test suite', () => {
       const contractAddress = AztecAddress.random();
       const artifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'test_insert_then_get_then_nullify_flat');
 
-      const args = [amountToTransfer, owner];
+      const outgoingViewer = owner;
+      const args = [amountToTransfer, owner, outgoingViewer];
       const result = await runSimulator({
         args: args,
         artifact: artifact,
@@ -982,7 +1010,7 @@ describe('Private Execution test suite', () => {
       const nullifier = result.callStackItem.publicInputs.newNullifiers[0];
       const expectedNullifier = poseidon2Hash([
         innerNoteHash,
-        computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
+        computeAppNullifierSecretKey(ownerNskM, contractAddress),
         GeneratorIndex.NOTE_NULLIFIER,
       ]);
       expect(nullifier.value).toEqual(expectedNullifier);
@@ -1008,7 +1036,14 @@ describe('Private Execution test suite', () => {
         getThenNullifyArtifact.parameters,
       );
 
-      const args = [amountToTransfer, owner, insertFnSelector.toField(), getThenNullifyFnSelector.toField()];
+      const outgoingViewer = owner;
+      const args = [
+        amountToTransfer,
+        owner,
+        outgoingViewer,
+        insertFnSelector.toField(),
+        getThenNullifyFnSelector.toField(),
+      ];
       const result = await runSimulator({
         args: args,
         artifact: artifact,
@@ -1060,7 +1095,7 @@ describe('Private Execution test suite', () => {
       const nullifier = execGetThenNullify.callStackItem.publicInputs.newNullifiers[0];
       const expectedNullifier = poseidon2Hash([
         innerNoteHash,
-        computeAppNullifierSecretKey(ownerMasterNullifierSecretKey, contractAddress),
+        computeAppNullifierSecretKey(ownerNskM, contractAddress),
         GeneratorIndex.NOTE_NULLIFIER,
       ]);
       expect(nullifier.value).toEqual(expectedNullifier);

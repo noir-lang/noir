@@ -89,11 +89,12 @@ export class EncryptedLogOutgoingBody {
    *
    * @param ovskApp - The app siloed outgoing viewing secret key
    * @param ephPk - The ephemeral public key
-   * @returns
+   * @returns The derived AES symmetric key
    */
-  static derivePoseidonAESSecret(ovskApp: GrumpkinPrivateKey, ephPk: PublicKey) {
-    // For performance reasons, we do NOT use the usual `deriveAESSecret` function here
-    // Instead we compute the using using poseidon
+  private static derivePoseidonAESSecret(ovskApp: GrumpkinPrivateKey, ephPk: PublicKey) {
+    // For performance reasons, we do NOT use the usual `deriveAESSecret` function here and instead we compute it using
+    // poseidon. Note that we can afford to use poseidon here instead of deriving shared secret using Diffie-Hellman
+    // because for outgoing we are encrypting for ourselves and hence we don't need to perform a key exchange.
     return poseidon2Hash([ovskApp.high, ovskApp.low, ephPk.x, ephPk.y, GeneratorIndex.SYMMETRIC_KEY]).toBuffer();
   }
 }

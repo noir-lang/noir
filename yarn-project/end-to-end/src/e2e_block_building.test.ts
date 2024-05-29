@@ -52,7 +52,10 @@ describe('e2e_block_building', () => {
       const TX_COUNT = 8;
       await aztecNode.setConfig({ minTxsPerBlock: TX_COUNT });
       const deployer = new ContractDeployer(artifact, owner);
-      const methods = times(TX_COUNT, i => deployer.deploy(owner.getCompleteAddress().address, i));
+
+      const ownerAddress = owner.getCompleteAddress().address;
+      const outgoingViewer = ownerAddress;
+      const methods = times(TX_COUNT, i => deployer.deploy(ownerAddress, outgoingViewer, i));
       for (let i = 0; i < TX_COUNT; i++) {
         await methods[i].create({
           contractAddressSalt: new Fr(BigInt(i + 1)),
@@ -264,9 +267,10 @@ describe('e2e_block_building', () => {
       const account = getSchnorrAccount(pxe, privateKey, keys.masterIncomingViewingSecretKey);
       await account.deploy().wait();
       const thisWallet = await account.getWallet();
+      const outgoingViewer = thisWallet.getAddress();
 
       // call test contract
-      const action = testContract.methods.emit_encrypted_logs_nested(10, thisWallet.getAddress());
+      const action = testContract.methods.emit_encrypted_logs_nested(10, thisWallet.getAddress(), outgoingViewer);
       const tx = await action.prove();
       const rct = await action.send().wait();
 
@@ -288,9 +292,15 @@ describe('e2e_block_building', () => {
       const account = getSchnorrAccount(pxe, privateKey, keys.masterIncomingViewingSecretKey);
       await account.deploy().wait();
       const thisWallet = await account.getWallet();
+      const outgoingViewer = thisWallet.getAddress();
 
       // call test contract
-      const action = testContract.methods.emit_array_as_encrypted_log([5, 4, 3, 2, 1], thisWallet.getAddress(), true);
+      const action = testContract.methods.emit_array_as_encrypted_log(
+        [5, 4, 3, 2, 1],
+        thisWallet.getAddress(),
+        outgoingViewer,
+        true,
+      );
       const tx = await action.prove();
       const rct = await action.send().wait();
 
@@ -316,7 +326,7 @@ async function sendAndWait(calls: ContractFunctionInteraction[]) {
     calls
       // First we send them all.
       .map(call => call.send())
-      // Onlt then we wait.
+      // Only then we wait.
       .map(p => p.wait()),
   );
 }

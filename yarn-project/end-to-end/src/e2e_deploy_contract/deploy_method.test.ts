@@ -1,4 +1,4 @@
-import { type DebugLogger, type PXE, type Wallet } from '@aztec/aztec.js';
+import { AztecAddress, type DebugLogger, type PXE, type Wallet } from '@aztec/aztec.js';
 import { CounterContract, StatefulTestContract } from '@aztec/noir-contracts.js';
 import { TestContract } from '@aztec/noir-contracts.js/Test';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
@@ -12,6 +12,8 @@ describe('e2e_deploy_contract deploy method', () => {
   let logger: DebugLogger;
   let wallet: Wallet;
 
+  const ignoredArg = AztecAddress.random();
+
   beforeAll(async () => {
     ({ pxe, logger, wallet } = await t.setup());
   });
@@ -21,7 +23,7 @@ describe('e2e_deploy_contract deploy method', () => {
   it('publicly deploys and initializes a contract', async () => {
     const owner = wallet.getAddress();
     logger.debug(`Deploying stateful test contract`);
-    const contract = await StatefulTestContract.deploy(wallet, owner, 42).send().deployed();
+    const contract = await StatefulTestContract.deploy(wallet, owner, owner, 42).send().deployed();
     expect(await contract.methods.summed_values(owner).simulate()).toEqual(42n);
     logger.debug(`Calling public method on stateful test contract at ${contract.address.toString()}`);
     await contract.methods.increment_public_value(owner, 84).send().wait();
@@ -31,7 +33,7 @@ describe('e2e_deploy_contract deploy method', () => {
   it('publicly universally deploys and initializes a contract', async () => {
     const owner = wallet.getAddress();
     const opts = { universalDeploy: true };
-    const contract = await StatefulTestContract.deploy(wallet, owner, 42).send(opts).deployed();
+    const contract = await StatefulTestContract.deploy(wallet, owner, owner, 42).send(opts).deployed();
     expect(await contract.methods.summed_values(owner).simulate()).toEqual(42n);
     await contract.methods.increment_public_value(owner, 84).send().wait();
     expect(await contract.methods.get_public_value(owner).simulate()).toEqual(84n);
@@ -46,21 +48,31 @@ describe('e2e_deploy_contract deploy method', () => {
   it('publicly deploys and initializes via a public function', async () => {
     const owner = wallet.getAddress();
     logger.debug(`Deploying contract via a public constructor`);
-    const contract = await StatefulTestContract.deployWithOpts({ wallet, method: 'public_constructor' }, owner, 42)
+    const contract = await StatefulTestContract.deployWithOpts(
+      { wallet, method: 'public_constructor' },
+      owner,
+      ignoredArg,
+      42,
+    )
       .send()
       .deployed();
     expect(await contract.methods.get_public_value(owner).simulate()).toEqual(42n);
     logger.debug(`Calling a private function to ensure the contract was properly initialized`);
-    await contract.methods.create_note(owner, 30).send().wait();
+    const outgoingViewer = owner;
+    await contract.methods.create_note(owner, outgoingViewer, 30).send().wait();
     expect(await contract.methods.summed_values(owner).simulate()).toEqual(30n);
   });
 
   it('deploys a contract with a default initializer not named constructor', async () => {
     logger.debug(`Deploying contract with a default initializer named initialize`);
     const opts = { skipClassRegistration: true, skipPublicDeployment: true };
-    const contract = await CounterContract.deploy(wallet, 10, wallet.getAddress()).send(opts).deployed();
+    // Emitting the outgoing logs to the same address as owner to avoid having to set up another account.
+    const contract = await CounterContract.deploy(wallet, 10, wallet.getAddress(), wallet.getAddress())
+      .send(opts)
+      .deployed();
     logger.debug(`Calling a function to ensure the contract was properly initialized`);
-    await contract.methods.increment(wallet.getAddress()).send().wait();
+    // Emitting the outgoing logs to the same address as owner to avoid having to set up another account.
+    await contract.methods.increment(wallet.getAddress(), wallet.getAddress()).send().wait();
     expect(await contract.methods.get_counter(wallet.getAddress()).simulate()).toEqual(11n);
   });
 

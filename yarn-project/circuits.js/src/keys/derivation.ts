@@ -28,11 +28,15 @@ export function computeIvpkApp(ivpk: PublicKey, address: AztecAddress) {
 
 export function computeIvskApp(ivsk: GrumpkinPrivateKey, address: AztecAddress) {
   const ivpk = curve.mul(Grumpkin.generator, ivsk);
+  // Here we are intentionally converting Fr (output of poseidon) to Fq. This is fine even though a distribution of
+  // P = s * G will not be uniform because 2 * (q - r) / q is small.
   const I = Fq.fromBuffer(poseidon2Hash([address.toField(), ivpk.x, ivpk.y, GeneratorIndex.IVSK_M]).toBuffer());
   return new Fq((I.toBigInt() + ivsk.toBigInt()) % Fq.MODULUS);
 }
 
 export function computeOvskApp(ovsk: GrumpkinPrivateKey, address: AztecAddress) {
+  // Here we are intentionally converting Fr (output of poseidon) to Fq. This is fine even though a distribution of
+  // P = s * G will not be uniform because 2 * (q - r) / q is small.
   return GrumpkinPrivateKey.fromBuffer(
     poseidon2Hash([address.toField(), ovsk.high, ovsk.low, GeneratorIndex.OVSK_M]).toBuffer(),
   );

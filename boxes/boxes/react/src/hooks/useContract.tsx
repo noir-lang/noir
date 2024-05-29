@@ -15,7 +15,16 @@ export function useContract() {
     setWait(true);
     const wallet = await deployerEnv.getWallet();
     const salt = Fr.random();
-    const tx = await BoxReactContract.deploy(wallet, Fr.random(), wallet.getCompleteAddress().address, wallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash(), wallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey).send({
+    const { masterNullifierPublicKey, masterIncomingViewingPublicKey, masterOutgoingViewingPublicKey } =
+      wallet.getCompleteAddress().publicKeys;
+    const tx = await BoxReactContract.deploy(
+      wallet,
+      Fr.random(),
+      wallet.getCompleteAddress().address,
+      masterNullifierPublicKey.hash(),
+      masterOutgoingViewingPublicKey,
+      masterIncomingViewingPublicKey,
+    ).send({
       contractAddressSalt: salt,
     });
     const contract = await toast.promise(tx.deployed(), {

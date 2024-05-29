@@ -1,4 +1,9 @@
-import { type AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import {
+  type AztecAddress,
+  type GrumpkinPrivateKey,
+  type KeyValidationRequest,
+  type PublicKey,
+} from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -46,12 +51,12 @@ export class TaggedNote {
     ephSk: GrumpkinPrivateKey,
     recipient: AztecAddress,
     ivpk: PublicKey,
-    ovsk: GrumpkinPrivateKey,
+    ovKeys: KeyValidationRequest,
   ): Buffer {
     return serializeToBuffer(
       this.incomingTag,
       this.outgoingTag,
-      this.notePayload.encrypt(ephSk, recipient, ivpk, ovsk),
+      this.notePayload.encrypt(ephSk, recipient, ivpk, ovKeys),
     );
   }
 

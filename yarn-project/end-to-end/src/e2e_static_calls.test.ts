@@ -1,4 +1,4 @@
-import { type Wallet } from '@aztec/aztec.js';
+import { type AztecAddress, type Wallet } from '@aztec/aztec.js';
 import { StaticChildContract, StaticParentContract } from '@aztec/noir-contracts.js';
 
 import { STATIC_CALL_STATE_MODIFICATION_ERROR, STATIC_CONTEXT_ASSERTION_ERROR } from './fixtures/fixtures.js';
@@ -9,27 +9,31 @@ describe('e2e_static_calls', () => {
   let parentContract: StaticParentContract;
   let childContract: StaticChildContract;
   let teardown: () => Promise<void>;
+  let owner: AztecAddress;
+  let outgoingViewer: AztecAddress;
 
   beforeAll(async () => {
     ({ teardown, wallet } = await setup());
-    parentContract = await StaticParentContract.deploy(wallet).send().deployed();
+    owner = wallet.getCompleteAddress().address;
+    // Setting the outgoing viewer to owner not have to bother with setting up another account.
+    (outgoingViewer = owner), (parentContract = await StaticParentContract.deploy(wallet).send().deployed());
     childContract = await StaticChildContract.deploy(wallet).send().deployed();
 
     // We create a note in the set, such that later reads doesn't fail due to get_notes returning 0 notes
-    await childContract.methods.private_set_value(42n, wallet.getCompleteAddress().address).send().wait();
+    await childContract.methods.private_set_value(42n, owner, outgoingViewer).send().wait();
   });
 
   afterAll(() => teardown());
 
   describe('direct view calls to child', () => {
     it('performs legal private static calls', async () => {
-      await childContract.methods.private_get_value(42n, wallet.getCompleteAddress().address).send().wait();
+      await childContract.methods.private_get_value(42n, owner).send().wait();
     });
 
     it('fails when performing non-static calls to poorly written static private functions', async () => {
-      await expect(
-        childContract.methods.private_illegal_set_value(42n, wallet.getCompleteAddress().address).send().wait(),
-      ).rejects.toThrow(STATIC_CALL_STATE_MODIFICATION_ERROR);
+      await expect(childContract.methods.private_illegal_set_value(42n, owner).send().wait()).rejects.toThrow(
+        STATIC_CALL_STATE_MODIFICATION_ERROR,
+      );
     });
 
     it('performs legal public static calls', async () => {
@@ -47,25 +51,19 @@ describe('e2e_static_calls', () => {
     it('performs legal private to private static calls', async () => {
       // Using low level calls
       await parentContract.methods
-        .private_static_call(childContract.address, childContract.methods.private_get_value.selector, [
-          42n,
-          wallet.getCompleteAddress().address,
-        ])
+        .private_static_call(childContract.address, childContract.methods.private_get_value.selector, [42n, owner])
         .send()
         .wait();
 
       // Using the contract interface
-      await parentContract.methods
-        .private_get_value_from_child(childContract.address, 42n, wallet.getCompleteAddress().address)
-        .send()
-        .wait();
+      await parentContract.methods.private_get_value_from_child(childContract.address, 42n, owner).send().wait();
     });
 
     it('performs legal (nested) private to private static calls', async () => {
       await parentContract.methods
         .private_nested_static_call(childContract.address, childContract.methods.private_get_value.selector, [
           42n,
-          wallet.getCompleteAddress().address,
+          owner,
         ])
         .send()
         .wait();
@@ -114,9 +112,10 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal private to private static calls', async () => {
       await expect(
         parentContract.methods
-          .private_static_call(childContract.address, childContract.methods.private_set_value.selector, [
+          .private_static_call_3_args(childContract.address, childContract.methods.private_set_value.selector, [
             42n,
-            wallet.getCompleteAddress().address,
+            owner,
+            outgoingViewer,
           ])
           .send()
           .wait(),
@@ -126,10 +125,7 @@ describe('e2e_static_calls', () => {
     it('fails when performing non-static calls to poorly written private static functions', async () => {
       await expect(
         parentContract.methods
-          .private_call(childContract.address, childContract.methods.private_illegal_set_value.selector, [
-            42n,
-            wallet.getCompleteAddress().address,
-          ])
+          .private_call(childContract.address, childContract.methods.private_illegal_set_value.selector, [42n, owner])
           .send()
           .wait(),
       ).rejects.toThrow(STATIC_CONTEXT_ASSERTION_ERROR);
@@ -138,9 +134,10 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal (nested) private to private static calls', async () => {
       await expect(
         parentContract.methods
-          .private_nested_static_call(childContract.address, childContract.methods.private_set_value.selector, [
+          .private_nested_static_call_3_args(childContract.address, childContract.methods.private_set_value.selector, [
             42n,
-            wallet.getCompleteAddress().address,
+            owner,
+            outgoingViewer,
           ])
           .send()
           .wait(),
@@ -192,10 +189,7 @@ describe('e2e_static_calls', () => {
     it('fails when performing non-static enqueue calls to poorly written public static functions', async () => {
       await expect(
         parentContract.methods
-          .enqueue_call(childContract.address, childContract.methods.pub_illegal_inc_value.selector, [
-            42n,
-            wallet.getCompleteAddress().address,
-          ])
+          .enqueue_call(childContract.address, childContract.methods.pub_illegal_inc_value.selector, [42n, owner])
           .send()
           .wait(),
       ).rejects.toThrow(STATIC_CONTEXT_ASSERTION_ERROR);

@@ -82,7 +82,8 @@ describe('e2e_2_pxes', () => {
     const contract = await TokenContract.deploy(walletA, admin, 'TokenName', 'TokenSymbol', 18).send().deployed();
 
     if (initialAdminBalance > 0n) {
-      await mintTokens(contract, admin, initialAdminBalance, pxe);
+      // Minter is minting to herself so contract as minter is the same as contract as recipient
+      await mintTokens(contract, contract, admin, initialAdminBalance, pxe);
     }
 
     logger.info('L2 contract deployed');
@@ -90,24 +91,30 @@ describe('e2e_2_pxes', () => {
     return contract.instance;
   };
 
-  const mintTokens = async (contract: TokenContract, recipient: AztecAddress, balance: bigint, pxe: PXE) => {
+  const mintTokens = async (
+    contractAsMinter: TokenContract,
+    contractAsRecipient: TokenContract,
+    recipient: AztecAddress,
+    balance: bigint,
+    recipientPxe: PXE,
+  ) => {
     const secret = Fr.random();
     const secretHash = computeSecretHash(secret);
 
-    const receipt = await contract.methods.mint_private(balance, secretHash).send().wait();
+    const receipt = await contractAsMinter.methods.mint_private(balance, secretHash).send().wait();
 
     const note = new Note([new Fr(balance), secretHash]);
     const extendedNote = new ExtendedNote(
       note,
       recipient,
-      contract.address,
+      contractAsMinter.address,
       TokenContract.storage.pending_shields.slot,
       TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
-    await pxe.addNote(extendedNote);
+    await recipientPxe.addNote(extendedNote);
 
-    await contract.methods.redeem_shield(recipient, balance, secret).send().wait();
+    await contractAsRecipient.methods.redeem_shield(recipient, balance, secret).send().wait();
   };
 
   it('transfers funds from user A to B via PXE A followed by transfer from B to A via PXE B', async () => {
@@ -207,7 +214,7 @@ describe('e2e_2_pxes', () => {
     expect(storedValueOnA).toEqual(newValueToSet);
   });
 
-  it('private state is "zero" when Private eXecution Environment (PXE) does not have the account private key', async () => {
+  it('private state is "zero" when PXE does not have the account secret key', async () => {
     const userABalance = 100n;
     const userBBalance = 150n;
 
@@ -226,14 +233,15 @@ describe('e2e_2_pxes', () => {
     });
 
     // Mint tokens to user B
-    await mintTokens(contractWithWalletA, walletB.getAddress(), userBBalance, pxeA);
+    const contractWithWalletB = await TokenContract.at(tokenInstance.address, walletB);
+    await mintTokens(contractWithWalletA, contractWithWalletB, walletB.getAddress(), userBBalance, pxeB);
 
     // Check that user A balance is 100 on server A
     await expectTokenBalance(walletA, tokenInstance.address, walletA.getAddress(), userABalance);
     // Check that user B balance is 150 on server B
     await expectTokenBalance(walletB, tokenInstance.address, walletB.getAddress(), userBBalance);
 
-    // CHECK THAT PRIVATE BALANCES ARE 0 WHEN ACCOUNT'S PRIVATE KEYS ARE NOT REGISTERED
+    // CHECK THAT PRIVATE BALANCES ARE 0 WHEN ACCOUNT'S SECRET KEYS ARE NOT REGISTERED
     // Note: Not checking if the account is synchronized because it is not registered as an account (it would throw).
     const checkIfSynchronized = false;
     // Check that user A balance is 0 on server B

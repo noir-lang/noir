@@ -12,6 +12,7 @@ import {
   CallContext,
   FunctionSelector,
   type Header,
+  type KeyValidationRequest,
   PrivateContextInputs,
   PublicCallRequest,
   type TxContext,
@@ -363,14 +364,16 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param contractAddress - The contract address of the note.
    * @param storageSlot - The storage slot the note is at.
    * @param noteTypeId - The type ID of the note.
-   * @param ivpk - The master incoming viewing public key.
+   * @param ovKeys - The outgoing viewing keys to use to encrypt.
+   * @param ivpkM - The master incoming viewing public key.
    * @param preimage - The note preimage.
    */
   public override computeEncryptedLog(
     contractAddress: AztecAddress,
     storageSlot: Fr,
     noteTypeId: Fr,
-    ivpk: Point,
+    ovKeys: KeyValidationRequest,
+    ivpkM: Point,
     preimage: Fr[],
   ) {
     const note = new Note(preimage);
@@ -379,11 +382,9 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     const ephSk = GrumpkinScalar.random();
 
-    // @todo Issue(#6410) Right now we are completely ignoring the outgoing log. Just drawing random data.
-    const ovsk = GrumpkinScalar.random();
     const recipient = AztecAddress.random();
 
-    return taggedNote.encrypt(ephSk, recipient, ivpk, ovsk);
+    return taggedNote.encrypt(ephSk, recipient, ivpkM, ovKeys);
   }
 
   /**

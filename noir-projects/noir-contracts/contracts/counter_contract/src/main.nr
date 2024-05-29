@@ -16,18 +16,18 @@ contract Counter {
     #[aztec(private)]
     #[aztec(initializer)]
     // We can name our initializer anything we want as long as it's marked as aztec(initializer)
-    fn initialize(headstart: u64, owner: AztecAddress) {
+    fn initialize(headstart: u64, owner: AztecAddress, outgoing_viewer: AztecAddress) {
         let counters = storage.counters;
-        counters.at(owner).add(headstart, owner);
+        counters.at(owner).add(headstart, owner, outgoing_viewer);
     }
     // docs:end:constructor
 
     // docs:start:increment
     #[aztec(private)]
-    fn increment(owner: AztecAddress) {
+    fn increment(owner: AztecAddress, outgoing_viewer: AztecAddress) {
         dep::aztec::oracle::debug_log::debug_log_format("Incrementing counter for owner {0}", [owner.to_field()]);
         let counters = storage.counters;
-        counters.at(owner).add(1, owner);
+        counters.at(owner).add(1, owner, outgoing_viewer);
     }
     // docs:end:increment
 

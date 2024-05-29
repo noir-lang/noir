@@ -274,7 +274,12 @@ describe('e2e_inclusion_proofs_contract', () => {
 
     it('proves initialization of a contract', async () => {
       // Initialize (but not deploy) a test contract
-      const receipt = await StatefulTestContract.deploy(wallets[0], wallets[0].getAddress(), 42n)
+      const receipt = await StatefulTestContract.deploy(
+        wallets[0],
+        wallets[0].getAddress(),
+        wallets[0].getAddress(),
+        42n,
+      )
         .send({ skipClassRegistration: true, skipPublicDeployment: true })
         .wait();
 

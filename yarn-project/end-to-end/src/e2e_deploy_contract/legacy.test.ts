@@ -88,7 +88,7 @@ describe('e2e_deploy_contract legacy', () => {
     // This test requires at least another good transaction to go through in the same block as the bad one.
     const artifact = TokenContractArtifact;
     const initArgs = ['TokenName', 'TKN', 18] as const;
-    const goodDeploy = StatefulTestContract.deploy(wallet, wallet.getAddress(), 42);
+    const goodDeploy = StatefulTestContract.deploy(wallet, wallet.getAddress(), wallet.getAddress(), 42);
     const badDeploy = new ContractDeployer(artifact, wallet).deploy(AztecAddress.ZERO, ...initArgs);
 
     const firstOpts = { skipPublicSimulation: true, skipClassRegistration: true, skipInstanceDeploy: true };

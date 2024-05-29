@@ -13,8 +13,10 @@ import {
   Fr,
   type GrumpkinPrivateKey,
   INITIAL_L2_BLOCK_NUM,
+  KeyValidationRequest,
   MAX_NEW_NOTE_HASHES_PER_TX,
   type PublicKey,
+  computeOvskApp,
   deriveKeys,
 } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -45,8 +47,11 @@ describe('Note Processor', () => {
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
   const firstBlockDataEndIndex = firstBlockNum * numCommitmentsPerBlock;
 
-  let ownerMasterIncomingViewingSecretKey: GrumpkinPrivateKey;
-  let ownerMasterIncomingViewingPublicKey: PublicKey;
+  let ownerIvskM: GrumpkinPrivateKey;
+  let ownerIvpkM: PublicKey;
+  let ownerOvKeys: KeyValidationRequest;
+
+  const app = AztecAddress.random();
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: TaggedNote[]) => {
@@ -63,20 +68,18 @@ describe('Note Processor', () => {
       const logs: EncryptedNoteFunctionL2Logs[] = [];
       for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
-        const ivsk = isOwner ? ownerMasterIncomingViewingPublicKey : Point.random();
+        const ivpk = isOwner ? ownerIvpkM : Point.random();
+        const ovKeys = isOwner ? ownerOvKeys : new KeyValidationRequest(Point.random(), Fr.random());
         const note = (isOwner && ownedNotes[usedOwnedNote]) || TaggedNote.random();
         usedOwnedNote += note === ownedNotes[usedOwnedNote] ? 1 : 0;
         newNotes.push(note);
         if (isOwner) {
           ownedL1NotePayloads.push(note.notePayload);
         }
-        // const encryptedNote =
-        //const log = note.toEncryptedBuffer(publicKey);
 
         const ephSk = GrumpkinScalar.random();
-        const ovsk = GrumpkinScalar.random();
         const recipient = AztecAddress.random();
-        const log = note.encrypt(ephSk, recipient, ivsk, ovsk);
+        const log = note.encrypt(ephSk, recipient, ivpk, ovKeys);
         // 1 tx containing 1 function invocation containing 1 log
         logs.push(new EncryptedNoteFunctionL2Logs([new EncryptedL2NoteLog(log)]));
       }
@@ -128,8 +131,13 @@ describe('Note Processor', () => {
     const ownerSk = Fr.random();
     const allOwnerKeys = deriveKeys(ownerSk);
 
-    ownerMasterIncomingViewingSecretKey = allOwnerKeys.masterIncomingViewingSecretKey;
-    ownerMasterIncomingViewingPublicKey = allOwnerKeys.publicKeys.masterIncomingViewingPublicKey;
+    ownerIvskM = allOwnerKeys.masterIncomingViewingSecretKey;
+    ownerIvpkM = allOwnerKeys.publicKeys.masterIncomingViewingPublicKey;
+    // TODO(#6640)): get rid of this ugly conversion
+    ownerOvKeys = new KeyValidationRequest(
+      allOwnerKeys.publicKeys.masterOutgoingViewingPublicKey,
+      Fr.fromBuffer(computeOvskApp(allOwnerKeys.masterOutgoingViewingSecretKey, app).toBuffer()),
+    );
   });
 
   beforeEach(() => {
@@ -139,15 +147,8 @@ describe('Note Processor', () => {
     aztecNode = mock<AztecNode>();
     keyStore = mock<KeyStore>();
     simulator = mock<AcirSimulator>();
-    keyStore.getMasterIncomingViewingSecretKeyForPublicKey.mockResolvedValue(ownerMasterIncomingViewingSecretKey);
-    noteProcessor = new NoteProcessor(
-      ownerMasterIncomingViewingPublicKey,
-      keyStore,
-      database,
-      aztecNode,
-      INITIAL_L2_BLOCK_NUM,
-      simulator,
-    );
+    keyStore.getMasterIncomingViewingSecretKeyForPublicKey.mockResolvedValue(ownerIvskM);
+    noteProcessor = new NoteProcessor(ownerIvpkM, keyStore, database, aztecNode, INITIAL_L2_BLOCK_NUM, simulator);
 
     simulator.computeNoteHashAndNullifier.mockImplementation((...args) =>
       Promise.resolve({
@@ -251,7 +252,7 @@ describe('Note Processor', () => {
     await noteProcessor.process(blocks, encryptedLogsArr);
 
     const newNoteProcessor = new NoteProcessor(
-      ownerMasterIncomingViewingPublicKey,
+      ownerIvpkM,
       keyStore,
       database,
       aztecNode,

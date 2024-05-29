@@ -15,8 +15,8 @@ contract StatefulTest {
 
     #[aztec(private)]
     #[aztec(initializer)]
-    fn constructor(owner: AztecAddress, value: Field) {
-        StatefulTest::at(context.this_address()).create_note_no_init_check(owner, value).call(&mut context);
+    fn constructor(owner: AztecAddress, outgoing_viewer: AztecAddress, value: Field) {
+        StatefulTest::at(context.this_address()).create_note_no_init_check(owner, outgoing_viewer, value).call(&mut context);
     }
 
     #[aztec(private)]
@@ -26,26 +26,28 @@ contract StatefulTest {
         let _res = context.call_public_function(context.this_address(), selector, [42]);
     }
 
+    // Having _ignored_arg here as it makes the params the same as for the private constructor which makes
+    // contract_class_registration tests way less cluttered. This is a test contract. Don't judge me.
     #[aztec(public)]
     #[aztec(initializer)]
-    fn public_constructor(owner: AztecAddress, value: Field) {
+    fn public_constructor(owner: AztecAddress, _ignored_arg: AztecAddress, value: Field) {
         StatefulTest::at(context.this_address()).increment_public_value_no_init_check(owner, value).call(&mut context);
     }
 
     #[aztec(private)]
-    fn create_note(owner: AztecAddress, value: Field) {
+    fn create_note(owner: AztecAddress, outgoing_viewer: AztecAddress, value: Field) {
         if (value != 0) {
             let loc = storage.notes.at(owner);
-            increment(loc, value, owner);
+            increment(loc, value, owner, outgoing_viewer);
         }
     }
 
     #[aztec(private)]
     #[aztec(noinitcheck)]
-    fn create_note_no_init_check(owner: AztecAddress, value: Field) {
+    fn create_note_no_init_check(owner: AztecAddress, outgoing_viewer: AztecAddress, value: Field) {
         if (value != 0) {
             let loc = storage.notes.at(owner);
-            increment(loc, value, owner);
+            increment(loc, value, owner, outgoing_viewer);
         }
     }
 
@@ -55,10 +57,10 @@ contract StatefulTest {
         let sender = context.msg_sender();
 
         let sender_notes = storage.notes.at(sender);
-        decrement(sender_notes, amount, sender);
+        decrement(sender_notes, amount, sender, context.msg_sender());
 
         let recipient_notes = storage.notes.at(recipient);
-        increment(recipient_notes, amount, recipient);
+        increment(recipient_notes, amount, recipient, context.msg_sender());
     }
 
     #[aztec(private)]
@@ -67,10 +69,10 @@ contract StatefulTest {
         let sender = context.msg_sender();
 
         let sender_notes = storage.notes.at(sender);
-        decrement(sender_notes, amount, sender);
+        decrement(sender_notes, amount, sender, context.msg_sender());
 
         let recipient_notes = storage.notes.at(recipient);
-        increment(recipient_notes, amount, recipient);
+        increment(recipient_notes, amount, recipient, context.msg_sender());
     }
 
     #[aztec(public)]

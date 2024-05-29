@@ -61,7 +61,15 @@ describe('e2e_deploy_contract contract class registration', () => {
   });
 
   it('broadcasts a private function', async () => {
-    const selector = contractClass.privateFunctions[0].selector;
+    const constructorArtifact = artifact.functions.find(fn => fn.name == 'constructor');
+    if (!constructorArtifact) {
+      // If this gets thrown you've probably modified the StatefulTestContract to no longer include constructor.
+      // If that's the case you should update this test to use a private function which fits into the bytecode size
+      // limit.
+      throw new Error('No constructor found in the StatefulTestContract artifact. Does it still exist?');
+    }
+    const selector = FunctionSelector.fromNameAndParameters(constructorArtifact.name, constructorArtifact.parameters);
+
     const tx = await broadcastPrivateFunction(wallet, artifact, selector).send().wait();
     const logs = await pxe.getUnencryptedLogs({ txHash: tx.txHash });
     const logData = logs.logs[0].log.data;
@@ -94,7 +102,7 @@ describe('e2e_deploy_contract contract class registration', () => {
       let contract: StatefulTestContract;
 
       const deployInstance = async (opts: { constructorName?: string; deployer?: AztecAddress } = {}) => {
-        const initArgs = [wallet.getAddress(), 42] as StatefulContractCtorArgs;
+        const initArgs = [wallet.getAddress(), wallet.getAddress(), 42] as StatefulContractCtorArgs;
         const salt = Fr.random();
         const publicKeysHash = Fr.random();
         const instance = getContractInstanceFromDeployParams(artifact, {
@@ -168,9 +176,9 @@ describe('e2e_deploy_contract contract class registration', () => {
         });
 
         it('refuses to initialize the instance with wrong args via a private function', async () => {
-          await expect(contract.methods.constructor(AztecAddress.random(), 43).prove()).rejects.toThrow(
-            /initialization hash does not match/i,
-          );
+          await expect(
+            contract.methods.constructor(AztecAddress.random(), AztecAddress.random(), 43).prove(),
+          ).rejects.toThrow(/initialization hash does not match/i);
         });
 
         it('initializes the contract and calls a public function', async () => {
@@ -196,14 +204,17 @@ describe('e2e_deploy_contract contract class registration', () => {
       });
 
       describe('using a public constructor', () => {
+        const ignoredArg = AztecAddress.random();
         beforeAll(async () => {
-          ({ instance, initArgs, contract } = await deployInstance({ constructorName: 'public_constructor' }));
+          ({ instance, initArgs, contract } = await deployInstance({
+            constructorName: 'public_constructor',
+          }));
         });
 
         it('refuses to initialize the instance with wrong args via a public function', async () => {
           const whom = AztecAddress.random();
           const receipt = await contract.methods
-            .public_constructor(whom, 43)
+            .public_constructor(whom, ignoredArg, 43)
             .send({ skipPublicSimulation: true })
             .wait({ dontThrowOnRevert: true });
           expect(receipt.status).toEqual(TxStatus.APP_LOGIC_REVERTED);
@@ -248,7 +259,8 @@ describe('e2e_deploy_contract contract class registration', () => {
   describe('error scenarios in deployment', () => {
     it('refuses to call a public function on an undeployed contract', async () => {
       const whom = wallet.getAddress();
-      const instance = await t.registerContract(wallet, StatefulTestContract, { initArgs: [whom, 42] });
+      const outgoingViewer = whom;
+      const instance = await t.registerContract(wallet, StatefulTestContract, { initArgs: [whom, outgoingViewer, 42] });
       await expect(
         instance.methods.increment_public_value_no_init_check(whom, 10).send({ skipPublicSimulation: true }).wait(),
       ).rejects.toThrow(/dropped/);
@@ -256,7 +268,7 @@ describe('e2e_deploy_contract contract class registration', () => {
 
     it('refuses to deploy an instance from a different deployer', () => {
       const instance = getContractInstanceFromDeployParams(artifact, {
-        constructorArgs: [AztecAddress.random(), 42],
+        constructorArgs: [AztecAddress.random(), AztecAddress.random(), 42],
         deployer: AztecAddress.random(),
       });
       expect(() => deployInstance(wallet, instance)).toThrow(/does not match/i);

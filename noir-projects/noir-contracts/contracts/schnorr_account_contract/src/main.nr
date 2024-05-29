@@ -31,11 +31,15 @@ contract SchnorrAccount {
         let this = context.this_address();
         let header = context.get_header();
         let this_npk_m_hash = header.get_npk_m_hash(&mut context, this);
+        // Not emitting outgoing for msg_sender here to not have to register keys for the contract through which we
+        // deploy this (typically MultiCallEntrypoint). I think it's ok here as I feel the outgoing here is not that
+        // important.
+        let this_ovpk_m = header.get_ovpk_m(&mut context, this);
         let this_ivpk_m = header.get_ivpk_m(&mut context, this);
 
         // docs:start:initialize
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this_npk_m_hash);
-        storage.signing_public_key.initialize(&mut pub_key_note, true, this_ivpk_m);
+        storage.signing_public_key.initialize(&mut pub_key_note, true, this_ovpk_m, this_ivpk_m);
         // docs:end:initialize
     }
 
