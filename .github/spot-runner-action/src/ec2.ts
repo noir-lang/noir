@@ -236,8 +236,8 @@ export class Ec2Instance {
       },
       Overrides: this.config.ec2InstanceType.map((instanceType) => ({
         InstanceType: instanceType,
-        AvailabilityZone: this.config.githubActionRunnerConcurrency > 0 ? availabilityZone : undefined,
-        SubnetId: this.config.githubActionRunnerConcurrency > 0 ? this.config.ec2SubnetId : undefined,
+        AvailabilityZone: availabilityZone,
+        SubnetId: this.config.ec2SubnetId
       })),
     };
     const clientToken = this.config.clientToken ?this.config.clientToken + ",spot=" + useOnDemand : undefined;
