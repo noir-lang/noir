@@ -485,8 +485,10 @@ workflows:
     #   # This is rewritten to 'system' on the real workflow (otherwise this is ignored by circleci)
     #   equal: [NEVER, << pipeline.parameters.workflow >>]
     when:
-      and:
+      # Run if branch is master or branch name contains 'circle-ci'
+      or:
         - equal: [ master, << pipeline.git.branch >> ]
+        - matches: { pattern: ".*circle-ci.*", value: << pipeline.git.branch >> }
     jobs:
       # Noir
       - noir-x86_64: *defaults
@@ -502,10 +504,16 @@ workflows:
           <<: *defaults
 
       # Transpiler
-      - avm-transpiler: *defaults
+      - avm-transpiler:
+          requires:
+            - noir-ecr-manifest
+          <<: *defaults
 
       # aztec-nargo (nargo & transpiler)
-      - aztec-nargo: *defaults
+      - aztec-nargo:
+          requires:
+            - avm-transpiler
+          <<: *defaults
 
       # Barretenberg
       - barretenberg-x86_64-linux-clang: *defaults
