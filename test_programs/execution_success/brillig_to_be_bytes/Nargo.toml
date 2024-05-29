@@ -1,6 +1,0 @@
-[package]
-name = "brillig_to_be_bytes"
-type = "bin"
-authors = [""]
-
-[dependencies]
