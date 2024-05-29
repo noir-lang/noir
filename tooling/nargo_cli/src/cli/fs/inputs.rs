@@ -69,7 +69,7 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
 mod tests {
     use std::{collections::BTreeMap, vec};
 
-    use acvm::FieldElement;
+    use acvm::{AcirField, FieldElement};
     use nargo::constants::VERIFIER_INPUT_FILE;
     use noirc_abi::{
         input_parser::{Format, InputValue},
@@ -113,7 +113,7 @@ mod tests {
             ("foo".to_owned(), InputValue::Field(42u128.into())),
             ("bar".to_owned(), InputValue::String("hello world".to_owned())),
         ]);
-        let return_value = Some(InputValue::Field(FieldElement::zero()));
+        let return_value = Some(InputValue::Field(AcirField::zero()));
 
         write_inputs_to_file(
             &input_map,

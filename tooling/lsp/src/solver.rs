@@ -3,9 +3,9 @@ use acvm::BlackBoxFunctionSolver;
 // This is a struct that wraps a dynamically dispatched `BlackBoxFunctionSolver`
 // where we proxy the unimplemented stuff to the wrapped backend, but it
 // allows us to avoid changing function signatures to include the `Box`
-pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver>);
+pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver<acvm::FieldElement>>);
 
-impl BlackBoxFunctionSolver for WrapperSolver {
+impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
     fn schnorr_verify(
         &self,
         public_key_x: &acvm::FieldElement,

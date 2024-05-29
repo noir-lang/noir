@@ -90,7 +90,11 @@ impl Plonky2Circuit {
         Ok(proof_serialized)
     }
 
-    pub fn verify(&self, proof: &[u8], public_inputs: WitnessMap) -> Result<bool, Plonky2GenError> {
+    pub fn verify(
+        &self,
+        proof: &[u8],
+        public_inputs: WitnessMap<FieldElement>,
+    ) -> Result<bool, Plonky2GenError> {
         let deserialized_proof: P2ProofWithPublicInputs = match serde_json::from_slice(proof) {
             Ok(deserialized_proof) => deserialized_proof,
             Err(error) => {

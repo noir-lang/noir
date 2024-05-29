@@ -10,7 +10,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use acvm::{acir::BlackBoxFunc, FieldElement};
+use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
 pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
 use plonky2::{

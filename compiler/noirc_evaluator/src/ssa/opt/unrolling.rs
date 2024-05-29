@@ -16,6 +16,8 @@
 //! we remove reference count instructions because they are only used by Brillig bytecode
 use std::collections::HashSet;
 
+use acvm::acir::AcirField;
+
 use crate::{
     errors::RuntimeError,
     ssa::{

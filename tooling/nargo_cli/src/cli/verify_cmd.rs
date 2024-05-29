@@ -3,6 +3,8 @@ use super::NargoConfig;
 use crate::errors::BackendError;
 use crate::errors::CliError;
 
+use acvm::FieldElement;
+
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
 use nargo::ops::{compile_program, report_errors};

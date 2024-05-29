@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::HashSet};
 
 use acir::{
     native_types::{Expression, Witness},
-    FieldElement,
+    AcirField,
 };
 use indexmap::IndexMap;
 
@@ -30,7 +30,7 @@ impl CSatTransformer {
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve(&mut self, opcode: &Expression) {
+    fn try_solve<F>(&mut self, opcode: &Expression<F>) {
         let mut unresolved = Vec::new();
         for (_, w1, w2) in &opcode.mul_terms {
             if !self.solvable_witness.contains(w1) {
@@ -64,12 +64,12 @@ impl CSatTransformer {
     // Still missing dead witness optimization.
     // To do this, we will need the whole set of assert-zero opcodes
     // I think it can also be done before the local optimization seen here, as dead variables will come from the user
-    pub(crate) fn transform(
+    pub(crate) fn transform<F: AcirField>(
         &mut self,
-        opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full opcode
         let opcode =
             self.full_opcode_scan_optimization(opcode, intermediate_variables, num_witness);
@@ -107,12 +107,12 @@ impl CSatTransformer {
     // The polynomial now looks like so t + t2
     // We can no longer extract another full opcode, hence the algorithm terminates. Creating two intermediate variables t and t2.
     // This stage of preprocessing does not guarantee that all polynomials can fit into a opcode. It only guarantees that all full opcodes have been extracted from each polynomial
-    fn full_opcode_scan_optimization(
+    fn full_opcode_scan_optimization<F: AcirField>(
         &mut self,
-        mut opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        mut opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // We pass around this intermediate variable IndexMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
 
@@ -245,7 +245,7 @@ impl CSatTransformer {
     /// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
     /// The function panic if the input expression is constant
-    fn normalize(mut expr: Expression) -> (FieldElement, Expression) {
+    fn normalize<F: AcirField>(mut expr: Expression<F>) -> (F, Expression<F>) {
         expr.sort();
         let a = if !expr.linear_combinations.is_empty() {
             expr.linear_combinations[0].0
@@ -259,11 +259,11 @@ impl CSatTransformer {
     /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
-    fn get_or_create_intermediate_vars(
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
-        expr: Expression,
+    fn get_or_create_intermediate_vars<F: AcirField>(
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
+        expr: Expression<F>,
         num_witness: &mut u32,
-    ) -> (FieldElement, Witness) {
+    ) -> (F, Witness) {
         let (k, normalized_expr) = Self::normalize(expr);
 
         if intermediate_variables.contains_key(&normalized_expr) {
@@ -274,7 +274,7 @@ impl CSatTransformer {
             *num_witness += 1;
             // Add intermediate opcode and variable to map
             intermediate_variables.insert(normalized_expr, (k, inter_var));
-            (FieldElement::one(), inter_var)
+            (F::one(), inter_var)
         }
     }
 
@@ -315,12 +315,12 @@ impl CSatTransformer {
     // Also remember that since we did full opcode scan, there is no way we can have a non-zero mul term along with the wL and wR terms being non-zero
     //
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
-    fn partial_opcode_scan_optimization(
+    fn partial_opcode_scan_optimization<F: AcirField>(
         &mut self,
-        mut opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        mut opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
 
@@ -409,101 +409,113 @@ impl CSatTransformer {
     }
 }
 
-#[test]
-fn simple_reduction_smoke_test() {
-    let a = Witness(0);
-    let b = Witness(1);
-    let c = Witness(2);
-    let d = Witness(3);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir::{AcirField, FieldElement};
 
-    // a = b + c + d;
-    let opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), b),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), d),
-        ],
-        q_c: FieldElement::zero(),
-    };
+    #[test]
+    fn simple_reduction_smoke_test() {
+        let a = Witness(0);
+        let b = Witness(1);
+        let c = Witness(2);
+        let d = Witness(3);
 
-    let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
+        // a = b + c + d;
+        let opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (FieldElement::one(), a),
+                (-FieldElement::one(), b),
+                (-FieldElement::one(), c),
+                (-FieldElement::one(), d),
+            ],
+            q_c: FieldElement::zero(),
+        };
 
-    let mut num_witness = 4;
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
 
-    let mut optimizer = CSatTransformer::new(3);
-    optimizer.mark_solvable(b);
-    optimizer.mark_solvable(c);
-    optimizer.mark_solvable(d);
-    let got_optimized_opcode_a =
-        optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+        let mut num_witness = 4;
 
-    // a = b + c + d => a - b - c - d = 0
-    // For width3, the result becomes:
-    // a - d + e = 0
-    // - c - b  - e = 0
-    //
-    // a - b + e = 0
-    let e = Witness(4);
-    let expected_optimized_opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), d),
-            (FieldElement::one(), e),
-        ],
-        q_c: FieldElement::zero(),
-    };
-    assert_eq!(expected_optimized_opcode_a, got_optimized_opcode_a);
+        let mut optimizer = CSatTransformer::new(3);
+        optimizer.mark_solvable(b);
+        optimizer.mark_solvable(c);
+        optimizer.mark_solvable(d);
+        let got_optimized_opcode_a =
+            optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
 
-    assert_eq!(intermediate_variables.len(), 1);
+        // a = b + c + d => a - b - c - d = 0
+        // For width3, the result becomes:
+        // a - d + e = 0
+        // - c - b  - e = 0
+        //
+        // a - b + e = 0
+        let e = Witness(4);
+        let expected_optimized_opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (FieldElement::one(), a),
+                (-FieldElement::one(), d),
+                (FieldElement::one(), e),
+            ],
+            q_c: FieldElement::zero(),
+        };
+        assert_eq!(expected_optimized_opcode_a, got_optimized_opcode_a);
 
-    // e = - c - b
-    let expected_intermediate_opcode = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(-FieldElement::one(), c), (-FieldElement::one(), b)],
-        q_c: FieldElement::zero(),
-    };
-    let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
-    assert!(intermediate_variables.contains_key(&normalized_opcode));
-    assert_eq!(intermediate_variables[&normalized_opcode].1, e);
-}
+        assert_eq!(intermediate_variables.len(), 1);
 
-#[test]
-fn stepwise_reduction_test() {
-    let a = Witness(0);
-    let b = Witness(1);
-    let c = Witness(2);
-    let d = Witness(3);
-    let e = Witness(4);
+        // e = - c - b
+        let expected_intermediate_opcode = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(-FieldElement::one(), c), (-FieldElement::one(), b)],
+            q_c: FieldElement::zero(),
+        };
+        let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
+        assert!(intermediate_variables.contains_key(&normalized_opcode));
+        assert_eq!(intermediate_variables[&normalized_opcode].1, e);
+    }
 
-    // a = b + c + d + e;
-    let opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (-FieldElement::one(), a),
-            (FieldElement::one(), b),
-            (FieldElement::one(), c),
-            (FieldElement::one(), d),
-            (FieldElement::one(), e),
-        ],
-        q_c: FieldElement::zero(),
-    };
+    #[test]
+    fn stepwise_reduction_test() {
+        let a = Witness(0);
+        let b = Witness(1);
+        let c = Witness(2);
+        let d = Witness(3);
+        let e = Witness(4);
 
-    let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
+        // a = b + c + d + e;
+        let opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (-FieldElement::one(), a),
+                (FieldElement::one(), b),
+                (FieldElement::one(), c),
+                (FieldElement::one(), d),
+                (FieldElement::one(), e),
+            ],
+            q_c: FieldElement::zero(),
+        };
 
-    let mut num_witness = 4;
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
 
-    let mut optimizer = CSatTransformer::new(3);
-    optimizer.mark_solvable(a);
-    optimizer.mark_solvable(c);
-    optimizer.mark_solvable(d);
-    optimizer.mark_solvable(e);
-    let got_optimized_opcode_a =
-        optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+        let mut num_witness = 4;
 
-    // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
-    let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
-    assert!(contains_b);
+        let mut optimizer = CSatTransformer::new(3);
+        optimizer.mark_solvable(a);
+        optimizer.mark_solvable(c);
+        optimizer.mark_solvable(d);
+        optimizer.mark_solvable(e);
+        let got_optimized_opcode_a =
+            optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+
+        // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
+        let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
+        assert!(contains_b);
+    }
 }

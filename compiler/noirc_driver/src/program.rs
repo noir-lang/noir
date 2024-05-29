@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Program;
+use acvm::{acir::circuit::Program, FieldElement};
 use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;
@@ -23,7 +23,7 @@ pub struct CompiledProgram {
         serialize_with = "Program::serialize_program_base64",
         deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub program: Program,
+    pub program: Program<FieldElement>,
     pub plonky2_circuit: Option<Plonky2Circuit>,
     pub abi: noirc_abi::Abi,
     pub debug: Vec<DebugInfo>,

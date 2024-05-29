@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::Program;
+use acvm::FieldElement;
 use fm::FileId;
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;
@@ -24,7 +25,7 @@ pub struct ProgramArtifact {
         serialize_with = "Program::serialize_program_base64",
         deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Program,
+    pub bytecode: Program<FieldElement>,
 
     #[serde(
         serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",
