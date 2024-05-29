@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use acvm::acir::native_types::WitnessStack;
+use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -195,7 +196,7 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessStack>), CliError> {
+) -> Result<(Option<InputValue>, Option<WitnessStack<FieldElement>>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
@@ -218,7 +219,7 @@ fn debug_program_and_decode(
 pub(crate) fn debug_program(
     compiled_program: CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<Option<WitnessStack>, CliError> {
+) -> Result<Option<WitnessStack<FieldElement>>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     noir_debugger::run_repl_session(&Bn254BlackBoxSolver, compiled_program, initial_witness)

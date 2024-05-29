@@ -4,6 +4,7 @@
 //! be a single function remaining when the pass finishes.
 use std::collections::{BTreeSet, HashSet};
 
+use acvm::acir::AcirField;
 use iter_extended::{btree_map, vecmap};
 
 use crate::ssa::{
@@ -562,7 +563,7 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
-    use acvm::FieldElement;
+    use acvm::{acir::AcirField, FieldElement};
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{

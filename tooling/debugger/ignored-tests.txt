@@ -5,6 +5,7 @@ debug_logs
 double_verify_nested_proof
 double_verify_proof
 double_verify_proof_recursive
+is_unconstrained
 hashmap
 modulus
 references

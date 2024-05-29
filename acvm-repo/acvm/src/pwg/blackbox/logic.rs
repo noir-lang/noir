@@ -3,17 +3,17 @@ use crate::OpcodeResolutionError;
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField,
 };
 
 /// Solves a [`BlackBoxFunc::And`][acir::circuit::black_box_functions::BlackBoxFunc::AND] opcode and inserts
 /// the result into the supplied witness map
-pub(super) fn and(
-    initial_witness: &mut WitnessMap,
+pub(super) fn and<F: AcirField>(
+    initial_witness: &mut WitnessMap<F>,
     lhs: &FunctionInput,
     rhs: &FunctionInput,
     output: &Witness,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     assert_eq!(
         lhs.num_bits, rhs.num_bits,
         "number of bits specified for each input must be the same"
@@ -25,12 +25,12 @@ pub(super) fn and(
 
 /// Solves a [`BlackBoxFunc::XOR`][acir::circuit::black_box_functions::BlackBoxFunc::XOR] opcode and inserts
 /// the result into the supplied witness map
-pub(super) fn xor(
-    initial_witness: &mut WitnessMap,
+pub(super) fn xor<F: AcirField>(
+    initial_witness: &mut WitnessMap<F>,
     lhs: &FunctionInput,
     rhs: &FunctionInput,
     output: &Witness,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     assert_eq!(
         lhs.num_bits, rhs.num_bits,
         "number of bits specified for each input must be the same"
@@ -41,13 +41,13 @@ pub(super) fn xor(
 }
 
 /// Derives the rest of the witness based on the initial low level variables
-fn solve_logic_opcode(
-    initial_witness: &mut WitnessMap,
+fn solve_logic_opcode<F: AcirField>(
+    initial_witness: &mut WitnessMap<F>,
     a: &Witness,
     b: &Witness,
     result: Witness,
-    logic_op: impl Fn(&FieldElement, &FieldElement) -> FieldElement,
-) -> Result<(), OpcodeResolutionError> {
+    logic_op: impl Fn(&F, &F) -> F,
+) -> Result<(), OpcodeResolutionError<F>> {
     let w_l_value = witness_to_value(initial_witness, *a)?;
     let w_r_value = witness_to_value(initial_witness, *b)?;
     let assignment = logic_op(w_l_value, w_r_value);

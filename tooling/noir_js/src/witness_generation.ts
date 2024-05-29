@@ -1,24 +1,7 @@
 import { abiDecodeError, abiEncode, InputMap } from '@noir-lang/noirc_abi';
 import { base64Decode } from './base64_decode.js';
-import {
-  WitnessStack,
-  ForeignCallHandler,
-  ForeignCallInput,
-  createBlackBoxSolver,
-  WasmBlackBoxFunctionSolver,
-  executeProgramWithBlackBoxSolver,
-  ExecutionError,
-} from '@noir-lang/acvm_js';
+import { WitnessStack, ForeignCallHandler, ForeignCallInput, ExecutionError, executeProgram } from '@noir-lang/acvm_js';
 import { Abi, CompiledCircuit } from '@noir-lang/types';
-
-let solver: Promise<WasmBlackBoxFunctionSolver>;
-
-const getSolver = (): Promise<WasmBlackBoxFunctionSolver> => {
-  if (!solver) {
-    solver = createBlackBoxSolver();
-  }
-  return solver;
-};
 
 const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args: ForeignCallInput[]) => {
   if (name == 'print') {
@@ -70,12 +53,7 @@ export async function generateWitness(
   // Execute the circuit to generate the rest of the witnesses and serialize
   // them into a Uint8Array.
   try {
-    const solvedWitness = await executeProgramWithBlackBoxSolver(
-      await getSolver(),
-      base64Decode(compiledProgram.bytecode),
-      witnessMap,
-      foreignCallHandler,
-    );
+    const solvedWitness = await executeProgram(base64Decode(compiledProgram.bytecode), witnessMap, foreignCallHandler);
     return solvedWitness;
   } catch (err) {
     // Typescript types catched errors as unknown or any, so we need to narrow its type to check if it has raw assertion payload.

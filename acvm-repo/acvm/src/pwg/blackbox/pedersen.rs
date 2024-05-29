@@ -1,6 +1,7 @@
 use acir::{
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
+    AcirField,
 };
 
 use crate::{
@@ -8,13 +9,13 @@ use crate::{
     BlackBoxFunctionSolver,
 };
 
-pub(super) fn pedersen(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(super) fn pedersen<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     inputs: &[FunctionInput],
     domain_separator: u32,
     outputs: (Witness, Witness),
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let scalars: Result<Vec<_>, _> =
         inputs.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
     let scalars: Vec<_> = scalars?.into_iter().cloned().collect();
@@ -27,13 +28,13 @@ pub(super) fn pedersen(
     Ok(())
 }
 
-pub(super) fn pedersen_hash(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(super) fn pedersen_hash<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     inputs: &[FunctionInput],
     domain_separator: u32,
     output: Witness,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let scalars: Result<Vec<_>, _> =
         inputs.iter().map(|input| witness_to_value(initial_witness, input.witness)).collect();
     let scalars: Vec<_> = scalars?.into_iter().cloned().collect();

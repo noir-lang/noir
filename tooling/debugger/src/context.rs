@@ -82,17 +82,17 @@ pub(super) enum DebugCommandResult {
     Error(NargoError),
 }
 
-pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver> {
+pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     circuit_id: u32,
-    acvm: ACVM<'a, B>,
+    acvm: ACVM<'a, FieldElement, B>,
 }
 
-pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
-    acvm: ACVM<'a, B>,
+pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
+    acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
-    brillig_solver: Option<BrilligSolver<'a, B>>,
+    brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
 
-    witness_stack: WitnessStack,
+    witness_stack: WitnessStack<FieldElement>,
     acvm_stack: Vec<ExecutionFrame<'a, B>>,
 
     backend: &'a B,
@@ -102,8 +102,8 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     breakpoints: HashSet<DebugLocation>,
     source_to_locations: BTreeMap<FileId, Vec<(usize, DebugLocation)>>,
 
-    circuits: &'a [Circuit],
-    unconstrained_functions: &'a [BrilligBytecode],
+    circuits: &'a [Circuit<FieldElement>],
+    unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 
     // We define the address space as a contiguous space where all ACIR and
     // Brillig opcodes from all circuits are laid out.
@@ -117,14 +117,14 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acir_opcode_addresses: Vec<Vec<usize>>,
 }
 
-impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
+impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     pub(super) fn new(
         blackbox_solver: &'a B,
-        circuits: &'a [Circuit],
+        circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
-        initial_witness: WitnessMap,
+        initial_witness: WitnessMap<FieldElement>,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
-        unconstrained_functions: &'a [BrilligBytecode],
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
         let current_circuit_id: u32 = 0;
@@ -153,15 +153,15 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_opcodes(&self) -> &[Opcode] {
+    pub(super) fn get_opcodes(&self) -> &[Opcode<FieldElement>] {
         self.acvm.opcodes()
     }
 
-    pub(super) fn get_opcodes_of_circuit(&self, circuit_id: u32) -> &[Opcode] {
+    pub(super) fn get_opcodes_of_circuit(&self, circuit_id: u32) -> &[Opcode<FieldElement>] {
         &self.circuits[circuit_id as usize].opcodes
     }
 
-    pub(super) fn get_witness_map(&self) -> &WitnessMap {
+    pub(super) fn get_witness_map(&self) -> &WitnessMap<FieldElement> {
         self.acvm.witness_map()
     }
 
@@ -406,7 +406,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    fn handle_foreign_call(&mut self, foreign_call: ForeignCallWaitInfo) -> DebugCommandResult {
+    fn handle_foreign_call(
+        &mut self,
+        foreign_call: ForeignCallWaitInfo<FieldElement>,
+    ) -> DebugCommandResult {
         let foreign_call_result = self.foreign_call_executor.execute(&foreign_call);
         match foreign_call_result {
             Ok(foreign_call_result) => {
@@ -425,7 +428,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    fn handle_acir_call(&mut self, call_info: AcirCallWaitInfo) -> DebugCommandResult {
+    fn handle_acir_call(
+        &mut self,
+        call_info: AcirCallWaitInfo<FieldElement>,
+    ) -> DebugCommandResult {
         let callee_circuit = &self.circuits[call_info.id as usize];
         let callee_witness_map = call_info.initial_witness;
         let callee_acvm = ACVM::new(
@@ -477,7 +483,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         DebugCommandResult::Ok
     }
 
-    fn handle_acvm_status(&mut self, status: ACVMStatus) -> DebugCommandResult {
+    fn handle_acvm_status(&mut self, status: ACVMStatus<FieldElement>) -> DebugCommandResult {
         match status {
             ACVMStatus::Solved => {
                 if self.acvm_stack.is_empty() {
@@ -627,7 +633,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_brillig_memory(&self) -> Option<&[MemoryValue]> {
+    pub(super) fn get_brillig_memory(&self) -> Option<&[MemoryValue<FieldElement>]> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
@@ -704,7 +710,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         matches!(self.acvm.get_status(), ACVMStatus::Solved)
     }
 
-    pub fn finalize(mut self) -> WitnessStack {
+    pub fn finalize(mut self) -> WitnessStack<FieldElement> {
         let last_witness_map = self.acvm.finalize();
         self.witness_stack.push(0, last_witness_map);
         self.witness_stack
@@ -764,8 +770,8 @@ fn build_source_to_opcode_debug_mappings(
 }
 
 fn build_acir_opcode_addresses(
-    circuits: &[Circuit],
-    unconstrained_functions: &[BrilligBytecode],
+    circuits: &[Circuit<FieldElement>],
+    unconstrained_functions: &[BrilligBytecode<FieldElement>],
 ) -> Vec<Vec<usize>> {
     let mut result = Vec::with_capacity(circuits.len() + 1);
     let mut circuit_address_start = 0usize;
@@ -789,6 +795,7 @@ fn build_acir_opcode_addresses(
         result.push(circuit_addresses);
     }
     result.push(vec![circuit_address_start]);
+
     result
 }
 
@@ -804,6 +811,7 @@ mod tests {
                 opcodes::{BlockId, BlockType},
             },
             native_types::Expression,
+            AcirField,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
@@ -855,8 +863,7 @@ mod tests {
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
-        let warnings = vec![];
-        let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+        let debug_artifact = &DebugArtifact { debug_symbols, file_map };
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
@@ -981,8 +988,7 @@ mod tests {
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
-        let warnings = vec![];
-        let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+        let debug_artifact = &DebugArtifact { debug_symbols, file_map };
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
@@ -1061,9 +1067,9 @@ mod tests {
             ..Circuit::default()
         };
         let circuits = vec![circuit_one, circuit_two];
-        let debug_artifact =
-            DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
+        let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
         let brillig_funcs = &vec![brillig_one, brillig_two];
+
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,
             &circuits,

@@ -1,8 +1,6 @@
 use noirc_errors::Spanned;
-use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::ERROR_IDENT;
-use crate::hir::comptime::Value;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::resolution::resolver::SELF_TYPE_NAME;
@@ -18,7 +16,7 @@ use crate::{
         traits::Trait,
     },
     macros_api::{Path, StructId},
-    node_interner::{DefinitionId, TraitId, TypeAliasId},
+    node_interner::{DefinitionId, TraitId},
     Shared, StructType,
 };
 use crate::{Type, TypeAlias};

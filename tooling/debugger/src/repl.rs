@@ -16,27 +16,27 @@ use std::cell::RefCell;
 
 use crate::source_code_printer::print_source_code_location;
 
-pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver> {
+pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     context: DebugContext<'a, B>,
     blackbox_solver: &'a B,
     debug_artifact: &'a DebugArtifact,
-    initial_witness: WitnessMap,
+    initial_witness: WitnessMap<FieldElement>,
     last_result: DebugCommandResult,
 
     // ACIR functions to debug
-    circuits: &'a [Circuit],
+    circuits: &'a [Circuit<FieldElement>],
 
     // Brillig functions referenced from the ACIR circuits above
-    unconstrained_functions: &'a [BrilligBytecode],
+    unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 }
 
-impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
+impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
     pub fn new(
         blackbox_solver: &'a B,
-        circuits: &'a [Circuit],
+        circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
-        initial_witness: WitnessMap,
-        unconstrained_functions: &'a [BrilligBytecode],
+        initial_witness: WitnessMap<FieldElement>,
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
@@ -183,7 +183,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                 ""
             }
         };
-        let print_brillig_bytecode = |acir_index, bytecode: &[BrilligOpcode]| {
+        let print_brillig_bytecode = |acir_index, bytecode: &[BrilligOpcode<FieldElement>]| {
             for (brillig_index, brillig_opcode) in bytecode.iter().enumerate() {
                 println!(
                     "{:>2}:{:>3}.{:<2} |{:2} {:?}",
@@ -393,23 +393,21 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         self.context.is_solved()
     }
 
-    fn finalize(self) -> WitnessStack {
+    fn finalize(self) -> WitnessStack<FieldElement> {
         self.context.finalize()
     }
 }
 
-pub fn run<B: BlackBoxFunctionSolver>(
+pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     program: CompiledProgram,
-    initial_witness: WitnessMap,
-) -> Result<Option<WitnessStack>, NargoError> {
+    initial_witness: WitnessMap<FieldElement>,
+) -> Result<Option<WitnessStack<FieldElement>>, NargoError> {
     let circuits = &program.program.functions;
-    let debug_artifact = &DebugArtifact {
-        debug_symbols: program.debug,
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
+    let debug_artifact =
+        &DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
     let unconstrained_functions = &program.program.unconstrained_functions;
+
     let context = RefCell::new(ReplDebugger::new(
         blackbox_solver,
         circuits,

@@ -24,7 +24,6 @@ acvm_blackbox_solver.workspace = true
 indexmap = "1.7.0"
 
 [features]
-default = ["bn254"]
 bn254 = [
     "acir/bn254",
     "brillig_vm/bn254",
@@ -40,3 +39,4 @@ bls12_381 = [
 rand = "0.8.5"
 proptest = "1.2.0"
 paste = "1.0.14"
+ark-bls12-381 = { version = "^0.4.0", default-features = false, features = ["curve"] }
