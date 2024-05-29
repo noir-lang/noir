@@ -979,6 +979,7 @@ impl AcirContext {
         let max_power_of_two = self.add_constant(
             FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128 - 1)),
         );
+        let zero = self.add_constant(FieldElement::zero());
         let one = self.add_constant(FieldElement::one());
 
         // Get the sign bit of rhs by computing rhs / max_power_of_two
@@ -998,9 +999,18 @@ impl AcirContext {
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
         let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
-
         let quotient = self.two_complement(q1, q_sign, bit_size)?;
         let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
+
+        // Issue #5129 - When q1 is zero and quotient sign is -1, we compute -0=2^{bit_size},
+        // which is not valid because we do not wrap integer operations
+        // Similar case can happen with the remainder.
+        let q_is_0 = self.eq_var(q1, zero)?;
+        let q_is_not_0 = self.not_var(q_is_0, AcirType::unsigned(1))?;
+        let quotient = self.mul_var(quotient, q_is_not_0)?;
+        let r_is_0 = self.eq_var(r1, zero)?;
+        let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
+        let remainder = self.mul_var(remainder, r_is_not_0)?;
 
         Ok((quotient, remainder))
     }
