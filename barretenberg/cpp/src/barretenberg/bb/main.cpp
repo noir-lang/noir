@@ -16,7 +16,6 @@
 #include <barretenberg/common/timer.hpp>
 #include <barretenberg/dsl/acir_format/acir_to_constraint_buf.hpp>
 #include <barretenberg/dsl/acir_proofs/acir_composer.hpp>
-#include <barretenberg/dsl/acir_proofs/goblin_acir_composer.hpp>
 #include <barretenberg/srs/global_crs.hpp>
 #include <cstdint>
 #include <iostream>
@@ -246,45 +245,6 @@ bool foldAndVerifyProgram(const std::string& bytecodePath, const std::string& wi
         program_stack.pop_back();
     }
     return ivc.prove_and_verify();
-}
-
-/**
- * @brief Proves and Verifies an ACIR circuit
- *
- * Communication:
- * - proc_exit: A boolean value is returned indicating whether the proof is valid.
- *   an exit code of 0 will be returned for success and 1 for failure.
- *
- * @param bytecodePath Path to the file containing the serialized circuit
- * @param witnessPath Path to the file containing the serialized witness
- * @param recursive Whether to use recursive proof generation of non-recursive
- * @return true if the proof is valid
- * @return false if the proof is invalid
- */
-bool proveAndVerifyGoblin(const std::string& bytecodePath, const std::string& witnessPath)
-{
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Don't hardcode dyadic circuit size. Currently set
-    // to max circuit size present in acir tests suite.
-    size_t hardcoded_bn254_dyadic_size_hack = 1 << 19;
-    init_bn254_crs(hardcoded_bn254_dyadic_size_hack);
-    size_t hardcoded_grumpkin_dyadic_size_hack = 1 << 10; // For eccvm only
-    init_grumpkin_crs(hardcoded_grumpkin_dyadic_size_hack);
-
-    // Populate the acir constraint system and witness from gzipped data
-    auto constraint_system = get_constraint_system(bytecodePath);
-    auto witness = get_witness(witnessPath);
-
-    // Instantiate a Goblin acir composer and construct a bberg circuit from the acir representation
-    acir_proofs::GoblinAcirComposer acir_composer;
-    acir_composer.create_circuit(constraint_system, witness);
-
-    // Generate a MegaHonk proof and a full Goblin proof
-    auto proof = acir_composer.accumulate_and_prove();
-
-    // Verify the MegaHonk proof and the full Goblin proof
-    auto verified = acir_composer.verify(proof);
-
-    return verified;
 }
 
 /**
@@ -866,9 +826,6 @@ int main(int argc, char* argv[])
         }
         if (command == "fold_and_verify_program") {
             return foldAndVerifyProgram(bytecode_path, witness_path) ? 0 : 1;
-        }
-        if (command == "prove_and_verify_goblin") {
-            return proveAndVerifyGoblin(bytecode_path, witness_path) ? 0 : 1;
         }
 
         if (command == "prove") {

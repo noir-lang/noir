@@ -40,8 +40,6 @@ barretenberg-acir-tests-bb:
     RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh
     # Fold and verify an ACIR program stack using ClientIvc
     RUN FLOW=fold_and_verify_program ./run_acir_tests.sh fold_basic
-    # This is a "full" Goblin flow. It constructs and verifies four proofs: MegaHonk, ECCVM, Translator, and merge
-    RUN FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
     # Run 1_mul through native bb build, all_cmds flow, to test all cli args.
     RUN FLOW=all_cmds ./run_acir_tests.sh 1_mul
 
@@ -88,8 +86,6 @@ barretenberg-acir-tests-bb.js:
     RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh 6_array
     # Run a single arbitrary test not involving recursion through bb.js for MegaHonk
     RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_mega_honk ./run_acir_tests.sh 6_array
-    # Run a single arbitrary test not involving recursion through bb.js for full Goblin
-    RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_goblin ./run_acir_tests.sh 6_array
     # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.
     RUN BIN=../ts/dest/node/main.js FLOW=all_cmds ./run_acir_tests.sh 1_mul
     # TODO(https://github.com/AztecProtocol/aztec-packages/issues/6672)
