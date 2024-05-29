@@ -103,6 +103,7 @@ pub(crate) fn optimize_into_plonky2(
 ) -> Result<Plonky2Circuit, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
+    let main_function_signature: FunctionSignature = program.function_signatures[0].clone();
     let ssa = SsaBuilder::new(program, print_passes, false, print_timings)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
@@ -126,7 +127,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::new().build(ssa, parameter_names)
+    Builder::new().build(ssa, parameter_names, main_function_signature)
 }
 
 // Helper to time SSA passes

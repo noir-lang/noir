@@ -13,6 +13,7 @@ use super::{
 use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
 pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
+use noirc_frontend::{ast::Visibility, hir_def::function::FunctionSignature};
 use plonky2::{
     field::types::Field, iop::target::BoolTarget, iop::target::Target,
     plonk::circuit_data::CircuitConfig,
@@ -313,6 +314,7 @@ impl Builder {
         mut self,
         ssa: Ssa,
         parameter_names: Vec<String>,
+        main_function_signature: FunctionSignature,
     ) -> Result<Plonky2Circuit, RuntimeError> {
         let main_function =
             ssa.functions.into_values().find(|value| value.name() == "main").unwrap();
@@ -344,6 +346,16 @@ impl Builder {
                 }
                 Ok(_) => (),
             }
+        }
+        let mut next_param_idx: usize = 0;
+        for (_, typ, vis) in main_function_signature.0 {
+            let fields_for_param = typ.field_count() as usize;
+            if vis == Visibility::Public {
+                self.builder.register_public_inputs(
+                    &parameters[next_param_idx..next_param_idx+fields_for_param]
+                );
+            }
+            next_param_idx += fields_for_param;
         }
         let data = self.builder.build::<P2Config>();
         // println!("stanm: data={:?}", data);
