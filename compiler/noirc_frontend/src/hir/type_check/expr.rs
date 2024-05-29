@@ -163,7 +163,11 @@ impl<'interner> TypeChecker<'interner> {
                                 trait_id: id.trait_id,
                                 trait_generics: Vec::new(),
                             };
-                            self.trait_constraints.push((constraint, *expr_id));
+                            // self.trait_constraints.push((constraint, *expr_id));
+                            // self.trait_constraints.insert((constraint.trait_id, *expr_id), constraint);
+                            self.trait_constraints.entry(*expr_id).or_default().push(constraint);
+                            // self.trait_constraints.entry((constraint.trait_id, *expr_id)).or_default().push(constraint);
+
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
@@ -186,8 +190,6 @@ impl<'interner> TypeChecker<'interner> {
 
                 self.check_if_deprecated(&call_expr.func);
 
-                let function = self.check_expression(&call_expr.func);
-
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
                     (typ, *arg, self.interner.expr_span(arg))
@@ -206,7 +208,8 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let span = self.interner.expr_span(expr_id);
-                let return_type = self.bind_function_type(function, args, span);
+                let function = self.check_expression(&call_expr.func);
+                let return_type = self.bind_function_type(function.clone(), args, span);
 
                 // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
                 if is_current_func_constrained && is_unconstrained_call {
@@ -227,8 +230,8 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::MethodCall(mut method_call) => {
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();
-                let method_name = method_call.method.0.contents.as_str();
-                match self.lookup_method(&object_type, method_name, expr_id) {
+                let method_name = method_call.method.0.contents.clone();
+                match self.lookup_method(&object_type, &method_name, expr_id) {
                     Some(method_ref) => {
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
@@ -388,7 +391,7 @@ impl<'interner> TypeChecker<'interner> {
             if *assumed {
                 bindings.insert(
                     the_trait.self_type_typevar_id,
-                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
+                    (the_trait.self_type_typevar.clone(), constraint.typ.follow_bindings().clone()),
                 );
             }
         }
@@ -417,12 +420,25 @@ impl<'interner> TypeChecker<'interner> {
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
         if let Some(definition) = self.interner.try_definition(ident.id) {
-            if let DefinitionKind::Function(function) = definition.kind {
-                let function = self.interner.function_meta(&function);
+            if let DefinitionKind::Function(func_id) = definition.kind {
+                let function = self.interner.function_meta(&func_id);
 
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
-                    self.trait_constraints.push((constraint, *expr_id));
+                    // When working on chained function calls we can potentially have trait constraints whose type references the result
+                    // of a previous function call. This can lead to ambiguous expression types as we are unable bind the inner function calls
+                    // return type. The logic below checks whether we already have an existing constraint for this identifier.
+                    // If we do have an existing constraint it can be replaced with the constraint specified on the function.
+                    let existing_constraints = self.trait_constraints.entry(*expr_id).or_default();
+                    let existing_trait_index =
+                        existing_constraints.iter().position(|existing_constraint| {
+                            existing_constraint.trait_id == constraint.trait_id
+                        });
+                    if let Some(index) = existing_trait_index {
+                        existing_constraints[index] = constraint;
+                    } else {
+                        existing_constraints.push(constraint);
+                    }
                 }
             }
         }
@@ -439,7 +455,10 @@ impl<'interner> TypeChecker<'interner> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.trait_constraints.push((constraint, *expr_id));
+                // self.trait_constraints.push((constraint, *expr_id));
+                // self.trait_constraints.insert((constraint.trait_id, *expr_id), constraint);
+                // self.trait_constraints.entry((constraint.trait_id, *expr_id)).or_default().push(constraint);
+                self.trait_constraints.entry(*expr_id).or_default().push(constraint);
             }
         }
 
