@@ -58,6 +58,8 @@ termion = "3.0.0"
 # Logs
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
+time = "^0.3.35" # stanm: this is a dependency of tracing-appender and earlier
+                 # versions break the build
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }

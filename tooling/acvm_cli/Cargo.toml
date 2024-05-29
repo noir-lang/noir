@@ -31,6 +31,8 @@ acir.workspace = true
 # Logs
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
+time = "^0.3.35" # stanm: this is a dependency of tracing-appender and earlier
+                 # versions break the build
 
 [dev-dependencies]
 rand = "0.8.5"
