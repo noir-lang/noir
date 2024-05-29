@@ -113,10 +113,6 @@ jobs:
         working-directory: barretenberg/cpp/build-wasm/bin
         run: tar -cvzf barretenberg.wasm.tar.gz barretenberg.wasm
 
-      - name: Tar and GZip acvm_backend.wasm
-        working-directory: barretenberg/cpp/build-wasm/bin
-        run: tar -cvzf acvm_backend.wasm.tar.gz acvm_backend.wasm
-
       # - name: Setup Node.js
       #   uses: actions/setup-node@v2
       #   with:
@@ -137,7 +133,6 @@ jobs:
           name: release-wasm
           path: |
             ./barretenberg/cpp/build-wasm/bin/barretenberg.wasm.tar.gz
-            ./barretenberg/cpp/build-wasm/bin/acvm_backend.wasm.tar.gz
 
   build-mac-intel:
     name: Build on Mac x86_64-apple-darwin
@@ -239,7 +234,6 @@ jobs:
           prerelease: true
           files: |
             barretenberg.wasm.tar.gz
-            acvm_backend.wasm.tar.gz
             barretenberg-x86_64-linux-gnu.tar.gz
             barretenberg-x86_64-apple-darwin.tar.gz
             barretenberg-aarch64-apple-darwin.tar.gz

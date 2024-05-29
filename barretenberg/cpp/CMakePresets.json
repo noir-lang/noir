@@ -482,7 +482,6 @@
       "jobs": 0,
       "targets": [
         "barretenberg.wasm",
-        "acvm_backend.wasm",
         "barretenberg",
         "wasi",
         "env"
