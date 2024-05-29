@@ -34,7 +34,7 @@ jobs:
     secrets: inherit
 
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     # Required permissions
     permissions:
       pull-requests: read
@@ -101,7 +101,7 @@ jobs:
   # all the non-bench end-to-end integration tests for aztec
   e2e:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -130,7 +130,7 @@ jobs:
   # all the benchmarking end-to-end integration tests for aztec (not required to merge)
   bench-e2e:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -162,7 +162,7 @@ jobs:
               +${{ matrix.test }}
 
   acir-bench:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [setup, changes]
     if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
     steps:
@@ -489,7 +489,7 @@ jobs:
         run: earthly-ci --no-output ./docs/+deploy-preview --ENV=staging --PR=${{ github.event.number }} --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
 
   bb-bench:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [setup, changes]
     if: ${{ needs.changes.outputs.barretenberg-cpp == 'true' }}
     steps:
@@ -609,7 +609,7 @@ jobs:
           message: ${{ steps.gates_diff.outputs.markdown }}
 
   merge-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       # must be kept in sync with rerun-check
       - setup
@@ -656,7 +656,7 @@ jobs:
           fi
 
   rerun-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions:
       actions: write
     needs:
@@ -706,7 +706,7 @@ jobs:
   notify:
     needs:
       - merge-check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: ${{ github.ref == 'refs/heads/master' && failure() }}
     steps:
       - name: Send notification to aztec3-ci channel if workflow failed on master
