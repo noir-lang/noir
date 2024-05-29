@@ -566,7 +566,6 @@ jobs:
         with: { ref: "${{ github.event.pull_request.head.sha }}" }
       - uses: ./.github/ci-setup-action
         with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           # must be globally unique for build x runner
           concurrency_key: boxes-${{ github.event.pull_request.user.login || github.actor }}-build
       - name: Build
@@ -589,7 +588,6 @@ jobs:
         with: { ref: "${{ github.event.pull_request.head.sha }}" }
       - uses: ./.github/ci-setup-action
         with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           # must be globally unique for build x runner
           concurrency_key: boxes-${{ github.event.pull_request.user.login || github.actor }}-x86-${{ matrix.box }}-${{ matrix.browser }}
       - name: Box test
