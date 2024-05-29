@@ -9,6 +9,7 @@
 #include "avm_mem_trace.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/vm/avm_trace/gadgets/avm_conversion_trace.hpp"
+#include "barretenberg/vm/avm_trace/gadgets/avm_poseidon2.hpp"
 #include "barretenberg/vm/avm_trace/gadgets/avm_sha256.hpp"
 #include "constants.hpp"
 
@@ -152,6 +153,8 @@ class AvmTraceBuilder {
     // --- Hashing
     // Sha256 compression operation
     void op_sha256_compression(uint8_t indirect, uint32_t output_offset, uint32_t h_init_offset, uint32_t input_offset);
+    // Poseidon2 Permutation operation
+    void op_poseidon2_permutation(uint8_t indirect, uint32_t input_offset, uint32_t output_offset);
 
   private:
     // Used for the standard indirect address resolution of three operands opcode.
@@ -173,6 +176,7 @@ class AvmTraceBuilder {
     AvmKernelTraceBuilder kernel_trace_builder;
     AvmConversionTraceBuilder conversion_trace_builder;
     AvmSha256TraceBuilder sha256_trace_builder;
+    AvmPoseidon2TraceBuilder poseidon2_trace_builder;
 
     /**
      * @brief Create a kernel lookup opcode object

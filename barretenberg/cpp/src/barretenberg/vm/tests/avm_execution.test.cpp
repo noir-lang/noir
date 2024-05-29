@@ -787,6 +787,84 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
 
     validate_trace(std::move(trace));
 }
+
+// Positive test with POSEIDON2_PERM.
+TEST_F(AvmExecutionTests, poseidon2PermutationOpCode)
+{
+
+    // Test vectors taken from barretenberg/permutation/test
+    std::vector<FF> calldata{ FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")),
+                              FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")),
+                              FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")),
+                              FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")) };
+
+    // We use calldatacopy twice because we need to set up 4 inputs
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) +   // opcode CALL DATA COPY
+                               "00"                             // Indirect Flag
+                               "00000000"                       // cd_offset
+                               "00000003"                       // copy_size
+                               "00000001"                       // dst_offset 1
+                               + to_hex(OpCode::CALLDATACOPY) + // opcode CALL DATA COPY (for 4th input)
+                               "00"                             // Indirect Flag
+                               "00000003"                       // cd_offset
+                               "00000001"                       // copy_size
+                               "00000004" +                     // dst_offset 4
+                               to_hex(OpCode::SET) +            // opcode SET for indirect src (input)
+                               "00"                             // Indirect flag
+                               "03"                             // U32
+                               "00000001"                       // value 1 (i.e. where the src will be read from)
+                               "00000024"                       // dst_offset 36
+                               + to_hex(OpCode::SET) +          // opcode SET for indirect dst (output)
+                               "00"                             // Indirect flag
+                               "03"                             // U32
+                               "00000009"                       // value 9 (i.e. where the ouput will be written to)
+                               "00000023"                       // dst_offset 35
+                               + to_hex(OpCode::POSEIDON2) +    // opcode POSEIDON2
+                               "03"                             // Indirect flag (first 2 operands indirect)
+                               "00000024"                       // input offset (indirect 36)
+                               "00000023"                       // output offset (indirect 35)
+                               + to_hex(OpCode::RETURN) +       // opcode RETURN
+                               "00"                             // Indirect flag
+                               "00000009"                       // ret offset 256
+                               "00000004";                      // ret size 8
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    // 2 CALLDATACOPY for input + 2 SET for setting up indirects + 1 POSEIDON2 + 1 RETURN
+    ASSERT_THAT(instructions, SizeIs(6));
+
+    // POSEIDON2_PERM
+    EXPECT_THAT(
+        instructions.at(4),
+        AllOf(Field(&Instruction::op_code, OpCode::POSEIDON2),
+              Field(&Instruction::operands,
+                    ElementsAre(VariantWith<uint8_t>(3), VariantWith<uint32_t>(36), VariantWith<uint32_t>(35)))));
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata = std::vector<FF>();
+    std::vector<FF> expected_output = {
+        FF(std::string("0x2bf1eaf87f7d27e8dc4056e9af975985bccc89077a21891d6c7b6ccce0631f95")),
+        FF(std::string("0x0c01fa1b8d0748becafbe452c0cb0231c38224ea824554c9362518eebdd5701f")),
+        FF(std::string("0x018555a8eb50cf07f64b019ebaf3af3c925c93e631f3ecd455db07bbb52bbdd3")),
+        FF(std::string("0x0cbea457c91c22c6c31fd89afd2541efc2edf31736b9f721e823b2165c90fd41"))
+    };
+
+    auto trace = Execution::gen_trace(instructions, returndata, calldata);
+
+    // Find the first row enabling the poseidon2 selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_poseidon2 == 1; });
+    EXPECT_EQ(row->avm_main_ind_a, 36);
+    EXPECT_EQ(row->avm_main_ind_b, 35);
+    EXPECT_EQ(row->avm_main_mem_idx_a, 1); // Indirect(36) -> 1
+    EXPECT_EQ(row->avm_main_mem_idx_b, 9); // Indirect(34) -> 9
+    EXPECT_EQ(row->avm_main_ia, FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")));
+    EXPECT_EQ(row->avm_main_ib, 0); // Contains first element of the output (trivially 0)
+
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace));
+}
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmExecutionTests, invalidOpcode)
 {

@@ -2121,7 +2121,7 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
     auto clk = static_cast<uint32_t>(main_trace.size());
 
     // Resolve the indirect flags, the results of this function are used to determine the memory offsets
-    // that point to the starting memory addresses for the input, output and h_init values
+    // that point to the starting memory addresses for the input and output values.
     // Note::This function will add memory reads at clk in the mem_trace_builder
     auto const res = resolve_ind_three(call_ptr, clk, indirect, h_init_offset, input_offset, output_offset);
 
@@ -2197,6 +2197,89 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
     // Write the result to memory after
     write_slice_to_memory(
         call_ptr, clk, res.direct_c_offset, AvmMemoryTag::U32, AvmMemoryTag::U32, FF(internal_return_ptr), ff_result);
+}
+
+/**
+ * @brief Poseidon2 Permutation with direct or indirect memory access.
+ *
+ * @param indirect byte encoding information about indirect/direct memory access.
+ * @param input_offset An index in memory pointing to the first Field value of the input array to be used in the next
+ * instance of poseidon2 permutation.
+ * @param output_offset An index in memory pointing to where the first Field value of the output array should be stored.
+ */
+void AvmTraceBuilder::op_poseidon2_permutation(uint8_t indirect, uint32_t input_offset, uint32_t output_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size());
+
+    // Resolve the indirect flags, the results of this function are used to determine the memory offsets
+    // that point to the starting memory addresses for the input, output and h_init values
+    // Note::This function will add memory reads at clk in the mem_trace_builder
+    bool tag_match = true;
+    uint32_t direct_src_offset = input_offset;
+    uint32_t direct_dst_offset = output_offset;
+
+    bool indirect_src_flag = is_operand_indirect(indirect, 0);
+    bool indirect_dst_flag = is_operand_indirect(indirect, 1);
+
+    if (indirect_src_flag) {
+        auto read_ind_src =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, input_offset);
+        direct_src_offset = uint32_t(read_ind_src.val);
+        tag_match = tag_match && read_ind_src.tag_match;
+    }
+
+    if (indirect_dst_flag) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_B, output_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+
+    auto read_a = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_src_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
+    // Read in the memory address of where the first limb should be stored
+    auto read_b = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, direct_dst_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = read_a.val, // First element of input
+        .avm_main_ib = read_b.val, // First element of output (trivially zero)
+        .avm_main_ind_a = indirect_src_flag ? FF(input_offset) : FF(0),
+        .avm_main_ind_b = indirect_dst_flag ? FF(output_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_src_flag)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(indirect_dst_flag)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_src_offset),
+        .avm_main_mem_idx_b = FF(direct_dst_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+        .avm_main_sel_op_poseidon2 = FF(1),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+    // We store the current clk this main trace row occurred so that we can line up the poseidon2 gadget operation at
+    // the same clk later.
+    auto poseidon_op_clk = clk;
+
+    // We need to increment the clk
+    clk++;
+    std::array<FF, 4> input;
+    // Read results are written to input array.
+    read_slice_to_memory<FF, 4>(
+        call_ptr, clk, direct_src_offset, AvmMemoryTag::FF, AvmMemoryTag::FF, FF(internal_return_ptr), input);
+
+    // Increment the clock by 1 since (4 reads / 4 reads per row = 1)
+    clk += 1;
+    std::array<FF, 4> result = poseidon2_trace_builder.poseidon2_permutation(input, poseidon_op_clk);
+    std::vector<FF> ff_result;
+    for (uint32_t i = 0; i < 4; i++) {
+        ff_result.emplace_back(result[i]);
+    }
+    // // Write the result to memory after
+    write_slice_to_memory(
+        call_ptr, clk, direct_dst_offset, AvmMemoryTag::FF, AvmMemoryTag::FF, FF(internal_return_ptr), ff_result);
 }
 
 // Finalise Lookup Counts
@@ -2323,12 +2406,14 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     auto alu_trace = alu_trace_builder.finalize();
     auto conv_trace = conversion_trace_builder.finalize();
     auto sha256_trace = sha256_trace_builder.finalize();
+    auto poseidon2_trace = poseidon2_trace_builder.finalize();
     auto bin_trace = bin_trace_builder.finalize();
     size_t mem_trace_size = mem_trace.size();
     size_t main_trace_size = main_trace.size();
     size_t alu_trace_size = alu_trace.size();
     size_t conv_trace_size = conv_trace.size();
     size_t sha256_trace_size = sha256_trace.size();
+    size_t poseidon2_trace_size = poseidon2_trace.size();
     size_t bin_trace_size = bin_trace.size();
 
     // Get tag_err counts from the mem_trace_builder
@@ -2346,9 +2431,9 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     // 2**16 long)
     size_t const lookup_table_size = (bin_trace_size > 0 && range_check_required) ? 3 * (1 << 16) : 0;
     size_t const range_check_size = range_check_required ? UINT16_MAX + 1 : 0;
-    std::vector<size_t> trace_sizes = { mem_trace_size,    main_trace_size,       alu_trace_size,
-                                        lookup_table_size, range_check_size,      conv_trace_size,
-                                        sha256_trace_size, KERNEL_OUTPUTS_LENGTH, min_trace_size };
+    std::vector<size_t> trace_sizes = { mem_trace_size,        main_trace_size, alu_trace_size,    lookup_table_size,
+                                        range_check_size,      conv_trace_size, sha256_trace_size, poseidon2_trace_size,
+                                        KERNEL_OUTPUTS_LENGTH, min_trace_size };
     auto trace_size = std::max_element(trace_sizes.begin(), trace_sizes.end());
 
     // We only need to pad with zeroes to the size to the largest trace here, pow_2 padding is handled in the
@@ -2704,6 +2789,17 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         // dest.avm_sha256_output = src.output[0];
         dest.avm_sha256_sha256_compression_sel = FF(1);
         dest.avm_sha256_state = src.state[0];
+    }
+    //
+    // Add Poseidon2 Gadget table
+    for (size_t i = 0; i < poseidon2_trace_size; i++) {
+        auto const& src = poseidon2_trace.at(i);
+        auto& dest = main_trace.at(i);
+        dest.avm_poseidon2_clk = FF(src.clk);
+        dest.avm_poseidon2_input = src.input[0];
+        // TODO: This will need to be enabled later
+        // dest.avm_poseidon2_output = src.output[0];
+        dest.avm_poseidon2_poseidon_perm_sel = FF(1);
     }
 
     // Add Binary Trace table

@@ -1,9 +1,7 @@
 #pragma once
 
 #include "../avm_common.hpp"
-#include "barretenberg/numeric/uint128/uint128.hpp"
 #include <cstdint>
-#include <unordered_map>
 
 namespace bb::avm_trace {
 class AvmSha256TraceBuilder {

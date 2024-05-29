@@ -1,0 +1,13 @@
+include "../avm_main.pil";
+
+namespace avm_poseidon2(256);
+
+    pol commit clk;
+
+    // Selector for Radix Operation
+    pol commit poseidon_perm_sel;
+    poseidon_perm_sel * (1 - poseidon_perm_sel) = 0;
+
+    // These will all be arrays, but we just store the first element for permutation to the main trace for now
+    pol commit input;
+    pol commit output;
