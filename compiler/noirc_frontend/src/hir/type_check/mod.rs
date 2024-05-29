@@ -37,9 +37,6 @@ pub struct TypeChecker<'interner> {
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
-    // trait_constraints: Vec<(TraitConstraint, ExprId)>,
-    // TODO, change this to a hashmap
-    // trait_constraints: HashMap<(TraitId, ExprId), TraitConstraint>,
     trait_constraints: HashMap<ExprId, Vec<TraitConstraint>>,
 
     /// All type variables created in the current function.
@@ -364,7 +361,6 @@ impl<'interner> TypeChecker<'interner> {
         Self {
             interner,
             errors: Vec::new(),
-            // trait_constraints: Vec::new(),
             trait_constraints: HashMap::default(),
             type_variables: Vec::new(),
             current_function: None,
@@ -382,7 +378,6 @@ impl<'interner> TypeChecker<'interner> {
         let mut this = Self {
             interner,
             errors: Vec::new(),
-            // trait_constraints: Vec::new(),
             trait_constraints: HashMap::default(),
             type_variables: Vec::new(),
             current_function: None,
