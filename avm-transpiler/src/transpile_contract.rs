@@ -88,14 +88,8 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
 
         for function in contract.functions {
             // TODO(4269): once functions are tagged for transpilation to AVM, check tag
-            if function
-                .custom_attributes
-                .contains(&"aztec(public)".to_string())
-            {
-                info!(
-                    "Transpiling AVM function {} on contract {}",
-                    function.name, contract.name
-                );
+            if function.custom_attributes.contains(&"aztec(public)".to_string()) {
+                info!("Transpiling AVM function {} on contract {}", function.name, contract.name);
                 // Extract Brillig Opcodes from acir
                 let acir_program = function.bytecode;
                 let brillig_bytecode = extract_brillig_from_acir_program(&acir_program);
@@ -123,7 +117,7 @@ impl From<CompiledAcirContractArtifact> for TranspiledContractArtifact {
 
                 // Patch the debug infos with updated PCs
                 let debug_infos = patch_debug_info_pcs(
-                    &function.debug_symbols.debug_infos,
+                    function.debug_symbols.debug_infos,
                     &brillig_pcs_to_avm_pcs,
                 );
 

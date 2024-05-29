@@ -40,6 +40,7 @@ jobs:
       pull-requests: read
     # Set job outputs to values from filter step
     outputs:
+      avm-transpiler: ${{ steps.filter.outputs.avm-transpiler }}
       barretenberg: ${{ steps.filter.outputs.barretenberg }}
       barretenberg-cpp: ${{ steps.filter.outputs.barretenberg-cpp }}
       noir: ${{ steps.filter.outputs.noir }}
@@ -61,6 +62,8 @@ jobs:
               - 'barretenberg/cpp/**'
             noir:
               - 'noir/**'
+            avm-transpiler:
+              - 'avm-transpiler/**'
             l1-contracts:
               - 'l1-contracts/**'
             noir-projects:
@@ -419,6 +422,21 @@ jobs:
         timeout-minutes: 40
         run: earthly-ci --no-output ./noir-projects/+test
 
+  avm-format:
+    needs: [setup, changes]
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    if: ${{ needs.changes.outputs.avm-transpiler == 'true' || needs.changes.outputs.noir == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: avm-transpiler-format-x86
+      - name: "Format AVM transpiler"
+        working-directory: ./avm-transpiler/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+format
+
   yarn-project-formatting:
     needs: build
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
@@ -631,6 +649,7 @@ jobs:
       - noir-examples
       - noir-packages-test
       - noir-projects
+      - avm-format
       - yarn-project-formatting
       - yarn-project-test
       - prover-client-test
@@ -680,6 +699,7 @@ jobs:
       - noir-examples
       - noir-packages-test
       - noir-projects
+      - avm-format
       - yarn-project-formatting
       - yarn-project-test
       - prover-client-test

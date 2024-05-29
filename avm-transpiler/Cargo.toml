@@ -10,12 +10,10 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 # local
 acvm = { path = "../noir/noir-repo/acvm-repo/acvm" }
-noirc_driver = { path = "../noir/noir-repo/compiler/noirc_driver" }
 noirc_errors = { path = "../noir/noir-repo/compiler/noirc_errors" }
 
 # external
 base64 = "0.21"
-regex = "1.10"
 env_logger = "0.11"
 log = "0.4"
 serde_json = "1.0"
