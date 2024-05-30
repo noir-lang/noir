@@ -903,7 +903,11 @@ impl<'a> Resolver<'a> {
             let ident = Ident::from(generic);
             let span = ident.0.span();
 
-            if let UnresolvedGeneric::Numeric { ident, .. } = generic {
+            if let UnresolvedGeneric::Numeric { ident, typ } = generic {
+                let typ = self.resolve_type(typ.clone());
+                if !matches!(typ, Type::FieldElement | Type::Integer(_, _) | Type::Bool) {
+                    self.errors.push(ResolverError::UnsupportedNumericGenericType { ident: ident.clone(), typ })
+                }
                 let definition = DefinitionKind::GenericType(typevar.clone());
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
             } 

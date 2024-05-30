@@ -1443,3 +1443,29 @@ fn specify_method_types_with_turbofish() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
 }
+
+#[test]
+fn unsupported_numeric_generic_type() {
+    let src = r#"
+    struct Foo {
+        inner: u64
+    }
+
+    fn double<let N: Foo>() -> u64 {
+        N.inner * 2
+    }
+
+    impl<T> Foo<T> {
+        fn generic_method<U>(_self: Self) -> U where U: Default {
+            U::default()
+        }
+    }
+    
+    fn main() {
+        let foo: Foo<u64> = Foo { inner: 1 };
+        let _ = double::<foo>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
+}

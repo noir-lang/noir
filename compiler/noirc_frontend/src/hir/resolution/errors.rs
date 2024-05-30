@@ -94,6 +94,8 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
+    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
+    UnsupportedNumericGenericType { ident: Ident, typ: Type },
 }
 
 impl ResolverError {
@@ -385,6 +387,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
+            }
+            ResolverError::UnsupportedNumericGenericType { ident , typ } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
+                    "Unsupported numeric generic type".to_string(),
+                    ident.0.span(),
+                )
             }
         }
     }

@@ -60,9 +60,6 @@ struct MyType<N> {
     fields: [Field; N]
 }
 
-// impl<N> MyType<N> {
-// }
-
 impl<N> Deserialize<N> for MyType<N> {
     fn deserialize(fields: [Field; N]) -> Self {
         let mut new_fields = [0; N];
