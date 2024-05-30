@@ -1147,6 +1147,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
+        self.generics.clear();
     }
 
     fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
@@ -1211,8 +1212,6 @@ impl<'context> Elaborator<'context> {
 
         let global_id = global.global_id;
         self.current_item = Some(DependencyId::Global(global_id));
-
-        let definition_kind = DefinitionKind::Global(global_id);
         let let_stmt = global.stmt_def;
 
         if !self.in_contract
@@ -1227,11 +1226,12 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
-        let (let_statement, _typ) = self.elaborate_let(let_stmt);
+        self.elaborate_global_let(let_stmt, global_id);
 
-        let statement_id = self.interner.get_global(global_id).let_statement;
-        self.interner.get_global_definition_mut(global_id).kind = definition_kind.clone();
-        self.interner.replace_statement(statement_id, let_statement);
+        // Avoid defaulting the types of globals here since they may be used in any function.
+        // Otherwise we may prematurely default to a Field inside the next function if this
+        // global was unused there, even if it is consistently used as a u8 everywhere else.
+        self.type_variables.clear();
     }
 
     fn define_function_metas(
