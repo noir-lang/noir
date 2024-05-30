@@ -17,13 +17,10 @@ const toString = ({ value }: { value: bigint }) => {
 describe('e2e_token_contract reading constants', () => {
   const t = new TokenContractTest('reading_constants');
   const { TOKEN_DECIMALS, TOKEN_NAME, TOKEN_SYMBOL } = TokenContractTest;
-  let { wallets } = t;
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
     await t.setup();
-
-    ({ wallets } = t);
   });
 
   afterAll(async () => {
@@ -33,7 +30,7 @@ describe('e2e_token_contract reading constants', () => {
   beforeEach(async () => {});
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   it('check name private', async () => {

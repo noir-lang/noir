@@ -1,5 +1,5 @@
 // Convenience struct to hold an account's address and secret that can easily be passed around.
-import { type AztecAddress, type CheatCodes, Fr, type Wallet } from '@aztec/aztec.js';
+import { type AztecAddress, type CheatCodes, Fr } from '@aztec/aztec.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { type LendingContract } from '@aztec/noir-contracts.js/Lending';
 
@@ -154,10 +154,10 @@ export class LendingSimulator {
     this.mintedOutside += amount;
   }
 
-  async check(wallet: Wallet) {
+  async check() {
     // Run checks on both underlying assets
-    await this.collateralAsset.check(wallet);
-    await this.stableCoin.check(wallet);
+    await this.collateralAsset.check();
+    await this.stableCoin.check();
 
     // Check that total collateral equals total holdings by contract.
     const totalCollateral = Object.values(this.collateral).reduce((a, b) => new Fr(a.value + b.value), Fr.ZERO);

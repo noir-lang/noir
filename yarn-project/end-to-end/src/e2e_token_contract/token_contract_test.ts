@@ -86,6 +86,7 @@ export class TokenContractTest {
 
         this.tokenSim = new TokenSimulator(
           this.asset,
+          this.wallets[0],
           this.logger,
           this.accounts.map(a => a.address),
         );

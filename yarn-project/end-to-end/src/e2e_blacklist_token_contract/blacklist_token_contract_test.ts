@@ -121,6 +121,7 @@ export class BlacklistTokenContractTest {
 
         this.tokenSim = new TokenSimulator(
           this.asset as unknown as TokenContract,
+          this.wallets[0],
           this.logger,
           this.accounts.map(a => a.address),
         );

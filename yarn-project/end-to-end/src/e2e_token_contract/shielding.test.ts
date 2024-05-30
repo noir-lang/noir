@@ -23,7 +23,7 @@ describe('e2e_token_contract shield + redeem shield', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   it('on behalf of self', async () => {
@@ -34,7 +34,7 @@ describe('e2e_token_contract shield + redeem shield', () => {
     const receipt = await asset.methods.shield(accounts[0].address, amount, secretHash, 0).send().wait();
 
     tokenSim.shield(accounts[0].address, amount);
-    await tokenSim.check(wallets[0]);
+    await tokenSim.check();
 
     // Redeem it
     await t.addPendingShieldNoteToPXE(0, amount, secretHash, receipt.txHash);
@@ -56,7 +56,7 @@ describe('e2e_token_contract shield + redeem shield', () => {
     const receipt = await action.send().wait();
 
     tokenSim.shield(accounts[0].address, amount);
-    await tokenSim.check(wallets[0]);
+    await tokenSim.check();
 
     // Check that replaying the shield should fail!
     const txReplay = asset.withWallet(wallets[1]).methods.shield(accounts[0].address, amount, secretHash, nonce).send();

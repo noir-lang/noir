@@ -18,7 +18,7 @@ describe('e2e_token_contract minting', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   describe('Public', () => {

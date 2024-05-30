@@ -21,7 +21,7 @@ describe('e2e_blacklist_token_contract burn', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   describe('public', () => {

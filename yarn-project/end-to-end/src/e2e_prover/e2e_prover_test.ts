@@ -120,6 +120,7 @@ export class FullProverTest {
 
         this.tokenSim = new TokenSimulator(
           this.fakeProofsAsset,
+          this.wallets[0],
           this.logger,
           this.accounts.map(a => a.address),
         );

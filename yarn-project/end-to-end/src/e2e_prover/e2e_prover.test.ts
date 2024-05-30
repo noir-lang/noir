@@ -7,14 +7,14 @@ const TIMEOUT = 1_800_000;
 
 describe('full_prover', () => {
   const t = new FullProverTest('full_prover');
-  let { provenAssets, accounts, tokenSim, logger, wallets } = t;
+  let { provenAssets, accounts, tokenSim, logger } = t;
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
     await t.applyMintSnapshot();
     await t.setup();
     await t.deployVerifier();
-    ({ provenAssets, accounts, tokenSim, logger, wallets } = t);
+    ({ provenAssets, accounts, tokenSim, logger } = t);
   });
 
   afterAll(async () => {
@@ -22,7 +22,7 @@ describe('full_prover', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   it(

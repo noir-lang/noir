@@ -20,7 +20,7 @@ describe('e2e_blacklist_token_contract shield + redeem_shield', () => {
   });
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   const secret = Fr.random();
@@ -38,7 +38,7 @@ describe('e2e_blacklist_token_contract shield + redeem_shield', () => {
     const receipt = await asset.methods.shield(wallets[0].getAddress(), amount, secretHash, 0).send().wait();
 
     tokenSim.shield(wallets[0].getAddress(), amount);
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
 
     // Redeem it
     await t.addPendingShieldNoteToPXE(0, amount, secretHash, receipt.txHash);
@@ -60,7 +60,7 @@ describe('e2e_blacklist_token_contract shield + redeem_shield', () => {
     const receipt = await action.send().wait();
 
     tokenSim.shield(wallets[0].getAddress(), amount);
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
 
     // Check that replaying the shield should fail!
     const txReplay = asset

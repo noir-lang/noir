@@ -21,11 +21,11 @@ describe('e2e_blacklist_token_contract mint', () => {
   });
 
   beforeEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   afterEach(async () => {
-    await t.tokenSim.check(wallets[0]);
+    await t.tokenSim.check();
   });
 
   describe('Public', () => {
