@@ -6,10 +6,14 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{BlockExpression, Ident, IntegerBitSize, Signedness},
-    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
-    macros_api::{HirExpression, HirLiteral, NodeInterner},
-    node_interner::{ExprId, FuncId},
+    ast::{
+        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
+    },
+    hir_def::expr::{HirIdent, HirLambda, ImplKind},
+    macros_api::{
+        Expression, ExpressionKind, HirExpression, Literal, NodeInterner, Path,
+    },
+    node_interner::FuncId,
     Shared, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -78,54 +82,55 @@ impl Value {
         self,
         interner: &mut NodeInterner,
         location: Location,
-    ) -> IResult<ExprId> {
+    ) -> IResult<Expression> {
         let typ = self.get_type().into_owned();
 
-        let expression = match self {
-            Value::Unit => HirExpression::Literal(HirLiteral::Unit),
-            Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value, false)),
+        let kind = match self {
+            Value::Unit => ExpressionKind::Literal(Literal::Unit),
+            Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
+            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value, false)),
             Value::I8(value) => {
                 let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(value, negative))
             }
             Value::I16(value) => {
                 let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(value, negative))
             }
             Value::I32(value) => {
                 let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(value, negative))
             }
             Value::I64(value) => {
                 let negative = value < 0;
                 let value = value.abs();
                 let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(value, negative))
             }
             Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
-            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
             Value::Function(id, _typ) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
-                HirExpression::Ident(HirIdent { location, id, impl_kind }, None)
+                let ident = HirExpression::Ident(HirIdent { location, id, impl_kind }, None);
+                ExpressionKind::Hir(ident)
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
@@ -134,7 +139,7 @@ impl Value {
             }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
-                HirExpression::Tuple(fields)
+                ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
@@ -142,37 +147,36 @@ impl Value {
                     Ok((Ident::new(unwrap_rc(name), location.span), field))
                 })?;
 
-                let (r#type, struct_generics) = match typ.follow_bindings() {
-                    Type::Struct(def, generics) => (def, generics),
+                let struct_type = match typ.follow_bindings() {
+                    Type::Struct(def, generics) => Some((def, generics)),
                     _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
                 };
 
-                HirExpression::Constructor(HirConstructorExpression {
-                    r#type,
-                    struct_generics,
+                // Since we've provided the struct_type, the path should be ignored.
+                let type_name = Path::from_single(String::new(), location.span);
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    type_name,
                     fields,
-                })
+                    struct_type,
+                }))
             }
             Value::Array(elements, _) => {
                 let elements =
                     try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
-                HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
                 let elements =
                     try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
-                HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
-            Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
+            Value::Code(block) => ExpressionKind::Block(unwrap_rc(block)),
             Value::Pointer(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
 
-        let id = interner.push_expr(expression);
-        interner.push_expr_location(id, location.span, location.file);
-        interner.push_expr_type(id, typ);
-        Ok(id)
+        Ok(Expression::new(kind, location.span))
     }
 }
 

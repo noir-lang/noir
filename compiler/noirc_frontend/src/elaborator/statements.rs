@@ -3,6 +3,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
+        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -13,7 +14,8 @@ use crate::{
         },
     },
     macros_api::{
-        ForLoopStatement, ForRange, HirStatement, LetStatement, Statement, StatementKind,
+        ForLoopStatement, ForRange, HirExpression, HirLiteral, HirStatement, LetStatement,
+        Statement, StatementKind,
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,
@@ -435,7 +437,17 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    pub(super) fn elaborate_comptime(&self, _statement: Statement) -> (HirStatement, Type) {
-        todo!("Comptime scanning")
+    pub(super) fn elaborate_comptime(&mut self, statement: Statement) -> (HirStatement, Type) {
+        let (hir_statement, typ) = self.elaborate_statement(statement);
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+        if let Err(error) = interpreter.evaluate_statement(hir_statement) {
+            self.push_err(error);
+        }
+
+        let unit = HirExpression::Literal(HirLiteral::Unit);
+        let unit = self.interner.push_expr(unit);
+        self.interner.push_expr_type(unit, Type::Unit);
+        (HirStatement::Expression(unit), typ)
     }
 }

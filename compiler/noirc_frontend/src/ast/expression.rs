@@ -6,6 +6,7 @@ use crate::ast::{
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::token::{Attributes, Token};
+use crate::{Shared, StructType, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -108,7 +109,7 @@ impl ExpressionKind {
     }
 
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
+        ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields, struct_type: None }))
     }
 
     /// Returns true if the expression is a literal integer
@@ -451,6 +452,11 @@ pub struct MethodCallExpression {
 pub struct ConstructorExpression {
     pub type_name: Path,
     pub fields: Vec<(Ident, Expression)>,
+
+    /// This may be filled out during macro expansion
+    /// so that we can skip re-resolving the type name since it
+    /// would be lost at that point.
+    pub struct_type: Option<(Shared<StructType>, Vec<Type>)>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

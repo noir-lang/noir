@@ -79,14 +79,7 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::If(if_) => self.scan_if(if_),
             HirExpression::Tuple(tuple) => self.scan_tuple(tuple),
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
-            HirExpression::Comptime(block) => {
-                let location = self.interner.expr_location(&expr);
-                let new_expr =
-                    self.evaluate_block(block)?.into_expression(self.interner, location)?;
-                let new_expr = self.interner.expression(&new_expr);
-                self.interner.replace_expr(&expr, new_expr);
-                Ok(())
-            }
+            HirExpression::Comptime(_block) => Ok(()),
             HirExpression::Quote(_) => {
                 // This error could be detected much earlier in the compiler pipeline but
                 // it just makes sense for the comptime code to handle comptime things.
@@ -227,13 +220,7 @@ impl<'interner> Interpreter<'interner> {
             HirStatement::Expression(expression) => self.scan_expression(expression),
             HirStatement::Semi(semi) => self.scan_expression(semi),
             HirStatement::Error => Ok(()),
-            HirStatement::Comptime(comptime) => {
-                let location = self.interner.statement_location(comptime);
-                let new_expr =
-                    self.evaluate_comptime(comptime)?.into_expression(self.interner, location)?;
-                self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
-                Ok(())
-            }
+            HirStatement::Comptime(comptime) => Ok(()),
         }
     }
 
@@ -247,11 +234,7 @@ impl<'interner> Interpreter<'interner> {
         Ok(())
     }
 
-    fn inline_expression(&mut self, value: Value, expr: ExprId) -> IResult<()> {
-        let location = self.interner.expr_location(&expr);
-        let new_expr = value.into_expression(self.interner, location)?;
-        let new_expr = self.interner.expression(&new_expr);
-        self.interner.replace_expr(&expr, new_expr);
+    fn inline_expression(&mut self, _value: Value, _expr: ExprId) -> IResult<()> {
         Ok(())
     }
 }

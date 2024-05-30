@@ -6,6 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
+        comptime,
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -19,9 +20,12 @@ use crate::{
     },
     hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
-        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
+        HirExpression, HirLiteral, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
+        SecondaryAttribute, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
+    node_interner::{
+        DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId,
+    },
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -60,7 +64,7 @@ mod types;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -153,6 +157,11 @@ pub struct Elaborator<'context> {
     local_module: LocalModuleId,
 
     crate_id: CrateId,
+
+    /// Each value currently in scope in the comptime interpreter.
+    /// Each element of the Vec represents a scope with every scope together making
+    /// up all currently visible definitions. The first scope is always the global scope.
+    comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -179,6 +188,7 @@ impl<'context> Elaborator<'context> {
             type_variables: Vec::new(),
             trait_constraints: Vec::new(),
             current_trait_impl: None,
+            comptime_scopes: vec![HashMap::default()],
         }
     }
 

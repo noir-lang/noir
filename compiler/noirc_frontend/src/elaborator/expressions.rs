@@ -9,6 +9,7 @@ use crate::{
         UnresolvedTypeExpression,
     },
     hir::{
+        comptime::{Interpreter, InterpreterError},
         resolution::{errors::ResolverError, resolver::LambdaContext},
         type_check::TypeCheckError,
     },
@@ -36,7 +37,10 @@ impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
-            ExpressionKind::Block(block) => self.elaborate_block(block),
+            ExpressionKind::Block(block) => {
+                let (block, typ) = self.elaborate_block(block);
+                (HirExpression::Block(block), typ)
+            }
             ExpressionKind::Prefix(prefix) => self.elaborate_prefix(*prefix),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
@@ -58,7 +62,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote),
-            ExpressionKind::Comptime(comptime) => self.elaborate_comptime_block(comptime),
+            ExpressionKind::Comptime(comptime) => {
+                return self.elaborate_comptime_block(comptime, expr.span)
+            }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
         };
         let id = self.interner.push_expr(hir_expr);
@@ -67,7 +73,7 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
+    pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirBlockExpression, Type) {
         self.push_scope();
         let mut block_type = Type::Unit;
         let mut statements = Vec::with_capacity(block.statements.len());
@@ -92,7 +98,7 @@ impl<'context> Elaborator<'context> {
         }
 
         self.pop_scope();
-        (HirExpression::Block(HirBlockExpression { statements }), block_type)
+        (HirBlockExpression { statements }, block_type)
     }
 
     fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {
@@ -620,7 +626,26 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Quote(block), Type::Code)
     }
 
-    fn elaborate_comptime_block(&mut self, _comptime: BlockExpression) -> (HirExpression, Type) {
-        todo!("Elaborate comptime block")
+    fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
+        let (block, typ) = self.elaborate_block(block);
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+        let make_error = |this: &mut Self, error: InterpreterError| {
+            this.push_err(error);
+            let error = this.interner.push_expr(HirExpression::Error);
+            this.interner.push_expr_location(error, span, self.file);
+            (error, Type::Error)
+        };
+
+        let value = match interpreter.evaluate_block(block) {
+            Ok(value) => value,
+            Err(error) => return make_error(self, error),
+        };
+
+        let location = Location::new(span, self.file);
+        match value.into_expression(self.interner, location) {
+            Ok(new_expr) => self.elaborate_expression(new_expr),
+            Err(error) => make_error(self, error),
+        }
     }
 }
