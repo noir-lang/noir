@@ -125,7 +125,7 @@ impl Value {
             Value::Function(id, _typ) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
-                HirExpression::Ident(HirIdent { location, id, impl_kind })
+                HirExpression::Ident(HirIdent { location, id, impl_kind }, None)
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?

@@ -377,9 +377,9 @@ mod tests {
         builder.set_runtime(RuntimeType::Brillig);
 
         let ssa = builder.finish();
-        let mut brillig_context = create_context();
+        let brillig_context = create_context();
 
-        let function_context = FunctionContext::new(ssa.main(), &mut brillig_context);
+        let function_context = FunctionContext::new(ssa.main());
         (ssa, function_context, brillig_context)
     }
 

@@ -1,4 +1,7 @@
-use acvm::acir::circuit::{ExpressionWidth, Program};
+use acvm::{
+    acir::circuit::{ExpressionWidth, Program},
+    FieldElement,
+};
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 use noirc_errors::debug_info::DebugInfo;
@@ -30,10 +33,10 @@ pub fn transform_contract(
 }
 
 fn transform_program_internal(
-    mut program: Program,
+    mut program: Program<FieldElement>,
     debug: &mut [DebugInfo],
     expression_width: ExpressionWidth,
-) -> Program {
+) -> Program<FieldElement> {
     let functions = std::mem::take(&mut program.functions);
 
     let optimized_functions = functions

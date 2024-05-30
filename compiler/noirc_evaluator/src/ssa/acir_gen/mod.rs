@@ -29,6 +29,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
@@ -36,6 +37,7 @@ use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{
+    acir::AcirField,
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
@@ -277,7 +279,7 @@ impl AcirValue {
 }
 
 pub(crate) type Artifacts =
-    (Vec<GeneratedAcir>, Vec<BrilligBytecode>, BTreeMap<ErrorSelector, ErrorType>);
+    (Vec<GeneratedAcir>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1683,7 +1685,18 @@ impl<'a> Context<'a> {
         len: usize,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        self.acir_context.initialize_array(array, len, value)?;
+        let databus = if self.data_bus.call_data.is_some()
+            && self.block_id(&self.data_bus.call_data.unwrap()) == array
+        {
+            BlockType::CallData
+        } else if self.data_bus.return_data.is_some()
+            && self.block_id(&self.data_bus.return_data.unwrap()) == array
+        {
+            BlockType::ReturnData
+        } else {
+            BlockType::Memory
+        };
+        self.acir_context.initialize_array(array, len, value, databus)?;
         self.initialized_arrays.insert(array);
         Ok(())
     }
@@ -1716,30 +1729,47 @@ impl<'a> Context<'a> {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<Vec<SsaReport>, InternalError> {
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
-                (return_values, call_stack)
+                (return_values, call_stack.clone())
             }
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
-        // The return value may or may not be an array reference. Calling `flatten_value_list`
-        // will expand the array if there is one.
-        let return_acir_vars = self.flatten_value_list(return_values, dfg)?;
-        let mut warnings = Vec::new();
-        for (acir_var, is_databus) in return_acir_vars {
-            if self.acir_context.is_constant(&acir_var) {
-                warnings.push(SsaReport::Warning(InternalWarning::ReturnConstant {
-                    call_stack: call_stack.clone(),
-                }));
-            }
-            if !is_databus {
-                // We do not return value for the data bus.
-                self.acir_context.return_var(acir_var)?;
+        let mut has_constant_return = false;
+        for value_id in return_values {
+            let is_databus = self
+                .data_bus
+                .return_data
+                .map_or(false, |return_databus| dfg[*value_id] == dfg[return_databus]);
+            let value = self.convert_value(*value_id, dfg);
+
+            // `value` may or may not be an array reference. Calling `flatten` will expand the array if there is one.
+            let acir_vars = self.acir_context.flatten(value)?;
+            for (acir_var, _) in acir_vars {
+                has_constant_return |= self.acir_context.is_constant(&acir_var);
+                if is_databus {
+                    // We do not return value for the data bus.
+                    self.check_array_is_initialized(
+                        self.data_bus.return_data.expect(
+                            "`is_databus == true` implies `data_bus.return_data` is `Some`",
+                        ),
+                        dfg,
+                    )?;
+                } else {
+                    self.acir_context.return_var(acir_var)?;
+                }
             }
         }
+
+        let warnings = if has_constant_return {
+            vec![SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
+        } else {
+            Vec::new()
+        };
+
         Ok(warnings)
     }
 
@@ -2605,6 +2635,15 @@ impl<'a> Context<'a> {
 
                 Ok(result)
             }
+
+            Intrinsic::AsWitness => {
+                let arg = arguments[0];
+                let input = self.convert_value(arg, dfg).into_var()?;
+                Ok(self
+                    .acir_context
+                    .get_or_create_witness_var(input)
+                    .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
+            }
             _ => todo!("expected a black box function"),
         }
     }
@@ -2653,34 +2692,6 @@ impl<'a> Context<'a> {
             }
             _ => unreachable!("Expected array type"),
         }
-    }
-
-    /// Maps an ssa value list, for which some values may be references to arrays, by inlining
-    /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
-    /// that correspond to other values.
-    fn flatten_value_list(
-        &mut self,
-        arguments: &[ValueId],
-        dfg: &DataFlowGraph,
-    ) -> Result<Vec<(AcirVar, bool)>, InternalError> {
-        let mut acir_vars = Vec::with_capacity(arguments.len());
-        for value_id in arguments {
-            let is_databus = if let Some(return_databus) = self.data_bus.return_data {
-                dfg[*value_id] == dfg[return_databus]
-            } else {
-                false
-            };
-            let value = self.convert_value(*value_id, dfg);
-            acir_vars.append(
-                &mut self
-                    .acir_context
-                    .flatten(value)?
-                    .iter()
-                    .map(|(var, _)| (*var, is_databus))
-                    .collect(),
-            );
-        }
-        Ok(acir_vars)
     }
 
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
@@ -3074,7 +3085,7 @@ mod test {
     }
 
     fn check_call_opcode(
-        opcode: &Opcode,
+        opcode: &Opcode<FieldElement>,
         expected_id: u32,
         expected_inputs: Vec<Witness>,
         expected_outputs: Vec<Witness>,
@@ -3402,7 +3413,7 @@ mod test {
 
     fn check_brillig_calls(
         brillig_stdlib_function_locations: &BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
-        opcodes: &[Opcode],
+        opcodes: &[Opcode<FieldElement>],
         num_normal_brillig_functions: u32,
         expected_num_stdlib_calls: u32,
         expected_num_normal_calls: u32,

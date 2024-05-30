@@ -95,13 +95,11 @@ fn check_package(
         Ok(false)
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
+        if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
-            let path_to_verifier_input = package.verifier_input_path();
 
             // Before writing the file, check if it exists and whether overwrite is set
             let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
-            let should_write_verifier = !path_to_verifier_input.exists() || allow_overwrite;
 
             if should_write_prover {
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
@@ -110,19 +108,7 @@ fn check_package(
                 eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
 
-            if should_write_verifier {
-                let public_inputs =
-                    parameters.into_iter().filter(|param| param.is_public()).collect();
-
-                let verifier_toml = create_input_toml_template(public_inputs, return_type);
-                write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
-            } else {
-                eprintln!(
-                    "Note: Verifier.toml already exists. Use --overwrite to force overwrite."
-                );
-            }
-
-            let any_file_written = should_write_prover || should_write_verifier;
+            let any_file_written = should_write_prover;
 
             Ok(any_file_written)
         } else {

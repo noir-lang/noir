@@ -16,12 +16,6 @@ mod tests {
         let mut dbg_session =
             spawn_bash(Some(timeout_seconds * 1000)).expect("Could not start bash session");
 
-        // Set backend to `/dev/null` to force an error if nargo tries to speak to a backend.
-        dbg_session
-            .send_line("export NARGO_BACKEND_PATH=/dev/null")
-            .expect("Could not export NARGO_BACKEND_PATH.");
-        dbg_session.wait_for_prompt().expect("Could not export NARGO_BACKEND_PATH.");
-
         // Start debugger and test that it loads for the given program.
         dbg_session
             .execute(

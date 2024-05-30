@@ -8,6 +8,14 @@ process_dir() {
     local current_dir=$2
     local dir_name=$(basename "$dir")
 
+    if [[ ! -f "$dir/Nargo.toml" ]]; then
+      # This directory isn't a proper test but just hold some stale build artifacts
+      # We then delete it and carry on.
+      rm -rf $dir
+      return 0
+    fi
+
+
     if [[ ! -d "$current_dir/acir_artifacts/$dir_name" ]]; then
       mkdir -p $current_dir/acir_artifacts/$dir_name
     fi
@@ -16,13 +24,14 @@ process_dir() {
     if [ -d ./target/ ]; then
       rm -r ./target/
     fi
-    nargo compile --only-acir && nargo execute witness
+    nargo execute witness
 
     if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
       rm -r "$current_dir/acir_artifacts/$dir_name/target"
     fi
     mkdir $current_dir/acir_artifacts/$dir_name/target
 
+    mv ./target/$dir_name.json $current_dir/acir_artifacts/$dir_name/target/program.json
     mv ./target/*.gz $current_dir/acir_artifacts/$dir_name/target/
 
     cd $current_dir

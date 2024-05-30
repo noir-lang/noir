@@ -14,7 +14,7 @@ use crate::ssa::ir::function::Function;
 pub(crate) fn convert_ssa_function(func: &Function, enable_debug_trace: bool) -> BrilligArtifact {
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
-    let mut function_context = FunctionContext::new(func, &mut brillig_context);
+    let mut function_context = FunctionContext::new(func);
 
     brillig_context.enter_context(FunctionContext::function_id_to_function_label(func.id()));
 

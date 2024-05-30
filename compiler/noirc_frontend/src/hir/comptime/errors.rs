@@ -1,5 +1,5 @@
 use crate::{hir::def_collector::dc_crate::CompilationError, Type};
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{CustomDiagnostic, Location};
 
 use super::value::Value;

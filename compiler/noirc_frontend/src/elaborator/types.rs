@@ -1,15 +1,18 @@
 use std::rc::Rc;
 
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, UnresolvedTraitConstraint, UnresolvedTypeExpression},
+    ast::{
+        BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedTypeExpression,
+    },
     hir::{
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
-            import::PathResolution,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
         },
         type_check::{Source, TypeCheckError},
@@ -20,14 +23,14 @@ use crate::{
             HirPrefixExpression,
         },
         function::FuncMeta,
-        traits::{Trait, TraitConstraint},
+        traits::TraitConstraint,
     },
     macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
+    Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -494,7 +497,7 @@ impl<'context> Elaborator<'context> {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
                 match definition.kind {
                     DefinitionKind::Global(global_id) => {
@@ -629,7 +632,7 @@ impl<'context> Elaborator<'context> {
         rhs_type: &Type,
         span: Span,
     ) -> Type {
-        let mut unify = |this: &mut Self, expected| {
+        let unify = |this: &mut Self, expected| {
             this.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
                 expr_typ: rhs_type.to_string(),
                 expected_typ: expected.to_string(),
@@ -1249,7 +1252,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn check_if_deprecated(&mut self, expr: ExprId) {
-        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }) =
+        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
             self.interner.expression(&expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -1268,7 +1271,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let HirExpression::Ident(HirIdent { id, .. }) = self.interner.expression(&expr) {
+        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.interner.expression(&expr) {
             if let Some(DefinitionKind::Function(func_id)) =
                 self.interner.try_definition(id).map(|def| &def.kind)
             {
@@ -1433,6 +1436,29 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             }
+        }
+    }
+
+    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
+        assert_eq!(names.len(), generics.len());
+
+        for (name, typevar) in names.iter().zip(generics) {
+            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+        }
+    }
+
+    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
+        // Check for name collisions of this generic
+        let rc_name = Rc::new(name.to_owned());
+
+        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+            self.push_err(ResolverError::DuplicateDefinition {
+                name: name.to_owned(),
+                first_span: *first_span,
+                second_span: span,
+            });
+        } else {
+            self.generics.push((rc_name, typevar, span));
         }
     }
 }

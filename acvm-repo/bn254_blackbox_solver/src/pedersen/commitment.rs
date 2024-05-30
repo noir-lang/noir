@@ -27,7 +27,7 @@ pub(crate) fn commit_native_with_index(
 #[cfg(test)]
 mod test {
 
-    use acir::FieldElement;
+    use acir::{AcirField, FieldElement};
     use ark_ec::short_weierstrass::Affine;
     use ark_std::{One, Zero};
     use grumpkin::Fq;
