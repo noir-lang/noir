@@ -1738,11 +1738,11 @@ impl<'a> Context<'a> {
                 .return_data
                 .map_or(false, |return_databus| dfg[*value_id] == dfg[return_databus]);
 
-            if !is_databus {
+            if is_databus {
                 // We do not return value for the data bus.
-                acc + dfg.type_of_value(*value_id).flattened_size()
-            } else {
                 acc
+            } else {
+                acc + dfg.type_of_value(*value_id).flattened_size()
             }
         })
     }
