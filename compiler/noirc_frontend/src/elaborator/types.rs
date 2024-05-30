@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use acvm::acir::AcirField;
@@ -29,7 +30,7 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    node_interner::{ArithExpr, ArithOpKind, DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
     Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
@@ -272,28 +273,95 @@ impl<'context> Elaborator<'context> {
     pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
-                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    Type::Constant(0)
-                })
+                let var_or_constant =
+                    self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
+                        self.push_err(ResolverError::NoSuchNumericTypeVariable {
+                            path: path.clone(),
+                        });
+                        Type::Constant(0)
+                    });
+                if let Type::NamedGeneric(ref binding, ref name) = var_or_constant {
+                    // we intern variables so that they can be resolved during trait resolution
+                    // and otherwise expect Type::Constant's to be interned at their declarations
+                    let arith_expr =
+                        ArithExpr::Variable(binding.clone(), name.clone(), Default::default());
+                    let location = Location { span: path.span, file: self.file };
+                    let _ = self.interner.push_arith_expression(arith_expr, location);
+                }
+                var_or_constant
             }
-            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+            UnresolvedTypeExpression::Constant(int, span) => {
+                // we intern constants so that they can be resolved during trait resolution
+                let arith_expr = ArithExpr::Constant(int);
+                let location = Location { span, file: self.file };
+                let _ = self.interner.push_arith_expression(arith_expr, location);
+                Type::Constant(int)
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, op_span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
+                let span = if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                let (lhs, lhs_generics) = self.convert_type_to_arith_expr(lhs, span);
+                let (rhs, rhs_generics) = self.convert_type_to_arith_expr(rhs, span);
+
                 match (lhs, rhs) {
-                    (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function()(lhs, rhs))
+                    (ArithExpr::Constant(lhs), ArithExpr::Constant(rhs)) => {
+                        let int = op.function()(lhs, rhs);
+                        let arith_expr = ArithExpr::Constant(int);
+                        let op_location = Location { span: op_span, file: self.file };
+                        let _ = self.interner.push_arith_expression(arith_expr, op_location);
+                        assert!(lhs_generics.is_empty(), "constant generics expected to be empty");
+                        assert!(rhs_generics.is_empty(), "constant generics expected to be empty");
+                        Type::Constant(int)
                     }
-                    (lhs, _) => {
-                        let span =
-                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        Type::Constant(0)
+
+                    (lhs, rhs) => {
+                        let kind =
+                            ArithOpKind::from_binary_type_operator(op).unwrap_or_else(|| {
+                                self.push_err(ResolverError::InvalidGenericArithOp {
+                                    span: op_span,
+                                });
+                                // return a valid ArithOpKind when erroring
+                                ArithOpKind::Add
+                            });
+
+                        // offset GenericIndex's in rhs to prevent overlap
+                        let rhs = rhs.offset_generic_indices(lhs_generics.len());
+
+                        let arith_expr =
+                            ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+                        let op_location = Location { span: op_span, file: self.file };
+                        let new_id = self.interner.push_arith_expression(arith_expr, op_location);
+                        let new_generics = lhs_generics
+                            .into_iter()
+                            .chain(rhs_generics)
+                            .collect::<HashSet<_>>()
+                            .into_iter()
+                            .collect::<Vec<_>>();
+
+                        Type::GenericArith(new_id, new_generics)
                     }
                 }
+            }
+        }
+    }
+
+    fn convert_type_to_arith_expr(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
+        match typ {
+            Type::Constant(value) => (ArithExpr::Constant(value), vec![]),
+            Type::NamedGeneric(typevar, name) => (
+                ArithExpr::Variable(typevar.clone(), name.clone(), Default::default()),
+                vec![Type::NamedGeneric(typevar, name)],
+            ),
+            Type::GenericArith(arith_id, generics) => {
+                let (arith_expr, _location) = self.interner.get_arith_expression(arith_id);
+                (arith_expr.clone(), generics)
+            }
+            _ => {
+                self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                (ArithExpr::Constant(0), vec![])
             }
         }
     }

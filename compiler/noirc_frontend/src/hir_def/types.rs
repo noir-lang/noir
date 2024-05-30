@@ -1599,6 +1599,8 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u64.
+    // NOTE: only_used_in_recursion false positive
+    #[allow(clippy::only_used_in_recursion)]
     pub fn evaluate_to_u64(
         &self,
         location: &Location,

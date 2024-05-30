@@ -763,27 +763,6 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    // TODO: relocate
-    // TODO: rename (prepare for what?)
-    fn prepare_arith_expression(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
-        match typ {
-            Type::Constant(value) => (ArithExpr::Constant(value), vec![]),
-            Type::NamedGeneric(typevar, name) => (
-                ArithExpr::Variable(typevar.clone(), name.clone(), Default::default()),
-                vec![Type::NamedGeneric(typevar, name)],
-            ),
-            Type::GenericArith(arith_id, generics) => {
-                let (arith_expr, _location) = self.interner.get_arith_expression(arith_id);
-                (arith_expr.clone(), generics)
-            }
-
-            _ => {
-                self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                (ArithExpr::Constant(0), vec![])
-            }
-        }
-    }
-
     fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
@@ -802,7 +781,6 @@ impl<'a> Resolver<'a> {
                     let location = Location { span: path.span, file: self.file };
                     let _ = self.interner.push_arith_expression(arith_expr, location);
                 }
-
                 var_or_constant
             }
             UnresolvedTypeExpression::Constant(int, span) => {
@@ -818,8 +796,8 @@ impl<'a> Resolver<'a> {
                 let rhs = self.convert_expression_type(*rhs);
 
                 let span = if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                let (lhs, lhs_generics) = self.prepare_arith_expression(lhs, span);
-                let (rhs, rhs_generics) = self.prepare_arith_expression(rhs, span);
+                let (lhs, lhs_generics) = self.convert_type_to_arith_expr(lhs, span);
+                let (rhs, rhs_generics) = self.convert_type_to_arith_expr(rhs, span);
 
                 match (lhs, rhs) {
                     (ArithExpr::Constant(lhs), ArithExpr::Constant(rhs)) => {
@@ -859,6 +837,24 @@ impl<'a> Resolver<'a> {
                         Type::GenericArith(new_id, new_generics)
                     }
                 }
+            }
+        }
+    }
+
+    fn convert_type_to_arith_expr(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
+        match typ {
+            Type::Constant(value) => (ArithExpr::Constant(value), vec![]),
+            Type::NamedGeneric(typevar, name) => (
+                ArithExpr::Variable(typevar.clone(), name.clone(), Default::default()),
+                vec![Type::NamedGeneric(typevar, name)],
+            ),
+            Type::GenericArith(arith_id, generics) => {
+                let (arith_expr, _location) = self.interner.get_arith_expression(arith_id);
+                (arith_expr.clone(), generics)
+            }
+            _ => {
+                self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                (ArithExpr::Constant(0), vec![])
             }
         }
     }
