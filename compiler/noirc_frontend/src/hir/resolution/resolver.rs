@@ -880,8 +880,7 @@ impl<'a> Resolver<'a> {
                         let arith_expr =
                             ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
                         let op_location = Location { span: op_span, file: self.file };
-                        let new_id =
-                            self.interner.push_arith_expression(arith_expr, op_location);
+                        let new_id = self.interner.push_arith_expression(arith_expr, op_location);
                         let new_generics = lhs_generics
                             .into_iter()
                             .chain(rhs_generics)
@@ -890,7 +889,7 @@ impl<'a> Resolver<'a> {
                             .collect::<Vec<_>>();
 
                         Type::GenericArith(new_id, new_generics)
-                    } 
+                    }
                 }
             }
         }

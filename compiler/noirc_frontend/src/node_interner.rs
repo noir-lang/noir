@@ -218,7 +218,11 @@ impl ArithExpr {
         }
     }
 
-    pub fn evaluate(&self, interner: &NodeInterner, arguments: &Vec<(u64, Type)>) -> Result<u64, ArithExprError> {
+    pub fn evaluate(
+        &self,
+        interner: &NodeInterner,
+        arguments: &Vec<(u64, Type)>,
+    ) -> Result<u64, ArithExprError> {
         match self {
             Self::Op { kind, lhs, rhs } => {
                 let lhs = lhs.evaluate(interner, arguments)?;
@@ -227,14 +231,10 @@ impl ArithExpr {
             }
             Self::Variable(binding, name, index) => {
                 if let Some((result, other_var)) = arguments.get(index.0) {
-
                     let mut fresh_bindings = TypeBindings::new();
                     assert!(Type::NamedGeneric(binding.clone(), name.clone())
-                        .try_unify(
-                            other_var,
-                            &mut fresh_bindings,
-                            &interner.arith_constraints,
-                        ).is_ok());
+                        .try_unify(other_var, &mut fresh_bindings, &interner.arith_constraints,)
+                        .is_ok());
 
                     Ok(*result)
                 } else {
@@ -416,9 +416,7 @@ impl ArithOpKind {
         match self {
             Self::Mul => Ok(x * y),
             Self::Add => Ok(x + y),
-            Self::Sub => {
-                x.checked_sub(y).ok_or(ArithExprError::SubUnderflow { lhs: x, rhs: y })
-            }
+            Self::Sub => x.checked_sub(y).ok_or(ArithExprError::SubUnderflow { lhs: x, rhs: y }),
         }
     }
 
@@ -508,9 +506,7 @@ impl ArithConstraint {
             .iter()
             .cloned()
             .map(|generic| {
-                generic
-                    .evaluate_to_u64(location, interner)
-                    .map(|result| (result, generic))
+                generic.evaluate_to_u64(location, interner).map(|result| (result, generic))
             })
             .collect::<Result<Vec<_>, _>>()
     }
@@ -541,10 +537,8 @@ impl ArithConstraint {
             rhs_expr.follow_bindings(interner, &mut current_generic_index_offset);
         rhs_expr.offset_generic_indices(lhs_new_generics.len());
 
-        let lhs_generics: Vec<_> =
-            self.lhs_generics.into_iter().chain(lhs_new_generics).collect();
-        let rhs_generics: Vec<_> =
-            self.rhs_generics.into_iter().chain(rhs_new_generics).collect();
+        let lhs_generics: Vec<_> = self.lhs_generics.into_iter().chain(lhs_new_generics).collect();
+        let rhs_generics: Vec<_> = self.rhs_generics.into_iter().chain(rhs_new_generics).collect();
 
         match Self::evaluate_generics_to_u64(&lhs_generics, &lhs_location, interner).and_then(
             |lhs_generics| {
@@ -555,7 +549,10 @@ impl ArithConstraint {
         ) {
             // all generics resolved
             Ok((lhs_generics, rhs_generics)) => {
-                match (lhs_expr.evaluate(interner, &lhs_generics), rhs_expr.evaluate(interner, &rhs_generics)) {
+                match (
+                    lhs_expr.evaluate(interner, &lhs_generics),
+                    rhs_expr.evaluate(interner, &rhs_generics),
+                ) {
                     (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
                         if lhs_evaluated == rhs_evaluated {
                             // TODO: cleanup
@@ -581,10 +578,8 @@ impl ArithConstraint {
             }
             Err(arith_expr_error) => {
                 let mut fresh_bindings = TypeBindings::new();
-                let generics_match = lhs_generics
-                    .iter()
-                    .zip(rhs_generics.iter())
-                    .all(|(lhs_generic, rhs_generic)| {
+                let generics_match = lhs_generics.iter().zip(rhs_generics.iter()).all(
+                    |(lhs_generic, rhs_generic)| {
                         lhs_generic
                             .try_unify(
                                 rhs_generic,
@@ -592,7 +587,8 @@ impl ArithConstraint {
                                 &interner.arith_constraints,
                             )
                             .is_ok()
-                    });
+                    },
+                );
                 Type::apply_type_bindings(fresh_bindings);
 
                 if generics_match {
@@ -1255,8 +1251,9 @@ impl NodeInterner {
     }
 
     pub fn get_arith_expression(&self, arith_id: ArithId) -> &(ArithExpr, Location) {
-        self.arith_expressions.get(&arith_id).unwrap_or_else(|| panic!("ICE: unknown ArithId ({:?})\n\n{:?}",
-            arith_id, self.arith_expressions))
+        self.arith_expressions.get(&arith_id).unwrap_or_else(|| {
+            panic!("ICE: unknown ArithId ({:?})\n\n{:?}", arith_id, self.arith_expressions)
+        })
     }
 
     /// Intern an empty function.

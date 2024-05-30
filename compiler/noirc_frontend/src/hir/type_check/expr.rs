@@ -991,13 +991,11 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
-                self.unify(lhs, rhs, || {
-                    TypeCheckError::TypeMismatchWithSource {
-                        expected: lhs.clone(),
-                        actual: rhs.clone(),
-                        span: op.location.span,
-                        source: Source::Binary,
-                    }
+                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
+                    expected: lhs.clone(),
+                    actual: rhs.clone(),
+                    span: op.location.span,
+                    source: Source::Binary,
                 });
                 Ok((Bool, true))
             }
@@ -1172,13 +1170,11 @@ impl<'interner> TypeChecker<'interner> {
         rhs_type: &Type,
         span: Span,
     ) -> bool {
-        self.unify(lhs_type, rhs_type, || {
-            TypeCheckError::TypeMismatchWithSource {
-                expected: lhs_type.clone(),
-                actual: rhs_type.clone(),
-                source: Source::Binary,
-                span,
-            }
+        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
+            expected: lhs_type.clone(),
+            actual: rhs_type.clone(),
+            source: Source::Binary,
+            span,
         });
 
         let use_impl = !lhs_type.is_numeric();
@@ -1294,13 +1290,11 @@ impl<'interner> TypeChecker<'interner> {
                     }
                     return Err(TypeCheckError::InvalidShiftSize { span });
                 }
-                self.unify(lhs, rhs, || {
-                    TypeCheckError::TypeMismatchWithSource {
-                        expected: lhs.clone(),
-                        actual: rhs.clone(),
-                        span: op.location.span,
-                        source: Source::Binary,
-                    }
+                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
+                    expected: lhs.clone(),
+                    actual: rhs.clone(),
+                    span: op.location.span,
+                    source: Source::Binary,
                 });
                 Ok((lhs.clone(), true))
             }

@@ -583,12 +583,10 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location, self.interner)?;
 
-        let length = length.evaluate_to_u64(&location, self.interner).map_err(|arith_expr_error| {
-            MonomorphizationError::ArithExprError {
-                arith_expr_error,
-                location,
-            }
-        })?;
+        let length =
+            length.evaluate_to_u64(&location, self.interner).map_err(|arith_expr_error| {
+                MonomorphizationError::ArithExprError { arith_expr_error, location }
+            })?;
 
         let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
         if is_slice {
@@ -1038,12 +1036,10 @@ impl<'interner> Monomorphizer<'interner> {
                 try_vecmap(generics, |generic| {
                     match generic.evaluate_to_u64(&location, interner) {
                         Ok(result) => Ok(result),
-                        Err(arith_expr_error) => {
-                            Err(MonomorphizationError::ArithExprError {
-                                arith_expr_error,
-                                location,
-                            })
-                        }
+                        Err(arith_expr_error) => Err(MonomorphizationError::ArithExprError {
+                            arith_expr_error,
+                            location,
+                        }),
                     }
                 })?;
 

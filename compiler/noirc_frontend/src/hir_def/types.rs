@@ -690,9 +690,7 @@ impl Type {
                     generic.contains_numeric_typevar(target_id)
                 }
             }),
-            Type::GenericArith(_, generics) => {
-                generics.iter().any(named_generic_id_matches_target)
-            }
+            Type::GenericArith(_, generics) => generics.iter().any(named_generic_id_matches_target),
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
             Type::FmtString(length, elements) => {
@@ -1051,12 +1049,8 @@ impl Type {
                     },
                 }
             }
-            Type::GenericArith(..) => {
-                Ok(())
-            }
-            _ => {
-                Err(UnificationError)
-            }
+            Type::GenericArith(..) => Ok(()),
+            _ => Err(UnificationError),
         }
     }
 
@@ -1144,9 +1138,7 @@ impl Type {
                 // all done in try_unify with copy/paste block
                 Ok(())
             }
-            _ => {
-                Err(UnificationError)
-            }
+            _ => Err(UnificationError),
         }
     }
 
@@ -1495,12 +1487,14 @@ impl Type {
         }
     }
 
-    fn try_unify_arith_generic_to_type_variable(&self, var: &TypeVariable, arith_constraints: &ArithConstraints) {
+    fn try_unify_arith_generic_to_type_variable(
+        &self,
+        var: &TypeVariable,
+        arith_constraints: &ArithConstraints,
+    ) {
         if let Self::GenericArith(lhs, lhs_generics) = self {
-            let name: Rc<std::string::String> =
-                format!("#implicit_var({:?})", var).into();
-            let rhs_expr =
-                ArithExpr::Variable(var.clone(), name, Default::default());
+            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
+            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
             let rhs = rhs_expr.to_id();
             let rhs_generics = vec![];
 
@@ -1626,9 +1620,9 @@ impl Type {
                     ArithConstraint::evaluate_generics_to_u64(generics, location, interner)?;
                 expr.evaluate(interner, &generics)
             }
-            unexpected_type => {
-                Err(ArithExprError::EvaluateUnexpectedType { unexpected_type: unexpected_type.clone() })
-            }
+            unexpected_type => Err(ArithExprError::EvaluateUnexpectedType {
+                unexpected_type: unexpected_type.clone(),
+            }),
         }
     }
 
