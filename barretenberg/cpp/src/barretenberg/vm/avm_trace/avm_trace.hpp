@@ -159,6 +159,8 @@ class AvmTraceBuilder {
     void op_keccakf1600(uint8_t indirect, uint32_t output_offset, uint32_t input_offset, uint32_t input_size_offset);
     // Keccak operation - temporary while we transition to keccakf1600
     void op_keccak(uint8_t indirect, uint32_t output_offset, uint32_t input_offset, uint32_t input_size_offset);
+    // SHA256 operation - temporary while we transition to sha256_compression
+    void op_sha256(uint8_t indirect, uint32_t output_offset, uint32_t input_offset, uint32_t input_size_offset);
 
   private:
     // Used for the standard indirect address resolution of three operands opcode.

@@ -560,10 +560,11 @@ namespace avm_main(256);
     is
     avm_conversion.to_radix_le_sel {avm_conversion.clk, avm_conversion.input, avm_conversion.radix, avm_conversion.num_limbs};
 
-    #[PERM_MAIN_SHA256]
-    sel_op_sha256 {clk, ia, ib, ic}
-    is
-    avm_sha256.sha256_compression_sel {avm_sha256.clk, avm_sha256.state, avm_sha256.input, avm_sha256.output};
+    // This will be enabled when we migrate just to sha256Compression, as getting sha256 to work with it is tricky.
+    // #[PERM_MAIN_SHA256]
+    // sel_op_sha256 {clk, ia, ib, ic}
+    // is
+    // avm_sha256.sha256_compression_sel {avm_sha256.clk, avm_sha256.state, avm_sha256.input, avm_sha256.output};
 
     #[PERM_MAIN_POS2_PERM]
     sel_op_poseidon2 {clk, ia, ib}

@@ -2204,6 +2204,148 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
 }
 
 /**
+ * @brief SHA256 Hash with direct or indirect memory access.
+ * This function is temporary until we have transitioned to sha256Compression
+ * @param indirect byte encoding information about indirect/direct memory access.
+ * @param output_offset An index in memory pointing to where the first U32 value of the output array should be stored.
+ * @param input_offset An index in memory pointing to the first U8 value of the state array to be used in the next
+ * instance of sha256.
+ * @param input_size_offset An index in memory pointing to the U32 value of the input size.
+ */
+void AvmTraceBuilder::op_sha256(uint8_t indirect,
+                                uint32_t output_offset,
+                                uint32_t input_offset,
+                                uint32_t input_size_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size());
+    bool tag_match = true;
+    uint32_t direct_src_offset = input_offset;
+    uint32_t direct_dst_offset = output_offset;
+
+    bool indirect_src_flag = is_operand_indirect(indirect, 1);
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+
+    if (indirect_src_flag) {
+        auto read_ind_src =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, input_offset);
+        direct_src_offset = uint32_t(read_ind_src.val);
+        tag_match = tag_match && read_ind_src.tag_match;
+    }
+
+    if (indirect_dst_flag) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_C, output_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+    // Note we load the input and output onto one line in the main trace and the length on the next line
+    // We do this so we can load two different AvmMemoryTags (u8 for the I/O and u32 for the length)
+    auto input_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_src_offset, AvmMemoryTag::U8, AvmMemoryTag::U8);
+    auto output_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IC, direct_dst_offset, AvmMemoryTag::U8, AvmMemoryTag::U8);
+
+    // Store the clock time that we will use to line up the gadget later
+    auto sha256_op_clk = clk;
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = input_read.val,  // First element of input
+        .avm_main_ic = output_read.val, // First element of output
+        .avm_main_ind_a = indirect_src_flag ? FF(input_offset) : FF(0),
+        .avm_main_ind_c = indirect_dst_flag ? FF(output_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_src_flag)),
+        .avm_main_ind_op_c = FF(static_cast<uint32_t>(indirect_dst_flag)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_src_offset), // input
+        .avm_main_mem_idx_c = FF(direct_dst_offset), // output
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+        .avm_main_sel_op_sha256 = FF(1),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+    });
+    clk++;
+    auto input_length_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, input_size_offset, AvmMemoryTag::U32, AvmMemoryTag::U32);
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ib = input_length_read.val, // Message Length
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_b = FF(input_size_offset), // length
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+    });
+    clk++;
+
+    std::vector<uint8_t> input;
+    input.reserve(uint32_t(input_length_read.val));
+
+    // We unroll this loop because the function typically expects arrays and for this temporary sha256 function we have
+    // a dynamic amount of input so we will use a vector.
+    auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
+    // If the slice size isnt a multiple of 4, we still need an extra row to write the remainder
+    uint32_t const num_main_rows = static_cast<uint32_t>(input_length_read.val) / 4 +
+                                   static_cast<uint32_t>(uint32_t(input_length_read.val) % 4 != 0);
+    for (uint32_t i = 0; i < num_main_rows; i++) {
+        Row main_row{
+            .avm_main_clk = clk + i,
+            .avm_main_internal_return_ptr = FF(internal_return_ptr),
+            .avm_main_pc = FF(pc),
+            .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+            .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+        };
+        // Write 4 values to memory in each_row
+        for (uint32_t j = 0; j < 4; j++) {
+            auto offset = i * 4 + j;
+            // If we exceed the slice size, we break
+            if (offset >= uint32_t(input_length_read.val)) {
+                break;
+            }
+            auto mem_read = mem_trace_builder.read_and_load_from_memory(
+                call_ptr, clk + i, register_order[j], direct_src_offset + offset, AvmMemoryTag::U8, AvmMemoryTag::U8);
+            input.emplace_back(uint8_t(mem_read.val));
+            // This looks a bit gross, but it is fine for now.
+            if (j == 0) {
+                main_row.avm_main_ia = input.at(offset);
+                main_row.avm_main_mem_idx_a = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_a = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            } else if (j == 1) {
+                main_row.avm_main_ib = input.at(offset);
+                main_row.avm_main_mem_idx_b = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_b = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            } else if (j == 2) {
+                main_row.avm_main_ic = input.at(offset);
+                main_row.avm_main_mem_idx_c = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_c = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            } else {
+                main_row.avm_main_id = input.at(offset);
+                main_row.avm_main_mem_idx_d = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_d = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            }
+        }
+        main_trace.emplace_back(main_row);
+    }
+
+    clk += num_main_rows;
+
+    std::array<uint8_t, 32> result = sha256_trace_builder.sha256(input, sha256_op_clk);
+    // We convert the results to field elements here
+    std::vector<FF> ff_result;
+    for (uint32_t i = 0; i < 32; i++) {
+        ff_result.emplace_back(result[i]);
+    }
+    // Write the result to memory after
+    write_slice_to_memory(
+        call_ptr, clk, direct_dst_offset, AvmMemoryTag::U8, AvmMemoryTag::U8, FF(internal_return_ptr), ff_result);
+}
+/**
  * @brief Poseidon2 Permutation with direct or indirect memory access.
  *
  * @param indirect byte encoding information about indirect/direct memory access.

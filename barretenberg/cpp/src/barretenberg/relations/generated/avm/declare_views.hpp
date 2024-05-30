@@ -279,7 +279,6 @@
     [[maybe_unused]] auto perm_main_alu = View(new_term.perm_main_alu);                                                \
     [[maybe_unused]] auto perm_main_bin = View(new_term.perm_main_bin);                                                \
     [[maybe_unused]] auto perm_main_conv = View(new_term.perm_main_conv);                                              \
-    [[maybe_unused]] auto perm_main_sha256 = View(new_term.perm_main_sha256);                                          \
     [[maybe_unused]] auto perm_main_pos2_perm = View(new_term.perm_main_pos2_perm);                                    \
     [[maybe_unused]] auto perm_main_mem_a = View(new_term.perm_main_mem_a);                                            \
     [[maybe_unused]] auto perm_main_mem_b = View(new_term.perm_main_mem_b);                                            \

@@ -607,8 +607,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     commitments.perm_main_alu = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_alu);
     commitments.perm_main_bin = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_bin);
     commitments.perm_main_conv = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_conv);
-    commitments.perm_main_sha256 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_sha256);
     commitments.perm_main_pos2_perm =
         transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_pos2_perm);
     commitments.perm_main_mem_a =

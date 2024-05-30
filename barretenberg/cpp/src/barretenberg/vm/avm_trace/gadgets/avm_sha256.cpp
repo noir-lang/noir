@@ -121,4 +121,11 @@ std::array<uint32_t, 8> AvmSha256TraceBuilder::sha256_compression(const std::arr
     return output;
 }
 
+std::array<uint8_t, 32> AvmSha256TraceBuilder::sha256(const std::vector<uint8_t>& input, uint32_t clk)
+{
+    auto output = crypto::sha256(input);
+    // Cant push here since we are not using the same format as the sha256_compression
+    sha256_trace.push_back(Sha256TraceEntry{ clk, {}, {}, {} });
+    return output;
+}
 } // namespace bb::avm_trace

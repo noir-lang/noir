@@ -765,7 +765,6 @@ void AvmProver::execute_log_derivative_inverse_round()
     witness_commitments.perm_main_alu = commitment_key->commit(key->perm_main_alu);
     witness_commitments.perm_main_bin = commitment_key->commit(key->perm_main_bin);
     witness_commitments.perm_main_conv = commitment_key->commit(key->perm_main_conv);
-    witness_commitments.perm_main_sha256 = commitment_key->commit(key->perm_main_sha256);
     witness_commitments.perm_main_pos2_perm = commitment_key->commit(key->perm_main_pos2_perm);
     witness_commitments.perm_main_mem_a = commitment_key->commit(key->perm_main_mem_a);
     witness_commitments.perm_main_mem_b = commitment_key->commit(key->perm_main_mem_b);
@@ -816,7 +815,6 @@ void AvmProver::execute_log_derivative_inverse_round()
     transcript->send_to_verifier(commitment_labels.perm_main_alu, witness_commitments.perm_main_alu);
     transcript->send_to_verifier(commitment_labels.perm_main_bin, witness_commitments.perm_main_bin);
     transcript->send_to_verifier(commitment_labels.perm_main_conv, witness_commitments.perm_main_conv);
-    transcript->send_to_verifier(commitment_labels.perm_main_sha256, witness_commitments.perm_main_sha256);
     transcript->send_to_verifier(commitment_labels.perm_main_pos2_perm, witness_commitments.perm_main_pos2_perm);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_a, witness_commitments.perm_main_mem_a);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_b, witness_commitments.perm_main_mem_b);

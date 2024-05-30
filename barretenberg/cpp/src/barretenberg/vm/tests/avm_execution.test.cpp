@@ -787,6 +787,97 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
     validate_trace(std::move(trace));
 }
 
+// Positive test with SHA256
+TEST_F(AvmExecutionTests, sha256Opcode)
+{
+
+    // Test vectors taken from noir black_box_solver
+    // Uint8Array.from([0x61, 0x62, 0x63]),
+    // Uint8Array.from([
+    //   0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23, 0xb0, 0x03,
+    //   0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
+    // ]),
+    std::vector<FF> expected_output = {
+        FF(0xba), FF(0x78), FF(0x16), FF(0xbf), FF(0x8f), FF(0x01), FF(0xcf), FF(0xea), FF(0x41), FF(0x41), FF(0x40),
+        FF(0xde), FF(0x5d), FF(0xae), FF(0x22), FF(0x23), FF(0xb0), FF(0x03), FF(0x61), FF(0xa3), FF(0x96), FF(0x17),
+        FF(0x7a), FF(0x9c), FF(0xb4), FF(0x10), FF(0xff), FF(0x61), FF(0xf2), FF(0x00), FF(0x15), FF(0xad),
+    };
+    std::string bytecode_hex = to_hex(OpCode::SET) +      // Initial SET operations to store state and input
+                               "00"                       // Indirect Flag
+                               "01"                       // U8
+                               "61"                       // val 97
+                               "00000001"                 // dst_offset 1
+                               + to_hex(OpCode::SET) +    // opcode SET for indirect src (input)
+                               "00"                       // Indirect flag
+                               "01"                       // U8
+                               "62"                       // value 98 (i.e. where the src will be read from)A
+                               "00000002"                 // input_offset 2
+                               + to_hex(OpCode::SET) +    // opcode SET for indirect src (input)
+                               "00"                       // Indirect flag
+                               "01"                       // U32
+                               "63"                       // value 99 (i.e. where the src will be read from)
+                               "00000003"                 // input_offset 36
+                               + to_hex(OpCode::SET) +    // opcode SET for indirect src (input)
+                               "00"                       // Indirect flag
+                               "03"                       // U32
+                               "00000001"                 // value 1 (i.e. where the src will be read from)
+                               "00000024"                 // input_offset 36
+                               + to_hex(OpCode::SET) +    //
+                               "00"                       // Indirect flag
+                               "03"                       // U8
+                               "00000003"                 // value 3 (i.e. where the length parameter is stored)
+                               "00000025"                 // input_offset 37
+                               + to_hex(OpCode::SET) +    // opcode SET for indirect dst (output)
+                               "00"                       // Indirect flag
+                               "03"                       // U32
+                               "00000100"                 // value 256 (i.e. where the ouput will be written to)
+                               "00000023"                 // dst_offset 35
+                               + to_hex(OpCode::SHA256) + // opcode SHA256
+                               "03"                       // Indirect flag (first 2 operands indirect)
+                               "00000023"                 // output offset (indirect 35)
+                               "00000024"                 // input offset (indirect 36)
+                               "00000025"                 // length offset 37
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00"                       // Indirect flag
+                               "00000100"                 // ret offset 256
+                               "00000020";                // ret size 32
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    ASSERT_THAT(instructions, SizeIs(8));
+    //
+    // SHA256
+    EXPECT_THAT(instructions.at(6),
+                AllOf(Field(&Instruction::op_code, OpCode::SHA256),
+                      Field(&Instruction::operands,
+                            ElementsAre(VariantWith<uint8_t>(3),
+                                        VariantWith<uint32_t>(35),
+                                        VariantWith<uint32_t>(36),
+                                        VariantWith<uint32_t>(37)))));
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata = std::vector<FF>();
+    auto trace = Execution::gen_trace(instructions, returndata);
+
+    // Find the first row enabling the sha256 selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sha256 == 1; });
+    EXPECT_EQ(row->avm_main_ind_a, 36);      // Register A is indirect
+    EXPECT_EQ(row->avm_main_ind_c, 35);      // Register C is indirect
+    EXPECT_EQ(row->avm_main_mem_idx_a, 1);   // Indirect(36) -> 1
+    EXPECT_EQ(row->avm_main_mem_idx_c, 256); // Indirect(35) -> 256
+    EXPECT_EQ(row->avm_main_ia, 97);
+    EXPECT_EQ(row->avm_main_ic, 0);
+    // Register b checks are done in the next row due to the difference in the memory tag
+    std::advance(row, 1);
+    EXPECT_EQ(row->avm_main_ind_b, 0);      // Register B is not
+    EXPECT_EQ(row->avm_main_mem_idx_b, 37); // Load(37) -> input length
+    EXPECT_EQ(row->avm_main_ib, 3);         // Input length
+
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace));
+}
 // Positive test with POSEIDON2_PERM.
 TEST_F(AvmExecutionTests, poseidon2PermutationOpCode)
 {
