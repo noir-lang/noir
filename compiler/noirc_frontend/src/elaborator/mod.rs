@@ -15,7 +15,7 @@ use crate::{
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
-        type_check::TypeCheckError,
+        type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
     },
     hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
@@ -858,6 +858,12 @@ impl<'context> Elaborator<'context> {
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
+        for (module, function, _) in &trait_impl.methods.functions {
+            self.local_module = *module;
+            let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
+            self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+        }
+
         self.elaborate_functions(trait_impl.methods);
 
         self.self_type = None;
@@ -884,12 +890,14 @@ impl<'context> Elaborator<'context> {
     fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
+        self.current_trait_impl = trait_impl.impl_id;
         trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
+        self.self_type = Some(self_type.clone());
         let self_type_span = trait_impl.object_type.span;
 
         if matches!(self_type, Type::MutableReference(_)) {
@@ -897,12 +905,11 @@ impl<'context> Elaborator<'context> {
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
-        assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
+            self.generics = trait_impl.resolved_generics.clone();
             self.collect_trait_impl_methods(trait_id, trait_impl);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
-            self.generics = trait_impl.resolved_generics.clone();
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
@@ -952,6 +959,8 @@ impl<'context> Elaborator<'context> {
         }
 
         self.generics.clear();
+        self.current_trait_impl = None;
+        self.self_type = None;
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
@@ -1066,6 +1075,7 @@ impl<'context> Elaborator<'context> {
                     let module = self.module_id();
                     let location = Location::new(default_impl.def.span, trait_impl.file_id);
                     self.interner.push_function(func_id, &default_impl.def, module, location);
+                    self.define_function_meta(&mut default_impl_clone, func_id, false);
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
