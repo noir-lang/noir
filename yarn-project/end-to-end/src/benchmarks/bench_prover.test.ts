@@ -1,5 +1,5 @@
 import { getSchnorrAccount, getSchnorrWallet } from '@aztec/accounts/schnorr';
-import { PrivateFeePaymentMethod, PublicFeePaymentMethod, TxStatus } from '@aztec/aztec.js';
+import { PublicFeePaymentMethod, TxStatus } from '@aztec/aztec.js';
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
 import { CompleteAddress, Fq, Fr, GasSettings } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
@@ -12,7 +12,7 @@ import { getACVMConfig } from '../fixtures/get_acvm_config.js';
 import { getBBConfig } from '../fixtures/get_bb_config.js';
 import { type EndToEndContext, setup } from '../fixtures/utils.js';
 
-// TODO(@PhilWindle): Some part of this test are commented out until we can do more complicated public functions
+// TODO(@PhilWindle): Some part of this test are commented out until we speed up proving.
 
 jest.setTimeout(1_800_000);
 
@@ -175,23 +175,21 @@ describe('benchmarks/proving', () => {
       ),
     };
 
-    const feeFnCall1 = {
-      gasSettings: GasSettings.default(),
-      paymentMethod: new PrivateFeePaymentMethod(
-        initialTokenContract.address,
-        initialFpContract.address,
-        await getWalletOnPxe(1),
-      ),
-    };
+    // const feeFnCall1 = {
+    //   gasSettings: GasSettings.default(),
+    //   paymentMethod: new PrivateFeePaymentMethod(
+    //     initialTokenContract.address,
+    //     initialFpContract.address,
+    //     await getWalletOnPxe(1),
+    //   ),
+    // };
 
     ctx.logger.info('Proving transactions');
     await Promise.all([
       fnCalls[0].prove({
         fee: feeFnCall0,
       }),
-      fnCalls[1].prove({
-        fee: feeFnCall1,
-      }),
+      fnCalls[1].prove(),
       // fnCalls[2].prove(),
       // fnCalls[3].prove(),
     ]);
@@ -203,9 +201,7 @@ describe('benchmarks/proving', () => {
       fnCalls[0].send({
         fee: feeFnCall0,
       }),
-      fnCalls[1].send({
-        fee: feeFnCall1,
-      }),
+      fnCalls[1].send(),
       // fnCalls[2].send(),
       // fnCalls[3].send(),
     ];
