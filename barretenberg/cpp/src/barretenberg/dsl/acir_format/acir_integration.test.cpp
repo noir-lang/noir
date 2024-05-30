@@ -32,18 +32,19 @@ class AcirIntegrationTest : public ::testing::Test {
         return file.good();
     }
 
-    acir_format::AcirProgramStack get_program_stack_data_from_test_file(const std::string& test_program_name)
+    acir_format::AcirProgramStack get_program_stack_data_from_test_file(const std::string& test_program_name,
+                                                                        bool honk_recursion)
     {
         std::string base_path = "../../acir_tests/acir_tests/" + test_program_name + "/target";
         std::string bytecode_path = base_path + "/program.json";
         std::string witness_path = base_path + "/witness.gz";
 
-        return acir_format::get_acir_program_stack(bytecode_path, witness_path);
+        return acir_format::get_acir_program_stack(bytecode_path, witness_path, honk_recursion);
     }
 
-    acir_format::AcirProgram get_program_data_from_test_file(const std::string& test_program_name)
+    acir_format::AcirProgram get_program_data_from_test_file(const std::string& test_program_name, bool honk_recursion)
     {
-        auto program_stack = get_program_stack_data_from_test_file(test_program_name);
+        auto program_stack = get_program_stack_data_from_test_file(test_program_name, honk_recursion);
         ASSERT(program_stack.size() == 1); // Otherwise this method will not return full stack data
 
         return program_stack.back();
@@ -142,7 +143,10 @@ TEST_P(AcirIntegrationSingleTest, DISABLED_ProveAndVerifyProgram)
 
     std::string test_name = GetParam();
     info("Test: ", test_name);
-    acir_format::AcirProgram acir_program = get_program_data_from_test_file(test_name);
+    acir_format::AcirProgram acir_program = get_program_data_from_test_file(
+        test_name,
+        /*honk_recursion=*/
+        false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013): Assumes Flavor is not UltraHonk
 
     // Construct a bberg circuit from the acir representation
     Builder builder = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);
@@ -369,7 +373,9 @@ TEST_P(AcirIntegrationFoldingTest, DISABLED_ProveAndVerifyProgramStack)
     std::string test_name = GetParam();
     info("Test: ", test_name);
 
-    auto program_stack = get_program_stack_data_from_test_file(test_name);
+    auto program_stack = get_program_stack_data_from_test_file(
+        test_name, /*honk_recursion=*/false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013):
+                                              // Assumes Flavor is not UltraHonk
 
     while (!program_stack.empty()) {
         auto program = program_stack.back();
@@ -390,7 +396,9 @@ TEST_P(AcirIntegrationFoldingTest, DISABLED_FoldAndVerifyProgramStack)
     using Builder = Flavor::CircuitBuilder;
 
     std::string test_name = GetParam();
-    auto program_stack = get_program_stack_data_from_test_file(test_name);
+    auto program_stack = get_program_stack_data_from_test_file(
+        test_name, /*honk_recursion=*/false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013):
+                                              // Assumes Flavor is not UltraHonk
 
     ClientIVC ivc;
     ivc.structured_flag = true;
@@ -428,7 +436,9 @@ TEST_F(AcirIntegrationTest, DISABLED_UpdateAcirCircuit)
     using Builder = Flavor::CircuitBuilder;
 
     std::string test_name = "6_array"; // arbitrary program with RAM gates
-    auto acir_program = get_program_data_from_test_file(test_name);
+    auto acir_program = get_program_data_from_test_file(
+        test_name, /*honk_recursion=*/false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013):
+                                              // Assumes Flavor is not UltraHonk
 
     // Construct a bberg circuit from the acir representation
     auto circuit = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);

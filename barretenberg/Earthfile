@@ -29,15 +29,17 @@ barretenberg-acir-tests-bb:
     # This ensures we test independent pk construction through real/garbage witness data paths.
     RUN FLOW=prove_then_verify ./run_acir_tests.sh
     # Construct and separately verify a UltraHonk proof for a single program
-    RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+    RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh sha256
     # Construct and separately verify a MegaHonk proof for all acir programs
     RUN FLOW=prove_then_verify_mega_honk ./run_acir_tests.sh
     # Construct and verify a UltraHonk proof for a single program
-    RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh double_verify_nested_proof
+    RUN FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh pedersen_hash
     # Construct and verify a MegaHonk proof for a single arbitrary program
     RUN FLOW=prove_and_verify_mega_honk ./run_acir_tests.sh 6_array
-    # Construct and verify a UltraHonk proof for all ACIR programs using the new witness stack workflow
-    RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh
+    # Construct and verify a MegaHonk proof on one non-recursive program using the new witness stack workflow
+    RUN FLOW=prove_and_verify_ultra_honk_program ./run_acir_tests.sh merkle_insert
+    # Construct and verify a MegaHonk proof for all ACIR programs using the new witness stack workflow
+    RUN FLOW=prove_and_verify_mega_honk_program ./run_acir_tests.sh
     # Fold and verify an ACIR program stack using ClientIvc
     RUN FLOW=fold_and_verify_program ./run_acir_tests.sh fold_basic
     # Run 1_mul through native bb build, all_cmds flow, to test all cli args.

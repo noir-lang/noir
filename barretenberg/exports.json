@@ -500,6 +500,10 @@
       {
         "name": "constraint_system_buf",
         "type": "const uint8_t *"
+      },
+      {
+        "name": "honk_recursion",
+        "type": "const bool *"
       }
     ],
     "outArgs": [

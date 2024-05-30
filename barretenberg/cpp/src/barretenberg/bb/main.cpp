@@ -78,10 +78,10 @@ acir_format::WitnessVector get_witness(std::string const& witness_path)
     return acir_format::witness_buf_to_witness_data(witness_data);
 }
 
-acir_format::AcirFormat get_constraint_system(std::string const& bytecode_path)
+acir_format::AcirFormat get_constraint_system(std::string const& bytecode_path, bool honk_recursion)
 {
     auto bytecode = get_bytecode(bytecode_path);
-    return acir_format::circuit_buf_to_acir_format(bytecode);
+    return acir_format::circuit_buf_to_acir_format(bytecode, honk_recursion);
 }
 
 acir_format::WitnessVectorStack get_witness_stack(std::string const& witness_path)
@@ -90,10 +90,10 @@ acir_format::WitnessVectorStack get_witness_stack(std::string const& witness_pat
     return acir_format::witness_buf_to_witness_stack(witness_data);
 }
 
-std::vector<acir_format::AcirFormat> get_constraint_systems(std::string const& bytecode_path)
+std::vector<acir_format::AcirFormat> get_constraint_systems(std::string const& bytecode_path, bool honk_recursion)
 {
     auto bytecode = get_bytecode(bytecode_path);
-    return acir_format::program_buf_to_acir_format(bytecode);
+    return acir_format::program_buf_to_acir_format(bytecode, honk_recursion);
 }
 
 std::string proof_to_json(std::vector<bb::fr>& proof)
@@ -124,7 +124,7 @@ std::string vk_to_json(std::vector<bb::fr>& data)
  */
 bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessPath)
 {
-    auto constraint_system = get_constraint_system(bytecodePath);
+    auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     auto witness = get_witness(witnessPath);
 
     acir_proofs::AcirComposer acir_composer{ 0, verbose };
@@ -161,8 +161,12 @@ bool proveAndVerifyHonkAcirFormat(acir_format::AcirFormat constraint_system, aci
     using Verifier = UltraVerifier_<Flavor>;
     using VerificationKey = Flavor::VerificationKey;
 
+    bool honk_recursion = false;
+    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
+        honk_recursion = true;
+    }
     // Construct a bberg circuit from the acir representation
-    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
+    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness, honk_recursion);
 
     auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
     size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
@@ -188,8 +192,12 @@ bool proveAndVerifyHonkAcirFormat(acir_format::AcirFormat constraint_system, aci
  */
 template <IsUltraFlavor Flavor> bool proveAndVerifyHonk(const std::string& bytecodePath, const std::string& witnessPath)
 {
+    bool honk_recursion = false;
+    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
+        honk_recursion = true;
+    }
     // Populate the acir constraint system and witness from gzipped data
-    auto constraint_system = get_constraint_system(bytecodePath);
+    auto constraint_system = get_constraint_system(bytecodePath, honk_recursion);
     auto witness = get_witness(witnessPath);
 
     return proveAndVerifyHonkAcirFormat<Flavor>(constraint_system, witness);
@@ -206,7 +214,11 @@ template <IsUltraFlavor Flavor> bool proveAndVerifyHonk(const std::string& bytec
 template <IsUltraFlavor Flavor>
 bool proveAndVerifyHonkProgram(const std::string& bytecodePath, const std::string& witnessPath)
 {
-    auto program_stack = acir_format::get_acir_program_stack(bytecodePath, witnessPath);
+    bool honk_recursion = false;
+    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
+        honk_recursion = true;
+    }
+    auto program_stack = acir_format::get_acir_program_stack(bytecodePath, witnessPath, honk_recursion);
 
     while (!program_stack.empty()) {
         auto stack_item = program_stack.back();
@@ -230,7 +242,9 @@ bool foldAndVerifyProgram(const std::string& bytecodePath, const std::string& wi
     ClientIVC ivc;
     ivc.structured_flag = true;
 
-    auto program_stack = acir_format::get_acir_program_stack(bytecodePath, witnessPath);
+    auto program_stack = acir_format::get_acir_program_stack(
+        bytecodePath, witnessPath, false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013): this
+                                           // assumes that folding is never done with ultrahonk.
 
     // Accumulate the entire program stack into the IVC
     while (!program_stack.empty()) {
@@ -261,7 +275,7 @@ bool foldAndVerifyProgram(const std::string& bytecodePath, const std::string& wi
  */
 void prove(const std::string& bytecodePath, const std::string& witnessPath, const std::string& outputPath)
 {
-    auto constraint_system = get_constraint_system(bytecodePath);
+    auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     auto witness = get_witness(witnessPath);
 
     acir_proofs::AcirComposer acir_composer{ 0, verbose };
@@ -287,11 +301,11 @@ void prove(const std::string& bytecodePath, const std::string& witnessPath, cons
  *
  * @param bytecodePath Path to the file containing the serialized circuit
  */
-void gateCount(const std::string& bytecodePath)
+void gateCount(const std::string& bytecodePath, bool honk_recursion)
 {
     // All circuit reports will be built into the string below
     std::string functions_string = "{\"functions\": [\n  ";
-    auto constraint_systems = get_constraint_systems(bytecodePath);
+    auto constraint_systems = get_constraint_systems(bytecodePath, honk_recursion);
     size_t i = 0;
     for (auto constraint_system : constraint_systems) {
         acir_proofs::AcirComposer acir_composer(0, verbose);
@@ -360,7 +374,7 @@ bool verify(const std::string& proof_path, const std::string& vk_path)
  */
 void write_vk(const std::string& bytecodePath, const std::string& outputPath)
 {
-    auto constraint_system = get_constraint_system(bytecodePath);
+    auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     acir_proofs::AcirComposer acir_composer{ 0, verbose };
     acir_composer.create_circuit(constraint_system);
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
@@ -378,7 +392,7 @@ void write_vk(const std::string& bytecodePath, const std::string& outputPath)
 
 void write_pk(const std::string& bytecodePath, const std::string& outputPath)
 {
-    auto constraint_system = get_constraint_system(bytecodePath);
+    auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     acir_proofs::AcirComposer acir_composer{ 0, verbose };
     acir_composer.create_circuit(constraint_system);
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
@@ -572,7 +586,11 @@ void prove_honk(const std::string& bytecodePath, const std::string& witnessPath,
     using Builder = Flavor::CircuitBuilder;
     using Prover = UltraProver_<Flavor>;
 
-    auto constraint_system = get_constraint_system(bytecodePath);
+    bool honk_recursion = false;
+    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
+        honk_recursion = true;
+    }
+    auto constraint_system = get_constraint_system(bytecodePath, honk_recursion);
     auto witness = get_witness(witnessPath);
 
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
@@ -645,7 +663,11 @@ template <IsUltraFlavor Flavor> void write_vk_honk(const std::string& bytecodePa
     using ProverInstance = ProverInstance_<Flavor>;
     using VerificationKey = Flavor::VerificationKey;
 
-    auto constraint_system = get_constraint_system(bytecodePath);
+    bool honk_recursion = false;
+    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
+        honk_recursion = true;
+    }
+    auto constraint_system = get_constraint_system(bytecodePath, honk_recursion);
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, {});
 
     auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
@@ -733,7 +755,7 @@ template <IsUltraFlavor Flavor> void vk_as_fields_honk(const std::string& vk_pat
  */
 void prove_output_all(const std::string& bytecodePath, const std::string& witnessPath, const std::string& outputPath)
 {
-    auto constraint_system = get_constraint_system(bytecodePath);
+    auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     auto witness = get_witness(witnessPath);
 
     acir_proofs::AcirComposer acir_composer{ 0, verbose };
@@ -802,6 +824,11 @@ int main(int argc, char* argv[])
         std::string proof_path = get_option(args, "-p", "./proofs/proof");
         std::string vk_path = get_option(args, "-k", "./target/vk");
         std::string pk_path = get_option(args, "-r", "./target/pk");
+        std::string honk_recursion_str = get_option(args, "-h", "false");
+        bool honk_recursion = false;
+        if (honk_recursion_str == "true") {
+            honk_recursion = true;
+        }
         CRS_PATH = get_option(args, "-c", CRS_PATH);
 
         // Skip CRS initialization for any command which doesn't require the CRS.
@@ -835,7 +862,7 @@ int main(int argc, char* argv[])
             std::string output_path = get_option(args, "-o", "./proofs");
             prove_output_all(bytecode_path, witness_path, output_path);
         } else if (command == "gates") {
-            gateCount(bytecode_path);
+            gateCount(bytecode_path, honk_recursion);
         } else if (command == "verify") {
             return verify(proof_path, vk_path) ? 0 : 1;
         } else if (command == "contract") {
