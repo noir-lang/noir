@@ -21,7 +21,9 @@ use crate::{
         },
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
-    node_interner::{ArithExprError, DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    node_interner::{
+        generic_arith::ArithExprError, DefinitionId, DefinitionKind, ExprId, FuncId, StmtId,
+    },
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 

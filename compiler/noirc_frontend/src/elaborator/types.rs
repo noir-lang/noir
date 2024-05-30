@@ -30,7 +30,10 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{ArithExpr, ArithOpKind, DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    node_interner::{
+        generic_arith::{ArithExpr, ArithOpKind},
+        DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
+    },
     Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 

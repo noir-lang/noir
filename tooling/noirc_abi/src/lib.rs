@@ -15,8 +15,8 @@ use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::{Signedness, Visibility};
-use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
 use noirc_frontend::node_interner::NodeInterner;
+use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
 use noirc_printable_type::{
     decode_value as printable_type_decode_value, PrintableType, PrintableValue,
     PrintableValueDisplay,
@@ -612,7 +612,9 @@ impl AbiErrorType {
         match typ {
             Type::FmtString(len, item_types) => {
                 let dummy_interner = NodeInterner::default();
-                let length = len.evaluate_to_u64(&Location::dummy(), &dummy_interner).expect("Cannot evaluate fmt length");
+                let length = len
+                    .evaluate_to_u64(&Location::dummy(), &dummy_interner)
+                    .expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
                 };

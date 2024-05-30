@@ -346,7 +346,7 @@ pub fn assign_storage_slots(
                     ),
                     storage_struct.borrow().id,
                     "init",
-                    false
+                    false,
                 )
                 .ok_or((
                     AztecMacroError::CouldNotAssignStorageSlots {

@@ -39,8 +39,9 @@ use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    ArithExpr, ArithOpKind, DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId,
-    NodeInterner, StmtId, StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
+    generic_arith::{ArithExpr, ArithOpKind},
+    DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
+    StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;

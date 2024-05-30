@@ -9,8 +9,10 @@ use crate::{
     ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
     node_interner::{
-        ArithConstraint, ArithConstraints, ArithExpr, ArithExprError, ArithId, ExprId,
-        NeedsInterning, NodeInterner, TraitId, TypeAliasId,
+        generic_arith::{
+            ArithConstraint, ArithConstraints, ArithExpr, ArithExprError, ArithId, NeedsInterning,
+        },
+        ExprId, NodeInterner, TraitId, TypeAliasId,
     },
 };
 use iter_extended::vecmap;
@@ -1532,7 +1534,7 @@ impl Type {
                 let (expr, location) = interner.get_arith_expression(*arith_id);
                 let generics =
                     ArithConstraint::evaluate_generics_to_u64(generics, location, interner)?;
-                expr.evaluate(interner, &generics)
+                expr.evaluate(&generics)
             }
             unexpected_type => Err(ArithExprError::EvaluateUnexpectedType {
                 unexpected_type: unexpected_type.clone(),

@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
-use crate::node_interner::{ArithConstraintError, ArithExprError};
+use crate::node_interner::generic_arith::{ArithConstraintError, ArithExprError};
 
 #[derive(Debug, Error)]
 pub enum MonomorphizationError {
