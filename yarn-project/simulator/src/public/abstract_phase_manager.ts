@@ -20,6 +20,7 @@ import {
   type KernelCircuitPublicInputs,
   L2ToL1Message,
   LogHash,
+  MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
@@ -424,6 +425,11 @@ export abstract class AbstractPhaseManager {
         result.nullifierNonExistentReadRequests,
         ReadRequest.empty(),
         MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
+      ),
+      l1ToL2MsgReadRequests: padArrayEnd(
+        result.l1ToL2MsgReadRequests,
+        ReadRequest.empty(),
+        MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL,
       ),
       contractStorageReads: padArrayEnd(
         result.contractStorageReads,

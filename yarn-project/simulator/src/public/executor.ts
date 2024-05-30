@@ -173,6 +173,7 @@ async function executePublicFunctionAcvm(
       newNullifiers: [],
       nullifierReadRequests: [],
       nullifierNonExistentReadRequests: [],
+      l1ToL2MsgReadRequests: [],
       contractStorageReads: [],
       contractStorageUpdateRequests: [],
       nestedExecutions: [],
@@ -197,6 +198,7 @@ async function executePublicFunctionAcvm(
     noteHashReadRequests: noteHashReadRequestsPadded,
     nullifierReadRequests: nullifierReadRequestsPadded,
     nullifierNonExistentReadRequests: nullifierNonExistentReadRequestsPadded,
+    l1ToL2MsgReadRequests: l1ToL2MsgReadRequestsPadded,
     newL2ToL1Msgs,
     newNoteHashes: newNoteHashesPadded,
     newNullifiers: newNullifiersPadded,
@@ -209,6 +211,7 @@ async function executePublicFunctionAcvm(
   const noteHashReadRequests = noteHashReadRequestsPadded.filter(v => !v.isEmpty());
   const nullifierReadRequests = nullifierReadRequestsPadded.filter(v => !v.isEmpty());
   const nullifierNonExistentReadRequests = nullifierNonExistentReadRequestsPadded.filter(v => !v.isEmpty());
+  const l1ToL2MsgReadRequests = l1ToL2MsgReadRequestsPadded.filter(v => !v.isEmpty());
   const newL2ToL1Messages = newL2ToL1Msgs.filter(v => !v.isEmpty());
   const newNoteHashes = newNoteHashesPadded.filter(v => !v.isEmpty());
   const newNullifiers = newNullifiersPadded.filter(v => !v.isEmpty());
@@ -245,6 +248,7 @@ async function executePublicFunctionAcvm(
     endSideEffectCounter,
     nullifierReadRequests,
     nullifierNonExistentReadRequests,
+    l1ToL2MsgReadRequests,
     contractStorageReads,
     contractStorageUpdateRequests,
     returnValues,

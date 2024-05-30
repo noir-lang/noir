@@ -40,6 +40,8 @@ export interface PublicExecutionResult {
   nullifierReadRequests: ReadRequest[];
   /** The nullifier non existent read requests emitted in this call. */
   nullifierNonExistentReadRequests: ReadRequest[];
+  /** L1 to L2 message read requests emitted in this call. */
+  l1ToL2MsgReadRequests: ReadRequest[];
   /** The contract storage reads performed by the function. */
   contractStorageReads: ContractStorageRead[];
   /** The contract storage update requests performed by the function. */

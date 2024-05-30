@@ -20,6 +20,7 @@ inline const uint32_t COINBASE_SELECTOR = START_GLOBAL_VARIABLES + 4;
 inline const uint32_t END_GLOBAL_VARIABLES = START_GLOBAL_VARIABLES + GLOBAL_VARIABLES_LENGTH;
 inline const uint32_t START_SIDE_EFFECT_COUNTER = END_GLOBAL_VARIABLES;
 
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/6715): update these to come from the global inputs
 inline const uint32_t FEE_PER_DA_GAS_SELECTOR = START_SIDE_EFFECT_COUNTER + 1;
 inline const uint32_t FEE_PER_L2_GAS_SELECTOR = FEE_PER_DA_GAS_SELECTOR + 1;
 inline const uint32_t TRANSACTION_FEE_SELECTOR = FEE_PER_L2_GAS_SELECTOR + 1;

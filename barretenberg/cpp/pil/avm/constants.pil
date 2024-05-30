@@ -21,6 +21,7 @@ namespace constants(256);
     pol START_SIDE_EFFECT_COUNTER = 37;
 
     // Gas
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6715): This has since moved into the global variables
     pol FEE_PER_DA_GAS_SELECTOR = 38;
     pol FEE_PER_L2_GAS_SELECTOR = 39;
 
