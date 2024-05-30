@@ -248,6 +248,14 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_conversion_radix);
     commitments.avm_conversion_to_radix_le_sel =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_conversion_to_radix_le_sel);
+    commitments.avm_keccakf1600_clk =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_keccakf1600_clk);
+    commitments.avm_keccakf1600_input =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_keccakf1600_input);
+    commitments.avm_keccakf1600_keccakf1600_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_keccakf1600_keccakf1600_sel);
+    commitments.avm_keccakf1600_output =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_keccakf1600_output);
     commitments.avm_kernel_emit_l2_to_l1_msg_write_offset = transcript->template receive_from_prover<Commitment>(
         commitment_labels.avm_kernel_emit_l2_to_l1_msg_write_offset);
     commitments.avm_kernel_emit_note_hash_write_offset =
@@ -394,6 +402,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fee_per_da_gas);
     commitments.avm_main_sel_op_fee_per_l2_gas =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fee_per_l2_gas);
+    commitments.avm_main_sel_op_keccak =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_keccak);
     commitments.avm_main_sel_op_l1_to_l2_msg_exists =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_l1_to_l2_msg_exists);
     commitments.avm_main_sel_op_lt =

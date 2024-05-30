@@ -8,13 +8,13 @@
 #include "avm_instructions.hpp"
 #include "avm_mem_trace.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/relations/generated/avm/avm_main.hpp"
+#include "barretenberg/vm/avm_trace/avm_kernel_trace.hpp"
 #include "barretenberg/vm/avm_trace/gadgets/avm_conversion_trace.hpp"
+#include "barretenberg/vm/avm_trace/gadgets/avm_keccak.hpp"
 #include "barretenberg/vm/avm_trace/gadgets/avm_poseidon2.hpp"
 #include "barretenberg/vm/avm_trace/gadgets/avm_sha256.hpp"
 #include "constants.hpp"
-
-#include "barretenberg/relations/generated/avm/avm_main.hpp"
-#include "barretenberg/vm/avm_trace/avm_kernel_trace.hpp"
 
 namespace bb::avm_trace {
 
@@ -155,6 +155,10 @@ class AvmTraceBuilder {
     void op_sha256_compression(uint8_t indirect, uint32_t output_offset, uint32_t h_init_offset, uint32_t input_offset);
     // Poseidon2 Permutation operation
     void op_poseidon2_permutation(uint8_t indirect, uint32_t input_offset, uint32_t output_offset);
+    // Keccakf1600 operation - interface will likely change (e..g no input size offset)
+    void op_keccakf1600(uint8_t indirect, uint32_t output_offset, uint32_t input_offset, uint32_t input_size_offset);
+    // Keccak operation - temporary while we transition to keccakf1600
+    void op_keccak(uint8_t indirect, uint32_t output_offset, uint32_t input_offset, uint32_t input_size_offset);
 
   private:
     // Used for the standard indirect address resolution of three operands opcode.
@@ -177,6 +181,7 @@ class AvmTraceBuilder {
     AvmConversionTraceBuilder conversion_trace_builder;
     AvmSha256TraceBuilder sha256_trace_builder;
     AvmPoseidon2TraceBuilder poseidon2_trace_builder;
+    AvmKeccakTraceBuilder keccak_trace_builder;
 
     /**
      * @brief Create a kernel lookup opcode object

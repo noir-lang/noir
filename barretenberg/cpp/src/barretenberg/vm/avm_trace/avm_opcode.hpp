@@ -1,5 +1,7 @@
 #pragma once
 
+#include "barretenberg/common/log.hpp"
+#include "barretenberg/common/serialize.hpp"
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -107,6 +109,7 @@ enum class OpCode : uint8_t {
     TORADIXLE,
     // Future Gadgets -- pending changes in noir
     SHA256COMPRESSION,
+    KECCAKF1600, // Here for when we eventually support this
 
     // Sentinel
     LAST_OPCODE_SENTINEL,
@@ -124,7 +127,7 @@ std::string to_hex(T value)
 {
     std::ostringstream stream;
     auto num_bytes = static_cast<uint64_t>(sizeof(T));
-    uint64_t mask = (static_cast<uint64_t>(1) << (num_bytes * 8)) - 1;
+    auto mask = static_cast<uint64_t>((static_cast<uint128_t>(1) << (num_bytes * 8)) - 1);
     auto padding = static_cast<int>(num_bytes * 2);
     stream << std::setfill('0') << std::setw(padding) << std::hex << (value & mask);
     return stream.str();

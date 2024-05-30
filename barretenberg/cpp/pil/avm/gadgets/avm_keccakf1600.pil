@@ -1,0 +1,13 @@
+include "../avm_main.pil";
+
+namespace avm_keccakf1600(256);
+
+    pol commit clk;
+
+    // Selector for Keccak Permutation Operation
+    pol commit keccakf1600_sel;
+    keccakf1600_sel * (1 - keccakf1600_sel) = 0;
+
+    // These will all be arrays, but we just store the first element for permutation to the main trace for now
+    pol commit input;
+    pol commit output;

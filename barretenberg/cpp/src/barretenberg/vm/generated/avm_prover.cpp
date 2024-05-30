@@ -168,6 +168,10 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_conversion_num_limbs = commitment_key->commit(key->avm_conversion_num_limbs);
     witness_commitments.avm_conversion_radix = commitment_key->commit(key->avm_conversion_radix);
     witness_commitments.avm_conversion_to_radix_le_sel = commitment_key->commit(key->avm_conversion_to_radix_le_sel);
+    witness_commitments.avm_keccakf1600_clk = commitment_key->commit(key->avm_keccakf1600_clk);
+    witness_commitments.avm_keccakf1600_input = commitment_key->commit(key->avm_keccakf1600_input);
+    witness_commitments.avm_keccakf1600_keccakf1600_sel = commitment_key->commit(key->avm_keccakf1600_keccakf1600_sel);
+    witness_commitments.avm_keccakf1600_output = commitment_key->commit(key->avm_keccakf1600_output);
     witness_commitments.avm_kernel_emit_l2_to_l1_msg_write_offset =
         commitment_key->commit(key->avm_kernel_emit_l2_to_l1_msg_write_offset);
     witness_commitments.avm_kernel_emit_note_hash_write_offset =
@@ -263,6 +267,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_main_sel_op_fdiv = commitment_key->commit(key->avm_main_sel_op_fdiv);
     witness_commitments.avm_main_sel_op_fee_per_da_gas = commitment_key->commit(key->avm_main_sel_op_fee_per_da_gas);
     witness_commitments.avm_main_sel_op_fee_per_l2_gas = commitment_key->commit(key->avm_main_sel_op_fee_per_l2_gas);
+    witness_commitments.avm_main_sel_op_keccak = commitment_key->commit(key->avm_main_sel_op_keccak);
     witness_commitments.avm_main_sel_op_l1_to_l2_msg_exists =
         commitment_key->commit(key->avm_main_sel_op_l1_to_l2_msg_exists);
     witness_commitments.avm_main_sel_op_lt = commitment_key->commit(key->avm_main_sel_op_lt);
@@ -496,6 +501,11 @@ void AvmProver::execute_wire_commitments_round()
     transcript->send_to_verifier(commitment_labels.avm_conversion_radix, witness_commitments.avm_conversion_radix);
     transcript->send_to_verifier(commitment_labels.avm_conversion_to_radix_le_sel,
                                  witness_commitments.avm_conversion_to_radix_le_sel);
+    transcript->send_to_verifier(commitment_labels.avm_keccakf1600_clk, witness_commitments.avm_keccakf1600_clk);
+    transcript->send_to_verifier(commitment_labels.avm_keccakf1600_input, witness_commitments.avm_keccakf1600_input);
+    transcript->send_to_verifier(commitment_labels.avm_keccakf1600_keccakf1600_sel,
+                                 witness_commitments.avm_keccakf1600_keccakf1600_sel);
+    transcript->send_to_verifier(commitment_labels.avm_keccakf1600_output, witness_commitments.avm_keccakf1600_output);
     transcript->send_to_verifier(commitment_labels.avm_kernel_emit_l2_to_l1_msg_write_offset,
                                  witness_commitments.avm_kernel_emit_l2_to_l1_msg_write_offset);
     transcript->send_to_verifier(commitment_labels.avm_kernel_emit_note_hash_write_offset,
@@ -609,6 +619,7 @@ void AvmProver::execute_wire_commitments_round()
                                  witness_commitments.avm_main_sel_op_fee_per_da_gas);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_fee_per_l2_gas,
                                  witness_commitments.avm_main_sel_op_fee_per_l2_gas);
+    transcript->send_to_verifier(commitment_labels.avm_main_sel_op_keccak, witness_commitments.avm_main_sel_op_keccak);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_l1_to_l2_msg_exists,
                                  witness_commitments.avm_main_sel_op_l1_to_l2_msg_exists);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_lt, witness_commitments.avm_main_sel_op_lt);

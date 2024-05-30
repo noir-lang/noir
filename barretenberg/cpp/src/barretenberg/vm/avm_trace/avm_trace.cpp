@@ -1999,18 +1999,22 @@ void AvmTraceBuilder::read_slice_to_memory(uint8_t space_id,
                 main_row.avm_main_ia = slice.at(offset);
                 main_row.avm_main_mem_idx_a = FF(src_offset + offset);
                 main_row.avm_main_mem_op_a = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
             } else if (j == 1) {
                 main_row.avm_main_ib = slice.at(offset);
                 main_row.avm_main_mem_idx_b = FF(src_offset + offset);
                 main_row.avm_main_mem_op_b = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
             } else if (j == 2) {
                 main_row.avm_main_ic = slice.at(offset);
                 main_row.avm_main_mem_idx_c = FF(src_offset + offset);
                 main_row.avm_main_mem_op_c = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
             } else {
                 main_row.avm_main_id = slice.at(offset);
                 main_row.avm_main_mem_idx_d = FF(src_offset + offset);
                 main_row.avm_main_mem_op_d = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
             }
         }
         main_trace.emplace_back(main_row);
@@ -2282,6 +2286,255 @@ void AvmTraceBuilder::op_poseidon2_permutation(uint8_t indirect, uint32_t input_
         call_ptr, clk, direct_dst_offset, AvmMemoryTag::FF, AvmMemoryTag::FF, FF(internal_return_ptr), ff_result);
 }
 
+/**
+ * @brief Keccakf1600  with direct or indirect memory access.
+ * This function temporarily has the same interface as the kecccak opcode for compatibility, when the keccak migration
+ * is complete (to keccakf1600) We will update this function call as we will not likely need input_size_offset
+ * @param indirect byte encoding information about indirect/direct memory access.
+ * @param output_offset An index in memory pointing to where the first u64 value of the output array should be stored.
+ * @param input_offset An index in memory pointing to the first u64 value of the input array to be used in the next
+ * instance of poseidon2 permutation.
+ * @param input_size offset An index in memory pointing to the size of the input array. Temporary while we maintain the
+ * same interface as keccak (this is fixed to 25)
+ */
+void AvmTraceBuilder::op_keccakf1600(uint8_t indirect,
+                                     uint32_t output_offset,
+                                     uint32_t input_offset,
+                                     uint32_t input_size_offset)
+{
+    // What happens if the input_size_offset is > 25 when the state is more that that?
+    auto clk = static_cast<uint32_t>(main_trace.size());
+    // bool tag_match = res.tag_match;
+    bool tag_match = true;
+    uint32_t direct_src_offset = input_offset;
+    uint32_t direct_dst_offset = output_offset;
+
+    bool indirect_src_flag = is_operand_indirect(indirect, 1);
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+
+    if (indirect_src_flag) {
+        auto read_ind_src =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, input_offset);
+        direct_src_offset = uint32_t(read_ind_src.val);
+        tag_match = tag_match && read_ind_src.tag_match;
+    }
+
+    if (indirect_dst_flag) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_C, output_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+
+    auto input_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_src_offset, AvmMemoryTag::U64, AvmMemoryTag::U64);
+    auto output_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IC, direct_dst_offset, AvmMemoryTag::U64, AvmMemoryTag::U64);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = input_read.val,  // First element of input
+        .avm_main_ic = output_read.val, // First element of output
+        .avm_main_ind_a = indirect_src_flag ? FF(input_offset) : FF(0),
+        .avm_main_ind_c = indirect_dst_flag ? FF(output_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_src_flag)),
+        .avm_main_ind_op_c = FF(static_cast<uint32_t>(indirect_dst_flag)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_src_offset), // input
+        .avm_main_mem_idx_c = FF(direct_dst_offset), // output
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U64)),
+        .avm_main_sel_op_keccak = FF(1),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U64)),
+    });
+    // We store the current clk this main trace row occurred so that we can line up the keccak gadget operation
+    // at the same clk later.
+    auto keccak_op_clk = clk;
+    // We need to increment the clk
+    clk++;
+    auto input_length_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, input_size_offset, AvmMemoryTag::U32, AvmMemoryTag::U32);
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ib = input_length_read.val, // Message Length
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_b = FF(input_size_offset), // length
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+    });
+    clk++;
+    // Array input is fixed to 1600 bits
+    std::array<uint64_t, 25> input;
+    // Check if the input size is greater than 25
+    ASSERT(input.size() <= 25);
+    // Read results are written to input array
+    read_slice_to_memory<uint64_t, 25>(
+        call_ptr, clk, direct_src_offset, AvmMemoryTag::U64, AvmMemoryTag::U64, FF(internal_return_ptr), input);
+
+    // Increment the clock by 7 since (25 reads / 4 reads per row = 7)
+    clk += 7;
+
+    // Now that we have read all the values, we can perform the operation to get the resulting witness.
+    // Note: We use the keccak_op_clk to ensure that the keccakf1600 operation is performed at the same clock cycle as
+    // the main trace that has the selector
+    std::array<uint64_t, 25> result = keccak_trace_builder.keccakf1600(keccak_op_clk, input);
+    // We convert the results to field elements here
+    std::vector<FF> ff_result;
+    for (uint32_t i = 0; i < 25; i++) {
+        ff_result.emplace_back(result[i]);
+    }
+
+    // Write the result to memory after
+    write_slice_to_memory(
+        call_ptr, clk, direct_dst_offset, AvmMemoryTag::U64, AvmMemoryTag::U64, FF(internal_return_ptr), ff_result);
+}
+
+/**
+ * @brief Keccak  with direct or indirect memory access.
+ * Keccak is TEMPORARY while we wait for the transition to keccakf1600, so we do the minimal to store the result
+ * @param indirect byte encoding information about indirect/direct memory access.
+ * @param output_offset An index in memory pointing to where the first u8 value of the output array should be stored.
+ * @param input_offset An index in memory pointing to the first u8 value of the input array to be used in the next
+ * instance of poseidon2 permutation.
+ * @param input_size offset An index in memory pointing to the size of the input array.
+ */
+void AvmTraceBuilder::op_keccak(uint8_t indirect,
+                                uint32_t output_offset,
+                                uint32_t input_offset,
+                                uint32_t input_size_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size());
+    bool tag_match = true;
+    uint32_t direct_src_offset = input_offset;
+    uint32_t direct_dst_offset = output_offset;
+
+    bool indirect_src_flag = is_operand_indirect(indirect, 1);
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+
+    if (indirect_src_flag) {
+        auto read_ind_src =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, input_offset);
+        direct_src_offset = uint32_t(read_ind_src.val);
+        tag_match = tag_match && read_ind_src.tag_match;
+    }
+
+    if (indirect_dst_flag) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_C, output_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+    // Note we load the input and output onto one line in the main trace and the length on the next line
+    // We do this so we can load two different AvmMemoryTags (u8 for the I/O and u32 for the length)
+    auto input_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_src_offset, AvmMemoryTag::U8, AvmMemoryTag::U8);
+    auto output_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IC, direct_dst_offset, AvmMemoryTag::U8, AvmMemoryTag::U8);
+
+    // Store the clock time that we will use to line up the gadget later
+    auto keccak_op_clk = clk;
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = input_read.val,  // First element of input
+        .avm_main_ic = output_read.val, // First element of output
+        .avm_main_ind_a = indirect_src_flag ? FF(input_offset) : FF(0),
+        .avm_main_ind_c = indirect_dst_flag ? FF(output_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_src_flag)),
+        .avm_main_ind_op_c = FF(static_cast<uint32_t>(indirect_dst_flag)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_src_offset), // input
+        .avm_main_mem_idx_c = FF(direct_dst_offset), // output
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+        .avm_main_sel_op_keccak = FF(1),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+    });
+    clk++;
+    auto input_length_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, input_size_offset, AvmMemoryTag::U32, AvmMemoryTag::U32);
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ib = input_length_read.val, // Message Length
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_b = FF(input_size_offset), // length
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+    });
+    clk++;
+
+    std::vector<uint8_t> input;
+    input.reserve(uint32_t(input_length_read.val));
+
+    // We unroll this loop because the function typically expects arrays and for this temporary keccak function we have
+    // a dynamic amount of input so we will use a vector.
+    auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
+    // If the slice size isnt a multiple of 4, we still need an extra row to write the remainder
+    uint32_t const num_main_rows = static_cast<uint32_t>(input_length_read.val) / 4 +
+                                   static_cast<uint32_t>(uint32_t(input_length_read.val) % 4 != 0);
+    for (uint32_t i = 0; i < num_main_rows; i++) {
+        Row main_row{
+            .avm_main_clk = clk + i,
+            .avm_main_internal_return_ptr = FF(internal_return_ptr),
+            .avm_main_pc = FF(pc),
+            .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+            .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+        };
+        // Write 4 values to memory in each_row
+        for (uint32_t j = 0; j < 4; j++) {
+            auto offset = i * 4 + j;
+            // If we exceed the slice size, we break
+            if (offset >= uint32_t(input_length_read.val)) {
+                break;
+            }
+            auto mem_read = mem_trace_builder.read_and_load_from_memory(
+                call_ptr, clk + i, register_order[j], direct_src_offset + offset, AvmMemoryTag::U8, AvmMemoryTag::U8);
+            input.emplace_back(uint8_t(mem_read.val));
+            // This looks a bit gross, but it is fine for now.
+            if (j == 0) {
+                main_row.avm_main_ia = input.at(offset);
+                main_row.avm_main_mem_idx_a = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_a = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            } else if (j == 1) {
+                main_row.avm_main_ib = input.at(offset);
+                main_row.avm_main_mem_idx_b = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_b = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            } else if (j == 2) {
+                main_row.avm_main_ic = input.at(offset);
+                main_row.avm_main_mem_idx_c = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_c = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            } else {
+                main_row.avm_main_id = input.at(offset);
+                main_row.avm_main_mem_idx_d = FF(direct_src_offset + offset);
+                main_row.avm_main_mem_op_d = FF(1);
+                main_row.avm_main_tag_err = FF(static_cast<uint32_t>(!mem_read.tag_match));
+            }
+        }
+        main_trace.emplace_back(main_row);
+    }
+
+    clk += num_main_rows;
+
+    std::array<uint8_t, 32> result = keccak_trace_builder.keccak(keccak_op_clk, input, uint32_t(input_length_read.val));
+    // We convert the results to field elements here
+    std::vector<FF> ff_result;
+    for (uint32_t i = 0; i < 32; i++) {
+        ff_result.emplace_back(result[i]);
+    }
+    // Write the result to memory after
+    write_slice_to_memory(
+        call_ptr, clk, direct_dst_offset, AvmMemoryTag::U8, AvmMemoryTag::U8, FF(internal_return_ptr), ff_result);
+}
 // Finalise Lookup Counts
 //
 // For log derivative lookups, we require a column that contains the number of times each lookup is consumed
@@ -2407,6 +2660,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     auto conv_trace = conversion_trace_builder.finalize();
     auto sha256_trace = sha256_trace_builder.finalize();
     auto poseidon2_trace = poseidon2_trace_builder.finalize();
+    auto keccak_trace = keccak_trace_builder.finalize();
     auto bin_trace = bin_trace_builder.finalize();
     size_t mem_trace_size = mem_trace.size();
     size_t main_trace_size = main_trace.size();
@@ -2414,6 +2668,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     size_t conv_trace_size = conv_trace.size();
     size_t sha256_trace_size = sha256_trace.size();
     size_t poseidon2_trace_size = poseidon2_trace.size();
+    size_t keccak_trace_size = keccak_trace.size();
     size_t bin_trace_size = bin_trace.size();
 
     // Get tag_err counts from the mem_trace_builder
@@ -2790,7 +3045,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         dest.avm_sha256_sha256_compression_sel = FF(1);
         dest.avm_sha256_state = src.state[0];
     }
-    //
+
     // Add Poseidon2 Gadget table
     for (size_t i = 0; i < poseidon2_trace_size; i++) {
         auto const& src = poseidon2_trace.at(i);
@@ -2800,6 +3055,17 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         // TODO: This will need to be enabled later
         // dest.avm_poseidon2_output = src.output[0];
         dest.avm_poseidon2_poseidon_perm_sel = FF(1);
+    }
+
+    // Add KeccakF1600 Gadget table
+    for (size_t i = 0; i < keccak_trace_size; i++) {
+        auto const& src = keccak_trace.at(i);
+        auto& dest = main_trace.at(i);
+        dest.avm_keccakf1600_clk = FF(src.clk);
+        dest.avm_keccakf1600_input = FF(src.input[0]);
+        // TODO: This will need to be enabled later
+        // dest.avm_keccakf1600_output = src.output[0];
+        dest.avm_keccakf1600_keccakf1600_sel = FF(1);
     }
 
     // Add Binary Trace table

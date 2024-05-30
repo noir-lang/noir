@@ -112,6 +112,10 @@
     [[maybe_unused]] auto avm_conversion_num_limbs = View(new_term.avm_conversion_num_limbs);                          \
     [[maybe_unused]] auto avm_conversion_radix = View(new_term.avm_conversion_radix);                                  \
     [[maybe_unused]] auto avm_conversion_to_radix_le_sel = View(new_term.avm_conversion_to_radix_le_sel);              \
+    [[maybe_unused]] auto avm_keccakf1600_clk = View(new_term.avm_keccakf1600_clk);                                    \
+    [[maybe_unused]] auto avm_keccakf1600_input = View(new_term.avm_keccakf1600_input);                                \
+    [[maybe_unused]] auto avm_keccakf1600_keccakf1600_sel = View(new_term.avm_keccakf1600_keccakf1600_sel);            \
+    [[maybe_unused]] auto avm_keccakf1600_output = View(new_term.avm_keccakf1600_output);                              \
     [[maybe_unused]] auto avm_kernel_emit_l2_to_l1_msg_write_offset =                                                  \
         View(new_term.avm_kernel_emit_l2_to_l1_msg_write_offset);                                                      \
     [[maybe_unused]] auto avm_kernel_emit_note_hash_write_offset =                                                     \
@@ -204,6 +208,7 @@
     [[maybe_unused]] auto avm_main_sel_op_fdiv = View(new_term.avm_main_sel_op_fdiv);                                  \
     [[maybe_unused]] auto avm_main_sel_op_fee_per_da_gas = View(new_term.avm_main_sel_op_fee_per_da_gas);              \
     [[maybe_unused]] auto avm_main_sel_op_fee_per_l2_gas = View(new_term.avm_main_sel_op_fee_per_l2_gas);              \
+    [[maybe_unused]] auto avm_main_sel_op_keccak = View(new_term.avm_main_sel_op_keccak);                              \
     [[maybe_unused]] auto avm_main_sel_op_l1_to_l2_msg_exists = View(new_term.avm_main_sel_op_l1_to_l2_msg_exists);    \
     [[maybe_unused]] auto avm_main_sel_op_lt = View(new_term.avm_main_sel_op_lt);                                      \
     [[maybe_unused]] auto avm_main_sel_op_lte = View(new_term.avm_main_sel_op_lte);                                    \
