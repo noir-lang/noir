@@ -1,7 +1,7 @@
-mod context;
+pub mod context;
 mod dap;
 pub mod errors;
-mod foreign_calls;
+pub mod foreign_calls;
 mod repl;
 mod source_code_printer;
 

@@ -3063,6 +3063,7 @@ dependencies = [
  "fm",
  "fs2",
  "fxhash",
+ "hex",
  "iai",
  "iter-extended",
  "lazy_static",
@@ -3073,6 +3074,7 @@ dependencies = [
  "noir_artifact_cli",
  "noir_debugger",
  "noir_lsp",
+ "noir_tracer",
  "noirc_abi",
  "noirc_artifacts",
  "noirc_artifacts_info",
@@ -3322,6 +3324,16 @@ version = "1.0.0-beta.3"
 dependencies = [
  "color-eyre",
  "prost",
+]
+
+[[package]]
+name = "noir_tracer"
+version = "1.0.0-beta.3"
+dependencies = [
+ "acvm",
+ "nargo",
+ "noir_debugger",
+ "noirc_artifacts",
 ]
 
 [[package]]

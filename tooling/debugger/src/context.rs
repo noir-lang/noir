@@ -220,7 +220,7 @@ impl std::str::FromStr for DebugLocation {
 }
 
 #[derive(Debug)]
-pub(super) enum DebugCommandResult {
+pub enum DebugCommandResult {
     Done,
     Ok,
     BreakpointReached(DebugLocation),
@@ -232,7 +232,7 @@ pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     acvm: ACVM<'a, FieldElement, B>,
 }
 
-pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
+pub struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     pub(crate) acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
@@ -254,7 +254,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
-    pub(super) fn new(
+    pub fn new(
         blackbox_solver: &'a B,
         circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
@@ -309,7 +309,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.acvm.overwrite_witness(witness, value)
     }
 
-    pub(super) fn get_current_debug_location(&self) -> Option<DebugLocation> {
+    pub fn get_current_debug_location(&self) -> Option<DebugLocation> {
         let ip = self.acvm.instruction_pointer();
         if ip >= self.get_opcodes().len() {
             None
@@ -719,7 +719,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     /// Steps debugging execution until the next source location
-    pub(super) fn next_into(&mut self) -> DebugCommandResult {
+    pub fn next_into(&mut self) -> DebugCommandResult {
         let start_location = self.get_current_source_location();
         loop {
             let result = self.step_into_opcode();
@@ -852,7 +852,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.breakpoints.clear();
     }
 
-    pub(super) fn is_solved(&self) -> bool {
+    pub fn is_solved(&self) -> bool {
         matches!(self.acvm.get_status(), ACVMStatus::Solved)
     }
 

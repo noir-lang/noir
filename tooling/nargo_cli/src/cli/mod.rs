@@ -27,6 +27,8 @@ mod init_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
+mod trace_cmd;
+mod fs;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -102,6 +104,7 @@ enum NargoCommand {
     Export(export_cmd::ExportCommand),
     Debug(debug_cmd::DebugCommand),
     Test(test_cmd::TestCommand),
+    Trace(trace_cmd::TraceCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
@@ -143,6 +146,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
         NargoCommand::Test(args) => with_workspace(args, config, test_cmd::run),
+        NargoCommand::Trace(args) => trace_cmd::run(args, config),
         NargoCommand::Info(args) => with_workspace(args, config, info_cmd::run),
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),

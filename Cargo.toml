@@ -14,6 +14,7 @@ members = [
     "tooling/lsp",
     "tooling/debugger",
     "tooling/fuzzer",
+    "tooling/tracer",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -91,6 +92,7 @@ nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
+noir_tracer = { path = "tooling/tracer" }
 noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
