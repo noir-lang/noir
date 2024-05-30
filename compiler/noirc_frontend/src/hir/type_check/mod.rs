@@ -12,12 +12,11 @@ mod expr;
 mod stmt;
 
 pub use errors::TypeCheckError;
-use noirc_errors::Span;
 
 use crate::{
     hir_def::{
         expr::HirExpression,
-        function::{Param, Parameters},
+        function::{FuncMeta, Param},
         stmt::HirStatement,
         traits::TraitConstraint,
     },
@@ -288,8 +287,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             &declaration_type,
             definition_type,
             method_name,
-            &meta.parameters,
-            meta.name.location.span,
+            meta,
             &trait_info.name.0.contents,
             &interner.arith_constraints,
             &mut errors,
@@ -303,12 +301,14 @@ fn check_function_type_matches_expected_type(
     expected: &Type,
     actual: &Type,
     method_name: &str,
-    actual_parameters: &Parameters,
-    span: Span,
+    func_meta: &FuncMeta,
     trait_name: &str,
     arith_constraints: &ArithConstraints,
     errors: &mut Vec<TypeCheckError>,
 ) {
+    let actual_parameters = &func_meta.parameters;
+    let span = func_meta.name.location.span;
+
     let mut bindings = TypeBindings::new();
     // Shouldn't need to unify envs, they should always be equal since they're both free functions
     if let (Type::Function(params_a, ret_a, _env_a), Type::Function(params_b, ret_b, _env_b)) =

@@ -122,6 +122,10 @@ fn main() {
     //
     // assert(tail([1,2,3]) == [2, 3]);
 
+    // it also fails when using turbofish 
+    //
+    // assert(tail::<Field, 3>([1,2,3]) == [2, 3]);
+
     let wrapped_array = WrappedArray { inner: [1,2,3] };
     let result: (Field, WrappedArray<Field, 2>) = wrapped_array.split_first();
     let expected_result: (Field, WrappedArray<Field, 2>) = (1, WrappedArray { inner: [2, 3] });

@@ -1242,26 +1242,28 @@ impl Type {
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-                    // TODO: reduce copy/paste, see below
-                    match other {
-                        Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> =
-                                format!("#implicit_var({:?})", var).into();
-                            let rhs_expr =
-                                ArithExpr::Variable(var.clone(), name, Default::default());
-                            let rhs = rhs_expr.to_id();
-                            let rhs_generics = vec![];
+                    other.try_unify_arith_generic_to_type_variable(var, arith_constraints);
 
-                            arith_constraints.borrow_mut().push(ArithConstraint {
-                                lhs: *lhs,
-                                lhs_generics: lhs_generics.to_vec(),
-                                rhs,
-                                rhs_generics,
-                                needs_interning: NeedsInterning::Rhs(rhs_expr),
-                            });
-                        }
-                        _ => (),
-                    }
+                    // // TODO: reduce copy/paste, see below
+                    // match other {
+                    //     Self::GenericArith(lhs, lhs_generics) => {
+                    //         let name: Rc<std::string::String> =
+                    //             format!("#implicit_var({:?})", var).into();
+                    //         let rhs_expr =
+                    //             ArithExpr::Variable(var.clone(), name, Default::default());
+                    //         let rhs = rhs_expr.to_id();
+                    //         let rhs_generics = vec![];
+                    //
+                    //         arith_constraints.borrow_mut().push(ArithConstraint {
+                    //             lhs: *lhs,
+                    //             lhs_generics: lhs_generics.to_vec(),
+                    //             rhs,
+                    //             rhs_generics,
+                    //             needs_interning: NeedsInterning::Rhs(rhs_expr),
+                    //         });
+                    //     }
+                    //     _ => (),
+                    // }
 
                     let only_integer = false;
                     other.try_bind_to_polymorphic_int(var, bindings, only_integer)
@@ -1271,26 +1273,28 @@ impl Type {
             (TypeVariable(var, Kind::Integer), other)
             | (other, TypeVariable(var, Kind::Integer)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-                    // TODO: reduce copy/paste, see below and above
-                    match other {
-                        Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> =
-                                format!("#implicit_var({:?})", var).into();
-                            let rhs_expr =
-                                ArithExpr::Variable(var.clone(), name, Default::default());
-                            let rhs = rhs_expr.to_id();
-                            let rhs_generics = vec![];
+                    other.try_unify_arith_generic_to_type_variable(var, arith_constraints);
 
-                            arith_constraints.borrow_mut().push(ArithConstraint {
-                                lhs: *lhs,
-                                lhs_generics: lhs_generics.to_vec(),
-                                rhs,
-                                rhs_generics,
-                                needs_interning: NeedsInterning::Rhs(rhs_expr),
-                            });
-                        }
-                        _ => (),
-                    }
+                    // // TODO: reduce copy/paste, see below and above
+                    // match other {
+                    //     Self::GenericArith(lhs, lhs_generics) => {
+                    //         let name: Rc<std::string::String> =
+                    //             format!("#implicit_var({:?})", var).into();
+                    //         let rhs_expr =
+                    //             ArithExpr::Variable(var.clone(), name, Default::default());
+                    //         let rhs = rhs_expr.to_id();
+                    //         let rhs_generics = vec![];
+                    //
+                    //         arith_constraints.borrow_mut().push(ArithConstraint {
+                    //             lhs: *lhs,
+                    //             lhs_generics: lhs_generics.to_vec(),
+                    //             rhs,
+                    //             rhs_generics,
+                    //             needs_interning: NeedsInterning::Rhs(rhs_expr),
+                    //         });
+                    //     }
+                    //     _ => (),
+                    // }
 
                     let only_integer = true;
                     other.try_bind_to_polymorphic_int(var, bindings, only_integer)
@@ -1299,26 +1303,28 @@ impl Type {
 
             (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-                    // TODO: reduce copy/paste, see above
-                    match other {
-                        Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> =
-                                format!("#implicit_var({:?})", var).into();
-                            let rhs_expr =
-                                ArithExpr::Variable(var.clone(), name, Default::default());
-                            let rhs = rhs_expr.to_id();
-                            let rhs_generics = vec![];
+                    other.try_unify_arith_generic_to_type_variable(var, arith_constraints);
 
-                            arith_constraints.borrow_mut().push(ArithConstraint {
-                                lhs: *lhs,
-                                lhs_generics: lhs_generics.to_vec(),
-                                rhs,
-                                rhs_generics,
-                                needs_interning: NeedsInterning::Rhs(rhs_expr),
-                            });
-                        }
-                        _ => (),
-                    }
+                    // // TODO: reduce copy/paste, see above
+                    // match other {
+                    //     Self::GenericArith(lhs, lhs_generics) => {
+                    //         let name: Rc<std::string::String> =
+                    //             format!("#implicit_var({:?})", var).into();
+                    //         let rhs_expr =
+                    //             ArithExpr::Variable(var.clone(), name, Default::default());
+                    //         let rhs = rhs_expr.to_id();
+                    //         let rhs_generics = vec![];
+                    //
+                    //         arith_constraints.borrow_mut().push(ArithConstraint {
+                    //             lhs: *lhs,
+                    //             lhs_generics: lhs_generics.to_vec(),
+                    //             rhs,
+                    //             rhs_generics,
+                    //             needs_interning: NeedsInterning::Rhs(rhs_expr),
+                    //         });
+                    //     }
+                    //     _ => (),
+                    // }
 
                     other.try_bind_to(var, bindings)
                 })
@@ -1327,26 +1333,28 @@ impl Type {
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
                 .try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-                    // TODO: reduce copy/paste, see above
-                    match other {
-                        Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> =
-                                format!("#implicit_var({:?})", var).into();
-                            let rhs_expr =
-                                ArithExpr::Variable(var.clone(), name, Default::default());
-                            let rhs = rhs_expr.to_id();
-                            let rhs_generics = vec![];
+                    other.try_unify_arith_generic_to_type_variable(var, arith_constraints);
 
-                            arith_constraints.borrow_mut().push(ArithConstraint {
-                                lhs: *lhs,
-                                lhs_generics: lhs_generics.to_vec(),
-                                rhs,
-                                rhs_generics,
-                                needs_interning: NeedsInterning::Rhs(rhs_expr),
-                            });
-                        }
-                        _ => (),
-                    }
+                    // // TODO: reduce copy/paste, see above
+                    // match other {
+                    //     Self::GenericArith(lhs, lhs_generics) => {
+                    //         let name: Rc<std::string::String> =
+                    //             format!("#implicit_var({:?})", var).into();
+                    //         let rhs_expr =
+                    //             ArithExpr::Variable(var.clone(), name, Default::default());
+                    //         let rhs = rhs_expr.to_id();
+                    //         let rhs_generics = vec![];
+                    //
+                    //         arith_constraints.borrow_mut().push(ArithConstraint {
+                    //             lhs: *lhs,
+                    //             lhs_generics: lhs_generics.to_vec(),
+                    //             rhs,
+                    //             rhs_generics,
+                    //             needs_interning: NeedsInterning::Rhs(rhs_expr),
+                    //         });
+                    //     }
+                    //     _ => (),
+                    // }
 
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
@@ -1487,6 +1495,25 @@ impl Type {
         }
     }
 
+    fn try_unify_arith_generic_to_type_variable(&self, var: &TypeVariable, arith_constraints: &ArithConstraints) {
+        if let Self::GenericArith(lhs, lhs_generics) = self {
+            let name: Rc<std::string::String> =
+                format!("#implicit_var({:?})", var).into();
+            let rhs_expr =
+                ArithExpr::Variable(var.clone(), name, Default::default());
+            let rhs = rhs_expr.to_id();
+            let rhs_generics = vec![];
+
+            arith_constraints.borrow_mut().push(ArithConstraint {
+                lhs: *lhs,
+                lhs_generics: lhs_generics.to_vec(),
+                rhs,
+                rhs_generics,
+                needs_interning: NeedsInterning::Rhs(rhs_expr),
+            });
+        }
+    }
+
     /// Try to unify a type variable to `self`.
     /// This is a helper function factored out from try_unify.
     fn try_unify_to_type_variable(
@@ -1597,7 +1624,7 @@ impl Type {
                 let (expr, location) = interner.get_arith_expression(*arith_id);
                 let generics =
                     ArithConstraint::evaluate_generics_to_u64(generics, location, interner)?;
-                expr.evaluate(&generics)
+                expr.evaluate(interner, &generics)
             }
             unexpected_type => {
                 Err(ArithExprError::EvaluateUnexpectedType { unexpected_type: unexpected_type.clone() })

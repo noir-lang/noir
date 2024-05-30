@@ -193,11 +193,11 @@ pub enum ArithId {
 // TODO: relocate
 // TODO: rename
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Default)]
-pub struct GenericIndex(usize);
+pub struct ArithGenericId(usize);
 
-impl GenericIndex {
+impl ArithGenericId {
     fn offset(&self, offset_amount: usize) -> Self {
-        GenericIndex(self.0 + offset_amount)
+        ArithGenericId(self.0 + offset_amount)
     }
 }
 
@@ -206,7 +206,7 @@ impl GenericIndex {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ArithExpr {
     Op { kind: ArithOpKind, lhs: Box<ArithExpr>, rhs: Box<ArithExpr> },
-    Variable(TypeVariable, Rc<String>, GenericIndex),
+    Variable(TypeVariable, Rc<String>, ArithGenericId),
     Constant(u64),
 }
 
@@ -218,16 +218,24 @@ impl ArithExpr {
         }
     }
 
-    // TODO: replace HashMap with a Vec
-    pub fn evaluate(&self, arguments: &HashMap<GenericIndex, u64>) -> Result<u64, ArithExprError> {
+    pub fn evaluate(&self, interner: &NodeInterner, arguments: &Vec<(u64, Type)>) -> Result<u64, ArithExprError> {
         match self {
             Self::Op { kind, lhs, rhs } => {
-                let lhs = lhs.evaluate(arguments)?;
-                let rhs = rhs.evaluate(arguments)?;
+                let lhs = lhs.evaluate(interner, arguments)?;
+                let rhs = rhs.evaluate(interner, arguments)?;
                 kind.evaluate(lhs, rhs)
             }
             Self::Variable(binding, name, index) => {
-                if let Some(result) = arguments.get(index) {
+                if let Some((result, other_var)) = arguments.get(index.0) {
+
+                    let mut fresh_bindings = TypeBindings::new();
+                    assert!(Type::NamedGeneric(binding.clone(), name.clone())
+                        .try_unify(
+                            other_var,
+                            &mut fresh_bindings,
+                            &interner.arith_constraints,
+                        ).is_ok());
+
                     Ok(*result)
                 } else {
                     Err(ArithExprError::UnboundVariable {
@@ -268,7 +276,7 @@ impl ArithExpr {
                     Type::TypeVariable(_new_binding, TypeVariableKind::Constant(value)) => (Self::Constant(value), vec![]),
                     Type::TypeVariable(new_binding, kind) => {
                         let new_name = format!("#implicit_var_{:?}_{:?}", new_binding, kind);
-                        let new_index = GenericIndex(*offset_amount);
+                        let new_index = ArithGenericId(*offset_amount);
                         *offset_amount += 1;
                         (Self::Variable(new_binding.clone(), new_name.into(), new_index), vec![Type::TypeVariable(new_binding, kind)])
                     }
@@ -285,8 +293,8 @@ impl ArithExpr {
         F: FnMut(
             &TypeVariable,
             &Rc<String>,
-            GenericIndex,
-        ) -> (TypeVariable, Rc<String>, GenericIndex),
+            ArithGenericId,
+        ) -> (TypeVariable, Rc<String>, ArithGenericId),
     {
         match self {
             Self::Op { kind, lhs, rhs } => {
@@ -332,6 +340,19 @@ impl ArithExpr {
         }
     }
 
+    /// Replace `TypeVariable`s`in Self::Variable with the given Type::TypeVariable's,
+    /// indexed by `ArithGenericId``
+    fn impute_variables(&self, generics: &[Type]) -> Self {
+        self.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: ArithGenericId| {
+            let new_var = generics
+                .get(index.0)
+                .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
+                .get_outer_type_variable()
+                .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
+            (new_var, name.clone(), index)
+        })
+    }
+
     pub(crate) fn to_id(&self) -> ArithId {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
@@ -352,7 +373,7 @@ impl ArithExpr {
         }
     }
 
-    pub(crate) fn max_generic_index(&self) -> GenericIndex {
+    pub(crate) fn max_generic_index(&self) -> ArithGenericId {
         match self {
             Self::Op { lhs, rhs, .. } => {
                 let lhs_max = lhs.max_generic_index();
@@ -360,7 +381,7 @@ impl ArithExpr {
                 std::cmp::max(lhs_max, rhs_max)
             }
             Self::Variable(_binding, _name, index) => *index,
-            Self::Constant(_result) => GenericIndex::default(),
+            Self::Constant(_result) => ArithGenericId::default(),
         }
     }
 }
@@ -478,30 +499,23 @@ pub struct ArithConstraint {
 }
 
 impl ArithConstraint {
-    // TODO: relocate to ArithExpr
     pub(crate) fn evaluate_generics_to_u64(
-        generics: &Vec<Type>,
+        generics: &[Type],
         location: &Location,
         interner: &NodeInterner,
-    ) -> Result<HashMap<GenericIndex, u64>, ArithExprError> {
-        // TODO: put the inner type variable in as well and unify once it's looked up to ensure
-        // they match
+    ) -> Result<Vec<(u64, Type)>, ArithExprError> {
         generics
             .iter()
-            .enumerate()
-            .map(|(index, generic)| {
+            .cloned()
+            .map(|generic| {
                 generic
                     .evaluate_to_u64(location, interner)
-                    .map(|result| (GenericIndex(index), result))
+                    .map(|result| (result, generic))
             })
-            .collect::<Result<HashMap<_, _>, _>>()
+            .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn validate(&self, interner: &NodeInterner) -> Result<(), ArithConstraintError> {
-        // TODO: cleanup
-        dbg!("validating", self);
-
-        // TODO: so many clones needed? (get_arith_expression returns a reference)
+    pub fn validate(self, interner: &NodeInterner) -> Result<(), ArithConstraintError> {
         let (lhs, rhs) = match &self.needs_interning {
             NeedsInterning::Lhs(lhs_expr) => (
                 (lhs_expr.clone(), Location::dummy()),
@@ -519,8 +533,6 @@ impl ArithConstraint {
         let (lhs_expr, lhs_location) = lhs;
         let (rhs_expr, rhs_location) = rhs;
 
-        dbg!("validating: pre-follow_bindings", &lhs_expr, &rhs_expr);
-
         // follow NamedGeneric bindings
         let mut current_generic_index_offset = 0;
         let (lhs_expr, lhs_new_generics) =
@@ -529,15 +541,11 @@ impl ArithConstraint {
             rhs_expr.follow_bindings(interner, &mut current_generic_index_offset);
         rhs_expr.offset_generic_indices(lhs_new_generics.len());
 
-        // TODO: remove cloned
         let lhs_generics: Vec<_> =
-            self.lhs_generics.iter().cloned().chain(lhs_new_generics).collect();
+            self.lhs_generics.into_iter().chain(lhs_new_generics).collect();
         let rhs_generics: Vec<_> =
-            self.rhs_generics.iter().cloned().chain(rhs_new_generics).collect();
+            self.rhs_generics.into_iter().chain(rhs_new_generics).collect();
 
-        dbg!("validating: post-follow_bindings", &lhs_expr, &rhs_expr);
-
-        dbg!("validating: loading", &self.lhs_generics, &self.rhs_generics);
         match Self::evaluate_generics_to_u64(&lhs_generics, &lhs_location, interner).and_then(
             |lhs_generics| {
                 let rhs_generics =
@@ -547,10 +555,7 @@ impl ArithConstraint {
         ) {
             // all generics resolved
             Ok((lhs_generics, rhs_generics)) => {
-                // TODO: cleanup
-                dbg!("validating: loaded", &lhs_expr, &lhs_generics, &rhs_expr, &rhs_generics);
-
-                match (lhs_expr.evaluate(&lhs_generics), rhs_expr.evaluate(&rhs_generics)) {
+                match (lhs_expr.evaluate(interner, &lhs_generics), rhs_expr.evaluate(interner, &rhs_generics)) {
                     (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
                         if lhs_evaluated == rhs_evaluated {
                             // TODO: cleanup
@@ -575,66 +580,24 @@ impl ArithConstraint {
                 }
             }
             Err(arith_expr_error) => {
-                dbg!(
-                    "validating: fallback",
-                    &self.lhs_generics,
-                    &self.rhs_generics,
-                    &lhs_expr,
-                    &rhs_expr
-                );
-
-                // let mut fresh_bindings = type_bindings.clone();
                 let mut fresh_bindings = TypeBindings::new();
-
-                let generics_match = self
-                    .lhs_generics
+                let generics_match = lhs_generics
                     .iter()
-                    // TODO: remove clone?
-                    .zip(self.rhs_generics.clone())
+                    .zip(rhs_generics.iter())
                     .all(|(lhs_generic, rhs_generic)| {
-                        // TODO: are there bindings to instantiate for this type?
-                        // let rhs_generic = rhs_generic.substitute(&interner.instantiation_bindings);
                         lhs_generic
                             .try_unify(
-                                &rhs_generic,
+                                rhs_generic,
                                 &mut fresh_bindings,
                                 &interner.arith_constraints,
                             )
                             .is_ok()
                     });
-
                 Type::apply_type_bindings(fresh_bindings);
 
                 if generics_match {
-                    dbg!("generics_match");
-
-                    // get all generics from lhs, rhs
-                    //     - ensure that name overlaps iff typevariable overlaps
-
-                    // let id_to_generic: HashMap<GenericIndex, TypeVariable> =
-                    //     self.lhs_generics.iter().map(|lhs_generic| {
-                    //         let var = lhs_generic.get_outer_type_variable()
-                    //             .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
-                    //         (var.id(), var)
-                    //     }).collect();
-
-                    let lhs_expr = lhs_expr.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: GenericIndex| {
-                        let new_var = self.lhs_generics
-                            .get(index.0)
-                            .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
-                            .get_outer_type_variable()
-                            .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
-                        (new_var, name.clone(), index)
-                    }).nf();
-
-                    let rhs_expr = rhs_expr.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: GenericIndex| {
-                        let new_var = self.lhs_generics
-                            .get(index.0)
-                            .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
-                            .get_outer_type_variable()
-                            .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
-                        (new_var, name.clone(), index)
-                    }).nf();
+                    let lhs_expr = lhs_expr.impute_variables(&lhs_generics).nf();
+                    let rhs_expr = rhs_expr.impute_variables(&rhs_generics).nf();
 
                     if lhs_expr == rhs_expr {
                         Ok(())
@@ -642,7 +605,7 @@ impl ArithConstraint {
                         Err(ArithConstraintError::DistinctExpressions {
                             lhs_expr: lhs_expr.clone(),
                             rhs_expr: rhs_expr.clone(),
-                            generics: self.lhs_generics.clone(),
+                            generics: lhs_generics.clone(),
                             location: lhs_location,
                             other_location: rhs_location,
                         })
@@ -661,7 +624,7 @@ impl ArithConstraint {
 
 pub type ArithConstraints = RefCell<Vec<ArithConstraint>>;
 
-// TODO relocate/cleanup
+// TODO relocate
 #[derive(Debug, thiserror::Error)]
 pub enum ArithConstraintError {
     UnresolvedGeneric {

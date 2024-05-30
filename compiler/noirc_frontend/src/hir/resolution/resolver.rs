@@ -826,16 +826,13 @@ impl<'a> Resolver<'a> {
                         });
                         Type::Constant(0)
                     });
-                match var_or_constant {
-                    Type::NamedGeneric(ref binding, ref name) => {
-                        // we intern variables so that they can be resolved during trait resolution
-                        let arith_expr =
-                            ArithExpr::Variable(binding.clone(), name.clone(), Default::default());
-                        let location = Location { span: path.span, file: self.file };
-                        let _ = self.interner.push_arith_expression(arith_expr, location);
-                    }
-                    // expect Type::Constant's to be interned at their declarations
-                    _ => (),
+                if let Type::NamedGeneric(ref binding, ref name) = var_or_constant {
+                    // we intern variables so that they can be resolved during trait resolution
+                    // and otherwise expect Type::Constant's to be interned at their declarations
+                    let arith_expr =
+                        ArithExpr::Variable(binding.clone(), name.clone(), Default::default());
+                    let location = Location { span: path.span, file: self.file };
+                    let _ = self.interner.push_arith_expression(arith_expr, location);
                 }
 
                 var_or_constant
